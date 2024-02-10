@@ -27,13 +27,11 @@ export const MyMenuSide = () => {
 
   const MyauthRoutes = authRoutes;
   const params = usePathname() 
-  useEffect(() => {
     const useIsAuthRoute = () => {
       const myAuthRouteArray = MyauthRoutes.includes(params);
       setIsAuthRoute(myAuthRouteArray);
     };
     useIsAuthRoute();
-  }, [params])
 
   const onClick = () => {
     console.log(`${LOG_PREFIX} LOGOUT Client => LogoutMyAction()`)
