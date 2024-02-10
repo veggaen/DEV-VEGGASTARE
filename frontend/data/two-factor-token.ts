@@ -1,8 +1,8 @@
-import { db } from '@/lib/db'
+import { dbPrisma } from '@/lib/db'
 
 export const getTwoFactortokenByToken = async (token: string) => {
     try{
-        const twoFactorToken = await db.twoFactorToken.findUnique({
+        const twoFactorToken = await dbPrisma.twoFactorToken.findUnique({
             where: { token }
         })
 
@@ -14,7 +14,7 @@ export const getTwoFactortokenByToken = async (token: string) => {
 
 export const getTwoFactortokenByEmail = async (email: string) => {
     try{
-        const twoFactorToken = await db.twoFactorToken.findFirst({
+        const twoFactorToken = await dbPrisma.twoFactorToken.findFirst({
             where: { email }
         })
 

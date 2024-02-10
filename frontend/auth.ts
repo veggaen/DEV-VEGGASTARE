@@ -1,7 +1,8 @@
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
+import { MongoDBAdapter  } from "@auth/mongodb-adapter"
 
-import { db } from "@/lib/db"
+import { dbPrisma, dbMongo } from "@/lib/db"
 import authConfig from "@/auth.config"
 import { UserRole } from "@prisma/client"
 import { getUserById } from "@/data/user"
@@ -47,7 +48,7 @@ export const {
               console.log(`event.signOut.User details:`, existingUser);
 
                 // Find all accounts for the user with the same provider
-                const accounts = await db.account.findFirst({
+                const accounts = await dbPrisma.account.findFirst({
                   where: {
                     userId: existingUser?.id,
                   },
@@ -58,7 +59,7 @@ export const {
                 
                 // If there are more than one account entries for the provider, delete the oldest
                 if (accounts) {
-                  await db.account.delete({
+                  await dbPrisma.account.delete({
                     where: { id: accounts.id },
                   });
                   console.log(`Deleted account data form provider: ${accounts.provider}, AccountId: ${accounts.userId}`);
@@ -70,7 +71,7 @@ export const {
       },
       async linkAccount({ user, profile, account }){
 
-        await db.user.update({
+        await dbPrisma.user.update({
           where: { id: user?.id },
           data: {
             emailVerified: new Date(),
@@ -105,7 +106,7 @@ export const {
               
               // delete two factor confirmation for next sign in
               // TODO: ADD EXPIRES IN... timer
-              await db.twoFactorConfirmation.delete({
+              await dbPrisma.twoFactorConfirmation.delete({
                 where: { id: twoFactorConfirmation.id }
               });
 
@@ -171,7 +172,7 @@ export const {
           return token
         }
     },
-    adapter: PrismaAdapter(db),
+    adapter: PrismaAdapter(dbPrisma) || MongoDBAdapter(dbMongo),
     session: {strategy: 'jwt'},
   ...authConfig,
 })

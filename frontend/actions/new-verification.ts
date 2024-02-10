@@ -1,5 +1,5 @@
 'use server'
-import { db } from "@/lib/db"
+import { dbPrisma } from "@/lib/db"
 import { getUserByEmail } from "@/data/user"
 import { getVerificationTokenByToken } from "@/data/verificiation-token"
 
@@ -20,7 +20,7 @@ export const MyNewVerificationAction = async (token: string) => {
   }
   
   if (existingUser.id){
-    await db.user.update({
+    await dbPrisma.user.update({
       where: { id: existingUser.id },
       data: {
         emailVerified: new Date(),
@@ -28,7 +28,7 @@ export const MyNewVerificationAction = async (token: string) => {
       },
     });
 
-    await db.verificationToken.delete({
+    await dbPrisma.verificationToken.delete({
       where: { id: existingToken.id },
     });
   }

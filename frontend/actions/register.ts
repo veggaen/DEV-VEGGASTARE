@@ -3,7 +3,7 @@ import * as z from 'zod'
 import bcrypt from 'bcryptjs'
 
 import { MyAuthRegisterSchema } from '@/schemas'
-import { db } from '@/lib/db';
+import { dbPrisma } from '@/lib/db';
 import { getUserByEmail } from '@/data/user';
 import { generateVerificationToken } from '@/lib/tokens';
 import { sendVerificationEmail } from '@/lib/mail';
@@ -24,7 +24,7 @@ export const MyRegisterAction = async (values: z.infer<typeof MyAuthRegisterSche
         return {error: 'Email already exists'} // todo:
     }
 
-    await db.user.create({
+    await dbPrisma.user.create({
         data: {
             name,
             email,

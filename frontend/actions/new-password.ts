@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs'
 import { MyAuthNewPasswordSchema } from '@/schemas'
 import { getPasswordResetTokenByToken } from '@/data/password-reset-token';
 import { getUserByEmail } from '@/data/user';
-import { db } from '@/lib/db';
+import { dbPrisma } from '@/lib/db';
 
 export const MyNewPasswordAction = async (values: z.infer<typeof MyAuthNewPasswordSchema> , token?: string | null ) => {
     if (!token){ return { error: "Missing token!" } }  
@@ -32,11 +32,11 @@ export const MyNewPasswordAction = async (values: z.infer<typeof MyAuthNewPasswo
     }
     
     const hashedPassword = await bcrypt.hash(password, 10);  
-    await db.user.update({
+    await dbPrisma.user.update({
         where: { id: existingUser.id },
         data: { password: hashedPassword },
     });  
-    await db.passwordResetToken.delete({
+    await dbPrisma.passwordResetToken.delete({
         where: { id: existingToken.id },
     });  
 

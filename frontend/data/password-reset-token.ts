@@ -1,8 +1,8 @@
-import { db } from "@/lib/db";
+import { dbPrisma } from "@/lib/db";
 
 export const getPasswordResetTokenByToken = async (token: string) => {
     try {
-        const passwordResetToken = await db.passwordResetToken.findUnique({
+        const passwordResetToken = await dbPrisma.passwordResetToken.findUnique({
             where: { token },
         });
         return passwordResetToken;
@@ -13,7 +13,7 @@ export const getPasswordResetTokenByToken = async (token: string) => {
 
 export const getPasswordResetTokenByEmail = async (email: string) => {
     try {
-        const passwordResetToken = await db.passwordResetToken.findFirst({
+        const passwordResetToken = await dbPrisma.passwordResetToken.findFirst({
             where: { email },
         });
         return passwordResetToken;

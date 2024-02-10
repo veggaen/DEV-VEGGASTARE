@@ -9,7 +9,7 @@ import { getTwoFactortokenByEmail } from '@/data/two-factor-token';
 import { MyAuthLoginSchema } from '@/schemas'
 import { sendVerificationEmail, sendTwoFactorTokenEmail } from '@/lib/mail';
 import { generateVerificationToken, generateTwoFactorToken } from '@/lib/tokens';
-import { db } from '@/lib/db';
+import { dbPrisma } from '@/lib/db';
 import { getTwoFactorConfirmationByUserId } from '@/data/two-factor-confirmation';
 
 export const MyLoginAction = async (values: z.infer<typeof MyAuthLoginSchema>, callbackUrl?: string | null,) => {
@@ -53,19 +53,19 @@ export const MyLoginAction = async (values: z.infer<typeof MyAuthLoginSchema>, c
           return { error: 'Code has expired!'}
         };
 
-        await db.twoFactorToken.delete({
+        await dbPrisma.twoFactorToken.delete({
           where: { id: twoFactorToken.id }
         });
 
         const existingConfirmation = await getTwoFactorConfirmationByUserId(existingUser.id);
 
         if (existingConfirmation){
-          await db.twoFactorConfirmation.delete({
+          await dbPrisma.twoFactorConfirmation.delete({
             where: { id: existingConfirmation.id }
           });
         };
 
-        await db.twoFactorConfirmation.create({
+        await dbPrisma.twoFactorConfirmation.create({
           data: {
             userId: existingUser.id
           }

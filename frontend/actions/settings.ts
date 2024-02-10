@@ -3,7 +3,7 @@
 import * as z from 'zod'
 import bcrypt from 'bcryptjs'
 
-import { db } from '@/lib/db'
+import { dbPrisma } from '@/lib/db'
 import { MyAuthSettingsSchema } from '@/schemas'
 import { getUserByEmail, getUserById } from '@/data/user'
 import { MyLibUserAuth } from '@/lib/user-auth'
@@ -55,7 +55,7 @@ export const settings = async (values: z.infer<typeof MyAuthSettingsSchema>) => 
         values.newPassword = undefined;
     }
 
-    await db.user.update({
+    await dbPrisma.user.update({
         where: {id: dbUser.id},
         data: {
             ...values,

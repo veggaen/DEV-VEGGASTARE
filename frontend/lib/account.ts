@@ -1,8 +1,8 @@
-import { db } from "./db";
+import { dbPrisma } from "./db";
 
 export const getAccountByUserId = async (userId: string) => {
     try {
-        const account = await db.account.findFirst({
+        const account = await dbPrisma.account.findFirst({
             where: { userId }
         });
 
