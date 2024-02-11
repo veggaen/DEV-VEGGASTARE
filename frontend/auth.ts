@@ -1,8 +1,7 @@
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import { MongoDBAdapter  } from "@auth/mongodb-adapter"
 
-import { dbPrisma, dbMongo } from "@/lib/db"
+import { dbPrisma } from "@/lib/db"
 import authConfig from "@/auth.config"
 import { UserRole } from "@prisma/client"
 import { getUserById } from "@/data/user"
@@ -167,12 +166,12 @@ export const {
           token.image = existingUser.image;
           token.isOAuth = !!existingAccount;
           
-          const logResponse = token.email // shortens the response, remove if needed.
-          console.log(`${LOG_PREFIX} callbacks.jwt.token: `,{logResponse})
+          /* const logResponse = token.email // shortens the response, remove */
+          /* console.log(`${LOG_PREFIX} callbacks.jwt.token: `,{logResponse}) */
           return token
         }
     },
-    adapter: PrismaAdapter(dbPrisma) || MongoDBAdapter(dbMongo),
+    adapter: PrismaAdapter(dbPrisma),
     session: {strategy: 'jwt'},
   ...authConfig,
 })

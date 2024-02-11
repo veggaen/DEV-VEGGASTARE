@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { BeatLoader } from 'react-spinners'
 import { CardWrapper } from "../card-wrapper"
-import { MyFormSucess } from '../../forms/form-sucess';
+import { MyFormSuccess } from '../../forms/form-sucess';
 import { MyFormError } from '../../forms/form-error';
 import { MyNewVerificationAction } from '@/actions/new-verification';
 
@@ -71,7 +71,7 @@ export const MyNewVerificationForm = () => {
         {!success && !error && (
           <BeatLoader color="white" />
         )}
-        <MyFormSucess message={success} />
+        <MyFormSuccess message={success} />
         {!success && (
           <MyFormError message={error} />
         )}

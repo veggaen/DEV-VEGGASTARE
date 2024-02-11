@@ -20,7 +20,7 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        customstyle: '',
+        vegaThemeBtn: 'flex items-center justify-center rounded-lg p-2 transition duration-300 ease-in-out transform hover:scale-125 hover:bg-black/20 dark:hover:bg-zinc-700',
         vegaEmeraldBtn: 'bg-emerald-500 text-white transition duration-300 ease-in-out hover:scale-105 hover:text-md active:border active:border-sky-500',
         vegaNormalBtn: 'bg-slate-400 dark:bg-slate-600 text-white transition duration-300 ease-in-out hover:scale-105 hover:text-md active:border active:border-sky-500 hover:bg-slate-400 dark:hover:bg-slate-700',
       },

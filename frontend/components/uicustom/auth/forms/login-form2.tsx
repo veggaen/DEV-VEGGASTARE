@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { CardWrapper } from '../card-wrapper';
-import { MyFormSucess } from '@/components//uicustom/forms/form-sucess';
+import { MyFormSuccess } from '@/components//uicustom/forms/form-sucess';
 import { MyFormError } from '@/components//uicustom/forms/form-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -119,7 +119,7 @@ export const MyLoginForm2 = () => {
             )}
             </div>
             <MyFormError message={error || urlError}/>
-            <MyFormSucess message={success}/>
+            <MyFormSuccess message={success}/>
             <Button type='submit' disabled={isPending} className='w-full' variant='vegaEmeraldBtn'>
               {showTwoFactor ? 'Confirm' : 'Login'}
             </Button>

@@ -12,7 +12,6 @@ export default function DashboardLayout({ children } : { children: React.ReactNo
         <nav className="LeftSideNavBar m-0 p-0 grow w-fit max-w-[360px] bg-white text-black dark:bg-black dark:text-white">
         </nav>
         <div className="flex flex-col w-full">
-          <MyTopBar />
           {children}
         </div>
         

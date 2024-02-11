@@ -1,11 +1,26 @@
+'use client'
+import Link from "next/link";
+import { MyThemeBtn } from "./themebtn";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { MyUserButton } from "./auth/buttons/user-button";
 
 const MyTopBar = () => {
+
+  const user = useCurrentUser();
+
   return (
-      <div className="flex min-h-[72px] max-h-[72px] w-full justify-end items-center transition-width duration-300 ease-in-out bg-slate-300 text-black dark:bg-slate-900 dark:text-white">
-        <div className="flex justify-center items-center py-2 px-4 space-x-2">
-          <div className='py-2 px-4 hover:bg-slate-400/50 hover:dark:bg-slate-600/50 hover:cursor-pointer text-nowrap rounded'>MOON</div>
-          <div className='py-2 px-4 hover:bg-slate-400/50 hover:dark:bg-slate-600/50 hover:cursor-pointer text-nowrap rounded'>STAR</div>
-          <div className='py-2 px-4 hover:bg-slate-400/50 hover:dark:bg-slate-600/50 hover:cursor-pointer text-nowrap rounded'>CROSS</div>
+      <div className="flex min-h-[72px] h-full max-h-[102px] w-full justify-between items-center transition-width duration-300 ease-in-out text-black dark:text-white myamination">
+          <div className="flex justify-center items-center py-2 px-4 space-x-2">
+            <div className="transition duration-500 ease-in-out transform hover:scale-105">
+              <Link href="/" className="hover:bg-black/10 hover:font-semibold dark:hover:bg-white/10 rounded-sm py-1 md:py-2 px-2 md:px-4 transition-colors"> Home </Link>
+            </div>
+            <div className="transition duration-500 ease-in-out transform hover:scale-105">
+              <Link href="/products" className="hover:bg-black/10 hover:font-semibold dark:hover:bg-white/10 rounded-sm py-1 md:py-2 px-2 md:px-4 transition-colors"> Products </Link>
+            </div>
+          </div>
+        <div className="flex justify-center w-48 items-center gap-6 rounded-sm">
+          <MyThemeBtn />
+          {user && <MyUserButton />}
         </div>
       </div>
   )

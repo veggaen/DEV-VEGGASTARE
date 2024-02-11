@@ -22,3 +22,14 @@ export const MyLibRoleAuth = async () => {
     return session?.user.role;
     
 }
+
+/**
+ * @description Takes session async and return session.user.role
+ * @return session?.user.role
+ */
+export const MyLibEmailAuth = async () => {
+    const session = await auth();
+    console.log(LOG_PREFIX, 'MyRoleAuth(session.user.role)')
+    return session?.user.email;
+    
+}

@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from "@/components/ui/button"
-import { MyUserButton } from "@/components/uicustom/auth/buttons/user-button";
+// import { MyUserButton } from "@/components/uicustom/auth/buttons/user-button";
 import Link from "next/link";
 import { usePathname } from "next/navigation"
 
@@ -26,7 +26,7 @@ export const MyNavbarProtected = () => {
           </Button>
             
         </div>
-        <MyUserButton />
+        {/* <MyUserButton /> */}
       </nav>
     )
 }

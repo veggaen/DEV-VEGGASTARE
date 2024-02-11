@@ -6,6 +6,7 @@ import { dbPrisma } from "@/lib/db";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/auth";
 import { Toaster } from "@/components/ui/sonner";
+import MyTopBar from "@/components/uicustom/topbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -22,10 +23,11 @@ export default async function RootLayout({
   const session = await auth();
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning={true}>
+      <body className={`${inter.className} myamination transition-colors`} suppressHydrationWarning={true}>
         <SessionProvider session={session}>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange >
             <Toaster />
+            <MyTopBar />
             {children}
           </ThemeProvider>
         </SessionProvider>
