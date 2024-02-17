@@ -24,7 +24,7 @@ export default async function RootLayout({
   const session = await auth();
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} myamination transition-colors max-h-screen overflow-hidden`} suppressHydrationWarning={true}>
+      <body className={`${inter.className} myamination transition-colors`} suppressHydrationWarning={true}>
         <SessionProvider session={session}>
           <EdgeStoreProvider>
             <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange >
