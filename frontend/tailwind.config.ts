@@ -58,6 +58,20 @@ const config = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      screens: {
+        'xs': '360px',
+        '1xl': '1600px',
+        '2xl': '1920px',
+        '3xl': '2360px',
+        '4xl': '2560px',
+        '5xl': '2960px',
+        '6xl': '3440px',
+      },
+      backgroundImage: {
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        "gradient-conic":
+          "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -71,6 +85,10 @@ const config = {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+      },
+      writingMode: {
+        vertical: 'vertical-rl',
+        horizontal: 'horizontal-tb',
       },
     },
   },

@@ -4,15 +4,11 @@ import MyHeroImage from "@/components/uicustom/hero-image";
 import { MyLibEmailAuth, MyLibUserAuth } from "@/lib/user-auth";
 
 import { LockKeyhole } from "lucide-react";
-import Image from "next/image";
 
 const LOG_PREFIX = '[page.tsx]'
 export default async function Home() {
   const user = await MyLibUserAuth()
-  console.log('user', user)
-
-  // const gotProducts = await fetch('http://localhost:3001/products')
-  // const products = await gotProducts.json()
+  console.log(`${LOG_PREFIX} user`, user)
 
   return (
     <main className={`flex h-full flex-col items-center ${user ? 'justify-start' : 'justify-center'} scroll-smooth`}>

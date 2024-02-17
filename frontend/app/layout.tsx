@@ -1,10 +1,11 @@
 import "./globals.css";
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
+import { EdgeStoreProvider } from '../lib/edgestore';
 import { ThemeProvider } from "@/components/providers/themeprovider";
-import { dbPrisma } from "@/lib/db";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/auth";
+
 import { Toaster } from "@/components/ui/sonner";
 import MyTopBar from "@/components/uicustom/topbar";
 const inter = Inter({ subsets: ["latin"] });
@@ -23,13 +24,15 @@ export default async function RootLayout({
   const session = await auth();
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} myamination transition-colors`} suppressHydrationWarning={true}>
+      <body className={`${inter.className} myamination transition-colors max-h-screen overflow-hidden`} suppressHydrationWarning={true}>
         <SessionProvider session={session}>
-          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange >
-            <Toaster />
-            <MyTopBar />
-            {children}
-          </ThemeProvider>
+          <EdgeStoreProvider>
+            <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange >
+              <Toaster />
+              <MyTopBar />
+              {children}
+            </ThemeProvider>
+          </EdgeStoreProvider>
         </SessionProvider>
       </body>
     </html>

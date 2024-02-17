@@ -1,7 +1,4 @@
 
-import { Button } from "@/components/ui/button"
-import { MyMenuSide } from "@/components/uicustom/sidemenumainauth"
-import MyTopBar from "@/components/uicustom/topbar"
 
 const LOG_PREFIX = '[fronten/app/auth/layout.tsx]'
 export default function DashboardLayout({ children } : { children: React.ReactNode }) {

@@ -71,3 +71,40 @@ export const MyAuthRegisterSchema = z.object({
     // `refferedby` is a string that can be either optional (undefined or missing),
     // empty, or min 3
 })
+
+/**
+ * Product related schemas
+ */
+
+// Schema for product creation
+// Define a schema for a single specification, enforcing the structure { key: string, value: string }
+const SpecificationSchema = z.object({
+  key: z.string(),
+  value: z.string(),
+});
+export const MyProductCreateSchema = z.object({
+  title: z.string().min(1, { message: "Title is required" }),
+  description: z.string().min(1, { message: "Description is required" }),
+  category: z.string().min(1, { message: "Category is required" }),
+  price: z.number().min(1, { message: "Price is required" }),
+  userId: z.string().min(1, { message: "User is required" }),
+  stock: z.number().optional(),
+  image: z.array(z.string()), // Optional, assuming array of image URLs
+  specifications: z.array(SpecificationSchema).optional(), // Optional, assuming arbitrary JSON data
+  shippingDetails: z.array(z.object({
+    method: z.string(),
+    price: z.number(),
+    regions: z.array(z.string())
+  })).optional(),
+});
+
+// Schema for product update (optional fields for updates)
+export const MyProductUpdateSchema = MyProductCreateSchema.partial();
+
+// Schema for product review
+export const MyProductReviewSchema = z.object({
+  productId: z.string().min(1, { message: "Product ID is required" }),
+  authorName: z.string().min(1, { message: "Author name is required" }),
+  rating: z.number().min(0).max(5, { message: "Rating must be between 0 and 5" }),
+  comment: z.string().min(1, { message: "Comment is required" }),
+});

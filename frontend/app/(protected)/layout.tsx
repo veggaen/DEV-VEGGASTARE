@@ -1,5 +1,3 @@
-import { MyMenuSide } from "@/components/uicustom/sidemenumainauth";
-import MyTopBar from "@/components/uicustom/topbar";
 import { MyNavbarProtected } from "./_components/navbar";
 
 interface ProtectedLayoutProps {

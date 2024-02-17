@@ -25,6 +25,8 @@ model User {
   referredby    String?
   role          UserRole @default(USER)
   accounts      Account[]
+  productsListed    Product[] @relation("ProductsListed") 
+  reviews           Review[] 
   isTwoFactorEnabled Boolean @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
 }
@@ -45,7 +47,7 @@ model Account {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([provider, providerAccountId])
+@@unique([provider, providerAccountId])
 }
 
 model VerificationToken {
@@ -82,4 +84,53 @@ model TwoFactorConfirmation {
   user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId])
+}
+
+// PRODUCTS RElATED
+model Product {
+  id               String          @id @default(cuid())
+  title            String
+  description      String
+  category         String
+  price            Float
+  stock            Int
+  image            String[]
+  specifications   Json? // SpecificationsDetails[]
+  userId           String          // Associate product with a user
+  user             User            @relation("ProductsListed", fields: [userId], references: [id])
+  shippingDetails  ShippingDetails[]
+  reviews          Review[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model SpecificationsDetails {
+  id         String   @id @default(cuid())
+  // Add your desired fields here
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ShippingDetails {
+  id         String   @id @default(cuid())
+  method     String
+  price      Float
+  regions    String[]
+  productId  String
+  product    Product?  @relation(fields: [productId], references: [id]) // Make this optional
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  authorName String?
+  rating     Float
+  comment    String
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

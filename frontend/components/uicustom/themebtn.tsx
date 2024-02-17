@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 export function MyThemeBtn() {
   const { setTheme, theme } = useTheme()
   useEffect(() => {
-    console.log(`${theme}`)
     if (theme === 'light') {
       document.body.classList.add('light-mode');
       document.body.classList.remove('dark-mode');

@@ -1,4 +1,4 @@
-import { User, UserRole } from "@prisma/client"
+import { Product, Review, User, UserRole } from "@prisma/client"
 import NextAuth, { type DefaultSession } from "next-auth"
 
 export type ExtendedUser = DefaultSession['user'] & {
@@ -10,6 +10,8 @@ export type ExtendedUser = DefaultSession['user'] & {
     role: UserRole
     referredby: String
     isTwoFactorEnabled: boolean;
+    productsListed: Product[]
+    reviews: Review[]
     isOAuth: boolean;
 }
 

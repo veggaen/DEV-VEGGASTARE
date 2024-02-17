@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 
 import { useRef, useState, useTransition } from "react";
 import { useSession } from "next-auth/react";
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MyAuthSettingsSchema } from '@/schemas';
 import { settings } from "@/actions/settings";
@@ -43,6 +43,17 @@ const MyProtectedSettings = () => {
       isTwoFactorEnabled: user?.isTwoFactorEnabled || undefined,
     }
   });
+
+  // Watch the newPassword field
+  const newPassword = useWatch({
+    control: form.control,
+    name: "newPassword", // specify the name of the field you want to watch
+  });
+
+  // Function to clear the password field
+  const clearPasswordField = () => {
+    form.setValue("password", ""); // Clear the password field
+  };
 
   const onSubmit = (values: z.infer<typeof MyAuthSettingsSchema>) => {
     startTransition( () => { settings(values).then((data) => {
@@ -125,7 +136,7 @@ const MyProtectedSettings = () => {
                       </FormItem>
                     )}
                   />
-                  <FormField control={form.control} name="password" render={({ field }) => (
+                  {newPassword && <FormField control={form.control} name="password" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
@@ -138,7 +149,7 @@ const MyProtectedSettings = () => {
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  />}
                   <FormField control={form.control} name="newPassword" render={({ field }) => (
                       <FormItem>
                         <FormLabel>New Password</FormLabel>
@@ -147,6 +158,10 @@ const MyProtectedSettings = () => {
                             {...field}
                             disabled={isPending || !isEditing}
                             placeholder="******"
+                            onChange={(e) => {
+                              field.onChange(e); // Call the original onChange
+                              if (e.target.value === "") clearPasswordField();
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
@@ -190,6 +205,7 @@ const MyProtectedSettings = () => {
                       </div>
                       <FormControl>
                         <Switch
+                          className={``}
                           disabled={isPending || !isEditing}
                           checked={field.value}
                           onCheckedChange={field.onChange}

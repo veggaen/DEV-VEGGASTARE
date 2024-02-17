@@ -2,18 +2,18 @@
 // make me server later..
 import Link from "next/link";
 import { MyThemeBtn } from "./themebtn";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { MySidebarToggleBtn } from "./sidebartogglebtn";
 import { authRoutes } from "@/routes";
-import { useParams, usePathname } from "next/navigation";
 import { LogoutMyAction } from "@/actions/logout";
+import { usePathname } from "next/navigation";
 
 const LOG_PREFIX = '[[USE CLIENT] sidemenumainauth.tsx.tsx]'
 export const MyMenuSide = () => {
   const [isHiddenMainMenuTab, setIsHiddenMainMenuTab] = useState(false);
   const [isHiddenDashboardTab, setIsHiddenDashboardTab] = useState(false);
   const [isHiddenSupportTab, setIsHiddenSupportTab] = useState(false);
-  const [isHiddenFooterTab, setIsHiddenfooterTab] = useState(false);
+  const [isHiddenFooterTab, setIsHiddenFooterTab] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const [isAuthRoute, setIsAuthRoute] = useState(false);
@@ -22,13 +22,13 @@ export const MyMenuSide = () => {
   const toggleMainMenu = () => setIsHiddenMainMenuTab(!isHiddenMainMenuTab);
   const toggleDashboardTab = () => setIsHiddenDashboardTab(!isHiddenDashboardTab);
   const toggleSupportTab = () => setIsHiddenSupportTab(!isHiddenSupportTab);
-  const toggleFootbar = () => setIsHiddenfooterTab(!isHiddenFooterTab);
+  const toggleFootBar = () => setIsHiddenFooterTab(!isHiddenFooterTab);
   const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
 
-  const MyauthRoutes = authRoutes;
+  const MyAuthRoutes = authRoutes;
   const params = usePathname() 
     const useIsAuthRoute = () => {
-      const myAuthRouteArray = MyauthRoutes.includes(params);
+      const myAuthRouteArray = MyAuthRoutes.includes(params);
       setIsAuthRoute(myAuthRouteArray);
     };
     useIsAuthRoute();
@@ -89,7 +89,7 @@ export const MyMenuSide = () => {
         </ul>
         <ul className="group space-y-2 text-start">
           <li className='w-full px-2 py-1 hover:bg-slate-400/20 hover:dark:bg-slate-600/10 hover:cursor-pointer text-nowrap rounded'>
-            <h1 onClick={toggleFootbar} className='bg-red-500/0 font-serif text-start p-4 text-black/40 dark:text-white/40 group-hover:text-black/80 dark:group-hover:text-white/80'>User</h1>
+            <h1 onClick={toggleFootBar} className='bg-red-500/0 font-serif text-start p-4 text-black/40 dark:text-white/40 group-hover:text-black/80 dark:group-hover:text-white/80'>User</h1>
             <ul className={`w-full py-1 px-8 pb-8  space-y-1 hover:cursor-pointer text-nowrap rounded ${isHiddenFooterTab? 'hidden': ''}`}>
               <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Fese</li></Link>
               <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Enfis</li></Link>
