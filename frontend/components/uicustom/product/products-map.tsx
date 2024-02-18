@@ -30,7 +30,7 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
       setFilteredProducts(products);
       setLoading(false);
     }
-  }, [products]);
+  }, [products, setCategories]);
 
   // Update filtered products when selected categories change
   useEffect(() => {
@@ -106,7 +106,7 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
         {!loading && (
           filteredProducts.map((product, index) => (
             <Link key={product.id.toString()} href={`/products/${product.id}`}>
-              <div key={product.id.toString()} className={`h-fit max-w-[1280px] flex flex-col border border-transparent md:border-inherit dark:border-white/20 mx-auto p-4 transition transform duration-500 ease-in-out  hover:scale-[101%] hover:border-blue-500 dark:hover:border-blue-500 md:rounded shadow-lg ${index % 2 === 0 ? 'bg-color1 light-mode dark:bg-slate-700 dark:dark-mode' : 'bg-color2 light-mode dark:bg-slate-800 dark:dark-mode'}`}>
+              <div key={product.id.toString()} className={`h-fit max-w-[1280px] flex flex-col border border-transparent md:border-inherit dark:border-white/20 mx-auto p-4 transition transform duration-500 ease-in-out hover:scale-[101%] hover:border-blue-500 dark:hover:border-blue-500 md:rounded shadow-lg ${index % 2 === 0 ? 'bg-color1 light-mode dark:bg-slate-700 dark:dark-mode' : 'bg-color2 light-mode dark:bg-slate-800 dark:dark-mode'}`}>
                   <div className='flex flex-col justify-between p-4'>
                     <div className='flex'>
                       <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2 text-pretty">{product.title}</h2>

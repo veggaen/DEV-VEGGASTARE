@@ -1,7 +1,7 @@
 import { dbPrisma } from "@/lib/db";
 
 
-const LOG_PREFIX = '[frontend\data\products.ts]';
+const LOG_PREFIX = '[frontend/data/products.ts]';
 export const getProductsByCategory = async(category: string) => {
     console.log(`${LOG_PREFIX} getProductById(${category})`);
     if(!category) return null;
@@ -20,7 +20,7 @@ export const getProductById = async(id: string) => {
     console.log(`${LOG_PREFIX} getProductById(${id})`);
     if (!id) return null;
     try {
-        const data = await dbPrisma.product.findUnique({
+        const data = await dbPrisma.product.findFirst({
           where: { id }
         });
 
@@ -31,7 +31,7 @@ export const getProductById = async(id: string) => {
 }
 
 export const getProductsMany = async() => {
-    console.log(`${LOG_PREFIX} getProductAll()`);
+    console.log(`${LOG_PREFIX} getProductMany()`);
     try {
         const data = await dbPrisma.product.findMany();
 

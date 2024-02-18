@@ -1,16 +1,15 @@
-'use server'
+
 
 import { MyProductsMap } from '@/components/uicustom/product/products-map';
 import { Product } from '@prisma/client';
-import { useProducts } from '@/hooks/use-products';
-import { useCategories } from '@/components/providers/categoriesContext';
+import { getProductsMany } from '@/data/products';
+
 
 
 const LOG_PREFIX = '[frontend/app/products/page.tsx]'
-const MyProductsPage = async () => {
-  const products: Product[] | null = await useProducts();
-  try {
-
+export default async function MyProductsPage(){
+  const products: Product[] | null = await getProductsMany();
+ if (!products) return <p>No products found</p>;
     return (
       <div className={`space-y-4 w-full overflow-y-auto`}>
         <div className='flex flex-col justify-center items-center'>
@@ -21,10 +20,5 @@ const MyProductsPage = async () => {
         </div>
       </div>
     );
-    
-  } catch {
-    console.error(`${LOG_PREFIX} useProducts() Error fetching products`);
-  }
+
 };
-  
-  export default MyProductsPage;

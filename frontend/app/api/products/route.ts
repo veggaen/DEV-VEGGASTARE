@@ -3,7 +3,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { dbPrisma } from '../../../lib/db'; // Adjust the import path as needed
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse): Promise<void>  {
   if (req.method === 'GET') {
     try {
       const products = await dbPrisma.product.findMany(); // Adjust 'product' to match your Prisma model name

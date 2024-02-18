@@ -34,7 +34,7 @@ interface MySidebarProductsMenuProps {
   
     return (
       <div className="max-w-[350px]">
-        <div className={`sidebar-products rounded-md bg-white-10 ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 bg-slate-900`}>
+        <div className={`sidebar-products bg-white-10 ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 bg-slate-900`}>
           <div className={` overflow-y-auto specificElement182`}>
             <div className={`w-fit space-y-2 my-2`}>
               <div onClick={() => handleFilterTabOpen('categories')} className="flex justify-start items-center py-1 px-2 gap-2 font-bold text-center rounded-r-xl bg-slate-800">

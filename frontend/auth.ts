@@ -7,7 +7,7 @@ import { UserRole } from "@prisma/client"
 import { getUserById } from "@/data/user"
 import { getTwoFactorConfirmationByUserId } from "@/data/two-factor-confirmation"
 import { getAccountByUserId } from "./lib/account"
-import { JWT } from "next-auth/jwt";
+
 
 // Console.log PREFIX
 const LOG_PREFIX = '[auth.ts] '
