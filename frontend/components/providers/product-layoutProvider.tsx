@@ -33,10 +33,10 @@ const toggleSidebar = (e: React.MouseEvent<HTMLButtonElement>) => {
 };
 
   return (
-    <div className={`${isSidebarOpen ? 'flex' : 'flex'} w-full `}>
+    <div className={`productProvider ${isSidebarOpen ? 'flex' : 'flex'} w-full`}>
       
       <div className={`${isSidebarOpen ? 'w-full md:w-[360px] md:max-w-[360px]' : 'absolute z-10 border border-slate-500 hover:border-blue-500'}`}>
-        <button onClick={toggleSidebar} className={`sidebar-toggle-btn bg-slate-50 dark:bg-slate-950 w-full ${isSidebarOpen ? 'rounded-tr-lg' : 'rounded-r'}`}>
+        <button onClick={toggleSidebar} className={`sidebar-toggle-btn bg-slate-300 dark:bg-slate-950 w-full ${isSidebarOpen ? 'rounded-tr-lg' : 'rounded-r'}`}>
         {isSidebarOpen ? (
           <div className={`flex justify-start items-center h-[56px]`}>
             {user ? (
@@ -50,14 +50,14 @@ const toggleSidebar = (e: React.MouseEvent<HTMLButtonElement>) => {
             <p className="flex text-wrap p-2 leading-tight font-bold hover:scale-y-105 hover:scale-x-110 hover:text-pink-600 transition duration-300 hover:animate-pulse max-w-8">O p e n</p>
           )}
         </button>
-        <div className={`h-full w-full ${isSidebarHidden ? '' : 'hidden'}`}>
+        <div className={`h-fit w-full ${isSidebarHidden ? '' : 'hidden'}`}>
             <MySidebarProductsMenu isOpen={isSidebarOpen}/>
         </div>
       </div>
 
       <div className={`w-full h-[90vh] flex flex-col justify-start items-center overflow-y-auto`}>
         <MyNavbarProducts />
-        <div className={`w-full h-fit`}>
+        <div className={`w-full`}>
           {children}
         </div>
       </div>

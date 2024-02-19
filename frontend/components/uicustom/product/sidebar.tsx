@@ -12,14 +12,15 @@
       categories?: string[];
       setSelectedCategories?: React.Dispatch<React.SetStateAction<string[]>>;
       isOpen: boolean;
+      setMinPrice?: React.Dispatch<React.SetStateAction<number>>;
+      setMaxPrice?: React.Dispatch<React.SetStateAction<number>>;
     }
     
     // Adjust the component to use the correct props
     export const MySidebarProductsMenu = ({ isOpen }: MySidebarProductsMenuProps) => {
       const user = useCurrentUser();
-      const { categories, setSelectedCategories } = useCategories();
-
-      const [isFilterTabCategories, setIsFilterTabCategories] = useState<{ categories: boolean, price: boolean, [key: string]: boolean }>({ categories: true, price: false });
+      const { categories, setSelectedCategories, setMinPrice, minPrice, setMaxPrice, maxPrice, searchTerm, setSearchTerm } = useCategories();
+      const [isFilterTabCategories, setIsFilterTabCategories] = useState<{ categories: boolean, price: boolean, [key: string]: boolean }>({ categories: true, price: true });
 
       const handleFilterTabOpen = (tab: keyof typeof isFilterTabCategories) => {
           console.log("handleFilterTabOpen tab:", tab);
@@ -30,47 +31,60 @@
           isChecked ? [...prev, category] : prev.filter(c => c !== category)
         );
       };
+      const handleResetPrice = () => {
+        setMinPrice(0); // Assuming 0 is your default minimum price
+        setMaxPrice(Infinity); // Assuming Infinity represents no maximum price limit
+      };
 
     
       return (
         <div className="max-w-[350px]">
-          <div className={`sidebar-products bg-white-10 ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 bg-slate-100 dark:bg-slate-900`}>
-            <div className={` overflow-y-auto specificElement182`}>
-              <div className={`w-fit space-y-2 my-2`}>
-                <div onClick={() => handleFilterTabOpen('categories')} className="flex justify-start items-center py-1 px-2 gap-2 font-bold text-center rounded-r-xl bg-slate-200 dark:bg-slate-800">
-                  <h2>Categories</h2>
-                  {isFilterTabCategories.categories ? <PanelTop className="h-5 w-5"/> : <EyeOff className="h-4 w-4"/>}
-                </div>
-              </div>
-              <div className={``}>
-                {isFilterTabCategories.categories && (
-                  <div className="flex flex-col gap-2 justify-center items-start text-center p-2">
-                    {categories && categories.map((category, index) => (
-                      <div key={index} className={`bg-slate-200 dark:bg-slate-800 w-full py-1 px-2 rounded`}>
-                      <div className={`flex flex-row-reverse justify-between`} >
-                        <input
-                          className={'mx-1'}
-                          type="checkbox"
-                          id={`checkbox-${category}-${index}`} // Ensure unique ID
-                          name={category}
-                          onChange={(e) => handleCategoryChange(category, e.target.checked)}
-                        />
-                        <label htmlFor={`checkbox-${category}-${index}`} className={'capitalize'}>{category}</label>
-                      </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className={`w-fit space-y-2 my-2`}>
-                <div onClick={() => handleFilterTabOpen('price')} className="flex justify-start items-center py-1 px-2 gap-2 font-bold text-center rounded-r-xl bg-slate-200 dark:bg-slate-800">
+          <div className={`sidebar-products bg-white-10 ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 bg-slate-50 dark:bg-slate-900`}>
+            <div className={`flex flex-col justify-start items-center overflow-y-auto specificElement182`}>
+            <div className="w-full space-y-2 p-3 text-center">
+              <input
+                type="text"
+                placeholder="Search by title..."
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full border-2 border-black/50 dark:border-white/50 py-1 px-2 rounded-xl"
+              />
+            </div>
+              <div className={`w-full space-y-2 my-2`}>
+                <div onClick={() => handleFilterTabOpen('price')} className="flex justify-start items-center py-1 px-2 gap-2 font-bold text-center bg-slate-200 dark:bg-slate-800">
                   <h2>Price</h2>
                   {isFilterTabCategories.price ? <PanelTop className="h-5 w-5"/> : <EyeOff className="h-4 w-4"/>}
                 </div>
               </div>
               <div className={``}>
                 {isFilterTabCategories.price && (
-                  <div className='flex flex-col gap-2 justify-center items-start text-center p-2'>
+                  <div className={'flex flex-col sm:flex-row justify-center items-center w-full gap-0 bg-slate-100 dark:bg-slate-900 py-2 px-2'}>
+                  <input
+                    type="number"
+                    placeholder="Min Price"
+                    value={minPrice !== 0 ? minPrice.toString() : ''}
+                    onChange={(e) => setMinPrice(e.target.value ? parseInt(e.target.value) : 0)}
+                    className={'w-full border-2 border-black/50 dark:border-white/50 p-1 sm:mr-2 rounded'}
+                  />
+                  <input
+                    type="number"
+                    placeholder="Max Price"
+                    value={maxPrice !== Infinity ? maxPrice.toString() : ''}
+                    onChange={(e) => setMaxPrice(e.target.value ? parseInt(e.target.value) : Infinity)}
+                    className={'border-2 border-black/50 dark:border-white/50 p-1 w-full sm:mr-2 rounded'}
+                  />
+                  <div onClick={handleResetPrice} className='bg-black/30 w-full py-1 px-2 border-2 border-black/50 dark:border-white/50 rounded hover:bg-blue-500 '>Reset</div>
+                </div>
+                )}
+              </div>
+              <div className={`w-full space-y-2 my-2`}>
+                <div onClick={() => handleFilterTabOpen('categories')} className="flex justify-start items-center py-1 px-2 gap-2 font-bold text-center bg-slate-200 dark:bg-slate-800">
+                  <h2>Categories</h2>
+                  {isFilterTabCategories.categories ? <PanelTop className="h-5 w-5"/> : <EyeOff className="h-4 w-4"/>}
+                </div>
+              </div>
+              <div className={`w-full`}>
+                {isFilterTabCategories.categories && (
+                  <div className="flex flex-col gap-2 justify-center items-start text-center p-2">
                     {categories && categories.map((category, index) => (
                       <div key={index} className={`bg-slate-200 dark:bg-slate-800 w-full py-1 px-2 rounded`}>
                       <div className={`flex flex-row-reverse justify-between`} >

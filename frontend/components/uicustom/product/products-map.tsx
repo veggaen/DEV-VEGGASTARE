@@ -6,7 +6,6 @@ import Link from "next/link";
 import ProductsSkeleton from "../skeletons/products-skeleton";
 import { Product } from "@prisma/client";
 import { AspectRatio } from "../../ui/aspect-ratio";
-import { MySidebarProductsMenu } from './sidebar';
 import { useCategories } from '@/components/providers/categoriesContext';
 
 export interface MyProductsMapProps {
@@ -17,10 +16,8 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
   const [loading, setLoading] = useState(true);
   // const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   // const [categories, setCategories] = useState<string[]>([]);
-  const { categories, setCategories, selectedCategories, setSelectedCategories } = useCategories();
+  const { categories, setCategories, selectedCategories, setSelectedCategories, minPrice, maxPrice, searchTerm } = useCategories();
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [minPrice, setMinPrice] = useState<number>(0);
-  const [maxPrice, setMaxPrice] = useState(Infinity);
 
   // Extract categories from products
   useEffect(() => {
@@ -35,12 +32,18 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
   // Update filtered products when selected categories change
   useEffect(() => {
     if (!products) return;
-    const filtered = products.filter(product =>
+    var filtered = products.filter(product =>
       (selectedCategories.length === 0 || selectedCategories.includes(product.category)) &&
-      product.price >= 0 && (maxPrice === Infinity || product.price <= maxPrice)
+      product.price >= minPrice && (maxPrice === Infinity || product.price <= maxPrice)
     );
+    if (searchTerm) {
+      filtered = filtered.filter(product =>
+        product.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
     setFilteredProducts(filtered);
-  }, [selectedCategories, products, minPrice, maxPrice]);
+  }, [selectedCategories, products, minPrice, maxPrice, searchTerm]);
 
   /* const handleCategoryChange = (category: string, isChecked: boolean) => {
     setSelectedCategories(prev =>
@@ -48,15 +51,15 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
     );
   }; */
 
-  const handleResetPrice = () => {
+  /* const handleResetPrice = () => {
     setMinPrice(0);
     setMaxPrice(Infinity);
-  }
+  } */
 
   return (
     <div className="w-full h-full">
-      <div className='flex flex-col justify-center items-center gap-3 bg-slate-50 dark:bg-slate-950 py-4'>
-        {/* <div className='grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 1xl:grid-cols-8 gap-3'>
+      {/* <div className='flex flex-col justify-center items-center gap-3 bg-slate-50 dark:bg-slate-950 py-4'>
+        <div className='grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 1xl:grid-cols-8 gap-3'>
           {categories.map((category) => (
             <div key={category} className={`bg-black/30 py-1 px-2 rounded`}>
               <div className={`flex`} >
@@ -71,7 +74,7 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
               </div>
             </div>
           ))}
-        </div> */}
+        </div>
         <div className={'flex flex-col sm:flex-row justify-center items-center w-fit gap-0 bg-slate-100 dark:bg-slate-900 py-2 px-2 rounded'}>
           <input
             type="number"
@@ -89,7 +92,7 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
           />
           <div onClick={handleResetPrice} className='bg-black/30 w-full py-1 px-2 border-2 rounded-r hover:bg-blue-500 '>Reset</div>
         </div>
-      </div>
+      </div> */}
       {loading && (
         <ProductsSkeleton />
       )}
@@ -106,7 +109,7 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
         {!loading && (
           filteredProducts.map((product, index) => (
             <Link key={product.id.toString()} href={`/products/${product.id}`}>
-              <div key={product.id.toString()} className={`h-fit max-w-[1280px] flex flex-col border border-transparent md:border-inherit dark:border-white/20 mx-auto p-4 transition transform duration-500 ease-in-out hover:scale-[101%] hover:border-blue-500 dark:hover:border-blue-500 md:rounded shadow-lg ${index % 2 === 0 ? 'bg-color1 light-mode dark:bg-slate-700 dark:dark-mode' : 'bg-color2 light-mode dark:bg-slate-800 dark:dark-mode'}`}>
+              <div key={product.id.toString()} className={`h-fit max-w-[1280px] flex flex-col border border-transparent md:border-inherit dark:border-white/20 mx-auto p-4 transition transform duration-500 ease-in-out hover:scale-[101%] hover:border-blue-500 dark:hover:border-blue-500 md:rounded shadow-lg odd: ${index % 2 === 0 ? 'bg-color1 light-mode bg-slate-100 dark:bg-slate-700 dark:dark-mode' : 'bg-color2 light-mode bg-slate-200 dark:bg-slate-800 dark:dark-mode'}`}>
                   <div className='flex flex-col justify-between p-4'>
                     <div className='flex'>
                       <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2 text-pretty">{product.title}</h2>

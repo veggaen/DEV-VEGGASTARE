@@ -33,7 +33,7 @@ const ProductPage = async ({ params }: { params: any} ) => {
     <div>
       {/* part one */}
       <div className={`flex justify-center`}>
-        <div className='w-4/6 bg-black/30 p-6'>
+        <div className='w-5/6 bg-black/30 rounded overflow-hidden'>
           <Carousel>
             <CarouselContent className="-ml-2 md:-ml-4">
               {product.image.map((image, index) => {

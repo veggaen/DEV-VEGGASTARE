@@ -28,6 +28,8 @@ type CarouselContextProps = {
   scrollNext: () => void
   canScrollPrev: boolean
   canScrollNext: boolean
+  currentIndex: number
+  totalSlides: number
 } & CarouselProps
 
 const CarouselContext = React.createContext<CarouselContextProps | null>(null)
@@ -67,14 +69,18 @@ const Carousel = React.forwardRef<
     )
     const [canScrollPrev, setCanScrollPrev] = React.useState(false)
     const [canScrollNext, setCanScrollNext] = React.useState(false)
+    const [currentIndex, setCurrentIndex] = React.useState(0);
+    const [totalSlides, setTotalSlides] = React.useState(0);
 
     const onSelect = React.useCallback((api: CarouselApi) => {
       if (!api) {
         return
       }
 
-      setCanScrollPrev(api.canScrollPrev())
-      setCanScrollNext(api.canScrollNext())
+      setCurrentIndex(api.selectedScrollSnap());
+      setTotalSlides(api.scrollSnapList().length);
+      setCanScrollPrev(api.canScrollPrev());
+      setCanScrollNext(api.canScrollNext());
     }, [])
 
     const scrollPrev = React.useCallback(() => {
@@ -132,6 +138,8 @@ const Carousel = React.forwardRef<
           scrollNext,
           canScrollPrev,
           canScrollNext,
+          currentIndex,
+          totalSlides,
         }}
       >
         <div
@@ -143,6 +151,9 @@ const Carousel = React.forwardRef<
           {...props}
         >
           {children}
+          <div className="absolute bottom-0 right-[48%] w-[2%] py-2 text-white text-sm">
+            {`${currentIndex + 1}/${totalSlides}`}
+          </div>
         </div>
       </CarouselContext.Provider>
     )
@@ -184,7 +195,7 @@ const CarouselItem = React.forwardRef<
       role="group"
       aria-roledescription="slide"
       className={cn(
-        "min-w-0 shrink-0 grow-0 basis-full",
+        "min-w-0 shrink-0 grow-0 basis-full flex justify-center",
         orientation === "horizontal" ? "pl-4" : "pt-4",
         className
       )}
@@ -206,9 +217,9 @@ const CarouselPrevious = React.forwardRef<
       variant={variant}
       size={size}
       className={cn(
-        "absolute  h-8 w-8 rounded-full",
+        `absolute group h-8 w-8 rounded-full z-10 text-white dark:text-black border-white dark:border-black hover:border-blue-500 hover:dark:border-blue-500 hover:text-blue-500 ${!canScrollPrev ? 'hidden' : ''}`,
         orientation === "horizontal"
-          ? "-left-12 top-1/2 -translate-y-1/2"
+          ? "left-2 top-1/2 -translate-y-1/2"
           : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
         className
       )}
@@ -216,7 +227,7 @@ const CarouselPrevious = React.forwardRef<
       onClick={scrollPrev}
       {...props}
     >
-      <ArrowLeft className="h-4 w-4" />
+      <ArrowLeft className="h-4 w-4 text-white dark:text-black border-white dark:border-black hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
       <span className="sr-only">Previous slide</span>
     </Button>
   )
@@ -235,9 +246,9 @@ const CarouselNext = React.forwardRef<
       variant={variant}
       size={size}
       className={cn(
-        "absolute h-8 w-8 rounded-full",
+        `absolute group h-8 w-8 rounded-full z-10 text-white dark:text-black border-white dark:border-black hover:border-blue-500 hover:dark:border-blue-500 hover:text-blue-500 ${!canScrollNext ? 'hidden' : ''}`,
         orientation === "horizontal"
-          ? "-right-12 top-1/2 -translate-y-1/2"
+          ? "right-2 top-1/2 -translate-y-1/2"
           : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
         className
       )}
@@ -245,7 +256,7 @@ const CarouselNext = React.forwardRef<
       onClick={scrollNext}
       {...props}
     >
-      <ArrowRight className="h-4 w-4" />
+      <ArrowRight className="h-4 w-4 text-white dark:text-black border-white dark:border-black hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
       <span className="sr-only">Next slide</span>
     </Button>
   )
