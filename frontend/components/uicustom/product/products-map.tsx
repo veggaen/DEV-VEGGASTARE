@@ -55,7 +55,7 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
 
   return (
     <div className="w-full h-full">
-      <div className='flex flex-col justify-center items-center gap-3 bg-slate-950 py-4'>
+      <div className='flex flex-col justify-center items-center gap-3 bg-slate-50 dark:bg-slate-950 py-4'>
         {/* <div className='grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 1xl:grid-cols-8 gap-3'>
           {categories.map((category) => (
             <div key={category} className={`bg-black/30 py-1 px-2 rounded`}>
@@ -72,7 +72,7 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
             </div>
           ))}
         </div> */}
-        <div className={'flex flex-col sm:flex-row justify-center items-center w-fit gap-0 bg-slate-900 py-2 px-2 rounded'}>
+        <div className={'flex flex-col sm:flex-row justify-center items-center w-fit gap-0 bg-slate-100 dark:bg-slate-900 py-2 px-2 rounded'}>
           <input
             type="number"
             placeholder="Min Price"
