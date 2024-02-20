@@ -55,43 +55,42 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
           <div className='h-full flex flex-col justify-between bg-slate-300 dark:bg-slate-700 border dark:border-slate-900 rounded-lg py-2 px-4'>
             <div className='flex flex-col gap-2 justify-center items-center'>
               <div className='flex justify-between w-full bg-slate-100/50 dark:bg-slate-900/50 py-2 px-4 pr-2 rounded-lg'>
-                <h1 className='text-lg font-bold py-1 px-2'>Price:</h1>
+                <h1 className='text-lg font-bold py-1 px-2 tracking-wide'>Price:</h1>
                 <h1 className='text- text-center font-mono tracking-tighter italic bg-emerald-500/50 min-w-32 py-1 px-2 rounded-lg'>
                   {product.price}$
                 </h1>
               </div>
               <div className="flex gap-2 justify-between w-full">
                 <div className='italic w-full font-semibold bg-slate-100/50 dark:bg-slate-900/50 py-1 px-2 rounded-lg text-pretty'>
-                <h1 className='font-bold text-md'>Description: </h1>
-                <p className=''>{product.description}</p>
+                <h1 className='font-bold tracking-wide'>Description: </h1>
+                <p className='tracking-tight text-pretty capitalize font-extralight text-md'>{product.description}</p>
                 </div>
               </div>
-              <div className="flex gap-2 justify-between w-full">
-                <div className='font-bold text-md'>
-                  <div className="capitalize h-full bg-slate-100/50 dark:bg-slate-900/50 py-1 px-2 rounded-lg text-xs text-nowrap">
-                  <h1 className='font-bold text-md'>Category:</h1>
-                    •{product.category}
-                  <div className="flex justify-between md:w-1/5">
-                    <p className=''>Availability:</p>
-                    <div className='tracking-tighter whitespace-normal'>
-                      {product.stock >= 1 ? `${product.stock} in stock ` : `${product.stock} not in stock!`}
-                    </div>
+              <div className='flex gap-2 justify-between w-full'>
+                <div className="flex flex-col gap-2 justify-between w-full bg-slate-100/50 dark:bg-slate-900/50 py-1 px-2 rounded-lg text-xs text-nowrap">
+                  <h1 className='font-bold tracking-wide'>Status: </h1>
+                  <div className='flex justify-between gap-3'>
+                    <h1 className=''>Category:</h1>
+                    <p className='tracking-tight whitespace-nowrap capitalize font-semibold text-md'>{product.category}</p>
                   </div>
+                  <div className="flex justify-between gap-3">
+                    <h1 className=''>Availability:</h1>
+                    <p className='tracking-tighter whitespace-nowrap capitalize font-semibold text-md'>{product.stock >= 1 ? `${product.stock} in-stock ` : `${product.stock} in-stock!`}</p>
                   </div>
                 </div>
-                <div className='italic w-full font-semibold bg-slate-100/50 dark:bg-slate-900/50 py-1 px-2 rounded-lg'>
-                <h1 className='font-bold text-md'>Specifications: </h1>
-                  {Array.isArray(product.specifications) && product.specifications.length > 0 ? (
-                      <ul className="">
-                      {product.specifications.map((spec, index) => (typeof spec === 'object' && spec && Array.isArray(Object.keys(spec)) && Array.isArray(Object.values(spec)) && (
-                      <li className="" key={index}>• {`${Object.values(spec)[0]}: ${Object.values(spec)[1]}`}</li>
-                      )))}
-                    </ul>
-                    ) : (
-                      <p>No specifications provided</p>
-                    )
-                  }
-                </div>
+              </div>
+              <div className='italic w-full font-semibold bg-slate-100/50 dark:bg-slate-900/50 py-1 px-2 rounded-lg'>
+              <h1 className='font-bold text-md'>Specifications: </h1>
+                {Array.isArray(product.specifications) && product.specifications.length > 0 ? (
+                    <ul className="text-xs md:text">
+                    {product.specifications.map((spec, index) => (typeof spec === 'object' && spec && Array.isArray(Object.keys(spec)) && Array.isArray(Object.values(spec)) && (
+                    <li className="text-pretty tracking-tight" key={index}>• {`${Object.values(spec)[0]}: ${Object.values(spec)[1]}`}</li>
+                    )))}
+                  </ul>
+                  ) : (
+                    <p>No specifications provided</p>
+                  )
+                }
               </div>
             </div>
             <div className='w-full mt-5'>
