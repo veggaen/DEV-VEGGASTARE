@@ -46,7 +46,7 @@
                 type="text"
                 placeholder="Search by title..."
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full border-2 border-black/50 dark:border-white/50 py-1 px-2 rounded-xl"
+                className="w-full border-2 bg-white dark:bg-black/30 border-black/50 dark:border-white/50 py-1 px-2 rounded-xl"
               />
             </div>
               <div className={`w-full space-y-2 my-2`}>
@@ -63,16 +63,16 @@
                     placeholder="Min Price"
                     value={minPrice !== 0 ? minPrice.toString() : ''}
                     onChange={(e) => setMinPrice(e.target.value ? parseInt(e.target.value) : 0)}
-                    className={'w-full border-2 border-black/50 dark:border-white/50 p-1 sm:mr-2 rounded'}
+                    className={'w-full border-2 bg-white dark:bg-black/30 border-black/50 dark:border-white/50 p-1 sm:mr-2 rounded'}
                   />
                   <input
                     type="number"
                     placeholder="Max Price"
                     value={maxPrice !== Infinity ? maxPrice.toString() : ''}
                     onChange={(e) => setMaxPrice(e.target.value ? parseInt(e.target.value) : Infinity)}
-                    className={'border-2 border-black/50 dark:border-white/50 p-1 w-full sm:mr-2 rounded'}
+                    className={'border-2 bg-white dark:bg-black/30 border-black/50 dark:border-white/50 p-1 w-full sm:mr-2 rounded'}
                   />
-                  <div onClick={handleResetPrice} className='bg-black/30 w-full py-1 px-2 border-2 border-black/50 dark:border-white/50 rounded hover:bg-blue-500 '>Reset</div>
+                  <div onClick={handleResetPrice} className='bg-white dark:bg-black/30 w-full py-1 px-2 border-2 border-black/50 dark:border-white/50 rounded hover:bg-blue-500 '>Reset</div>
                 </div>
                 )}
               </div>

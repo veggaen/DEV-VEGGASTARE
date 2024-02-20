@@ -45,14 +45,14 @@ const toggleSidebar = (e: React.MouseEvent<HTMLButtonElement>) => {
             {isSidebarOpen ? (
               <div className={`flex justify-start items-center h-[56px]`}>
                 {user ? (
-                    <h1 className="w-full flex justify-between items-center py-2 px-4 font-bold text-center">Welcome, {user.name}! <div ><PanelLeftClose className="h-6 w-6"/></div>  </h1>   
+                    <h1 className="w-full flex justify-between items-center py-2 px-4 font-bold text-center">Welcome, {user.name}! <div className="animate-pulse" ><PanelLeftClose className="h-6 w-6"/></div>  </h1>   
                   ):(
                     <h1 className="w-full py-2 px-4 font-bold text-center">Welcome, Sign in here!</h1>   
                   )   
                 }
               </div>
               ) : (
-                <div className="hover:animate-pulse"><PanelLeftOpen className="h-8 w-8"/></div>
+                <div className="animate-pulse"><PanelLeftOpen className="h-8 w-8"/></div>
               )}
           </button>
         </div>

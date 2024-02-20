@@ -24,8 +24,8 @@ const buttonVariants = cva(
         vegaEmeraldBtn: 'bg-emerald-500 text-white transition duration-300 ease-in-out hover:scale-105 hover:text-md active:border active:border-sky-500',
         vegaNormalBtn: 'bg-slate-400 dark:bg-slate-600 text-white transition duration-300 ease-in-out hover:scale-105 hover:text-md active:border active:border-sky-500 hover:bg-slate-400 dark:hover:bg-slate-700',
         vegaBuyBtn: 'bg-emerald-400 dark:bg-emerald-600 text-white transition duration-300 ease-in-out hover:scale-95 hover:text-md active:border active:border-sky-500 hover:bg-emerald-400 dark:hover:bg-emerald-700',
-        vegaAddBasketBtn: 'bg-slate-400 dark:bg-orange-600 text-white transition duration-300 ease-in-out hover:scale-95 hover:text-md active:border active:border-sky-500 hover:bg-orange-400 dark:hover:bg-orange-700',
-        vegaAddWishlistBtn: 'bg-sky-400 dark:bg-sky-600 text-white transition duration-300 ease-in-out hover:scale-95 hover:text-md active:border active:border-sky-500 hover:bg-sky-400 dark:hover:bg-sky-700',
+        vegaAddBasketBtn: 'bg-sky-400 dark:bg-sky-600 text-white transition duration-300 ease-in-out hover:scale-95 hover:text-md active:border active:border-sky-500 hover:bg-orange-400 dark:hover:bg-orange-700',
+        vegaAddWishlistBtn: 'bg-slate-400 dark:bg-slate-600 text-white transition duration-300 ease-in-out hover:scale-95 hover:text-md active:border active:border-sky-500 hover:bg-sky-400 dark:hover:bg-sky-700',
       },
       size: {
         default: "h-10 px-4 py-2",
