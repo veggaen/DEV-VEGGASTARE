@@ -49,113 +49,48 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
   }, [selectedCategories, products, minPrice, maxPrice, searchTerm]);
 
   return (
-    <div className="w-full h-full">
-      {/* <div className='flex flex-col justify-center items-center gap-3 bg-slate-50 dark:bg-slate-950 py-4'>
-        <div className='grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 1xl:grid-cols-8 gap-3'>
-          {categories.map((category) => (
-            <div key={category} className={`bg-black/30 py-1 px-2 rounded`}>
-              <div className={`flex`} >
-                <input
-                  className={'mx-1'}
-                  type="checkbox"
-                  id={category}
-                  name={category}
-                  onChange={(e) => handleCategoryChange(category, e.target.checked)}
-                />
-                <label htmlFor={category}>{category}</label>
+  <div className="w-full h-full">
+    {loading && <ProductsSkeleton />}
+    {products && (
+      <div className={`w-full h-full grid grid-cols-2 gap-3 py-6 px-3 md:px-3 md:gap-3 ${filteredProducts?.length === 1 ? 'md:grid-cols-1' : 'md:grid-cols-3'} ${filteredProducts?.length >= 3 && products?.length >= 3 && 'xl:grid-cols-3 md:px-4 xl:gap-4'} ${filteredProducts?.length >= 4 && products?.length >= 4 && '1xl:grid-cols-4 md:px-6 1xl:gap-6'} ${filteredProducts?.length >= 5 && products?.length >= 5 && '3xl:grid-cols-5 md:px-10 3xl:gap-10'} ${filteredProducts?.length >= 6 && products?.length >= 6 && '3xl:grid-cols-6 md:px-10 3xl:gap-10'} ${filteredProducts?.length >= 7 && products?.length >= 7 && '4xl:grid-cols-7 md:px-12 4xl:gap-12'} ${filteredProducts?.length >= 8 && products?.length >= 8 && '5xl:grid-cols-8 md:px-12 5xl:gap-12'}`}>
+        {filteredProducts.map((product, index) => (
+          <div key={product.id.toString()} className="flex flex-col border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <div className="flex flex-col items-center justify-center h-full bg-gray-100 dark:bg-gray-900 p-4">
+              <div className="flex items-center justify-center mb-2">
+              <h2 className="text-lg font-semibold text-center text-gray-800 dark:text-gray-100 mb-2">{product.title}</h2>
+              <StarIcon className="h-5 w-5 p-1 text-gray-500 dark:text-slate-100/50"/>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 hidden md:block">{product.description.length > 200 ? `${product.description.substring(0, 200)}...` : product.description}</p>
+              <div className="hidden md:flex items-center justify-between w-full">
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-pretty">Category: {product.category}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Shipping: Free</p>
               </div>
             </div>
-          ))}
-        </div>
-        <div className={'flex flex-col sm:flex-row justify-center items-center w-fit gap-0 bg-slate-100 dark:bg-slate-900 py-2 px-2 rounded'}>
-          <input
-            type="number"
-            placeholder="Min Price"
-            value={minPrice !== 0 ? minPrice.toString() : ''}
-            onChange={(e) => setMinPrice(e.target.value ? parseInt(e.target.value) : 0)}
-            className={'w-full border-2 p-1 sm:mr-2'}
-          />
-          <input
-            type="number"
-            placeholder="Max Price"
-            value={maxPrice !== Infinity ? maxPrice.toString() : ''}
-            onChange={(e) => setMaxPrice(e.target.value ? parseInt(e.target.value) : Infinity)}
-            className={'border-2 p-1 w-full sm:mr-2'}
-          />
-          <div onClick={handleResetPrice} className='bg-black/30 w-full py-1 px-2 border-2 rounded-r hover:bg-blue-500 '>Reset</div>
-        </div>
-      </div> */}
-      {loading && (
-        <ProductsSkeleton />
-      )}
-      {products && <div className={`
-      w-full h-full grid grid-cols-1 gap-3 py-6 px-3
-      ${filteredProducts?.length >= 2 && products?.length >= 2 && 'md:grid-cols-2  md:px-3 md:gap-3'}
-      ${filteredProducts?.length >= 3 && products?.length >= 3 && 'xl:grid-cols-3  md:px-4 xl:gap-4'}
-      ${filteredProducts?.length >= 4 && products?.length >= 4 && '1xl:grid-cols-4 md:px-6 1xl:gap-6'}
-      ${filteredProducts?.length >= 5 && products?.length >= 5 && '3xl:grid-cols-5 md:px-10 3xl:gap-10'}
-      ${filteredProducts?.length >= 6 && products?.length >= 6 && '3xl:grid-cols-6 md:px-10 3xl:gap-10'}
-      ${filteredProducts?.length >= 7 && products?.length >= 7 && '4xl:grid-cols-7 md:px-12 4xl:gap-12'}
-      ${filteredProducts?.length >= 8 && products?.length >= 8 && '5xl:grid-cols-8 md:px-12 5xl:gap-12'}
-      `}>
-        {!loading && (
-          filteredProducts.map((product, index) => (
-              <div key={product.id.toString()} className={`h-full w-full max-w-[886px] flex flex-col border border-white/50 dark:border-black/50 mx-auto transition duration-500 ease-in-out hover:border-blue-500 dark:hover:border-blue-500 rounded-lg shadow-lg ${index % 2 === 0 ? 'bg-color1 light-mode bg-gray-100 dark:bg-gray-900 dark:dark-mode' : 'bg-color2 light-mode bg-gray-200 dark:bg-gray-800 dark:dark-mode'} overflow-hidden`}>
-                  <div className={`flex flex-col md:min-h-[120px] justify-between py-4 px-2 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-950' : 'bg-gray-100 dark:bg-gray-900'}`}>
-                      <div className='flex text-xs'>
-                        <p className="font-semibold text-nowrap hidden 1xl:block">Category:</p>
-                        <p className="font-medium 1xl:text-nowrap ml-1">{product.category}</p>
-                      </div>
-                    <div className='flex'>
-                      <h2 className='text-2xl font-bold mb-2 text-pretty'>{product.title}</h2>
-                      <div className='flex flex-grow justify-end'>{/* product.seller.rating */} <StarIcon className="h-5 w-5 p-1 text-gray-500 dark:text-slate-100/50"/></div>
-                    </div>
-                  </div>
-                  <div className='flex flex-col justify-between gap-2 w-full h-full'>
-                    <div className={`flex flex-col justify-start ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-950' : 'bg-gray-100 dark:bg-gray-900'} overflow-hidden`}>
-                      <Carousel>
-                        <CarouselContent className={`-ml-2 md:-ml-4 ${index % 2 === 0 ? '' : ''}`}>
-                          {product.image.map((image, index) => (
-                            <CarouselItem className={`pl-2 md:pl-4 ${index % 2 === 0 ? '' : ''}`} key={index}>
-                              <AspectRatio ratio={3 / 2}>
-                                <Image src={image} alt={product.title} fill className=" object-cover " />
-                              </AspectRatio>
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                        <CarouselPrevious />
-                        <CarouselNext />
-                      </Carousel>
-                      <div className="flex justify-between items-center pt-1 px-2">
-                        <p className='font-semibold text-md'>Details </p>
-                      </div>
-                      <div className={`py-1 px-2 `}>
-                        <p className='text-xs leading-none italic py-1 px-2'>Description:</p>
-                        <p className={`font-light py-2 px-4 max-h-[158px] text-ellipsis overflow-hidden ${index % 2 === 0 ? 'bg-gray-200 dark:bg-gray-800' : 'bg-gray-200 dark:bg-gray-800'} rounded`}>{product.description}</p>
-                      </div>
-                      <div className="flex justify-between items-center py-1 px-2">
-                        <p className='font-semibold text-md'>Shipping: </p>
-                        <p className='italic font-light font-serif'>{`Free`}</p>
-                      </div>
-                      <div className="flex justify-between items-center py-1 px-2">
-                        <p className='font-semibold text-md'>Price: </p>
-                        <p className='italic font-light text-xl text-center font-serif tracking-tighter'>{`${product.price.toFixed()} $`}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className={`flex flex-col py-2 px-4 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-950' : 'bg-gray-100 dark:bg-gray-900'}`}>
-                      <Link key={product.id.toString()} href={`/products/${product.id}`}>
-                        <Button variant={'vegaBuyBtn'} className={`w-full shadow-md`}>View</Button>
-                      </Link>
-                    <div className='md:flex flex-col lg:flex-row justify-center py-2 w-full gap-2 hidden'>
-                      <Button variant={'vegaAddWishlistBtn'} className={`w-full text-ellipsis shadow-md`}>Add to Wishlist</Button>
-                      <Button variant={'vegaAddBasketBtn'} className={`w-full text-ellipsis shadow-md`}>Add to Basket</Button>
-                    </div>
-                  </div>
-              </div>
-          ))
-        )}
-      </div>}
-    </div>
+            <div className="flex justify-center bg-gray-100 dark:bg-gray-900">
+              <Carousel>
+                <CarouselContent className={`-ml-2 md:-ml-4 h-[192px] w-[240px] md:h-[384px] md:w-[480px] ${index % 2 === 0 ? '' : ''}`}>
+                  {product.image.map((image, index) => (
+                    <CarouselItem className={`pl-2 md:pl-4 ${index % 2 === 0 ? '' : ''}`} key={index}>
+                      <AspectRatio ratio={5 / 4}>
+                        <Image src={image} alt={product.title} fill className="object-cover" />
+                      </AspectRatio>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious />
+                <CarouselNext />
+              </Carousel>
+            </div>
+            <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-900 p-4">
+              <p className="text-lg font-semibold text-gray-800 dark:text-gray-100">{`${product.price.toFixed()} $`}</p>
+              <Link key={product.id.toString()} href={`/products/${product.id}`}>
+                <Button variant={'vegaBuyBtn'}>View</Button>
+              </Link>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
   );
 };
