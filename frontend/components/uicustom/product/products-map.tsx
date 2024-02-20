@@ -55,20 +55,9 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
       <div className={`w-full h-full grid grid-cols-2 gap-3 py-6 px-3 md:px-3 md:gap-3 ${filteredProducts?.length === 1 ? 'md:grid-cols-1' : 'md:grid-cols-3'} ${filteredProducts?.length >= 3 && products?.length >= 3 && 'xl:grid-cols-3 md:px-4 xl:gap-4'} ${filteredProducts?.length >= 4 && products?.length >= 4 && '1xl:grid-cols-4 md:px-6 1xl:gap-6'} ${filteredProducts?.length >= 5 && products?.length >= 5 && '3xl:grid-cols-5 md:px-10 3xl:gap-10'} ${filteredProducts?.length >= 6 && products?.length >= 6 && '3xl:grid-cols-6 md:px-10 3xl:gap-10'} ${filteredProducts?.length >= 7 && products?.length >= 7 && '4xl:grid-cols-7 md:px-12 4xl:gap-12'} ${filteredProducts?.length >= 8 && products?.length >= 8 && '5xl:grid-cols-8 md:px-12 5xl:gap-12'}`}>
         {filteredProducts.map((product, index) => (
           <div key={product.id.toString()} className="flex flex-col border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg overflow-hidden">
-            <div className="flex flex-col items-center justify-center h-full bg-gray-100 dark:bg-gray-900 p-4">
-              <div className="flex items-center justify-center mb-2">
-              <h2 className="text-lg font-semibold text-center text-gray-800 dark:text-gray-100 mb-2">{product.title}</h2>
-              <StarIcon className="h-5 w-5 p-1 text-gray-500 dark:text-slate-100/50"/>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 hidden md:block">{product.description.length > 200 ? `${product.description.substring(0, 200)}...` : product.description}</p>
-              <div className="hidden md:flex items-center justify-between w-full">
-                <p className="text-xs text-gray-500 dark:text-gray-400 text-pretty">Category: {product.category}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Shipping: Free</p>
-              </div>
-            </div>
             <div className="flex justify-center bg-gray-100 dark:bg-gray-900">
               <Carousel>
-                <CarouselContent className={`-ml-2 md:-ml-4 h-[192px] w-[240px] md:h-[384px] md:w-[480px] ${index % 2 === 0 ? '' : ''}`}>
+                <CarouselContent className={`-ml-2 md:-ml-4 h-[240px] w-[300px] md:h-[288px] md:w-[360px] lg:h-[384px] lg:w-[480px] ${index % 2 === 0 ? '' : ''}`}>
                   {product.image.map((image, index) => (
                     <CarouselItem className={`pl-2 md:pl-4 ${index % 2 === 0 ? '' : ''}`} key={index}>
                       <AspectRatio ratio={5 / 4}>
@@ -80,6 +69,17 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
                 <CarouselPrevious />
                 <CarouselNext />
               </Carousel>
+            </div>
+            <div className="flex flex-col items-center justify-center h-full bg-gray-100 dark:bg-gray-900 p-4">
+              <div className="flex items-start justify-center mb-2">
+                <h2 className="text-lg font-semibold text-center text-gray-800 dark:text-gray-100 mb-2 text-pretty">{product.title}</h2>
+                <StarIcon className="h-5 w-5 p-1 text-gray-500 dark:text-slate-100/50"/>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 hidden md:block">{product.description.length > 200 ? `${product.description.substring(0, 200)}...` : product.description}</p>
+              <div className="hidden md:flex items-center justify-between w-full">
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-pretty">Category: {product.category}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Shipping: Free</p>
+              </div>
             </div>
             <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-900 p-4">
               <p className="text-lg font-semibold text-gray-800 dark:text-gray-100">{`${product.price.toFixed()} $`}</p>
