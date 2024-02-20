@@ -54,20 +54,20 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
           </div> */}
           <div className='h-full flex flex-col justify-between bg-slate-300 dark:bg-slate-700 border dark:border-slate-900 rounded-lg py-2 px-4'>
             <div className='flex flex-col gap-2 justify-center items-center'>
-              <div className='flex justify-between w-full bg-slate-100/50 dark:bg-slate-900/50 py-2 px-4 pr-2 rounded-lg'>
+              <div className='flex justify-between w-full items-center bg-slate-100/50 dark:bg-slate-900/50 py-2 px-4 rounded-lg'>
                 <h1 className='text-lg font-bold py-1 px-2 tracking-wide'>Price:</h1>
-                <h1 className='text- text-center font-mono tracking-tighter italic bg-emerald-500/50 min-w-32 py-1 px-2 rounded-lg'>
+                <h1 className='text-center font-mono tracking-tighter italic'>
                   {product.price}$
                 </h1>
               </div>
               <div className="flex gap-2 justify-between w-full">
-                <div className='italic w-full font-semibold bg-slate-100/50 dark:bg-slate-900/50 py-1 px-2 rounded-lg text-pretty'>
+                <div className='italic w-full font-semibold bg-slate-100/50 dark:bg-slate-900/50 py-2 px-4 rounded-lg text-pretty'>
                 <h1 className='font-bold tracking-wide'>Description: </h1>
                 <p className='tracking-tight text-pretty capitalize font-extralight text-md'>{product.description}</p>
                 </div>
               </div>
               <div className='flex gap-2 justify-between w-full'>
-                <div className="flex flex-col gap-2 justify-between w-full bg-slate-100/50 dark:bg-slate-900/50 py-1 px-2 rounded-lg text-xs text-nowrap">
+                <div className="flex flex-col gap-0.5 justify-between w-full bg-slate-100/50 dark:bg-slate-900/50 py-2 px-4 rounded-lg text-xs text-nowrap">
                   <h1 className='font-bold tracking-wide'>Status: </h1>
                   <div className='flex justify-between gap-3'>
                     <h1 className=''>Category:</h1>
@@ -79,7 +79,7 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
                   </div>
                 </div>
               </div>
-              <div className='italic w-full font-semibold bg-slate-100/50 dark:bg-slate-900/50 py-1 px-2 rounded-lg'>
+              <div className='italic w-full font-semibold bg-slate-100/50 dark:bg-slate-900/50 py-2 px-4 rounded-lg'>
               <h1 className='font-bold text-md'>Specifications: </h1>
                 {Array.isArray(product.specifications) && product.specifications.length > 0 ? (
                     <ul className="text-xs md:text">

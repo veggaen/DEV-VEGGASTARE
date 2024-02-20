@@ -9,6 +9,7 @@ import { AspectRatio } from "../../ui/aspect-ratio";
 import { useCategories } from '@/components/providers/categoriesContext';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Button } from '@/components/ui/button';
+import { getUserById } from '@/data/user';
 
 export interface MyProductsMapProps {
   products: Product[] | null;
@@ -111,13 +112,13 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
                     </div>
                   </div>
                   <div className='w-full h-full flex flex-col justify-between p-4'>
-                    <div className='w-full shadow-md'>
+                    <div className={`w-full h-full bg-gray-300 dark:bg-gray-900 rounded-md overflow-hidden shadow-md`}>
                       <Carousel>
                         <CarouselContent className={`-ml-2 md:-ml-4 ${index % 2 === 0 ? '' : ''}`}>
                           {product.image.map((image, index) => (
                             <CarouselItem className={`pl-2 md:pl-4 ${index % 2 === 0 ? '' : ''}`} key={index}>
                               <AspectRatio ratio={3 / 2}>
-                                <Image src={image} alt={product.title} fill className="rounded-t-md object-cover " />
+                                <Image src={image} alt={product.title} fill className=" object-cover " />
                               </AspectRatio>
                             </CarouselItem>
                           ))}
@@ -125,35 +126,35 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
                         <CarouselPrevious />
                         <CarouselNext />
                       </Carousel>
-                      <div className={`w-full ${index % 2 === 0 ? '' : ''}`}>
-                        <div className={`flex flex-col justify-between py-1 bg-gray-300 dark:bg-gray-900 border border-white/20 dark:border-black/20 border-t-transparent`}>
+                      <div className={`w-full`}>
+                        <div className={`flex flex-col justify-between py-1 bg-gray-300 dark:bg-gray-900 border border-white/30 dark:border-black/30 border-t-transparent`}>
                           <p className='relative left-2 text-xs leading-none italic'>Description:</p>
-                          <p className='font-light py-2 px-4'>{product.description}</p>
+                          <p className='font-light py-2 px-4 max-h-[160px] text-ellipsis overflow-hidden'>{product.description}</p>
                         </div>
-                        <div className="flex justify-between py-1 px-2 rounded">
+                        <div className="flex justify-between items-center py-1 px-2 bg-gray-300 dark:bg-gray-900 border border-white/30 dark:border-black/30 border-t-transparent">
                           <p className='font-bold text-lg'>Price: </p>
-                          <p className='italic font-semibold'>{`${product.price.toFixed()} $`}</p>
+                          <p className='italic font-semibold text-center font-mono tracking-tighter'>{`${product.price.toFixed()} $`}</p>
                         </div>
-                        <div className="flex justify-between py-1 px-2 rounded">
+                        <div className="flex justify-between items-center py-1 px-2 bg-gray-300 dark:bg-gray-900 border border-white/30 dark:border-black/30 border-t-transparent">
                           <p className='font-bold text-lg'>Shipping: </p>
-                          <p className='italic font-semibold'>{`Free Shipping`} $</p>
+                          <p className='italic font-semibold'>{`Free`}</p>
                         </div>
-                        <div className="flex justify-between py-1 px-2 rounded">
+                        <div className="flex justify-between items-center py-1 px-2 bg-gray-300 dark:bg-gray-900 border border-white/30 dark:border-black/30 border-t-transparent">
                           <p className='font-bold text-lg'>Seller: </p>
-                          <p className='italic font-semibold'>{/* product.seller.name */}</p>
+                          <p className='italic font-semibold'>{}</p>
                         </div>
                       </div>
                     </div>
                   </div>
-                    <div className='flex flex-col py-2 px-4 bg-gray-300 dark:bg-gray-900 '>
-                        <Link key={product.id.toString()} href={`/products/${product.id}`}>
-                          <Button variant={'vegaBuyBtn'} className={`w-full shadow-md`}>view | {product.title}</Button>
-                        </Link>
-                      <div className='flex justify-end py-2 w-full gap-3'>
-                        <Button variant={'vegaAddWishlistBtn'} className={`w-full text-ellipsis shadow-md`}>Add to Wishlist</Button>
-                        <Button variant={'vegaAddBasketBtn'} className={`w-full text-ellipsis shadow-md`}>Add to Basket</Button>
-                      </div>
+                  <div className='flex flex-col py-2 px-4 bg-gray-300 dark:bg-gray-900 '>
+                      <Link key={product.id.toString()} href={`/products/${product.id}`}>
+                        <Button variant={'vegaBuyBtn'} className={`w-full shadow-md`}>view</Button>
+                      </Link>
+                    <div className='flex flex-col lg:flex-row justify-center py-2 w-full gap-2'>
+                      <Button variant={'vegaAddWishlistBtn'} className={`w-full text-ellipsis shadow-md`}>Add to Wishlist</Button>
+                      <Button variant={'vegaAddBasketBtn'} className={`w-full text-ellipsis shadow-md`}>Add to Basket</Button>
                     </div>
+                  </div>
               </div>
           ))
         )}
