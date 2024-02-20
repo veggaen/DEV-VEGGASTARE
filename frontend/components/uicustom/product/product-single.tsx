@@ -14,126 +14,75 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
   };
   
   return (
-  <div className={`MyProductSingle w-full`}>
-      {/* part one */}
-    <div className='flex justify-between items-center md:flex-col md:justify-center py-1 px-2 p-4'>
-        <h1 className='text-xl font-bold capitalize'>{product.title}</h1>
-        <div className='md:flex items-center md:gap-2'>
-          <p className='text-xs text-nowrap capitalize'>{product.category}</p>
-          <p className='hidden md:block font-semibold'>|</p>
-          <p className='text-xs text-nowrap text-end'>Price: {product.price}$</p>
-        </div>
-    </div>
+  <div className="sm:w-[90%] bg-white dark:bg-gray-800 sm:rounded-lg shadow overflow-hidden">
     <div className="lg:flex">
-        {/* part two */}
-      <div className={`flex justify-center bg-black/20`}>
-        <div className='md:rounded overflow-hidden'>
-          <Carousel>
-            <CarouselContent className="-ml-2 md:-ml-4">
-              {product.image.map((image, index) => (
-  
-                  <CarouselItem className="pl-2 md:pl-4" key={index}>
-                      {/* <AspectRatio ratio={3 / 2}> | 800 ✕ 600 | 1024 ✕ 768 | */}
-                      <Image src={image} alt={product.title} width={800} height={600} className='rounded' />
-                      {/* </AspectRatio> */}
-  
-                  </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious />
-            <CarouselNext />
-          </Carousel>
-        </div>
+      <div className="md:flex-shrink-0">
+        <Carousel>
+          <CarouselContent>
+            {product.image.map((image, index) => (
+              <CarouselItem key={index} className="relative h-[24rem] w-[12rem] md:h-[27rem] md:w-[14rem] object-cover">
+                <AspectRatio ratio={3 / 2}>
+                <Image src={image} alt={product.title} layout="fill" objectFit="cover" />
+                </AspectRatio>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious />
+          <CarouselNext />
+        </Carousel>
       </div>
-        {/* part three */}
-      <div className='w-full flex justify-center bg-slate-200 dark:bg-slate-800'>
-        <div className='flex flex-col p-2 w-full max-w-[1280px]'>
-          {/* <div className='hidden md:flex justify-between w-full py-2 px-4'>
-            <h1 className='text-2xl font-bold text-pretty capitalize'>{product.title}</h1>
-            <p className='text-xl'> <StarFilledIcon className="h-4 w-4 text-black/50 dark:text-white/50"/></p>
-          </div> */}
-          <div className='h-full flex flex-col justify-between bg-slate-300 dark:bg-slate-700 border dark:border-slate-900 rounded-lg py-2 px-4'>
-            <div className='flex flex-col gap-2 justify-center items-center'>
-              <div className='flex justify-between w-full items-center bg-slate-100/50 dark:bg-slate-900/50 py-2 px-4 rounded-lg'>
-                <h1 className='text-lg font-bold py-1 px-2 tracking-wide'>Price:</h1>
-                <h1 className='text-center font-mono tracking-tighter italic'>
-                  {product.price}$
-                </h1>
-              </div>
-              <div className="flex gap-2 justify-between w-full">
-                <div className='italic w-full font-semibold bg-slate-100/50 dark:bg-slate-900/50 py-2 px-4 rounded-lg text-pretty'>
-                <h1 className='font-bold tracking-wide'>Description: </h1>
-                <p className='tracking-tight text-pretty capitalize font-extralight text-md'>{product.description}</p>
-                </div>
-              </div>
-              <div className='flex gap-2 justify-between w-full'>
-                <div className="flex flex-col gap-0.5 justify-between w-full bg-slate-100/50 dark:bg-slate-900/50 py-2 px-4 rounded-lg text-xs text-nowrap">
-                  <h1 className='font-bold tracking-wide'>Status: </h1>
-                  <div className='flex justify-between gap-3'>
-                    <h1 className=''>Category:</h1>
-                    <p className='tracking-tight whitespace-nowrap capitalize font-semibold text-md'>{product.category}</p>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <h1 className=''>Availability:</h1>
-                    <p className='tracking-tighter whitespace-nowrap capitalize font-semibold text-md'>{product.stock >= 1 ? `${product.stock} in-stock ` : `${product.stock} in-stock!`}</p>
-                  </div>
-                </div>
-              </div>
-              <div className='italic w-full font-semibold bg-slate-100/50 dark:bg-slate-900/50 py-2 px-4 rounded-lg'>
-              <h1 className='font-bold text-md'>Specifications: </h1>
-                {Array.isArray(product.specifications) && product.specifications.length > 0 ? (
-                    <ul className="text-xs md:text">
-                    {product.specifications.map((spec, index) => (typeof spec === 'object' && spec && Array.isArray(Object.keys(spec)) && Array.isArray(Object.values(spec)) && (
-                    <li className="text-pretty tracking-tight" key={index}>• {`${Object.values(spec)[0]}: ${Object.values(spec)[1]}`}</li>
-                    )))}
-                  </ul>
-                  ) : (
-                    <p>No specifications provided</p>
-                  )
-                }
-              </div>
-            </div>
-            <div className='w-full mt-5'>
-                <Button variant={'vegaBuyBtn'} className={`w-full`}>Buy</Button>
-                <div className='flex justify-end py-2 w-full gap-3'>
-                <Button variant={'vegaAddBasketBtn'} className={`w-full`}>Add to Basket</Button>
-                <Button variant={'vegaAddWishlistBtn'} className={`w-full`}>Add to Wishlist</Button>
-                </div>
-            </div>
+      <div className="p-8">
+        <div className="uppercase tracking-wide text-sm text-indigo-500 font-semibold">{product.category}</div>
+        <a href="#" className="block mt-1 text-lg leading-tight font-medium text-black hover:underline">{product.title}</a>
+        <p className="mt-2 text-gray-500">{product.description}</p>
+        <div className="mt-4">
+          <div className="flex items-center">
+            <StarIcon className="text-yellow-500 h-5 w-5" />
+            {/* Future rating component */}
           </div>
+          <span className="ml-2">{product.price}$</span>
+        </div>
+        <div className="flex mt-4">
+          <Button variant="vegaBuyBtn">Buy Now</Button>
+          <Button variant="vegaAddBasketBtn" className="ml-2">Add to Basket</Button>
+          <Button variant="vegaAddWishlistBtn" className="ml-2">Add to Wishlist</Button>
         </div>
       </div>
     </div>
-      {/* part four */}
-    <div className='flex flex-col w-full items-center md:justify-center md:gap-3 text-xs text-nowrap text-ellipsis pt-2 px-2'>
+    <div className="flex flex-col p-4 md:p-8 text-sm text-center sm:text-start bg-slate-100 dark:bg-gray-700">
+      <div className="mt-6">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Specifications:</h3>
+        <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
+          {product.specifications?.map((spec, index) => (
+          <div key={index} className="flex flex-col">
+            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">{spec.key}</dt>
+            <dd className="mt-1 text-sm text-gray-900 dark:text-gray-200">{spec.value}</dd>
+          </div>
+          ))}
+        </dl>
+      </div>
 
-          <div className="flex justify-between md:w-1/5">
-            <p className=''>ProductID:</p>
-            <div className='tracking-tighter'>
-              {product.id}
-            </div>
+      <div className="mt-6 border-t bg-slate-200 dark:bg-gray-600 border-gray-200 dark:border-gray-700 p-6">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Additional Information:</h3>
+        <dl className="mt-2 pl-4">
+          <div className="py-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Product ID:</dt>
+          <dd className="text-sm text-gray-900 dark:text-gray-200">{product.id}</dd>
           </div>
-
-          {/* <div className="flex justify-between md:w-1/5">
-            <p className=''>Availability:</p>
-            <div className='tracking-tighter'>
-              {product.stock >= 1 ? product.stock : 'No more products left.'}
-            </div>
-          </div> */}
-        
-          <div className="flex justify-between md:w-1/5">
-            <p className=''>Updated At:</p>
-            <div className='tracking-tighter'>
-              {formatDate(product.updatedAt.toISOString())}
-            </div>
+          <div className="py-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Availability:</dt>
+          <dd className="text-sm text-gray-900 dark:text-gray-200">{product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}</dd>
           </div>
-          <div className="flex justify-between md:w-1/5">
-            <p className=''>Created At:</p>
-            <div className='tracking-tighter'>
-              {formatDate(product.createdAt.toISOString())}
-            </div>
+          <div className="py-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Updated At:</dt>
+          <dd className="text-sm text-gray-900 dark:text-gray-200">{formatDate(product.updatedAt)}</dd>
           </div>
-        
+          <div className="py-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Created At:</dt>
+          <dd className="text-sm text-gray-900 dark:text-gray-200">{formatDate(product.createdAt)}</dd>
+          </div>
+        </dl>
+      </div>
     </div>
   </div>
   )
