@@ -94,10 +94,12 @@ const Carousel = React.forwardRef<
     const handleKeyDown = React.useCallback(
       (event: React.KeyboardEvent<HTMLDivElement>) => {
         if (event.key === "ArrowLeft") {
-          event.preventDefault()
+          event.stopPropagation()
+          //event.preventDefault()
           scrollPrev()
         } else if (event.key === "ArrowRight") {
-          event.preventDefault()
+          event.stopPropagation()
+          //event.preventDefault()
           scrollNext()
         }
       },
@@ -217,7 +219,7 @@ const CarouselPrevious = React.forwardRef<
       variant={variant}
       size={size}
       className={cn(
-        `absolute group h-8 w-8 rounded-full z-10 text-white dark:text-black border-white dark:border-black hover:border-blue-500 hover:dark:border-blue-500 hover:text-blue-500 ${!canScrollPrev ? 'hidden' : ''}`,
+        `absolute group h-8 w-8 rounded-full z-10 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 hover:text-blue-500 ${!canScrollPrev ? 'hidden' : ''}`,
         orientation === "horizontal"
           ? "left-2 top-1/2 -translate-y-1/2"
           : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
@@ -227,7 +229,7 @@ const CarouselPrevious = React.forwardRef<
       onClick={scrollPrev}
       {...props}
     >
-      <ArrowLeft className="h-4 w-4 text-white dark:text-black border-white dark:border-black hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
+      <ArrowLeft className="h-4 w-4 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
       <span className="sr-only">Previous slide</span>
     </Button>
   )
@@ -246,7 +248,7 @@ const CarouselNext = React.forwardRef<
       variant={variant}
       size={size}
       className={cn(
-        `absolute group h-8 w-8 rounded-full z-10 text-white dark:text-black border-white dark:border-black hover:border-blue-500 hover:dark:border-blue-500 hover:text-blue-500 ${!canScrollNext ? 'hidden' : ''}`,
+        `absolute group h-8 w-8 rounded-full z-10 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 hover:text-blue-500 ${!canScrollNext ? 'hidden' : ''}`,
         orientation === "horizontal"
           ? "right-2 top-1/2 -translate-y-1/2"
           : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
@@ -256,7 +258,7 @@ const CarouselNext = React.forwardRef<
       onClick={scrollNext}
       {...props}
     >
-      <ArrowRight className="h-4 w-4 text-white dark:text-black border-white dark:border-black hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
+      <ArrowRight className="h-4 w-4 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
       <span className="sr-only">Next slide</span>
     </Button>
   )
