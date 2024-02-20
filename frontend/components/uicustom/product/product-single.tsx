@@ -60,10 +60,10 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
                   {product.price}$
                 </h1>
               </div>
-              <div className="flex gap-2 justify-between">
-                <div className='italic font-semibold bg-slate-100/50 dark:bg-slate-900/50 py-1 px-2 rounded-lg text-pretty'>
+              <div className="flex gap-2 justify-between w-full">
+                <div className='italic w-full font-semibold bg-slate-100/50 dark:bg-slate-900/50 py-1 px-2 rounded-lg text-pretty'>
                 <h1 className='font-bold text-md'>Description: </h1>
-                  {product.description}
+                <p className=''>{product.description}</p>
                 </div>
               </div>
               <div className="flex gap-2 justify-between w-full">
