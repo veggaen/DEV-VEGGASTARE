@@ -167,7 +167,7 @@ export const MyProductCreationForm = () => {
             }
             if (data.success) {
               setSuccess(data.success)
-              form.reset();
+              handleReset()
               
               console.log(`${MyLogPrefix} onSubmit 2/2 (success)`, data)
             } else {
@@ -180,7 +180,7 @@ export const MyProductCreationForm = () => {
   const handleStartEdit = () => {
     console.log('clicked edit')
     setIsEditing(!isEditing);
-    handleSuccessEnd()
+    handleReset()
   };
   const handleCancelEdit = () => {
     form.reset();
@@ -188,14 +188,18 @@ export const MyProductCreationForm = () => {
     // setShowInput(false);
     setCounter(0);
     setImagePreviews([]);
-    handleSuccessEnd();
+    handleReset();
   };
 
-  const handleSuccessEnd = () => {
+  const handleReset = () => {
       if (error !== '' || success !== undefined) {
         // Clear any existing values when starting to edit
         setCounter(0);
         setError('');
+        setImages([]);
+        setImagePreviews([]);
+        setSpecifications([{ key: 'Weight', value: '1g' }]);
+        form.reset();
         setTimeout(() => {
           setSuccess('');
         }, 5000);

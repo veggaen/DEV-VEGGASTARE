@@ -90,7 +90,7 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
       )}
       {products && <div className={`
       w-full h-full grid grid-cols-1 gap-3 py-6 px-3
-      ${filteredProducts?.length >= 2 && products?.length >= 2 && 'md:grid-cols-3  md:px-3 md:gap-3'}
+      ${filteredProducts?.length >= 2 && products?.length >= 2 && 'md:grid-cols-2  md:px-3 md:gap-3'}
       ${filteredProducts?.length >= 3 && products?.length >= 3 && 'xl:grid-cols-3  md:px-4 xl:gap-4'}
       ${filteredProducts?.length >= 4 && products?.length >= 4 && '1xl:grid-cols-4 md:px-6 1xl:gap-6'}
       ${filteredProducts?.length >= 5 && products?.length >= 5 && '3xl:grid-cols-5 md:px-10 3xl:gap-10'}
@@ -135,11 +135,11 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
                       </div>
                       <div className="flex justify-between items-center py-1 px-2">
                         <p className='font-semibold text-md'>Shipping: </p>
-                        <p className='italic font-light'>{`Free`}</p>
+                        <p className='italic font-light font-serif'>{`Free`}</p>
                       </div>
                       <div className="flex justify-between items-center py-1 px-2">
                         <p className='font-semibold text-md'>Price: </p>
-                        <p className='italic font-light text-xl text-center font-mono tracking-tighter'>{`${product.price.toFixed()}$`}</p>
+                        <p className='italic font-light text-xl text-center font-serif tracking-tighter'>{`${product.price.toFixed()} $`}</p>
                       </div>
                     </div>
                   </div>
