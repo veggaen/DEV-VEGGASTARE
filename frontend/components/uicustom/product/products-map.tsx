@@ -131,7 +131,7 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
                       </div>
                       <div className={`py-1 px-2 `}>
                         <p className='text-xs leading-none italic py-1 px-2'>Description:</p>
-                        <p className={`font-light py-2 px-4 h-[158px] max-h-[158px] text-ellipsis overflow-hidden ${index % 2 === 0 ? 'bg-gray-200 dark:bg-gray-800' : 'bg-gray-200 dark:bg-gray-800'} rounded`}>{product.description}</p>
+                        <p className={`font-light py-2 px-4 max-h-[158px] text-ellipsis overflow-hidden ${index % 2 === 0 ? 'bg-gray-200 dark:bg-gray-800' : 'bg-gray-200 dark:bg-gray-800'} rounded`}>{product.description}</p>
                       </div>
                       <div className="flex justify-between items-center py-1 px-2">
                         <p className='font-semibold text-md'>Shipping: </p>
