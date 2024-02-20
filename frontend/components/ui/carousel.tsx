@@ -94,12 +94,10 @@ const Carousel = React.forwardRef<
     const handleKeyDown = React.useCallback(
       (event: React.KeyboardEvent<HTMLDivElement>) => {
         if (event.key === "ArrowLeft") {
-          event.stopPropagation()
-          //event.preventDefault()
+          event.stopPropagation();
           scrollPrev()
         } else if (event.key === "ArrowRight") {
-          event.stopPropagation()
-          //event.preventDefault()
+          event.stopPropagation();
           scrollNext()
         }
       },
@@ -219,7 +217,7 @@ const CarouselPrevious = React.forwardRef<
       variant={variant}
       size={size}
       className={cn(
-        `absolute group h-8 w-8 rounded-full z-10 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 hover:text-blue-500 ${!canScrollPrev ? 'hidden' : ''}`,
+        `absolute hidden group h-8 w-8 rounded-full z-10 text-white dark:text-white border-transparent hover:text-blue-500 ${!canScrollPrev ? 'hidden' : 'sm:flex'}`,
         orientation === "horizontal"
           ? "left-2 top-1/2 -translate-y-1/2"
           : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
@@ -248,7 +246,7 @@ const CarouselNext = React.forwardRef<
       variant={variant}
       size={size}
       className={cn(
-        `absolute group h-8 w-8 rounded-full z-10 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 hover:text-blue-500 ${!canScrollNext ? 'hidden' : ''}`,
+        `absolute hidden group h-8 w-8 rounded-full z-10 text-white dark:text-white border-transparent hover:text-blue-500 ${!canScrollNext ? 'hidden' : 'sm:flex'}`,
         orientation === "horizontal"
           ? "right-2 top-1/2 -translate-y-1/2"
           : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
