@@ -100,8 +100,8 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
       `}>
         {!loading && (
           filteredProducts.map((product, index) => (
-              <div key={product.id.toString()} className={`h-full w-full max-w-[886px] flex flex-col gap-1 border border-black/50 md:border-black/50 dark:border-white/20 mx-auto transition duration-500 ease-in-out hover:border-blue-500 dark:hover:border-blue-500 rounded-lg shadow-lg ${index % 2 === 0 ? 'bg-color1 light-mode bg-slate-100 hover:bg-slate-50 dark:bg-slate-700 dark:dark-mode' : 'bg-color2 light-mode bg-slate-200 dark:bg-slate-800 dark:dark-mode'} overflow-hidden`}>
-                  <div className={`flex flex-col md:min-h-[120px] justify-between py-4 px-2 bg-gray-300 dark:bg-gray-900 ${index % 2 === 0 ? '' : ''}`}>
+              <div key={product.id.toString()} className={`h-full w-full max-w-[886px] flex flex-col border border-white/50 dark:border-black/50 mx-auto transition duration-500 ease-in-out hover:border-blue-500 dark:hover:border-blue-500 rounded-lg shadow-lg ${index % 2 === 0 ? 'bg-color1 light-mode bg-gray-100 dark:bg-gray-900 dark:dark-mode' : 'bg-color2 light-mode bg-gray-200 dark:bg-gray-800 dark:dark-mode'} overflow-hidden`}>
+                  <div className={`flex flex-col md:min-h-[120px] justify-between py-4 px-2 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-950' : 'bg-gray-100 dark:bg-gray-900'}`}>
                       <div className='flex text-xs'>
                         <p className="font-semibold text-nowrap hidden 1xl:block">Category:</p>
                         <p className="font-medium 1xl:text-nowrap ml-1">{product.category}</p>
@@ -111,8 +111,8 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
                       <div className='flex flex-grow justify-end'>{/* product.seller.rating */} <StarIcon className="h-5 w-5 p-1 text-gray-500 dark:text-slate-100/50"/></div>
                     </div>
                   </div>
-                  <div className='w-full h-full flex flex-col justify-between p-4'>
-                    <div className={`w-full h-full bg-gray-300 dark:bg-gray-900 rounded-md overflow-hidden shadow-md`}>
+                  <div className='flex flex-col justify-between gap-2 w-full h-full'>
+                    <div className={`flex flex-col justify-start ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-950' : 'bg-gray-100 dark:bg-gray-900'} overflow-hidden`}>
                       <Carousel>
                         <CarouselContent className={`-ml-2 md:-ml-4 ${index % 2 === 0 ? '' : ''}`}>
                           {product.image.map((image, index) => (
@@ -126,31 +126,28 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
                         <CarouselPrevious />
                         <CarouselNext />
                       </Carousel>
-                      <div className={`w-full`}>
-                        <div className={`flex flex-col justify-between py-1 bg-gray-300 dark:bg-gray-900 border border-white/30 dark:border-black/30 border-t-transparent`}>
-                          <p className='relative left-2 text-xs leading-none italic'>Description:</p>
-                          <p className='font-light py-2 px-4 max-h-[160px] text-ellipsis overflow-hidden'>{product.description}</p>
-                        </div>
-                        <div className="flex justify-between items-center py-1 px-2 bg-gray-300 dark:bg-gray-900 border border-white/30 dark:border-black/30 border-t-transparent">
-                          <p className='font-bold text-lg'>Price: </p>
-                          <p className='italic font-semibold text-center font-mono tracking-tighter'>{`${product.price.toFixed()} $`}</p>
-                        </div>
-                        <div className="flex justify-between items-center py-1 px-2 bg-gray-300 dark:bg-gray-900 border border-white/30 dark:border-black/30 border-t-transparent">
-                          <p className='font-bold text-lg'>Shipping: </p>
-                          <p className='italic font-semibold'>{`Free`}</p>
-                        </div>
-                        <div className="flex justify-between items-center py-1 px-2 bg-gray-300 dark:bg-gray-900 border border-white/30 dark:border-black/30 border-t-transparent">
-                          <p className='font-bold text-lg'>Seller: </p>
-                          <p className='italic font-semibold'>{}</p>
-                        </div>
+                      <div className="flex justify-between items-center pt-1 px-2">
+                        <p className='font-semibold text-md'>Details </p>
+                      </div>
+                      <div className={`py-1 px-2 `}>
+                        <p className='text-xs leading-none italic py-1 px-2'>Description:</p>
+                        <p className={`font-light py-2 px-4 h-[158px] max-h-[158px] text-ellipsis overflow-hidden ${index % 2 === 0 ? 'bg-gray-200 dark:bg-gray-800' : 'bg-gray-200 dark:bg-gray-800'} rounded`}>{product.description}</p>
+                      </div>
+                      <div className="flex justify-between items-center py-1 px-2">
+                        <p className='font-semibold text-md'>Shipping: </p>
+                        <p className='italic font-light'>{`Free`}</p>
+                      </div>
+                      <div className="flex justify-between items-center py-1 px-2">
+                        <p className='font-semibold text-md'>Price: </p>
+                        <p className='italic font-light text-xl text-center font-mono tracking-tighter'>{`${product.price.toFixed()}$`}</p>
                       </div>
                     </div>
                   </div>
-                  <div className='flex flex-col py-2 px-4 bg-gray-300 dark:bg-gray-900 '>
+                  <div className={`flex flex-col py-2 px-4 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-950' : 'bg-gray-100 dark:bg-gray-900'}`}>
                       <Link key={product.id.toString()} href={`/products/${product.id}`}>
-                        <Button variant={'vegaBuyBtn'} className={`w-full shadow-md`}>view</Button>
+                        <Button variant={'vegaBuyBtn'} className={`w-full shadow-md`}>View</Button>
                       </Link>
-                    <div className='flex flex-col lg:flex-row justify-center py-2 w-full gap-2'>
+                    <div className='md:flex flex-col lg:flex-row justify-center py-2 w-full gap-2 hidden'>
                       <Button variant={'vegaAddWishlistBtn'} className={`w-full text-ellipsis shadow-md`}>Add to Wishlist</Button>
                       <Button variant={'vegaAddBasketBtn'} className={`w-full text-ellipsis shadow-md`}>Add to Basket</Button>
                     </div>
