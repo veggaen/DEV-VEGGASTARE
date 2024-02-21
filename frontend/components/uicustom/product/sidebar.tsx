@@ -5,7 +5,7 @@
   import { DropdownMenuSeparator } from "@radix-ui/react-dropdown-menu";
   import { ScrollArea } from "@radix-ui/react-scroll-area"
   import { ArrowDown01Icon, ArrowDownIcon, ArrowLeft, EyeOff, PanelLeftClose, PanelTop, PanelTopClose } from "lucide-react";
-  import { useState } from "react";
+  import { useEffect, useState } from "react";
 
   // Assuming you are using TypeScript, define the props interface
   interface MySidebarProductsMenuProps {
@@ -19,8 +19,40 @@
     // Adjust the component to use the correct props
     export const MySidebarProductsMenu = ({ isOpen }: MySidebarProductsMenuProps) => {
       const user = useCurrentUser();
-      const { categories, setSelectedCategories, setMinPrice, minPrice, setMaxPrice, maxPrice, searchTerm, setSearchTerm } = useCategories();
+
+      const { categories, selectedCategories, setSelectedCategories, setMinPrice, minPrice, setMaxPrice, maxPrice, searchTerm, setSearchTerm } = useCategories();
+      const [localSelectedCategories, setLocalSelectedCategories] = useState(categories);
+      const [localCategories, setLocalCategories] = useState(categories);
       const [isFilterTabCategories, setIsFilterTabCategories] = useState<{ categories: boolean, price: boolean, [key: string]: boolean }>({ categories: true, price: true });
+
+      useEffect(() => {
+        if (categories != localCategories){
+          console.log('categories: changed', categories);
+        }
+        if (selectedCategories != localSelectedCategories){
+          console.log('selectedCategories:', selectedCategories);
+        }
+        /* console.log('minPrice:', minPrice);
+        console.log('maxPrice:', maxPrice);
+        console.log('searchTerm:', searchTerm); */
+
+        // Add your logic here to update the necessary values
+        // For example, you can update the categories, minPrice, and maxPrice based on some conditions or external changes
+
+        console.log('SIDEBAR something changed');
+      }, [categories, selectedCategories, minPrice, maxPrice, searchTerm]);
+
+      // Update local state when context state changes
+      useEffect(() => {
+        if ( categories.length > 0 ) {
+          console.log('local state updated');
+          setLocalCategories(categories);
+        } else {
+          console.log('local state not updated');
+        }
+        
+        return () => setLocalCategories([]);
+      }, [categories]);
 
       const handleFilterTabOpen = (tab: keyof typeof isFilterTabCategories) => {
           console.log("handleFilterTabOpen tab:", tab);
@@ -85,7 +117,7 @@
               <div className={`w-full`}>
                 {isFilterTabCategories.categories && (
                   <div className="flex flex-col gap-2 justify-center items-start text-center p-2">
-                    {categories && categories.map((category, index) => (
+                    {localCategories && localCategories.map((category, index) => (
                       <div key={index} className={`bg-slate-200 dark:bg-slate-800 w-full py-1 px-2 rounded`}>
                       <div className={`flex flex-row-reverse justify-between`} >
                         <input

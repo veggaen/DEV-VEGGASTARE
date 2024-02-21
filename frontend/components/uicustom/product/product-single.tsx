@@ -8,8 +8,8 @@ import Image from "next/image";
 
 // Extending the Product type to include specifications as an array of objects
 interface Specification {
-    key?: string;
-    value?: string;
+    key: string;
+    value: string;
 }
 
 interface Product extends Omit<PrismaProduct, 'specifications'> {
@@ -24,15 +24,15 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
   };
   
   return (
-  <div className="w-full xs:w-[90%] flex flex-col shadow">
+  <div className="w-full xs:w-[90%] flex flex-col">
     <div className="lg:flex-row flex flex-col xs:rounded-t-lg bg-white dark:bg-gray-800">
-      <div className="relative flex flex-col w-full xs:rounded-t-lg lg:rounded-tr-none overflow-hidden">
+      <div className="relative flex flex-col w-full h-full max-w-[800px] xs:rounded-t-lg lg:rounded-tr-none overflow-hidden">
         <Carousel>
           <CarouselContent>
             {product.image.map((image, idx) => (
               <CarouselItem key={idx} className="bg-transparent">
                 <AspectRatio ratio={5 / 4}>
-                  <Image src={image} alt={product.title} fill className="object-fill" />
+                  <Image src={image} priority alt={product.title} fill className="object-fill" />
                 </AspectRatio>
               </CarouselItem>
             ))}
