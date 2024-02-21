@@ -14,16 +14,18 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
   };
   
   return (
-  <div className="sm:w-[90%] bg-white dark:bg-gray-800 sm:rounded-lg shadow overflow-hidden">
-    <div className="lg:flex">
-      <div className="md:flex-shrink-0">
+  <div className="sm:w-[90%] bg-white dark:bg-gray-800 sm:rounded-lg overflow-hidden shadow">
+    <div className="md:flex">
+      <div className="md:flex-shrink-0 w-full md:max-w-[45%] sm:rounded-tl-lg overflow-hidden">
         <Carousel>
           <CarouselContent>
             {product.image.map((image, index) => (
-              <CarouselItem key={index} className="relative h-[24rem] w-[12rem] md:h-[27rem] md:w-[14rem] object-cover">
-                <AspectRatio ratio={3 / 2}>
-                <Image src={image} alt={product.title} layout="fill" objectFit="cover" />
-                </AspectRatio>
+              <CarouselItem key={index} className="">
+                <div className="relative h-full w-full">
+                  <AspectRatio ratio={5 / 4}>
+                    <Image src={image} alt={product.title} fill className={`object-cover`} />
+                  </AspectRatio>
+                </div>
               </CarouselItem>
             ))}
           </CarouselContent>
@@ -62,7 +64,7 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
         </dl>
       </div>
 
-      <div className="mt-6 border-t bg-slate-200 dark:bg-gray-600 border-gray-200 dark:border-gray-700 p-6">
+      <div className="mt-6 border-t border-gray-200 dark:border-gray-700 p-6">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Additional Information:</h3>
         <dl className="mt-2 pl-4">
           <div className="py-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
