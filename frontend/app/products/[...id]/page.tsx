@@ -16,7 +16,7 @@ const ProductPage = async ({ params }: { params: any} ) => {
 
 
   return (
-    <div className='flex flex-col justify-start items-center'>
+    <div className='w-full h-full flex flex-col justify-start items-center'>
       <MyProductSingle product={product} />
     </div>
   );

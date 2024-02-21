@@ -24,7 +24,7 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
   };
   
   return (
-  <div className="xs:w-[90%] bg-white dark:bg-gray-800 sm:rounded-lg overflow-hidden shadow">
+  <div className="w-full xs:w-[90%] flex flex-col bg-white dark:bg-gray-800 sm:rounded-lg shadow">
     <div className="lg:flex-row flex flex-col mb-1 hover:shadow-md transition-shadow duration-300">
       <div className="relative flex flex-col w-full rounded-tl-lg overflow-hidden">
         <Carousel>
