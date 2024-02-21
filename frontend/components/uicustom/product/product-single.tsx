@@ -24,13 +24,13 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
   };
   
   return (
-  <div className="w-full xs:w-[90%] flex flex-col bg-white dark:bg-gray-800 sm:rounded-lg shadow">
-    <div className="lg:flex-row flex flex-col mb-1 hover:shadow-md transition-shadow duration-300">
-      <div className="relative flex flex-col w-full rounded-tl-lg overflow-hidden">
+  <div className="w-full xs:w-[90%] flex flex-col shadow">
+    <div className="lg:flex-row flex flex-col xs:rounded-t-lg bg-white dark:bg-gray-800">
+      <div className="relative flex flex-col w-full xs:rounded-t-lg lg:rounded-tr-none overflow-hidden">
         <Carousel>
           <CarouselContent>
             {product.image.map((image, idx) => (
-              <CarouselItem key={idx}>
+              <CarouselItem key={idx} className="bg-transparent">
                 <AspectRatio ratio={5 / 4}>
                   <Image src={image} alt={product.title} fill className="object-fill" />
                 </AspectRatio>
@@ -59,7 +59,7 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
         </div>
       </div>
     </div>
-    <div className="flex flex-col p-4 md:p-8 text-sm text-center sm:text-start bg-slate-100 dark:bg-gray-700 ">
+    <div className="flex flex-col p-4 md:p-8 text-sm text-center sm:text-start bg-slate-100 dark:bg-gray-700 sm:rounded-b-lg">
       <div className="mt-6">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Specifications:</h3>
         <dl className="mt-2 grid items-center grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 lg:mb-1">
