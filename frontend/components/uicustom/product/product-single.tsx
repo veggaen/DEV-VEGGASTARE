@@ -8,12 +8,12 @@ import Image from "next/image";
 
 // Extending the Product type to include specifications as an array of objects
 interface Specification {
-    key: string;
-    value: string;
+    key?: string;
+    value?: string;
 }
 
 interface Product extends Omit<PrismaProduct, 'specifications'> {
-  specifications: Specification[];
+  specifications?: Specification[] | null;
 }
 
 export const MyProductSingle = ({ product }: { product: Product }) => {

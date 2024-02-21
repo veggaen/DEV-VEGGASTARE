@@ -1,5 +1,6 @@
-import { dbPrisma } from "@/lib/db";
+'use server';
 
+import { dbPrisma } from "@/lib/db";
 
 const LOG_PREFIX = '[frontend/data/products.ts]';
 export const getProductsByCategory = async(category: string) => {
