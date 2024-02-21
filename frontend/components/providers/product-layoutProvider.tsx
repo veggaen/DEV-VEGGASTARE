@@ -65,7 +65,7 @@ const toggleSidebar = (e: React.MouseEvent<HTMLButtonElement>) => {
         <div className="hidden md:flex w-full justify-center items-center">
           <MyNavbarProducts />
         </div>
-        <div className={`w-full min-w-screen max-w-screen min-h-screen max-h-screen`}>
+        <div className={`w-full min-w-screen max-w-screen min-h-screen`}>
           {children}
         </div>
       </div>
