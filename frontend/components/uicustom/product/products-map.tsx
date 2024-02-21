@@ -53,14 +53,14 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
     {products && (
       <div className={`grid gap-3 py-6 px-2 md:px-4 ${gridClasses}`}>
         {!loading && filteredProducts.map((product, index) => (
-          <div key={product.id.toString()} className="flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300">
+          <div key={product.id.toString()} className="flex flex-col border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300">
             <div className="relative">
               <Carousel>
                 <CarouselContent>
                   {product.image.map((image, idx) => (
                     <CarouselItem key={idx}>
-                      <AspectRatio ratio={3 / 2}>
-                        <Image src={image} alt={product.title} layout="fill" className="object-cover" />
+                      <AspectRatio ratio={5 / 4}>
+                        <Image src={image} alt={product.title} fill className="object-fill" />
                       </AspectRatio>
                     </CarouselItem>
                   ))}
@@ -83,7 +83,7 @@ export const MyProductsMap = ({ products }: MyProductsMapProps) => {
                 <p className="text-md font-semibold">{`${product.price.toFixed(0)} $`}</p>
               </div>
               <Link href={`/products/${product.id}`} passHref>
-                <Button variant="vegaBuyBtn" className="mt-2 sm:mt-4 text-xs md:text-sm">View</Button>
+                <Button variant="vegaBuyBtn" className="mt-2 sm:mt-4 text-xs md:text-sm hover:shadow-md transition-shadow duration-300">View</Button>
               </Link>
             </div>
           </div>

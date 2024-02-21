@@ -1,31 +1,39 @@
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Product } from "@prisma/client";
+import { Product as PrismaProduct} from "@prisma/client";
 import { StarFilledIcon } from "@radix-ui/react-icons";
 import { StarIcon } from "lucide-react";
 import Image from "next/image";
 
+// Extending the Product type to include specifications as an array of objects
+interface Specification {
+    key: string;
+    value: string;
+}
+
+interface Product extends Omit<PrismaProduct, 'specifications'> {
+  specifications: Specification[];
+}
+
 export const MyProductSingle = ({ product }: { product: Product }) => {
 
-  const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  const formatDate = (dateInput: Date | string): string => {
+      const date = new Date(dateInput);
+      return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
   };
   
   return (
-  <div className="sm:w-[90%] bg-white dark:bg-gray-800 sm:rounded-lg overflow-hidden shadow">
-    <div className="md:flex">
-      <div className="md:flex-shrink-0 w-full md:max-w-[45%] sm:rounded-tl-lg overflow-hidden">
+  <div className="xs:w-[90%] bg-white dark:bg-gray-800 sm:rounded-lg overflow-hidden shadow">
+    <div className="lg:flex-row flex flex-col mb-1 hover:shadow-md transition-shadow duration-300">
+      <div className="relative flex flex-col w-full rounded-tl-lg overflow-hidden">
         <Carousel>
           <CarouselContent>
-            {product.image.map((image, index) => (
-              <CarouselItem key={index} className="">
-                <div className="relative h-full w-full">
-                  <AspectRatio ratio={5 / 4}>
-                    <Image src={image} alt={product.title} fill className={`object-cover`} />
-                  </AspectRatio>
-                </div>
+            {product.image.map((image, idx) => (
+              <CarouselItem key={idx}>
+                <AspectRatio ratio={5 / 4}>
+                  <Image src={image} alt={product.title} fill className="object-fill" />
+                </AspectRatio>
               </CarouselItem>
             ))}
           </CarouselContent>
@@ -33,7 +41,7 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
           <CarouselNext />
         </Carousel>
       </div>
-      <div className="p-8">
+      <div className="flex flex-col w-fit p-8">
         <div className="uppercase tracking-wide text-sm text-indigo-500 font-semibold">{product.category}</div>
         <a href="#" className="block mt-1 text-lg leading-tight font-medium text-black hover:underline">{product.title}</a>
         <p className="mt-2 text-gray-500">{product.description}</p>
@@ -44,17 +52,17 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
           </div>
           <span className="ml-2">{product.price}$</span>
         </div>
-        <div className="flex mt-4">
-          <Button variant="vegaBuyBtn">Buy Now</Button>
-          <Button variant="vegaAddBasketBtn" className="ml-2">Add to Basket</Button>
-          <Button variant="vegaAddWishlistBtn" className="ml-2">Add to Wishlist</Button>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <Button variant="vegaBuyBtn" className="hover:shadow-md transition-shadow duration-300">Buy Now</Button>
+          <Button variant="vegaAddBasketBtn" className="hover:shadow-md transition-shadow duration-300">Add to Basket</Button>
+          <Button variant="vegaAddWishlistBtn" className="hover:shadow-md transition-shadow duration-300">Add to Wishlist</Button>
         </div>
       </div>
     </div>
-    <div className="flex flex-col p-4 md:p-8 text-sm text-center sm:text-start bg-slate-100 dark:bg-gray-700">
+    <div className="flex flex-col p-4 md:p-8 text-sm text-center sm:text-start bg-slate-100 dark:bg-gray-700 ">
       <div className="mt-6">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Specifications:</h3>
-        <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
+        <dl className="mt-2 grid items-center grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 lg:mb-1">
           {product.specifications?.map((spec, index) => (
           <div key={index} className="flex flex-col">
             <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">{spec.key}</dt>
