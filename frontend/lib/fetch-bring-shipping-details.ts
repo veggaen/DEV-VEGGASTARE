@@ -69,7 +69,7 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
                 'Content-Type': 'application/json',
                 'X-Mybring-API-Uid': bringApiUid as string,
                 'X-Mybring-API-Key': bringApiKey as string,
-                'X-Bring-Client-URL': 'http://localhost:3000/',
+                'X-Bring-Client-URL': 'https://dev-veggastare.vercel.app/',
             },
             body: JSON.stringify(requestBody),
         });
