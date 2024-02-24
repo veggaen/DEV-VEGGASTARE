@@ -13,19 +13,16 @@ import { MyFormSuccess } from '../../forms/form-sucess';
 import { MyCreateProductAction } from '@/actions/products';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { UserRole } from '@prisma/client';
-import { UploadCloudIcon, User, XIcon } from 'lucide-react';
+import { UploadCloudIcon, XCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useDropzone } from 'react-dropzone';
-import { AspectRatio } from '@radix-ui/react-aspect-ratio';
-import { Cross2Icon } from '@radix-ui/react-icons';
 import { useEdgeStore } from '@/lib/edgestore';
-import { EdgeStoreApiClientError } from '@edgestore/react/shared';
 import { Textarea } from '@/components/ui/textarea';
 import { getUserById } from '@/data/user';
 
 interface Specification {
   key: string;
-  value: string;
+  value: string | number;
   placeholder?: string;
 }
 
@@ -37,11 +34,12 @@ export const MyProductCreationForm = () => {
     const [uId, setUId] = useState<string | undefined>(user?.id) // role admin to modify input value
     const [images, setImages] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-    const [specifications, setSpecifications] = useState<Specification[]>([{ key: 'Weight', value: '1g' }]);
+    const [specifications, setSpecifications] = useState<Specification[]>([{ key: 'Weight', value: '1' }]);
     const examplePlaceholders = ['Weight', 'Height', 'Length', 'Width', 'Material', 'Color', 'Size', 'Brand', 'Model', 'Country of Origin', 'Warranty', 'Certification'];
 
     // UI States
     const [counter, setCounter] = useState(0);
+    var counterVar = 1
     const [error, setError] = useState<string | undefined>('')
     const [success, setSuccess] = useState<string | undefined>('')
     const [isEditing, setIsEditing] = useState(false);
@@ -89,10 +87,12 @@ export const MyProductCreationForm = () => {
       setImages([...images, ...acceptedFiles]);
       const newPreviews = acceptedFiles.map(file => URL.createObjectURL(file));
       setImagePreviews([...imagePreviews, ...newPreviews]);
-      if (counter <= 3){
-        setCounter(counter >= 4 ? 4 : counter + 1);
-        console.log(counter);
+      if (counter === 0){
+        setCounter(1);
+      } else {
+        setCounter(counter + 1);
       }
+      console.log(counter);
     };
 
     const { getRootProps, getInputProps } = useDropzone({
@@ -115,11 +115,38 @@ export const MyProductCreationForm = () => {
       return uploadedUrls;
     };
 
-    // Handle image removal
-    const handleSpecificationChange = (index: number, field: 'key' | 'value', value: string) => {
-      const updatedSpecifications = specifications.map((spec, specIndex) => (
-        index === specIndex ? { ...spec, [field]: value } : spec
-      ));
+    // Function to handle image removal
+    const removeImage = (e: any, index: number) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Update images state by filtering out the image at the specified index
+      const newImages = images.filter((_, i) => i !== index);
+      setImages(newImages);
+      if (counter > 0){
+        setCounter(counter - 1);
+      }
+      // Update imagePreviews state similarly
+      const newImagePreviews = imagePreviews.filter((_, i) => i !== index);
+      setImagePreviews(newImagePreviews);
+    };
+    
+    // Function to handle changes in specifications
+    const handleSpecificationChange = (
+      index: number,
+      field: 'key' | 'value',
+      value: string
+    ) => {
+      const updatedSpecifications = specifications.map((spec, specIndex) =>
+        index === specIndex
+          ? {
+              ...spec,
+              [field]:
+                spec.key === 'Weight' && field === 'value'
+                  ? parseFloat(value) || 0 // Convert string to number for specific keys like 'Weight'
+                  : value,
+            }
+          : spec
+      );
       setSpecifications(updatedSpecifications);
     };
     
@@ -129,7 +156,14 @@ export const MyProductCreationForm = () => {
     };
   
     const addSpecification = () => {
-      setSpecifications([...specifications, { key: '', value: '' }]);
+      const nextPlaceholder = examplePlaceholders.find(placeholder => 
+        !specifications.some(spec => spec.key === placeholder)
+      );
+      const newSpec = {
+        key: nextPlaceholder || '',
+        value: ''
+      };
+      setSpecifications([...specifications, newSpec]);
     };
 
     const onSubmit = async (values: z.infer<typeof MyProductCreateSchema>) => {
@@ -146,14 +180,31 @@ export const MyProductCreationForm = () => {
         }
       }
 
-      if (specifications) {
-        values.specifications = specifications.map((spec, i) => {
+      // Ensure specifications are correctly formatted
+      const formattedSpecifications = specifications.map((spec) => {
+        return {
+          key: spec.key,
+          value:
+            typeof spec.value === 'number'
+              ? spec.value
+              : spec.key === 'Weight'
+              ? parseFloat(spec.value.toString()) || 0
+              : spec.value, // Only convert 'Weight' or other specified keys to numbers
+        };
+      });
+
+      // Check if there are specifications before formatting and assigning them
+      if (specifications && specifications.length > 0) {
+        const formattedSpecifications = specifications.map((spec) => {
+          // Ensure numeric values are converted to numbers for specific keys like 'Weight'
           return {
             key: spec.key,
-            value: spec.value,
+            value: spec.key === 'Weight' ? parseFloat(spec.value.toString()) || 0 : spec.value,
           };
-        }
-        )
+        });
+
+        // Assign formatted specifications to the values object for submission
+        values.specifications = formattedSpecifications;
       }
         
       console.log(`${MyLogPrefix} onSubmit 1/2 (values)`, values)
@@ -198,7 +249,7 @@ export const MyProductCreationForm = () => {
         setError('');
         setImages([]);
         setImagePreviews([]);
-        setSpecifications([{ key: 'Weight', value: '1g' }]);
+        setSpecifications([{ key: 'Weight', value: '1' }]);
         form.reset();
         setTimeout(() => {
           setSuccess('');
@@ -357,10 +408,13 @@ export const MyProductCreationForm = () => {
                       </p>
                     </div>
                   )}
-                  <div className={`grid grid-cols-${counter}`}>
+                  <div className={`grid ${counter == 2 ? 'grid-cols-2' : counter == 3 ? 'grid-cols-3' : counter >= 4 ? 'grid-cols-4' : 'grid-cols-1'}`}>
                     {imagePreviews.map((preview, index) => (
                       <div key={index} className="relative m-1">
-                          <Image src={preview} alt={`preview-${index}`} height={600} width={450} className="h-full w-full rounded-md object-cover hover:scale-95" /> {/* height={600} width={450} */}
+                        <Image src={preview} alt={`preview-${index}`} height={600} width={450} className="h-full w-full rounded-md object-cover" />
+                        <div onClick={(e) => removeImage(e, index)} className="absolute top-1 right-1 hover:scale-110 transform duration-300 bg-gray-800/30 hover:bg-red-600/40 text-white p-1 rounded-full">
+                          <XCircle className="h-4 w-4" />
+                        </div>
                       </div>
                     ))}
                   </div>

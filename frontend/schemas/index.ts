@@ -80,7 +80,7 @@ export const MyAuthRegisterSchema = z.object({
 // Define a schema for a single specification, enforcing the structure { key: string, value: string }
 const SpecificationSchema = z.object({
   key: z.string(),
-  value: z.string(),
+  value: z.union([z.string(), z.number()])
 });
 export const MyProductCreateSchema = z.object({
   title: z.string().min(1, { message: "Title is required" }),

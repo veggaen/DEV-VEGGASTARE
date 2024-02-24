@@ -1,6 +1,6 @@
 // frontend/app/api/products/[...id].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { dbPrisma } from '../../../lib/db';
+import { dbPrisma } from '../../../../lib/db';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
   console.log('frontend/app/app/products/[...id].ts', req)

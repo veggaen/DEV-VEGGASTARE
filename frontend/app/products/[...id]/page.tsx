@@ -1,6 +1,6 @@
 
 
-import { Product as PrismaProduct, SpecificationsDetails } from '@prisma/client';
+import { Product as PrismaProduct } from '@prisma/client';
 import { getProductById } from '@/data/products';
 
 import { MyProductSingle } from '@/components/uicustom/product/product-single';

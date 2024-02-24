@@ -1,3 +1,5 @@
+'use client'
+
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -5,6 +7,9 @@ import { Product as PrismaProduct} from "@prisma/client";
 import { StarFilledIcon } from "@radix-ui/react-icons";
 import { StarIcon } from "lucide-react";
 import Image from "next/image";
+import { BringShippingDetails } from "./bringShipping-details";
+import { useEffect, useState } from "react";
+import { fetchPostalCodeFromCoords } from "./postal-code-from-coords";
 
 // Extending the Product type to include specifications as an array of objects
 interface Specification {
@@ -17,11 +22,52 @@ interface Product extends Omit<PrismaProduct, 'specifications'> {
 }
 
 export const MyProductSingle = ({ product }: { product: Product }) => {
+  const [userPostalCode, setUserPostalCode] = useState<string | null>('');
+  const [codeRefresh, setCodeRefresh] = useState<boolean >(false);
+
+  useEffect(() => {
+    const requestLocationAndPostalCode = async () => {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          const { latitude, longitude } = position.coords;
+          try {
+            const postalCode = await fetchPostalCodeFromCoords(latitude, longitude);
+            setUserPostalCode(postalCode);
+          } catch (error) {
+            console.error('Error fetching postal code:', error);
+            alert('Unable to retrieve postal code for your location.');
+          }
+        }, (error) => {
+          console.error('Geolocation error:', error);
+          alert('Unable to retrieve your location.');
+        });
+      } else {
+        alert('Geolocation is not supported by this browser.');
+      }
+    };
+
+    requestLocationAndPostalCode();
+  }, [codeRefresh])
+
 
   const formatDate = (dateInput: Date | string): string => {
       const date = new Date(dateInput);
       return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
   };
+
+  let transformedSpecifications = { length: 0, width: 0, height: 0, grossWeight: 0 };
+
+  if (product.specifications) {
+    product.specifications.forEach(spec => {
+      const value = parseFloat(spec.value);
+
+      if (spec.key === 'Length') transformedSpecifications.length = 5 //value;
+      if (spec.key === 'Width') transformedSpecifications.width = 5 //value;
+      if (spec.key === 'Height') transformedSpecifications.height = 5 //value;
+      if (spec.key === 'Weight') transformedSpecifications.grossWeight = 5 //value;
+
+      });
+  }
   
   return (
   <div className="w-full xs:w-[90%] flex flex-col">
@@ -56,6 +102,11 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
           <Button variant="vegaBuyBtn" className="hover:shadow-md transition-shadow duration-300">Buy Now</Button>
           <Button variant="vegaAddBasketBtn" className="hover:shadow-md transition-shadow duration-300">Add to Basket</Button>
           <Button variant="vegaAddWishlistBtn" className="hover:shadow-md transition-shadow duration-300">Add to Wishlist</Button>
+          {userPostalCode && <BringShippingDetails 
+            fromPostalCode="5003" // Example: your warehouse postal code
+            toPostalCode= {userPostalCode ? userPostalCode : ""} // This could be dynamically set based on user input or default shipping destination
+            productSpecifications={transformedSpecifications}
+          />}
         </div>
       </div>
     </div>
