@@ -21,3 +21,14 @@ export const getUserById = async(id: string) => {
         return null;
     }
 }
+
+export const getUserMany = async() => {
+    try {
+        const userMany = await dbPrisma.user.findMany();
+        console.log('userMany', userMany)
+
+        return userMany
+    } catch {
+        return null;
+    }
+}

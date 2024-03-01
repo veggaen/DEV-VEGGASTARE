@@ -39,7 +39,7 @@ export const MyUserInfo = ({user, label}: UserInfoProps) => {
           </div>
           <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
             <p className="text-sm font-medium">Refferal</p>
-            <p className="truncate text-md max-w-[180px] p-1 bg-slate-100 dark:bg-slate-900 rounded-sm inline-flex items-center border px-4 py-1 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">{user?.referredby ? user?.referredby : 'Empty'}</p>
+            <p className="truncate text-md max-w-[180px] p-1 bg-slate-100 dark:bg-slate-900 rounded-sm inline-flex items-center border px-4 py-1 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">{user?.referredBy ? user?.referredBy : 'Empty'}</p>
           </div>
           <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
             <p className="text-sm font-medium">Two Factor Authentication</p>

@@ -27,22 +27,24 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
 
   useEffect(() => {
     const requestLocationAndPostalCode = async () => {
-      if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(async (position) => {
-          const { latitude, longitude } = position.coords;
-          try {
-            const postalCode = await fetchPostalCodeFromCoords(latitude, longitude);
-            setUserPostalCode(postalCode);
-          } catch (error) {
-            console.error('Error fetching postal code:', error);
-            alert('Unable to retrieve postal code for your location.');
-          }
-        }, (error) => {
-          console.error('Geolocation error:', error);
-          alert('Unable to retrieve your location.');
-        });
-      } else {
-        alert('Geolocation is not supported by this browser.');
+      if (product.shipFromPostalId){
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(async (position) => {
+            const { latitude, longitude } = position.coords;
+            try {
+              const postalCode = await fetchPostalCodeFromCoords(latitude, longitude);
+              setUserPostalCode(postalCode);
+            } catch (error) {
+              console.error('Error fetching postal code:', error);
+              alert('Unable to retrieve postal code for your location.');
+            }
+          }, (error) => {
+            console.error('Geolocation error:', error);
+            alert('Unable to retrieve your location.');
+          });
+        } else {
+          alert('Geolocation is not supported by this browser.');
+        }
       }
     };
 
@@ -102,7 +104,7 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
           <Button variant="vegaBuyBtn" className="hover:shadow-md transition-shadow duration-300">Buy Now</Button>
           <Button variant="vegaAddBasketBtn" className="hover:shadow-md transition-shadow duration-300">Add to Basket</Button>
           <Button variant="vegaAddWishlistBtn" className="hover:shadow-md transition-shadow duration-300">Add to Wishlist</Button>
-          {userPostalCode && <BringShippingDetails 
+          {userPostalCode && product.shipFromPostalId && <BringShippingDetails 
             fromPostalCode="5003" // Example: your warehouse postal code
             toPostalCode= {userPostalCode ? userPostalCode : ""} // This could be dynamically set based on user input or default shipping destination
             productSpecifications={transformedSpecifications}
@@ -117,7 +119,7 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
           {product.specifications?.map((spec, index) => (
           <div key={index} className="flex flex-col">
             <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">{spec.key}</dt>
-            <dd className="mt-1 text-sm text-gray-900 dark:text-gray-200">{spec.value}</dd>
+            <dd className="mt-1 text-sm text-gray-900 dark:text-gray-200">{spec.value} {spec.key === 'Weight' && 'g'} {['Height', 'Length', 'Width'].includes(spec.key) && 'cm'}</dd>
           </div>
           ))}
         </dl>
@@ -127,20 +129,24 @@ export const MyProductSingle = ({ product }: { product: Product }) => {
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Additional Information:</h3>
         <dl className="mt-2 pl-4">
           <div className="py-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Product ID:</dt>
-          <dd className="text-sm text-gray-900 dark:text-gray-200">{product.id}</dd>
+            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Product ID:</dt>
+            <dd className="text-sm text-gray-900 dark:text-gray-200">{product.id}</dd>
           </div>
           <div className="py-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Availability:</dt>
-          <dd className="text-sm text-gray-900 dark:text-gray-200">{product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}</dd>
+            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Availability:</dt>
+            <dd className="text-sm text-gray-900 dark:text-gray-200">{product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}</dd>
           </div>
           <div className="py-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Updated At:</dt>
-          <dd className="text-sm text-gray-900 dark:text-gray-200">{formatDate(product.updatedAt)}</dd>
+            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Shipping from:</dt>
+            <dd className="text-sm text-gray-900 dark:text-gray-200">{`${product.shipFromPostalId}`}</dd>
           </div>
           <div className="py-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Created At:</dt>
-          <dd className="text-sm text-gray-900 dark:text-gray-200">{formatDate(product.createdAt)}</dd>
+            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Updated At:</dt>
+            <dd className="text-sm text-gray-900 dark:text-gray-200">{formatDate(product.updatedAt)}</dd>
+          </div>
+          <div className="py-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Created At:</dt>
+            <dd className="text-sm text-gray-900 dark:text-gray-200">{formatDate(product.createdAt)}</dd>
           </div>
         </dl>
       </div>

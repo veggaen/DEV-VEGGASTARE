@@ -9,6 +9,7 @@ export const publicRoutes = [
     "/",
     "/auth/new-verification",
     "/api/bring-shipping",
+    "/api/bring-shipping-suggest-postcode",
     // "/settings"
 ];
 

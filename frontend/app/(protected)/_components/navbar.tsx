@@ -11,7 +11,7 @@ export const MyNavbarProtected = () => {
 
     return (
       <nav className="bg-secondary flex justify-between items-center p-4 rounded-xl max-w-[600px] w-full m-4 shadow-sm">
-        <div className="flex gap-x-2">
+        <div className="flex flex-col md:flex-row gap-x-2">
           <Button  asChild variant={pathname === '/server' ? 'default' : 'outline'} >
             <Link href='/server'>server</Link>
           </Button>
@@ -23,6 +23,9 @@ export const MyNavbarProtected = () => {
           </Button>
           <Button asChild variant={pathname === '/settings' ? 'default' : 'outline'}>
             <Link href='/settings'>Settings</Link>
+          </Button>
+          <Button asChild variant={pathname === '/settings/company' ? 'default' : 'outline'}>
+            <Link href='/settings/company'>Company</Link>
           </Button>
             
         </div>

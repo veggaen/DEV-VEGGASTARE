@@ -51,14 +51,14 @@ interface Consignment {
   consignmentId: string;
 }
 
-// Main interface for the shipping details response
+// Main interface for the shipping details response BRING API
 export interface ShippingDetails {
   traceMessages: any[]; // Specify more detailed type if needed
   consignments: Consignment[];
   uniqueId: string;
 }
 
-// Define the structure of the package specifications
+// Define the structure of the package specifications BRING API
 interface PackageSpecification {
     length: number;
     width: number;

@@ -8,7 +8,7 @@ export type ExtendedUser = DefaultSession['user'] & {
      * 
     */
     role: UserRole
-    referredby: String
+    referredBy: String
     isTwoFactorEnabled: boolean;
     productsListed: Product[]
     reviews: Review[]
@@ -30,7 +30,7 @@ declare module "next-auth" {
     interface JWT {
       /** OpenID ID Token */
       /* role?: 'ADMIN' | 'USER'
-      referredby?: String */
+      referredBy?: String */
       id?: String
     }
 }

@@ -13,7 +13,6 @@ const MyGetProductsAction = async () => {
 
 const MyCreateProductAction = async (values: z.infer<typeof MyProductCreateSchema>) => {
         console.log('MyCreateProductAction', values);
-        /* const { edgestore } = useEdgeStore(); */
         const validateFields = MyProductCreateSchema.safeParse(values);
         
 
@@ -21,7 +20,7 @@ const MyCreateProductAction = async (values: z.infer<typeof MyProductCreateSchem
                 return { error: 'Invalid fields'} // todo: json
         }
         
-        const { title, description, category, price, stock, image, specifications, shippingDetails, userId } = validateFields.data;
+        const { title, description, category, price, stock, image, specifications, shippingDetails, shipFromPostalId ,userId } = validateFields.data;
 
         // Adjust the structure for shippingDetails to match Prisma's expectations
         const shippingDetailsFormatted = shippingDetails ? {
@@ -33,14 +32,15 @@ const MyCreateProductAction = async (values: z.infer<typeof MyProductCreateSchem
         } : undefined;
 
         await dbPrisma.product.create({
-                // where: {id: dbUser.id},
-                data: {
-                    ...validateFields.data, // Spread operator to include all updated fields
-                    stock: stock || 0, // Assign a default value of 0 if stock is undefined
-                    image: image || '', // Assign an empty string if image is undefined
-                    shippingDetails: shippingDetailsFormatted || undefined, // Cast shippingDetails to the correct type
-                }
-            });
+            // where: {id: dbUser.id},
+            data: {
+              ...validateFields.data, // Spread operator to include all updated fields
+              stock: stock || 0, // Assign a default value of 0 if stock is undefined
+              image: image || '', // Assign an empty string if image is undefined
+              shippingDetails: shippingDetailsFormatted || undefined, // Cast shippingDetails to the correct type
+              shipFromPostalId: shipFromPostalId || '', // Assign an empty string if shipFromPostalId is undefined
+            }
+        });
 
         return { success: 'Product created!' };
 };

@@ -24,7 +24,7 @@ export const MyRegisterform = () => {
         email: '',
         password: '',
         name: '',
-        referredby: '',
+        referredBy: '',
       }
     }
     );
@@ -87,7 +87,7 @@ export const MyRegisterform = () => {
                       <FormMessage />
                     </FormItem>
                 )}/>
-                <FormField control={form.control} name='referredby' render={({field}) => (
+                <FormField control={form.control} name='referredBy' render={({field}) => (
                     <FormItem>
                       <FormLabel className='text-nowrap'><span className='flex flex-col text-[10px]'><span>{`(optional)`}</span></span>Referral</FormLabel>
                       <FormControl>

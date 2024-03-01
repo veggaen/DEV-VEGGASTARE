@@ -1,7 +1,7 @@
 'use client'
 
 import * as z from 'zod'
-import { useState, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import  { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
@@ -19,12 +19,29 @@ import { useDropzone } from 'react-dropzone';
 import { useEdgeStore } from '@/lib/edgestore';
 import { Textarea } from '@/components/ui/textarea';
 import { getUserById } from '@/data/user';
+import { debounce } from 'lodash';
+
+interface PostalCodeDetails {
+  postal_code: string;
+  city: string;
+  municipalityId: string;
+  municipality: string;
+  county: string;
+  po_box: boolean;
+  latitude: string;
+  longitude: string;
+}
+
+interface PostalCodesResponse {
+  postal_codes: PostalCodeDetails[];
+}
 
 interface Specification {
   key: string;
   value: string | number;
   placeholder?: string;
 }
+
 
 const MyLogPrefix = '[frontend/components/uicustom/forms/product-form.tsx]'
 export const MyProductCreationForm = () => {
@@ -34,8 +51,16 @@ export const MyProductCreationForm = () => {
     const [uId, setUId] = useState<string | undefined>(user?.id) // role admin to modify input value
     const [images, setImages] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-    const [specifications, setSpecifications] = useState<Specification[]>([{ key: 'Weight', value: '1' }]);
+    const [isPhysicalProduct, setIsPhysicalProduct] = useState<boolean >(false);
+    const [specifications, setSpecifications] = useState<Specification[]>([]);
     const examplePlaceholders = ['Weight', 'Height', 'Length', 'Width', 'Material', 'Color', 'Size', 'Brand', 'Model', 'Country of Origin', 'Warranty', 'Certification'];
+    const [postalCodeInput, setPostalCodeInput] = useState('');
+    const [suggestions, setSuggestions] = useState<PostalCodeDetails[]>([]);
+    const [postalCode, setPostalCode] = useState('');
+    const [postalCodeDetails, setPostalCodeDetails] = useState<PostalCodesResponse | null>(null);
+    const [selectedPostalCodeDetail, setSelectedPostalCodeDetail] = useState<PostalCodeDetails | null>(null);
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [totalPages, setTotalPages] = useState<number>(1);
 
     // UI States
     const [counter, setCounter] = useState(0);
@@ -45,6 +70,7 @@ export const MyProductCreationForm = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [isPending, startTransition] = useTransition();
     const [isPendingSpecifications, startTransitionSpecifications] = useTransition();
+    const [isLoading, setIsLoading] = useState(false);
     const form = useForm<z.infer<typeof MyProductCreateSchema>>({
       resolver: zodResolver(MyProductCreateSchema),
       defaultValues: {
@@ -59,6 +85,51 @@ export const MyProductCreationForm = () => {
       }
     }
     );
+
+    // Assuming you've set the country code statically as 'no' for Norway
+    const countryCode = 'no';
+
+    // Fetch postal code details with debounce
+    const fetchPostalCodeDetails = async (postalCode: string) => {
+      if (!postalCode) {
+        setSuggestions([]);
+        return;
+      }
+    
+      setIsLoading(true);
+      try {
+        // Prepare fetch requests for the first two pages
+        const pageRequests = [1, 2].map(page =>
+          fetch(`/api/bring-shipping-suggest-postcode?postalCode=${postalCode}&page=${page}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }).then(response => {
+            if (!response.ok) throw new Error(`Failed to fetch page ${page}`);
+            return response.json() as Promise<PostalCodesResponse>;
+          })
+        );
+    
+        // Wait for all fetch requests to complete
+        const pagesData = await Promise.all(pageRequests);
+    
+        // Combine postal codes from all fetched pages
+        const combinedPostalCodes = pagesData.flatMap(data => data.postal_codes);
+    
+        setSuggestions(combinedPostalCodes);
+        // Optionally, handle pagination based on the response
+      } catch (error) {
+        console.error('Error fetching postal code suggestions:', error);
+        setSuggestions([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    useEffect(() => {
+      if (postalCodeInput) {
+        fetchPostalCodeDetails(postalCodeInput);
+      }
+    }, [postalCodeInput]);
 
     // newest validateIsAdmin something reason...
     const validateIsAdmin = async (values: z.infer<typeof MyProductCreateSchema>) => {
@@ -141,7 +212,7 @@ export const MyProductCreationForm = () => {
           ? {
               ...spec,
               [field]:
-                spec.key === 'Weight' && field === 'value'
+                spec.key === 'Weight' || spec.key === 'Height' || spec.key === 'Length' || spec.key === 'Width' && field === 'value'
                   ? parseFloat(value) || 0 // Convert string to number for specific keys like 'Weight'
                   : value,
             }
@@ -156,13 +227,22 @@ export const MyProductCreationForm = () => {
     };
   
     const addSpecification = () => {
-      const nextPlaceholder = examplePlaceholders.find(placeholder => 
+      // Define the keys to exclude when isPhysicalProduct is false
+      const excludeKeys = ['Weight', 'Height', 'Length', 'Width'];
+    
+      const filteredPlaceholders = isPhysicalProduct
+        ? examplePlaceholders
+        : examplePlaceholders.filter(placeholder => !excludeKeys.includes(placeholder));
+    
+      const nextPlaceholder = filteredPlaceholders.find(placeholder => 
         !specifications.some(spec => spec.key === placeholder)
       );
+    
       const newSpec = {
         key: nextPlaceholder || '',
         value: ''
       };
+    
       setSpecifications([...specifications, newSpec]);
     };
 
@@ -206,7 +286,9 @@ export const MyProductCreationForm = () => {
         // Assign formatted specifications to the values object for submission
         values.specifications = formattedSpecifications;
       }
-        
+
+      values.shipFromPostalId =  postalCode;
+
       console.log(`${MyLogPrefix} onSubmit 1/2 (values)`, values)
       startTransition(() => {
         validateIsAdmin(values)
@@ -249,7 +331,8 @@ export const MyProductCreationForm = () => {
         setError('');
         setImages([]);
         setImagePreviews([]);
-        setSpecifications([{ key: 'Weight', value: '1' }]);
+        setSpecifications([]);
+        setIsPhysicalProduct(false);
         form.reset();
         setTimeout(() => {
           setSuccess('');
@@ -257,11 +340,61 @@ export const MyProductCreationForm = () => {
       }
   };
 
+  const handlePhysicalProduct = () => {
+    setIsPhysicalProduct(!isPhysicalProduct)
+  }
+  
+  useEffect(() => {
+    console.log(isPhysicalProduct)
+    if (isPhysicalProduct == true){
+      // Define the specifications to add if they don't already exist
+      const physicalSpecsToAdd = [
+        { key: 'Weight', value: '1' },
+        { key: 'Height', value: '10' },
+        { key: 'Length', value: '10' },
+        { key: 'Width', value: '10' }
+      ];
+
+      // Filter out the physical specs to ensure we're not adding duplicates
+      const existingPhysicalSpecs = specifications.filter(spec => 
+        ['Weight', 'Height', 'Length', 'Width'].includes(spec.key)
+      );
+
+      // Create a set of keys for the existing specifications for quick lookup
+      const existingKeys = new Set(existingPhysicalSpecs.map(spec => spec.key));
+
+      // Add each physical spec to the array only if it doesn't already exist
+      physicalSpecsToAdd.forEach(specToAdd => {
+        if (!existingKeys.has(specToAdd.key)) {
+          specifications.push(specToAdd);
+        }
+      });
+
+      // Since we directly modified the specifications array, we call setSpecifications
+      // with a new array to trigger a state update
+      setSpecifications([...specifications]);
+    } else {
+      // Remove 'Weight', 'Height', 'Length', and 'Width' specifications
+      const filteredSpecifications = specifications.filter(spec => 
+        !['Weight', 'Height', 'Length', 'Width'].includes(spec.key)
+      );
+      setSpecifications(filteredSpecifications);
+    }
+  }, [isPhysicalProduct])
+
+  const handleSelectChange = (e: any) => {
+    const selectedValue = e.target.value;
+    const selectedPostalCodeData = suggestions.find(suggestion => suggestion.postal_code === selectedValue);
+    console.log('selectedPostalCodeDetail', selectedPostalCodeData);
+    setSelectedPostalCodeDetail(selectedPostalCodeData ?? null); // Update the selected detail state
+    setPostalCode(selectedValue); // Also update the postalCode state to reflect this change in the postal code input
+};
+
   const customStyles = {
       item: `group flex flex-col w-full items-start`,
       itemRole: `${ user?.role === UserRole.ADMIN ? 'group items-start hidden flex-col' : 'hidden' }`,
       label: `text-sm font-medium text-black/80 dark:text-white/80 group-focus-within:text-black dark:group-focus-within:text-white group-focus-within:scale-110 transition transform duration-300 ease-in-out`,
-      input: `w-full border disabled:bg-white/60 bg-white dark:disabled:bg-black/50 dark:bg-black/70 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out`
+      input: `w-full border disabled:bg-white/60 bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out`
   }
 
   return (
@@ -304,10 +437,10 @@ export const MyProductCreationForm = () => {
               )}
               />
               <FormField control={form.control} name='price' render={({field}) => (
-                  <FormItem className={`${customStyles.item} items-end`}>
+                  <FormItem className={`${customStyles.item}`}>
                     <FormLabel className={`${customStyles.label}`}>Price</FormLabel>
                     <FormControl>
-                    <div className={'relative'} >
+                    <div className={'relative w-full items-end'} >
                       <div className={`pointer-events-none absolute inset-y-0 right-2 flex items-center pl-3 `}>
                         <span className=' sm:text-sm z-10 group-focus-within:scale-110 transition transform duration-300 ease-in-out '>$</span>
                       </div>
@@ -341,16 +474,91 @@ export const MyProductCreationForm = () => {
                   </FormItem>
               )}
               />
+              <div className={`flex flex-col gap-4 justify-center items-start w-full`}>
+                <FormLabel htmlFor='checkbox-isPhysicalProduct' className={`${customStyles.label} text-md`}>
+                  Is this a physical product?
+                </FormLabel>
+                <label
+                htmlFor='checkbox-isPhysicalProduct'
+                className='hover:cursor-pointer group flex gap-4 justify-start items-center py-2 px-4 w-full border disabled:bg-white/60 bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/50 dark:hover:bg-black/40 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out'
+                title={
+                  isPhysicalProduct 
+                    ? "Yes, this is a tangible product. Please provide detailed specifications including weight and dimensions, as these are necessary for accurate shipping calculations." 
+                    : "No, this is a digital product. No shipping details are required. However, you may still provide relevant specifications that describe your product to potential buyers."
+                }
+                >
+                  <div className={'flex gap-4 justify-start items-center '} >
+                    <input
+                      className={`${customStyles.input} group-hover:bg-slate-200 `}
+                      type="checkbox"
+                      id={`checkbox-isPhysicalProduct`} // Ensure unique ID
+
+                      onChange={() => handlePhysicalProduct()}
+                    />
+                    <p className={``}>
+                      {isPhysicalProduct === true ? 'Yes' : 'No'}
+                    </p>
+                  </div>
+                </label>
+                {isPhysicalProduct === true && 
+                <div>
+                  <FormField control={form.control} name='shipFromPostalId' render={({field}) => (
+                    <FormItem className={`${customStyles.item}`}>
+                      <FormLabel className={`${customStyles.label}`}>Warehouse postal code</FormLabel>
+                      <FormControl>
+                        <Input {...field} id='postalCode' 
+                        disabled={isPending} 
+                        placeholder='postal ID' 
+                        type='text' 
+                        value={postalCode}
+                        onChange={(e) => {
+                          const newPostalCode = e.target.value;
+                          setPostalCode(newPostalCode);
+                          fetchPostalCodeDetails(newPostalCode);
+                        }}
+                        className={`${customStyles.input} postal-code-input`}
+                        spellCheck='false'
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                    )}
+                  />
+                  {suggestions.length > 0 && (
+                    <>
+                      <select
+                        onChange={handleSelectChange}
+                        className={`${customStyles.input}`}
+                      >
+                        {suggestions
+                          .filter((suggestion) => suggestion.postal_code.startsWith(postalCodeInput) || suggestion.city.toLowerCase().includes(postalCodeInput.toLowerCase()))
+                          .map((filteredSuggestion, index) => (
+                            <option key={index} value={filteredSuggestion.postal_code}>
+                              {filteredSuggestion.postal_code} - {filteredSuggestion.city}
+                            </option>
+                          ))}
+                      </select>
+                    </>
+                  )}
+                </div>
+                }
+              </div>
               <FormField control={form.control} name='specifications' render={({field}) => (
                 <FormItem className={`${customStyles.item}`}>
                   <FormLabel className={`${customStyles.label}`}>Specifications</FormLabel>
                   <FormControl>
                     <div>
-                    <div className={`hover:cursor-pointer py-2 px-4 rounded bg-black/30 my-2`} onClick={addSpecification}>Add Specification</div>
+                    <div
+                      className={`hover:cursor-pointer py-2 px-4 my-2 w-fit bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/60 dark:hover:bg-black/50 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded`}
+                      onClick={addSpecification}
+                      title="Ads a specification to the product."
+                    >
+                      Add Specification
+                    </div>
                       {
                         specifications.map((spec, index) => (
                           <div key={index}>
-                              <div className={`flex gap-2 items-center`}>
+                              <div className={`flex gap-2 items-center `}>
                                   {/* <Input
                                     value={spec.key}
                                     onChange={(e) => handleSpecificationChange(index, 'key', e.target.value)}
@@ -358,12 +566,12 @@ export const MyProductCreationForm = () => {
                                     type='text'
                                     spellCheck='false'
                                     /> */}
-                                    <select
-                                   /*  {...field} */
-                                    name='specification'
+                                  <select
+                                    name="specification"
                                     value={spec.key}
                                     onChange={(e) => handleSpecificationChange(index, 'key', e.target.value)}
-                                    className="border p-2 rounded"
+                                    title="Select the specification type"
+                                    className="border p-2 bg-white dark:disabled:bg-black/50 dark:bg-black/70 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded"
                                   >
                                     {examplePlaceholders.map((placeholder, i) => (
                                       <option key={i} value={placeholder}>{placeholder}</option>
@@ -375,6 +583,11 @@ export const MyProductCreationForm = () => {
                                     placeholder="Value"
                                     type='text'
                                     spellCheck='false'
+                                    title={
+                                      spec.key === 'Weight' ? "Enter weight in grams" :
+                                      ['Height', 'Length', 'Width'].includes(spec.key) ? "Enter measurements in centimeters" :
+                                      ""
+                                    }
                                     />
                                   <div className={`hover:cursor-pointer py-2 px-4 rounded bg-black/30 m-2`} onClick={(event) => removeSpecification(index)}>Remove</div>
                                 </div>
@@ -399,7 +612,7 @@ export const MyProductCreationForm = () => {
                     <FormMessage />
                   </FormItem>
                 )}/>
-                <div {...getRootProps()} className={`disabled:bg-white/60 bg-white dark:disabled:bg-black/50 dark:bg-black/70 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded focus:outline-none transition dropzone flex flex-col h-full w-full justify-center items-center border border-dashed ${imagePreviews ? ' border-gray-600/60 dark:border-gray-600/60' : 'border-gray-400 dark:border-gray-400'} rounded-md cursor-pointer`}>
+                <div {...getRootProps()} className={`disabled:bg-white/60 bg-white dark:disabled:bg-black/50 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded focus:outline-none transition dropzone flex flex-col h-full w-full justify-center items-center border border-dashed ${imagePreviews ? ' border-gray-600/60 dark:border-gray-600/60' : 'border-gray-400 dark:border-gray-400'} rounded-md cursor-pointer`}>
                   {imagePreviews.length < 1 && (
                     <div className="text-center flex flex-col min-h-48 justify-center items-center h-[420px] max-h-[420px]">
                       <UploadCloudIcon className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200" />

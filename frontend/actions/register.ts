@@ -16,7 +16,7 @@ export const MyRegisterAction = async (values: z.infer<typeof MyAuthRegisterSche
         return { error: 'Invalid fields'} // todo: json
     }
 
-    const { email, password, name, referredby } = validateFields.data;
+    const { email, password, name, referredBy } = validateFields.data;
     const hashedPassword = await bcrypt.hash(password, 10)
     
     const existingUser = await getUserByEmail(email);
@@ -29,7 +29,7 @@ export const MyRegisterAction = async (values: z.infer<typeof MyAuthRegisterSche
             name,
             email,
             password: hashedPassword,
-            referredby: referredby
+            referredBy: referredBy
         }
     })
 

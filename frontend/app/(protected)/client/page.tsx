@@ -6,6 +6,10 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 const MyProtectedClientPage = () => {
     const currentUser = useCurrentUser(); // currentUser = Session.data.user
     
+    if (!currentUser) {
+        return <div>Loading... Client component...</div>; // or some loading spinner
+    }
+
     return (
         <MyUserInfo label="Client component" user={currentUser}/>
     )

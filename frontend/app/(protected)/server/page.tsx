@@ -1,10 +1,15 @@
-'use client'
+'use server';
 
 import { MyUserInfo } from "@/components/uicustom/user-info";
-import { useCurrentUser } from "@/hooks/use-current-user";
 
-const MyProtectedAdminPage = () => {
-    const currentUser = useCurrentUser(); // currentUser = Session.data.user
+import { MyLibUserAuth } from "@/lib/user-auth";
+
+const MyProtectedAdminPage = async () => {
+    const currentUser = await MyLibUserAuth(); // currentUser = Session.data.user
+
+    if (!currentUser) {
+        return <div>Loading... Admin component...</div>; // or some loading spinner
+    }
     
     return (
         <MyUserInfo label="admin component" user={currentUser}/>

@@ -1,7 +1,7 @@
 // prisma/schema.prisma
 datasource db {
   provider  = "postgresql"
-  url  	    = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -11,67 +11,75 @@ generator client {
 }
 
 enum UserRole {
+  OWNER
   ADMIN
   USER
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  referredby    String?
-  role          UserRole @default(USER)
-  accounts      Account[]
-  productsListed    Product[] @relation("ProductsListed") 
-  reviews           Review[] 
-  isTwoFactorEnabled Boolean @default(false)
+  id                    String                 @id @default(cuid())
+  name                  String?
+  email                 String?                @unique
+  emailVerified         DateTime?
+  image                 String?
+  password              String?
+  referredBy            String?
+  role                  UserRole               @default(USER)
+  accounts              Account[]
+  productsListed        Product[]              @relation("ProductsListed")
+  reviews               Review[]
+  isTwoFactorEnabled    Boolean                @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
+  createdCompanies      Company[] @relation("Creator") // Relation field for companies created by the user
+  ownedCompanies        Company[] @relation("Owner")   // Relation field for companies owned by the user
+  Employee              Employee[]
+  Package               Package[]
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 }
 
+
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-@@unique([provider, providerAccountId])
+  @@unique([provider, providerAccountId])
 }
 
 model VerificationToken {
-  id String @id @default(cuid())
-  email String
-  token String @unique
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
   expires DateTime
 
   @@unique([email, token])
 }
 
 model PasswordResetToken {
-  id String @id @default(cuid())
-  email String
-  token String @unique
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
   expires DateTime
 
   @@unique([email, token])
 }
 
 model TwoFactorToken {
-  id String @id @default(cuid())
-  email String
-  token String @unique
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
   expires DateTime
 
   @@unique([email, token])
@@ -80,46 +88,46 @@ model TwoFactorToken {
 model TwoFactorConfirmation {
   id String @id @default(cuid())
 
-  userId      String
-  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId])
 }
 
 // PRODUCTS RElATED
 model Product {
-  id               String          @id @default(cuid())
+  id               String            @id @default(cuid())
   title            String
   description      String
   category         String
   price            Float
   stock            Int
+  shipFromPostalId String
   image            String[]
   specifications   Json? // SpecificationsDetails[]
-  userId           String          // Associate product with a user
-  user             User            @relation("ProductsListed", fields: [userId], references: [id])
+  userId           String // Associate product with a user
+  user             User              @relation("ProductsListed", fields: [userId], references: [id])
   shippingDetails  ShippingDetails[]
   reviews          Review[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 }
 
 model SpecificationsDetails {
-  id         String   @id @default(cuid())
-  // Add your desired fields here
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ShippingDetails {
-  id         String   @id @default(cuid())
-  method     String
-  price      Float
-  regions    String[]
-  productId  String
-  product    Product?  @relation(fields: [productId], references: [id]) // Make this optional
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  method    String
+  price     Float
+  regions   String[]
+  productId String
+  product   Product? @relation(fields: [productId], references: [id]) // Make this optional
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Review {
@@ -133,4 +141,108 @@ model Review {
   user       User     @relation(fields: [userId], references: [id])
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+// Company Related
+model Company {
+  id                 String              @id @default(cuid())
+  name               String
+  description        String?
+  websiteUrl         String?
+  logo               String[]
+  bannerImage        String[]
+  colorScheme        String?
+  creatorId          String
+  ownerId            String
+  creator            User                @relation("Creator", fields: [creatorId], references: [id])
+  owner              User                @relation("Owner", fields: [ownerId], references: [id])
+  employees          Employee[]
+  usesShipping       Boolean             @default(false)
+  warehouseLocations WarehouseLocation[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  Sale               Sale[]
+  MonthlyReport      MonthlyReport[]
+  Package            Package[]
+}
+
+model Employee {
+  id          String       @id @default(cuid())
+  userId      String
+  companyId   String
+  user        User         @relation(fields: [userId], references: [id])
+  company     Company      @relation(fields: [companyId], references: [id])
+  role        EmployeeRole
+  permissions Json // This can be an array of permissions or roles
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model WarehouseLocation {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+  address    String
+  postalCode String
+  city       String
+  country    String
+  latitude   Float?
+  longitude  Float?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+enum EmployeeRole {
+  OWNER
+  MANAGER
+  STAFF
+  USER
+}
+
+// Comapny Business Analytics related
+model Sale {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  date         DateTime
+  totalAmount  Float
+  profit       Float
+  productsSold Json // Could detail products sold, quantities, and prices
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model MonthlyReport {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id])
+  year           Int
+  month          Int
+  totalSales     Float
+  totalProfit    Float
+  productSummary Json // Summary of products sold in the month
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// Company Shipping related
+model Package {
+  id                String        @id @default(cuid())
+  trackingNumber    String
+  companyId         String
+  company           Company       @relation(fields: [companyId], references: [id])
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  status            PackageStatus
+  estimatedDelivery DateTime?
+  history           Json // Could detail the tracking history as provided by Bring API
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+enum PackageStatus {
+  PENDING
+  IN_TRANSIT
+  DELIVERED
+  EXCEPTION
 }

@@ -6,7 +6,7 @@ import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { CardWrapper } from '../card-wrapper';
+import { CardWrapper } from '@/components/uicustom/auth/card-wrapper';
 import { MyFormSuccess } from '@/components//uicustom/forms/form-sucess';
 import { MyFormError } from '@/components//uicustom/forms/form-error';
 import { Button } from '@/components/ui/button';

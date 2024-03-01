@@ -124,8 +124,8 @@ export const {
             session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean;
           };
           
-          if (token.referredby && session.user ) {
-            session.user.referredby = token.referredby as string;
+          if (token.referredBy && session.user ) {
+            session.user.referredBy = token.referredBy as string;
           };
 
           if (token.role && session.user ) {
@@ -159,7 +159,7 @@ export const {
           const existingAccount = await getAccountByUserId(existingUser.id);
 
           token.isTwoFactorEnabled = existingUser.isTwoFactorEnabled;
-          token.referredby = existingUser.referredby;
+          token.referredBy = existingUser.referredBy;
           token.role = existingUser.role;
           token.name = existingUser.name;
           token.email = existingUser.email;
