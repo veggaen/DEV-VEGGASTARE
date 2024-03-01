@@ -30,3 +30,14 @@ export const getProductById = async(id: string) => {
         return null;
     }
 }
+
+export const getProductsMany = async() => {
+    console.log(`${LOG_PREFIX} getProductMany()`);
+    try {
+        const data = await dbPrisma.product.findMany()
+
+        return data
+    } catch {
+        return null;
+    }
+}
