@@ -10,6 +10,8 @@ export const publicRoutes = [
     "/auth/new-verification",
     "/api/bring-shipping",
     "/api/bring-shipping-suggest-postcode",
+    "/api/companies/employees/add",
+    "/api/companies/employees/remove",
     // "/settings"
 ];
 
@@ -32,7 +34,8 @@ export const authRoutes = [
 * @type {string}
 */
 export const apiAuthPrefix = [
-    "/api/auth"
+    "/api/auth",
+    
 ];
 
 /**

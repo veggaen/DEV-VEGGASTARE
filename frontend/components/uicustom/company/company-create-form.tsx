@@ -324,7 +324,7 @@ export const MyCompanyCreateForm = () => {
 
     const updatedEmployeeList = [
       ownerEntry,
-      ...employeeList //.filter((employee) => employee.userId !== user?.id),
+      ...employeeList.filter((employee) => employee.userId !== user?.id),
     ];
 
 
@@ -618,9 +618,6 @@ export const MyCompanyCreateForm = () => {
                     <p className='xs:hidden'>Enable Shipping Cost Calc?</p>
                   </div>
                 </FormLabel>
-                <FormDescription className='px-4 py-0'>
-                  Add warehouse locations for shipping cost estimation of physical products.
-                </FormDescription>
                   <div className="flex h-10 bg-slate-50 dark:bg-slate-900 w-full space-x-2 rounded-md border border-input disabled:pointer-events-none bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                     <FormControl>
                       <Input {...field} className='w-5 h-5 ' disabled={!user || isSubmitting} type='checkbox' value={field.value ? 'false' : 'true'}  />
@@ -629,6 +626,9 @@ export const MyCompanyCreateForm = () => {
                       {field.value ? 'Activated' : 'Inactivated'}
                     </span>
                   </div>
+                <FormDescription className={`px-4 py-0 ${!form.watch('usesShipping') && 'hidden'}`}>
+                  Add warehouse locations for shipping data estimation of physical products.
+                </FormDescription>
                 </div>
                 <FormMessage />
             </FormItem>

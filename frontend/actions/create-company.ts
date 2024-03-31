@@ -5,22 +5,14 @@ import { dbPrisma } from '@/lib/db';
 import { companyCreationSchema } from '@/schemas';
 import { EmployeeRole, Prisma, PrismaClient } from '@prisma/client';
 
-interface EmployeeInput {
-  userId: string;
-  role: string;
-  permissions?: any[]; // Define more specifically if possible
-  // Include any other fields you want to pass when creating an employee
-}
-
-interface WarehouseLocationInput {
-  address: string;
-  postalCode: string;
-  city: string;
-  country: string;
-  latitude?: number;
-  longitude?: number;
-  // Include any other fields you want to pass when creating a warehouse location
-}
+type UIEmployee = {
+    userId: string;
+    email: string;
+    image: string;
+    role: EmployeeRole; // Assuming EmployeeRole is a TypeScript type or enum
+    companyId?: string;
+    permissions?: any[]; // Define more specifically if possible
+};
 
 const MyGetCompanyAction = async () => {
   const response = await dbPrisma.product.findMany();
@@ -31,6 +23,7 @@ const MyGetCompanyAction = async () => {
 
 const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchema>) => {
   const validateFields = companyCreationSchema.safeParse(values);
+  console.log('Validating fields:', validateFields);
 
   if (!validateFields.success) {
     console.error('Validation failed', validateFields.error.format());
@@ -65,13 +58,13 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
           usesShipping,
         },
       });
-      const typedEmployees: EmployeeInput[] = employees && employees.map(emp => ({
+      const typedEmployees = employees && employees.map(emp => ({
         ...emp,
         companyId: company.id,
-        permissions: emp.permissions || [], // Default to an empty array if permissions are not specified
+        permissions: emp.permissions || [],
       })) || [];
-    
-      const typedWarehouseLocations: WarehouseLocationInput[] = warehouseLocations && warehouseLocations.map(loc => ({
+
+      const typedWarehouseLocations = warehouseLocations && warehouseLocations.map(loc => ({
         ...loc,
         companyId: company.id,
         // Assume all required fields are provided, so no need for defaults here

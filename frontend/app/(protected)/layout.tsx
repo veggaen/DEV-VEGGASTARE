@@ -6,7 +6,7 @@ interface ProtectedLayoutProps {
 
 const MyProtectedLayout = ({children}: ProtectedLayoutProps) => {
   return (
-    <div className="h-full w-full flex flex-col gap-y-10 justify-start items-center">
+    <div className="min-h-full h-fit w-full flex flex-col gap-y-10 justify-start items-center">
         <MyNavbarProtected />
         {children}
       </div>

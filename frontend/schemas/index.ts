@@ -185,3 +185,11 @@ export const companyCreationSchema = z.object({
   }
   // No need to explicitly handle the case where usesShipping is false, as postalCode is optional in the base schema
 });
+
+// NEW EMPLOYEE schema
+export const NewEmployeeSchema = z.object({
+ userId: z.string().min(1, "User ID is required"),
+ role: z.enum([EmployeeRole.OWNER, EmployeeRole.MANAGER, EmployeeRole.STAFF, EmployeeRole.USER]),
+ // Optionally include permissions if your application logic requires them
+ permissions: z.array(z.string()).optional(),
+});
