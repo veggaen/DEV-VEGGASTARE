@@ -5,20 +5,15 @@ import {
   DialogTrigger,
   DialogHeader,
   DialogContent,
-  DialogClose,
   DialogFooter,
   DialogTitle,
   DialogDescription,
 } from'@/components/ui/dialog';
-import { X } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useCurrentUser } from '@/hooks/use-current-user';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Employee } from '@prisma/client';
 import { useState } from 'react';
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+
 
 
 interface EditEmployeePermissionsModalProps {
@@ -70,9 +65,9 @@ const EditEmployee: React.FC<EditEmployeePermissionsModalProps> = ({isOpen, onCl
         </DialogTrigger>
         <DialogContent className="w-fit dark:bg-black dark:border-white/20 bg-white border-black/20 text-black dark:text-white">
           <DialogHeader>
-            <DialogTitle><div className={'flex justify-start gap-2'}><div>Edit profile Permissions</div><div>( {selectedEmployee.user.name} )</div></div></DialogTitle>
+            <DialogTitle><div className={'flex justify-start gap-2'}><div>Edit profile Permissions</div><div>( {/* {selectedEmployee.user.name} */} )</div></div></DialogTitle>
             <DialogDescription>
-              Make changes to selected profile here. Click save when you're done.
+              Make changes to selected profile here. Click save when done.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-6 dark:bg-white/10 bg-black/10 border dark:border-white/20 border-black/20 px-4 rounded-lg">
