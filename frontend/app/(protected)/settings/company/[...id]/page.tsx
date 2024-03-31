@@ -9,6 +9,10 @@ import Image from 'next/image';
 import { MyNewEmployeeForm } from '@/components/uicustom/company/form/new-employee-form';
 import { RemoveEmployeeButton } from '@/components/uicustom/company/remove-employee-btn';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import Modal from '@/components/uicustom/my-modal';
+import EditEmployeePermissionsForm from '@/components/uicustom/company/edit-employee-permission';
+import EditEmployee from '@/components/uicustom/company/edit-employee-permission';
+import { Button } from '@/components/ui/button';
 
 export interface ExtendedEmployee extends Employee {
     user: User; // Extending with custom properties
@@ -29,6 +33,11 @@ const CompanyDetails = () => {
   const [company, setCompany] = useState<ExtendedCompany | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  // State hooks and effects to fetch company details
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
+  
 
   useEffect(() => {
     const fetchCompanyDetails = async () => {
@@ -76,7 +85,7 @@ const CompanyDetails = () => {
       // Return the updated company state
       return { ...prevCompany, employees: updatedEmployees };
     });
-    isAddingEmployee && setIsAddingEmployee(false)
+    
     console.log("Employee was added. Refreshing list...");
   };
 
@@ -123,10 +132,13 @@ const CompanyDetails = () => {
       {company.employees && company.employees.length > 0 && (
         <div className="p-6 border-t border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-bold dark:text-white mb-4">Employees</h2>
-          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700 dark:bg-black/10 bg-black/10 px-4 py-4 rounded-lg">
             {company.employees.map((employee) => (
-              <div key={employee.id} className='flex justify-start items-start h-full'>
-                <div className="relative w-fit flex justify-center items-center p-4">
+              <div key={employee.id} className='flex justify-start items-start h-full dark:bg-black/20 bg-black/20 border dark:border-black/30 border-black/30 px-4 py-2 rounded-lg mb-4'>
+
+                <li className="py-4 flex justify-between items-center w-full">
+                  <div className="w-full flex flex-col gap-2 px-4 text-gray-700 dark:text-gray-300 ">
+                <div className="relative w-full flex justify-center items-center p-4">
                   {employee.user.image ?
                   <Image src={employee.user.image} width={80} height={80} className="rounded-[50%]" alt={`${company.name} logo`} />
                     :
@@ -134,17 +146,21 @@ const CompanyDetails = () => {
                   }
                   
                 </div>
-
-                <li className="py-4 flex justify-between items-center w-full">
-                  <div className="w-fit text-gray-700 dark:text-gray-300">
-                    <div className='w-full flex justify-between gap-4'><p>Name:</p><p>{employee.user.name}</p></div>
-                    <div className='w-full flex justify-between gap-4'><p>Email:</p><p>{employee.user.email}</p></div>
-                    <div className='w-full flex justify-between gap-4'><p>Role:</p><p>{employee.user.role}</p></div>
-                    <div className='w-full flex justify-between gap-4'><p>Permissions:</p><p>{JSON.stringify(employee.permissions)}</p></div>
-                  </div>
+                    <div className='w-full flex justify-between gap-4 dark:bg-black/20 bg-black/20 border dark:border-black/30 border-black/30 px-4 py-2 rounded-lg'><p>Name:</p><p>{employee.user.name}</p></div>
+                    <div className='w-full flex justify-between gap-4 dark:bg-black/20 bg-black/20 border dark:border-black/30 border-black/30 px-4 py-2 rounded-lg'><p>Email:</p><p>{employee.user.email}</p></div>
+                    <div className='w-full flex justify-between gap-4 dark:bg-black/20 bg-black/20 border dark:border-black/30 border-black/30 px-4 py-2 rounded-lg'><p>Role:</p><p>{employee.user.role}</p></div>
+                    <div className='w-full flex justify-between gap-4 dark:bg-black/20 bg-black/20 border dark:border-black/30 border-black/30 px-4 py-2 rounded-lg'><p>Permissions:</p><p>{JSON.stringify(employee.permissions)}</p></div>
                   {user && (
-                    <RemoveEmployeeButton userId={employee.userId} companyId={company.id} onSuccess={handleSuccess} onError={(error) => console.error(error)} />
+                    <div className='flex gap-2 w-full'>
+                        <EditEmployee
+                          selectedEmployee={employee as ExtendedEmployee}
+                          isOpen={isEditModalOpen}
+                          onClose={() => setIsEditModalOpen(false)}
+                        />
+                      <RemoveEmployeeButton userId={employee.userId} companyId={company.id} onSuccess={handleSuccess} onError={(error) => console.error(error)} />
+                    </div>
                   )}
+                  </div>
                 </li>
               </div>
             ))}
@@ -153,10 +169,10 @@ const CompanyDetails = () => {
       )}
       <div className={`p-6 border-t border-gray-200 dark:border-gray-700`}>
         
-        {isAddingEmployee ? <div>
-          <div onClick={() => {setIsAddingEmployee(!isAddingEmployee)}}>Cancel</div>
           <MyNewEmployeeForm companyId={company.id} handleNewEmployee={handleNewEmployee} change={ change } setChange={ setChange } />
-        </div> : <div onClick={() => {setIsAddingEmployee(!isAddingEmployee)}}>Add Employee btn</div>}
+        {/* {isAddingEmployee ? <div>
+          <div onClick={() => {setIsAddingEmployee(!isAddingEmployee)}}>Cancel</div>
+        </div> : <div onClick={() => {setIsAddingEmployee(!isAddingEmployee)}}>Add Employee btn</div>} */}
       </div>
       <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-between">
         <Link href="/settings/company">
