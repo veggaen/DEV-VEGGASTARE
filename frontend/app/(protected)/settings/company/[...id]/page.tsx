@@ -9,20 +9,23 @@ import Image from 'next/image';
 import { MyNewEmployeeForm } from '@/components/uicustom/company/form/new-employee-form';
 import { RemoveEmployeeButton } from '@/components/uicustom/company/remove-employee-btn';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import Modal from '@/components/uicustom/my-modal';
-import EditEmployeePermissionsForm from '@/components/uicustom/company/edit-employee-permission';
 import EditEmployee from '@/components/uicustom/company/edit-employee-permission';
-import { Button } from '@/components/ui/button';
 
 export interface ExtendedEmployee extends Employee {
     user: User; // Extending with custom properties
+    permissions: { [key: string]: any }; // Explicitly define permissions type
 }
 
-interface ExtendedCompany extends Company {
+export interface ExtendedCompany extends Company {
     creator: User; // Extending with custom properties
     owner: User; // Extending with custom properties
     employees: ExtendedEmployee []; // Extending with custom properties
     warehouseLocations?: WarehouseLocation[]; // Extending with custom properties
+}
+
+export interface TagReplacement {
+  name: string;
+  description: string;
 }
 
 const CompanyDetails = () => {
@@ -36,7 +39,28 @@ const CompanyDetails = () => {
   // State hooks and effects to fetch company details
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
-  const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<ExtendedEmployee | null>();
+
+  const tagReplacements: { [key: string]: TagReplacement } = {
+    CAN_REMOVE_EMPLOYEE: { 
+      name: 'Can Remove Employee', 
+      description: 'Allows the user to remove other employees from other employees within the company.' 
+    },
+    CAN_REMOVE_PERMISSION: { 
+      name: 'Can Remove Permission', 
+      description: 'Allows the user to remove permissions from other employees within the company.' 
+    },
+    CAN_ADD_PERMISSION: { 
+      name: 'Can Add Permission', 
+      description: 'Allows the user to add permissions to other employees within the company.' 
+    },
+    CAN_ADD_EMPLOYEE: { 
+      name: 'Can Add Employee', 
+      description: 'Allows the user to add new employees to the company.' 
+    },
+    // Add more mappings as needed
+  };
+  
   
 
   useEffect(() => {
@@ -87,6 +111,12 @@ const CompanyDetails = () => {
     });
     
     console.log("Employee was added. Refreshing list...");
+  };
+
+  const handleEmployeeClick = (employee: ExtendedEmployee) => {
+    //setSelectedEmployeeId(employeeId);
+    setSelectedEmployee(employee);
+    setSelectedEmployeeId(employee.id);
   };
 
   return (
@@ -148,12 +178,25 @@ const CompanyDetails = () => {
                 </div>
                     <div className='w-full flex justify-between gap-4 dark:bg-black/20 bg-black/20 border dark:border-black/30 border-black/30 px-4 py-2 rounded-lg'><p>Name:</p><p>{employee.user.name}</p></div>
                     <div className='w-full flex justify-between gap-4 dark:bg-black/20 bg-black/20 border dark:border-black/30 border-black/30 px-4 py-2 rounded-lg'><p>Email:</p><p>{employee.user.email}</p></div>
-                    <div className='w-full flex justify-between gap-4 dark:bg-black/20 bg-black/20 border dark:border-black/30 border-black/30 px-4 py-2 rounded-lg'><p>Role:</p><p>{employee.user.role}</p></div>
-                    <div className='w-full flex justify-between gap-4 dark:bg-black/20 bg-black/20 border dark:border-black/30 border-black/30 px-4 py-2 rounded-lg'><p>Permissions:</p><p>{JSON.stringify(employee.permissions)}</p></div>
+                    <div className='w-full flex justify-between gap-4 dark:bg-black/20 bg-black/20 border dark:border-black/30 border-black/30 px-4 py-2 rounded-lg'><p>Role:</p><p>{employee.role}</p></div>
+                    <div className='w-full flex justify-between gap-4 dark:bg-black/20 bg-black/20 border dark:border-black/30 border-black/30 px-4 py-2 rounded-lg'>
+                      <p>Permissions:</p>
+                      <div className="flex flex-col gap-1">
+                        {Object.entries(employee.permissions).map(([key, value]) => {
+                          const tag = tagReplacements[key] || { name: key, description: '' }; // Get the custom tag name or use the original key
+                          return (
+                            <div key={key} className="text-gray-700 dark:text-gray-300" title={tag.description}>
+                              <span className="font-semibold" title={tag.description}>{tag.name}:</span> {value !== null && value !== undefined ? value.toString() : 'N/A'}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   {user && (
-                    <div className='flex gap-2 w-full'>
+                    <div className='flex gap-2 w-full' onClick={() => handleEmployeeClick(employee)} >
                         <EditEmployee
-                          selectedEmployee={employee as ExtendedEmployee}
+                          company={company}
+                          selectedEmployee={selectedEmployee!!}
                           isOpen={isEditModalOpen}
                           onClose={() => setIsEditModalOpen(false)}
                         />
@@ -168,13 +211,9 @@ const CompanyDetails = () => {
         </div>
       )}
       <div className={`p-6 border-t border-gray-200 dark:border-gray-700`}>
-        
-          <MyNewEmployeeForm companyId={company.id} handleNewEmployee={handleNewEmployee} change={ change } setChange={ setChange } />
-        {/* {isAddingEmployee ? <div>
-          <div onClick={() => {setIsAddingEmployee(!isAddingEmployee)}}>Cancel</div>
-        </div> : <div onClick={() => {setIsAddingEmployee(!isAddingEmployee)}}>Add Employee btn</div>} */}
+        <MyNewEmployeeForm companyId={company.id} handleNewEmployee={handleNewEmployee} change={ change } setChange={ setChange } />
       </div>
-      
+
       <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-between">
         <Link href="/settings/company">
           <div className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
