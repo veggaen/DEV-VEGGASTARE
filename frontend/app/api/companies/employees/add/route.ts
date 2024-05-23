@@ -7,9 +7,40 @@ export async function POST(req: any, res: NextApiResponse) {
   try {
     // Assuming 'roleId' is a valid EmployeeRole enum value
       // and 'companyId' is the id of an existing company
-      const { userId, companyId, role } = await req.json();
-      console.log('Attempting to add employee with data: ',userId, companyId, role);
+      const { userId, companyId, role, clientUser } = await req.json();
+      console.log('Attempting to add employee with data: ',userId, companyId, role, clientUser.name);
 
+      if (!clientUser || !clientUser.id) {
+        //return res.status(403).json({ error: 'Permission denied: Missing client ID' });
+        return new Response(JSON.stringify({ message: 'Permission denied: Missing session user ID' }), {
+          status: 400, // 400 Bad Request or 409 Conflict could be appropriate here
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      }
+      
+       // Query the database to find the employee associated with the clientUser and companyId
+      const employee = await dbPrisma.employee.findFirst({
+        where: {
+          userId: clientUser.id,
+          companyId,
+        },
+      });
+    
+      // Check if the employee exists and has the permission to add employees
+      const employeeWithPermissions = employee as { permissions?: { CAN_ADD_EMPLOYEE?: boolean } };
+
+      if (!employeeWithPermissions || !employeeWithPermissions.permissions?.CAN_ADD_EMPLOYEE) {
+        //return res.status(403).json({ error: 'Permission denied: You do not have permission to add employees' });
+        return new Response(JSON.stringify({ message: 'Permission denied: You do not have permission to add employees' }), {
+          status: 400, // 400 Bad Request or 409 Conflict could be appropriate here
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      }
+      
       // Check if an employee with the given userId and companyId already exists
       const existingEmployee = await dbPrisma.employee.findFirst({
         where: {
@@ -39,7 +70,7 @@ export async function POST(req: any, res: NextApiResponse) {
           permissions: {}, 
         },
       });
-
+      console.log('clientEmployee:', employee, 'added new employee:', newEmployee)
       // Return a successful response with the created employee data
       return new Response(JSON.stringify(newEmployee), {
         status: 200,

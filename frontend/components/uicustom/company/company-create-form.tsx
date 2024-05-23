@@ -24,6 +24,7 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { MyCreateCompanyAction } from '@/actions/create-company';
 import { companyCreationSchema, baseWarehouseLocationSchema } from '@/schemas';
 import { Employee, EmployeeRole, User, UserRole } from '@prisma/client';
+import { useRouter } from 'next/navigation';
 
 type UIEmployee = {
   userId: string;
@@ -31,33 +32,33 @@ type UIEmployee = {
   email: string;
   image: string;
   role: EmployeeRole; // Assuming EmployeeRole is a TypeScript type or enum
+  permissions: { [key: string]: boolean };
 };
 
 export const MyCompanyCreateForm = () => {
-  // File upload gets url back for images
   const { edgestore } = useEdgeStore();
-  // File
+  const router = useRouter()
   const [logoFile, setLogoFile] = useState<File[]>([]);
   const [bannerFile, setBannerFile] = useState<File[]>([]);
-  // String array
   const [logoPreview, setLogoPreview] = useState<string[]>([]);
   const [bannerPreview, setBannerPreview] = useState<string[]>([]);
-  // Hooks
   const user = useCurrentUser();
-  const UID = user?.id
-  // Select employees
+  const UID = user?.id;
   const [users, setUsers] = useState<User[]>([]);
-  const [selectedEmployee, setSelectedEmployee] = useState<UIEmployee | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-  // Employee selection list
-  const [employeeList, setEmployeeList] = useState<UIEmployee[]>([{ userId: user?.id!!, email: user?.email!!, image: user?.image!!, role: 'OWNER',},]);
-  const [selectedUserId, setSelectedUserId] = useState('');
-  const [selectedRole, setSelectedRole] = useState('USER');
-  // response states
+  const [employeeList, setEmployeeList] = useState<UIEmployee[]>([
+    {
+      userId: user?.id!!,
+      email: user?.email!!,
+      image: user?.image!!,
+      role: 'OWNER',
+      permissions: { CAN_REMOVE_EMPLOYEE: true, CAN_EDIT_PERMISSION: true, CAN_DELETE_COMPANY: true, CAN_POST_PRODUCT_POSITION_PERMISSION: true, CAN_ADD_EMPLOYEE: true }
+    }
+  ]);
   const [error, setError] = useState<string | undefined>('');
   const [error2, setError2] = useState<string | undefined>('');
   const [success, setSuccess] = useState<string | undefined>('');
-  
+
   const form = useForm<z.infer<typeof companyCreationSchema>>({
     resolver: zodResolver(companyCreationSchema),
     defaultValues: {
@@ -69,143 +70,115 @@ export const MyCompanyCreateForm = () => {
       colorScheme: '',
       creatorId: user?.id!!,
       ownerId: user?.id!!,
-      employees: [{ userId: user?.id!!, role: 'OWNER' }],
+      employees: [{ userId: user?.id!!, role: 'OWNER', permissions: { CAN_REMOVE_EMPLOYEE: true, CAN_EDIT_PERMISSION: true, CAN_DELETE_COMPANY: true, CAN_POST_PRODUCT_POSITION_PERMISSION: true, CAN_ADD_EMPLOYEE: true } }],
       usesShipping: false,
-      warehouseLocations: [{ address: '', postalCode: '', city: '', country: '', latitude: 0, longitude: 0}],
+      warehouseLocations: [{ address: '', postalCode: '', city: '', country: '', latitude: 0, longitude: 0 }],
     }
   });
-  const { register, control, handleSubmit, setValue, formState: { errors, isSubmitting, isValidating } } = form;
+
+  const { control, handleSubmit, formState: { errors, isSubmitting }, watch, reset } = form;
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "warehouseLocations",
   });
-  const isShippingEnabled = form.watch('usesShipping');
+
+  const isShippingEnabled = watch('usesShipping');
 
   useEffect(() => {
-    console.log('isDrity:', form.formState.isDirty)
-    console.log('touchedFields:', form.formState.touchedFields)
-    console.log('defaultValues:', form.formState.defaultValues)
     if (!isShippingEnabled) {
       form.clearErrors('warehouseLocations');
       form.resetField('warehouseLocations');
     }
-    
-  
-    // Watch all form fields
+
     const subscription = form.watch((allValues) => {
       if (form.formState.isDirty && UID !== form.formState.defaultValues?.ownerId || form.formState.isDirty && UID !== allValues.ownerId) {
-        console.log('HARD RESET')
         form.reset();
       }
     });
-  
-    // Cleanup subscription on component unmount
+
     return () => subscription.unsubscribe();
   }, [form, isShippingEnabled, UID]);
 
   useEffect(() => {
     const fetchUsers = async () => {
-      // Fetch users from your API endpoint that utilizes getUserMany
       const response = await fetch('/api/users');
       const data = await response.json();
-      console.log('fetchUsers:', data)
-      setUsers(data); // Assuming the response is the array of users
+      setUsers(data);
     };
 
     fetchUsers();
   }, [user]);
 
-  // Dropzone setup for logo and banner
   const onLogoDrop = (acceptedFiles: File[]) => {
     setLogoFile([...acceptedFiles]);
     const newPreviews = acceptedFiles.map(file => URL.createObjectURL(file));
     setLogoPreview([...newPreviews]);
-
   };
+
   const onBannerDrop = (acceptedFiles: File[]) => {
     setBannerFile([...bannerFile, ...acceptedFiles]);
     const newPreviews = acceptedFiles.map(file => URL.createObjectURL(file));
-    setBannerPreview([...bannerPreview, ...newPreviews]);
-
+    setBannerPreview([...newPreviews]);
   };
 
-  const { getRootProps: getLogoRootProps, getInputProps: getLogoInputProps } = useDropzone({ onDrop: onLogoDrop, accept: { 'image/*': [] }, multiple: false, });
-  const { getRootProps: getBannerRootProps, getInputProps: getBannerInputProps } = useDropzone({ onDrop: onBannerDrop, accept: { 'image/*': [] }, multiple: true, });
+  const { getRootProps: getLogoRootProps, getInputProps: getLogoInputProps } = useDropzone({ onDrop: onLogoDrop, accept: { 'image/*': [] }, multiple: false });
+  const { getRootProps: getBannerRootProps, getInputProps: getBannerInputProps } = useDropzone({ onDrop: onBannerDrop, accept: { 'image/*': [] }, multiple: true });
 
   useEffect(() => {
-    // Cleanup URLs to prevent memory leaks
     return () => {
-      if (logoPreview) {logoPreview.map(file => URL.revokeObjectURL(file))};
-      if (bannerPreview) {bannerPreview.map(file => URL.revokeObjectURL(file))};
+      if (logoPreview) { logoPreview.map(file => URL.revokeObjectURL(file)); }
+      if (bannerPreview) { bannerPreview.map(file => URL.revokeObjectURL(file)); }
     };
   }, [logoPreview, bannerPreview]);
 
   const imageHandeler = async (values: any) => {
     let uploadedUrlsLogo = [];
     let uploadedUrlsBanner = [];
-    // logo
     for (let image of logoFile) {
-        try {
-          console.log('Uploading logo image:', image)
-            const uploadResult = await edgestore.myPublicImages.upload({ file: image });
-            uploadedUrlsLogo.push(uploadResult.url);
-
-            if (uploadResult){
-
-              if (uploadedUrlsLogo.length > 0){
-                values.logo = uploadedUrlsLogo;
-                console.log('LOGO-resUploadedImageUrls: ', uploadedUrlsLogo)
-              } else {
-                setError('Error logo image not found? Please try again!');
-                return;
-              }
-            }
-        } catch (error) {
-            console.error('Upload error', error);
+      try {
+        const uploadResult = await edgestore.myPublicImages.upload({ file: image });
+        uploadedUrlsLogo.push(uploadResult.url);
+        if (uploadedUrlsLogo.length > 0) {
+          values.logo = uploadedUrlsLogo;
+        } else {
+          setError('Error logo image not found? Please try again!');
+          return;
         }
+      } catch (error) {
+        console.error('Upload error', error);
+      }
     }
-    // banner
     for (let image of bannerFile) {
-        try {
-          console.log('Uploading banner image:', image)
-            const uploadResult = await edgestore.myPublicImages.upload({ file: image });
-            uploadedUrlsBanner.push(uploadResult.url);
-
-            if (uploadResult){
-
-              if (uploadedUrlsBanner.length > 0){
-                values.bannerImage = uploadedUrlsBanner;
-                console.log('LOGO-resUploadedImageUrls: ', uploadedUrlsBanner)
-              } else {
-                setError('Error banner image not found? Please try again!');
-                return;
-              }
-            }
-        } catch (error) {
-            console.error('Upload error', error);
+      try {
+        const uploadResult = await edgestore.myPublicImages.upload({ file: image });
+        uploadedUrlsBanner.push(uploadResult.url);
+        if (uploadedUrlsBanner.length > 0) {
+          values.bannerImage = uploadedUrlsBanner;
+        } else {
+          setError('Error banner image not found? Please try again!');
+          return;
         }
+      } catch (error) {
+        console.error('Upload error', error);
+      }
     }
     return values;
   };
 
-  // Function to handle image removal
   const removeImageLogo = (e: any, index: number) => {
     e.preventDefault();
     e.stopPropagation();
-    // Update images state by filtering out the image at the specified index
     const newImages = logoFile.filter((_, i) => i !== index);
     setLogoFile(newImages);
-    // Update imagePreviews state similarly
     const newImagePreviews = logoPreview.filter((_, i) => i !== index);
     setLogoPreview(newImagePreviews);
   };
+
   const removeImageBanner = (e: any, index: number) => {
     e.preventDefault();
     e.stopPropagation();
-    // Update images state by filtering out the image at the specified index
     const newImages = bannerFile.filter((_, i) => i !== index);
     setBannerFile(newImages);
-    // Update imagePreviews state similarly
     const newImagePreviews = bannerPreview.filter((_, i) => i !== index);
     setBannerPreview(newImagePreviews);
   };
@@ -217,34 +190,29 @@ export const MyCompanyCreateForm = () => {
         userId: userToAdd.id || "",
         email: userToAdd.email || '',
         image: userToAdd.image || '',
-        role: 'USER' as EmployeeRole, // Default or selected role
+        role: 'USER' as EmployeeRole,
+        permissions: { CAN_REMOVE_EMPLOYEE: false, CAN_EDIT_PERMISSION: false, CAN_DELETE_COMPANY: false, CAN_POST_PRODUCT_POSITION_PERMISSION: false, CAN_ADD_EMPLOYEE: false },
       };
 
       setEmployeeList(prev => [...prev, newEmployee]);
-
-      // Reset selection
       setSelectedEmployeeId('');
       setError2('');
     }
   };
 
-  // Function to handle role change for a specific employee
   const handleRoleChange = (userId: string, newRole: EmployeeRole) => {
     if (userId === user?.id && newRole !== 'OWNER') {
-      console.log("Cannot change the role of the company's owner.");
       setError2("You cannot change your own role away from 'OWNER'.");
-      setTimeout(() => setError2(''), 5000); // Clear the error message after some time
-  
-      // Reset the owner's role back to 'OWNER' in the employeeList
+      setTimeout(() => setError2(''), 5000);
       setEmployeeList(currentList =>
         currentList.map(employee => {
           if (employee.userId === userId) {
-            return { ...employee, role: 'OWNER' }; // Force reset role to 'OWNER'
+            return { ...employee, role: 'OWNER' };
           }
           return employee;
         })
       );
-      return; // Exit the function to prevent further changes
+      return;
     }
     setEmployeeList((currentList) =>
       currentList.map((employee) =>
@@ -253,12 +221,10 @@ export const MyCompanyCreateForm = () => {
     );
   };
 
-  // Function to handle employee removal
   const removeEmployee = (e: React.MouseEvent, userId: string) => {
     e.preventDefault();
     if (userId === user?.id) {
-      console.log("Cannot remove yourself from the list of employees. (owner)");
-      setError2('Cannot remove yourself from the list of employees. (owner)')
+      setError2('Cannot remove yourself from the list of employees. (owner)');
       setTimeout(() => {
         setError2('');
       }, 5000);
@@ -266,17 +232,13 @@ export const MyCompanyCreateForm = () => {
     }
     setEmployeeList(employeeList.filter(employee => employee.userId !== userId));
   };
-  
-  const onSubmit = async (values: z.infer<typeof companyCreationSchema>) => {
-    // INIT 
-    setError('')
-    setError2('')
-    setSuccess('')
-    console.log('Submitting company creation form InitialValues:', values);
-    const newValues = await imageHandeler(values);
-    console.log('Submitting company creation form imageHandeler(newValues):', newValues);
 
-    // Convert latitude and longitude strings to numbers
+  const onSubmit = async (values: z.infer<typeof companyCreationSchema>) => {
+    setError('');
+    setError2('');
+    setSuccess('');
+    const newValues = await imageHandeler(values);
+
     if (values.warehouseLocations) {
       values.warehouseLocations.forEach(location => {
         if (location.latitude !== undefined) {
@@ -288,38 +250,31 @@ export const MyCompanyCreateForm = () => {
       });
     }
 
-    if (values.employees){
-      const modifiedEmployees = employeeList.filter(employee => employee.userId !== user?.id); // Exclude the current user from the list to avoid duplication.
+    if (values.employees) {
+      const modifiedEmployees = employeeList.filter(employee => employee.userId !== user?.id);
       values.employees = modifiedEmployees;
     }
 
     const defaultOwnerId = form.formState.defaultValues?.ownerId || '';
     const ownerExists = employeeList.some(employee => employee.userId === defaultOwnerId && employee.role === 'OWNER');
     const isOwnerCorrect = employeeList.some(employee => employee.userId === user?.id && employee.role === 'OWNER');
-    const isOwnerIncorrect = employeeList.some(employee => employee.role === 'OWNER' && employee.userId !== user?.id)
+    const isOwnerIncorrect = employeeList.some(employee => employee.role === 'OWNER' && employee.userId !== user?.id);
     const hasMultipleOwners = employeeList.filter(employee => employee.role === 'OWNER').length > 1;
     if (!ownerExists) {
-      // Owner is missing or incorrect, add or correct them
       const correctedEmployeeList = employeeList.filter(employee => employee.userId !== defaultOwnerId);
-      correctedEmployeeList.unshift({ userId: defaultOwnerId, email: user?.email!!, image: user?.image!!, role: 'OWNER' }); // Assuming you have email and image for the owner
+      correctedEmployeeList.unshift({ userId: defaultOwnerId, email: user?.email!!, image: user?.image!!, role: 'OWNER', permissions: { CAN_REMOVE_EMPLOYEE: true, CAN_EDIT_PERMISSION: true, CAN_DELETE_COMPANY: true, CAN_POST_PRODUCT_POSITION_PERMISSION: true, CAN_ADD_EMPLOYEE: true } });
       setEmployeeList(correctedEmployeeList);
-      // Update the form values for employees with corrected list
       values.employees = correctedEmployeeList;
-      console.log('owner not exist ', values.employees)
     }
     if (!isOwnerCorrect || hasMultipleOwners || isOwnerIncorrect) {
-      console.log('Invalid employee configuration: The owner must be the creator of the company and there can only be one owner. You can change ownership of the company later in company settings after the company is created.')
-      {isOwnerCorrect && console.log('isOwnerCorrect:', isOwnerCorrect)}
-      {hasMultipleOwners && console.log('hasMultipleOwners:', hasMultipleOwners)}
-      {isOwnerIncorrect && console.log('isOwnerIncorrect, someone else than owner is set as admin:', isOwnerIncorrect)}
       setError('Invalid employee configuration: The owner must be the creator of the company and there can only be one owner. You can change ownership of the company later in company settings after the company is created.');
-      return; // Stop execution if the validation fails
+      return;
     }
 
-    // Ensure owner is always the first in the list
     const ownerEntry = {
       userId: user?.id!!,
       role: 'OWNER',
+      permissions: { CAN_REMOVE_EMPLOYEE: true, CAN_EDIT_PERMISSION: true, CAN_DELETE_COMPANY: true, CAN_POST_PRODUCT_POSITION_PERMISSION: true, CAN_ADD_EMPLOYEE: true },
     };
 
     const updatedEmployeeList = [
@@ -327,78 +282,44 @@ export const MyCompanyCreateForm = () => {
       ...employeeList.filter((employee) => employee.userId !== user?.id),
     ];
 
-
-    const ensureOwnerInEmployeeList = () => {
-      const ownerExists = employeeList.some(employee => employee.userId === user?.id && employee.role === 'OWNER');
-      if (!ownerExists) {
-        const updatedEmployeeList = [
-          { userId: user?.id!!, email: user?.email!!, image: user?.image!!, role: 'OWNER' as EmployeeRole },
-          ...employeeList.filter(employee => employee.userId !== user?.id),
-        ];
-        setEmployeeList(updatedEmployeeList);
-        console.log('Owner does not exist in the employee list. Adding owner to the list.', updatedEmployeeList)
-      }
-    };
-    ensureOwnerInEmployeeList();
-
     const updatedFormData = {
-      ownerEntry,
       ...values,
-      employees: updatedEmployeeList.map(employee => ({
-        userId: employee.userId as string,
-        role: employee.role as EmployeeRole,
-      })),
+      employees: updatedEmployeeList,
     };
-  
-    // Now use updatedFormData for the submission
+
     console.log('Submitting with FINAL updated data / VALUES:', updatedFormData);
-    values = updatedFormData;
 
     startTransition(() => {
-      MyCreateCompanyAction(values)
-      .then ((data) =>{
-          console.log(`onSubmit(data)`, data)
-          if (data.error){
-            setError(data.error)
+      MyCreateCompanyAction(updatedFormData)
+        .then((data) => {
+          if (data.error) {
+            setError(data.error);
           }
           if (data.success) {
-            setSuccess(data.success)
-            
-            console.log(`onSubmit 2/2 (success)`, data)
-          } else {
-            console.log(`onSubmit 2/2 (error. Failed)`, data)
+            setSuccess(data.success);
+            router.push(`/settings/company/${data.companyId}`)
           }
-      })
+        });
     });
 
     setError('');
     setSuccess('');
-
   };
-  
-  /* const isEqualToDefault = () => {
-    const defaultFormValue = form.formState.defaultValues;
-    const currentFormValues = form.getValues();
-    if (currentFormValues === defaultFormValue) {
-      console.log('FORM isEqualToDefault: true')
-      return true;
-    }
-  } */
+
   const handleReset = () => {
     if (error !== '' || success !== undefined) {
-      // Clear any existing values when starting to edit
       setError('');
       setLogoFile([]);
       setLogoPreview([]);
       setBannerFile([]);
       setBannerPreview([]);
-      form.resetField
       form.reset();
       setTimeout(() => {
         setSuccess('');
       }, 5000);
     }
-};
+  };
+
   
   // Grid calculation for logo and banner images
   // Logo

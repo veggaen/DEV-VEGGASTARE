@@ -20,6 +20,9 @@ import { useEdgeStore } from '@/lib/edgestore';
 import { Textarea } from '@/components/ui/textarea';
 import { getUserById } from '@/data/user';
 import { debounce } from 'lodash';
+import UserCompanyPermission, { UserCompanyProductManagement } from '../../user-company-permission';
+import UserPermissionCheck from '../../UserPermissionCheck';
+import { useCurrentUserEmployeeCheckPermission } from '@/hooks/use-current-user-employee-permissions';
 
 interface PostalCodeDetails {
   postal_code: string;
@@ -46,9 +49,9 @@ interface Specification {
 const MyLogPrefix = '[frontend/components/uicustom/forms/product-form.tsx]'
 export const MyProductCreationForm = () => {
     // General States
-    const user = useCurrentUser();
+    const clientUser = useCurrentUser();
     const { edgestore } = useEdgeStore();
-    const [uId, setUId] = useState<string | undefined>(user?.id) // role admin to modify input value
+    const [uId, setUId] = useState<string | undefined>(clientUser?.id) // role admin to modify input value
     const [images, setImages] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [isPhysicalProduct, setIsPhysicalProduct] = useState<boolean >(false);
@@ -61,6 +64,11 @@ export const MyProductCreationForm = () => {
     const [selectedPostalCodeDetail, setSelectedPostalCodeDetail] = useState<PostalCodeDetails | null>(null);
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [totalPages, setTotalPages] = useState<number>(1);
+    //newest
+    const [ companyId, setCompanyId] = useState();
+    const [company, setCompany] = useState('');
+    const [ permissionTag, setPermissionTag] = useState('CAN_POST_PRODUCT_POSITION_PERMISSION');
+    const { permissions, isPermissionAvailable, isLoading: isPermissionsLoading, error: isPermissionError } = useCurrentUserEmployeeCheckPermission(clientUser, companyId, permissionTag);
 
     // UI States
     const [counter, setCounter] = useState(0);
@@ -79,7 +87,7 @@ export const MyProductCreationForm = () => {
         category: '',
         price: 0.0,
         stock: 0,
-        userId: user?.id,
+        userId: clientUser?.id,
         image: [''],
         
       }
@@ -134,7 +142,7 @@ export const MyProductCreationForm = () => {
     // newest validateIsAdmin something reason...
     const validateIsAdmin = async (values: z.infer<typeof MyProductCreateSchema>) => {
       if (values.userId){
-        console.log('Checking user role')
+        console.log('Checking clientUser role')
         console.log('Validation is admin 1/2');
         startTransitionSpecifications(async () => {
         await getUserById(values.userId)
@@ -388,11 +396,22 @@ export const MyProductCreationForm = () => {
     console.log('selectedPostalCodeDetail', selectedPostalCodeData);
     setSelectedPostalCodeDetail(selectedPostalCodeData ?? null); // Update the selected detail state
     setPostalCode(selectedValue); // Also update the postalCode state to reflect this change in the postal code input
-};
+  };
+
+  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+
+  const handleCompanySelect = (companyId) => {
+    console.log(`Selected company ID: ${companyId}`);
+    setSelectedCompanyId(companyId);
+    // Perform additional actions with the selected company ID, such as:
+    // - Fetching and displaying company details
+    // - Updating application state or context
+    // - Triggering side effects related to the company selection
+  };
 
   const customStyles = {
       item: `group flex flex-col w-full items-start`,
-      itemRole: `${ user?.role === UserRole.ADMIN ? 'group items-start hidden flex-col' : 'hidden' }`,
+      itemRole: `${ clientUser?.role === UserRole.ADMIN ? 'group items-start hidden flex-col' : 'hidden' }`,
       label: `text-sm font-medium text-black/80 dark:text-white/80 group-focus-within:text-black dark:group-focus-within:text-white group-focus-within:scale-110 transition transform duration-300 ease-in-out`,
       input: `w-full border disabled:bg-white/60 bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out`
   }
@@ -468,7 +487,7 @@ export const MyProductCreationForm = () => {
                   <FormItem className={`${customStyles.itemRole}`}>
                     <FormLabel className={`${customStyles.label}`}>UserID</FormLabel>
                     <FormControl>
-                      <Input {...field} disabled={user?.role === UserRole.ADMIN ? isPending : true} value={user?.role === UserRole.ADMIN ? uId : user?.id} onChange={e => (setUId(e.target.value))} placeholder='Your Id' type='text' className={`${customStyles.input}`} spellCheck='false'/>
+                      <Input {...field} disabled={clientUser?.role === UserRole.ADMIN ? isPending : true} value={clientUser?.role === UserRole.ADMIN ? uId : clientUser?.id} onChange={e => (setUId(e.target.value))} placeholder='Your Id' type='text' className={`${customStyles.input}`} spellCheck='false'/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -632,6 +651,7 @@ export const MyProductCreationForm = () => {
                     ))}
                   </div>
                 </div>
+                {/* <UserCompanyProductManagement /> */}
                 <div className='w-full py-2'>
                   <MyFormError message={error}/>
                   <MyFormSuccess message={success}/>
@@ -644,6 +664,8 @@ export const MyProductCreationForm = () => {
           </div>
         </form>
       </Form>
+      <UserCompanyPermission permissionTag="CAN_POST_PRODUCT_POSITION_PERMISSION" onCompanySelect={handleCompanySelect} />
+      <UserPermissionCheck companyId={'clu34rawz0002xik69hsmz0fx'} clientUser={clientUser} permissionTag='CAN_POST_PRODUCT_POSITION_PERMISSION' />
     </div>
   )
 }

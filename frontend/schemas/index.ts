@@ -92,6 +92,7 @@ export const MyProductCreateSchema = z.object({
   category: z.string().min(1, { message: "Category is required" }),
   price: z.number().min(1, { message: "Price is required" }),
   userId: z.string().min(1, { message: "User is required" }),
+  companyId: z.string().optional(),
   stock: z.number().optional(),
   shipFromPostalId: z.string().optional(),
   image: z.array(z.string()), // Optional, assuming array of image URLs
@@ -116,11 +117,18 @@ export const MyProductReviewSchema = z.object({
 
 // new company?
 // Define the schema for employee
+export const employeePermissionsSchema = z.object({
+  CAN_REMOVE_EMPLOYEE: z.boolean().default(false),
+  CAN_EDIT_PERMISSION: z.boolean().default(false),
+  CAN_DELETE_COMPANY: z.boolean().default(false),
+  CAN_POST_PRODUCT_POSITION_PERMISSION: z.boolean().default(false),
+  CAN_ADD_EMPLOYEE: z.boolean().default(false),
+});
 export const employeeSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
   //name: z.string().min(1, 'Name is required'),
   role: z.enum([EmployeeRole.OWNER, EmployeeRole.MANAGER, EmployeeRole.STAFF, EmployeeRole.USER]), // Assuming EmployeeRole is an enum you have defined
-  permissions: z.array(z.string()).optional(), // Assuming permissions is an array of strings, adjust as necessary
+  permissions: employeePermissionsSchema.optional(), // permissions: z.array(z.string()).optional(), // Assuming permissions is an array of strings, adjust as necessary
 });
 // Define the schema for shipping logistic and tracking information
 export const baseWarehouseLocationSchema = z.object({

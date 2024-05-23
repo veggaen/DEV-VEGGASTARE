@@ -8,87 +8,101 @@ import {
   DialogFooter,
   DialogTitle,
   DialogDescription,
-} from'@/components/ui/dialog';
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Employee } from '@prisma/client';
 import { useState, useEffect } from 'react';
 import { ExtendedCompany, ExtendedEmployee } from '@/app/(protected)/settings/company/[...id]/page';
-import { editCompanyEmployeePermission } from '@/actions/edit-company-employee-permission';
-
-
-
-interface EditEmployeePermissionsModalProps {
-  
-  selectedEmployee: ExtendedEmployee;
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-interface EmployeePermissions {
-  CAN_REMOVE_EMPLOYEE: boolean;
-  CAN_REMOVE_PERMISSION: boolean;
-  CAN_ADD_PERMISSION: boolean;
-  CAN_ADD_EMPLOYEE: boolean;
-}
+import { EmployeePermissions, editCompanyEmployeePermissionAction } from '@/actions/edit-company-employee-permission';
+import { useCurrentUser } from '@/hooks/use-current-user';
 
 interface EditEmployeePermissionsModalProps {
   company: ExtendedCompany;
+  setCompany: React.Dispatch<React.SetStateAction<ExtendedCompany | null>>;
   selectedEmployee: ExtendedEmployee;
-  isOpen: boolean;
-  onClose: () => void;
+  clientUser: any;
 }
 
-interface EmployeePermissions {
-  CAN_REMOVE_EMPLOYEE: boolean;
-  CAN_REMOVE_PERMISSION: boolean;
-  CAN_ADD_PERMISSION: boolean;
-  CAN_ADD_EMPLOYEE: boolean;
-}
 
-const LOG_PREFIX = '[frontend/components/uicustom/company/edit-employee-permission.tsx]'
-const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> = ({ isOpen, onClose, selectedEmployee, company }) => {
+const LOG_PREFIX = '[frontend/components/uicustom/company/edit-employee-permission.tsx]';
+const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> = ({ selectedEmployee, company, setCompany }) => {
+  const clientUser = useCurrentUser();
+  const [isShowing, setIsShowing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [stateChange, setStateChange] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
+  const [showOwnerWarning, setShowOwnerWarning] = useState(false);
   const [permissions, setPermissions] = useState<EmployeePermissions>({
     CAN_REMOVE_EMPLOYEE: false,
-    CAN_REMOVE_PERMISSION: false,
-    CAN_ADD_PERMISSION: false,
+    CAN_EDIT_PERMISSION: false,
+    CAN_POST_PRODUCT_POSITION_PERMISSION: false,
+    CAN_DELETE_COMPANY: false,
     CAN_ADD_EMPLOYEE: false,
   });
 
-  // Update permissions state when selectedEmployee changes
   useEffect(() => {
     if (selectedEmployee) {
       setPermissions({
         CAN_REMOVE_EMPLOYEE: selectedEmployee.permissions.CAN_REMOVE_EMPLOYEE,
-        CAN_REMOVE_PERMISSION: selectedEmployee.permissions.CAN_REMOVE_PERMISSION,
-        CAN_ADD_PERMISSION: selectedEmployee.permissions.CAN_ADD_PERMISSION,
+        CAN_EDIT_PERMISSION: selectedEmployee.permissions.CAN_EDIT_PERMISSION,
+        CAN_DELETE_COMPANY: selectedEmployee.permissions.CAN_DELETE_COMPANY,
+        CAN_POST_PRODUCT_POSITION_PERMISSION: selectedEmployee.permissions.CAN_POST_PRODUCT_POSITION_PERMISSION,
         CAN_ADD_EMPLOYEE: selectedEmployee.permissions.CAN_ADD_EMPLOYEE,
       });
     }
-  }, [selectedEmployee]);
+  }, [selectedEmployee, stateChange]);
+
+  const handleOpenChange = () => {
+    setIsShowing(!isShowing);
+    setStateChange(!stateChange);
+  };
+
+  const handleClickEditPermissions = () => {
+    console.log(`${LOG_PREFIX} Edit Permissions button clicked`);
+    setIsShowing(!isShowing);
+  };
 
   const handleCheckboxChange = (permission: keyof EmployeePermissions) => {
+    if (selectedEmployee.userId === company.ownerId && permission === 'CAN_EDIT_PERMISSION' && permissions.CAN_EDIT_PERMISSION) {
+      setShowOwnerWarning(true);
+    } else {
+      setPermissions((prevPermissions) => ({
+        ...prevPermissions,
+        [permission]: !prevPermissions[permission],
+      }));
+    }
+  };
+
+  const confirmDisableEditPermission = () => {
     setPermissions((prevPermissions) => ({
       ...prevPermissions,
-      [permission]: !prevPermissions[permission],
+      CAN_EDIT_PERMISSION: !prevPermissions.CAN_EDIT_PERMISSION,
     }));
+    setShowOwnerWarning(false);
   };
 
   const handleSavePermissions = async () => {
     setIsLoading(true);
     try {
-      console.log('Saving permissions', permissions);
-      console.log('Saving company name', company.name);
-      console.log('Saving selectedEmployee', selectedEmployee);
+      if (clientUser) {
+        console.log('Saving permissions', permissions);
+        console.log('Saving company name', company.name);
+        console.log('Saving selectedEmployee', selectedEmployee);
 
-      const response = await editCompanyEmployeePermission({ company, selectedEmployee, permissions });
-      if (response.error) {
-        setError(response.error);
-      } else {
-        setSuccess(true);
+        const response = await editCompanyEmployeePermissionAction({ company, selectedEmployee, permissions, clientUser });
+        if (response.success) {
+          setCompany(response.updatedCompany);
+          setSuccess(true);
+          setTimeout(() => {
+            setSuccess(false);
+            setError(null);
+          }, 5000);
+        }
+        if (response.error) {
+          setError(response.error);
+          setSuccess(false);
+        }
       }
     } catch (error) {
       console.error('Error updating employee permissions:', error);
@@ -99,13 +113,13 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
   };
 
   return (
-    <Dialog isOpen={isOpen} onClose={onClose}>
+    <Dialog open={isShowing} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant='vegaNormalBtn' className='w-full'>
-          Edit Profile
+        <Button variant='vegaNormalBtn' className='w-full' onClick={handleClickEditPermissions}>
+          Edit Permissions
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className='bg-black'>
         <DialogHeader>
           <DialogTitle>
             Edit Profile Permissions ({selectedEmployee?.user?.name})
@@ -134,6 +148,29 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {showOwnerWarning && (
+        <Dialog open={showOwnerWarning} onOpenChange={setShowOwnerWarning}>
+          <DialogContent className='bg-black'>
+            <DialogHeader>
+              <DialogTitle className='text-red-500 text-1xl'>Warning</DialogTitle>
+              <DialogDescription className='text-yellow-500'>
+                Disabling "Can Edit Permission" will prevent you from reverting this change later. 
+                If no other employee has this permission, no one in the company will be able to change permissions in the future. 
+                Are you sure you want to proceed?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <div className='flex justify-between w-full'>
+              <Button variant="destructive" onClick={confirmDisableEditPermission}>
+                Confirm
+              </Button>
+              <Button onClick={() => setShowOwnerWarning(false)}>Cancel</Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 };

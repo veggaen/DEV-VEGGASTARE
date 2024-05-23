@@ -1,18 +1,26 @@
 const LOG_PREFIX = '[frontend/actions/remove-company-employee.ts]'
-export const MyRemoveEmployeeAction = async (userId: string, companyId: string) => {
-    console.log(`${LOG_PREFIX} Initiating request to remove employee [User ID: ${userId}, Company ID: ${companyId}]`);
+export const MyRemoveEmployeeAction = async (formData: any) => {
+    const { userId, companyId, clientUser } = formData;
+    console.log(`${LOG_PREFIX} ${clientUser.name} is initiating request to remove employee [User ID: ${userId}, Company ID: ${companyId}]`);
 
     try {
+
+        if (!clientUser) {
+            console.error('Error adding employee, no session user found.');
+            //throw new Error('Error adding employee');
+            return { success: false, message: 'No session user found' };
+        }
+
         const response = await fetch('/api/companies/employees/remove', {
             method: 'DELETE',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ userId, companyId }),
+            body: JSON.stringify({ userId, companyId, clientUser}),
         });
 
         if (!response.ok) {
             const errorResponse = await response.json();
             console.error(`${LOG_PREFIX} Failed to remove employee. Server responded with: ${errorResponse.message}`);
-            return { success: false, message: `Failed to remove employee. [Error: ${errorResponse.message}]` };
+            return { success: false, message: `${errorResponse.message}` };
         }
         
         console.log(`${LOG_PREFIX} Employee successfully removed.`);

@@ -45,10 +45,7 @@ export const MyUserInfo = ({user, label}: UserInfoProps) => {
             <p className="text-sm font-medium">Two Factor Authentication</p>
             <Badge variant={user?.isTwoFactorEnabled ? 'success' : 'destructive'}>{user?.isTwoFactorEnabled ? 'Enabled' : 'Disabled'}</Badge>
           </div>
-          
-          
         </CardContent>
       </Card>
     )
-    
 }

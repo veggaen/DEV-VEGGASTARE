@@ -22,31 +22,36 @@ export const RemoveEmployeeButton: React.FC<RemoveEmployeeButtonProps> = ({
   onError,
 }) => {
   const [isRemoving, setIsRemoving] = useState<boolean>(false);
-  const user = useCurrentUser();
+  const clientUser = useCurrentUser();
 
   const handleRemove = async () => {
-    console.log(`${LOG_PREFIX} ${user?.name} is initiating the removal of employee with ID: ${userId} from companyID: ${companyId}`);
+    console.log(`${LOG_PREFIX} ${clientUser?.name} is initiating the removal of employee with ID: ${userId} from companyID: ${companyId}`);
     setIsRemoving(true);
-    MyRemoveEmployeeAction(userId, companyId)
+    const formData = { userId, companyId, clientUser };
+    MyRemoveEmployeeAction(formData)
       .then((response) => {
         if (response.success) {
           console.log(LOG_PREFIX, response.message);
           // `Employee successfully removed. [User ID: ${userId}]`
-          onSuccess(userId); // Enhanced message
+          onSuccess(userId);
         } else {
           console.error(LOG_PREFIX, response.error);
-          onError(`Failed to remove the employee. Please try again or contact support. [Error: ${response.error}]`); // Enhanced message
+          onError(`${response.message}`);
         }
       })
       .catch((error) => {
         console.error(`${LOG_PREFIX} Unexpected error occurred while removing the employee: ${error}`);
-        onError(`An unexpected error occurred. Please try again or contact support. [Error: ${error}]`); // Enhanced message
+        onError(`An unexpected error occurred. ${error}`);
+      })
+      .finally(() => {
+        setIsRemoving(false);
       });
   };
 
   return (
     <Button variant='vegaNormalBtnRed' onClick={handleRemove} disabled={isRemoving}>
-      {isRemoving ? 'Removing...' : 'Remove Employee'}
+      <p className='hidden lg:block'>{isRemoving ? 'Removing...' : 'Remove Employee'}</p>
+      <p className='lg:hidden'>{isRemoving ? 'Removing...' : 'Remove'}</p>
     </Button>
   );
 };

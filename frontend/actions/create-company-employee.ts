@@ -1,16 +1,23 @@
 
-export const MyAddEmployeeAction = async (employeeData: any) => {
-    console.log('Attempting to add new employee with data:', employeeData);
-    
+export const MyAddEmployeeAction = async (data: any) => {
+    console.log('MyAddEmployeeAction()',data.clientUser.name,'is Attempting to add new employee with data:', data);  
     const url = `/api/companies/employees/add`;
     console.log('URL', url);
+
+    if (!data.clientUser.id) {
+      console.error('Error adding employee, no session user ID found.');
+      //throw new Error('Error adding employee');
+      return { success: false, error: 'No session user found' };
+    }
+    
     try {
+      console.log('clientUser.ID is found:', data.clientUser.id)
       const response = await fetch('/api/companies/employees/add', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(employeeData),
+          body: JSON.stringify(data),
       });
       
       const result = await response.json(); // Parse JSON in any case for detailed error/success message

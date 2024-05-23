@@ -7,6 +7,7 @@ import { EmployeeRole, User, UserRole } from '@prisma/client';
 import { employeeSchema } from '@/schemas';
 import { MyAddEmployeeAction } from '@/actions/create-company-employee';
 import { ExtendedEmployee } from '@/app/(protected)/settings/company/[...id]/page';
+import { useCurrentUser } from '@/hooks/use-current-user';
 
 
 interface MyNewEmployeeFormProps {
@@ -22,15 +23,17 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
   setChange,
   change,
 }) => {
+  const clientUser = useCurrentUser();
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm({
+  const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm({
     resolver: zodResolver(employeeSchema),
   });
 
@@ -99,10 +102,21 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
     }
   };
 
+  const forceReset = () => {
+    reset();
+    setSearchTerm('');
+    setSelectedUser(null);
+  };
+
+  if (isLoading) {
+    console.log('Adding new user to company... Loading...');
+  }
+
   const onSubmit: SubmitHandler<Record<string, any>> = async (data) => {
-    const formData = { ...data, companyId };
+    const formData = { ...data, companyId, clientUser };
 
     startTransition(() => {
+      setIsLoading(true);
       MyAddEmployeeAction(formData)
         .then((data) => {
           if (data.error) {
@@ -111,18 +125,27 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
           if (data.success) {
             setSuccess(data.message || '');
             setChange(!change);
+            forceReset();
           }
           setTimeout(() => {
             setSuccess('');
             setError('');
           }, 30000);
         })
+        .catch((error) => {
+          console.error('Unexpected error occurred while adding employee:', error);
+          setError('An unexpected error occurred');
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     });
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
       <div className="relative group">
+        <div>{`${isLoading}`}</div>
         <label htmlFor="userSearch" className="block text-sm font-medium text-gray-700 dark:text-gray-200">Search for a user</label>
         <input
           id="userSearch"
