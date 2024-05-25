@@ -155,7 +155,7 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
             <DialogHeader>
               <DialogTitle className='text-red-500 text-1xl'>Warning</DialogTitle>
               <DialogDescription className='text-yellow-500'>
-                Disabling "Can Edit Permission" will prevent you from reverting this change later. 
+                Disabling Can Edit Permission will prevent you from reverting this change later. 
                 If no other employee has this permission, no one in the company will be able to change permissions in the future. 
                 Are you sure you want to proceed?
               </DialogDescription>

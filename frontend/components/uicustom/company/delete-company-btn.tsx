@@ -79,7 +79,7 @@ const DeleteCompanyBtn = ({ companyId, companyName, onCompanyDeleted, employeePe
           <DialogHeader>
             <DialogTitle className='text-red-500'>Confirm Deletion</DialogTitle>
             <DialogDescription className='text-yellow-500'>
-              Are YOU sure you want to DELETE the company "{companyName}"? This action CANNOT be UNDONE.
+              Are YOU sure you want to DELETE the company {companyName}? This action CANNOT be UNDONE.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
