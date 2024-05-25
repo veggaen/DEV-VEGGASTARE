@@ -3,7 +3,7 @@
 import { dbPrisma } from '@/lib/db';
 import { ExtendedUser } from '@/next-auth';
 
-export async function fetchUserEmployeePermissions(clientUser: ExtendedUser, companyId: string) {
+export async function fetchUserEmployeePermissions(clientUser: any, companyId: string) {
     try {
       console.log('fetchUserEmployeePermissions() Fetching user permissions for user employee:', clientUser.id, 'for companyId: ', companyId);
       // validate client user
@@ -19,7 +19,7 @@ export async function fetchUserEmployeePermissions(clientUser: ExtendedUser, com
       const employee = await dbPrisma.employee.findFirst({
         where: {
             userId: clientUser.id,
-            companyId: 'clu34rawz0002xik69hsmz0fx',
+            companyId: companyId,
         },
       });
   

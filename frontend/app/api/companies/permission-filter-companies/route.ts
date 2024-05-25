@@ -1,24 +1,33 @@
 import { dbPrisma } from '@/lib/db';
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(req: NextApiRequest, res: NextApiResponse) {
+export async function POST(req: NextRequest, res: NextResponse) {
     try {
-      const { userId, permissionTag } = req.body;
+
+      const data = await req.json();
+      const { companyId, userId, permissionTag } = data;
+      console.log('PERMFILTER', data)
+      console.log('Fetching companies with permission for user ID:', userId, 'and permission tag:', permissionTag);
   
       if (!userId || !permissionTag) {
-        return res.status(400).json({ error: 'User ID and permission tag are required' });
+        //return res.status(400).json({ error: 'User ID and permission tag are required' });
+        return new Response(JSON.stringify({ error: 'User ID and permission tag are required' }), {
+          status: 400, // Bad Request
+          headers: {
+              'Content-Type': 'application/json',
+          },
+        });
       }
   
-      // Adjust the query as needed based on your data model
+      // Fetch companies where the user has the specific permission
       const companiesWithPermission = await dbPrisma.company.findMany({
         where: {
           employees: {
             some: {
-              userId,
+              userId: userId,
               permissions: {
-                // Assuming permissions is stored in a format that allows this kind of query
-                // This might need to be adjusted based on your actual database schema and how permissions are stored
-                path: permissionTag,
+                path: [permissionTag],
                 equals: true,
               },
             },
@@ -27,10 +36,9 @@ export async function POST(req: NextApiRequest, res: NextApiResponse) {
         include: {
           employees: {
             where: {
-              userId,
+              userId: userId,
               permissions: {
-                // Adjust according to your schema
-                path: permissionTag,
+                path: [permissionTag],
                 equals: true,
               },
             },
@@ -39,9 +47,23 @@ export async function POST(req: NextApiRequest, res: NextApiResponse) {
       });
   
       console.log('Companies with permission fetched:', companiesWithPermission);
-      res.status(200).json(companiesWithPermission);
+      //res.status(200).json(companiesWithPermission);
+      
+      const response = JSON.stringify(companiesWithPermission)
+        console.log('Companies with permission fetched:', response)
+        return new Response(JSON.stringify(companiesWithPermission), {
+            status: 200, // OK
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
     } catch (error) {
       console.error('Error fetching companies with permission:', error);
-      res.status(500).json({ error: 'Internal Server Error' });
+      return new Response(JSON.stringify({ error: (error as Error).message }), {
+        status: 500,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+      });
     }
   }

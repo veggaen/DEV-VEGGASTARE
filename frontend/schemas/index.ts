@@ -122,6 +122,7 @@ export const employeePermissionsSchema = z.object({
   CAN_EDIT_PERMISSION: z.boolean().default(false),
   CAN_DELETE_COMPANY: z.boolean().default(false),
   CAN_POST_PRODUCT_POSITION_PERMISSION: z.boolean().default(false),
+  CAN_EDIT_PRODUCT_POSITION_PERMISSION: z.boolean().default(false),
   CAN_ADD_EMPLOYEE: z.boolean().default(false),
 });
 export const employeeSchema = z.object({

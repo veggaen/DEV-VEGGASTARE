@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { fetchUserEmployeePermissions } from '@/actions/user-company-permissions';
 
-const UserCompanyPermission = ({ permissionTag }) => {
+const UserCompanyPermission = ({ permissionTag, onCompanySelect }) => {
   const [companies, setCompanies] = useState([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const currentUser = useCurrentUser();
@@ -12,10 +12,10 @@ const UserCompanyPermission = ({ permissionTag }) => {
   useEffect(() => {
     async function loadCompanies() {
       if (!currentUser) return;
-      
+
       try {
-        // Adjust this call according to how your actual API function is structured
-        // This is a placeholder for fetching companies with a specific permission
+        console.log(`Fetching companies for userId: ${currentUser.id} with permissionTag: ${permissionTag}`);
+
         const response = await fetch(`/api/companies/permission-filter-companies`, {
           method: 'POST',
           headers: {
@@ -23,13 +23,17 @@ const UserCompanyPermission = ({ permissionTag }) => {
           },
           body: JSON.stringify({
             userId: currentUser.id,
-            permissionTag: 'CAN_POST_PRODUCT_POSITION_PERMISSION',
+            permissionTag: permissionTag,
           }),
         });
-        
-        if (!response.ok) throw new Error('Failed to fetch companies');
-        
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch companies');
+        }
+
         const data = await response.json();
+        console.log('Response data:', data);
+
         if (Array.isArray(data)) {
           setCompanies(data);
         } else {
@@ -43,18 +47,23 @@ const UserCompanyPermission = ({ permissionTag }) => {
     loadCompanies();
   }, [currentUser, permissionTag]);
 
-  const handleCompanyChange = (e) => {
+  const handleCompanyChange = async (e) => {
     const companyId = e.target.value;
-    handleCompanySelect(companyId);
+    await handleCompanySelect(companyId);
   };
 
-  const handleCompanySelect = (companyId) => {
+  const handleCompanySelect = async (companyId) => {
     console.log(`Selected company ID: ${companyId}`);
     setSelectedCompanyId(companyId);
-    // Perform additional actions with the selected company ID, such as:
-    // - Fetching and displaying company details
-    // - Updating application state or context
-    // - Triggering side effects related to the company selection
+
+    // Fetch permissions for the selected company
+    try {
+      const permissions = await fetchUserEmployeePermissions(currentUser, companyId);
+      console.log(`Fetched permissions for company ID ${companyId}:`, permissions);
+      onCompanySelect(companyId, permissions);
+    } catch (error) {
+      console.error('Error fetching permissions for the selected company:', error);
+    }
   };
 
   return (
@@ -73,5 +82,6 @@ const UserCompanyPermission = ({ permissionTag }) => {
     </div>
   );
 };
+
 
 export default UserCompanyPermission;

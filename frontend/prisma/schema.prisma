@@ -5,7 +5,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// generator client
 generator client {
   provider = "prisma-client-js"
 }
@@ -93,7 +92,7 @@ model TwoFactorConfirmation {
   @@unique([userId])
 }
 
-// PRODUCTS RElATED
+// PRODUCTS RELATED
 model Product {
   id               String            @id @default(cuid())
   title            String
@@ -107,7 +106,7 @@ model Product {
   userId           String // Associate product with a user
   user             User              @relation("ProductsListed", fields: [userId], references: [id])
   companyId        String? // Associate product optional company ID
-  company          Company?          @relation(fields: [companyId], references: [id])
+  company          Company?          @relation("CompanyProducts", fields: [companyId], references: [id])
   shippingDetails  ShippingDetails[]
   reviews          Review[]
   createdAt        DateTime          @default(now())
@@ -165,7 +164,7 @@ model Company {
   Sale               Sale[]
   MonthlyReport      MonthlyReport[]
   Package            Package[]
-  Product            Product[]
+  Product            Product[]           @relation("CompanyProducts")
 }
 
 model Employee {
@@ -201,7 +200,7 @@ enum EmployeeRole {
   USER
 }
 
-// Comapny Business Analytics related
+// Company Business Analytics related
 model Sale {
   id           String   @id @default(cuid())
   companyId    String
