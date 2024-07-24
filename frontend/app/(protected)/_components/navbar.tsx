@@ -19,10 +19,6 @@ import { useState } from 'react';
 
 export const MyNavbarProtected = () => {
   const pathname = usePathname();
-  if (!pathname.startsWith('/nexus')) {
-    return null;
-  }
-  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleDialogOpenChange = (isOpen: boolean) => {
@@ -32,8 +28,6 @@ export const MyNavbarProtected = () => {
   const handleLinkClick = () => {
     setIsDialogOpen(false);
   };
-
-  
 
   return (
     <div>
