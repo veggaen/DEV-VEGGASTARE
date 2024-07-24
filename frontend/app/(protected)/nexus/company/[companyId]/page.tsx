@@ -8,14 +8,13 @@ import Image from 'next/image';
 import { MyNewEmployeeForm } from '@/components/uicustom/company/form/new-employee-form';
 import { RemoveEmployeeButton } from '@/components/uicustom/company/remove-employee-btn';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import EditEmployee from '@/components/uicustom/company/edit-employee-permission';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import DeleteCompanyBtn from '@/components/uicustom/company/delete-company-btn';
 import { EmployeePermissions } from '@/actions/edit-company-employee-permission';
-import { format } from 'date-fns';
-import { AiOutlineMail, AiOutlineUser } from 'react-icons/ai';
-import { MdWork, MdAddCircleOutline, MdDelete, MdEdit, MdRemoveCircleOutline, MdPostAdd } from 'react-icons/md';
+import { formatDistanceToNow } from 'date-fns';
+import { MdAddCircleOutline, MdDelete, MdEdit, MdRemoveCircleOutline, MdPostAdd } from 'react-icons/md';
 import ProgressBar from '@/components/bars/progress-bar';
+import EditEmployeePermissionsModal from '@/components/uicustom/company/edit-employee-permission';
 
 export interface ExtendedEmployee extends Employee {
     user: User;
@@ -43,6 +42,13 @@ interface Warehouse {
     initialStock: number;
     currentStock: number;
 }
+
+const rolePriority = {
+    OWNER: 1,
+    MANAGER: 2,
+    STAFF: 3,
+    USER: 4
+};
 
 const CompanyDetails = () => {
     const params = useParams();
@@ -150,10 +156,14 @@ const CompanyDetails = () => {
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
 
+    const sortedEmployeesRole = company.employees.slice().sort((a, b) => {
+        return rolePriority[a.role] - rolePriority[b.role];
+    });
+
     const currentUserPermissions = company.employees.find(employee => employee.userId === clientUser?.id)?.permissions;
 
     const formatDate = (date: Date) => {
-        return format(new Date(date), 'MMMM d, yyyy');
+        return formatDistanceToNow(new Date(date), { addSuffix: true });
     };
 
     return (
@@ -230,16 +240,18 @@ const CompanyDetails = () => {
                 </div>
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
                   <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Created At:</p>
-                  <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{new Date(company.createdAt).toLocaleDateString()}</p>
+                  <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{formatDate(company.createdAt)}</p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
                   <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Last Updated:</p>
-                  <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{new Date(company.updatedAt).toLocaleDateString()}</p>
+                  <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{formatDate(company.updatedAt)}</p>
                 </div>
               </div>
               {company.usesShipping && company.warehouseLocations && company.warehouseLocations.length > 0 && (
-                <div className="border-t border-gray-200 dark:border-gray-700">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Warehouse Locations</h2>
+                <div className="border-t border-gray-200 dark:border-gray-700 mt-2">
+              <div className='flex justify-start items-center w-full h-10'>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Warehouse Locations:</h2>
+                  </div>
                   <ul className="space-y-6">
                     {warehouses.map((warehouseLocation, index) => {
                       console.log(`Warehouse ${index + 1}: Initial Total Stock: ${warehouseLocation.initialStock}, Current Total Stock: ${warehouseLocation.currentStock}`); // Debug log
@@ -268,105 +280,107 @@ const CompanyDetails = () => {
                 </div>
               )}
               {company.employees && company.employees.length > 0 && (
-                  <div className="border-t border-gray-200 dark:border-gray-700">
-                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Employees</h2>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {sortedEmployees.map((employee) => (
-                            <div 
-                                key={employee.id} 
-                                className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm p-4"
-                            >
-                              <div className="flex items-center space-x-4">
-                                <div className="flex-1 min-w-0">
-                                  <div className='flex gap-2'>
-                                    <div className="flex-shrink-0">
-                                      {employee.user.image ? (
-                                        <Image 
-                                          src={employee.user.image} 
-                                          width={80} 
-                                          height={80} 
-                                          className="rounded-full" 
-                                          alt={`${employee.user.name} avatar`} 
-                                        />
-                                      ) : (
-                                        <Image 
-                                          src="/users/avatar.webp" 
-                                          width={80} 
-                                          height={80} 
-                                          className="rounded-full" 
-                                          alt="Default avatar" 
-                                        />
-                                      )}
-                                    </div>
-                                    <div>
-                                      <div className="text-lg font-semibold text-gray-900 dark:text-white">{employee.user.name}</div>
-                                      <p className="text-gray-600 dark:text-gray-400">{employee.user.email}</p>
-                                      <p className="text-gray-600 dark:text-gray-400">{employee.role}</p>
-                                    </div>
-                                  </div>
-                                  <div className="mt-2">
-                                    <p className="font-semibold">Permissions</p>
-                                    <div className="space-y-2">
-                                      {Object.keys(employee.permissions).length === 0 ? (
-                                          <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded text-center text-gray-500 dark:text-gray-400">No permissions</div>
-                                      ) : (
-                                        Object.entries(employee.permissions).map(([key, value]) => {
-                                          const tag = tagReplacements[key] || { name: key, description: '', icon: null };
-                                          return (
-                                            <div 
-                                                key={key} 
-                                                className="flex justify-between items-center bg-gray-200 dark:bg-gray-700 p-2 rounded"
-                                            >
-                                              <div className="flex items-center space-x-2">
-                                                {tag.icon}
-                                                <p>{tag.name}</p>
-                                              </div>
-                                              <p className={`px-2 py-1 rounded ${value === true ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
-                                                {value !== null && value !== undefined ? value.toString() : 'N/A'}
-                                              </p>
-                                            </div>
-                                          );
-                                        })
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="mt-4 text-gray-600 dark:text-gray-400">
-                                    <div className="flex justify-between">
-                                      <span className="font-semibold">Created At</span>
-                                      <span>{formatDate(employee.createdAt)}</span>
-                                    </div>
-                                    <div className="flex justify-between mt-2">
-                                      <span className="font-semibold">Updated At</span>
-                                      <span>{formatDate(employee.updatedAt)}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="mt-4 flex gap-2">
-                                {errorMessages[employee.userId] && (
-                                  <div className="text-red-500 dark:text-red-400">{errorMessages[employee.userId]}</div>
+                <div className="border-t border-gray-200 dark:border-gray-700 mt-2">
+                  <div className='flex justify-start items-center w-full h-10'>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Employees:</h2>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {sortedEmployeesRole.map((employee) => (
+                      <div 
+                          key={employee.id} 
+                          className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm p-4"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div className="flex-1 min-w-0">
+                            <div className='flex gap-2'>
+                              <div className="flex-shrink-0">
+                                {employee.user.image ? (
+                                  <Image 
+                                    src={employee.user.image} 
+                                    width={80} 
+                                    height={80} 
+                                    className="rounded-full" 
+                                    alt={`${employee.user.name} avatar`} 
+                                  />
+                                ) : (
+                                  <Image 
+                                    src="/users/avatar.webp" 
+                                    width={80} 
+                                    height={80} 
+                                    className="rounded-full" 
+                                    alt="Default avatar" 
+                                  />
                                 )}
-                                {clientUser && (
-                                <>
-                                  <EditEmployee 
-                                    clientUser={clientUser} 
-                                    company={company} 
-                                    selectedEmployee={selectedEmployee!!} 
-                                    setCompany={setCompany} 
-                                  />
-                                  <RemoveEmployeeButton
-                                    userId={employee.userId}
-                                    companyId={company.id}
-                                    onSuccess={handleSuccess}
-                                    onError={(message) => updateErrorMessage(employee.userId, message)}
-                                  />
-                                </>
+                              </div>
+                              <div>
+                                <div className="text-lg font-semibold text-gray-900 dark:text-white">{employee.user.name}</div>
+                                <p className="text-gray-600 dark:text-gray-400">{employee.user.email}</p>
+                                <p className="text-gray-600 dark:text-gray-400">{employee.role}</p>
+                              </div>
+                            </div>
+                            <div className="mt-2">
+                              <p className="font-semibold">Permissions</p>
+                              <div className="space-y-2">
+                                {Object.keys(employee.permissions).length === 0 ? (
+                                    <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded text-center text-gray-500 dark:text-gray-400">No permissions</div>
+                                ) : (
+                                  Object.entries(employee.permissions).map(([key, value]) => {
+                                    const tag = tagReplacements[key] || { name: key, description: '', icon: null };
+                                    return (
+                                      <div 
+                                          key={key} 
+                                          className="flex justify-between items-center bg-gray-200 dark:bg-gray-700 p-2 rounded"
+                                      >
+                                        <div className="flex items-center space-x-2">
+                                          {tag.icon}
+                                          <p>{tag.name}</p>
+                                        </div>
+                                        <p className={`px-2 py-1 rounded ${value === true ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+                                          {value !== null && value !== undefined ? value.toString() : 'N/A'}
+                                        </p>
+                                      </div>
+                                    );
+                                  })
                                 )}
                               </div>
                             </div>
-                          ))}
+                            <div className="mt-4 text-gray-600 dark:text-gray-400">
+                              <div className="flex justify-between">
+                                <span className="font-semibold">Created At</span>
+                                <span>{formatDate(employee.createdAt)}</span>
+                              </div>
+                              <div className="flex justify-between mt-2">
+                                <span className="font-semibold">Updated At</span>
+                                <span>{formatDate(employee.updatedAt)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-4 flex gap-2">
+                          {errorMessages[employee.userId] && (
+                            <div className="text-red-500 dark:text-red-400">{errorMessages[employee.userId]}</div>
+                          )}
+                          {clientUser && (
+                          <div className='flex gap-2 w-full' onClick={() => handleEmployeeClick(employee)}>
+                            <EditEmployeePermissionsModal 
+                              clientUser={clientUser} 
+                              company={company} 
+                              selectedEmployee={selectedEmployee!!} 
+                              setCompany={setCompany} 
+                            />
+                            <RemoveEmployeeButton
+                              userId={employee.userId}
+                              companyId={company.id}
+                              onSuccess={handleSuccess}
+                              onError={(message) => updateErrorMessage(employee.userId, message)}
+                            />
+                          </div>
+                          )}
+                        </div>
                       </div>
+                    ))}
                   </div>
+                </div>
               )}
               <div className="border-t border-gray-200 dark:border-gray-700">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Add a New Employee</h1>

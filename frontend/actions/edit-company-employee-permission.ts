@@ -1,5 +1,5 @@
 'use server';
-import { ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/page';
+import { ExtendedEmployee } from '@/app/(protected)/nexus/company/[...id]/page';
 import { dbPrisma } from '@/lib/db';
 import { ExtendedUser } from '@/next-auth';
 import { Prisma, PrismaClient, Employee } from '@prisma/client';

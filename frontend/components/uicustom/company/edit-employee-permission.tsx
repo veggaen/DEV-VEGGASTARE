@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import {
   Dialog,
@@ -12,9 +12,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useState, useEffect } from 'react';
-import { ExtendedCompany, ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/page';
 import { EmployeePermissions, editCompanyEmployeePermissionAction } from '@/actions/edit-company-employee-permission';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { ExtendedCompany, ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/page';
+import EditEmployeeRoleModal from './edit-employee-role-modal';
 
 interface EditEmployeePermissionsModalProps {
   company: ExtendedCompany;
@@ -22,7 +23,6 @@ interface EditEmployeePermissionsModalProps {
   selectedEmployee: ExtendedEmployee;
   clientUser: any;
 }
-
 
 const LOG_PREFIX = '[frontend/components/uicustom/company/edit-employee-permission.tsx]';
 const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> = ({ selectedEmployee, company, setCompany }) => {
@@ -115,65 +115,72 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
   };
 
   return (
-    <Dialog open={isShowing} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant='vegaNormalBtn' className='w-full' onClick={handleClickEditPermissions}>
-          Edit Permissions
-        </Button>
-      </DialogTrigger>
-      <DialogContent className='bg-black'>
-        <DialogHeader>
-          <DialogTitle>
-            Edit Profile Permissions ({selectedEmployee?.user?.name})
-          </DialogTitle>
-          <DialogDescription>
-            Make changes to selected profile here. Click save when done.
-          </DialogDescription>
-        </DialogHeader>
-        <div>
-          {Object.entries(permissions).map(([key, value]) => (
-            <div key={key}>
-              <Checkbox
-                id={key}
-                checked={value}
-                onCheckedChange={() => handleCheckboxChange(key as keyof EmployeePermissions)}
-              />
-              <label htmlFor={key}>{key}</label>
-            </div>
-          ))}
-          {error && <div className='text-red-500'>{error}</div>}
-          {success && <div className='text-green-500'>Permissions saved successfully.</div>}
-        </div>
-        <DialogFooter>
-          <Button onClick={handleSavePermissions} disabled={isLoading}>
-            {isLoading ? 'Saving...' : 'Save changes'}
+    <div className='flex flex-wrap gap-2'>
+      <Dialog open={isShowing} onOpenChange={handleOpenChange}>
+        <DialogTrigger asChild>
+          <Button variant='vegaNormalBtn' className='w-full' onClick={handleClickEditPermissions}>
+            Edit Permissions
           </Button>
-        </DialogFooter>
-      </DialogContent>
-
-      {showOwnerWarning && (
-        <Dialog open={showOwnerWarning} onOpenChange={setShowOwnerWarning}>
-          <DialogContent className='bg-black'>
-            <DialogHeader>
-              <DialogTitle className='text-red-500 text-1xl'>Warning</DialogTitle>
-              <DialogDescription className='text-yellow-500'>
-                Disabling Can Edit Permission will prevent you from reverting this change later. 
-                If no other employee has this permission, no one in the company will be able to change permissions in the future. 
-                Are you sure you want to proceed?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <div className='flex justify-between w-full'>
-              <Button variant="destructive" onClick={confirmDisableEditPermission}>
-                Confirm
-              </Button>
-              <Button onClick={() => setShowOwnerWarning(false)}>Cancel</Button>
+        </DialogTrigger>
+        <DialogContent className='bg-black'>
+          <DialogHeader>
+            <DialogTitle>
+              Edit Profile Permissions ({selectedEmployee?.user?.name})
+            </DialogTitle>
+            <DialogDescription>
+              Make changes to selected profile here. Click save when done.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            {Object.entries(permissions).map(([key, value]) => (
+              <div key={key}>
+                <Checkbox
+                  id={key}
+                  checked={value}
+                  onCheckedChange={() => handleCheckboxChange(key as keyof EmployeePermissions)}
+                />
+                <label htmlFor={key}>{key}</label>
               </div>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </Dialog>
+            ))}
+            {error && <div className='text-red-500'>{error}</div>}
+            {success && <div className='text-green-500'>Permissions saved successfully.</div>}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSavePermissions} disabled={isLoading}>
+              {isLoading ? 'Saving...' : 'Save changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+
+        {showOwnerWarning && (
+          <Dialog open={showOwnerWarning} onOpenChange={setShowOwnerWarning}>
+            <DialogContent className='bg-black'>
+              <DialogHeader>
+                <DialogTitle className='text-red-500 text-1xl'>Warning</DialogTitle>
+                <DialogDescription className='text-yellow-500'>
+                  Disabling Can Edit Permission will prevent you from reverting this change later. 
+                  If no other employee has this permission, no one in the company will be able to change permissions in the future. 
+                  Are you sure you want to proceed?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <div className='flex justify-between w-full'>
+                  <Button variant="destructive" onClick={confirmDisableEditPermission}>
+                    Confirm
+                  </Button>
+                  <Button onClick={() => setShowOwnerWarning(false)}>Cancel</Button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </Dialog>
+      <EditEmployeeRoleModal
+        company={company}
+        setCompany={setCompany}
+        selectedEmployee={selectedEmployee}
+      />
+    </div>
   );
 };
 
