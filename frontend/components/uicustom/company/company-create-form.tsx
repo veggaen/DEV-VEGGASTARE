@@ -36,6 +36,7 @@ const DEFAULT_PERMISSIONS = {
   CAN_POST_PRODUCT_POSITION_PERMISSION: true,
   CAN_EDIT_PRODUCT_POSITION_PERMISSION: true,
   CAN_ADD_EMPLOYEE: true,
+  CAN_EDIT_EMPLOYEE_ROLE: true,
 };
 
 const INITIAL_OWNER_EMPLOYEE = (user: User) => ({
@@ -161,6 +162,7 @@ export const MyCompanyCreateForm = () => {
           CAN_POST_PRODUCT_POSITION_PERMISSION: false,
           CAN_EDIT_PRODUCT_POSITION_PERMISSION: false,
           CAN_ADD_EMPLOYEE: false,
+          CAN_EDIT_EMPLOYEE_ROLE: false,
         },
       };
 

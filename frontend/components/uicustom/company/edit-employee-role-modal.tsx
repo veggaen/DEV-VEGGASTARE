@@ -35,7 +35,7 @@ const EditEmployeeRoleModal: React.FC<EditEmployeeRoleModalProps> = ({ selectedE
   const handleSaveRole = async () => {
     setIsLoading(true);
     try {
-      const response = await editEmployeeRoleAction({ employeeId: selectedEmployee.id, newRole, clientUser });
+      const response = await editEmployeeRoleAction({ employeeId: selectedEmployee.id, newRole, clientUser, companyId: company.id });
       if (response.success) {
         setCompany((prevCompany) => {
           if (!prevCompany) return null;

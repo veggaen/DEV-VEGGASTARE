@@ -5,6 +5,7 @@ export const permissionMapping = {
   CAN_POST_PRODUCT_POSITION_PERMISSION: "can_post_product_position_permission",
   CAN_EDIT_PRODUCT_POSITION_PERMISSION: "can_edit_product_position_permission",
   CAN_ADD_EMPLOYEE: "can_add_employee",
+  CAN_EDIT_EMPLOYEE_ROLE: "can_edit_employee_role",
 };
   
 type PermissionKey = keyof typeof permissionMapping;
@@ -18,6 +19,7 @@ export function convertPermissionsToBoolean(permissions: string[]): Record<Permi
     CAN_POST_PRODUCT_POSITION_PERMISSION: false,
     CAN_EDIT_PRODUCT_POSITION_PERMISSION: false,
     CAN_ADD_EMPLOYEE: false,
+    CAN_EDIT_EMPLOYEE_ROLE: false,
   };
 
   permissions.forEach(permission => {

@@ -126,6 +126,7 @@ export const employeePermissionsSchema = z.object({
     CAN_POST_PRODUCT_POSITION_PERMISSION: z.boolean().default(false),
     CAN_EDIT_PRODUCT_POSITION_PERMISSION: z.boolean().default(false),
     CAN_ADD_EMPLOYEE: z.boolean().default(false),
+    CAN_EDIT_EMPLOYEE_ROLE: z.boolean().default(false),
 });
 export const employeeSchema = z.object({
     userId: z.string().min(1, 'User ID is required'),

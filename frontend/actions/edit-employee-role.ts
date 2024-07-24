@@ -1,27 +1,64 @@
-'use server';
+'use server'
 
 import { dbPrisma } from '@/lib/db';
+import { EmployeeRole } from '@prisma/client';
 
 const LOG_PREFIX = '[frontend/actions/edit-employee-role.ts]';
 
-export const editEmployeeRoleAction = async ({ employeeId, newRole, clientUser }: { employeeId: string; newRole: string; clientUser: any }) => {
-  console.log(`${LOG_PREFIX} ${clientUser.name} is initiating request to edit role for employee [Employee ID: ${employeeId}]`);
+export const editEmployeeRoleAction = async (formData: any) => {
+  const { employeeId, newRole, clientUser, companyId } = formData;
+  console.log(`${LOG_PREFIX} ${clientUser.name} is initiating request to edit employee role [Employee ID: ${employeeId}, New Role: ${newRole}, Company ID: ${companyId}]`);
 
   try {
-    if (!clientUser) {
-      console.error('Error updating employee role, no session user found.');
-      return { success: false, message: 'No session user found' };
+    // Fetch client employee data for permission check
+    const clientEmployee = await dbPrisma.employee.findFirst({
+      where: {
+        userId: clientUser.id,
+        companyId: companyId,
+      },
+    });
+
+    if (!clientEmployee) {
+      console.error(`${LOG_PREFIX} Client user is not an employee of the company`);
+      return { success: false, message: 'Client user is not an employee of the company' };
     }
 
+    // Check if client user has permission to edit employee roles
+    if (!clientEmployee.permissions?.CAN_EDIT_EMPLOYEE_ROLE as any) {
+      console.error(`${LOG_PREFIX} Permission denied: You do not have permission to edit employee roles.`);
+      return { success: false, message: 'Permission denied: You do not have permission to edit employee roles' };
+    }
+
+    // Fetch the employee to be updated
+    const targetEmployee = await dbPrisma.employee.findFirst({
+      where: {
+        id: employeeId,
+        companyId: companyId,
+      },
+    });
+
+    if (!targetEmployee) {
+      console.error(`${LOG_PREFIX} Employee not found or does not belong to the specified company`);
+      return { success: false, message: 'Employee not found or does not belong to the specified company' };
+    }
+
+    // Check role hierarchy
+    const roleHierarchy = ['USER', 'STAFF', 'MANAGER', 'OWNER'];
+    if (roleHierarchy.indexOf(clientEmployee.role) <= roleHierarchy.indexOf(targetEmployee.role)) {
+      console.error(`${LOG_PREFIX} Permission denied: You do not have a higher role than the employee you are trying to update`);
+      return { success: false, message: 'Permission denied: You do not have a higher role than the employee you are trying to update' };
+    }
+
+    // Update employee role
     const updatedEmployee = await dbPrisma.employee.update({
       where: { id: employeeId },
       data: { role: newRole },
     });
 
-    console.log(`${LOG_PREFIX} Employee role successfully updated.`);
+    console.log(`${LOG_PREFIX} Successfully updated employee role:`, updatedEmployee);
     return { success: true, updatedEmployee };
   } catch (error) {
-    console.error(`${LOG_PREFIX} Exception caught during role update operation: ${error}`);
-    return { success: false, error: `An exception occurred: ${error}. Please try again or contact support.` };
+    console.error(`${LOG_PREFIX} Error updating employee role:`, error);
+    return { success: false, message: 'Internal Server Error' };
   }
 };

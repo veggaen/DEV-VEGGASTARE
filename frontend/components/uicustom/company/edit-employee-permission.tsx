@@ -40,6 +40,7 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
     CAN_EDIT_PRODUCT_POSITION_PERMISSION: false,
     CAN_DELETE_COMPANY: false,
     CAN_ADD_EMPLOYEE: false,
+    CAN_EDIT_EMPLOYEE_ROLE: false,
   });
 
   useEffect(() => {
@@ -51,6 +52,7 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
         CAN_POST_PRODUCT_POSITION_PERMISSION: selectedEmployee.permissions.CAN_POST_PRODUCT_POSITION_PERMISSION,
         CAN_EDIT_PRODUCT_POSITION_PERMISSION: selectedEmployee.permissions.CAN_EDIT_PRODUCT_POSITION_PERMISSION,
         CAN_ADD_EMPLOYEE: selectedEmployee.permissions.CAN_ADD_EMPLOYEE,
+        CAN_EDIT_EMPLOYEE_ROLE: selectedEmployee.permissions.CAN_EDIT_EMPLOYEE_ROLE,
       });
     }
   }, [selectedEmployee, stateChange]);

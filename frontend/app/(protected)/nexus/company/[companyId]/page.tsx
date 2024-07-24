@@ -15,6 +15,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { MdAddCircleOutline, MdDelete, MdEdit, MdRemoveCircleOutline, MdPostAdd } from 'react-icons/md';
 import ProgressBar from '@/components/bars/progress-bar';
 import EditEmployeePermissionsModal from '@/components/uicustom/company/edit-employee-permission';
+import { FaBriefcase } from 'react-icons/fa';
 
 export interface ExtendedEmployee extends Employee {
     user: User;
@@ -67,6 +68,7 @@ const CompanyDetails = () => {
         CAN_POST_PRODUCT_POSITION_PERMISSION: { name: 'Can Post Product Position', description: 'Allows the user to post products on behalf of the company.', icon: <MdPostAdd className="text-xl h-8 w-8" /> },
         CAN_EDIT_PRODUCT_POSITION_PERMISSION: { name: 'Can Edit Product Position', description: 'Allows the user to edit products on behalf of the company.', icon: <MdEdit className="text-xl h-8 w-8" /> },
         CAN_ADD_EMPLOYEE: { name: 'Can Add Employee', description: 'Allows the user to add new employees to the company.', icon: <MdAddCircleOutline className="text-xl h-8 w-8" /> },
+        CAN_EDIT_EMPLOYEE_ROLE: { name: 'Can Edit Employee Role', description: 'Allows the user to edit employees role in the company.', icon: <FaBriefcase className="text-xl h-8 w-8" /> },
     };
 
     const fetchCompanyDetails = useCallback(async () => {
