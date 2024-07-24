@@ -64,22 +64,22 @@ const EditEmployeeRoleModal: React.FC<EditEmployeeRoleModalProps> = ({ selectedE
   return (
     <Dialog open={isShowing} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant='vegaNormalBtn' className='w-full' onClick={handleOpenChange}>
+        <Button variant='vegaNormalBtn' className='w-full bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700' onClick={handleOpenChange}>
           Edit Role
         </Button>
       </DialogTrigger>
-      <DialogContent className='bg-black'>
+      <DialogContent className='text-black dark:text-white bg-gradient-to-tr dark:from-slate-700 dark:to-slate-900 from-blue-100 via-gray-200 to-blue-200 border-gray-700 dark:border-gray-700'>
         <DialogHeader>
-          <DialogTitle>
-            Edit Employee Role ({selectedEmployee?.user?.name})
+          <DialogTitle className='flex gap-2'>
+            Edit Employee Role | <p className='text-purple-600 italic font-bold'> {selectedEmployee?.user?.name}</p>
           </DialogTitle>
           <DialogDescription>
             Make changes to the employee role here. Click save when done.
           </DialogDescription>
         </DialogHeader>
         <div>
-          <label htmlFor="role">Role:</label>
-          <select id="role" value={newRole} onChange={(e) => setNewRole(e.target.value as EmployeeRole)}>
+          <label htmlFor="role" className='text-black dark:text-white'>Role:</label>
+          <select id="role" value={newRole} onChange={(e) => setNewRole(e.target.value as EmployeeRole)} className='bg-gray-200 text-black dark:bg-gray-700 dark:text-white'>
             <option value="OWNER">Owner</option>
             <option value="MANAGER">Manager</option>
             <option value="STAFF">Staff</option>
@@ -89,7 +89,7 @@ const EditEmployeeRoleModal: React.FC<EditEmployeeRoleModalProps> = ({ selectedE
           {success && <div className='text-green-500'>Role saved successfully.</div>}
         </div>
         <DialogFooter>
-          <Button onClick={handleSaveRole} disabled={isLoading}>
+          <Button onClick={handleSaveRole} disabled={isLoading} className='bg-blue-500 hover:bg-blue-600 dark:bg-blue-400 dark:hover:bg-blue-500'>
             {isLoading ? 'Saving...' : 'Save Role'}
           </Button>
         </DialogFooter>

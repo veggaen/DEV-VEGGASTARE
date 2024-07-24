@@ -13,7 +13,7 @@ export default async function Home() {
   return (
     <main className={`flex h-full flex-col items-center ${user ? 'justify-start' : 'justify-center'} scroll-smooth`}>
       {!user ? (
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         <h1 className="text-6xl font-semibold text-white drop-shadow-md mb-2">The Future awaits!</h1>
         <MyLoginButton mode="modal" asChild ><Button size="lg" variant='vegaEmeraldBtn' className="group"><LockKeyhole size={21} className="mr-2 group-hover:animate-bounce"/>Auth</Button></MyLoginButton>
         <p>Build with Authentication service</p>

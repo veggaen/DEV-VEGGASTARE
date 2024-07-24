@@ -120,14 +120,14 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
     <div className='flex flex-wrap gap-2'>
       <Dialog open={isShowing} onOpenChange={handleOpenChange}>
         <DialogTrigger asChild>
-          <Button variant='vegaNormalBtn' className='w-full' onClick={handleClickEditPermissions}>
+          <Button variant='vegaNormalBtn' className='w-full bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700' onClick={handleClickEditPermissions}>
             Edit Permissions
           </Button>
         </DialogTrigger>
-        <DialogContent className='bg-black'>
+        <DialogContent className='text-black dark:text-white bg-gradient-to-tr dark:from-slate-700 dark:to-slate-900 from-blue-100 via-gray-200 to-blue-200 border-gray-700 dark:border-gray-700'>
           <DialogHeader>
-            <DialogTitle>
-              Edit Profile Permissions ({selectedEmployee?.user?.name})
+            <DialogTitle className='flex gap-2'>
+              Edit Profile Permissions | <p className='text-purple-600 italic font-bold'> {selectedEmployee?.user?.name}</p>
             </DialogTitle>
             <DialogDescription>
               Make changes to selected profile here. Click save when done.
@@ -135,20 +135,21 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
           </DialogHeader>
           <div>
             {Object.entries(permissions).map(([key, value]) => (
-              <div key={key}>
+              <div key={key} className='flex items-center gap-2 mb-2 bg-gray-400/50 border-gray-300 dark:bg-gray-700/50 dark:border-gray-700 text-white transition duration-300 ease-in-out hover:shadow-lg border hover:border-blue-500/50 dark:hover:border-blue-500/50 active:border-sky-500 hover:bg-sky-400 dark:hover:bg-sky-700 p-2 rounded-sm'>
                 <Checkbox
                   id={key}
                   checked={value}
                   onCheckedChange={() => handleCheckboxChange(key as keyof EmployeePermissions)}
+                  className='bg-gray-300 border-gray-600 dark:bg-gray-200 dark:border-gray-500 w-7 h-7'
                 />
-                <label htmlFor={key}>{key}</label>
+                <label htmlFor={key} className='text-black dark:text-white'>{key}</label>
               </div>
             ))}
             {error && <div className='text-red-500'>{error}</div>}
             {success && <div className='text-green-500'>Permissions saved successfully.</div>}
           </div>
           <DialogFooter>
-            <Button onClick={handleSavePermissions} disabled={isLoading}>
+            <Button onClick={handleSavePermissions} disabled={isLoading} className='bg-blue-500 hover:bg-blue-600 dark:bg-blue-400 dark:hover:bg-blue-500'>
               {isLoading ? 'Saving...' : 'Save changes'}
             </Button>
           </DialogFooter>
@@ -156,7 +157,7 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
 
         {showOwnerWarning && (
           <Dialog open={showOwnerWarning} onOpenChange={setShowOwnerWarning}>
-            <DialogContent className='bg-black'>
+            <DialogContent className='bg-gray-100 text-black dark:bg-gray-900 dark:text-white'>
               <DialogHeader>
                 <DialogTitle className='text-red-500 text-1xl'>Warning</DialogTitle>
                 <DialogDescription className='text-yellow-500'>
@@ -167,10 +168,12 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
               </DialogHeader>
               <DialogFooter>
                 <div className='flex justify-between w-full'>
-                  <Button variant="destructive" onClick={confirmDisableEditPermission}>
+                  <Button variant="destructive" onClick={confirmDisableEditPermission} className='bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'>
                     Confirm
                   </Button>
-                  <Button onClick={() => setShowOwnerWarning(false)}>Cancel</Button>
+                  <Button onClick={() => setShowOwnerWarning(false)} className='bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600'>
+                    Cancel
+                  </Button>
                 </div>
               </DialogFooter>
             </DialogContent>

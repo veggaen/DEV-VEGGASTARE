@@ -49,7 +49,7 @@ export const RemoveEmployeeButton: React.FC<RemoveEmployeeButtonProps> = ({
   };
 
   return (
-    <Button variant='vegaNormalBtnRed' onClick={handleRemove} disabled={isRemoving}>
+    <Button variant='vegaNormalBtnRed' className='bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-800 dark:text-white dark:hover:bg-red-700' onClick={handleRemove} disabled={isRemoving}>
       <p className='hidden lg:block'>{isRemoving ? 'Removing...' : 'Remove Employee'}</p>
       <p className='lg:hidden'>{isRemoving ? 'Removing...' : 'Remove'}</p>
     </Button>
