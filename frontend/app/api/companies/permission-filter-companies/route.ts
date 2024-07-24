@@ -45,12 +45,13 @@ export async function POST(req: NextRequest, res: NextResponse) {
           },
         },
       });
-  
-      console.log('Companies with permission fetched:', companiesWithPermission);
+      
+      // TODO: remove this?
+      //console.log('Companies with permission fetched:', companiesWithPermission);
       //res.status(200).json(companiesWithPermission);
       
       const response = JSON.stringify(companiesWithPermission)
-        console.log('Companies with permission fetched:', response)
+        console.log('Companies with permission fetched...')
         return new Response(JSON.stringify(companiesWithPermission), {
             status: 200, // OK
             headers: {

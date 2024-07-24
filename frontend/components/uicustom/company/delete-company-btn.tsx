@@ -49,7 +49,7 @@ const DeleteCompanyBtn = ({ companyId, companyName, onCompanyDeleted, employeePe
 
       onCompanyDeleted();
       toast.success('Company deleted successfully');
-      router.push('/settings/company')
+      router.push('/nexus/company')
     } catch (error) {
       toast.error(`Error deleting company: ${(error as Error).message}`);
     } finally {

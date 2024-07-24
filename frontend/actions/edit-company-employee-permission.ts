@@ -1,5 +1,5 @@
 'use server';
-import { ExtendedEmployee } from '@/app/(protected)/settings/company/[...id]/page';
+import { ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/page';
 import { dbPrisma } from '@/lib/db';
 import { ExtendedUser } from '@/next-auth';
 import { Prisma, PrismaClient, Employee } from '@prisma/client';
@@ -10,6 +10,7 @@ export interface EmployeePermissions {
   CAN_EDIT_PERMISSION?: boolean;
   CAN_DELETE_COMPANY?: boolean;
   CAN_POST_PRODUCT_POSITION_PERMISSION?: boolean;
+  CAN_EDIT_PRODUCT_POSITION_PERMISSION?: boolean;
   CAN_ADD_EMPLOYEE?: boolean;
 }
 

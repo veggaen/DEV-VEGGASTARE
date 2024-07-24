@@ -17,19 +17,23 @@ export const getProductsByCategory = async(category: string) => {
     }
 }
 
-export const getProductById = async(id: string) => {
+export const getProductById = async (id: string) => {
     console.log(`${LOG_PREFIX} getProductById(${id})`);
-    if (!id) return null;
-    try {
-        const data = await dbPrisma.product.findFirst({
-          where: { id }
-        });
-
-        return data
-    } catch {
-        return null;
-    }
-}
+    const product = await dbPrisma.product.findUnique({
+      where: { id },
+      include: {
+        inventory: true,
+        company: {
+          include: {
+            warehouseLocations: true,
+          },
+        },
+      },
+    });
+    
+    console.log('getProductById() returning:', product);
+    return product;
+};
 
 export const getProductsMany = async() => {
     console.log(`${LOG_PREFIX} getProductMany()`);

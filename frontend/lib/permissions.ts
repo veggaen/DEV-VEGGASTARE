@@ -3,6 +3,7 @@ export const permissionMapping = {
   CAN_EDIT_PERMISSION: "can_edit_permission",
   CAN_DELETE_COMPANY: "can_delete_company",
   CAN_POST_PRODUCT_POSITION_PERMISSION: "can_post_product_position_permission",
+  CAN_EDIT_PRODUCT_POSITION_PERMISSION: "can_edit_product_position_permission",
   CAN_ADD_EMPLOYEE: "can_add_employee",
 };
   
@@ -15,6 +16,7 @@ export function convertPermissionsToBoolean(permissions: string[]): Record<Permi
     CAN_EDIT_PERMISSION: false,
     CAN_DELETE_COMPANY: false,
     CAN_POST_PRODUCT_POSITION_PERMISSION: false,
+    CAN_EDIT_PRODUCT_POSITION_PERMISSION: false,
     CAN_ADD_EMPLOYEE: false,
   };
 

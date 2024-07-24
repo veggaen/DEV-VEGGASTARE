@@ -60,7 +60,7 @@ export const MyMenuSide = () => {
               <Link href='/auth/login' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : 'hidden'}`}>Login</li></Link>
               <Link href='/auth/register' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : 'hidden'}`}>Register</li></Link>
               <Link href='/dashboard' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>dashboard</li></Link>
-              <Link href='/settings' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>settings</li></Link>
+              <Link href='/nexus' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>settings</li></Link>
               { !isAuthRoute && <li onClick={onClick} className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Logout</li>}
             </ul>
           </li>

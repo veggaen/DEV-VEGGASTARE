@@ -85,7 +85,7 @@ export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ ship
 
   const fetchData = async () => {
     try {
-        console.log(LOG_PREFIX,' try fetchBringShippingDetails')
+        console.log(LOG_PREFIX,' try fetchBringShippingDetails', shippingDetailsFromUser)
       if (shippingDetailsFromUser !== null) {
         const response = await fetchBringShippingDetails(shippingDetailsFromUser);
         setShippingResponse(response);
@@ -97,6 +97,7 @@ export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ ship
 
   if (shippingDetailsFromUser.toPostalCode !== '') {
     if (!shippingResponse){
+      console.log(LOG_PREFIX,'got here! fetchData now!')
       fetchData()
     }
   }
@@ -114,7 +115,7 @@ export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ ship
         </div>
         
       ) : (
-        <div>Loading shipping details.</div>
+        <div>Loading shipping details. here</div>
       )}
     </div>
   );

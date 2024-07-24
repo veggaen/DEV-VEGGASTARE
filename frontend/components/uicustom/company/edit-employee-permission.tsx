@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useState, useEffect } from 'react';
-import { ExtendedCompany, ExtendedEmployee } from '@/app/(protected)/settings/company/[...id]/page';
+import { ExtendedCompany, ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/page';
 import { EmployeePermissions, editCompanyEmployeePermissionAction } from '@/actions/edit-company-employee-permission';
 import { useCurrentUser } from '@/hooks/use-current-user';
 
@@ -37,6 +37,7 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
     CAN_REMOVE_EMPLOYEE: false,
     CAN_EDIT_PERMISSION: false,
     CAN_POST_PRODUCT_POSITION_PERMISSION: false,
+    CAN_EDIT_PRODUCT_POSITION_PERMISSION: false,
     CAN_DELETE_COMPANY: false,
     CAN_ADD_EMPLOYEE: false,
   });
@@ -48,6 +49,7 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
         CAN_EDIT_PERMISSION: selectedEmployee.permissions.CAN_EDIT_PERMISSION,
         CAN_DELETE_COMPANY: selectedEmployee.permissions.CAN_DELETE_COMPANY,
         CAN_POST_PRODUCT_POSITION_PERMISSION: selectedEmployee.permissions.CAN_POST_PRODUCT_POSITION_PERMISSION,
+        CAN_EDIT_PRODUCT_POSITION_PERMISSION: selectedEmployee.permissions.CAN_EDIT_PRODUCT_POSITION_PERMISSION,
         CAN_ADD_EMPLOYEE: selectedEmployee.permissions.CAN_ADD_EMPLOYEE,
       });
     }

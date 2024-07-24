@@ -1,48 +1,81 @@
-'use server';
-import * as z from 'zod'
+'use server'
 
-import { MyProductCreateSchema } from '@/schemas'
-import { dbPrisma } from '@/lib/db';
+import { dbPrisma } from "@/lib/db";
+import { MyProductCreateSchema } from "@/schemas";
+import { Prisma } from "@prisma/client";
+import { z } from "zod";
 
+export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreateSchema>, postalCodes: string[]) => {
+  try {
+    console.log('Server is Creating a product with data: ', data);
+    // Validate data
+    const validatedData = MyProductCreateSchema.parse(data);
 
-const MyGetProductsAction = async () => {
-        const response = await dbPrisma.product.findMany();
-        const data = response;
-        return data;
-};
+    // Create the product
+    const product = await dbPrisma.product.create({
+      data: {
+        title: validatedData.title,
+        description: validatedData.description,
+        category: validatedData.category,
+        price: validatedData.price,
+        stock: 0, // Set initial stock to 0, we'll update it based on inventory
+        shipFromPostalId: validatedData.shipFromPostalId ?? '', // Ensure it's a string
+        image: validatedData.image,
+        specifications: validatedData.specifications ? JSON.stringify(validatedData.specifications) : Prisma.JsonNull, // Use Prisma.JsonNull for nullable JSON
+        userId: validatedData.userId,
+        companyId: validatedData.companyId ?? null, // Ensure it's nullable
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
 
-const MyCreateProductAction = async (values: z.infer<typeof MyProductCreateSchema>) => {
-        console.log('MyCreateProductAction', values);
-        const validateFields = MyProductCreateSchema.safeParse(values);
-        
+    console.log('Product created: ', product);
 
-        if (!validateFields.success){
-                return { error: 'Invalid fields'} // todo: json
-        }
-        
-        const { title, description, category, price, stock, image, specifications, shippingDetails, shipFromPostalId ,userId } = validateFields.data;
+    // Calculate stock per warehouse
+    const quantityPerWarehouse = Math.floor(validatedData.quantity / postalCodes.length);
+    const remainder = validatedData.quantity % postalCodes.length;
 
-        // Adjust the structure for shippingDetails to match Prisma's expectations
-        const shippingDetailsFormatted = shippingDetails ? {
-                create: shippingDetails.map(details => ({
-                price: details.price,
-                method: details.method,
-                regions: details.regions,
-                }))
-        } : undefined;
+    console.log('Quantity per warehouse: ', quantityPerWarehouse, ' Remainder: ', remainder);
 
-        await dbPrisma.product.create({
-            // where: {id: dbUser.id},
-            data: {
-              ...validateFields.data, // Spread operator to include all updated fields
-              stock: stock || 0, // Assign a default value of 0 if stock is undefined
-              image: image || '', // Assign an empty string if image is undefined
-              shippingDetails: shippingDetailsFormatted || undefined, // Cast shippingDetails to the correct type
-              shipFromPostalId: shipFromPostalId || '', // Assign an empty string if shipFromPostalId is undefined
-            }
+    // Create inventory entries for each warehouse
+    for (let i = 0; i < postalCodes.length; i++) {
+      const postalCode = postalCodes[i];
+      
+      // Fetch or create warehouse location by postal code
+      let warehouse = await dbPrisma.warehouseLocation.findFirst({
+        where: { postalCode },
+      });
+
+      if (!warehouse) {
+        warehouse = await dbPrisma.warehouseLocation.create({
+          data: {
+            postalCode,
+            address: '',
+            city: '',
+            country: 'Norway',
+            companyId: validatedData.companyId ?? '', // Ensure companyId is passed
+          },
         });
+      }
 
-        return { success: 'Product created!' };
+      console.log('Warehouse for postal code ', postalCode, ': ', warehouse);
+
+      // Create inventory entry
+      const inventory = await dbPrisma.inventory.create({
+        data: {
+          quantity: i === 0 ? quantityPerWarehouse + remainder : quantityPerWarehouse,
+          stock: i === 0 ? quantityPerWarehouse + remainder : quantityPerWarehouse,
+          warehouseId: warehouse.id,
+          productId: product.id,
+        },
+      });
+
+      console.log('Inventory created: ', inventory);
+    }
+
+    return { success: "Product created successfully with inventory distributed among warehouses." };
+  } catch (error) {
+    console.error('Error creating product: ', error);
+    return { error: "Failed to create product." };
+  }
 };
-    
-export { MyGetProductsAction, MyCreateProductAction };

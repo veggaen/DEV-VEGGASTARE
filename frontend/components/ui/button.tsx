@@ -21,6 +21,7 @@ const buttonVariants = cva(
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         vegaThemeBtn: 'flex items-center justify-center rounded-lg p-2 transition duration-300 ease-in-out transform hover:scale-125 hover:bg-black/20 dark:hover:bg-zinc-700',
+        vegaThemeBtnDefault: 'flex items-center justify-center rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0',
         vegaEmeraldBtn: 'border bg-emerald-500 hover:bg-emerald-400 border-emerald-300 dark:border-emerald-900 text-white transition duration-300 ease-in-out hover:scale-95 hover:text-md active:border active:border-sky-500',
         vegaNormalBtn: 'border bg-gray-400 border-gray-300 dark:bg-slate-600 dark:border-slate-700 text-white transition duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-500 active:border active:border-sky-500 hover:bg-sky-400 dark:hover:bg-sky-700',
         vegaNormalBtnRed: 'border bg-gray-400 border-gray-300 dark:bg-slate-600 dark:border-slate-700 text-white transition duration-300 ease-in-out hover:shadow-lg hover:border-red-500 dark:hover:border-red-500 active:border active:border-sky-500 hover:bg-red-400 dark:hover:bg-red-700',

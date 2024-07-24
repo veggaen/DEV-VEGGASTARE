@@ -2,11 +2,15 @@
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { AiOutlineCluster } from "react-icons/ai";
+import { TbHexagons } from "react-icons/tb";
 import { FaUser } from 'react-icons/fa'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { MyLogoutButton } from './logout-button'
 import Link from 'next/link'
 import { ExitIcon } from '@radix-ui/react-icons'
+import { MyThemeBtn } from '../../themebtn'
+import { useTheme } from 'next-themes'  // Add this import
 
 interface MyUserButtonProps { 
   size: string
@@ -14,11 +18,20 @@ interface MyUserButtonProps {
 
 export const MyUserButton = () => {
     const user = useCurrentUser();
+    const customName = 'vegaThemeBtnDefault'
+
+    const { setTheme, theme } = useTheme()  // Move this out of the function to be directly within the component
+
+    const handleThemeToggle = () => {
+        setTheme(theme === 'dark' ? 'light' : 'dark');
+    }
 
     return (
       <DropdownMenu>
         <div className='flex justify-center items-center gap-3'>
-          {user && user.name}
+          <div className='hidden md:flex'>
+            {user && user.name}
+          </div>
           <DropdownMenuTrigger className='outline-none'>
             <Avatar className={`h-12 w-12 hover:scale-105`}>
               <AvatarImage src={user?.image || ''} alt="User" />
@@ -29,9 +42,28 @@ export const MyUserButton = () => {
           </DropdownMenuTrigger>
         </div>
         <DropdownMenuContent className={`w-40 pr-1`} align='end'>
-        <Link href='/settings'><DropdownMenuItem>Settings</DropdownMenuItem></Link>
+          <DropdownMenuItem>
+
+          <div className='flex justify-start items-center' onClick={handleThemeToggle}>
+            <MyThemeBtn customName={customName} onClick={handleThemeToggle} />
+            <p className='hidden dark:flex'>Dark mode</p>
+            <p className='dark:hidden'>Light mode</p>
+          </div>
+          </DropdownMenuItem>
+          <Link href='/nexus'>
+            <DropdownMenuItem>
+              <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
+                <TbHexagons className={`min-h-[1.2rem] min-w-[1.2rem]`} />
+                <p className=''>Nexus</p>
+              </div>
+            </DropdownMenuItem>
+          </Link>
           <MyLogoutButton >
-            <DropdownMenuItem><ExitIcon className={`h-6 w-6 pr-1`} /><span>Logout</span></DropdownMenuItem>
+            <DropdownMenuItem>
+              <div className={'flex items-center justify-center gap-2 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
+                <ExitIcon className={`h-6 w-6 pr-1`} /><span>Logout</span>
+              </div>
+            </DropdownMenuItem>
           </MyLogoutButton>
         </DropdownMenuContent>
       </DropdownMenu>

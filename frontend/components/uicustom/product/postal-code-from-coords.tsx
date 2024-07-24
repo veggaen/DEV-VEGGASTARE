@@ -29,7 +29,7 @@ export const fetchPostalCodeFromCoords = async (latitude: number, longitude: num
       const postalCodeObj = data.results
         .flatMap((result: GeocodeResult) => result.address_components)
         .find((component: AddressComponent) => component.types.includes('postal_code'));
-      console.log(JSON.stringify( postalCodeObj));
+      console.log(LOG_PREFIX, '2/2 ', JSON.stringify( postalCodeObj));
       return postalCodeObj ? postalCodeObj.long_name : null;
     } catch (error) {
       console.error('Error fetching postal code from coordinates:', error);

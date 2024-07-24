@@ -42,4 +42,4 @@ export const apiAuthPrefix = [
 * The default redirect path afther logging in
 * @type {string}
 */
-export const DEFAULT_LOGIN_REDIRECT = "/settings";
+export const DEFAULT_LOGIN_REDIRECT = "/nexus";

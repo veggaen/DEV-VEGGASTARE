@@ -1,4 +1,4 @@
-const LOG_PREFIX = '[frontend/app/dashboard/settings/page.tsx]'
+const LOG_PREFIX = '[frontend/app/dashboard/nexus/page.tsx]'
 const MyDashboardSettings = () => {
     return (
         <div>

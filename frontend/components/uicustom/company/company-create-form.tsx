@@ -1,60 +1,21 @@
-// frontend\components\uicustom\company\company-create-form.tsx
-'use client'
-
-import React, { startTransition, useEffect, useState, useTransition } from 'react';
-import { FieldError, FieldErrorsImpl, useFieldArray, useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-// import { CompanyCreateSchema } from '@/schemas';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "sonner";
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Button } from '@/components/ui/button';
-import { z } from 'zod';
-import { MyFormError } from '../forms/form-error';
-import { MyFormSuccess } from '../forms/form-sucess';
-import { useCurrentUser } from '@/hooks/use-current-user';
-import { useEdgeStore } from '@/lib/edgestore';
-import { useDropzone } from 'react-dropzone';
-import { UploadCloudIcon, XCircle } from 'lucide-react';
-import Image from 'next/image';
-import { LogoutMyAction } from '@/actions/logout';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { MyCreateCompanyAction } from '@/actions/create-company';
-import { companyCreationSchema, baseWarehouseLocationSchema } from '@/schemas';
-import { Employee, EmployeeRole, User, UserRole } from '@prisma/client';
-import { useRouter } from 'next/navigation';
-
-type UIEmployee = {
-  userId: string;
-  //name: string;
-  email: string;
-  image: string;
-  role: EmployeeRole; // Assuming EmployeeRole is a TypeScript type or enum
-  permissions: { [key: string]: boolean };
-};
-
 export const MyCompanyCreateForm = () => {
   const { edgestore } = useEdgeStore();
-  const router = useRouter()
+  const router = useRouter();
+  const currentUser = useCurrentUser();
+  const user = currentUser as User & {
+    productsListed: Product[];
+    reviews: Review[];
+    isOAuth: boolean;
+  };
+  const UID = user?.id;
+
   const [logoFile, setLogoFile] = useState<File[]>([]);
   const [bannerFile, setBannerFile] = useState<File[]>([]);
   const [logoPreview, setLogoPreview] = useState<string[]>([]);
   const [bannerPreview, setBannerPreview] = useState<string[]>([]);
-  const user = useCurrentUser();
-  const UID = user?.id;
   const [users, setUsers] = useState<User[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-  const [employeeList, setEmployeeList] = useState<UIEmployee[]>([
-    {
-      userId: user?.id!!,
-      email: user?.email!!,
-      image: user?.image!!,
-      role: 'OWNER',
-      permissions: { CAN_REMOVE_EMPLOYEE: true, CAN_EDIT_PERMISSION: true, CAN_DELETE_COMPANY: true, CAN_POST_PRODUCT_POSITION_PERMISSION: true, CAN_ADD_EMPLOYEE: true }
-    }
-  ]);
+  const [employeeList, setEmployeeList] = useState<UIEmployee[]>(user ? [INITIAL_OWNER_EMPLOYEE(user)] : []);
   const [error, setError] = useState<string | undefined>('');
   const [error2, setError2] = useState<string | undefined>('');
   const [success, setSuccess] = useState<string | undefined>('');
@@ -68,18 +29,18 @@ export const MyCompanyCreateForm = () => {
       logo: [''],
       bannerImage: [''],
       colorScheme: '',
-      creatorId: user?.id!!,
-      ownerId: user?.id!!,
-      employees: [{ userId: user?.id!!, role: 'OWNER', permissions: { CAN_REMOVE_EMPLOYEE: true, CAN_EDIT_PERMISSION: true, CAN_DELETE_COMPANY: true, CAN_POST_PRODUCT_POSITION_PERMISSION: true, CAN_ADD_EMPLOYEE: true } }],
+      creatorId: user?.id ?? '',
+      ownerId: user?.id ?? '',
+      employees: user ? [{ ...INITIAL_OWNER_EMPLOYEE(user) }] : [],
       usesShipping: false,
       warehouseLocations: [{ address: '', postalCode: '', city: '', country: '', latitude: 0, longitude: 0 }],
-    }
+    },
   });
 
   const { control, handleSubmit, formState: { errors, isSubmitting }, watch, reset } = form;
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: "warehouseLocations",
+    name: 'warehouseLocations',
   });
 
   const isShippingEnabled = watch('usesShipping');
@@ -121,77 +82,29 @@ export const MyCompanyCreateForm = () => {
     setBannerPreview([...newPreviews]);
   };
 
-  const { getRootProps: getLogoRootProps, getInputProps: getLogoInputProps } = useDropzone({ onDrop: onLogoDrop, accept: { 'image/*': [] }, multiple: false });
-  const { getRootProps: getBannerRootProps, getInputProps: getBannerInputProps } = useDropzone({ onDrop: onBannerDrop, accept: { 'image/*': [] }, multiple: true });
-
   useEffect(() => {
     return () => {
-      if (logoPreview) { logoPreview.map(file => URL.revokeObjectURL(file)); }
-      if (bannerPreview) { bannerPreview.map(file => URL.revokeObjectURL(file)); }
+      logoPreview.forEach(URL.revokeObjectURL);
+      bannerPreview.forEach(URL.revokeObjectURL);
     };
   }, [logoPreview, bannerPreview]);
-
-  const imageHandeler = async (values: any) => {
-    let uploadedUrlsLogo = [];
-    let uploadedUrlsBanner = [];
-    for (let image of logoFile) {
-      try {
-        const uploadResult = await edgestore.myPublicImages.upload({ file: image });
-        uploadedUrlsLogo.push(uploadResult.url);
-        if (uploadedUrlsLogo.length > 0) {
-          values.logo = uploadedUrlsLogo;
-        } else {
-          setError('Error logo image not found? Please try again!');
-          return;
-        }
-      } catch (error) {
-        console.error('Upload error', error);
-      }
-    }
-    for (let image of bannerFile) {
-      try {
-        const uploadResult = await edgestore.myPublicImages.upload({ file: image });
-        uploadedUrlsBanner.push(uploadResult.url);
-        if (uploadedUrlsBanner.length > 0) {
-          values.bannerImage = uploadedUrlsBanner;
-        } else {
-          setError('Error banner image not found? Please try again!');
-          return;
-        }
-      } catch (error) {
-        console.error('Upload error', error);
-      }
-    }
-    return values;
-  };
-
-  const removeImageLogo = (e: any, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const newImages = logoFile.filter((_, i) => i !== index);
-    setLogoFile(newImages);
-    const newImagePreviews = logoPreview.filter((_, i) => i !== index);
-    setLogoPreview(newImagePreviews);
-  };
-
-  const removeImageBanner = (e: any, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const newImages = bannerFile.filter((_, i) => i !== index);
-    setBannerFile(newImages);
-    const newImagePreviews = bannerPreview.filter((_, i) => i !== index);
-    setBannerPreview(newImagePreviews);
-  };
 
   const handleAddEmployee = () => {
     const userToAdd = users.find(user => user.id === selectedEmployeeId);
     if (userToAdd) {
       const newEmployee: UIEmployee = {
-        userId: userToAdd.id || "",
+        userId: userToAdd.id,
         email: userToAdd.email || '',
         image: userToAdd.image || '',
         role: 'USER' as EmployeeRole,
-        permissions: { CAN_REMOVE_EMPLOYEE: false, CAN_EDIT_PERMISSION: false, CAN_DELETE_COMPANY: false, CAN_POST_PRODUCT_POSITION_PERMISSION: false, CAN_ADD_EMPLOYEE: false },
+        permissions: {
+          CAN_REMOVE_EMPLOYEE: false,
+          CAN_EDIT_PERMISSION: false,
+          CAN_DELETE_COMPANY: false,
+          CAN_POST_PRODUCT_POSITION_PERMISSION: false,
+          CAN_EDIT_PRODUCT_POSITION_PERMISSION: false,
+          CAN_ADD_EMPLOYEE: false,
+        },
       };
 
       setEmployeeList(prev => [...prev, newEmployee]);
@@ -205,19 +118,12 @@ export const MyCompanyCreateForm = () => {
       setError2("You cannot change your own role away from 'OWNER'.");
       setTimeout(() => setError2(''), 5000);
       setEmployeeList(currentList =>
-        currentList.map(employee => {
-          if (employee.userId === userId) {
-            return { ...employee, role: 'OWNER' };
-          }
-          return employee;
-        })
+        currentList.map(employee => (employee.userId === userId ? { ...employee, role: 'OWNER' } : employee))
       );
       return;
     }
-    setEmployeeList((currentList) =>
-      currentList.map((employee) =>
-        employee.userId === userId ? { ...employee, role: newRole } : employee
-      )
+    setEmployeeList(currentList =>
+      currentList.map(employee => (employee.userId === userId ? { ...employee, role: newRole } : employee))
     );
   };
 
@@ -237,7 +143,7 @@ export const MyCompanyCreateForm = () => {
     setError('');
     setError2('');
     setSuccess('');
-    const newValues = await imageHandeler(values);
+    const newValues = await imageHandler(values, logoFile, bannerFile, edgestore);
 
     if (values.warehouseLocations) {
       values.warehouseLocations.forEach(location => {
@@ -250,36 +156,9 @@ export const MyCompanyCreateForm = () => {
       });
     }
 
-    if (values.employees) {
-      const modifiedEmployees = employeeList.filter(employee => employee.userId !== user?.id);
-      values.employees = modifiedEmployees;
-    }
-
-    const defaultOwnerId = form.formState.defaultValues?.ownerId || '';
-    const ownerExists = employeeList.some(employee => employee.userId === defaultOwnerId && employee.role === 'OWNER');
-    const isOwnerCorrect = employeeList.some(employee => employee.userId === user?.id && employee.role === 'OWNER');
-    const isOwnerIncorrect = employeeList.some(employee => employee.role === 'OWNER' && employee.userId !== user?.id);
-    const hasMultipleOwners = employeeList.filter(employee => employee.role === 'OWNER').length > 1;
-    if (!ownerExists) {
-      const correctedEmployeeList = employeeList.filter(employee => employee.userId !== defaultOwnerId);
-      correctedEmployeeList.unshift({ userId: defaultOwnerId, email: user?.email!!, image: user?.image!!, role: 'OWNER', permissions: { CAN_REMOVE_EMPLOYEE: true, CAN_EDIT_PERMISSION: true, CAN_DELETE_COMPANY: true, CAN_POST_PRODUCT_POSITION_PERMISSION: true, CAN_ADD_EMPLOYEE: true } });
-      setEmployeeList(correctedEmployeeList);
-      values.employees = correctedEmployeeList;
-    }
-    if (!isOwnerCorrect || hasMultipleOwners || isOwnerIncorrect) {
-      setError('Invalid employee configuration: The owner must be the creator of the company and there can only be one owner. You can change ownership of the company later in company settings after the company is created.');
-      return;
-    }
-
-    const ownerEntry = {
-      userId: user?.id!!,
-      role: 'OWNER',
-      permissions: { CAN_REMOVE_EMPLOYEE: true, CAN_EDIT_PERMISSION: true, CAN_DELETE_COMPANY: true, CAN_POST_PRODUCT_POSITION_PERMISSION: true, CAN_ADD_EMPLOYEE: true },
-    };
-
     const updatedEmployeeList = [
-      ownerEntry,
-      ...employeeList.filter((employee) => employee.userId !== user?.id),
+      INITIAL_OWNER_EMPLOYEE(user!),
+      ...employeeList.filter(employee => employee.userId !== user?.id),
     ];
 
     const updatedFormData = {
@@ -297,7 +176,7 @@ export const MyCompanyCreateForm = () => {
           }
           if (data.success) {
             setSuccess(data.success);
-            router.push(`/settings/company/${data.companyId}`)
+            router.push(`/nexus/company/${data.companyId}`);
           }
         });
     });
@@ -307,7 +186,7 @@ export const MyCompanyCreateForm = () => {
   };
 
   const handleReset = () => {
-    if (error !== '' || success !== undefined) {
+    if (error || success) {
       setError('');
       setLogoFile([]);
       setLogoPreview([]);
@@ -320,21 +199,31 @@ export const MyCompanyCreateForm = () => {
     }
   };
 
-  
-  // Grid calculation for logo and banner images
-  // Logo
-  const smColumnsLogo = logoPreview.length >= 1 ? Math.min(logoPreview.length, 2) : 1; // Maximum of 2 columns for md
-  const mdColumnsLogo = logoPreview.length >= 1 ? Math.min(logoPreview.length, 3) : 1; // Maximum of 2 columns for md
-  const lgColumnsLogo = logoPreview.length >= 1 ? Math.min(logoPreview.length, 4) : 1; // Maximum of 3 columns for lg
-  const xlColumnsLogo = logoPreview.length >= 1 ? Math.min(logoPreview.length, 5) : 1; // Maximum of 4 columns for xl
-  // Generate the class string dynamically
+  const { getRootProps: getLogoRootProps, getInputProps: getLogoInputProps } = useDropzone({ onDrop: onLogoDrop, accept: { 'image/*': [] }, multiple: false });
+  const { getRootProps: getBannerRootProps, getInputProps: getBannerInputProps } = useDropzone({ onDrop: onBannerDrop, accept: { 'image/*': [] }, multiple: true });
+
+  const removeImageLogo = (e: React.MouseEvent, index: number) => {
+    e.preventDefault();
+    setLogoFile((prev) => prev.filter((_, i) => i !== index));
+    setLogoPreview((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeImageBanner = (e: React.MouseEvent, index: number) => {
+    e.preventDefault();
+    setBannerFile((prev) => prev.filter((_, i) => i !== index));
+    setBannerPreview((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const smColumnsLogo = logoPreview.length ? Math.min(logoPreview.length, 2) : 1;
+  const mdColumnsLogo = logoPreview.length ? Math.min(logoPreview.length, 3) : 1;
+  const lgColumnsLogo = logoPreview.length ? Math.min(logoPreview.length, 4) : 1;
+  const xlColumnsLogo = logoPreview.length ? Math.min(logoPreview.length, 5) : 1;
   const gridClassLogo = `sm:grid-cols-${smColumnsLogo} md:grid-cols-${mdColumnsLogo} lg:grid-cols-${lgColumnsLogo} xl:grid-cols-${xlColumnsLogo}`;
-  // Banner
-  const smColumnsBanner = bannerPreview.length >= 1 ? Math.min(bannerPreview.length, 1) : 1; // Maximum of 2 columns for md
-  const mdColumnsBanner = bannerPreview.length >= 1 ? Math.min(bannerPreview.length, 1) : 1; // Maximum of 2 columns for md
-  const lgColumnsBanner = bannerPreview.length >= 1 ? Math.min(bannerPreview.length, 1) : 1; // Maximum of 3 columns for lg
-  const xlColumnsBanner = bannerPreview.length >= 1 ? Math.min(bannerPreview.length, 1) : 1; // Maximum of 4 columns for xl
-  // Generate the class string dynamically
+
+  const smColumnsBanner = bannerPreview.length ? Math.min(bannerPreview.length, 1) : 1;
+  const mdColumnsBanner = bannerPreview.length ? Math.min(bannerPreview.length, 1) : 1;
+  const lgColumnsBanner = bannerPreview.length ? Math.min(bannerPreview.length, 1) : 1;
+  const xlColumnsBanner = bannerPreview.length ? Math.min(bannerPreview.length, 1) : 1;
   const gridClassBanner = `sm:grid-cols-${smColumnsBanner} md:grid-cols-${mdColumnsBanner} lg:grid-cols-${lgColumnsBanner} xl:grid-cols-${xlColumnsBanner}`;
 
   return (
@@ -380,95 +269,95 @@ export const MyCompanyCreateForm = () => {
               <FormMessage />
             </FormItem>
           )} />
-          <FormField control={form.control} name='logo' render={({field}) => (
+          <FormField control={form.control} name='logo' render={({ field }) => (
             <FormItem className='w-full px-4 pt-2' title='Optimal image ratio 1:1'>
               <FormLabel>Company Logo</FormLabel>
               <FormDescription className='px-4 py-0'>
                 Add a logo to your company use a ratio of 1 : 1 for images.
               </FormDescription>
               <FormControl>
-                <Input {...field} name='logo' disabled={!user || isSubmitting} spellCheck='false' className='hidden' {...getLogoRootProps()} />
+                <Input {...field} name='logo' disabled={!user || isSubmitting} spellCheck='false' className='hidden' {...getLogoInputProps()} />
               </FormControl>
               <FormMessage />
             </FormItem>
-          )}/>
+          )} />
           <div className='w-full px-4 py-2'>
             <div className={`h-full w-full flex justify-center items-center rounded-md bg-slate-100 dark:bg-slate-900 border border-input disabled:pointer-events-none px-3 py-2 text-sm ring-offset-bg-black/20 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}>
               <div {...getLogoRootProps()} className={`w-full dropzone cursor-pointer bg-slate-100 dark:bg-slate-900 rounded-md border border-dashed ${logoPreview.length >= 1 ? 'border-transparent dark:border-transparent bg-white/0 dark:bg-black/0 hover:bg-transparent dark:hover:bg-transparent' : ' border-gray-600/60 dark:border-gray-600/60'}`}>
                 {logoPreview.length < 1 && (
-                  <AspectRatio ratio={1/1}>
+                  <AspectRatio ratio={1 / 1}>
                     <div className={`text-center flex flex-col justify-center items-center w-full h-full text-black dark:text-white focus:outline-none transition rounded-md`} title='Optimal image ratio 1:1'>
                       <UploadCloudIcon className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200" />
                       <p className="p-4 pt-0 text-sm text-gray-600 dark:text-gray-200 hidden xxs:flex">
-                      Drag a LOGO here or <br/> Click to select
+                        Drag a LOGO here or <br /> Click to select
                       </p>
                     </div>
                   </AspectRatio>
                 )}
-              {logoPreview.length >= 1 && 
-              <div className={`grid gap-3 ${gridClassLogo} min-w-[64px] xs:min-w-[300px] sm:min-w-[420px]  grow place-items-stretch`}>
-                {logoPreview.map((preview, index) => (
-                  <div key={index} className={`border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300`}>
-                    <div className="relative flex flex-col">
-                      <div className='min-w-0 shrink-0 grow-0 basis-full flex justify-center'>
-                        <AspectRatio ratio={1 / 1}>
-                          <Image src={preview} alt={`preview-${index}`} fill sizes="100%" priority className="object-fill" />
-                        </AspectRatio>
+                {logoPreview.length >= 1 && (
+                  <div className={`grid gap-3 ${gridClassLogo} min-w-[64px] xs:min-w-[300px] sm:min-w-[420px] grow place-items-stretch`}>
+                    {logoPreview.map((preview, index) => (
+                      <div key={index} className={`border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300`}>
+                        <div className="relative flex flex-col">
+                          <div className='min-w-0 shrink-0 grow-0 basis-full flex justify-center'>
+                            <AspectRatio ratio={1 / 1}>
+                              <Image src={preview} alt={`preview-${index}`} fill sizes="100%" priority className="object-fill" />
+                            </AspectRatio>
+                          </div>
+                          <div onClick={(e) => removeImageLogo(e, index)} className="absolute top-1 right-1 hover:scale-110 transform duration-300 bg-gray-800/30 hover:bg-red-600/40 text-white p-1 rounded-full">
+                            <XCircle className="h-4 w-4" />
+                          </div>
+                        </div>
                       </div>
-                      
-                      <div onClick={(e) => removeImageLogo(e, index)} className="absolute top-1 right-1 hover:scale-110 transform duration-300 bg-gray-800/30 hover:bg-red-600/40 text-white p-1 rounded-full">
-                      <XCircle className="h-4 w-4" />
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>}
+                )}
               </div>
             </div>
           </div>
-          <FormField control={form.control} name='bannerImage' render={({field}) => (
+          <FormField control={form.control} name='bannerImage' render={({ field }) => (
             <FormItem className='w-full px-4 py-2' title='Optimal image ratio 3:1'>
               <FormLabel>Company Banner</FormLabel>
               <FormDescription className='px-4 py-0'>
                 Add a banner to your company use a ratio of 3 : 1 for images.
               </FormDescription>
               <FormControl>
-                <Input {...field} name='logo' disabled={!user || isSubmitting} spellCheck='false' className='hidden' {...getLogoRootProps()}  />
+                <Input {...field} name='bannerImage' disabled={!user || isSubmitting} spellCheck='false' className='hidden' {...getBannerInputProps()} />
               </FormControl>
               <FormMessage />
             </FormItem>
-          )}/>
+          )} />
           <div className='w-full px-4 py-2'>
             <div className={`h-full w-full flex justify-center items-center rounded-md bg-slate-100 dark:bg-slate-900 border border-input disabled:pointer-events-none px-3 py-2 text-sm ring-offset-bg-black/20 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}>
               <div {...getBannerRootProps()} className={`w-full dropzone cursor-pointer bg-slate-100 dark:bg-slate-900 rounded-md border border-dashed ${bannerPreview.length >= 1 ? 'border-transparent dark:border-transparent bg-white/0 dark:bg-black/0 hover:bg-transparent dark:hover:bg-transparent' : ' border-gray-600/60 dark:border-gray-600/60'}`}>
                 {bannerPreview.length < 1 && (
-                    <AspectRatio ratio={3/1}>
-                      <div className={`text-center flex flex-col justify-center items-center w-full h-full text-black dark:text-white focus:outline-none transition rounded-md`} title='Optimal image ratio 3:1'>
-                        <UploadCloudIcon className="h-8 w-8 text-gray-600 dark:text-gray-200" />
-                        <p className="p-4 pt-0 text-sm text-gray-600 dark:text-gray-200 hidden xs:block">
-                          Drag a Banner here or Click to select
-                        </p>
-                      </div>
-                    </AspectRatio>
-                  )}
-                {bannerPreview.length >= 1 && 
-                <div className={`grid gap-3 ${gridClassBanner} min-w-[64px] xs:min-w-[300px] sm:min-w-[420px]  grow place-items-stretch`}>
-                  {bannerPreview.map((preview, index) => (
-                    <div key={index} className={`border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300`}>
-                      <div className="relative flex flex-col">
-                        <div className='min-w-0 shrink-0 grow-0 basis-full flex justify-center'>
-                          <AspectRatio ratio={3 / 1}>
-                            <Image src={preview} alt={`preview-${index}`} fill sizes="100%" priority className="object-fill" />
-                          </AspectRatio>
-                        </div>
-                        
-                        <div onClick={(e) => removeImageBanner(e, index)} className="absolute top-1 right-1 hover:scale-110 transform duration-300 bg-gray-800/30 hover:bg-red-600/40 text-white p-1 rounded-full">
-                        <XCircle className="h-4 w-4" />
-                        </div>
-                      </div>
+                  <AspectRatio ratio={3 / 1}>
+                    <div className={`text-center flex flex-col justify-center items-center w-full h-full text-black dark:text-white focus:outline-none transition rounded-md`} title='Optimal image ratio 3:1'>
+                      <UploadCloudIcon className="h-8 w-8 text-gray-600 dark:text-gray-200" />
+                      <p className="p-4 pt-0 text-sm text-gray-600 dark:text-gray-200 hidden xs:block">
+                        Drag a Banner here or Click to select
+                      </p>
                     </div>
-                  ))}
-                </div>}
+                  </AspectRatio>
+                )}
+                {bannerPreview.length >= 1 && (
+                  <div className={`grid gap-3 ${gridClassBanner} min-w-[64px] xs:min-w-[300px] sm:min-w-[420px] grow place-items-stretch`}>
+                    {bannerPreview.map((preview, index) => (
+                      <div key={index} className={`border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300`}>
+                        <div className="relative flex flex-col">
+                          <div className='min-w-0 shrink-0 grow-0 basis-full flex justify-center'>
+                            <AspectRatio ratio={3 / 1}>
+                              <Image src={preview} alt={`preview-${index}`} fill sizes="100%" priority className="object-fill" />
+                            </AspectRatio>
+                          </div>
+                          <div onClick={(e) => removeImageBanner(e, index)} className="absolute top-1 right-1 hover:scale-110 transform duration-300 bg-gray-800/30 hover:bg-red-600/40 text-white p-1 rounded-full">
+                            <XCircle className="h-4 w-4" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -480,47 +369,41 @@ export const MyCompanyCreateForm = () => {
               </FormDescription>
               <div className="flex flex-col bg-slate-50 dark:bg-slate-900 p-2 rounded">
                 <div className={'grid gap-2 p-2'}>
-                  {/* User selection dropdown */}
                   <Select onValueChange={setSelectedEmployeeId} value={selectedEmployeeId}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a user" />
                       </SelectTrigger>
                     </FormControl>
-                      <SelectContent>
+                    <SelectContent>
                       {users
-                      .filter(userMap => !employeeList.some(employee => employee.userId === userMap.id))
-                      .map((userMap) => (
-                        <React.Fragment key={userMap.id}>
-                          <SelectItem value={userMap.id}>{userMap.email}</SelectItem>
-                        </React.Fragment>
-                      ))}
+                        .filter(userMap => !employeeList.some(employee => employee.userId === userMap.id))
+                        .map((userMap) => (
+                          <React.Fragment key={userMap.id}>
+                            <SelectItem value={userMap.id}>{userMap.email}</SelectItem>
+                          </React.Fragment>
+                        ))}
                     </SelectContent>
                   </Select>
-                      
-                  {/* Button to add the selected user */}
                   <Button type='button' onClick={handleAddEmployee} variant='vegaNormalBtn' className={''}>
                     Add Employee
                   </Button>
                   {error2 && <p className='text-orange-300'>{error2 && error2}</p>}
                 </div>
-                    
-                {/* Displaying selected employees */}
                 <div className={`flex flex-col justify-between items-center gap-3 p-4 pt-0 ${employeeList.length <= 1 ? 'hidden' : ''}`}>
                   {employeeList.map((employee, index) => (
                     <div key={employee.userId} className={`flex justify-between items-center gap-3 p-2 w-full bg-slate-200 dark:bg-slate-700 ${employee.userId === user?.id && 'hidden'} rounded`} >
                       <div className={'capitalize bg-slate-100 dark:bg-slate-800 p-2 rounded'}>{employee.email}</div>
-                        <Select defaultValue={employee.role} onValueChange={(newRole) => handleRoleChange(employee.userId, newRole as EmployeeRole)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent >
-                            {/* Assuming you have a predefined list of roles */}
-                            {Object.values(EmployeeRole).filter(role => role !== 'OWNER' || employee.userId === user?.id).map((role) => (
-                              <SelectItem key={role} value={role}>{role}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <Select defaultValue={employee.role} onValueChange={(newRole) => handleRoleChange(employee.userId, newRole as EmployeeRole)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent >
+                          {Object.values(EmployeeRole).filter(role => role !== 'OWNER' || employee.userId === user?.id).map((role) => (
+                            <SelectItem key={role} value={role}>{role}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Button variant='vegaNormalBtn' disabled={employee.userId === user?.id} onClick={(e) => removeEmployee(e, employee.userId)}>Remove</Button>
                     </div>
                   ))}
@@ -528,113 +411,107 @@ export const MyCompanyCreateForm = () => {
               </div>
               <FormMessage />
             </FormItem>
-            )}
-          />
+          )} />
           <FormField control={form.control} name='usesShipping' render={({ field }) => (
             <FormItem className='w-full px-4 py-2'>
-                <div className="flex flex-col justify-start w-full items-start space-y-2">
+              <div className="flex flex-col justify-start w-full items-start space-y-2">
                 <FormLabel>
-                  <div  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-pretty">
+                  <div className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-pretty">
                     <p className='hidden xs:flex'>Enable Shipping Cost Estimation for Physical Products?</p>
                     <p className='xs:hidden'>Enable Shipping Cost Calc?</p>
                   </div>
                 </FormLabel>
-                  <div className="flex h-10 bg-slate-50 dark:bg-slate-900 w-full space-x-2 rounded-md border border-input disabled:pointer-events-none bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                    <FormControl>
-                      <Input {...field} className='w-5 h-5 ' disabled={!user || isSubmitting} type='checkbox' value={field.value ? 'false' : 'true'}  />
-                    </FormControl>
-                    <span className={`text-sm font-medium ${field.value ? 'Activated' : 'text-black/50 dark:text-white/50'}`}>
-                      {field.value ? 'Activated' : 'Inactivated'}
-                    </span>
-                  </div>
+                <div className="flex h-10 bg-slate-50 dark:bg-slate-900 w-full space-x-2 rounded-md border border-input disabled:pointer-events-none bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                  <FormControl>
+                    <Input {...field} className='w-5 h-5 ' disabled={!user || isSubmitting} type='checkbox' value={field.value ? 'false' : 'true'} />
+                  </FormControl>
+                  <span className={`text-sm font-medium ${field.value ? 'Activated' : 'text-black/50 dark:text-white/50'}`}>
+                    {field.value ? 'Activated' : 'Inactivated'}
+                  </span>
+                </div>
                 <FormDescription className={`px-4 py-0 ${!form.watch('usesShipping') && 'hidden'}`}>
                   Add warehouse locations for shipping data estimation of physical products.
                 </FormDescription>
-                </div>
-                <FormMessage />
+              </div>
+              <FormMessage />
             </FormItem>
           )} />
-
-        {/* Dynamic Warehouse Locations based on usesShipping */}
-        <div className='w-full space-y-3 px-4 pb-2 '>
-          {form.watch('usesShipping') && (
-            fields.map((field, index) => {
-              const postalCodeError: string | undefined = (errors.warehouseLocations?.[index] as FieldErrorsImpl<{ postalCode?: FieldError }> | undefined)?.postalCode?.message;
-              return (
-              <div key={field.id} className="space-y-4 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-800 py-4 px-2 rounded">
-                <FormLabel className='w-full'>
-                  <div className='flex flex-col xs:flex-row justify-between space-y-2'>
-                    <h1 className='py-4 pl-2 font-semibold'>Warehouse Location {index + 1}</h1>
-                    <Button type="button" variant='vegaNormalBtnRed' className='' onClick={() => remove(index)}>Remove Location</Button>
+          <div className='w-full space-y-3 px-4 pb-2 '>
+            {form.watch('usesShipping') && (
+              fields.map((field, index) => {
+                return (
+                  <div key={field.id} className="space-y-4 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-800 py-4 px-2 rounded">
+                    <FormLabel className='w-full'>
+                      <div className='flex flex-col xs:flex-row justify-between space-y-2'>
+                        <h1 className='py-4 pl-2 font-semibold'>Warehouse Location {index + 1}</h1>
+                        <Button type="button" variant='vegaNormalBtnRed' className='' onClick={() => remove(index)}>Remove Location</Button>
+                      </div>
+                    </FormLabel>
+                    <FormField name={`warehouseLocations.${index}.address`} control={form.control} render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input {...field} placeholder="Address" disabled={!user || isSubmitting} type="text" title={"Enter street name and number."} className='bg-white dark:bg-slate-800' />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField name={`warehouseLocations.${index}.postalCode`} control={form.control} render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input {...field} placeholder="postal code" disabled={!user || isSubmitting} type="text" title={"Enter your ZIP/postal code. E.g., 12345 or A1B 2C3."} className='bg-white dark:bg-slate-800' />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField name={`warehouseLocations.${index}.city`} control={form.control} render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input {...field} placeholder="City" disabled={!user || isSubmitting} type="text" title={"Enter the name of your city."} className='bg-white dark:bg-slate-800' />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField name={`warehouseLocations.${index}.country`} control={form.control} render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input {...field} placeholder="Country" disabled={!user || isSubmitting} type="text" title={"Select your country from the list."} className='bg-white dark:bg-slate-800' />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField name={`warehouseLocations.${index}.latitude`} control={form.control} render={({ field: { onChange, value } }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input {...field} placeholder="Latitude (Optional)" disabled={!user || isSubmitting} value={value} onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))} type="number" step="any" title={"Enter latitude in decimal format (e.g., 59.9139)."} className='bg-white dark:bg-slate-800' />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField name={`warehouseLocations.${index}.longitude`} control={form.control} render={({ field: { onChange, value } }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input {...field} placeholder="Longitude (Optional)" disabled={!user || isSubmitting} value={value} onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))} type="number" step="any" title={"Enter longitude in decimal format (e.g., 10.7522)."} className='bg-white dark:bg-slate-800' />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
                   </div>
-                </FormLabel>
-                <FormField name={`warehouseLocations.${index}.address`} control={form.control} render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} placeholder="Address" disabled={!user || isSubmitting} type="text" title={"Enter street name and number."} className='bg-white dark:bg-slate-800' />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField name={`warehouseLocations.${index}.postalCode`} control={form.control} render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} placeholder="postal code" disabled={!user || isSubmitting} type="text" title={"Enter your ZIP/postal code. E.g., 12345 or A1B 2C3."} className='bg-white dark:bg-slate-800'/>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField name={`warehouseLocations.${index}.city`} control={form.control} render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} placeholder="City" disabled={!user || isSubmitting} type="text" title={"Enter the name of your city."} className='bg-white dark:bg-slate-800'/>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField name={`warehouseLocations.${index}.country`} control={form.control} render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} placeholder="Country" disabled={!user || isSubmitting} type="text" title={"Select your country from the list."} className='bg-white dark:bg-slate-800'/>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField name={`warehouseLocations.${index}.latitude`} control={form.control} render={({ field: { onChange, value } }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} placeholder="Latitude (Optional)" disabled={!user || isSubmitting} value={value} onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))} type="number" step="any" title={"Enter latitude in decimal format (e.g., 59.9139)."} className='bg-white dark:bg-slate-800'/>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField name={`warehouseLocations.${index}.longitude`} control={form.control} render={({ field: { onChange, value } }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} placeholder="Longitude (Optional)" disabled={!user || isSubmitting} value={value} onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))} type="number" step="any" title={"Enter longitude in decimal format (e.g., 10.7522)."} className='bg-white dark:bg-slate-800'/>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </div>
-            )})
-          )}
-          {form.watch('usesShipping') && (
-            <Button type="button" variant='vegaNormalBtn' disabled={!user || isSubmitting} className='w-full' onClick={() => append({
-              address: '',
-              city: '',
-              country: '',
-              postalCode: '',
-              latitude: undefined,
-              longitude: undefined
-            })}>
-              Add Location
-            </Button>
-          )}
-        </div>
-
-       
-          {/* Add more fields as needed */}
+                )
+              })
+            )}
+            {form.watch('usesShipping') && (
+              <Button type="button" variant='vegaNormalBtn' disabled={!user || isSubmitting} className='w-full' onClick={() => append({
+                address: '',
+                city: '',
+                country: '',
+                postalCode: '',
+                latitude: undefined,
+                longitude: undefined
+              })}>
+                Add Location
+              </Button>
+            )}
+          </div>
         </div>
         <div className='w-full px-4 py-2'>
           <MyFormError message={error} />

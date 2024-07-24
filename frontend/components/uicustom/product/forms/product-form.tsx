@@ -20,7 +20,6 @@ import { useEdgeStore } from '@/lib/edgestore';
 import { Textarea } from '@/components/ui/textarea';
 import { getUserById } from '@/data/user';
 import UserCompanyPermission from '../../user-company-permission';
-import UserPermissionCheck from '../../UserPermissionCheck';
 import { useCurrentUserEmployeeCheckPermission } from '@/hooks/use-current-user-employee-permissions';
 
 interface PostalCodeDetails {
@@ -41,6 +40,7 @@ interface PostalCodesResponse {
 interface Specification {
   key: string;
   value: string | number;
+  type: 'text' | 'number';
   placeholder?: string;
 }
 
@@ -59,7 +59,7 @@ export const MyProductCreationForm = () => {
   const examplePlaceholders = ['Weight', 'Height', 'Length', 'Width', 'Material', 'Color', 'Size', 'Brand', 'Model', 'Country of Origin', 'Warranty', 'Certification'];
   const [postalCodeInput, setPostalCodeInput] = useState('');
   const [suggestions, setSuggestions] = useState<PostalCodeDetails[]>([]);
-  const [postalCode, setPostalCode] = useState('');
+  const [postalCodes, setPostalCodes] = useState<string[]>([]);
   const [postalCodeDetails, setPostalCodeDetails] = useState<PostalCodesResponse | null>(null);
   const [selectedPostalCodeDetail, setSelectedPostalCodeDetail] = useState<PostalCodeDetails | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -69,6 +69,7 @@ export const MyProductCreationForm = () => {
   const { permissions, isPermissionAvailable, isLoading: isPermissionsLoading, error: isPermissionError } = useCurrentUserEmployeeCheckPermission(clientUser, companyId, permissionTag);
   const [PermissionCheckResult, setPermissionCheckResult] = useState<boolean>(false);
   const [warehouseLocations, setWarehouseLocations] = useState<WarehouseLocation[]>([]);
+  const [warehouseLocationError, setWarehouseLocationError] = useState<string | null>(null);
 
   // UI States
   const [counter, setCounter] = useState(0);
@@ -88,6 +89,8 @@ export const MyProductCreationForm = () => {
       stock: 0,
       userId: clientUser?.id,
       image: [''],
+      quantity: 0, // Add default value for quantity
+      isPhysicalProduct: false,
     },
   });
 
@@ -155,7 +158,7 @@ export const MyProductCreationForm = () => {
     multiple: true,
   });
 
-  const imageHandeler = async () => {
+  const imageHandler = async () => {
     let uploadedUrls = [];
     for (let image of images) {
       try {
@@ -181,15 +184,20 @@ export const MyProductCreationForm = () => {
   const handleSpecificationChange = (
     index: number,
     field: 'key' | 'value',
-    value: string
+    value: string | number
   ) => {
     const updatedSpecifications = specifications.map((spec, specIndex) =>
       index === specIndex
         ? {
             ...spec,
-            [field]: (spec.key === 'Weight' || spec.key === 'Height' || spec.key === 'Length' || spec.key === 'Width') && field === 'value'
-              ? parseFloat(value) || 0
-              : value,
+            [field]: field === 'key'
+              ? value
+              : (spec.key === 'Weight' || spec.key === 'Height' || spec.key === 'Length' || spec.key === 'Width') && field === 'value'
+                ? parseFloat(value.toString()) || 0
+                : value,
+            type: field === 'key' && (value === 'Weight' || value === 'Height' || value === 'Length' || value === 'Width')
+              ? 'number'
+              : 'text',
           }
         : spec
     );
@@ -206,25 +214,26 @@ export const MyProductCreationForm = () => {
     const filteredPlaceholders = isPhysicalProduct
       ? examplePlaceholders
       : examplePlaceholders.filter(placeholder => !excludeKeys.includes(placeholder));
-
+  
     const nextPlaceholder = filteredPlaceholders.find(placeholder =>
       !specifications.some(spec => spec.key === placeholder)
-    );
-
-    const newSpec = {
-      key: nextPlaceholder || '',
-      value: ''
+    ) ?? ''; // Ensure nextPlaceholder is a string
+  
+    const newSpec: Specification = {
+      key: nextPlaceholder,
+      value: '',
+      type: excludeKeys.includes(nextPlaceholder) ? 'number' : 'text'
     };
-
+  
     setSpecifications([...specifications, newSpec]);
   };
 
   const onSubmit = async (values: z.infer<typeof MyProductCreateSchema>) => {
     setError('');
     setSuccess('');
-
+  
     if (images) {
-      const resUploadedImageUrls = await imageHandeler();
+      const resUploadedImageUrls = await imageHandler();
       if (resUploadedImageUrls.length > 0) {
         values.image = resUploadedImageUrls;
       } else {
@@ -232,7 +241,7 @@ export const MyProductCreationForm = () => {
         return;
       }
     }
-
+  
     const formattedSpecifications = specifications.map((spec) => {
       return {
         key: spec.key,
@@ -244,16 +253,29 @@ export const MyProductCreationForm = () => {
             : spec.value,
       };
     });
-
+  
     if (specifications && specifications.length > 0) {
       values.specifications = formattedSpecifications;
     }
-
-    values.shipFromPostalId = postalCode;
-
+  
+    if (companyId && companyId.length > 0) {
+      values.companyId = companyId;
+    }
+  
+    if (isPhysicalProduct && isPhysicalProduct === true) {
+      values.isPhysicalProduct = isPhysicalProduct;
+    }
+  
+    // Add postal code input if not empty
+    if (postalCodeInput.trim() !== '') {
+      postalCodes.push(postalCodeInput.trim());
+    }
+  
+    values.shipFromPostalId = postalCodes.join(', ');
+  
     startTransition(() => {
       validateIsAdmin(values);
-      MyCreateProductAction(values)
+      MyCreateProductAction(values, postalCodes)
         .then((data) => {
           if (data.error) {
             setError(data.error);
@@ -287,6 +309,7 @@ export const MyProductCreationForm = () => {
     setSpecifications([]);
     setIsPhysicalProduct(false);
     setIsCompanyProduct(false);
+    setPostalCodes([]);
     form.reset();
     setTimeout(() => {
       setSuccess('');
@@ -299,53 +322,47 @@ export const MyProductCreationForm = () => {
 
   const handleCompanyProduct = () => {
     setIsCompanyProduct(!isCompanyProduct);
+    setPostalCodes([]);
+    setWarehouseLocations([]);
+    setWarehouseLocationError(null);
   };
 
-  useEffect(() => {
-    if (isPhysicalProduct) {
-      const physicalSpecsToAdd = [
-        { key: 'Weight', value: '1' },
-        { key: 'Height', value: '10' },
-        { key: 'Length', value: '10' },
-        { key: 'Width', value: '10' }
-      ];
-
-      const existingPhysicalSpecs = specifications.filter(spec =>
-        ['Weight', 'Height', 'Length', 'Width'].includes(spec.key)
-      );
-
-      const existingKeys = new Set(existingPhysicalSpecs.map(spec => spec.key));
-
-      physicalSpecsToAdd.forEach(specToAdd => {
-        if (!existingKeys.has(specToAdd.key)) {
-          specifications.push(specToAdd);
-        }
-      });
-
-      setSpecifications([...specifications]);
+  const handleSelectWarehouseLocation = (e: any) => {
+    const selectedValue = e.target.value;
+    if (e.target.checked) {
+      setPostalCodes([...postalCodes, selectedValue]);
     } else {
-      const filteredSpecifications = specifications.filter(spec =>
-        !['Weight', 'Height', 'Length', 'Width'].includes(spec.key)
-      );
-      setSpecifications(filteredSpecifications);
+      setPostalCodes(postalCodes.filter(code => code !== selectedValue));
     }
-  }, [isPhysicalProduct]);
+  };
 
   const handleSelectChange = (e: any) => {
     const selectedValue = e.target.value;
     const selectedPostalCodeData = suggestions.find(suggestion => suggestion.postal_code === selectedValue);
     setSelectedPostalCodeDetail(selectedPostalCodeData ?? null);
-    setPostalCode(selectedValue);
+    setPostalCodeInput(selectedValue);
   };
 
-  const handleCompanySelect = (companyId: string, companyData: any) => {
+  const handleCompanySelect = async (companyId: string, companyData: any) => {
+    console.log('Selected company ID:', companyId);
     setCompanyId(companyId);
-    if (companyData.warehouseLocations && companyData.warehouseLocations.length > 0) {
-      const selectedWarehouseLocation = companyData.warehouseLocations[0]; // or implement logic to select the closest warehouse location
-      setPostalCode(selectedWarehouseLocation.postalCode);
-      setIsPhysicalProduct(true);
+
+    try {
+      const response = await fetch(`/api/companies/${companyId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch company details');
+      }
+      const companyDetails = await response.json();
+      if (companyDetails.warehouseLocations && companyDetails.warehouseLocations.length > 0) {
+        setWarehouseLocations(companyDetails.warehouseLocations);
+        setWarehouseLocationError(null);
+      } else {
+        setWarehouseLocationError('Selected company does not have warehouse locations. Please enter the postal code manually.');
+      }
+    } catch (error) {
+      console.error('Error fetching company details:', error);
+      setWarehouseLocationError('Error fetching company details. Please enter the postal code manually.');
     }
-    setWarehouseLocations(companyData.warehouseLocations || []);
   };
 
   const customStyles = {
@@ -446,6 +463,7 @@ export const MyProductCreationForm = () => {
                       className={`${customStyles.input} group-hover:bg-slate-200`}
                       type="checkbox"
                       id={`checkbox-isCompanyProduct`}
+                      checked={isCompanyProduct}
                       onChange={() => handleCompanyProduct()}
                     />
                     <p className={``}>
@@ -454,7 +472,8 @@ export const MyProductCreationForm = () => {
                   </div>
                 </label>
                 {isCompanyProduct === true &&
-                  <UserCompanyPermission permissionTag="CAN_POST_PRODUCT_POSITION_PERMISSION" onCompanySelect={handleCompanySelect} />}
+                  <UserCompanyPermission permissionTag="CAN_POST_PRODUCT_POSITION_PERMISSION" onCompanySelect={handleCompanySelect} />
+                }
               </div>
               <div className={`flex flex-col gap-4 justify-center items-start w-full`}>
                 <FormLabel htmlFor='checkbox-isPhysicalProduct' className={`${customStyles.label} text-md`}>
@@ -482,20 +501,37 @@ export const MyProductCreationForm = () => {
                     </p>
                   </div>
                 </label>
-                {isPhysicalProduct === true &&
+                {isPhysicalProduct === true && (
                   <div>
+                    {warehouseLocations.length > 0 && (
+                      <div>
+                        <FormLabel className={`${customStyles.label}`}>Select Warehouse Locations </FormLabel>
+                        {warehouseLocations.map((location, index) => (
+                          <div key={index} className='flex items-center'>
+                            <input
+                              type='checkbox'
+                              value={location.postalCode}
+                              checked={postalCodes.includes(location.postalCode)}
+                              onChange={handleSelectWarehouseLocation}
+                              className='mr-2'
+                            />
+                            <label>{`${location.postalCode} - ${location.city}`}</label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <FormField control={form.control} name='shipFromPostalId' render={({ field }) => (
                       <FormItem className={`${customStyles.item}`}>
-                        <FormLabel className={`${customStyles.label}`}>Warehouse postal code</FormLabel>
+                        <FormLabel className={`${customStyles.label}`}>Additional Warehouse Postal Code</FormLabel>
                         <FormControl>
                           <Input {...field} id='postalCode'
                             disabled={isPending}
                             placeholder='postal ID'
                             type='text'
-                            value={postalCode}
+                            value={postalCodeInput}
                             onChange={(e) => {
                               const newPostalCode = e.target.value;
-                              setPostalCode(newPostalCode);
+                              setPostalCodeInput(newPostalCode);
                               fetchPostalCodeDetails(newPostalCode);
                             }}
                             className={`${customStyles.input} postal-code-input`}
@@ -506,6 +542,9 @@ export const MyProductCreationForm = () => {
                       </FormItem>
                     )}
                     />
+                    {warehouseLocationError && (
+                      <p className="text-red-600 dark:text-red-400">{warehouseLocationError}</p>
+                    )}
                     {suggestions.length > 0 && (
                       <>
                         <select
@@ -523,56 +562,74 @@ export const MyProductCreationForm = () => {
                       </>
                     )}
                   </div>
-                }
+                )}
               </div>
               <FormField control={form.control} name='specifications' render={({ field }) => (
-                <FormItem className={`${customStyles.item}`}>
-                  <FormLabel className={`${customStyles.label}`}>Specifications</FormLabel>
-                  <FormControl>
-                    <div>
-                      <div
-                        className={`hover:cursor-pointer py-2 px-4 my-2 w-fit bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/60 dark:hover:bg-black/50 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded`}
-                        onClick={addSpecification}
-                        title="Adds a specification to the product."
-                      >
-                        Add Specification
-                      </div>
-                      {specifications.map((spec, index) => (
-                        <div key={index}>
-                          <div className={`flex gap-2 items-center`}>
-                            <select
-                              name="specification"
-                              value={spec.key}
-                              onChange={(e) => handleSpecificationChange(index, 'key', e.target.value)}
-                              title="Select the specification type"
-                              className="border p-2 bg-white dark:disabled:bg-black/50 dark:bg-black/70 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded"
-                            >
-                              {examplePlaceholders.map((placeholder, i) => (
-                                <option key={i} value={placeholder}>{placeholder}</option>
-                              ))}
-                            </select>
-                            <Input
-                              value={spec.value}
-                              onChange={(e) => handleSpecificationChange(index, 'value', e.target.value)}
-                              placeholder="Value"
-                              type='text'
-                              spellCheck='false'
-                              title={
-                                spec.key === 'Weight' ? "Enter weight in grams" :
-                                  ['Height', 'Length', 'Width'].includes(spec.key) ? "Enter measurements in centimeters" :
-                                    ""
-                              }
-                            />
-                            <div className={`hover:cursor-pointer py-2 px-4 rounded bg-black/30 m-2`} onClick={(event) => removeSpecification(index)}>Remove</div>
-                          </div>
-                        </div>
-                      ))}
+              <FormItem className={`${customStyles.item}`}>
+                <FormLabel className={`${customStyles.label}`}>Specifications</FormLabel>
+                <FormControl>
+                  <div>
+                    <div
+                      className={`hover:cursor-pointer py-2 px-4 my-2 w-fit bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/60 dark:hover:bg-black/50 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded`}
+                      onClick={addSpecification}
+                      title="Adds a specification to the product."
+                    >
+                      Add Specification
                     </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-              />
+                    {specifications.map((spec, index) => (
+                      <div key={index}>
+                        <div className={`flex gap-2 items-center`}>
+                          <select
+                            name="specification"
+                            value={spec.key}
+                            onChange={(e) => handleSpecificationChange(index, 'key', e.target.value)}
+                            title="Select the specification type"
+                            className="border p-2 bg-white dark:disabled:bg-black/50 dark:bg-black/70 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded"
+                          >
+                            {examplePlaceholders.map((placeholder, i) => (
+                              <option key={i} value={placeholder}>{placeholder}</option>
+                            ))}
+                          </select>
+                          <Input
+                            value={spec.value}
+                            onChange={(e) => handleSpecificationChange(index, 'value', e.target.value)}
+                            placeholder="Value"
+                            type={spec.type}
+                            spellCheck='false'
+                            title={
+                              spec.key === 'Weight' ? "Enter weight in grams" :
+                              ['Height', 'Length', 'Width'].includes(spec.key) ? "Enter measurements in centimeters" :
+                              ""
+                            }
+                          />
+                          <div className={`hover:cursor-pointer py-2 px-4 rounded bg-black/30 m-2`} onClick={(event) => removeSpecification(index)}>Remove</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+            />
+            <FormField control={form.control} name='quantity' render={({ field }) => (
+              <FormItem className={`${customStyles.item}`}>
+                <FormLabel className={`${customStyles.label}`}>Quantity</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    disabled={isPending}
+                    placeholder='Set quantity'
+                    type='number'
+                    className={`${customStyles.input}`}
+                    spellCheck='false'
+                    onChange={(e) => form.setValue('quantity', Number(e.target.value))}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+            />
             </div>
 
             <div className='w-full h-full'>
@@ -617,7 +674,7 @@ export const MyProductCreationForm = () => {
           </div>
         </form>
       </Form>
-      <UserPermissionCheck companyId={companyId} clientUser={clientUser} permissionTag='CAN_POST_PRODUCT_POSITION_PERMISSION' />
+      {/* <UserPermissionCheck companyId={companyId} clientUser={clientUser} permissionTag='CAN_POST_PRODUCT_POSITION_PERMISSION' /> */}
     </div>
   );
 }

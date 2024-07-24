@@ -94,7 +94,7 @@ const MyProtectedSettings = () => {
     <div className={`flex flex-col justify-center items-center gap-4 bg-white/10 dark:bg-secondary/10 p-4 rounded-lg`}>
       <Card className="w-full max-w-[600px] bg-white dark:bg-zinc-900/20 border-black/10" >
         <CardHeader>
-          <p className="text-xl font-semibold text-center">Settings</p>
+          <p className="text-xl font-semibold text-center">User Settings</p>
         </CardHeader>
         <CardContent>
           <Form {...form}>

@@ -1,15 +1,16 @@
-
+import { Product, Review, User } from "@prisma/client";
 import { useSession } from "next-auth/react";
-import { calculateSessionExpirationMyHelper } from "./helpers/vegasTimeCalculator";
+
+type ExtendedUser = User & {
+  productsListed?: Product[];
+  reviews?: Review[];
+  isOAuth?: boolean;
+};
 
 const LOG_PREFIX = '[use-current-user.ts]'
-/**
- * @description Takes session and return session.user
- * return session?.user ?? null;
- */
-export const useCurrentUser = () => {
-    const { data: session } = useSession();
 
+export const useCurrentUser = (): ExtendedUser | null => {
 
-    return session?.user
+  const { data: session } = useSession();
+  return session?.user as ExtendedUser ?? null;
 };

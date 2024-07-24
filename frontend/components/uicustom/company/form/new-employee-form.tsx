@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { EmployeeRole, User, UserRole } from '@prisma/client';
 import { employeeSchema } from '@/schemas';
 import { MyAddEmployeeAction } from '@/actions/create-company-employee';
-import { ExtendedEmployee } from '@/app/(protected)/settings/company/[...id]/page';
+import { ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/page';
 import { useCurrentUser } from '@/hooks/use-current-user';
 
 

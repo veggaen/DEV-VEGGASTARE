@@ -64,8 +64,8 @@ const MyCompanies = () => {
           <div key={company.id} className="group flex flex-col hover:shadow-lg transition-shadow duration-300 rounded hover:bg-blue-500/30 p-2">
             <div className="rounded-t-lg">
               <AspectRatio ratio={1 / 1}>
-                <Link href={`/settings/company/${company.id}`} passHref>
-                  <Image src={company.logo[0]} alt={`${company.name} logo`} layout="fill" objectFit="cover" className="dark:brightness-75 rounded" />
+                <Link href={`/nexus/company/${company.id}`} passHref>
+                  <Image src={company.logo[0]} alt={`${company.name} logo`} fill={true} objectFit="cover" className="dark:brightness-75 rounded" />
                 </Link>
               </AspectRatio>
             </div>
@@ -75,7 +75,7 @@ const MyCompanies = () => {
                 <p className="text-sm text-gray-600 dark:text-gray-400 text-pretty px-2 h-fit">{truncateDescription(company.description)}</p>
               </div>
               <div className="flex justify-between items-center gap-1">
-                <Link href={`/settings/company/${company.id}`} passHref>
+                <Link href={`/nexus/company/${company.id}`} passHref>
                   <Button variant='vegaNormalBtn' className="bg-black/10 dark:bg-black/10 font-semibold">View Company</Button>
                 </Link>
                 {permissions[company.id] && permissions[company.id].CAN_DELETE_COMPANY && (

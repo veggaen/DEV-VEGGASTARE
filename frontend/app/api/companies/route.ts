@@ -1,6 +1,7 @@
 // frontend\app\api\companies\route.ts
 
 import { dbPrisma } from '@/lib/db';
+import { Company } from '@prisma/client';
 import type { NextRequest } from 'next/server';
 
 export async function GET(req: NextRequest) {
@@ -34,7 +35,9 @@ export async function GET(req: NextRequest) {
         });
 
         const response = JSON.stringify(companies)
-        console.log('User companies is:', response)
+        const rawResponse = companies
+        var val = rawResponse.map(((singleResponse: Company) => (singleResponse.name)))
+        console.log('[frontend/app/api/companies/route.ts]','User companies is:', val)
         return new Response(JSON.stringify(companies), {
             status: 200, // OK
             headers: {
