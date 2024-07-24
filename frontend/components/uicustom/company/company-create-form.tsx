@@ -1,14 +1,71 @@
+'use client';
+
+import React, { startTransition, useEffect, useState } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { z } from 'zod';
+import { MyFormError } from '../forms/form-error';
+import { MyFormSuccess } from '../forms/form-sucess';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { useEdgeStore } from '@/lib/edgestore';
+import { useDropzone } from 'react-dropzone';
+import { UploadCloudIcon, XCircle } from 'lucide-react';
+import Image from 'next/image';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { MyCreateCompanyAction } from '@/actions/create-company';
+import { companyCreationSchema } from '@/schemas';
+import { EmployeeRole, User } from '@prisma/client';
+import { useRouter } from 'next/navigation';
+
+type UIEmployee = {
+  userId: string;
+  email: string;
+  image: string;
+  role: EmployeeRole;
+  permissions: { [key: string]: boolean };
+};
+
+const DEFAULT_PERMISSIONS = {
+  CAN_REMOVE_EMPLOYEE: true,
+  CAN_EDIT_PERMISSION: true,
+  CAN_DELETE_COMPANY: true,
+  CAN_POST_PRODUCT_POSITION_PERMISSION: true,
+  CAN_EDIT_PRODUCT_POSITION_PERMISSION: true,
+  CAN_ADD_EMPLOYEE: true,
+};
+
+const INITIAL_OWNER_EMPLOYEE = (user: User) => ({
+  userId: user.id,
+  email: user.email || '',
+  image: user.image || '',
+  role: 'OWNER' as EmployeeRole,
+  permissions: DEFAULT_PERMISSIONS,
+});
+
+const imageHandler = async (values: any, logoFile: File[], bannerFile: File[], edgestore: any) => {
+  const uploadImages = async (files: File[]) => {
+    return Promise.all(
+      files.map(async (file) => {
+        const uploadResult = await edgestore.myPublicImages.upload({ file });
+        return uploadResult.url;
+      })
+    );
+  };
+
+  values.logo = await uploadImages(logoFile);
+  values.bannerImage = await uploadImages(bannerFile);
+  return values;
+};
+
 export const MyCompanyCreateForm = () => {
   const { edgestore } = useEdgeStore();
   const router = useRouter();
-  const currentUser = useCurrentUser();
-  const user = currentUser as User & {
-    productsListed: Product[];
-    reviews: Review[];
-    isOAuth: boolean;
-  };
+  const user = useCurrentUser();
   const UID = user?.id;
-
   const [logoFile, setLogoFile] = useState<File[]>([]);
   const [bannerFile, setBannerFile] = useState<File[]>([]);
   const [logoPreview, setLogoPreview] = useState<string[]>([]);

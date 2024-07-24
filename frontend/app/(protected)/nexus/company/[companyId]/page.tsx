@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Company, Employee, User, WarehouseLocation } from '@prisma/client';
 import Link from 'next/link';
@@ -63,7 +63,7 @@ const CompanyDetails = () => {
         CAN_ADD_EMPLOYEE: { name: 'Can Add Employee', description: 'Allows the user to add new employees to the company.', icon: <MdAddCircleOutline className="text-xl h-8 w-8" /> },
     };
 
-    const fetchCompanyDetails = async () => {
+    const fetchCompanyDetails = useCallback(async () => {
         if (!params.companyId) return;
         try {
             const response = await fetch(`/api/companies/${params.companyId}`);
@@ -78,7 +78,7 @@ const CompanyDetails = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [params.companyId]);
 
     useEffect(() => {
         if (params.companyId) {
@@ -89,9 +89,9 @@ const CompanyDetails = () => {
 
             return () => clearInterval(companyInterval);
         }
-    }, [params.companyId, change]);
+    }, [params.companyId, change, fetchCompanyDetails]);
 
-    const fetchWarehouseData = async () => {
+    const fetchWarehouseData = useCallback(async () => {
         if (!params.companyId) return;
         try {
             const response = await fetch(`/api/companies/${params.companyId}/warehouses/stock`);
@@ -104,7 +104,7 @@ const CompanyDetails = () => {
         } catch (error) {
             console.error('Error fetching warehouse data:', error);
         }
-    };
+    }, [params.companyId]);
 
     useEffect(() => {
         fetchWarehouseData(); // Initial fetch
@@ -113,7 +113,7 @@ const CompanyDetails = () => {
         }, 300000); // 30 seconds
 
         return () => clearInterval(warehouseInterval);
-    }, [params.companyId]);
+    }, [params.companyId, fetchWarehouseData]);
 
     if (loading) return <div className="text-center py-4">Loading...</div>;
     if (!company) return <div className="text-center py-4">Company not found.</div>;
