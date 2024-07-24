@@ -28,6 +28,10 @@ export const MyNavbarProtected = () => {
   const handleLinkClick = () => {
     setIsDialogOpen(false);
   };
+  
+  if (!pathname.startsWith('/nexus')) {
+    return null;
+  }
 
   return (
     <div>
