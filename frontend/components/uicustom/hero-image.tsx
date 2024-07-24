@@ -12,11 +12,11 @@ export default function MyHeroImage() {
         let src;
         switch (resolvedTheme) {
           case 'light':
-            src = '/source/goodbear.webp'
+            src = '/source/bg_main_light.webp'
             //src = '/magicsnowboardridegirl.webp'
           break
           case 'dark':
-            src = '/source/nightgirl.webp'
+            src = '/source/bg_main_dark.webp'
             //src = '/magicsnowboardridegirl2.webp'
           break
           default:

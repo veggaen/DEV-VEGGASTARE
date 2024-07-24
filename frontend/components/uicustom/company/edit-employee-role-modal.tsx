@@ -68,7 +68,7 @@ const EditEmployeeRoleModal: React.FC<EditEmployeeRoleModalProps> = ({ selectedE
           Edit Role
         </Button>
       </DialogTrigger>
-      <DialogContent className='text-black dark:text-white bg-gradient-to-tr dark:from-slate-700 dark:to-slate-900 from-blue-100 via-gray-200 to-blue-200 border-gray-700 dark:border-gray-700'>
+      <DialogContent className='text-black dark:text-white bg-gradient-to-tr dark:from-slate-600 dark:to-slate-800 from-blue-100 via-gray-200 to-blue-200 border-gray-700 dark:border-gray-700'>
         <DialogHeader>
           <DialogTitle className='flex gap-2'>
             Edit Employee Role | <p className='text-purple-600 italic font-bold'> {selectedEmployee?.user?.name}</p>

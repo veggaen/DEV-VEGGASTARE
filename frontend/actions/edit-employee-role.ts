@@ -1,11 +1,28 @@
-'use server'
+'use server';
 
 import { dbPrisma } from '@/lib/db';
 import { EmployeeRole } from '@prisma/client';
 
 const LOG_PREFIX = '[frontend/actions/edit-employee-role.ts]';
 
-export const editEmployeeRoleAction = async (formData: any) => {
+// Define types for the form data and response
+interface EditEmployeeRoleFormData {
+  employeeId: string;
+  newRole: EmployeeRole;
+  clientUser: {
+    id: string;
+    name: string;
+  };
+  companyId: string;
+}
+
+interface EditEmployeeRoleResponse {
+  success: boolean;
+  message?: string;
+  updatedEmployee?: any;
+}
+
+export const editEmployeeRoleAction = async (formData: EditEmployeeRoleFormData): Promise<EditEmployeeRoleResponse> => {
   const { employeeId, newRole, clientUser, companyId } = formData;
   console.log(`${LOG_PREFIX} ${clientUser.name} is initiating request to edit employee role [Employee ID: ${employeeId}, New Role: ${newRole}, Company ID: ${companyId}]`);
 
@@ -24,7 +41,8 @@ export const editEmployeeRoleAction = async (formData: any) => {
     }
 
     // Check if client user has permission to edit employee roles
-    if (!clientEmployee.permissions?.CAN_EDIT_EMPLOYEE_ROLE as any) {
+    const permissions = clientEmployee.permissions as { [key: string]: boolean };
+    if (!permissions.CAN_EDIT_EMPLOYEE_ROLE) {
       console.error(`${LOG_PREFIX} Permission denied: You do not have permission to edit employee roles.`);
       return { success: false, message: 'Permission denied: You do not have permission to edit employee roles' };
     }

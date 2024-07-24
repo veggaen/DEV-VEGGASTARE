@@ -50,7 +50,7 @@ export const MyUserButton = () => {
             <p className='dark:hidden'>Light mode</p>
           </div>
           </DropdownMenuItem>
-          <Link href='/nexus'>
+          <Link href='/nexus/company'>
             <DropdownMenuItem>
               <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
                 <TbHexagons className={`min-h-[1.2rem] min-w-[1.2rem]`} />
