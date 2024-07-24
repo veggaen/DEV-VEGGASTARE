@@ -72,7 +72,7 @@ const MyCompanies = () => {
             <div className="flex flex-col justify-between h-full py-2">
               <div className='flex-grow mb-3'>
                 <h3 className="text-lg font-bold dark:text-indigo-400 text-indigo-600 text-pretty">{company.name}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 text-pretty px-2 h-fit">{truncateDescription(company.description)}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-pretty px-2 h-fit">{company.description ? truncateDescription(company.description) : ''}</p>
               </div>
               <div className="flex justify-between items-center gap-1">
                 <Link href={`/nexus/company/${company.id}`} passHref>

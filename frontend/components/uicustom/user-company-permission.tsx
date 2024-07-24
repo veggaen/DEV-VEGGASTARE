@@ -1,17 +1,37 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { fetchUserEmployeePermissions } from '@/actions/user-company-permissions';
+import { Company } from '@prisma/client';
 
-const UserCompanyPermission = ({ permissionTag, onCompanySelect }) => {
-  const [companies, setCompanies] = useState([]);
+interface UserCompanyPermissionProps {
+  permissionTag: string;
+  onCompanySelect: (companyId: string, permissions: any) => void;
+}
+
+const UserCompanyPermission: React.FC<UserCompanyPermissionProps> = ({ permissionTag, onCompanySelect }) => {
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const currentUser = useCurrentUser();
 
+  const handleCompanySelect = useCallback(async (companyId: string) => {
+    console.log(`Selected company ID: ${companyId}`);
+    setSelectedCompanyId(companyId);
+
+    // Fetch permissions for the selected company
+    try {
+      const permissions = await fetchUserEmployeePermissions(currentUser, companyId);
+      console.log(`Fetched permissions for company ID ${companyId}:`, permissions);
+      onCompanySelect(companyId, permissions);
+    } catch (error) {
+      console.error('Error fetching permissions for the selected company:', error);
+    }
+  }, [currentUser, onCompanySelect]);
+
   useEffect(() => {
     async function loadCompanies() {
-      if (!currentUser) return;
+      if (!currentUser || companies.length > 0) return;
 
       try {
         console.log(`Fetching companies for userId: ${currentUser.id} with permissionTag: ${permissionTag}`);
@@ -36,6 +56,12 @@ const UserCompanyPermission = ({ permissionTag, onCompanySelect }) => {
 
         if (Array.isArray(data)) {
           setCompanies(data);
+          if (data.length === 1) {
+            // Automatically select the single company if only one is available
+            const singleCompanyId = data[0].id;
+            setSelectedCompanyId(singleCompanyId);
+            handleCompanySelect(singleCompanyId);
+          }
         } else {
           console.error('Expected an array for companies, received:', data);
         }
@@ -45,25 +71,11 @@ const UserCompanyPermission = ({ permissionTag, onCompanySelect }) => {
     }
 
     loadCompanies();
-  }, [currentUser, permissionTag]);
+  }, [currentUser, permissionTag, handleCompanySelect, companies.length]);
 
-  const handleCompanyChange = async (e) => {
+  const handleCompanyChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const companyId = e.target.value;
     await handleCompanySelect(companyId);
-  };
-
-  const handleCompanySelect = async (companyId) => {
-    console.log(`Selected company ID: ${companyId}`);
-    setSelectedCompanyId(companyId);
-
-    // Fetch permissions for the selected company
-    try {
-      const permissions = await fetchUserEmployeePermissions(currentUser, companyId);
-      console.log(`Fetched permissions for company ID ${companyId}:`, permissions);
-      onCompanySelect(companyId, permissions);
-    } catch (error) {
-      console.error('Error fetching permissions for the selected company:', error);
-    }
   };
 
   return (
@@ -82,6 +94,5 @@ const UserCompanyPermission = ({ permissionTag, onCompanySelect }) => {
     </div>
   );
 };
-
 
 export default UserCompanyPermission;

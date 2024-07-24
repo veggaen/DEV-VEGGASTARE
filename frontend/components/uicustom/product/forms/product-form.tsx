@@ -1,7 +1,7 @@
 'use client';
 
+import React, { useEffect, useState, useCallback, useRef, useTransition } from 'react';
 import * as z from 'zod';
-import { useState, useEffect, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -18,9 +18,9 @@ import Image from 'next/image';
 import { useDropzone } from 'react-dropzone';
 import { useEdgeStore } from '@/lib/edgestore';
 import { Textarea } from '@/components/ui/textarea';
-import { getUserById } from '@/data/user';
 import UserCompanyPermission from '../../user-company-permission';
-import { useCurrentUserEmployeeCheckPermission } from '@/hooks/use-current-user-employee-permissions';
+import { fetchUserEmployeePermissions } from '@/actions/user-company-permissions';
+import { getUserById } from '@/data/user';
 
 interface PostalCodeDetails {
   postal_code: string;
@@ -66,10 +66,10 @@ export const MyProductCreationForm = () => {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [companyId, setCompanyId] = useState<string>('');
   const [permissionTag, setPermissionTag] = useState('CAN_POST_PRODUCT_POSITION_PERMISSION');
-  const { permissions, isPermissionAvailable, isLoading: isPermissionsLoading, error: isPermissionError } = useCurrentUserEmployeeCheckPermission(clientUser, companyId, permissionTag);
   const [PermissionCheckResult, setPermissionCheckResult] = useState<boolean>(false);
   const [warehouseLocations, setWarehouseLocations] = useState<WarehouseLocation[]>([]);
   const [warehouseLocationError, setWarehouseLocationError] = useState<string | null>(null);
+  const companiesFetched = useRef(false);
 
   // UI States
   const [counter, setCounter] = useState(0);
@@ -186,7 +186,7 @@ export const MyProductCreationForm = () => {
     field: 'key' | 'value',
     value: string | number
   ) => {
-    const updatedSpecifications = specifications.map((spec, specIndex) =>
+    const updatedSpecifications: Specification[] = specifications.map((spec, specIndex) =>
       index === specIndex
         ? {
             ...spec,
@@ -321,30 +321,20 @@ export const MyProductCreationForm = () => {
   };
 
   const handleCompanyProduct = () => {
-    setIsCompanyProduct(!isCompanyProduct);
+    const newIsCompanyProduct = !isCompanyProduct;
+    setIsCompanyProduct(newIsCompanyProduct);
     setPostalCodes([]);
     setWarehouseLocations([]);
     setWarehouseLocationError(null);
-  };
 
-  const handleSelectWarehouseLocation = (e: any) => {
-    const selectedValue = e.target.value;
-    if (e.target.checked) {
-      setPostalCodes([...postalCodes, selectedValue]);
-    } else {
-      setPostalCodes(postalCodes.filter(code => code !== selectedValue));
+    if (newIsCompanyProduct && !companiesFetched.current) {
+      console.log('Fetching companies...');
+      companiesFetched.current = true; // Set this to true to avoid re-fetching
     }
   };
 
-  const handleSelectChange = (e: any) => {
-    const selectedValue = e.target.value;
-    const selectedPostalCodeData = suggestions.find(suggestion => suggestion.postal_code === selectedValue);
-    setSelectedPostalCodeDetail(selectedPostalCodeData ?? null);
-    setPostalCodeInput(selectedValue);
-  };
-
-  const handleCompanySelect = async (companyId: string, companyData: any) => {
-    console.log('Selected company ID:', companyId);
+  const handleCompanySelect = useCallback(async (companyId: string) => {
+    console.log(`Selected company ID: ${companyId}`);
     setCompanyId(companyId);
 
     try {
@@ -353,16 +343,28 @@ export const MyProductCreationForm = () => {
         throw new Error('Failed to fetch company details');
       }
       const companyDetails = await response.json();
-      if (companyDetails.warehouseLocations && companyDetails.warehouseLocations.length > 0) {
-        setWarehouseLocations(companyDetails.warehouseLocations);
-        setWarehouseLocationError(null);
-      } else {
-        setWarehouseLocationError('Selected company does not have warehouse locations. Please enter the postal code manually.');
-      }
+      setWarehouseLocations(companyDetails.warehouseLocations || []);
+      setWarehouseLocationError(companyDetails.warehouseLocations.length === 0 ? 'Selected company does not have warehouse locations. Please enter the postal code manually.' : null);
     } catch (error) {
       console.error('Error fetching company details:', error);
       setWarehouseLocationError('Error fetching company details. Please enter the postal code manually.');
     }
+  }, []);
+
+  const handleSelectWarehouseLocation = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedValue = e.target.value;
+    if (e.target.checked) {
+      setPostalCodes([...postalCodes, selectedValue]);
+    } else {
+      setPostalCodes(postalCodes.filter(code => code !== selectedValue));
+    }
+  };
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedValue = e.target.value;
+    const selectedPostalCodeData = suggestions.find(suggestion => suggestion.postal_code === selectedValue);
+    setSelectedPostalCodeDetail(selectedPostalCodeData ?? null);
+    setPostalCodeInput(selectedValue);
   };
 
   const customStyles = {
@@ -674,7 +676,6 @@ export const MyProductCreationForm = () => {
           </div>
         </form>
       </Form>
-      {/* <UserPermissionCheck companyId={companyId} clientUser={clientUser} permissionTag='CAN_POST_PRODUCT_POSITION_PERMISSION' /> */}
     </div>
   );
-}
+};
