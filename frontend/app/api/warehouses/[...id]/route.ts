@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     });
 
     if (!warehouse) {
+      console.log('Warehouse not found for ID:', id);
       return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 });
     }
 
@@ -34,6 +35,7 @@ export async function GET(req: NextRequest) {
       })),
     };
 
+    console.log('Fetched warehouse details:', warehouseDetails);
     return NextResponse.json(warehouseDetails, { status: 200 });
   } catch (error) {
     console.error('Error fetching warehouse details:', error);

@@ -1,8 +1,9 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 
-export async function GET(req: Request, res: Response) {
+export async function GET(req: NextRequest) {
   try {
+    console.log('Fetching all warehouses');
     const warehouses = await dbPrisma.warehouseLocation.findMany({
       include: {
         inventory: {
@@ -12,8 +13,10 @@ export async function GET(req: Request, res: Response) {
         },
       },
     });
-    return new Response(JSON.stringify(warehouses), { status: 200 });
+    console.log('Fetched warehouses:', warehouses);
+    return NextResponse.json(warehouses, { status: 200 });
   } catch (error) {
-    return new Response(JSON.stringify({ error: 'Failed to fetch warehouses' }), { status: 500 });
+    console.error('Error fetching warehouses:', error);
+    return NextResponse.json({ error: 'Failed to fetch warehouses' }, { status: 500 });
   }
 }

@@ -131,14 +131,14 @@ export const MyProductCreationForm = () => {
 
   const validateIsAdmin = async (values: z.infer<typeof MyProductCreateSchema>) => {
     if (values.userId) {
-      console.log('Checking clientUser role');
+      console.log('Checking clientUser role by Id:', values.userId);
       startTransitionSpecifications(async () => {
         await getUserById(values.userId)
           .then((data) => {
             if (data?.role === UserRole.ADMIN) {
-              console.log(`${MyLogPrefix} validateIsAdmin(data.role)`, data?.role);
+              console.log(`${MyLogPrefix} validateIsAdmin(data.role) TRUE`, data?.role);
             } else {
-              console.log(`${MyLogPrefix} validateIsAdmin(data.role)`, data?.role.toString());
+              console.log(`${MyLogPrefix} validateIsAdmin(data.role) FALSE`, data?.role.toString());
             }
           });
       });
@@ -333,6 +333,18 @@ export const MyProductCreationForm = () => {
     }
   };
 
+  useEffect(() => {
+    if (isCompanyProduct === false && companyId !== '') {
+      setCompanyId('');
+      setPostalCodes([]);
+      setWarehouseLocations([]);
+      setWarehouseLocationError(null);
+      setIsCompanyProduct(false)
+      companiesFetched.current = false;
+      console.log(`[FormManager] 'isCompanyProduct' has been removed and states has been reset.`)
+    }
+  }, [companyId, isCompanyProduct])
+
   const handleCompanySelect = useCallback(async (companyId: string) => {
     console.log(`Selected company ID: ${companyId}`);
     setCompanyId(companyId);
@@ -351,13 +363,24 @@ export const MyProductCreationForm = () => {
     }
   }, []);
 
-  const handleSelectWarehouseLocation = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedValue = e.target.value;
-    if (e.target.checked) {
+  const handleSelectWarehouseLocation = (postalCodeOrEvent: string | React.ChangeEvent<HTMLInputElement>) => {
+    let selectedValue;
+    if (typeof postalCodeOrEvent === 'string') {
+      selectedValue = postalCodeOrEvent;
+    } else {
+      selectedValue = postalCodeOrEvent.target.value;
+    }
+  
+    const isChecked = typeof postalCodeOrEvent === 'string' 
+      ? !postalCodes.includes(selectedValue) 
+      : postalCodeOrEvent.target.checked;
+  
+    if (isChecked) {
       setPostalCodes([...postalCodes, selectedValue]);
     } else {
       setPostalCodes(postalCodes.filter(code => code !== selectedValue));
     }
+    console.log(`Selected postal codes: ${postalCodes}`);
   };
 
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -369,9 +392,11 @@ export const MyProductCreationForm = () => {
 
   const customStyles = {
     item: `group flex flex-col w-full items-start`,
+    itemHoverEffect: `group flex flex-col w-full items-start hover:bg-black/30 p-2 rounded`,
     itemRole: `${clientUser?.role === UserRole.ADMIN ? 'group items-start hidden flex-col' : 'hidden'}`,
     label: `text-sm font-medium text-black/80 dark:text-white/80 group-focus-within:text-black dark:group-focus-within:text-white group-focus-within:scale-110 transition transform duration-300 ease-in-out`,
-    input: `w-full border disabled:bg-white/60 bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out`
+    input: `w-full border disabled:bg-white/60 bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out`,
+    inputCheckbox: `border disabled:bg-white/60 bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out`
   };
 
   return (
@@ -381,8 +406,8 @@ export const MyProductCreationForm = () => {
           <div className='flex flex-col justify-center items-start lg:flex-row w-full h-full bg-neutral-300 dark:bg-slate-700 max-w-[1440px] rounded-xl overflow-hidden shadow-lg'>
             <div className='gap-y-2 flex flex-col justify-start items-start w-full h-full py-2 pb-4 px-4 lg:w-4/6'>
               <FormField control={form.control} name='title' render={({ field }) => (
-                <FormItem className={`${customStyles.item}`}>
-                  <FormLabel className={`${customStyles.label} text-lg font-bold`}>Title</FormLabel>
+                <FormItem className={`${customStyles.itemHoverEffect}`}>
+                  <FormLabel className={`${customStyles.label} text-md`}>What should the product title for this product be?</FormLabel>
                   <FormControl>
                     <Input {...field} disabled={isPending} placeholder='Choose a title' type='text' className={`${customStyles.input}`} spellCheck='false' />
                   </FormControl>
@@ -391,8 +416,8 @@ export const MyProductCreationForm = () => {
               )}
               />
               <FormField control={form.control} name='category' render={({ field }) => (
-                <FormItem className={`${customStyles.item}`}>
-                  <FormLabel className={`${customStyles.label}`}>Category</FormLabel>
+                <FormItem className={`${customStyles.itemHoverEffect}`}>
+                  <FormLabel className={`${customStyles.label} text-md`}>What category can we use for this product?</FormLabel>
                   <FormControl>
                     <Input {...field} disabled={isPending} placeholder='Choose a category' type='text' className={`${customStyles.input}`} spellCheck='false' />
                   </FormControl>
@@ -401,8 +426,8 @@ export const MyProductCreationForm = () => {
               )}
               />
               <FormField control={form.control} name='description' render={({ field }) => (
-                <FormItem className={`${customStyles.item}`}>
-                  <FormLabel className={`${customStyles.label}`}>Description</FormLabel>
+                <FormItem className={`${customStyles.itemHoverEffect}`}>
+                  <FormLabel className={`${customStyles.label} text-md`}>How would you best describe this product?</FormLabel>
                   <FormControl>
                     <Textarea {...field} disabled={isPending} placeholder='This product is great because I made it myself' className={`${customStyles.input} h-40 text-wrap no-underline`} spellCheck='false' />
                   </FormControl>
@@ -411,8 +436,8 @@ export const MyProductCreationForm = () => {
               )}
               />
               <FormField control={form.control} name='price' render={({ field }) => (
-                <FormItem className={`${customStyles.item}`}>
-                  <FormLabel className={`${customStyles.label}`}>Price</FormLabel>
+                <FormItem className={`${customStyles.itemHoverEffect}`}>
+                  <FormLabel className={`${customStyles.label} text-md`}>What should be the price of a single unit of this product?</FormLabel>
                   <FormControl>
                     <div className={'relative w-full items-end'}>
                       <div className={`pointer-events-none absolute inset-y-0 right-2 flex items-center pl-3`}>
@@ -439,7 +464,7 @@ export const MyProductCreationForm = () => {
               />
               <FormField control={form.control} name='userId' render={({ field }) => (
                 <FormItem className={`${customStyles.itemRole}`}>
-                  <FormLabel className={`${customStyles.label}`}>UserID</FormLabel>
+                  <FormLabel className={`${customStyles.label}`}>Whats the UserID of the actor that is creating this product?</FormLabel>
                   <FormControl>
                     <Input {...field} disabled={clientUser?.role === UserRole.ADMIN ? isPending : true} value={clientUser?.role === UserRole.ADMIN ? uId : clientUser?.id} onChange={e => setUId(e.target.value)} placeholder='Your Id' type='text' className={`${customStyles.input}`} spellCheck='false' />
                   </FormControl>
@@ -447,9 +472,9 @@ export const MyProductCreationForm = () => {
                 </FormItem>
               )}
               />
-              <div className={`flex flex-col gap-4 justify-center items-start w-full`}>
+              <div className={`hover:bg-black/30 p-2 rounded flex flex-col gap-4 justify-center items-start w-full`}>
                 <FormLabel htmlFor='checkbox-isCompanyProduct' className={`${customStyles.label} text-md`}>
-                  Is this a Company product?
+                  Should this product be posted on behalf of a Company?
                 </FormLabel>
                 <label
                   htmlFor='checkbox-isCompanyProduct'
@@ -462,7 +487,7 @@ export const MyProductCreationForm = () => {
                 >
                   <div className={'flex gap-4 justify-start items-center'}>
                     <input
-                      className={`${customStyles.input} group-hover:bg-slate-200`}
+                      className={`${customStyles.inputCheckbox} group-hover:bg-slate-200`}
                       type="checkbox"
                       id={`checkbox-isCompanyProduct`}
                       checked={isCompanyProduct}
@@ -477,9 +502,9 @@ export const MyProductCreationForm = () => {
                   <UserCompanyPermission permissionTag="CAN_POST_PRODUCT_POSITION_PERMISSION" onCompanySelect={handleCompanySelect} />
                 }
               </div>
-              <div className={`flex flex-col gap-4 justify-center items-start w-full`}>
+              <div className={`hover:bg-black/30 p-2 rounded flex flex-col gap-4 justify-center items-start w-full`}>
                 <FormLabel htmlFor='checkbox-isPhysicalProduct' className={`${customStyles.label} text-md`}>
-                  Is this a physical product?
+                  Is the product a real world asset and requires shipping?
                 </FormLabel>
                 <label
                   htmlFor='checkbox-isPhysicalProduct'
@@ -492,7 +517,7 @@ export const MyProductCreationForm = () => {
                 >
                   <div className={'flex gap-4 justify-start items-center'}>
                     <input
-                      className={`${customStyles.input} group-hover:bg-slate-200`}
+                      className={`${customStyles.inputCheckbox} group-hover:bg-slate-200`}
                       type="checkbox"
                       id={`checkbox-isPhysicalProduct`}
                       checked={isPhysicalProduct}
@@ -504,27 +529,33 @@ export const MyProductCreationForm = () => {
                   </div>
                 </label>
                 {isPhysicalProduct === true && (
-                  <div>
+                  <div className='w-full'>
                     {warehouseLocations.length > 0 && (
-                      <div>
-                        <FormLabel className={`${customStyles.label}`}>Select Warehouse Locations </FormLabel>
-                        {warehouseLocations.map((location, index) => (
-                          <div key={index} className='flex items-center'>
-                            <input
-                              type='checkbox'
-                              value={location.postalCode}
-                              checked={postalCodes.includes(location.postalCode)}
-                              onChange={handleSelectWarehouseLocation}
-                              className='mr-2'
-                            />
-                            <label>{`${location.postalCode} - ${location.city}`}</label>
-                          </div>
-                        ))}
+                      <div className=''>
+                        <FormLabel className={`${customStyles.label}`}>Select one or multiple warehouses from company registred locations</FormLabel>
+                        <div className='flex flex-wrap gap-2'>
+                          {warehouseLocations.map((location, index) => (
+                            <div key={index} className={`border disabled:bg-white/60 bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out group flex justify-start items-center`} onClick={() => handleSelectWarehouseLocation(location.postalCode)}>
+                              <div className='flex gap-2 justify-start items-center py-2 px-4'>
+                                <input
+                                  type='checkbox'
+                                  value={location.postalCode}
+                                  checked={postalCodes.includes(location.postalCode)}
+                                  onChange={() => handleSelectWarehouseLocation(location.postalCode)}
+                                  className={`${customStyles.inputCheckbox} h-[15px] w-[15px] group-hover:bg-slate-200`}
+                                  onClick={(e) => e.stopPropagation()} // Prevent the parent click event from firing
+                                />
+                                <label className=''>{`${location.postalCode} - ${location.city}`}</label>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
+                    {isCompanyProduct === false && 
                     <FormField control={form.control} name='shipFromPostalId' render={({ field }) => (
                       <FormItem className={`${customStyles.item}`}>
-                        <FormLabel className={`${customStyles.label}`}>Additional Warehouse Postal Code</FormLabel>
+                        <FormLabel className={`${customStyles.label}`}>Enter warehouse postal code</FormLabel>
                         <FormControl>
                           <Input {...field} id='postalCode'
                             disabled={isPending}
@@ -542,8 +573,9 @@ export const MyProductCreationForm = () => {
                         </FormControl>
                         <FormMessage />
                       </FormItem>
-                    )}
+                      )}
                     />
+                    }
                     {warehouseLocationError && (
                       <p className="text-red-600 dark:text-red-400">{warehouseLocationError}</p>
                     )}
@@ -567,7 +599,7 @@ export const MyProductCreationForm = () => {
                 )}
               </div>
               <FormField control={form.control} name='specifications' render={({ field }) => (
-              <FormItem className={`${customStyles.item}`}>
+              <FormItem className={`${customStyles.itemHoverEffect}`}>
                 <FormLabel className={`${customStyles.label}`}>Specifications</FormLabel>
                 <FormControl>
                   <div>
@@ -615,7 +647,7 @@ export const MyProductCreationForm = () => {
             )}
             />
             <FormField control={form.control} name='quantity' render={({ field }) => (
-              <FormItem className={`${customStyles.item}`}>
+              <FormItem className={`${customStyles.itemHoverEffect}`}>
                 <FormLabel className={`${customStyles.label}`}>Quantity</FormLabel>
                 <FormControl>
                   <Input

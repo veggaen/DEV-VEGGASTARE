@@ -1,35 +1,53 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { dbPrisma } from '@/lib/db';
+'use client';
 
-export async function GET(req: NextRequest) {
-    try {
-        const { searchParams } = new URL(req.url);
-        const ids = searchParams.getAll('id');
-        
-        if (!ids || ids.length !== 2) {
-            return new NextResponse(JSON.stringify({ message: 'Invalid request parameters' }), { status: 400 });
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+
+const WarehouseInventory = () => {
+    const router = useRouter();
+    const { companyId, warehouseId } = router.query;
+
+    const [warehouse, setWarehouse] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchWarehouseDetails = async () => {
+            try {
+                const response = await fetch(`/api/companies/warehouses/${companyId}/${warehouseId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch warehouse details');
+                }
+                const data = await response.json();
+                setWarehouse(data);
+            } catch (error) {
+                console.error('Error fetching warehouse details:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (companyId && warehouseId) {
+            fetchWarehouseDetails();
         }
+    }, [companyId, warehouseId]);
 
-        const [companyId, warehouseId] = ids;
+    if (loading) return <div>Loading...</div>;
+    if (!warehouse) return <div>Warehouse not found.</div>;
 
-        const warehouse = await dbPrisma.warehouseLocation.findUnique({
-            where: { id: warehouseId },
-            include: {
-                inventory: {
-                    include: {
-                        product: true,
-                    },
-                },
-            },
-        });
+    return (
+        <div className="p-6">
+            <h1 className="text-2xl font-bold mb-4">{warehouse.title} Inventory</h1>
+            <ul>
+                {warehouse.inventory.map(item => (
+                    <li key={item.id} className="mb-2">
+                        <p>Product: {item.product.title}</p>
+                        <p>Initial Quantity: {item.quantity}</p>
+                        <p>Current Stock: {item.stock}</p>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+};
 
-        if (!warehouse) {
-            return new NextResponse(JSON.stringify({ message: 'Warehouse not found' }), { status: 404 });
-        }
-
-        return new NextResponse(JSON.stringify(warehouse), { status: 200 });
-    } catch (error) {
-        console.error('Error fetching warehouse details:', error);
-        return new NextResponse(JSON.stringify({ message: 'Internal Server Error' }), { status: 500 });
-    }
-}
+export default WarehouseInventory;

@@ -56,11 +56,11 @@ const UserCompanyPermission: React.FC<UserCompanyPermissionProps> = ({ permissio
 
         if (Array.isArray(data)) {
           setCompanies(data);
-          if (data.length === 1) {
-            // Automatically select the single company if only one is available
-            const singleCompanyId = data[0].id;
-            setSelectedCompanyId(singleCompanyId);
-            handleCompanySelect(singleCompanyId);
+          if (data.length > 0) {
+            // Automatically select the first company if available
+            const firstCompanyId = data[0].id;
+            setSelectedCompanyId(firstCompanyId);
+            handleCompanySelect(firstCompanyId);
           }
         } else {
           console.error('Expected an array for companies, received:', data);
