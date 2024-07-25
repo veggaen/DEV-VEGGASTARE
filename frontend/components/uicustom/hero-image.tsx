@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useTheme } from "next-themes";
 import Image from "next/image";
@@ -11,17 +11,15 @@ export default function MyHeroImage() {
     useEffect(() => {
         let src;
         switch (resolvedTheme) {
-          case 'light':
-            src = '/source/bg_main_light.webp'
-            //src = '/magicsnowboardridegirl.webp'
-          break
-          case 'dark':
-            src = '/source/bg_main_dark.webp'
-            //src = '/magicsnowboardridegirl2.webp'
-          break
-          default:
-            src = `https://images.unsplash.com/photo-1609480222756-28f49d1beeda?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D`
-          break
+            case 'light':
+                src = '/source/bg_main_light_03.webp';
+                break;
+            case 'dark':
+                src = '/source/bg_main_dark_04.webp';
+                break;
+            default:
+                src = 'https://images.unsplash.com/photo-1609480222756-28f49d1beeda?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
+                break;
         }
         setImageSrc(src);
     }, [resolvedTheme]);
@@ -31,16 +29,14 @@ export default function MyHeroImage() {
     }
 
     return (
-        <div className="HomeBannerContainer w-full items-center text-sm lg:flex">
-      <Image
-          className='2xl:rounded-md'
-          src={imageSrc}
-          alt={`Homehero`}
-          width={1920}
-          height={1080}
-          id="home-hero-image"
-          priority
-        />
-      </div>
+        <div className="absolute inset-0 w-full h-full z-0">
+            <Image
+                className='object-cover w-full h-full'
+                src={imageSrc}
+                alt={`Homehero`}
+                layout="fill"
+                priority
+            />
+        </div>
     );
 }

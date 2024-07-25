@@ -1,13 +1,19 @@
 
 
-import { Product as PrismaProduct, Inventory, WarehouseLocation } from "@prisma/client";
+import { Product as PrismaProduct } from '@prisma/client';
 import { getProductById } from '@/data/products';
+
 import { MyProductSingle } from '@/components/uicustom/product/product-single';
 
+// Extend the Product type from Prisma to adjust for the frontend use
 interface Product extends Omit<PrismaProduct, 'specifications'> {
-  specifications?: Specification[] | null;
-  inventory: Inventory[];
-  warehouseLocations: WarehouseLocation[];
+  specifications: Specification[] | null; // Adjust according to your actual specifications structure
+}
+
+// Example Specification type (adjust according to your actual data)
+interface Specification {
+  key: string;
+  value: string;
 }
 
 const ProductPage = async ({ params }: { params: any }) => {

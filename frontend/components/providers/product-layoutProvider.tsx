@@ -37,10 +37,10 @@ const toggleSidebar = (e: React.MouseEvent<HTMLButtonElement>) => {
 };
 
   return (
-    <div className={`productProvider ${isSidebarOpen ? 'flex' : 'flex'} w-screen h-screen`}>
+    <div className={`productProvider ${isSidebarOpen ? 'flex' : 'flex'} w-full h-full`}>
       
-      <div className={`${isSidebarOpen ? 'w-full md:w-[360px] md:max-w-[360px]' : 'absolute z-10 top-1 left-1'}`}>
-        <div>
+      <div className={`${isSidebarOpen ? 'w-full md:w-[360px] md:max-w-[360px]' : 'absolute z-10 top-0 left-1 bottom-0'}`}>
+        <div className=''>
           <button onClick={toggleSidebar} className={`sidebar-toggle-btn w-full ${isSidebarOpen ? 'rounded-tr-lg bg-slate-300 dark:bg-slate-950' : 'rounded-r'}`}>
             {isSidebarOpen ? (
               <div className={`flex justify-start items-center h-[56px]`}>
