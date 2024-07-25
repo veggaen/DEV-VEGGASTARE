@@ -61,7 +61,7 @@ const MyCompanies = () => {
       <h2 className="text-xl font-bold dark:text-white mb-4">My Companies</h2>
       <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
         {companies.map((company) => (
-          <div key={company.id} className="group flex flex-col hover:shadow-lg transition-shadow duration-300 rounded hover:bg-blue-500/30 p-2">
+          <div key={company.id} className="group flex flex-col hover:shadow-lg transition-shadow duration-100 rounded hover:bg-blue-500/30 p-2">
             <div className="rounded-t-lg">
               <AspectRatio ratio={1 / 1}>
                 <Link href={`/nexus/company/${company.id}`} passHref>
@@ -74,9 +74,9 @@ const MyCompanies = () => {
                 <h3 className="text-lg font-bold dark:text-indigo-400 text-indigo-600 text-pretty">{company.name}</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 text-pretty px-2 h-fit">{company.description ? truncateDescription(company.description) : ''}</p>
               </div>
-              <div className="flex justify-between items-center gap-1">
-                <Link href={`/nexus/company/${company.id}`} passHref>
-                  <Button variant='vegaNormalBtn' className="bg-black/10 dark:bg-black/10 font-semibold">View Company</Button>
+              <div className="flex justify-between items-center my-2 sm:mt-4 gap-2">
+                <Link href={`/nexus/company/${company.id}`} passHref className='w-full'>
+                  <Button variant='vegaNormalBtn' className="bg-black/10 dark:bg-black/10 font-semibold w-full">View Company</Button>
                 </Link>
                 {permissions[company.id] && permissions[company.id].CAN_DELETE_COMPANY && (
                   <DeleteCompanyBtn

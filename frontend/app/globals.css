@@ -131,18 +131,18 @@ body {
 body.light-mode {
   background-image: linear-gradient(
     45deg,
-    rgb(93, 119, 145) 0%, /* Start color */
+    rgb(120, 152, 184) 0%, /* Start color */
     #e2f0e3 50%, /* Mid color */
-    rgb(93, 119, 145) 100% /* End color - same as start for seamless transition */
+    rgb(120, 152, 184) 100% /* End color - same as start for seamless transition */
   );
 }
 
 body.dark-mode {
   background-image: linear-gradient(
     45deg,
-    rgb(21, 48, 88) 0%, /* Start color */
-    #2e3541 50%, /* Mid color */
-    rgb(21, 48, 88) 100% /* End color - same as start for seamless transition */
+    rgb(16, 37, 68) 0%, /* Start color */
+    #1e232b 50%, /* Mid color */
+    rgb(16, 37, 68) 100% /* End color - same as start for seamless transition */
   );
 }
 

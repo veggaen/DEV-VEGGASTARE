@@ -1,19 +1,15 @@
+import { NextResponse } from 'next/server';
+import { fetchProductsWithDetails } from '@/actions/fetch-products-with-details';
 
-// pages/api/products/products.ts
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { dbPrisma } from '../../../lib/db'; // Adjust the import path as needed
+const LOG_PREFIX = '[frontend/app/api/products/route.ts]';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse): Promise<void>  {
-  if (req.method === 'GET') {
-    try {
-      const products = await dbPrisma.product.findMany(); // Adjust 'product' to match your Prisma model name
-      res.status(200).json(products);
-    } catch (error) {
-      console.error('Failed to fetch products:', error);
-      res.status(500).json({ error: 'Failed to fetch products' });
-    }
-  } else {
-    res.setHeader('Allow', ['GET']);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+export const GET = async () => {
+  try {
+    const products = await fetchProductsWithDetails();
+    console.log(`${LOG_PREFIX} Successfully fetched products`);
+    return NextResponse.json(products, { status: 200 });
+  } catch (error) {
+    console.error(`${LOG_PREFIX} Failed to fetch products:`, error);
+    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
   }
-}
+};

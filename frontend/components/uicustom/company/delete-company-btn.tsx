@@ -83,7 +83,7 @@ const DeleteCompanyBtn = ({ companyId, companyName, onCompanyDeleted, employeePe
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={confirmDelete} variant="destructive" disabled={deleting}>
+            <Button onClick={confirmDelete} variant="destructive" disabled={deleting} className=''>
               {deleting ? 'Deleting...' : 'Delete'}
             </Button>
             <DialogClose asChild>
