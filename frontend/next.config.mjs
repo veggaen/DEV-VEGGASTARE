@@ -51,6 +51,18 @@ const nextConfig = {
                 port: '3001',
                 pathname: '**',
             },
+            {
+                protocol: 'http',
+                hostname: 'localhost',
+                port: '3002',
+                pathname: '**',
+            },
+            {
+                protocol: 'http',
+                hostname: 'localhost:3002/events',
+                port: '3002',
+                pathname: '**',
+            },
         ],
     },
 };

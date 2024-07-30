@@ -1,21 +1,25 @@
-// frontend/app/api/products/[...id].ts
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { dbPrisma } from '../../../../lib/db';
+import { fetchProductById } from '@/actions/fetch-product-by-id';
+import { NextResponse } from 'next/server';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
-  console.log('frontend/app/app/products/[...id].ts', req)
-  switch (req.method) {
-    case 'GET':
-      try {
-        const products = await dbPrisma.product.findMany();
-        res.status(200).json(products);
-      } catch (error) {
-        console.error('Failed to fetch products:', error);
-        res.status(500).json({ error: 'Failed to fetch products' });
-      }
-      break;
-    default:
-      res.setHeader('Allow', ['GET']);
-      res.status(405).end(`Method ${req.method} Not Allowed`);
+
+export async function GET(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').pop(); // Extract the ID from the URL
+
+  if (!id) {
+    return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
+  }
+
+  try {
+    const product = await fetchProductById(id);
+
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(product);
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

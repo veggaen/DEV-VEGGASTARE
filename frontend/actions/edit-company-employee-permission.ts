@@ -1,5 +1,5 @@
 'use server';
-import { ExtendedEmployee } from '@/app/(protected)/nexus/company/[...id]/page';
+
 import { dbPrisma } from '@/lib/db';
 import { ExtendedUser } from '@/next-auth';
 import { Prisma, PrismaClient, Employee } from '@prisma/client';
@@ -29,6 +29,14 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+interface ExtendedEmployee {
+  id:           string;
+  userId:       string;
+  role:         string;
+  permissions:  EmployeePermissions | null;
+
+}
+
 const prisma = new PrismaClient();
 
 const LOG_PREFIX = '[frontend/actions/edit-company-employee-permission.tsx]'
@@ -50,7 +58,7 @@ export async function editCompanyEmployeePermissionAction(
 
       
       // Fetch the employee data for the employee matching the clientUser.id
-      const clientUserEmployeeData = await dbPrisma.employee.findFirst({
+      const clientUserEmployeeData: ExtendedEmployee | null = await dbPrisma.employee.findFirst({
       where: {
         userId: clientUser.id,
         companyId: company.id,

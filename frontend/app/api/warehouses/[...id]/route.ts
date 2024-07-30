@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    console.log('GET warehouse details for ID:', id);
+    console.log('[frontend/app/api/warehouses/[...id]/route.ts] GET warehouse details for ID:', id);
     const warehouse = await dbPrisma.warehouseLocation.findUnique({
       where: { id: id },
       include: {
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     });
 
     if (!warehouse) {
-      console.log('Warehouse not found for ID:', id);
+      console.log('[frontend/app/api/warehouses/[...id]/route.ts] Warehouse not found for ID:', id);
       return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 });
     }
 
@@ -35,10 +35,10 @@ export async function GET(req: NextRequest) {
       })),
     };
 
-    console.log('Fetched warehouse details:', warehouseDetails);
+    console.log('[frontend/app/api/warehouses/[...id]/route.ts] Fetched warehouse details:', warehouseDetails);
     return NextResponse.json(warehouseDetails, { status: 200 });
   } catch (error) {
-    console.error('Error fetching warehouse details:', error);
+    console.error('[frontend/app/api/warehouses/[...id]/route.ts] Error fetching warehouse details:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

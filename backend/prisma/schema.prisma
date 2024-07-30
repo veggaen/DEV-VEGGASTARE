@@ -1,0 +1,274 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_NEON")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  USER
+}
+
+model User {
+  id                    String                 @id @default(cuid())
+  name                  String?
+  email                 String?                @unique
+  emailVerified         DateTime?
+  image                 String?
+  password              String?
+  referredBy            String?
+  role                  UserRole               @default(USER)
+  accounts              Account[]
+  productsListed        Product[]              @relation("ProductsListed")
+  reviews               Review[]
+  isTwoFactorEnabled    Boolean                @default(false)
+  twoFactorConfirmation TwoFactorConfirmation?
+  createdCompanies      Company[]              @relation("Creator") // Relation field for companies created by the user
+  ownedCompanies        Company[]              @relation("Owner") // Relation field for companies owned by the user
+  Employee              Employee[]
+  Package               Package[]
+  warehouseLocations    WarehouseLocation[]    @relation("UserWarehouses")
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model VerificationToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model PasswordResetToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model TwoFactorToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model TwoFactorConfirmation {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+}
+
+// PRODUCTS RELATED
+model Product {
+  id              String   @id @default(cuid())
+  title           String
+  description     String
+  category        String
+  price           Float
+  stock           Int
+  shipFromPostalId String
+  image           String[]
+  specifications  Json?
+  userId          String
+  user            User      @relation("ProductsListed", fields: [userId], references: [id])
+  companyId       String?
+  company         Company?  @relation("CompanyProducts", fields: [companyId], references: [id])
+  inventory       Inventory[]
+  shippingDetails ShippingDetails[]
+  reviews         Review[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Inventory {
+  id          String   @id @default(cuid())
+  quantity    Int
+  stock       Int      @default(0) // Add stock field
+  warehouseId String
+  productId   String
+  warehouse   WarehouseLocation @relation(fields: [warehouseId], references: [id])
+  product     Product           @relation(fields: [productId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SpecificationsDetails {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ShippingDetails {
+  id        String   @id @default(cuid())
+  method    String
+  price     Float
+  regions   String[]
+  productId String
+  product   Product? @relation(fields: [productId], references: [id]) // Make this optional
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  authorName String?
+  rating     Float
+  comment    String
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+}
+
+// Company Related
+model Company {
+  id                 String              @id @default(cuid())
+  name               String
+  description        String?
+  websiteUrl         String?
+  logo               String[]
+  bannerImage        String[]
+  colorScheme        String?
+  creatorId          String
+  ownerId            String
+  creator            User                @relation("Creator", fields: [creatorId], references: [id])
+  owner              User                @relation("Owner", fields: [ownerId], references: [id])
+  employees          Employee[]
+  usesShipping       Boolean             @default(false)
+  warehouseLocations WarehouseLocation[] @relation("CompanyWarehouses")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  Sale               Sale[]
+  MonthlyReport      MonthlyReport[]
+  Package            Package[]
+  Product            Product[]           @relation("CompanyProducts")
+}
+
+model Employee {
+  id          String       @id @default(cuid())
+  userId      String
+  companyId   String
+  user        User         @relation(fields: [userId], references: [id])
+  company     Company      @relation(fields: [companyId], references: [id])
+  role        EmployeeRole
+  permissions Json // This can be an array of permissions or roles
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model WarehouseLocation {
+  id         String    @id @default(cuid())
+  userId     String?
+  companyId  String?
+  postalCode String
+  address    String
+  city       String
+  country    String
+  latitude   Float?
+  longitude  Float?
+  inventory  Inventory[]
+
+  user       User?     @relation("UserWarehouses", fields: [userId], references: [id])
+  company    Company?  @relation("CompanyWarehouses", fields: [companyId], references: [id])
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([companyId, postalCode])
+}
+
+enum EmployeeRole {
+  OWNER
+  MANAGER
+  STAFF
+  USER
+}
+
+// Company Business Analytics related
+model Sale {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  date         DateTime
+  totalAmount  Float
+  profit       Float
+  productsSold Json // Could detail products sold, quantities, and prices
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model MonthlyReport {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id])
+  year           Int
+  month          Int
+  totalSales     Float
+  totalProfit    Float
+  productSummary Json // Summary of products sold in the month
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// Company Shipping related
+model Package {
+  id                String        @id @default(cuid())
+  trackingNumber    String
+  companyId         String
+  company           Company       @relation(fields: [companyId], references: [id])
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  status            PackageStatus
+  estimatedDelivery DateTime?
+  history           Json // Could detail the tracking history as provided by Bring API
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+enum PackageStatus {
+  PENDING
+  IN_TRANSIT
+  DELIVERED
+  EXCEPTION
+}

@@ -10,7 +10,7 @@ export const MyNavbarProducts = () => {
     const pathname = usePathname();
 
     return (
-      <nav className="bg-secondary flex justify-center items-center p-4 rounded-xl w-[90%] m-4 shadow-sm">
+      <nav className="bg-secondary flex justify-center items-center p-4 rounded-xl w-[calc(100%+1rem)] m-4 shadow-sm">
         <div className="flex flex-wrap gap-1 justify-center w-full md:flex-row gap-x-2">
           <Button asChild variant={pathname === '/products' ? 'vegaEmeraldBtn' : 'vegaNormalBtn'} className="hover:shadow-md transition-shadow duration-300">
             <Link href='/products'>Discovery</Link>
