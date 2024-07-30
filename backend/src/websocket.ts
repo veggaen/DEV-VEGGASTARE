@@ -1,48 +1,66 @@
-import { WebSocketServer, WebSocket } from 'ws';
-import { dbbPrisma } from './db';
+import { Server as SocketIOServer } from 'socket.io';
+import { Server as HttpServer } from 'http';
+import { PrismaClient } from '@prisma/client';
+import { setupKeepAlive } from './utils/keepAlive'; // Import the keep-alive module
 
-let wss: WebSocketServer;
-const LOG_PREFIX = '[backend/src/websocket.ts]'
-export const initWebSocketServer = (port: number) => {
-  wss = new WebSocketServer({ port });
+let io: SocketIOServer;
+const prisma = new PrismaClient();
+const LOG_PREFIX = '[backend/src/websocket.ts]';
 
-  wss.on('connection', (ws: WebSocket) => {
-    console.log(LOG_PREFIX, '[WebSocket Server] Client connected');
+export const initWebSocketServer = (server: HttpServer) => {
+  io = new SocketIOServer(server, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST'],
+    },
+  });
 
-    ws.on('close', () => {
-      console.log(LOG_PREFIX, '[WebSocket Server] Client disconnected');
+  io.on('connection', (socket) => {
+    console.log(LOG_PREFIX, '[Socket.IO] Client connected', socket.id);
+
+    // Setup keep-alive for this socket
+    setupKeepAlive(socket);
+
+    socket.on('disconnect', (reason) => {
+      console.log(LOG_PREFIX, '[Socket.IO] Client disconnected:', reason, socket.id);
+    });
+
+    socket.on('UPDATE_WAREHOUSES', async () => {
+      console.log(LOG_PREFIX, '[Socket.IO] Received UPDATE_WAREHOUSES event from', socket.id);
+      await broadcastWarehousesUpdate();
+    });
+
+    socket.on('error', (error) => {
+      console.error(LOG_PREFIX, '[Socket.IO] Error from', socket.id, ':', error);
+    });
+
+    // Additional event logging
+    socket.onAny((event, ...args) => {
+      console.log(LOG_PREFIX, '[Socket.IO] Event received:', event, 'from', socket.id, 'with args:', args);
     });
   });
 
-  console.log(LOG_PREFIX, `[WebSocket Server] Listening on port ${port}`);
+  console.log(LOG_PREFIX, '[Socket.IO] WebSocket Server initialized');
 };
 
-export const broadcast = async (warehouseId: string) => {
-    try {
-      const updatedWarehouse = await dbbPrisma.warehouseLocation.findUnique({
-        where: {
-          id: warehouseId, // Ensure this is passed correctly
-        },
-        include: {
-          inventory: {
-            include: {
-              product: true,
-            },
+export const broadcastWarehousesUpdate = async () => {
+  try {
+    const warehouses = await prisma.warehouseLocation.findMany({
+      include: {
+        inventory: {
+          include: {
+            product: true,
           },
         },
-      });
-  
-      const payload = {
-        type: 'WAREHOUSES_UPDATE',
-        payload: updatedWarehouse,
-      };
-      console.log(LOG_PREFIX, '[WebSocket Server] Broadcasting message:', payload);
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify(payload));
-        }
-      });
-    } catch (error) {
-      console.error('[WebSocket Server] Error broadcasting warehouses:', error);
-    }
-  };
+      },
+    });
+    const payload = {
+      type: 'WAREHOUSES_UPDATE',
+      payload: warehouses,
+    };
+    console.log(LOG_PREFIX, '[Socket.IO] Broadcasting message:', JSON.stringify(payload, null, 2));
+    io.emit('WAREHOUSES_UPDATE', payload);
+  } catch (error) {
+    console.error(LOG_PREFIX, '[Socket.IO] Error broadcasting warehouses:', error);
+  }
+};

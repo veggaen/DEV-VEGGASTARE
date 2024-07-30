@@ -1,39 +1,43 @@
-'use client';
+import { useEffect } from 'react';
+import { io } from 'socket.io-client';
 
-import { useEffect, useRef } from 'react';
 const LOG_PREFIX = '[frontend/hooks/useWebSocket.ts]';
 
 export const useWebSocket = (onMessage: (data: any) => void) => {
-  const ws = useRef<WebSocket | null>(null);
-
   useEffect(() => {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
-    ws.current = new WebSocket(wsUrl !!);
+    const wsUrl = process.env.NODE_ENV === 'production'
+      ? 'https://dev-veggastare.vercel.app'
+      : 'http://localhost:3002';
+    
+    console.log(LOG_PREFIX, 'Connecting to WebSocket server:', wsUrl);
+    const socket = io(wsUrl, {
+      transports: ['websocket'],
+    });
 
-    ws.current.onopen = () => {
-      console.log(LOG_PREFIX, '[WebSocket] Connection opened');
-    };
+    socket.on('connect', () => {
+      console.log(LOG_PREFIX, '[WebSocket] Connection opened', socket.id);
+    });
 
-    ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+    socket.on('disconnect', (reason) => {
+      console.log(LOG_PREFIX, '[WebSocket] Connection closed:', reason, socket.id);
+    });
+
+    socket.on('WAREHOUSES_UPDATE', (data) => {
       console.log(LOG_PREFIX, '[WebSocket] Message received:', data);
       onMessage(data);
-    };
+    });
 
-    ws.current.onclose = () => {
-      console.log(LOG_PREFIX, '[WebSocket] Connection closed');
-    };
+    socket.on('connect_error', (error) => {
+      console.error(LOG_PREFIX, '[WebSocket] Connection error:', error);
+    });
 
-    ws.current.onerror = (error) => {
+    socket.on('error', (error) => {
       console.error(LOG_PREFIX, '[WebSocket] Error:', error);
-    };
+    });
 
     return () => {
-      if (ws.current) {
-        ws.current.close();
-      }
+      console.log(LOG_PREFIX, 'Closing WebSocket connection', socket.id);
+      socket.disconnect();
     };
   }, [onMessage]);
-
-  return ws.current;
 };

@@ -22,11 +22,11 @@ export async function fetchUserEmployeePermissions(clientUser: any, companyId: s
             companyId: companyId,
         },
       });
-  
+      
       if (!employee) {
         throw new Error('employee Permissions not found.');
       }
-  
+      console.log('todo: remove me:', employee)
       console.log(`Permissions SUCCESS fetched for employee ${clientUser.name}:`, employee.id);
       return employee.permissions;
     } catch (error) {

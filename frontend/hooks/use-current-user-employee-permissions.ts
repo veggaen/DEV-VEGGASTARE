@@ -1,7 +1,7 @@
 import { fetchUserEmployeePermissions } from '@/actions/user-company-permissions';
 import { useState, useEffect } from 'react';
 
-export function useCurrentUserEmployeeCheckPermission(clientUser, companyId, permissionTag) {
+export function useCurrentUserEmployeeCheckPermission(clientUser: any, companyId: string, permissionTag: string) {
     const [permissions, setPermissions] = useState(null);
     const [isPermissionAvailable, setIsPermissionAvailable] = useState(false);
     const [isLoading, setIsLoading] = useState(true);

@@ -63,6 +63,12 @@ const nextConfig = {
                 port: '3002',
                 pathname: '**',
             },
+            {
+                protocol: 'http',
+                hostname: 'wss://ws-eu.pusher.com/app/692749F746AD7FD1178DC19BF658BDC9D5E05C3C8C3B91A818686EDBBF7F743A?protocol=7&client=js&version=8.4.0-rc2&flash=false',
+                port: '*',
+                pathname: '**',
+            }
         ],
     },
 };

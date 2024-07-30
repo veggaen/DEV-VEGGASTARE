@@ -26,6 +26,7 @@ const WarehouseDetail = () => {
       const data = await fetchWarehouseById(warehouseId);
       setWarehouse(data);
       setPermissionError(null); // Clear any permission error
+      console.log(LOG_PREFIX, 'Fetched warehouse:', data);
     } catch (error) {
       console.error(LOG_PREFIX, 'Failed to fetch warehouse:', (error as Error).message);
       setError((error as Error).message);
@@ -47,6 +48,7 @@ const WarehouseDetail = () => {
       const updatedWarehouse = data.payload.find((wh: any) => wh.id === warehouseId);
       if (updatedWarehouse) {
         setWarehouse(updatedWarehouse);
+        console.log(LOG_PREFIX, '[WebSocket] Warehouse updated:', updatedWarehouse);
       }
     }
   });
@@ -58,11 +60,11 @@ const WarehouseDetail = () => {
         console.log(LOG_PREFIX, 'Warehouse updated successfully');
         getWarehouse(warehouseId as string); // Refresh data after update
       } else {
-        console.error('Failed to update warehouse:', response.message);
+        console.error(LOG_PREFIX, 'Failed to update warehouse:', response.message);
         setPermissionError('Missing permissions for this action');
       }
     } catch (error) {
-      console.error('Failed to update warehouse:', (error as Error).message);
+      console.error(LOG_PREFIX, 'Failed to update warehouse:', (error as Error).message);
       setError((error as Error).message);
     }
   };

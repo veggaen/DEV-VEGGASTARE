@@ -1,8 +1,9 @@
 import { Server } from '@hapi/hapi';
 import { PrismaClient } from '@prisma/client';
-import { broadcast } from './websocket';
+import { broadcastWarehousesUpdate } from './websocket';
 
-const LOG_PREFIX = '[backend/src/routes.ts]'
+const LOG_PREFIX = '[backend/src/routes.ts]';
+
 const registerRoutes = (server: Server, prisma: PrismaClient) => {
   server.route({
     method: 'GET',
@@ -20,7 +21,6 @@ const registerRoutes = (server: Server, prisma: PrismaClient) => {
 
       try {
         console.log(LOG_PREFIX, 'Updating warehouse:', warehouseId, 'inventory:', inventoryId, 'stock:', stock);
-        // Update warehouse inventory
         const updatedWarehouse = await prisma.warehouseLocation.update({
           where: { id: warehouseId },
           data: {
@@ -33,12 +33,11 @@ const registerRoutes = (server: Server, prisma: PrismaClient) => {
           },
         });
 
-        // Broadcast update to all WebSocket clients
-        broadcast('UPDATE_WAREHOUSES');
+        await broadcastWarehousesUpdate(); // Broadcast update to all WebSocket clients
 
         return h.response('Update broadcasted').code(200);
       } catch (error) {
-        console.error('[Hapi Server] Error updating warehouse:', error);
+        console.error(LOG_PREFIX, '[Hapi Server] Error updating warehouse:', error);
         return h.response('Error updating warehouse').code(500);
       }
     },
