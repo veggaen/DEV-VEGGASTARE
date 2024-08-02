@@ -17,6 +17,8 @@
     "@railway/cli": "^3.11.0",
     "@types/hapi": "^18.0.14",
     "dotenv": "^16.4.5",
+    "pusher": "^5.2.0",
+    "pusher-js": "^8.4.0-rc2",
     "socket.io": "^4.7.5",
     "ws": "^8.18.0"
   },

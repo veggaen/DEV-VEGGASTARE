@@ -1,7 +1,8 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { PrismaClient } from '@prisma/client';
-import { setupKeepAlive } from './utils/keepAlive'; // Import the keep-alive module
+import { setupKeepAlive } from './utils/keepAlive';
+import { triggerEvent } from './pusher';
 
 let io: SocketIOServer;
 const prisma = new PrismaClient();
@@ -60,6 +61,9 @@ export const broadcastWarehousesUpdate = async () => {
     };
     console.log(LOG_PREFIX, '[Socket.IO] Broadcasting message:', JSON.stringify(payload, null, 2));
     io.emit('WAREHOUSES_UPDATE', payload);
+
+    // Trigger Pusher event
+    triggerEvent('MainChannelUpdateWarehouse', 'UPDATE_WAREHOUSES', payload);
   } catch (error) {
     console.error(LOG_PREFIX, '[Socket.IO] Error broadcasting warehouses:', error);
   }

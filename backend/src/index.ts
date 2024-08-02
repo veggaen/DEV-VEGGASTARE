@@ -4,6 +4,7 @@ import { initWebSocketServer } from './websocket';
 import registerRoutes from './routes';
 import dotenv from 'dotenv';
 import http from 'http';
+import { triggerEvent } from './pusher';
 
 dotenv.config();
 
@@ -21,6 +22,16 @@ const init = async () => {
   const httpServer = http.createServer(server.listener);
 
   initWebSocketServer(httpServer);
+
+  server.route({
+    method: 'POST',
+    path: '/api/pusher-trigger',
+    handler: (request, h) => {
+      const { channel, event, data } = request.payload as any;
+      triggerEvent(channel, event, data);
+      return h.response({ status: 'success' }).code(200);
+    },
+  });
 
   await server.start();
   httpServer.listen(process.env.WS_PORT || 3002, () => {

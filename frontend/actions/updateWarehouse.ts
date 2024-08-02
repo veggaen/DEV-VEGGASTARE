@@ -3,13 +3,16 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibRoleAuth } from '@/lib/user-auth';
 import { UserRole } from '@prisma/client';
-import { io } from 'socket.io-client';
+import { pusherServer } from '@/lib/pusher'; // Import the pusherServer
 
 const LOG_PREFIX = '[frontend/actions/updateWarehouse.ts]';
 
 export async function updateWarehouseInventory(warehouseId: string, inventoryId: string, stock: number) {
+  console.log(LOG_PREFIX, 'Starting update for warehouse:', warehouseId, 'inventory:', inventoryId, 'stock:', stock);
+
   try {
     const role = await MyLibRoleAuth();
+    console.log(LOG_PREFIX, 'User role:', role);
 
     if (role !== UserRole.ADMIN) {
       console.log(LOG_PREFIX, 'Warehouse update failed: Missing permissions for user role', role);
@@ -26,35 +29,34 @@ export async function updateWarehouseInventory(warehouseId: string, inventoryId:
           },
         },
       },
+      include: {
+        inventory: {
+          where: { id: inventoryId },
+          include: {
+            product: true,
+          },
+        },
+      },
     });
+
     console.log(LOG_PREFIX, 'Warehouse updated successfully:', updatedWarehouse);
 
-    // Socket.IO message
-    const wsUrl = process.env.NODE_ENV === 'production'
-      ? 'https://dev-veggastare.vercel.app'
-      : 'http://localhost:3002';
-
-    const socket = io(wsUrl, {
-      transports: ['websocket'],
-    });
-
-    socket.on('connect', () => {
-      console.log(LOG_PREFIX, 'Socket.IO connection opened', socket.id);
-      socket.emit('UPDATE_WAREHOUSES');
-      socket.disconnect();
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error(LOG_PREFIX, 'Socket.IO connection error:', error);
-    });
-
-    socket.on('error', (error) => {
-      console.error(LOG_PREFIX, 'Socket.IO error:', error);
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log(LOG_PREFIX, 'Socket.IO connection closed:', reason);
-    });
+    try {
+      const inventoryItem = updatedWarehouse.inventory.find(item => item.id === inventoryId);
+      console.log(LOG_PREFIX, 'Triggering Pusher event for warehouse update');
+      await pusherServer.trigger(`WarehouseChannel_${warehouseId}`, 'my-event-warehouse', {
+        type: 'INVENTORY_UPDATE',
+        payload: {
+          warehouseId,
+          inventoryId,
+          stock,
+          product: inventoryItem?.product,
+        },
+      });
+      console.log(LOG_PREFIX, 'Pusher event triggered successfully');
+    } catch (pusherError) {
+      console.error(LOG_PREFIX, 'Error triggering Pusher event:', pusherError);
+    }
 
     return { status: 200, data: updatedWarehouse };
 

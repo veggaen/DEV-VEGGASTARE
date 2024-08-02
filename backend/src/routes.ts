@@ -33,7 +33,7 @@ const registerRoutes = (server: Server, prisma: PrismaClient) => {
           },
         });
 
-        await broadcastWarehousesUpdate(); // Broadcast update to all WebSocket clients
+        await broadcastWarehousesUpdate(); // Broadcast update to all WebSocket clients and Pusher
 
         return h.response('Update broadcasted').code(200);
       } catch (error) {

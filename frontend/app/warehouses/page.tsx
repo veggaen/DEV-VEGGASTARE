@@ -7,7 +7,8 @@ import { updateWarehouseInventory } from '@/actions/updateWarehouse';
 import { Button } from '@/components/ui/button';
 import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { useWebSocket } from '@/hooks/useWebSocket';
+import Pusher from 'pusher-js';
+import throttle from 'lodash.throttle';
 
 const LOG_PREFIX = '[frontend/app/warehouses/page.tsx]';
 
@@ -18,16 +19,23 @@ const WarehouseOverview = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [permissionError, setPermissionError] = useState<string | null>(null);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showDropdown, setShowDropdown] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const intervalDuration = 3600000; // 60 minutes
 
+  const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+    cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    forceTLS: true,
+  });
+
   const getWarehouses = async () => {
+    console.log(LOG_PREFIX, 'Fetching warehouses');
     try {
       setRefreshing(true);
       const data = await fetchWarehouses();
       setWarehouses(data);
       setPermissionError(null); // Clear any permission error
+      console.log(LOG_PREFIX, 'Fetched warehouses:', data);
     } catch (error) {
       console.error(LOG_PREFIX, 'Failed to fetch warehouses:', (error as Error).message);
       setError((error as Error).message);
@@ -47,31 +55,56 @@ const WarehouseOverview = () => {
     return () => clearInterval(intervalId);
   }, []);
 
-  useWebSocket((data) => {
-    console.log(LOG_PREFIX, '[WebSocket] Message received:', data);
-    if (data.type === 'WAREHOUSES_UPDATE') {
-      console.log(LOG_PREFIX, '[WebSocket] Updating warehouses:', data.payload);
-      setWarehouses(data.payload);
-    }
-  });
+  useEffect(() => {
+    if (showDropdown) {
+      const channelName = `WarehouseChannel_${showDropdown}`;
+      console.log(`${LOG_PREFIX} Subscribing to channel ${channelName}`);
+      const channel = pusherClient.subscribe(channelName);
 
-  const handleStockUpdate = async (warehouseId: string, inventoryId: string, stock: number) => {
+      const eventHandler = (data: any) => {
+        console.log(LOG_PREFIX, '[Pusher] Message received:', data);
+        setWarehouses((prevWarehouses) => {
+          return prevWarehouses.map((warehouse) => {
+            if (warehouse.id === data.payload.warehouseId) {
+              return {
+                ...warehouse,
+                inventory: warehouse.inventory.map((item) =>
+                  item.id === data.payload.inventoryId ? { ...item, stock: data.payload.stock } : item
+                ),
+              };
+            }
+            return warehouse;
+          });
+        });
+      };
+
+      channel.bind('my-event-warehouse', eventHandler);
+
+      return () => {
+        console.log(`${LOG_PREFIX} Unsubscribing from channel ${channelName}`);
+        channel.unbind('my-event-warehouse', eventHandler);
+        pusherClient.unsubscribe(channelName);
+      };
+    }
+  }, [showDropdown]);
+
+  const handleStockUpdate = throttle(async (warehouseId: string, inventoryId: string, stock: number) => {
+    console.log(LOG_PREFIX, 'Updating stock for warehouse:', warehouseId, 'inventory:', inventoryId, 'new stock:', stock);
     startTransition(async () => {
       try {
         const response = await updateWarehouseInventory(warehouseId, inventoryId, stock);
         if (response.status === 200) {
-          console.log(LOG_PREFIX, 'Warehouse updated successfully');
-          getWarehouses(); // Refresh data after update
+          console.log(LOG_PREFIX, 'Warehouse inventory updated successfully');
         } else {
-          console.error('Failed to update warehouse:', response.message);
+          console.error('Failed to update warehouse inventory:', response.message);
           setPermissionError('Missing permissions for this action');
         }
       } catch (error) {
-        console.error('Failed to update warehouse:', (error as Error).message);
+        console.error('Failed to update warehouse inventory:', (error as Error).message);
         setError((error as Error).message);
       }
     });
-  };
+  }, 1000); // Throttle the updates to once every second
 
   const LoadingTimer: FC<{ intervalDuration: number; onRefresh: () => void; refreshing: boolean }> = ({
     intervalDuration,
@@ -161,25 +194,27 @@ const WarehouseOverview = () => {
                     <div className="text-blue-500 dark:text-blue-300 hover:underline">View Details</div>
                   </Link>
                 </div>
-                <Button variant="vegaNormalBtn" className="" onClick={() => setShowDropdown(!showDropdown)}>
-                  {showDropdown ? 'Hide inventory' : 'Show inventory'}
+                <Button variant="vegaNormalBtn" className="" onClick={() => setShowDropdown(showDropdown === warehouse.id ? null : warehouse.id)}>
+                  {showDropdown === warehouse.id ? 'Hide inventory' : 'Show inventory'}
                 </Button>
               </div>
-              <div className={`warehousedropdown ${showDropdown ? 'block' : 'hidden'}`}>
-                <ul>
-                  {warehouse.inventory.map((item: any) => (
-                    <li key={item.id} className="flex justify-between items-center mb-2">
-                      <div>
-                        <strong>{item.product.title}</strong> - Stock: {item.stock}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={() => handleStockUpdate(warehouse.id, item.id, item.stock + 1)}>+</Button>
-                        <Button variant="outline" onClick={() => handleStockUpdate(warehouse.id, item.id, item.stock - 1)}>-</Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {showDropdown === warehouse.id && (
+                <div className="warehousedropdown block">
+                  <ul>
+                    {warehouse.inventory.map((item: any) => (
+                      <li key={item.id} className="flex justify-between items-center mb-2">
+                        <div>
+                          <strong>{item.product.title}</strong> - Stock: {item.stock}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" onClick={() => handleStockUpdate(warehouse.id, item.id, item.stock + 1)}>+</Button>
+                          <Button variant="outline" onClick={() => handleStockUpdate(warehouse.id, item.id, item.stock - 1)}>-</Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           ))}
         </div>

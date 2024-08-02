@@ -50,6 +50,8 @@ const WarehouseDetail = () => {
         setWarehouse(updatedWarehouse);
         console.log(LOG_PREFIX, '[WebSocket] Warehouse updated:', updatedWarehouse);
       }
+    } else {
+      console.log(LOG_PREFIX, '[WebSocket] Unknown message received:', data);
     }
   });
 

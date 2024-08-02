@@ -124,6 +124,7 @@ model Inventory {
   product     Product           @relation(fields: [productId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  version     Int      @default(0)
 }
 
 model SpecificationsDetails {
