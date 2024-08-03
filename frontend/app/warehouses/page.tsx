@@ -24,7 +24,6 @@ interface extendedWarehouse extends WarehouseLocation {
   inventory: InventoryItem[];
 }
 
-
 const WarehouseOverview = () => {
   const clientUser = useCurrentUser();
   const [warehouses, setWarehouses] = useState<extendedWarehouse[]>([]);
@@ -101,11 +100,11 @@ const WarehouseOverview = () => {
     }
   }, [showDropdown]);
 
-  const handleStockUpdate = throttle(async (warehouseId: string, inventoryId: string, stock: number) => {
-    console.log(LOG_PREFIX, 'Updating stock for warehouse:', warehouseId, 'inventory:', inventoryId, 'new stock:', stock);
+  const handleStockUpdate = throttle(async (warehouseId: string, inventoryId: string, action: 'add' | 'subtract') => {
+    console.log(LOG_PREFIX, 'Updating stock for warehouse:', warehouseId, 'inventory:', inventoryId, 'action:', action);
     startTransition(async () => {
       try {
-        const response = await updateWarehouseInventory(warehouseId, inventoryId, stock);
+        const response = await updateWarehouseInventory(warehouseId, inventoryId, action);
         if (response.status === 200) {
           console.log(LOG_PREFIX, 'Warehouse inventory updated successfully');
         } else {
@@ -220,8 +219,8 @@ const WarehouseOverview = () => {
                           <strong>{item.product.title}</strong> - Stock: {item.stock}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" onClick={() => handleStockUpdate(warehouse.id, item.id, item.stock + 1)}>+</Button>
-                          <Button variant="outline" onClick={() => handleStockUpdate(warehouse.id, item.id, item.stock - 1)}>-</Button>
+                          <Button variant="outline" onClick={() => handleStockUpdate(warehouse.id, item.id, 'add')}>+</Button>
+                          <Button variant="outline" onClick={() => handleStockUpdate(warehouse.id, item.id, 'subtract')}>-</Button>
                         </div>
                       </li>
                     ))}

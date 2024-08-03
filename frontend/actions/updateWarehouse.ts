@@ -7,8 +7,8 @@ import { pusherServer } from '@/lib/pusher';
 
 const LOG_PREFIX = '[frontend/actions/updateWarehouse.ts]';
 
-export async function updateWarehouseInventory(warehouseId: string, inventoryId: string, stock: number) {
-  console.log(LOG_PREFIX, 'Starting update for warehouse:', warehouseId, 'inventory:', inventoryId, 'stock:', stock);
+export async function updateWarehouseInventory(warehouseId: string, inventoryId: string, action: 'add' | 'subtract') {
+  console.log(LOG_PREFIX, 'Starting update for warehouse:', warehouseId, 'inventory:', inventoryId, 'action:', action);
 
   try {
     const role = await MyLibRoleAuth();
@@ -22,17 +22,19 @@ export async function updateWarehouseInventory(warehouseId: string, inventoryId:
     const updatedInventory = await dbPrisma.$transaction(async (prisma) => {
       const inventory = await prisma.inventory.findUnique({
         where: { id: inventoryId },
-        select: { version: true },
+        select: { version: true, stock: true },
       });
 
       if (!inventory) {
         throw new Error('Inventory item not found');
       }
 
+      const newStock = action === 'add' ? inventory.stock + 1 : inventory.stock - 1;
+
       const newInventory = await prisma.inventory.update({
         where: { id_version: { id: inventoryId, version: inventory.version } },
         data: {
-          stock,
+          stock: newStock,
           version: inventory.version + 1,
         },
       });
@@ -62,7 +64,7 @@ export async function updateWarehouseInventory(warehouseId: string, inventoryId:
         payload: {
           warehouseId,
           inventoryId,
-          stock,
+          stock: updatedInventory?.stock,
           version: updatedInventory?.version,
           product: {
             id: updatedInventory?.product?.id,

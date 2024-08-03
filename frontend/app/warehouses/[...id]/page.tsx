@@ -79,11 +79,11 @@ const WarehouseDetails = ({ params }: { params: { id: string } }) => {
     }
   }, 500)); // Debounce state updates
 
-  const handleStockUpdate = throttle(async (inventoryId: string, stock: number) => {
-    console.log(LOG_PREFIX, 'Updating stock for inventory:', inventoryId, 'new stock:', stock);
+  const handleStockUpdate = throttle(async (inventoryId: string, action: 'add' | 'subtract') => {
+    console.log(LOG_PREFIX, 'Updating stock for inventory:', inventoryId, 'action:', action);
     startTransition(async () => {
       try {
-        const response = await updateWarehouseInventory(warehouseId, inventoryId, stock);
+        const response = await updateWarehouseInventory(warehouseId, inventoryId, action);
         if (response.status === 200) {
           console.log(LOG_PREFIX, 'Warehouse inventory updated successfully');
         } else {
@@ -193,8 +193,8 @@ const WarehouseDetails = ({ params }: { params: { id: string } }) => {
                       <strong>{item.product.title}</strong> - Stock: {item.stock}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" onClick={() => handleStockUpdate(item.id, item.stock + 1)}>+</Button>
-                      <Button variant="outline" onClick={() => handleStockUpdate(item.id, item.stock - 1)}>-</Button>
+                      <Button variant="outline" onClick={() => handleStockUpdate(item.id, 'add')}>+</Button>
+                      <Button variant="outline" onClick={() => handleStockUpdate(item.id, 'subtract')}>-</Button>
                     </div>
                   </li>
                 ))}
