@@ -6,9 +6,14 @@ const LOG_PREFIX = '[frontend/hooks/usePusher.js]';
 const P_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY;
 const P_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
 
-const pusherClient = new PusherClient(P_KEY!, {
-  cluster: P_CLUSTER!,
-});
+let pusherClient;
+
+if (!pusherClient) {
+  pusherClient = new PusherClient(P_KEY!, {
+    cluster: P_CLUSTER!,
+    forceTLS: true,
+  });
+}
 
 const usePusher = (channelName: string, eventName: string, callback: (data: any) => void) => {
   useEffect(() => {

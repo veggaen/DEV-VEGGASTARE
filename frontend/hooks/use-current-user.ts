@@ -1,7 +1,10 @@
-import { Product, Review, User } from "@prisma/client";
+import { Product, Review, User, UserRole } from "@prisma/client";
 import { useSession } from "next-auth/react";
 
 type ExtendedUser = User & {
+  role: UserRole;
+  referredBy?: String;
+  isTwoFactorEnabled?: boolean;
   productsListed?: Product[];
   reviews?: Review[];
   isOAuth?: boolean;

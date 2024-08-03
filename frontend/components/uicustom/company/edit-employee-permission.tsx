@@ -16,12 +16,21 @@ import { EmployeePermissions, editCompanyEmployeePermissionAction } from '@/acti
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { ExtendedCompany, ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/page';
 import EditEmployeeRoleModal from './edit-employee-role-modal';
+import { Product, Review, User, UserRole } from '@prisma/client';
+
 
 interface EditEmployeePermissionsModalProps {
   company: ExtendedCompany;
   setCompany: React.Dispatch<React.SetStateAction<ExtendedCompany | null>>;
   selectedEmployee: ExtendedEmployee;
-  clientUser: any;
+  clientUser: User & {
+    role: UserRole;
+    referredBy: string | null;
+    isTwoFactorEnabled: boolean;
+    productsListed: Product[];
+    reviews: Review[];
+    isOAuth: boolean;
+  };
 }
 
 const LOG_PREFIX = '[frontend/components/uicustom/company/edit-employee-permission.tsx]';

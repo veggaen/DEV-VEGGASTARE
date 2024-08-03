@@ -5,15 +5,6 @@ import { dbPrisma } from '@/lib/db';
 import { companyCreationSchema } from '@/schemas';
 import { EmployeeRole, Prisma } from '@prisma/client';
 
-type UIEmployee = {
-  userId: string;
-  email: string;
-  image: string;
-  role: EmployeeRole;
-  companyId?: string;
-  permissions?: { [key: string]: boolean };
-};
-
 const MyGetCompanyAction = async () => {
   const response = await dbPrisma.product.findMany();
   return response;
@@ -66,6 +57,12 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
       const typedWarehouseLocations = warehouseLocations?.map(loc => ({
         ...loc,
         companyId: company.id,
+        postalCode: loc.postalCode || '', // Ensure postalCode is not undefined
+        address: loc.address || '', // Ensure address is not undefined
+        city: loc.city || '', // Ensure city is not undefined
+        country: loc.country || '', // Ensure country is not undefined
+        latitude: loc.latitude ?? 0, // Ensure latitude is not undefined, use nullish coalescing operator to check for null or undefined
+        longitude: loc.longitude ?? 0, // Ensure longitude is not undefined, use nullish coalescing operator to check for null or undefined
       })) || [];
 
       if (employees && typedEmployees.length > 0) {

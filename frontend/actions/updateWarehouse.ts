@@ -3,7 +3,7 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibRoleAuth } from '@/lib/user-auth';
 import { UserRole } from '@prisma/client';
-import { pusherServer } from '@/lib/pusher'; // Import the pusherServer
+import { pusherServer } from '@/lib/pusher';
 
 const LOG_PREFIX = '[frontend/actions/updateWarehouse.ts]';
 
@@ -19,30 +19,43 @@ export async function updateWarehouseInventory(warehouseId: string, inventoryId:
       return { status: 403, message: 'Forbidden' };
     }
 
-    const updatedWarehouse = await dbPrisma.warehouseLocation.update({
-      where: { id: warehouseId },
-      data: {
-        inventory: {
-          updateMany: {
-            where: { id: inventoryId },
-            data: { stock },
+    const updatedInventory = await dbPrisma.$transaction(async (prisma) => {
+      const inventory = await prisma.inventory.findUnique({
+        where: { id: inventoryId },
+        select: { version: true },
+      });
+
+      if (!inventory) {
+        throw new Error('Inventory item not found');
+      }
+
+      const newInventory = await prisma.inventory.update({
+        where: { id_version: { id: inventoryId, version: inventory.version } },
+        data: {
+          stock,
+          version: inventory.version + 1,
+        },
+      });
+
+      return prisma.inventory.findUnique({
+        where: { id: newInventory.id },
+        select: {
+          id: true,
+          stock: true,
+          version: true,
+          product: {
+            select: {
+              id: true,
+              title: true,
+            },
           },
         },
-      },
-      include: {
-        inventory: {
-          where: { id: inventoryId },
-          include: {
-            product: true,
-          },
-        },
-      },
+      });
     });
 
-    console.log(LOG_PREFIX, 'Warehouse updated successfully:', updatedWarehouse);
+    console.log(LOG_PREFIX, 'Inventory updated successfully:', updatedInventory);
 
     try {
-      const inventoryItem = updatedWarehouse.inventory.find(item => item.id === inventoryId);
       console.log(LOG_PREFIX, 'Triggering Pusher event for warehouse update');
       await pusherServer.trigger(`WarehouseChannel_${warehouseId}`, 'my-event-warehouse', {
         type: 'INVENTORY_UPDATE',
@@ -50,7 +63,11 @@ export async function updateWarehouseInventory(warehouseId: string, inventoryId:
           warehouseId,
           inventoryId,
           stock,
-          product: inventoryItem?.product,
+          version: updatedInventory?.version,
+          product: {
+            id: updatedInventory?.product?.id,
+            title: updatedInventory?.product?.title,
+          },
         },
       });
       console.log(LOG_PREFIX, 'Pusher event triggered successfully');
@@ -58,7 +75,7 @@ export async function updateWarehouseInventory(warehouseId: string, inventoryId:
       console.error(LOG_PREFIX, 'Error triggering Pusher event:', pusherError);
     }
 
-    return { status: 200, data: updatedWarehouse };
+    return { status: 200, data: updatedInventory };
 
   } catch (error) {
     console.error(LOG_PREFIX, 'Error updating warehouse:', error);

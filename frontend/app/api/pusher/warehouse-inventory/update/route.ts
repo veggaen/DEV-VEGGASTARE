@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
+import { NextApiRequest, NextApiResponse } from 'next';
 import Pusher from 'pusher';
 
 const pusher = new Pusher({
@@ -10,43 +10,58 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
-export async function POST(req: NextRequest, res: NextResponse) {
-  try {
-    const { warehouseId, inventoryId, stock } = await req.json();
-
-    // Using optimistic locking for concurrency control
-    await dbPrisma.$transaction(async (tx) => {
-      const inventory = await tx.inventory.findUnique({
-        where: { id: inventoryId },
+export async function POST(req: NextApiRequest, res: NextApiResponse) {
+    const { warehouseId, inventoryId, stock } = req.body;
+  
+    try {
+      const updatedInventory = await dbPrisma.$transaction(async (prisma) => {
+        const inventory = await prisma.inventory.findUnique({
+          where: { id: inventoryId },
+          select: { version: true },
+        });
+  
+        if (!inventory) throw new Error('Inventory not found');
+        console.log('inventory:', inventory);
+        
+        // Update the inventory with the new stock and increment the version for optimistic locking
+        await prisma.inventory.update({
+          where: { id_version: { id: inventoryId, version: inventory.version } },
+          data: {
+            stock,
+            version: inventory.version + 1,
+          },
+        });
+  
+        return prisma.inventory.findUnique({
+          where: { id: inventoryId },
+          select: {
+            id: true,
+            stock: true,
+            version: true,
+            product: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+        });
       });
-
-      if (!inventory) {
-        throw new Error('Inventory item not found');
-      }
-
-      // Update the inventory with the new stock and increment the version for optimistic locking
-      await tx.inventory.update({
-        where: { id: inventoryId, version: inventory.version },
-        data: {
-          stock,
-          version: inventory.version + 1,
-        },
-      });
-    });
-
-    // Trigger the Pusher event with reduced payload
-    await pusher.trigger('MainChannelUpdateWarehouse', 'my-event-warehouse', {
-      type: 'INVENTORY_UPDATE',
-      payload: {
+  
+      await pusher.trigger(`WarehouseChannel_${warehouseId}`, 'inventory-update', {
         warehouseId,
         inventoryId,
-        stock,
-      },
-    });
-
-    return new NextResponse(JSON.stringify({ success: true }), { status: 200 });
-  } catch (error: any) {
-    console.error('Error updating inventory:', error);
-    return new NextResponse(JSON.stringify({ error: error.message }), { status: 500 });
+        stock: updatedInventory?.stock,
+        version: updatedInventory?.version,
+        product: {
+          id: updatedInventory?.product.id,
+          title: updatedInventory?.product.title,
+        },
+      });
+  
+      res.status(200).json({ message: 'Inventory updated successfully' });
+    } catch (error) {
+      console.error('Error updating inventory:', error);
+      res.status(500).json({ error: 'Failed to update inventory' });
+    }
   }
-}

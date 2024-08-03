@@ -9,12 +9,25 @@ import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import Pusher from 'pusher-js';
 import throttle from 'lodash.throttle';
+import { Product, WarehouseLocation } from '@prisma/client';
 
 const LOG_PREFIX = '[frontend/app/warehouses/page.tsx]';
 
+interface InventoryItem {
+  id: string;
+  stock: number;
+  version: number;
+  product: Product;
+}
+
+interface extendedWarehouse extends WarehouseLocation {
+  inventory: InventoryItem[];
+}
+
+
 const WarehouseOverview = () => {
   const clientUser = useCurrentUser();
-  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<extendedWarehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +82,7 @@ const WarehouseOverview = () => {
               return {
                 ...warehouse,
                 inventory: warehouse.inventory.map((item) =>
-                  item.id === data.payload.inventoryId ? { ...item, stock: data.payload.stock } : item
+                  item.id === data.payload.inventoryId ? { ...item, stock: data.payload.stock, version: data.payload.version } : item
                 ),
               };
             }
@@ -201,7 +214,7 @@ const WarehouseOverview = () => {
               {showDropdown === warehouse.id && (
                 <div className="warehousedropdown block">
                   <ul>
-                    {warehouse.inventory.map((item: any) => (
+                    {warehouse.inventory.map((item) => (
                       <li key={item.id} className="flex justify-between items-center mb-2">
                         <div>
                           <strong>{item.product.title}</strong> - Stock: {item.stock}

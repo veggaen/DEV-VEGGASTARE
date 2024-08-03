@@ -7,7 +7,7 @@ const LOG_PREFIX = '[frontend/actions/fetchWarehouseById.ts]';
 export async function fetchWarehouseById(id: string) {
   try {
     const warehouse = await dbPrisma.warehouseLocation.findUnique({
-      where: { id },
+      where: { id: id },
       include: {
         inventory: {
           include: {
