@@ -5,6 +5,7 @@ import { EdgeStoreProvider } from '../lib/edgestore';
 import { ThemeProvider } from "@/components/providers/themeprovider";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/auth";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 import { Toaster } from "@/components/ui/sonner";
 import MyTopBar from "@/components/uicustom/topbar";
@@ -31,6 +32,7 @@ export default async function RootLayout({
               <Toaster />
               <MyTopBar />
               {children}
+              <SpeedInsights/>
             </ThemeProvider>
           </EdgeStoreProvider>
         </SessionProvider>
