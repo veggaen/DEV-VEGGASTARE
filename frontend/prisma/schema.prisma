@@ -33,6 +33,8 @@ model User {
   Employee              Employee[]
   Package               Package[]
   warehouseLocations    WarehouseLocation[]    @relation("UserWarehouses")
+  carts                 Cart[] // Add this line
+  orders                Order[] // Add this line
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 }
@@ -94,44 +96,46 @@ model TwoFactorConfirmation {
 
 // PRODUCTS RELATED
 model Product {
-  id              String   @id @default(cuid())
-  title           String
-  description     String
-  category        String
-  price           Float
-  stock           Int
+  id               String            @id @default(cuid())
+  title            String
+  description      String
+  category         String
+  price            Float
+  stock            Int
   shipFromPostalId String
-  image           String[]
-  specifications  Json?
-  userId          String
-  user            User      @relation("ProductsListed", fields: [userId], references: [id])
-  companyId       String?
-  company         Company?  @relation("CompanyProducts", fields: [companyId], references: [id])
-  inventory       Inventory[]
-  shippingDetails ShippingDetails[]
-  reviews         Review[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  image            String[]
+  specifications   Json?
+  userId           String
+  user             User              @relation("ProductsListed", fields: [userId], references: [id])
+  companyId        String?
+  company          Company?          @relation("CompanyProducts", fields: [companyId], references: [id])
+  inventory        Inventory[]
+  shippingDetails  ShippingDetails[]
+  reviews          Review[]
+  cartItems        CartItem[] // Add this line
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @default(now())
 }
 
 model Inventory {
-  id          String   @id @default(cuid())
+  id          String            @id @default(cuid())
   quantity    Int
-  stock       Int      @default(0) // Add stock field
+  stock       Int               @default(0) // Add stock field
   warehouseId String
   productId   String
   warehouse   WarehouseLocation @relation(fields: [warehouseId], references: [id])
   product     Product           @relation(fields: [productId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  version     Int      @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  version     Int               @default(0)
+
   @@unique([id, version])
 }
 
 model SpecificationsDetails {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now())
 }
 
 model ShippingDetails {
@@ -175,7 +179,7 @@ model Company {
   usesShipping       Boolean             @default(false)
   warehouseLocations WarehouseLocation[] @relation("CompanyWarehouses")
   createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  updatedAt          DateTime            @default(now())
   Sale               Sale[]
   MonthlyReport      MonthlyReport[]
   Package            Package[]
@@ -195,7 +199,7 @@ model Employee {
 }
 
 model WarehouseLocation {
-  id         String    @id @default(cuid())
+  id         String      @id @default(cuid())
   userId     String?
   companyId  String?
   postalCode String
@@ -206,11 +210,11 @@ model WarehouseLocation {
   longitude  Float?
   inventory  Inventory[]
 
-  user       User?     @relation("UserWarehouses", fields: [userId], references: [id])
-  company    Company?  @relation("CompanyWarehouses", fields: [companyId], references: [id])
+  user    User?    @relation("UserWarehouses", fields: [userId], references: [id])
+  company Company? @relation("CompanyWarehouses", fields: [companyId], references: [id])
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([companyId, postalCode])
 }
@@ -245,7 +249,7 @@ model MonthlyReport {
   totalProfit    Float
   productSummary Json // Summary of products sold in the month
   createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime @default(now())
 }
 
 // Company Shipping related
@@ -260,7 +264,7 @@ model Package {
   estimatedDelivery DateTime?
   history           Json // Could detail the tracking history as provided by Bring API
   createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  updatedAt         DateTime      @default(now())
 }
 
 enum PackageStatus {
@@ -268,4 +272,69 @@ enum PackageStatus {
   IN_TRANSIT
   DELIVERED
   EXCEPTION
+}
+
+// Cart-related models
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique // Add this line to make it one-to-one relation
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, cartId]) // Compound unique constraint
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  totalAmount Float
+  status      OrderStatus @default(PENDING)
+  payment     Payment?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String        @unique
+  order         Order         @relation(fields: [orderId], references: [id])
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now())
+}
+
+enum PaymentMethod {
+  METAMASK
+  PAYPAL
+  COINBASE
+  VISA
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
 }

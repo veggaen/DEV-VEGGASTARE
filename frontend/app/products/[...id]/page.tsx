@@ -11,6 +11,7 @@ import { fetchPostalCodeFromCoords } from '@/components/uicustom/product/postal-
 import { getCountryCode, haversineDistance } from '@/lib/utils';
 import { fetchCoordsFromPostalCode } from '@/components/uicustom/product/postal-cords-from-code';
 import ProductSkeleton from '@/components/uicustom/skeletons/product-skeleton';
+import { useSession } from 'next-auth/react';
 
 interface Specification {
   key: string;
@@ -92,6 +93,7 @@ const ProductDetails = ({ product }: { product: Product }) => {
   const [hasFetchedLocation, setHasFetchedLocation] = useState<boolean>(false);
   const [showShippingDetails, setShowShippingDetails] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { data: session } = useSession();
 
   const warehouseLocations = useMemo(() => {
     if (product.company?.warehouseLocations && product.company.warehouseLocations.length > 0) {
@@ -162,6 +164,38 @@ const ProductDetails = ({ product }: { product: Product }) => {
     });
   };
 
+  const handleAddToCart = async () => {
+    if (!session) {
+      alert('You need to be logged in to add items to the cart');
+      return;
+    }
+
+    const userId = session.user.id;
+    const productId = product.id;
+    const quantity = 1;
+
+    try {
+      const response = await fetch(`/api/cart/${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ productId, quantity }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add item to cart');
+      }
+
+      const data = await response.json();
+      console.log('Item added to cart:', data);
+      alert('Item added to cart successfully!');
+    } catch (error) {
+      console.error('Error adding item to cart:', error);
+      alert('Failed to add item to cart');
+    }
+  };
+
   const formatDate = (dateInput: Date | string): string => {
     const date = new Date(dateInput);
     return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
@@ -229,7 +263,7 @@ const ProductDetails = ({ product }: { product: Product }) => {
           </div>
           <div className='flex flex-wrap gap-2 mt-4'>
             <Button variant='vegaBuyBtn' className='hover:shadow-md transition-shadow duration-300'>Buy Now</Button>
-            <Button variant='vegaAddBasketBtn' className='hover:shadow-md transition-shadow duration-300'>Add to Basket</Button>
+            <Button variant='vegaAddBasketBtn' className='hover:shadow-md transition-shadow duration-300' onClick={handleAddToCart}>Add to Basket</Button>
             <Button variant='vegaAddWishlistBtn' className='hover:shadow-md transition-shadow duration-300'>Add to Wishlist</Button>
             {!showShippingDetails && (
               <Button onClick={handleGetShippingDetails} disabled={isLoading}>

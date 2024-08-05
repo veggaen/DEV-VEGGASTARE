@@ -4,6 +4,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { AiOutlineCluster } from "react-icons/ai";
 import { TbHexagons } from "react-icons/tb";
+import { FaCartFlatbed } from "react-icons/fa6";
 import { FaUser } from 'react-icons/fa'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { MyLogoutButton } from './logout-button'
@@ -55,6 +56,14 @@ export const MyUserButton = () => {
               <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
                 <TbHexagons className={`min-h-[1.2rem] min-w-[1.2rem]`} />
                 <p className=''>Nexus</p>
+              </div>
+            </DropdownMenuItem>
+          </Link>
+          <Link href='/cart'>
+            <DropdownMenuItem>
+              <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
+                <FaCartFlatbed className={`min-h-[1.2rem] min-w-[1.2rem]`} />
+                <p className=''>Cart</p>
               </div>
             </DropdownMenuItem>
           </Link>
