@@ -4,7 +4,6 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import Image from "next/image";
-import { ChevronRight } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +65,17 @@ const WalletConnection = () => {
     disconnect();
   };
 
+  const [isCopied, setIsCopied] = useState(false);
+  const copyToClipboard = async (content: any) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setIsCopied(true);
+      console.log('Copied to clipboard:', content);
+    } catch (error) {
+      setIsCopied(false);
+      console.error('Unable to copy to clipboard:', error);
+    }
+  };
 
   return (
     <div className="text-white">
@@ -84,7 +94,7 @@ const WalletConnection = () => {
               <DropdownMenuTrigger asChild>
                 <Button className="flex gap-2">
                   <div className="">
-                    <div className="">
+                    <div className="  w-full  ">
                       {publicKey.toBase58()}
                     </div>
                   </div>
@@ -95,10 +105,22 @@ const WalletConnection = () => {
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[300px] bg-black hover:bg-black">
+              <DropdownMenuContent className="w-[fit] bg-black hover:bg-black">
+              <DropdownMenuItem className="flex justify-center">
+                  <Button
+                variant='vegaNormalBtn'
+                    onClick={() => copyToClipboard(userWalletAddress)}
+                  >
+                    {
+                        userWalletAddress
+                          ? userWalletAddress
+                          : "Copy Address"
+                    }
+                  </Button>
+                </DropdownMenuItem>
                 <DropdownMenuItem className="flex justify-center">
                   <Button
-                    className="bg-[#ff5555] z-50 text-[20px]  text-white  border-2 border-white font-slackey"
+                    variant='vegaNormalBtn'
                     onClick={handleDisconnect}
                   >
                     Disconnect
@@ -119,7 +141,6 @@ const WalletConnection = () => {
                 {wallets.map((wallet) => (
                   <Button
                     key={wallet.adapter.name}
-                    //onClick={() => select(wallet.adapter.name)}
                     onClick={() => handleWalletSelect(wallet.adapter.name)}
                     variant={"ghost"}
                     className=" h-[40px] hover:bg-transparent hover:text-white text-[20px] text-white font-slackey flex w-full justify-center items-center "

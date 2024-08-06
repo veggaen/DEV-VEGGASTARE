@@ -1,34 +1,36 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Connection, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import WalletConnection from '@/components/crypto-related/WalletAdapter';
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { useCurrentUser } from '@/hooks/use-current-user';
 
 const SOLANA_NETWORK = 'https://api.devnet.solana.com';
 const SOLANA_TOKEN_ADDRESS = '59jss4pubSQQbJQqrAatPCc82f7vjbb41FtFZEZgPKk8'; // Receiver address
 const LAMPORTS_PER_SOL = 1000000000;
 
 const CheckoutPage = () => {
-  const { data: session } = useSession();
+  const user = useCurrentUser();
   const router = useRouter();
-  const { publicKey, wallet, signTransaction } = useWallet();
+  const { publicKey, signTransaction } = useWallet();
   const [totalPrice, setTotalPrice] = useState<number>(0);
+  const [open, setOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!session) {
+    if (!user) {
       router.push('/auth/login');
     } else {
       fetchCartItems();
     }
-  }, [session]);
+  }, [user]);
 
   const fetchCartItems = async () => {
     try {
-      const response = await fetch(`/api/cart/${session?.user?.id}`);
+      const response = await fetch(`/api/cart/${user?.id}`);
       if (!response.ok) {
         throw new Error('Failed to fetch cart items');
       }
@@ -41,7 +43,7 @@ const CheckoutPage = () => {
   };
 
   const handlePayment = async () => {
-    if (!session || !publicKey || !signTransaction) {
+    if (!user || !publicKey || !signTransaction) {
       router.push('/auth/login');
       return;
     }
@@ -73,6 +75,26 @@ const CheckoutPage = () => {
 
       console.log('Transaction successful with signature:', signature);
       alert('Payment successful!');
+
+      // Save order details to local storage for order confirmation page
+      localStorage.setItem('orderDetails', JSON.stringify({ totalPrice, signature }));
+
+      // Create order in the database
+      await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          totalAmount: totalPrice,
+          transactionId: signature,
+        }),
+      });
+
+      // Clear the cart and redirect to order confirmation
+      await fetch(`/api/cart/${user.id}`, { method: 'DELETE' });
+      router.push('/order-confirmation');
     } catch (error) {
       console.error('Error during payment:', error);
       alert('Payment failed.');
@@ -85,10 +107,21 @@ const CheckoutPage = () => {
       <p>Total Price: ${totalPrice.toFixed(2)}</p>
       <p>{`Total Price in SOL: ${totalPrice}`}</p>
       <WalletConnection />
-      <Button onClick={handlePayment} className="mt-4">Pay with Solana Wallet</Button>
-      <div>
-        <p>Receiver Address: {SOLANA_TOKEN_ADDRESS}</p>
-      </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button onClick={() => setOpen(true)} className="mt-4">Pay with Solana Wallet</Button>
+        </DialogTrigger>
+        <DialogContent className="w-full h-fit bg-black" style={{ borderRadius: '30px' }}>
+          <div className="flex justify-center items-center">
+            <div className="flex flex-col justify-start items-center space-y-5">
+              <p>Total Price: ${totalPrice.toFixed(2)}</p>
+              <p>{`Total Price in SOL: ${totalPrice}`}</p>
+              <p>Receiver Address: {SOLANA_TOKEN_ADDRESS}</p>
+              <Button onClick={handlePayment} className="mt-4">Confirm Payment</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

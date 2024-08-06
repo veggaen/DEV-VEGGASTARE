@@ -12,7 +12,6 @@ import Link from 'next/link'
 import { ExitIcon } from '@radix-ui/react-icons'
 import { MyThemeBtn } from '../../themebtn'
 import { useTheme } from 'next-themes'  // Add this import
-import WalletConnection from '@/components/crypto-related/WalletAdapter';
 
 interface MyUserButtonProps { 
   size: string
@@ -68,7 +67,6 @@ export const MyUserButton = () => {
               </div>
             </DropdownMenuItem>
           </Link>
-          <WalletConnection />
           <MyLogoutButton >
             <DropdownMenuItem>
               <div className={'flex items-center justify-center gap-2 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
