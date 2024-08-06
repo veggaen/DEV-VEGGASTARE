@@ -5,6 +5,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { MyUserButton } from "./auth/buttons/user-button";
 import { usePathname } from "next/navigation";
 import { MyNavbarProtected } from "@/app/(protected)/_components/navbar";
+import WalletConnection from "../crypto-related/WalletAdapter";
 
 const MyTopBar = () => {
 
@@ -25,11 +26,11 @@ const MyTopBar = () => {
           </div>
         </div>
         <MyNavbarProtected />
+          <WalletConnection />
         <div className="flex justify-center md:w-48 items-center gap-6 rounded-sm mr-2">
           <div className="hidden md:flex">
             <MyThemeBtn />
           </div>
-          
           {user && <MyUserButton />}
         </div>
       </div>

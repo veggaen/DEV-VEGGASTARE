@@ -38,28 +38,25 @@ const CartPage = () => {
         throw new Error('Failed to fetch cart items');
       }
       const data = await response.json();
-      console.log('Cart items:', data);
       setCartItems(data.items);
     } catch (error) {
       console.error('Error fetching cart items:', error);
     }
   };
 
-  const handleQuantityChange = async (itemId: string, type: 'increment' | 'decrement') => {
+  const handleQuantityChange = async (itemId: string, newQuantity: number) => {
     try {
-      console.log(`Updating quantity for item ${itemId} to ${type}`);
       const response = await fetch(`/api/cart/${session?.user?.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ itemId, type }),
+        body: JSON.stringify({ itemId, quantity: newQuantity }),
       });
 
       if (!response.ok) {
         throw new Error('Failed to update item quantity');
       }
-      console.log(`Item quantity updated successfully! Type: ${type}`);
       fetchCartItems();
     } catch (error) {
       console.error('Error updating item quantity:', error);
@@ -68,7 +65,6 @@ const CartPage = () => {
 
   const handleRemoveItem = async (itemId: string) => {
     try {
-      console.log(`Removing item ${itemId} from cart`);
       const response = await fetch(`/api/cart/${session?.user?.id}`, {
         method: 'DELETE',
         headers: {
@@ -80,7 +76,6 @@ const CartPage = () => {
       if (!response.ok) {
         throw new Error('Failed to remove item from cart');
       }
-      console.log('Item removed from cart successfully');
       fetchCartItems();
     } catch (error) {
       console.error('Error removing item from cart:', error);
@@ -90,9 +85,6 @@ const CartPage = () => {
   if (!session) {
     return <p>Loading...</p>;
   }
-
-  const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);
-  const totalPrice = cartItems.reduce((total, item) => total + item.quantity * item.product.price, 0);
 
   return (
     <div className="w-full">
@@ -116,23 +108,15 @@ const CartPage = () => {
                   </div>
                   <div className='flex flex-col items-end w-full gap-2'>
                     <div className="flex justify-between items-center w-full md:w-1/2">
-                      <Button onClick={() => handleQuantityChange(item.id, 'decrement')} disabled={item.quantity <= 1}>-</Button>
+                      <Button onClick={() => handleQuantityChange(item.id, item.quantity - 1)} disabled={item.quantity <= 1}>-</Button>
                       <span className="text-lg text-gray-800 dark:text-gray-200">{`${item.quantity <= 1 ? `${item.quantity} Item` : `${item.quantity} Items` }`}</span>
-                      <Button onClick={() => handleQuantityChange(item.id, 'increment')}>+</Button>
+                      <Button onClick={() => handleQuantityChange(item.id, item.quantity + 1)}>+</Button>
                     </div>
                     <Button variant="destructive" onClick={() => handleRemoveItem(item.id)} className="w-full">Remove</Button>
                   </div>
                 </div>
               </div>
             ))}
-            <div className="flex flex-col sm:flex-row justify-between items-center w-full max-w-[1440px] bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mt-4">
-              <div className="text-lg font-semibold dark:text-white">
-                Total Items: {totalItems}
-              </div>
-              <div className="text-lg font-semibold dark:text-white">
-                Total Price: ${totalPrice.toFixed(2)}
-              </div>
-            </div>
             <Button onClick={() => router.push('/checkout')} className="mt-4">Proceed to Checkout</Button>
           </div>
         )}

@@ -9,6 +9,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 
 import { Toaster } from "@/components/ui/sonner";
 import MyTopBar from "@/components/uicustom/topbar";
+import WalletContextProvider from "@/components/crypto-related/WalletContextProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -29,9 +30,11 @@ export default async function RootLayout({
         <SessionProvider session={session}>
           <EdgeStoreProvider>
             <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange >
-              <Toaster />
-              <MyTopBar />
-              {children}
+              <WalletContextProvider>
+                <Toaster />
+                <MyTopBar />
+                {children}
+              </WalletContextProvider>
               <SpeedInsights/>
             </ThemeProvider>
           </EdgeStoreProvider>

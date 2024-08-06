@@ -4,19 +4,21 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import CoinbaseWalletSDK from '@coinbase/wallet-sdk';
 import { Connection, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 
 const APP_NAME = 'VEGA COIN';
 const APP_LOGO_URL = 'https://plus.unsplash.com/premium_photo-1672660509844-449cb70bfcbe?q=80&w=1430&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
-const SOLANA_NETWORK = 'ams62.nodes.rpcpool.com';
-const SOLANA_TOKEN_ADDRESS = '59jss4pubSQQbJQqrAatPCc82f7vjbb41FtFZEZgPKk8'; // New Address: 59jss4pubSQQbJQqrAatPCc82f7vjbb41FtFZEZgPKk8 or my old address: Bmm2RU2g6LGd4UFmYDp8YvUwonhkvz44D3EMkccq3FZs
+const SOLANA_NETWORK = 'https://api.devnet.solana.com'; // Use Solana devnet endpoint
+const SOLANA_TOKEN_ADDRESS = '59jss4pubSQQbJQqrAatPCc82f7vjbb41FtFZEZgPKk8'; // Receiver address
 const LAMPORTS_PER_SOL = 1000000000;
 
 const CheckoutPage = () => {
   const { data: session } = useSession();
   const router = useRouter();
   const [totalPrice, setTotalPrice] = useState<number>(0);
+  const { connection } = useConnection();
+  const { publicKey, sendTransaction } = useWallet();
 
   useEffect(() => {
     if (!session) {
@@ -46,39 +48,48 @@ const CheckoutPage = () => {
       return;
     }
 
-    const coinbaseWallet = new CoinbaseWalletSDK({
-      appName: APP_NAME,
-      appLogoUrl: APP_LOGO_URL,
-      darkMode: false,
-    });
+    if (!publicKey) {
+      alert('Please connect your wallet first.');
+      return;
+    }
 
-    const provider = coinbaseWallet.makeWeb3Provider(SOLANA_NETWORK, 1);
-    await provider.enable();
+    try {
+      console.log('From Address:', publicKey.toBase58());
+      console.log('Total Price in SOL:', totalPrice);
 
-    const connection = new Connection(SOLANA_NETWORK);
-    const accounts = await provider.request({ method: 'eth_requestAccounts' });
-    const fromAddress = accounts[0];
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey(SOLANA_TOKEN_ADDRESS),
+          lamports: Math.floor(totalPrice * LAMPORTS_PER_SOL),
+        })
+      );
 
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: new PublicKey(fromAddress),
-        toPubkey: new PublicKey(SOLANA_TOKEN_ADDRESS),
-        lamports: totalPrice * LAMPORTS_PER_SOL,
-      })
-    );
+      transaction.feePayer = publicKey;
+      transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
 
-    const { signature } = await provider.signTransaction(transaction);
+      console.log('Transaction:', transaction);
 
-    await connection.confirmTransaction(signature);
+      const signature = await sendTransaction(transaction, connection);
+      await connection.confirmTransaction(signature, 'processed');
 
-    console.log('Transaction successful with signature:', signature);
+      console.log('Transaction successful with signature:', signature);
+      alert('Payment successful!');
+    } catch (error) {
+      console.error('Error during payment:', error);
+      alert('Payment failed.');
+    }
   };
 
   return (
     <div className="w-full p-8">
       <h1 className="text-2xl font-bold mb-4">Checkout</h1>
       <p>Total Price: ${totalPrice.toFixed(2)}</p>
-      <Button onClick={handlePayment} className="mt-4">Pay with Coinbase Wallet</Button>
+      <p>{`Total Price in SOL: ${totalPrice}`}</p>
+      <Button onClick={handlePayment} className="mt-4">Pay with Solana Wallet</Button>
+      <div>
+        <p>Receiver Address: {SOLANA_TOKEN_ADDRESS}</p>
+      </div>
     </div>
   );
 };
