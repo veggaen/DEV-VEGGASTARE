@@ -298,15 +298,16 @@ model CartItem {
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  userId      String
-  user        User        @relation(fields: [userId], references: [id])
-  totalAmount Float
-  status      OrderStatus @default(PENDING)
-  payment     Payment?
-  transactionId String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id              String      @id @default(cuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  totalAmount     Float
+  status          OrderStatus @default(PENDING)
+  commentOrder    String?
+  payment         Payment?
+  transactionId   String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
 
 enum OrderStatus {
@@ -317,14 +318,15 @@ enum OrderStatus {
 }
 
 model Payment {
-  id            String        @id @default(cuid())
-  orderId       String        @unique
-  order         Order         @relation(fields: [orderId], references: [id])
-  method        PaymentMethod
-  status        PaymentStatus @default(PENDING)
-  transactionId String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @default(now())
+  id              String        @id @default(cuid())
+  orderId         String        @unique
+  order           Order         @relation(fields: [orderId], references: [id])
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  commentPay      String?
+  transactionId   String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now())
 }
 
 enum PaymentMethod {

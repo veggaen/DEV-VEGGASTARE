@@ -47,6 +47,8 @@ const OrderConfirmationPage = () => {
             <p>Payment Method: {order.payment.method}</p>
             <p>Payment Status: {order.payment.status}</p>
             <p>Payment Transaction ID: {order.payment.transactionId}</p>
+            <p>comment: {order.commentOrder}</p>
+            <p>comment: {order.payment.commentPay}</p>
           </div>
         </Link>
       ))}

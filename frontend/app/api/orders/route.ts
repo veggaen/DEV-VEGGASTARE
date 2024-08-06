@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const { userId, totalAmount, transactionId } = await req.json();
+    const { userId, totalAmount, transactionId, commentOrder, commentPay, method } = await req.json();
+    console.log('commentOrder:', commentOrder);
 
     const order = await dbPrisma.order.create({
       data: {
@@ -11,9 +12,11 @@ export async function POST(req: Request) {
         totalAmount,
         status: 'COMPLETED',
         transactionId,
+        commentOrder: commentOrder ? commentOrder : '',
         payment: {
           create: {
-            method: 'COINBASE',
+            commentPay: commentPay ? commentPay : '',
+            method: method ? method : 'COINBASE',
             status: 'COMPLETED',
             transactionId,
           },
@@ -29,5 +32,5 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
-    
+
 }

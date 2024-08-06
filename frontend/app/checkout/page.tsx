@@ -18,6 +18,7 @@ const CheckoutPage = () => {
   const router = useRouter();
   const { publicKey, signTransaction } = useWallet();
   const [totalPrice, setTotalPrice] = useState<number>(0);
+  const [foundData, setFoundData] = useState<any>();
   const [open, setOpen] = useState<boolean>(false);
 
   useEffect(() => {
@@ -35,6 +36,11 @@ const CheckoutPage = () => {
         throw new Error('Failed to fetch cart items');
       }
       const data = await response.json();
+      setFoundData(data);
+      console.log('foundData: ',foundData);
+      if (data.items) {
+        console.log('foundDataMap:', data.items.map(item => item.product.title).join(', '));
+      }
       const total = data.items.reduce((sum: number, item: any) => sum + item.quantity * item.product.price, 0);
       setTotalPrice(total);
     } catch (error) {
@@ -76,9 +82,6 @@ const CheckoutPage = () => {
       console.log('Transaction successful with signature:', signature);
       alert('Payment successful!');
 
-      // Save order details to local storage for order confirmation page
-      localStorage.setItem('orderDetails', JSON.stringify({ totalPrice, signature }));
-
       // Create order in the database
       await fetch('/api/orders', {
         method: 'POST',
@@ -89,6 +92,9 @@ const CheckoutPage = () => {
           userId: user.id,
           totalAmount: totalPrice,
           transactionId: signature,
+          method: 'COINBASE',
+          commentOrder: `${foundData.items.map(item => item.product.title).join(', ')}`,
+          commentPay: 'Payment was smooth',
         }),
       });
 
@@ -109,7 +115,7 @@ const CheckoutPage = () => {
       <WalletConnection />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button onClick={() => setOpen(true)} className="mt-4">Pay with Solana Wallet</Button>
+          <Button onClick={() => setOpen(true)} className="mt-4">Pay now</Button>
         </DialogTrigger>
         <DialogContent className="w-full h-fit bg-black" style={{ borderRadius: '30px' }}>
           <div className="flex justify-center items-center">
