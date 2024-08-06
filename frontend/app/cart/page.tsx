@@ -44,19 +44,20 @@ const CartPage = () => {
     }
   };
 
-  const handleQuantityChange = async (itemId: string, newQuantity: number) => {
+  const handleQuantityChange = async (itemId: string, changeType: 'increment' | 'decrement') => {
     try {
-      const response = await fetch(`/api/cart/${session?.user?.id}`, {
+      const response = await fetch(`/api/cart/${session?.user?.id}/items/${itemId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ itemId, quantity: newQuantity }),
+        body: JSON.stringify({ changeType }),
       });
 
       if (!response.ok) {
         throw new Error('Failed to update item quantity');
       }
+      console.log(`Item quantity ${changeType}d successfully!`);
       fetchCartItems();
     } catch (error) {
       console.error('Error updating item quantity:', error);
@@ -108,9 +109,9 @@ const CartPage = () => {
                   </div>
                   <div className='flex flex-col items-end w-full gap-2'>
                     <div className="flex justify-between items-center w-full md:w-1/2">
-                      <Button onClick={() => handleQuantityChange(item.id, item.quantity - 1)} disabled={item.quantity <= 1}>-</Button>
+                      <Button onClick={() => handleQuantityChange(item.id, 'decrement')} disabled={item.quantity <= 1}>-</Button>
                       <span className="text-lg text-gray-800 dark:text-gray-200">{`${item.quantity <= 1 ? `${item.quantity} Item` : `${item.quantity} Items` }`}</span>
-                      <Button onClick={() => handleQuantityChange(item.id, item.quantity + 1)}>+</Button>
+                      <Button onClick={() => handleQuantityChange(item.id, 'increment')}>+</Button>
                     </div>
                     <Button variant="destructive" onClick={() => handleRemoveItem(item.id)} className="w-full">Remove</Button>
                   </div>

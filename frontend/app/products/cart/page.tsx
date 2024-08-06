@@ -63,7 +63,7 @@ const CartPage = () => {
       if (!response.ok) {
         throw new Error('Failed to update item quantity');
       }
-      console.log(`Item quantity ${changeType}d successfully!`);
+      console.log(`Item quantity ${changeType} successfully!`);
       fetchCartItems();
     } catch (error) {
       console.error('Error updating item quantity:', error);
