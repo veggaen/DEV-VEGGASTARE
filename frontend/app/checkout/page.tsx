@@ -5,20 +5,18 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Connection, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import WalletConnection from '@/components/crypto-related/WalletAdapter';
 
-const APP_NAME = 'VEGA COIN';
-const APP_LOGO_URL = 'https://plus.unsplash.com/premium_photo-1672660509844-449cb70bfcbe?q=80&w=1430&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
-const SOLANA_NETWORK = 'https://api.devnet.solana.com'; // Use Solana devnet endpoint
+const SOLANA_NETWORK = 'https://api.devnet.solana.com';
 const SOLANA_TOKEN_ADDRESS = '59jss4pubSQQbJQqrAatPCc82f7vjbb41FtFZEZgPKk8'; // Receiver address
 const LAMPORTS_PER_SOL = 1000000000;
 
 const CheckoutPage = () => {
   const { data: session } = useSession();
   const router = useRouter();
+  const { publicKey, wallet, signTransaction } = useWallet();
   const [totalPrice, setTotalPrice] = useState<number>(0);
-  const { connection } = useConnection();
-  const { publicKey, sendTransaction } = useWallet();
 
   useEffect(() => {
     if (!session) {
@@ -43,20 +41,16 @@ const CheckoutPage = () => {
   };
 
   const handlePayment = async () => {
-    if (!session) {
+    if (!session || !publicKey || !signTransaction) {
       router.push('/auth/login');
       return;
     }
 
-    if (!publicKey) {
-      alert('Please connect your wallet first.');
-      return;
-    }
-
     try {
-      console.log('From Address:', publicKey.toBase58());
+      console.log('PublicKey:', publicKey.toBase58());
       console.log('Total Price in SOL:', totalPrice);
 
+      const connection = new Connection(SOLANA_NETWORK);
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -65,13 +59,17 @@ const CheckoutPage = () => {
         })
       );
 
-      transaction.feePayer = publicKey;
-      transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
-
       console.log('Transaction:', transaction);
 
-      const signature = await sendTransaction(transaction, connection);
-      await connection.confirmTransaction(signature, 'processed');
+      transaction.feePayer = publicKey;
+      const { blockhash } = await connection.getRecentBlockhash();
+      transaction.recentBlockhash = blockhash;
+
+      const signedTransaction = await signTransaction(transaction);
+      console.log('Signed Transaction:', signedTransaction);
+
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      await connection.confirmTransaction(signature);
 
       console.log('Transaction successful with signature:', signature);
       alert('Payment successful!');
@@ -86,6 +84,7 @@ const CheckoutPage = () => {
       <h1 className="text-2xl font-bold mb-4">Checkout</h1>
       <p>Total Price: ${totalPrice.toFixed(2)}</p>
       <p>{`Total Price in SOL: ${totalPrice}`}</p>
+      <WalletConnection />
       <Button onClick={handlePayment} className="mt-4">Pay with Solana Wallet</Button>
       <div>
         <p>Receiver Address: {SOLANA_TOKEN_ADDRESS}</p>
