@@ -3,6 +3,7 @@ import Image from 'next/image';
 
 interface JobBoxProps {
   jobRequest: {
+    id: string;
     descriptions: string[];
     images: string[];
     links: string[];
@@ -22,6 +23,7 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
 
   return (
     <div className="job-box bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 m-4">
+      <h1 className='text-md font-semibold underline underline-offset-3'>Work ID: {jobRequest.id}</h1>
       {jobRequest.descriptions.map((description, index) => (
         <div key={index} className="mb-4">
           <p className="text-lg font-semibold mb-2">{description}</p>
