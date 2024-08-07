@@ -42,7 +42,7 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
       <div className="mb-4">
         <p className="text-lg font-semibold">Links:</p>
         {jobRequest.links.map((link, index) => (
-          <div
+          <a
             key={index}
             href={link}
             target="_blank"
@@ -50,7 +50,7 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
             className="text-blue-500 hover:underline"
           >
             {link}
-          </div>
+          </a>
         ))}
       </div>
       {jobRequest.docs.length > 0 && (

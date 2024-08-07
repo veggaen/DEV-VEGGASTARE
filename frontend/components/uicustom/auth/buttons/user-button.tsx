@@ -69,11 +69,9 @@ export const MyUserButton = () => {
             </DropdownMenuItem>
           </Link>
           <div className="flex md:hidden">
-            <DropdownMenuItem>
               <div className={'flex items-center justify-center gap-2 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
                 <MyNavbarProtected />
               </div>
-            </DropdownMenuItem>
           </div>
           <MyLogoutButton >
             <DropdownMenuItem>
