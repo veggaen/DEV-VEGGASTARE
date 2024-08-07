@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AiOutlineCloudServer, AiOutlineSetting, AiOutlineUser } from "react-icons/ai";
 import { MdWork, MdAddCircleOutline, MdBusiness } from "react-icons/md";
+import { CiInboxIn } from "react-icons/ci";
+import { SiGooglebigquery } from "react-icons/si";
 import { TbHexagons } from "react-icons/tb";
 import {
   Dialog,
@@ -16,8 +18,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useState } from 'react';
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export const MyNavbarProtected = () => {
+  const user = useCurrentUser();
   const pathname = usePathname();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -37,6 +41,7 @@ export const MyNavbarProtected = () => {
     <div>
       <nav className="hidden lg:flex text-white justify-center items-center w-full mx-auto py-2">
         <div className="flex flex-wrap justify-center items-center gap-3 text-black dark:text-white">
+          <div className={`flex flex-wrap justify-center items-center gap-3 text-black dark:text-white ${user && user.role === 'ADMIN' ? '' : 'hidden'}`}>
           <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/server' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
             <Link href='/server' className='flex flex-col items-center'>
               <AiOutlineCloudServer className="text-2xl" />
@@ -55,6 +60,7 @@ export const MyNavbarProtected = () => {
               <span className="text-xxs mt-1 group-hover:font-semibold">Admin</span>
             </Link>
           </Button>
+          </div>
           <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
             <Link href='/nexus' className='flex flex-col items-center'>
               <AiOutlineSetting className="text-2xl" />
@@ -67,10 +73,23 @@ export const MyNavbarProtected = () => {
               <span className="text-xxs mt-1 group-hover:font-semibold">Company</span>
             </Link>
           </Button>
-          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus/company/create' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus/company/create' ? 'bg-black/20 dark:bg-zinc-700' : ''}`} >
             <Link href='/nexus/company/create' className='flex flex-col items-center'>
-              <MdAddCircleOutline className="text-2xl" />
+              <MdBusiness className="text-2xl hidden group-hover:flex" />
+              <MdAddCircleOutline className="text-2xl group-hover:hidden" />
               <span className="text-xxs mt-1 group-hover:font-semibold">Create</span>
+            </Link>
+          </Button>
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus/company/job-box' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
+            <Link href='/nexus/company/job-box' className='flex flex-col items-center'>
+              <CiInboxIn className="text-2xl" />
+              <span className="text-xxs mt-1 group-hover:font-semibold">Job Box</span>
+            </Link>
+          </Button>
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus/company/job-ask' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
+            <Link href='/nexus/company/job-ask' className='flex flex-col items-center'>
+              <SiGooglebigquery className="text-2xl" />
+              <span className="text-xxs mt-1 group-hover:font-semibold">Job Ask</span>
             </Link>
           </Button>
         </div>
@@ -78,8 +97,8 @@ export const MyNavbarProtected = () => {
       <div className="lg:hidden">
         <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild className={`hover:bg-black/10 hover:font-semibold dark:hover:bg-white/10 rounded-sm py-1 md:py-2 px-2 md:px-4 transition-colors underline-offset-4`}>
-            <Button variant='vegaNormalBtn' className='w-full border-black/0 hover:bg-black/10 hover:font-semibold dark:hover:bg-white/10 rounded-sm py-1 md:py-2 px-2 md:px-4 transition-colors underline-offset-4'>
-              Menu
+            <Button variant='vegaNormalBtn' className=''>
+              Nexus Menu
             </Button>
           </DialogTrigger>
           <DialogContent className='bg-black bg-gradient-to-tr dark:from-slate-600 dark:to-slate-800 from-blue-100 via-gray-200 to-blue-200 border-gray-500/50 top-[50%]'>

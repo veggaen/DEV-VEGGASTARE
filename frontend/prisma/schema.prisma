@@ -33,8 +33,9 @@ model User {
   Employee              Employee[]
   Package               Package[]
   warehouseLocations    WarehouseLocation[]    @relation("UserWarehouses")
-  carts                 Cart[] // Add this line
-  orders                Order[] // Add this line
+  carts                 Cart[]
+  orders                Order[]
+  jobRequests           JobRequest[] // Add this line
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 }
@@ -332,12 +333,34 @@ model Payment {
 enum PaymentMethod {
   METAMASK
   PAYPAL
-  COINBASE
+  COINBASEWALLET
   VISA
+  SOLFLARE
+  PHANTOM
+  MATHWALLET
+  TRUST
 }
 
 enum PaymentStatus {
   PENDING
   COMPLETED
   FAILED
+}
+
+model JobRequest {
+  id              String   @id @default(cuid())
+  descriptions    String[] // Array of descriptions
+  images          String[] // Array of image URLs
+  links           String[] // Array of links
+  docs            String[] // Array of document URLs
+  price           Float
+  negotiable      Boolean
+  paymentMethod   String
+  delivery        String
+  additionalNotes String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyIds      String[] @default([]) // Array of company IDs
 }

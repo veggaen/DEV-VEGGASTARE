@@ -24,7 +24,9 @@ const MyTopBar = () => {
             <Link href="/warehouses" className={`hover:bg-black/10 dark:hover:bg-white/10 rounded-sm py-1 md:py-2 px-2 md:px-4 transition-colors underline-offset-4 ${pathname.includes('/warehouses') ? 'underline' : ''}`}> Warehouses </Link>
           </div>
         </div>
-        <MyNavbarProtected />
+        <div className="hidden sm:flex">
+          <MyNavbarProtected />
+        </div>
         <div className="flex justify-center md:w-48 items-center gap-6 rounded-sm mr-2">
           <div className="hidden md:flex">
             <MyThemeBtn />

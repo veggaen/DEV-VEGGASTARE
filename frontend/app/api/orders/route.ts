@@ -5,6 +5,7 @@ export async function POST(req: Request) {
   try {
     const { userId, totalAmount, transactionId, commentOrder, commentPay, method } = await req.json();
     console.log('commentOrder:', commentOrder);
+    
 
     const order = await dbPrisma.order.create({
       data: {
