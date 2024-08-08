@@ -18,14 +18,20 @@ interface JobRequestData {
 
 const LOG_PREFIX = '[frontend/app/api/job-requests/route.ts]';
 
-function isError(error: unknown): error is Error {
-  return (error as Error).message !== undefined;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const data: JobRequestData = await req.json();
     console.log(LOG_PREFIX, 'createJobRequest:', data);
+
+    // Validate userId
+    const user = await dbPrisma.user.findUnique({
+      where: { id: data.userId },
+    });
+
+    if (!user) {
+      console.error(LOG_PREFIX, 'Invalid userId:', data.userId);
+      return NextResponse.json({ success: false, error: 'Invalid userId' }, { status: 400 });
+    }
 
     const jobRequest = await dbPrisma.jobRequest.create({
       data: {
@@ -47,8 +53,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, jobRequest });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error creating job request:', error);
-    const errorMessage = isError(error) ? error.message : 'Unknown error';
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+    return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
   }
 }
 
@@ -59,7 +64,6 @@ export async function GET() {
     return NextResponse.json(jobRequests);
   } catch (error) {
     console.error(LOG_PREFIX, 'Error fetching job requests:', error);
-    const errorMessage = isError(error) ? error.message : 'Unknown error';
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+    return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
   }
 }

@@ -41,7 +41,7 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
               <Image
                 src={jobRequest.images[index]}
                 alt={`Image ${index + 1}`}
-                layout="fill"
+                fill
                 className="rounded object-cover"
               />
             </div>
