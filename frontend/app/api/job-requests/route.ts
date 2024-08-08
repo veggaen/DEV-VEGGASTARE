@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     console.log(LOG_PREFIX, 'createJobRequest:', data);
 
     // Validate userId
+    console.log('Start validation of user by ID: ', data.userId);
     const user = await dbPrisma.user.findUnique({
       where: { id: data.userId },
     });
@@ -31,6 +32,9 @@ export async function POST(req: NextRequest) {
     if (!user) {
       console.error(LOG_PREFIX, 'Invalid userId:', data.userId);
       return NextResponse.json({ success: false, error: 'Invalid userId' }, { status: 400 });
+    }
+    if (user ){
+        console.log(LOG_PREFIX, 'User is valid:', user.id);
     }
 
     const jobRequest = await dbPrisma.jobRequest.create({
@@ -45,7 +49,7 @@ export async function POST(req: NextRequest) {
         delivery: data.delivery,
         additionalNotes: data.additionalNotes,
         companyIds: data.sendToAll ? [] : data.companyIds,
-        userId: data.userId,
+        userId: user.id,
       },
     });
 
