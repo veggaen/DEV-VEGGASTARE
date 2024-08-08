@@ -13,6 +13,8 @@ import { ExitIcon } from '@radix-ui/react-icons'
 import { MyThemeBtn } from '../../themebtn'
 import { useTheme } from 'next-themes'  // Add this import
 import { MyNavbarProtected } from '@/app/(protected)/_components/navbar';
+import { MdBusiness } from 'react-icons/md';
+import { MyDialogbarNavigator } from '@/app/(protected)/_components/dialog-bar';
 
 interface MyUserButtonProps { 
   size: string
@@ -26,6 +28,9 @@ export const MyUserButton = () => {
 
     const handleThemeToggle = () => {
         setTheme(theme === 'dark' ? 'light' : 'dark');
+    }
+    const style = {
+      dropDownItemStyle: 'relative hover:bg-sky-500/40 dark:hover:bg-sky-500/40 flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50'
     }
 
     return (
@@ -44,41 +49,40 @@ export const MyUserButton = () => {
           </DropdownMenuTrigger>
         </div>
         <DropdownMenuContent className={`w-40 pr-1`} align='end'>
-          <DropdownMenuItem>
-
-          <div className='flex justify-start items-center' onClick={handleThemeToggle}>
-            <MyThemeBtn customName={customName} onClick={handleThemeToggle} />
-            <p className='hidden dark:flex'>Dark mode</p>
-            <p className='dark:hidden'>Light mode</p>
+          <div className={style.dropDownItemStyle}>
+            <div className='flex justify-start items-center' onClick={handleThemeToggle}>
+              <MyThemeBtn customName={customName} onClick={handleThemeToggle} />
+              <p className='hidden dark:flex'>Dark mode</p>
+              <p className='dark:hidden'>Light mode</p>
+            </div>
           </div>
-          </DropdownMenuItem>
           <Link href='/nexus/company'>
-            <DropdownMenuItem>
+          <div className={style.dropDownItemStyle}>
               <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
-                <TbHexagons className={`min-h-[1.2rem] min-w-[1.2rem]`} />
-                <p className=''>Nexus</p>
+                <MdBusiness className={`min-h-[1.2rem] min-w-[1.2rem]`} />
+                <p className=''>Company</p>
               </div>
-            </DropdownMenuItem>
+          </div>
           </Link>
+          <div className={style.dropDownItemStyle}>
+            <div className='w-full flex '>
+              <MyDialogbarNavigator />
+            </div>
+          </div>
           <Link href='/cart'>
-            <DropdownMenuItem>
+            <div className={style.dropDownItemStyle}>
               <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
                 <FaCartFlatbed className={`min-h-[1.2rem] min-w-[1.2rem]`} />
                 <p className=''>Cart</p>
               </div>
-            </DropdownMenuItem>
+            </div>
           </Link>
-          <div className="flex md:hidden">
-              <div className={'flex items-center justify-center gap-2 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
-                <MyNavbarProtected />
-              </div>
-          </div>
           <MyLogoutButton >
-            <DropdownMenuItem>
+            <div className={style.dropDownItemStyle}>
               <div className={'flex items-center justify-center gap-2 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
                 <ExitIcon className={`h-6 w-6 pr-1`} /><span>Logout</span>
               </div>
-            </DropdownMenuItem>
+            </div>
           </MyLogoutButton>
         </DropdownMenuContent>
       </DropdownMenu>
