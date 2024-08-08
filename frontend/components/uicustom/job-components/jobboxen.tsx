@@ -49,9 +49,7 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
       <Link href={`/nexus/company/job-box/${jobRequest.id}`} passHref>
         <div className='text-md font-semibold underline underline-offset-3'>Work ID: {jobRequest.id}</div>
       </Link>
-      <div className="mb-4 text-gray-500">
-        <p>{formatDate(jobRequest.createdAt)}</p>
-      </div>
+      
       {jobRequest.descriptions.map((description, index) => (
         <div key={index} className="mb-4">
           <p className="text-lg font-semibold mb-2">{description}</p>

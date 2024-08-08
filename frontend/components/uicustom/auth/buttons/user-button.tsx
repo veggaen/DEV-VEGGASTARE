@@ -1,90 +1,92 @@
-'use client'
+'use client';
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { AiOutlineCluster } from "react-icons/ai";
-import { TbHexagons } from "react-icons/tb";
+import { useState } from 'react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FaCartFlatbed } from "react-icons/fa6";
-import { FaUser } from 'react-icons/fa'
-import { useCurrentUser } from '@/hooks/use-current-user'
-import { MyLogoutButton } from './logout-button'
-import Link from 'next/link'
-import { ExitIcon } from '@radix-ui/react-icons'
-import { MyThemeBtn } from '../../themebtn'
-import { useTheme } from 'next-themes'  // Add this import
-import { MyNavbarProtected } from '@/app/(protected)/_components/navbar';
+import { FaUser } from 'react-icons/fa';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { MyLogoutButton } from './logout-button';
+import Link from 'next/link';
+import { ExitIcon } from '@radix-ui/react-icons';
+import { MyThemeBtn } from '../../themebtn';
+import { useTheme } from 'next-themes';
 import { MdBusiness } from 'react-icons/md';
 import { MyDialogbarNavigator } from '@/app/(protected)/_components/dialog-bar';
 
-interface MyUserButtonProps { 
-  size: string
-}
-
 export const MyUserButton = () => {
-    const user = useCurrentUser();
-    const customName = 'vegaThemeBtnDefault'
+  const user = useCurrentUser();
+  const customName = 'vegaThemeBtnDefault';
 
-    const { setTheme, theme } = useTheme()  // Move this out of the function to be directly within the component
+  const { setTheme, theme } = useTheme();
 
-    const handleThemeToggle = () => {
-        setTheme(theme === 'dark' ? 'light' : 'dark');
-    }
-    const style = {
-      dropDownItemStyle: 'relative hover:bg-sky-500/40 dark:hover:bg-sky-500/40 flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50'
-    }
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
-    return (
-      <DropdownMenu>
-        <div className='flex justify-center items-center gap-3'>
-          <div className='hidden md:flex'>
-            {user && user.name}
-          </div>
-          <DropdownMenuTrigger className='outline-none'>
-            <Avatar className={`h-12 w-12 hover:scale-105`}>
-              <AvatarImage src={user?.image || ''} alt="User" />
-              <AvatarFallback className='bg-emerald-500 outline-none'>
-                <FaUser />
-              </AvatarFallback>
-            </Avatar>
-          </DropdownMenuTrigger>
+  const handleThemeToggle = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+    setDropdownOpen(false); // Hide the dropdown menu
+  };
+
+  const handleMenuItemClick = () => {
+    setDropdownOpen(false); // Hide the dropdown menu
+  };
+
+  const style = {
+    dropDownItemStyle: 'relative hover:bg-sky-500/40 dark:hover:bg-sky-500/40 flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+  };
+
+  return (
+    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+      <div className='flex justify-center items-center gap-3'>
+        <div className='hidden md:flex'>
+          {user && user.name}
         </div>
-        <DropdownMenuContent className={`w-40 pr-1`} align='end'>
-          <div className={style.dropDownItemStyle}>
-            <div className='flex justify-start items-center' onClick={handleThemeToggle}>
-              <MyThemeBtn customName={customName} onClick={handleThemeToggle} />
-              <p className='hidden dark:flex'>Dark mode</p>
-              <p className='dark:hidden'>Light mode</p>
+        <DropdownMenuTrigger className='outline-none'>
+          <Avatar className={`h-12 w-12 hover:scale-105`}>
+            <AvatarImage src={user?.image || ''} alt="User" />
+            <AvatarFallback className='bg-emerald-500 outline-none'>
+              <FaUser />
+            </AvatarFallback>
+          </Avatar>
+        </DropdownMenuTrigger>
+      </div>
+      <DropdownMenuContent className={`w-40 pr-1`} align='end'>
+        <div className={style.dropDownItemStyle}>
+          <div className='flex justify-start items-center' onClick={handleThemeToggle}>
+            <MyThemeBtn customName={customName} onClick={handleThemeToggle} />
+            <p className='hidden dark:flex'>Dark mode</p>
+            <p className='dark:hidden'>Light mode</p>
+          </div>
+        </div>
+        <Link href='/nexus/company'>
+          <div className={style.dropDownItemStyle} onClick={handleMenuItemClick}>
+            <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
+              <MdBusiness className={`min-h-[1.2rem] min-w-[1.2rem]`} />
+              <p className=''>Company</p>
             </div>
           </div>
-          <Link href='/nexus/company'>
-          <div className={style.dropDownItemStyle}>
-              <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
-                <MdBusiness className={`min-h-[1.2rem] min-w-[1.2rem]`} />
-                <p className=''>Company</p>
-              </div>
+        </Link>
+        <div className={style.dropDownItemStyle}>
+          <div className='w-full flex '>
+            <MyDialogbarNavigator />
           </div>
-          </Link>
-          <div className={style.dropDownItemStyle}>
-            <div className='w-full flex '>
-              <MyDialogbarNavigator />
+        </div>
+        <Link href='/cart'>
+          <div className={style.dropDownItemStyle} onClick={handleMenuItemClick}>
+            <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
+              <FaCartFlatbed className={`min-h-[1.2rem] min-w-[1.2rem]`} />
+              <p className=''>Cart</p>
             </div>
           </div>
-          <Link href='/cart'>
-            <div className={style.dropDownItemStyle}>
-              <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
-                <FaCartFlatbed className={`min-h-[1.2rem] min-w-[1.2rem]`} />
-                <p className=''>Cart</p>
-              </div>
+        </Link>
+        <MyLogoutButton>
+          <div className={style.dropDownItemStyle} onClick={handleMenuItemClick}>
+            <div className={'flex items-center justify-center gap-2 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
+              <ExitIcon className={`h-6 w-6 pr-1`} /><span>Logout</span>
             </div>
-          </Link>
-          <MyLogoutButton >
-            <div className={style.dropDownItemStyle}>
-              <div className={'flex items-center justify-center gap-2 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
-                <ExitIcon className={`h-6 w-6 pr-1`} /><span>Logout</span>
-              </div>
-            </div>
-          </MyLogoutButton>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    )
-}
+          </div>
+        </MyLogoutButton>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
