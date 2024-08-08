@@ -8,7 +8,7 @@ export async function ImageHandlerJobAsk(image: File, edgestore: any) {
     if (image) {
       const res = await edgestore.myPublicImages.upload({
         file: image,
-        onProgressChange: (progress) => {
+        onProgressChange: (progress: any) => {
           // you can use this to show a progress bar
           console.log('UPLOAD PROGRESS', progress);
         },

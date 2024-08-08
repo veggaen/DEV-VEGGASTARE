@@ -51,6 +51,7 @@ const MyJobAsk: FC = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [imagePreviews, setImagePreviews] = useState<string[][]>([[]]);
+  const [showOptional, setShowOptional] = useState(false);
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -170,6 +171,10 @@ const MyJobAsk: FC = () => {
     });
   };
 
+  const handleOptionalClick = () => {
+    setShowOptional(!showOptional);
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log(LOG_PREFIX, 'User:', user); // Log user details
@@ -218,19 +223,23 @@ const MyJobAsk: FC = () => {
   );
 
   const style = {
-    baseRoot: 'flex flex-col justify-center items-start w-full max-w-7xl px-4 py-2 gap-4',
-    baseItem: 'flex flex-col md:flex-row justify-between items-center w-full px-2 py-4 hover:bg-white/10 dark:hover:bg-black/10 rounded',
-    txtArea: 'p-2 border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
-    input: 'p-2 border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
+    baseRoot: 'flex flex-col justify-center items-start w-full max-w-7xl px-4 py-2',
+    baseItem: 'flex flex-col md:flex-row justify-between items-center w-full px-2 py-4 hover:bg-white/30 dark:hover:bg-black/30 rounded',
+    txtArea: 'p-2 w-full border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
+    input: 'p-2 w-full border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
     inputCheckbox: 'border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
     dropzone: 'border border-dashed border-gray-400 dark:border-gray-400 rounded-md p-2 text-center',
   };
 
+  if (!user) {
+    return <p>Loading client user...</p>;
+  }
+
   return (
     <div className="flex flex-col justify-start items-center w-full">
       <h1>Job Ask</h1>
-      <form onSubmit={handleSubmit} className={style.baseRoot}>
-        <div className="flex flex-col justify-start items-center w-full px-2 py-4 hover:bg-white/10 dark:hover:bg-black/10 rounded">
+      <form onSubmit={handleSubmit} className={`${style.baseRoot} gap-2`}>
+        <div className="flex flex-col justify-start items-center w-full gap-4 px-4 py-4 pb-2 hover:bg-white/30 dark:hover:bg-black/30 rounded">
           {formData.descriptions.map((description, index) => (
             <JobDescriptionField
               key={index}
@@ -245,94 +254,115 @@ const MyJobAsk: FC = () => {
             />
           ))}
           <Button variant="vegaNormalBtn" className="w-full" type="button" onClick={() => handleAddFields('descriptions')}>
-            Add Description
+            Add Image with description
           </Button>
         </div>
-        <div className={`${style.baseRoot} group hover:bg-white/30`}>
-          {formData.links.map((link, index) => (
-            <div key={index} className={style.baseItem}>
-              <label>Link {index + 1}</label>
-              <div className="space-x-2">
-                <input
-                  className={style.input}
-                  type="text"
-                  name="link"
-                  value={link}
-                  onChange={(e) => handleChange(e, index, 'links')}
-                />
-                <Button variant="vegaNormalBtn" type="button" onClick={() => handleRemoveFields(index, 'links')}>
-                  Remove
-                </Button>
-              </div>
-            </div>
-          ))}
-          <Button variant="vegaNormalBtn" type="button" onClick={() => handleAddFields('links')}>
-            Add Link
+        <div className='group w-full hover:bg-black/30 p-4 pt-2'>
+          <Button variant="vegaNormalBtn" type="button" className='w-full' onClick={() => handleOptionalClick()}>
+            Show Optional
           </Button>
-        </div>
-        <div className={style.baseItem}>
-          <label>Documents</label>
-          <input className={style.input} type="file" name="docs" onChange={(e) => handleChange(e, undefined, 'docs')} multiple />
-          {formData.docs.length > 0 && (
-            <div className="mt-2">
-              {formData.docs.map((doc, index) => (
-                <div key={index} className="flex items-center">
-                  <span className="text-sm">{doc.name}</span>
-                  <Button variant="vegaNormalBtn" type="button" onClick={() => handleRemoveFields(index, 'docs')}>
-                    Remove
-                  </Button>
+          <div className={`${showOptional ? 'hidden' : 'w-full'}`}>
+            <div className={`flex flex-col justify-center items-start w-full max-w-7xl gap-4 group `}>
+              {formData.links.map((link, index) => (
+                <div key={index} className={`${style.baseItem} `}>
+                  <label>Link {index + 1}</label>
+                  <div className="flex justify-end w-full md:w-1/2 space-x-2">
+                    <input
+                      className={style.input}
+                      type="text"
+                      name="link"
+                      value={link}
+                      onChange={(e) => handleChange(e, index, 'links')}
+                    />
+                    <Button variant="vegaNormalBtn" type="button" onClick={() => handleRemoveFields(index, 'links')}>
+                      Remove
+                    </Button>
+                    <Button variant="vegaNormalBtn" type="button" onClick={() => handleAddFields('links')}>
+                      Add Link
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
-          )}
-        </div>
-        <div className={style.baseItem}>
-          <label>Price</label>
-          <input className={style.input} type="number" name="price" value={formData.price} onChange={(e) => handleChange(e, undefined, 'price')} />
-        </div>
-        <div className={style.baseItem}>
-          <label>Negotiable</label>
-          <input className={style.inputCheckbox} type="checkbox" name="negotiable" checked={formData.negotiable} onChange={(e) => handleChange(e, undefined, 'negotiable')} />
-        </div>
-        <div className={style.baseItem}>
-          <label>Payment Method</label>
-          <input className={style.input} type="text" name="paymentMethod" value={formData.paymentMethod} onChange={(e) => handleChange(e, undefined, 'paymentMethod')} />
-        </div>
-        <div className={style.baseItem}>
-          <label>Delivery</label>
-          <input className={style.input} type="text" name="delivery" value={formData.delivery} onChange={(e) => handleChange(e, undefined, 'delivery')} />
-        </div>
-        <div className={style.baseItem}>
-          <label>Additional Notes</label>
-          <textarea className={style.txtArea} name="additionalNotes" value={formData.additionalNotes} onChange={(e) => handleChange(e, undefined, 'additionalNotes')} />
-        </div>
-        <div className={style.baseItem}>
-          <label>Send to All Companies</label>
-          <input className={style.inputCheckbox} type="checkbox" name="sendToAll" checked={formData.sendToAll} onChange={(e) => handleChange(e, undefined, 'sendToAll')} />
-        </div>
-        {!formData.sendToAll && (
-          <>
-            <div className={style.baseItem}>
-              <label>Search Companies</label>
-              <input
-                className={style.input}
-                type="text"
-                placeholder="Search by name or description"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className={`${style.baseItem}`}>
+              <label>Documents</label>
+              <div className='flex justify-end w-full md:w-1/2'>
+              <input className={style.input} type="file" name="docs" onChange={(e) => handleChange(e, undefined, 'docs')} multiple />
+                {formData.docs.length > 0 && (
+                  <div className="mt-2">
+                    {formData.docs.map((doc, index) => (
+                      <div key={index} className="flex items-center">
+                        <span className="text-sm">{doc.name}</span>
+                        <Button variant="vegaNormalBtn" type="button" onClick={() => handleRemoveFields(index, 'docs')}>
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className={style.baseItem}>
-              <label>Select Companies</label>
-              <select className={style.input} multiple onChange={handleCompanySelect}>
-                {filteredCompanies.map(company => (
-                  <option key={company.id} value={company.id}>{company.name}</option>
-                ))}
-              </select>
+              <label>Price</label>
+              <div className='flex justify-end w-full md:w-1/2'>
+                <input className={style.input} type="number" name="price" value={formData.price} onChange={(e) => handleChange(e, undefined, 'price')} />
+              </div>
             </div>
-          </>
-        )}
-        <Button variant="vegaNormalBtn" type="submit">Submit Job Request</Button>
+            <div className={style.baseItem}>
+              <label>Negotiable</label>
+              <div className='flex justify-end w-full md:w-1/2'>
+                <input className={style.inputCheckbox} type="checkbox" name="negotiable" checked={formData.negotiable} onChange={(e) => handleChange(e, undefined, 'negotiable')} />
+              </div>
+            </div>
+            <div className={style.baseItem}>
+              <label>Payment Method</label>
+              <div className='flex justify-end w-full md:w-1/2'>
+                <input className={style.input} type="text" name="paymentMethod" value={formData.paymentMethod} onChange={(e) => handleChange(e, undefined, 'paymentMethod')} />
+              </div>
+            </div>
+            <div className={style.baseItem}>
+              <label>Delivery method</label>
+              <div className='flex justify-end w-full md:w-1/2'>
+                <input className={style.input} type="text" name="delivery" value={formData.delivery} onChange={(e) => handleChange(e, undefined, 'delivery')} />
+              </div>
+            </div>
+            <div className={style.baseItem}>
+              <label>Additional Notes</label>
+              <div className='flex justify-end w-full md:w-1/2'>
+                <textarea className={style.txtArea} name="additionalNotes" value={formData.additionalNotes} onChange={(e) => handleChange(e, undefined, 'additionalNotes')} />
+              </div>
+            </div>
+            <div className={style.baseItem}>
+              <label>Send to All Companies</label>
+              <div className='flex justify-end w-full md:w-1/2'>
+                <input className={style.inputCheckbox} type="checkbox" name="sendToAll" checked={formData.sendToAll} onChange={(e) => handleChange(e, undefined, 'sendToAll')} />
+              </div>
+            </div>
+            {!formData.sendToAll && (
+              <>
+                <div className={style.baseItem}>
+                  <label>Search Companies</label>
+                  <input
+                    className={style.input}
+                    type="text"
+                    placeholder="Search by name or description"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className={style.baseItem}>
+                  <label>Select Companies</label>
+                  <select className={style.input} multiple onChange={handleCompanySelect}>
+                    {filteredCompanies.map(company => (
+                      <option key={company.id} value={company.id}>{company.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+        <Button variant="vegaNormalBtn" type="submit" className='w-full'>Submit Job Request</Button>
       </form>
     </div>
   );
@@ -377,8 +407,8 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
   };
 
   return (
-    <div className={`${style.baseRoot}`}>
-      <div className={`${style.baseItem} space-y-4 md:space-y-0 md:space-x-4`}>
+    <div className={`flex flex-col justify-center items-start w-full max-w-7xl gap-4`}>
+      <div className={`flex flex-col sm:flex-row justify-between items-center w-full rounded space-y-4 md:space-y-0 md:space-x-4`}>
         <div {...getRootProps()} className={style.dropzone}>
           <input {...getInputProps()} />
           {imagePreviews.length === 0 ? (
@@ -410,11 +440,11 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
             </div>
           )}
         </div>
-        <div className="text-center w-full h-full flex flex-col gap-2">
-          <AspectRatio ratio={1 / 1}>
+        <div className="flex flex-col text-center w-full h-full">
+          <AspectRatio ratio={1 / 1} >
             <div className="w-full h-full">
               <textarea
-                className={`${style.txtArea} h-full w-full resize-none px-4 py-2`}
+                className={`border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out h-full w-full resize-none px-4 py-2`}
                 name="description"
                 value={description}
                 placeholder="This section is intended for a detailed description of the image that will be displayed alongside this description. When describing the image."
