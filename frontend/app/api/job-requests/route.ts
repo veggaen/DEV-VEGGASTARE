@@ -3,20 +3,24 @@ import { dbPrisma } from '@/lib/db'; // Adjust the import according to your proj
 
 interface JobRequestData {
   descriptions: string[];
-  images?: string[];
-  links?: string[];
-  docs?: string[];
-  price?: string;
-  negotiable?: boolean;
-  paymentMethod?: string;
-  delivery?: string;
-  additionalNotes?: string;
-  companyIds?: string[];
-  sendToAll?: boolean;
+  images: string[];
+  links: string[];
+  docs: string[];
+  price?: string; // Optional
+  negotiable?: boolean; // Optional
+  paymentMethod?: string; // Optional
+  delivery?: string; // Optional
+  additionalNotes?: string; // Optional
+  companyIds?: string[]; // Optional
+  sendToAll: boolean;
   userId: string;
 }
 
 const LOG_PREFIX = '[frontend/app/api/job-requests/route.ts]';
+
+function isError(error: unknown): error is Error {
+  return (error as Error).message !== undefined;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,16 +29,16 @@ export async function POST(req: NextRequest) {
 
     const jobRequest = await dbPrisma.jobRequest.create({
       data: {
-        descriptions: data.descriptions,
-        images: data.images || [],
-        links: data.links || [],
-        docs: data.docs || [],
-        price: data.price ? parseFloat(data.price) : undefined,
-        negotiable: data.negotiable ?? false,
-        paymentMethod: data.paymentMethod || '',
-        delivery: data.delivery || '',
-        additionalNotes: data.additionalNotes || '',
-        companyIds: data.sendToAll ? [] : data.companyIds || [],
+        descriptions: data.descriptions, // Use descriptions as an array
+        images: data.images, // Store images as an array
+        links: data.links.filter(link => link.trim() !== ''), // Filter out empty links
+        docs: data.docs.filter(doc => doc.trim() !== ''), // Filter out empty docs
+        price: data.price ? parseFloat(data.price) : undefined, // Convert price to number if provided
+        negotiable: data.negotiable,
+        paymentMethod: data.paymentMethod,
+        delivery: data.delivery,
+        additionalNotes: data.additionalNotes,
+        companyIds: data.sendToAll ? [] : data.companyIds,
         userId: data.userId,
       },
     });
@@ -43,17 +47,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, jobRequest });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error creating job request:', error);
-    return new NextResponse('Failed to create job request', { status: 500 });
+    const errorMessage = isError(error) ? error.message : 'Unknown error';
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }
 
 export async function GET() {
-    try {
-      const jobRequests = await dbPrisma.jobRequest.findMany();
-      console.log(LOG_PREFIX, 'Fetched job requests:', jobRequests);
-      return NextResponse.json(jobRequests);
-    } catch (error) {
-      console.error(LOG_PREFIX, 'Error fetching job requests:', error);
-      return NextResponse.error();
-    }
+  try {
+    const jobRequests = await dbPrisma.jobRequest.findMany();
+    console.log(LOG_PREFIX, 'Fetched job requests:', jobRequests);
+    return NextResponse.json(jobRequests);
+  } catch (error) {
+    console.error(LOG_PREFIX, 'Error fetching job requests:', error);
+    const errorMessage = isError(error) ? error.message : 'Unknown error';
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+  }
 }

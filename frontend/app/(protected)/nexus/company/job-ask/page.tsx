@@ -1,44 +1,38 @@
-'use client';
+'use client'
 
 import React, { useState, useEffect, useCallback, ChangeEvent, FC } from 'react';
+import { useRouter } from 'next/router';
 import { Button } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
 import { UploadCloudIcon, XCircle } from 'lucide-react';
-
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { useEdgeStore } from '@/lib/edgestore';
 import { ImageHandlerJobAsk } from '@/components/uicustom/company/img-handler-job-ask';
-import { useRouter } from 'next/navigation';
+import { Company } from '@prisma/client';
 
 interface FormData {
   descriptions: string[];
   images: File[][];
   links: string[];
   docs: File[];
-  price: string;
-  negotiable: boolean;
-  paymentMethod: string;
-  delivery: string;
-  additionalNotes: string;
-  companyIds: string[];
+  price?: string;
+  negotiable?: boolean;
+  paymentMethod?: string;
+  delivery?: string;
+  additionalNotes?: string;
+  companyIds?: string[];
   sendToAll: boolean;
   userId: string;
   [key: string]: any;
 }
 
-interface Company {
-  id: string;
-  name: string;
-  description?: string;
-}
-
 const LOG_PREFIX = '[frontend/app/(protected)/nexus/company/job-ask/page.tsx]';
 
 const MyJobAsk: FC = () => {
-  const router = useRouter();
   const user = useCurrentUser();
+  const router = useRouter();
   const { edgestore } = useEdgeStore();
   const [formData, setFormData] = useState<FormData>({
     descriptions: [''],
@@ -54,7 +48,6 @@ const MyJobAsk: FC = () => {
     sendToAll: true,
     userId: user?.id ?? '',
   });
-
   const [companies, setCompanies] = useState<Company[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [imagePreviews, setImagePreviews] = useState<string[][]>([[]]);
@@ -129,7 +122,7 @@ const MyJobAsk: FC = () => {
       ...(field === 'descriptions' && { images: [...prevData.images, []] }),
     }));
     if (field === 'descriptions') {
-      setImagePreviews((prevPreviews) => [...prevPreviews, []]);handleRemoveFields
+      setImagePreviews((prevPreviews) => [...prevPreviews, []]);
     }
   };
 
@@ -205,9 +198,13 @@ const MyJobAsk: FC = () => {
       });
       const result = await response.json();
       console.log(LOG_PREFIX, 'Job request submitted:', result);
-      router.push('/nexus/company/job-box'); // Redirect to Job Box page on success
+      if (result.success) {
+        router.push('/nexus/company/job-box');
+      } else {
+        console.error(LOG_PREFIX, 'Error in job request submission:', result.error);
+      }
     } catch (error) {
-      console.error('Error submitting job request:', error);
+      console.error(LOG_PREFIX, 'Error submitting job request:', error);
     }
   };
 
@@ -226,10 +223,10 @@ const MyJobAsk: FC = () => {
   };
 
   return (
-    <div className='flex flex-col justify-start items-center w-full'>
+    <div className="flex flex-col justify-start items-center w-full">
       <h1>Job Ask</h1>
       <form onSubmit={handleSubmit} className={style.baseRoot}>
-        <div className='flex flex-col justify-start items-center w-full px-2 py-4 hover:bg-white/10 dark:hover:bg-black/10 rounded'>
+        <div className="flex flex-col justify-start items-center w-full px-2 py-4 hover:bg-white/10 dark:hover:bg-black/10 rounded">
           {formData.descriptions.map((description, index) => (
             <JobDescriptionField
               key={index}
@@ -243,7 +240,7 @@ const MyJobAsk: FC = () => {
               handleRemoveImage={handleRemoveImage}
             />
           ))}
-          <Button variant='vegaNormalBtn' className='w-full' type="button" onClick={() => handleAddFields('descriptions')}>
+          <Button variant="vegaNormalBtn" className="w-full" type="button" onClick={() => handleAddFields('descriptions')}>
             Add Description
           </Button>
         </div>
@@ -251,7 +248,7 @@ const MyJobAsk: FC = () => {
           {formData.links.map((link, index) => (
             <div key={index} className={style.baseItem}>
               <label>Link {index + 1}</label>
-              <div className='space-x-2'>
+              <div className="space-x-2">
                 <input
                   className={style.input}
                   type="text"
@@ -259,13 +256,13 @@ const MyJobAsk: FC = () => {
                   value={link}
                   onChange={(e) => handleChange(e, index, 'links')}
                 />
-                <Button variant='vegaNormalBtn' type="button" onClick={() => handleRemoveFields(index, 'links')}>
+                <Button variant="vegaNormalBtn" type="button" onClick={() => handleRemoveFields(index, 'links')}>
                   Remove
                 </Button>
               </div>
             </div>
           ))}
-          <Button variant='vegaNormalBtn' type="button" onClick={() => handleAddFields('links')}>
+          <Button variant="vegaNormalBtn" type="button" onClick={() => handleAddFields('links')}>
             Add Link
           </Button>
         </div>
@@ -277,7 +274,7 @@ const MyJobAsk: FC = () => {
               {formData.docs.map((doc, index) => (
                 <div key={index} className="flex items-center">
                   <span className="text-sm">{doc.name}</span>
-                  <Button variant='vegaNormalBtn' type="button" onClick={() => handleRemoveFields(index, 'docs')}>
+                  <Button variant="vegaNormalBtn" type="button" onClick={() => handleRemoveFields(index, 'docs')}>
                     Remove
                   </Button>
                 </div>
@@ -331,7 +328,7 @@ const MyJobAsk: FC = () => {
             </div>
           </>
         )}
-        <Button variant='vegaNormalBtn' type="submit">Submit Job Request</Button>
+        <Button variant="vegaNormalBtn" type="submit">Submit Job Request</Button>
       </form>
     </div>
   );
@@ -381,7 +378,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
         <div {...getRootProps()} className={style.dropzone}>
           <input {...getInputProps()} />
           {imagePreviews.length === 0 ? (
-            <div className='w-full'>
+            <div className="w-full">
               <AspectRatio ratio={1 / 1}>
                 <div className="text-center flex flex-col justify-center items-center h-full w-full">
                   <UploadCloudIcon className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200" />
@@ -396,7 +393,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
               {imagePreviews.map((preview, imgIndex) => (
                 <div key={imgIndex} className="relative">
                   <AspectRatio ratio={1 / 1}>
-                    <Image src={preview} alt={`preview-${index}-${imgIndex}`} layout="fill" className="rounded-md object-cover" />
+                    <Image src={preview} alt={`preview-${index}-${imgIndex}`} fill className="rounded-md object-cover" sizes="100vw" />
                   </AspectRatio>
                   <div
                     onClick={() => handleRemoveImage(index, imgIndex)}
@@ -409,20 +406,20 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
             </div>
           )}
         </div>
-        <div className='text-center w-full h-full flex flex-col gap-2'>
+        <div className="text-center w-full h-full flex flex-col gap-2">
           <AspectRatio ratio={1 / 1}>
-            <div className='w-full h-full'>
+            <div className="w-full h-full">
               <textarea
                 className={`${style.txtArea} h-full w-full resize-none px-4 py-2`}
                 name="description"
                 value={description}
-                placeholder='This section is intended for a detailed description of the image that will be displayed alongside this description. When describing the image.'
+                placeholder="This section is intended for a detailed description of the image that will be displayed alongside this description. When describing the image."
                 onChange={(e) => handleChange(e, index, 'descriptions')}
                 required
               />
             </div>
           </AspectRatio>
-          <Button variant='vegaNormalBtn' type="button" className={`${index === 0 ? 'hidden' : ''} w-full`} onClick={() => handleRemoveFields(index, 'descriptions')}>
+          <Button variant="vegaNormalBtn" type="button" className={`${index === 0 ? 'hidden' : ''} w-full`} onClick={() => handleRemoveFields(index, 'descriptions')}>
             Remove
           </Button>
         </div>
