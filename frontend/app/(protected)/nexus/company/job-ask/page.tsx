@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, ChangeEvent, FC } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
