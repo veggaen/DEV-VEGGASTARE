@@ -21,7 +21,7 @@ const LOG_PREFIX = '[frontend/app/api/job-requests/route.ts]';
 export async function POST(req: NextRequest) {
   try {
     const data: JobRequestData = await req.json();
-    console.log(LOG_PREFIX, 'createJobRequest:', data);
+    console.log(LOG_PREFIX, 'Received job request data:', data);
 
     // Validate userId
     console.log('Start validation of user by ID: ', data.userId);
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       console.error(LOG_PREFIX, 'Invalid userId:', data.userId);
       return NextResponse.json({ success: false, error: 'Invalid userId' }, { status: 400 });
     }
-    if (user ){
+    if (user) {
         console.log(LOG_PREFIX, 'User is valid:', user.id);
     }
 
@@ -43,11 +43,11 @@ export async function POST(req: NextRequest) {
         images: data.images, // Store images as an array
         links: data.links.filter(link => link.trim() !== ''), // Filter out empty links
         docs: data.docs.filter(doc => doc.trim() !== ''), // Filter out empty docs
-        price: data.price ? parseFloat(data.price) : undefined, // Convert price to number if provided
-        negotiable: data.negotiable,
-        paymentMethod: data.paymentMethod,
-        delivery: data.delivery,
-        additionalNotes: data.additionalNotes,
+        price: data.price ? parseFloat(data.price) : null, // Convert price to number if provided, else set to null
+        negotiable: data.negotiable ?? null, // Set to null if not provided
+        paymentMethod: data.paymentMethod ?? null, // Set to null if not provided
+        delivery: data.delivery ?? null, // Set to null if not provided
+        additionalNotes: data.additionalNotes ?? null, // Set to null if not provided
         companyIds: data.sendToAll ? [] : data.companyIds,
         userId: user.id,
       },
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     console.log(LOG_PREFIX, 'Job request created:', jobRequest);
     return NextResponse.json({ success: true, jobRequest });
   } catch (error) {
-    console.error(LOG_PREFIX, 'Error creating job request:', error);
+    console.error(LOG_PREFIX, 'Error creating job request:', (error as Error).message);
     return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
   }
 }

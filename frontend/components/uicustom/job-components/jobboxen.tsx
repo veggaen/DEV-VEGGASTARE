@@ -1,6 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
-import { formatDistanceToNow } from 'date-fns';
+import Link from 'next/link';
 
 interface JobBoxProps {
   jobRequest: {
@@ -9,12 +9,12 @@ interface JobBoxProps {
     images: string[];
     links: string[];
     docs: string[];
-    price?: string; // Optional
-    negotiable?: boolean; // Optional
-    paymentMethod?: string; // Optional
-    delivery?: string; // Optional
-    additionalNotes?: string; // Optional
-    createdAt: string; // ISO string
+    price: string | null;
+    negotiable: boolean | null;
+    paymentMethod: string | null;
+    delivery: string | null;
+    additionalNotes: string | null;
+    createdAt: string;
   };
 }
 
@@ -23,16 +23,35 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
     return <div>No job request data available.</div>;
   }
 
-  const timeAgo = formatDistanceToNow(new Date(jobRequest.createdAt), { addSuffix: true });
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const diffMinutes = Math.floor((diff / 1000 / 60) % 60);
+    const diffSeconds = Math.floor((diff / 1000) % 60);
 
-  // Filter out empty strings from links and docs
-  const filteredLinks = jobRequest.links.filter(link => link.trim() !== '');
-  const filteredDocs = jobRequest.docs.filter(doc => doc.trim() !== '');
+    if (diffDays > 0) {
+      return `posted ${diffDays} days ${diffHours} hours ago`;
+    }
+    if (diffHours > 0) {
+      return `posted ${diffHours} hours ${diffMinutes} minutes ago`;
+    }
+    if (diffMinutes > 0) {
+      return `posted ${diffMinutes} minutes ${diffSeconds} seconds ago`;
+    }
+    return `posted ${diffSeconds} seconds ago`;
+  };
 
   return (
     <div className="job-box bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 m-4">
-      <h1 className="text-md font-semibold underline underline-offset-3">Work ID: {jobRequest.id}</h1>
-      <p className="text-sm text-gray-500 dark:text-gray-400">Posted {timeAgo}</p>
+      <Link href={`/nexus/company/job-box/${jobRequest.id}`} passHref>
+        <div className='text-md font-semibold underline underline-offset-3'>Work ID: {jobRequest.id}</div>
+      </Link>
+      <div className="mb-4 text-gray-500">
+        <p>{formatDate(jobRequest.createdAt)}</p>
+      </div>
       {jobRequest.descriptions.map((description, index) => (
         <div key={index} className="mb-4">
           <p className="text-lg font-semibold mb-2">{description}</p>
@@ -41,50 +60,54 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
               <Image
                 src={jobRequest.images[index]}
                 alt={`Image ${index + 1}`}
-                fill
+                layout="fill"
                 className="rounded object-cover"
               />
             </div>
           )}
         </div>
       ))}
-      {filteredLinks.length > 0 && (
+      {jobRequest.links.length > 0 && jobRequest.links.some(link => link.trim() !== '') && (
         <div className="mb-4">
           <p className="text-lg font-semibold">Links:</p>
-          {filteredLinks.map((link, index) => (
-            <a
-              key={index}
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline"
-            >
-              {link}
-            </a>
+          {jobRequest.links.map((link, index) => (
+            link.trim() !== '' && (
+              <a
+                key={index}
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                {link}
+              </a>
+            )
           ))}
         </div>
       )}
-      {filteredDocs.length > 0 && (
+      {jobRequest.docs.length > 0 && jobRequest.docs.some(doc => doc.trim() !== '') && (
         <div className="mb-4">
           <p className="text-lg font-semibold">Documents:</p>
           <p>
-            {filteredDocs.map((doc, index) => (
-              <a className="text-blue-500 hover:text-sky-500 hover:underline" key={index} href={doc} target="_blank" rel="noopener noreferrer">Document {index + 1}</a>
+            {jobRequest.docs.map((doc, index) => (
+              doc.trim() !== '' && (
+                <a className='text-blue-500 hover:text-sky-500 hover:underline' key={index} href={doc} target="_blank" rel="noopener noreferrer">Document {index + 1}</a>
+              )
             ))}
           </p>
         </div>
       )}
       {jobRequest.price && (
-        <>
-          <div className="mb-4">
-            <p className="text-lg font-semibold">Price:</p>
-            <p>{jobRequest.price}</p>
-          </div>
-          <div className="mb-4">
-            <p className="text-lg font-semibold">Negotiable:</p>
-            <p>{jobRequest.negotiable ? 'Yes' : 'No'}</p>
-          </div>
-        </>
+        <div className="mb-4">
+          <p className="text-lg font-semibold">Price:</p>
+          <p>{jobRequest.price}</p>
+        </div>
+      )}
+      {jobRequest.price && jobRequest.negotiable !== null && (
+        <div className="mb-4">
+          <p className="text-lg font-semibold">Negotiable:</p>
+          <p>{jobRequest.negotiable ? 'Yes' : 'No'}</p>
+        </div>
       )}
       {jobRequest.paymentMethod && (
         <div className="mb-4">

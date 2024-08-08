@@ -172,18 +172,17 @@ const MyJobAsk: FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log(LOG_PREFIX, 'User:', user); // Log user details
+    console.log(LOG_PREFIX, 'FormData:', formData); // Log formData
+  
     const updatedImages = await Promise.all(
       formData.images.flat().map((image) => ImageHandlerJobAsk(image, edgestore))
     );
+  
     console.log(LOG_PREFIX, 'Updated images:', updatedImages);
+  
     try {
       if (!user) throw new Error('User not logged in');
-      console.log(LOG_PREFIX, 'try createJobRequest with:', {
-        ...formData,
-        images: updatedImages.filter((url): url is string => url !== undefined), // Filter out undefined values
-        docs: formData.docs.map(doc => URL.createObjectURL(doc)), // Convert File to string URL
-        companyIds: formData.sendToAll ? [] : formData.companyIds
-      });
       const response = await fetch('/api/job-requests', {
         method: 'POST',
         headers: {
@@ -191,20 +190,25 @@ const MyJobAsk: FC = () => {
         },
         body: JSON.stringify({
           ...formData,
-          images: updatedImages.filter((url): url is string => url !== undefined), // Filter out undefined values
-          docs: formData.docs.map(doc => URL.createObjectURL(doc)), // Convert File to string URL
+          images: updatedImages.filter((url): url is string => url !== undefined),
+          docs: formData.docs.map(doc => URL.createObjectURL(doc)),
           companyIds: formData.sendToAll ? [] : formData.companyIds,
         }),
       });
+  
       const result = await response.json();
       console.log(LOG_PREFIX, 'Job request submitted:', result);
+  
       if (result.success) {
-        router.push('/nexus/company/job-box');
+        alert('Job request successfully submitted!');
+        router.push('/nexus/company/job-box'); // Redirect to job listing page
       } else {
         console.error(LOG_PREFIX, 'Error in job request submission:', result.error);
+        alert('Error submitting job request: ' + result.error);
       }
     } catch (error) {
       console.error(LOG_PREFIX, 'Error submitting job request:', error);
+      alert('Error submitting job request: ' + (error as Error).message);
     }
   };
 
