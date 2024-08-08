@@ -261,7 +261,7 @@ const MyJobAsk: FC = () => {
           <Button variant="vegaNormalBtn" type="button" className='w-full' onClick={() => handleOptionalClick()}>
             Show Optional
           </Button>
-          <div className={`${showOptional ? 'hidden' : 'w-full'}`}>
+          <div className={`${showOptional === false ? 'hidden' : 'w-full'}`}>
             <div className={`flex flex-col justify-center items-start w-full max-w-7xl gap-4 group `}>
               {formData.links.map((link, index) => (
                 <div key={index} className={`${style.baseItem} `}>
