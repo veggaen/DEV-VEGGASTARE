@@ -353,13 +353,13 @@ model JobRequest {
   images          String[] // Array of image URLs
   links           String[] // Array of links
   docs            String[] // Array of document URLs
-  price           Float
-  negotiable      Boolean
-  paymentMethod   String
-  delivery        String
+  price           Float?
+  negotiable      Boolean?
+  paymentMethod   String?
+  delivery        String?
   additionalNotes String?
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime @default(now())
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   companyIds      String[] @default([]) // Array of company IDs

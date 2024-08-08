@@ -3,16 +3,16 @@ import { dbPrisma } from '@/lib/db'; // Adjust the import according to your proj
 
 interface JobRequestData {
   descriptions: string[];
-  images: string[];
-  links: string[];
-  docs: string[];
-  price: string;
-  negotiable: boolean;
-  paymentMethod: string;
-  delivery: string;
-  additionalNotes: string;
-  companyIds: string[] | undefined;
-  sendToAll: boolean;
+  images?: string[];
+  links?: string[];
+  docs?: string[];
+  price?: string;
+  negotiable?: boolean;
+  paymentMethod?: string;
+  delivery?: string;
+  additionalNotes?: string;
+  companyIds?: string[];
+  sendToAll?: boolean;
   userId: string;
 }
 
@@ -25,16 +25,16 @@ export async function POST(req: NextRequest) {
 
     const jobRequest = await dbPrisma.jobRequest.create({
       data: {
-        descriptions: data.descriptions, // Use descriptions as an array
-        images: data.images, // Store images as an array
-        links: data.links,
-        docs: data.docs,
-        price: parseFloat(data.price), // Convert price to number
-        negotiable: data.negotiable,
-        paymentMethod: data.paymentMethod,
-        delivery: data.delivery,
-        additionalNotes: data.additionalNotes,
-        companyIds: data.sendToAll ? [] : data.companyIds,
+        descriptions: data.descriptions,
+        images: data.images || [],
+        links: data.links || [],
+        docs: data.docs || [],
+        price: data.price ? parseFloat(data.price) : undefined,
+        negotiable: data.negotiable ?? false,
+        paymentMethod: data.paymentMethod || '',
+        delivery: data.delivery || '',
+        additionalNotes: data.additionalNotes || '',
+        companyIds: data.sendToAll ? [] : data.companyIds || [],
         userId: data.userId,
       },
     });

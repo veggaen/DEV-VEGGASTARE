@@ -10,6 +10,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { useEdgeStore } from '@/lib/edgestore';
 import { ImageHandlerJobAsk } from '@/components/uicustom/company/img-handler-job-ask';
+import { useRouter } from 'next/navigation';
 
 interface FormData {
   descriptions: string[];
@@ -36,6 +37,7 @@ interface Company {
 const LOG_PREFIX = '[frontend/app/(protected)/nexus/company/job-ask/page.tsx]';
 
 const MyJobAsk: FC = () => {
+  const router = useRouter();
   const user = useCurrentUser();
   const { edgestore } = useEdgeStore();
   const [formData, setFormData] = useState<FormData>({
@@ -127,11 +129,11 @@ const MyJobAsk: FC = () => {
       ...(field === 'descriptions' && { images: [...prevData.images, []] }),
     }));
     if (field === 'descriptions') {
-      setImagePreviews((prevPreviews) => [...prevPreviews, []]);
+      setImagePreviews((prevPreviews) => [...prevPreviews, []]);handleRemoveFields
     }
   };
 
-  const handleRemoveFields = (index: number, field: 'descriptions' | 'links') => {
+  const handleRemoveFields = (index: number, field: 'descriptions' | 'links' | 'docs') => {
     if (formData[field].length > 1) {
       setFormData((prevData) => {
         const updatedField = prevData[field].filter((_, i) => i !== index);
@@ -203,6 +205,7 @@ const MyJobAsk: FC = () => {
       });
       const result = await response.json();
       console.log(LOG_PREFIX, 'Job request submitted:', result);
+      router.push('/nexus/company/job-box'); // Redirect to Job Box page on success
     } catch (error) {
       console.error('Error submitting job request:', error);
     }
@@ -284,7 +287,7 @@ const MyJobAsk: FC = () => {
         </div>
         <div className={style.baseItem}>
           <label>Price</label>
-          <input className={style.input} type="number" name="price" value={formData.price} onChange={(e) => handleChange(e, undefined, 'price')} required />
+          <input className={style.input} type="number" name="price" value={formData.price} onChange={(e) => handleChange(e, undefined, 'price')} />
         </div>
         <div className={style.baseItem}>
           <label>Negotiable</label>
@@ -292,11 +295,11 @@ const MyJobAsk: FC = () => {
         </div>
         <div className={style.baseItem}>
           <label>Payment Method</label>
-          <input className={style.input} type="text" name="paymentMethod" value={formData.paymentMethod} onChange={(e) => handleChange(e, undefined, 'paymentMethod')} required />
+          <input className={style.input} type="text" name="paymentMethod" value={formData.paymentMethod} onChange={(e) => handleChange(e, undefined, 'paymentMethod')} />
         </div>
         <div className={style.baseItem}>
           <label>Delivery</label>
-          <input className={style.input} type="text" name="delivery" value={formData.delivery} onChange={(e) => handleChange(e, undefined, 'delivery')} required />
+          <input className={style.input} type="text" name="delivery" value={formData.delivery} onChange={(e) => handleChange(e, undefined, 'delivery')} />
         </div>
         <div className={style.baseItem}>
           <label>Additional Notes</label>
