@@ -54,6 +54,7 @@ const MyJobAsk: FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [imagePreviews, setImagePreviews] = useState<string[][]>([[]]);
   const [showOptional, setShowOptional] = useState(false);
+  const bannerImageUrl = '/banners/busy-streets_01.webp'
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -238,22 +239,74 @@ const MyJobAsk: FC = () => {
 
   return (
     <div className="flex flex-col justify-start items-center w-full">
-      <h1 className='text-2xl font-bold tracking-widest lg:my-10'>Job Ask</h1>
-      <p className="text-gray-600 dark:text-gray-300 px-12 py-6 lg:mb-8 max-w-[1440px]">
-        Welcome to the Job Ask form! Here, you can easily submit a detailed job request to companies. Start by giving your request a clear and descriptive title. 
-        <br /><br />
-        You'll find space to add an image along with a corresponding description this is where you can highlight exactly what you're looking for. If you have more images to include, you can always add them using the "Add Image with description" button, but it’s totally optional.
-        <br /><br />
-        There are also some optional fields for adding links, documents, delivery details, and additional notes. These aren’t required, but they can help make your request clearer and more detailed.
-        <br /><br />
-        By default, your request will be sent to all companies registered on this platform. This means your job ask will be visible to a wide audience, allowing any potential job takers to express interest in completing your request.
-        <br /><br />
-        However, if you prefer to target specific companies, you can easily adjust this in the optional details section. Just click "Show Optional details" to customize your selection.
-      </p>
-      <form onSubmit={handleSubmit} className={`${style.baseRoot}`}>
+      <div className="relative w-full">
+        <div className='relative BackgroundImageBanner w-full'>
+          <div className="relative w-full sm:hidden">
+            <AspectRatio ratio={1 / 2} className=''>
+              <Image 
+                src={bannerImageUrl} 
+                layout="fill" 
+                objectFit="cover" 
+                alt="Job Ask Banner" 
+                className="object-cover" 
+              />
+            </AspectRatio>
+          </div>
+          <div className="hidden sm:block xl:hidden">
+            <AspectRatio ratio={1 / 1} className=''>
+              <Image 
+                src={bannerImageUrl} 
+                layout="fill" 
+                objectFit="cover" 
+                alt="Job Ask Banner" 
+                className="object-cover" 
+              />
+            </AspectRatio>
+          </div>
+          <div className="hidden xl:block 2xl:hidden">
+            <AspectRatio ratio={2 / 1} className=''>
+              <Image 
+                src={bannerImageUrl} 
+                layout="fill" 
+                objectFit="cover" 
+                alt="Job Ask Banner" 
+                className="object-cover" 
+              />
+            </AspectRatio>
+          </div>
+          <div className="hidden 2xl:block">
+            <AspectRatio ratio={3 / 1} className=''>
+              <Image 
+                src={bannerImageUrl} 
+                layout="fill" 
+                objectFit="cover" 
+                alt="Job Ask Banner" 
+                className="object-cover" 
+              />
+            </AspectRatio>
+          </div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center bg-black bg-opacity-80 z-10 p-6 lg:p-10">
+            <h1 className="text-3xl lg:text-5xl font-bold tracking-wide mb-4 text-white drop-shadow-lg">
+              Job Ask
+            </h1>
+            <p className="text-sm lg:text-lg text-gray-200 dark:text-gray-300 mt-4 lg:mt-6 xs:font-semibold lg:font-semibold leading-relaxed max-w-4xl">
+              Welcome to the Job Ask form! <br /> Here, you can easily submit a detailed job request to companies. Start by giving your request a clear and descriptive title.
+              <br /><br />
+              You'll find space to add an image along with a corresponding description. This is where you can highlight exactly what you're looking for. If you have more images to include, you can always add them using the "Add Image with description" button, but it’s totally optional.
+              <br /><br />
+              There are also some optional fields for adding links, documents, delivery details, and additional notes. These aren’t required, but adding them can give companies a better idea of your needs.
+              <br /><br />
+              By default, your request will be sent to all companies registered on this platform. This means your job ask will be visible to a wide audience, allowing any potential job takers to express interest in completing your request.
+              <br /><br />
+              However, if you prefer to target specific companies, you can easily adjust this in the optional details section. Just click "Show Optional details" to customize your selection.
+            </p>
+          </div>
+        </div>
+      </div>
+      <form onSubmit={handleSubmit} className={`${style.baseRoot} my-12`}>
         <div className='w-full'>
           <div className={`flex flex-col justify-between items-center w-full p-4 hover:bg-white/30 dark:hover:bg-black/30 transition-colors duration-300 rounded`}>
-            <label><h1 className='text-xl font-bold tracking-widest mb-4'>Create a Title</h1></label>
+            <label><h1 className='text-xl font-bold tracking-widest mb-4'>Set Your Title</h1></label>
             <input
               className={style.input}
               type="text"
@@ -266,7 +319,7 @@ const MyJobAsk: FC = () => {
           </div>
         </div>
         <div className="flex flex-col justify-start items-center w-full gap-4 p-4 hover:bg-white/30 dark:hover:bg-black/30 transition-colors duration-300 rounded">
-          <label><h1 className='text-xl font-bold tracking-widest mb-4'>Set Image and Description</h1></label>
+          <label><h1 className='text-xl font-bold tracking-widest mb-4'>Add a Image with Description</h1></label>
           {formData.descriptions.map((description, index) => (
             <JobDescriptionField
               key={index}
@@ -435,13 +488,13 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
     baseRoot: 'flex flex-col justify-center items-start w-full max-w-7xl px-4 py-2 gap-4',
     baseItem: 'flex flex-col md:flex-row justify-between items-center w-full hover:bg-white/20 dark:hover:bg-black/20 rounded',
     txtArea: 'border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out resize-none',
-    dropzone: 'border border-dashed border-gray-400 dark:border-gray-400 rounded-md p-4 text-center',
+    dropzone: 'border border-dashed border-gray-200 dark:border-gray-700 rounded-md p-4 text-center',
   };
 
   return (
      <div className="flex flex-col md:flex-row justify-between items-start w-full gap-4 group">
       <div className="flex-1 h-full w-full">
-        <div {...getRootProps()} className={`${style.dropzone}`} style={{ height: '100%' }}>
+        <div {...getRootProps()} className={`${style.dropzone} bg-black/10 dark:bg-white/20`} style={{ height: '100%' }}>
           <input {...getInputProps()} />
           {imagePreviews.length === 0 ? (
             <div className="w-full h-full">
