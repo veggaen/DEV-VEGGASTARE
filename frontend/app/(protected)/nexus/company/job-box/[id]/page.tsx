@@ -58,7 +58,7 @@ const JobBoxDetailPage: React.FC = () => {
   }
 
   return (
-    <div>
+    <div className='w-full'>
       <JobBox jobRequest={jobRequest} />
     </div>
   );

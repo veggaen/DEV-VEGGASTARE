@@ -3,6 +3,7 @@ import { dbPrisma } from '@/lib/db'; // Adjust the import according to your proj
 
 interface JobRequestData {
   descriptions: string[];
+  title?: string;
   images: string[];
   links: string[];
   docs: string[];
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
 
     const jobRequest = await dbPrisma.jobRequest.create({
       data: {
+        title: data.title ? data.title : null,
         descriptions: data.descriptions, // Use descriptions as an array
         images: data.images, // Store images as an array
         links: data.links.filter(link => link.trim() !== ''), // Filter out empty links

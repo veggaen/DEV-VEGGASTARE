@@ -207,7 +207,6 @@ const MyJobAsk: FC = () => {
       console.log(LOG_PREFIX, 'Job request submitted:', result);
   
       if (result.success) {
-        alert('Job request successfully submitted!');
         router.push('/nexus/company/job-box'); // Redirect to job listing page
       } else {
         console.error(LOG_PREFIX, 'Error in job request submission:', result.error);
@@ -226,7 +225,7 @@ const MyJobAsk: FC = () => {
 
   const style = {
     baseRoot: 'flex flex-col justify-center items-start w-full max-w-7xl px-4 py-2',
-    baseItem: 'flex flex-col md:flex-row justify-between items-center w-full px-4 py-4 hover:bg-white/30 dark:hover:bg-black/30 rounded',
+    baseItem: 'flex flex-col md:flex-row justify-between items-center w-full px-4 py-4 hover:bg-white/30 dark:hover:bg-black/30 transition-colors duration-300 rounded',
     txtArea: 'p-2 w-full border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
     input: 'p-2 w-full border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
     inputCheckbox: 'border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
@@ -239,11 +238,22 @@ const MyJobAsk: FC = () => {
 
   return (
     <div className="flex flex-col justify-start items-center w-full">
-      <h1>Job Ask</h1>
+      <h1 className='text-2xl font-bold tracking-widest lg:my-10'>Job Ask</h1>
+      <p className="text-gray-600 dark:text-gray-300 px-12 py-6 lg:mb-8 max-w-[1440px]">
+        Welcome to the Job Ask form! Here, you can easily submit a detailed job request to companies. Start by giving your request a clear and descriptive title. 
+        <br /><br />
+        You'll find space to add an image along with a corresponding description this is where you can highlight exactly what you're looking for. If you have more images to include, you can always add them using the "Add Image with description" button, but it’s totally optional.
+        <br /><br />
+        There are also some optional fields for adding links, documents, delivery details, and additional notes. These aren’t required, but they can help make your request clearer and more detailed.
+        <br /><br />
+        By default, your request will be sent to all companies registered on this platform. This means your job ask will be visible to a wide audience, allowing any potential job takers to express interest in completing your request.
+        <br /><br />
+        However, if you prefer to target specific companies, you can easily adjust this in the optional details section. Just click "Show Optional details" to customize your selection.
+      </p>
       <form onSubmit={handleSubmit} className={`${style.baseRoot}`}>
         <div className='w-full'>
-          <div className={`${style.baseItem} gap-2 px-4`}>
-            <label>Title</label>
+          <div className={`flex flex-col justify-between items-center w-full p-4 hover:bg-white/30 dark:hover:bg-black/30 transition-colors duration-300 rounded`}>
+            <label><h1 className='text-xl font-bold tracking-widest mb-4'>Create a Title</h1></label>
             <input
               className={style.input}
               type="text"
@@ -255,7 +265,8 @@ const MyJobAsk: FC = () => {
             />
           </div>
         </div>
-        <div className="flex flex-col justify-start items-center w-full gap-2 p-4 hover:bg-white/30 dark:hover:bg-black/30 rounded">
+        <div className="flex flex-col justify-start items-center w-full gap-4 p-4 hover:bg-white/30 dark:hover:bg-black/30 transition-colors duration-300 rounded">
+          <label><h1 className='text-xl font-bold tracking-widest mb-4'>Set Image and Description</h1></label>
           {formData.descriptions.map((description, index) => (
             <JobDescriptionField
               key={index}
@@ -276,9 +287,9 @@ const MyJobAsk: FC = () => {
             {`${showOptional === true ? 'Hide Optional details' : 'Show Optional details'}`}
           </Button>
         </div>
-        <div className={`${showOptional === true ? 'hover:bg-white/30 dark:hover:bg-black/30' : ''} group w-full mb-2`}>
-          <div className={`${showOptional === false ? 'hidden' : 'w-full'}`}>
-            <div className={`flex flex-col justify-center items-start w-full max-w-7xl gap-4 group `}>
+        <div className={`${showOptional === true ? 'hover:bg-white/30 dark:hover:bg-black/30 transition-colors duration-300' : ''} group w-full mb-2`}>
+          <div className={`${showOptional === false ? 'hidden' : 'w-full flex flex-col gap-2 p-2'}`}>
+            <div className={`flex flex-col justify-center items-start w-full max-w-7xl gap-1 group `}>
               {formData.links.map((link, index) => (
                 <div key={index} className={`${style.baseItem} `}>
                   <label>Reference linking</label>
@@ -383,7 +394,7 @@ const MyJobAsk: FC = () => {
             </div>
           </div>
         </div>
-        <Button variant="vegaEmeraldBtn" type="submit" className='w-full'>Submit Job Request</Button>
+        <Button variant="vegaEmeraldBtn" type="submit" className='w-full mb-12 h-14 text-xl font-bold'>Submit Job Request</Button>
       </form>
     </div>
   );
@@ -422,21 +433,21 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
 
   const style = {
     baseRoot: 'flex flex-col justify-center items-start w-full max-w-7xl px-4 py-2 gap-4',
-    baseItem: 'flex flex-col sm:flex-row justify-between items-center w-full hover:bg-white/20 dark:hover:bg-black/20 rounded',
-    txtArea: 'border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out w-full',
-    dropzone: 'border border-dashed border-gray-400 dark:border-gray-400 rounded-md p-4 text-center w-full',
+    baseItem: 'flex flex-col md:flex-row justify-between items-center w-full hover:bg-white/20 dark:hover:bg-black/20 rounded',
+    txtArea: 'border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out resize-none',
+    dropzone: 'border border-dashed border-gray-400 dark:border-gray-400 rounded-md p-4 text-center',
   };
 
   return (
-    <div className={`flex flex-col justify-center items-start w-full max-w-7xl gap-4`}>
-      <div className={`flex flex-col sm:flex-row justify-between items-center w-full rounded space-y-4 md:space-y-0 md:space-x-4`}>
-        <div {...getRootProps()} className={style.dropzone}>
+     <div className="flex flex-col md:flex-row justify-between items-start w-full gap-4 group">
+      <div className="flex-1 h-full w-full">
+        <div {...getRootProps()} className={`${style.dropzone}`} style={{ height: '100%' }}>
           <input {...getInputProps()} />
           {imagePreviews.length === 0 ? (
-            <div className="w-full">
+            <div className="w-full h-full">
               <AspectRatio ratio={1 / 1}>
                 <div className="text-center flex flex-col justify-center items-center h-full w-full">
-                  <UploadCloudIcon className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200" />
+                  <UploadCloudIcon className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200 group-hover:animate-bounce" />
                   <p className="mt-1 text-sm text-gray-600 dark:text-gray-200">
                     Drag n drop an IMAGE here, or click to select an IMAGE
                   </p>
@@ -461,23 +472,21 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
             </div>
           )}
         </div>
-        <div className="flex flex-col text-center w-full h-full">
-          <AspectRatio ratio={1 / 1} >
-            <div className="w-full h-full">
-              <textarea
-                className={`border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out h-full w-full resize-none px-4 py-2`}
-                name="description"
-                value={description}
-                placeholder="The image shows a part with dimensions of 10mm (W), 25mm (H), and 5mm (D), made from stainless steel. I need a replacement part manufactured. Please contact me promptly...."
-                onChange={(e) => handleChange(e, index, 'descriptions')}
-                required
-              />
-            </div>
-          </AspectRatio>
-          <Button variant="vegaNormalBtn" type="button" className={`${index === 0 ? 'hidden' : ''} w-full`} onClick={() => handleRemoveFields(index, 'descriptions')}>
-            Remove
-          </Button>
-        </div>
+      </div>
+      <div className="flex-1 h-full w-full">
+        <AspectRatio ratio={1 / 1}>
+          <textarea
+            className={`${style.txtArea} w-full h-full p-4`}
+            name="description"
+            value={description}
+            placeholder="The image shows a part with dimensions of 10mm (W), 25mm (H), and 5mm (D), made from stainless steel. I need a replacement part manufactured. Please contact me promptly...."
+            onChange={(e) => handleChange(e, index, 'descriptions')}
+            required
+          />
+        </AspectRatio>
+        <Button variant="vegaNormalBtn" type="button" className={`${index === 0 ? 'hidden' : ''} w-full mt-2`} onClick={() => handleRemoveFields(index, 'descriptions')}>
+          Remove
+        </Button>
       </div>
     </div>
   );

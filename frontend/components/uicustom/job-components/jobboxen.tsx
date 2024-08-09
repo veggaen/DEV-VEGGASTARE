@@ -1,6 +1,8 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation'
+import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { User } from '@prisma/client';
 
 interface JobBoxProps {
@@ -36,22 +38,33 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
     const diffSeconds = Math.floor((diff / 1000) % 60);
 
     if (diffDays > 0) {
-      return `posted ${diffDays} days ${diffHours} hours ago`;
+      return `${diffDays} days ${diffHours} hours ago`;
     }
     if (diffHours > 0) {
-      return `posted ${diffHours} hours ${diffMinutes} minutes ago`;
+      return `${diffHours} hours ${diffMinutes} min ago`;
     }
     if (diffMinutes > 0) {
-      return `posted ${diffMinutes} minutes ${diffSeconds} seconds ago`;
+      return `${diffMinutes} min ${diffSeconds} sec ago`;
     }
-    return `posted ${diffSeconds} seconds ago`;
+    return `${diffSeconds} sec ago`;
   };
+  const pathname = usePathname()
 
   return (
     <div className="job-box bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 m-4">
-      <div className="w-full flex mb-2">
-        <div className="user-details">
-          <div className="flex items-center">
+      <div className="w-full xl:relative flex justify-center flex-col xl:flex-row-reverse">
+        <div className='flex justify-center items-center xl:h-[72px] mb-2 md:mb-0'>
+          {jobRequest.title && 
+            <Link href={`/nexus/company/job-box/${jobRequest.id}`} passHref>
+              <h1 className='text-xl font-bold text-indigo-300 underline decoration-indigo-300/50 overflow-hidden'>{jobRequest.title}</h1>
+            </Link>
+          }
+          {!jobRequest.title && <Link href={`/nexus/company/job-box/${jobRequest.id}`} passHref>
+            <div className="text-xl font-bold text-indigo-300 underline decoration-indigo-300/50">{jobRequest.id}</div>
+          </Link>}
+        </div>
+        <div className={`user-details xl:absolute xl:left-0 mb-4 `}>
+          <div className="flex items-start">
             {jobRequest.user.image && (
               <Image 
                 src={jobRequest.user.image} 
@@ -62,18 +75,10 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
               />
             )}
             <div>
-              <div className='flex gap-2'>
-                {jobRequest.title && <h1>{jobRequest.title}</h1>}
-                <Link href={`/nexus/company/job-box/${jobRequest.id}`} passHref>
-                  <div className="text-md font-semibold underline underline-offset-3 decoration-white/50">{jobRequest.id}</div>
-                </Link>
-              </div>
+              
               <div className="flex gap-2">
                 {jobRequest.user.name && (
                   <p className="text-md font-bold">{jobRequest.user.name}</p>
-                )}
-                {jobRequest.createdAt && (
-                  <p className="text-gray-500">{formatDate(jobRequest.createdAt)}</p>
                 )}
               </div>
               {jobRequest.user.email && (
@@ -85,18 +90,22 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
       </div>
 
       {jobRequest.descriptions.map((description, index) => (
-        <div key={index} className="mb-4">
-          <p className="text-lg font-semibold mb-2">{description}</p>
-          {jobRequest.images[index] && (
-            <div className="relative h-32 w-32 mb-2">
-              <Image
-                src={jobRequest.images[index] || ''}  // Fallback to an empty string if null
-                alt={`Image ${index + 1}`}
-                layout="fill"
-                className="rounded object-cover"
-              />
-            </div>
-          )}
+        <div key={index} className="flex flex-col justify-center items-start gap-2">
+          <p className="text-lg font-semibold w-full">{description}</p>
+          <div className={`w-full flex ${pathname.includes(`${jobRequest.id}`) ? 'justify-center' : 'justify-start'}`}>
+            {jobRequest.images[index] && (
+                <div className={`relative flex w-full ${pathname.includes(`${jobRequest.id}`) ? 'max-w-[1080px]' : 'max-w-[540px]'} h-full mb-6`}>
+                  <AspectRatio ratio={1 / 1}>
+                    <Image
+                      src={jobRequest.images[index] || ''}  // Fallback to an empty string if null
+                      alt={`Image ${index + 1}`}
+                      layout="fill"
+                      className="rounded object-cover"
+                    />
+                  </AspectRatio>
+                </div>
+            )}
+          </div>
         </div>
       ))}
 
@@ -165,6 +174,9 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
           <p className="text-lg font-semibold">Additional Notes:</p>
           <p>{jobRequest.additionalNotes}</p>
         </div>
+      )}
+      {jobRequest.createdAt && (
+        <div className="text-gray-500 flex gap-2 w-full justify-end"><p className='hidden sm:block'>posted</p>{formatDate(jobRequest.createdAt)}</div>
       )}
     </div>
   );
