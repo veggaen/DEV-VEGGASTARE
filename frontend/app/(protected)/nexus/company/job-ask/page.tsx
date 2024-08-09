@@ -13,6 +13,7 @@ import { ImageHandlerJobAsk } from '@/components/uicustom/company/img-handler-jo
 import { Company } from '@prisma/client';
 
 interface FormData {
+  title: string;
   descriptions: string[];
   images: File[][];
   links: string[];
@@ -35,6 +36,7 @@ const MyJobAsk: FC = () => {
   const router = useRouter();
   const { edgestore } = useEdgeStore();
   const [formData, setFormData] = useState<FormData>({
+    title: '',
     descriptions: [''],
     images: [[]],
     links: [''],
@@ -224,7 +226,7 @@ const MyJobAsk: FC = () => {
 
   const style = {
     baseRoot: 'flex flex-col justify-center items-start w-full max-w-7xl px-4 py-2',
-    baseItem: 'flex flex-col md:flex-row justify-between items-center w-full px-2 py-4 hover:bg-white/30 dark:hover:bg-black/30 rounded',
+    baseItem: 'flex flex-col md:flex-row justify-between items-center w-full px-4 py-4 hover:bg-white/30 dark:hover:bg-black/30 rounded',
     txtArea: 'p-2 w-full border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
     input: 'p-2 w-full border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
     inputCheckbox: 'border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
@@ -238,8 +240,22 @@ const MyJobAsk: FC = () => {
   return (
     <div className="flex flex-col justify-start items-center w-full">
       <h1>Job Ask</h1>
-      <form onSubmit={handleSubmit} className={`${style.baseRoot} gap-2`}>
-        <div className="flex flex-col justify-start items-center w-full gap-4 px-4 py-4 pb-2 hover:bg-white/30 dark:hover:bg-black/30 rounded">
+      <form onSubmit={handleSubmit} className={`${style.baseRoot}`}>
+        <div className='w-full'>
+          <div className={`${style.baseItem} gap-2 px-4`}>
+            <label>Title</label>
+            <input
+              className={style.input}
+              type="text"
+              name="title"
+              placeholder='Seeking Specialty Motor Parts for Repair Project...'
+              value={formData.title}
+              onChange={(e) => handleChange(e, undefined, 'title')}
+              required
+            />
+          </div>
+        </div>
+        <div className="flex flex-col justify-start items-center w-full gap-2 p-4 hover:bg-white/30 dark:hover:bg-black/30 rounded">
           {formData.descriptions.map((description, index) => (
             <JobDescriptionField
               key={index}
@@ -256,22 +272,23 @@ const MyJobAsk: FC = () => {
           <Button variant="vegaNormalBtn" className="w-full" type="button" onClick={() => handleAddFields('descriptions')}>
             Add Image with description
           </Button>
-        </div>
-        <div className='group w-full hover:bg-black/30 p-4 pt-2'>
           <Button variant="vegaNormalBtn" type="button" className='w-full' onClick={() => handleOptionalClick()}>
-            Show Optional
+            {`${showOptional === true ? 'Hide Optional details' : 'Show Optional details'}`}
           </Button>
+        </div>
+        <div className={`${showOptional === true ? 'hover:bg-white/30 dark:hover:bg-black/30' : ''} group w-full mb-2`}>
           <div className={`${showOptional === false ? 'hidden' : 'w-full'}`}>
             <div className={`flex flex-col justify-center items-start w-full max-w-7xl gap-4 group `}>
               {formData.links.map((link, index) => (
                 <div key={index} className={`${style.baseItem} `}>
-                  <label>Link {index + 1}</label>
+                  <label>Reference linking</label>
                   <div className="flex justify-end w-full md:w-1/2 space-x-2">
                     <input
                       className={style.input}
                       type="text"
                       name="link"
                       value={link}
+                      placeholder='https://en.wikipedia.org/wiki/Help:External_links_and_references'
                       onChange={(e) => handleChange(e, index, 'links')}
                     />
                     <Button variant="vegaNormalBtn" type="button" onClick={() => handleRemoveFields(index, 'links')}>
@@ -303,24 +320,6 @@ const MyJobAsk: FC = () => {
               </div>
             </div>
             <div className={style.baseItem}>
-              <label>Price</label>
-              <div className='flex justify-end w-full md:w-1/2'>
-                <input className={style.input} type="number" name="price" value={formData.price} onChange={(e) => handleChange(e, undefined, 'price')} />
-              </div>
-            </div>
-            <div className={style.baseItem}>
-              <label>Negotiable</label>
-              <div className='flex justify-end w-full md:w-1/2'>
-                <input className={style.inputCheckbox} type="checkbox" name="negotiable" checked={formData.negotiable} onChange={(e) => handleChange(e, undefined, 'negotiable')} />
-              </div>
-            </div>
-            <div className={style.baseItem}>
-              <label>Payment Method</label>
-              <div className='flex justify-end w-full md:w-1/2'>
-                <input className={style.input} type="text" name="paymentMethod" value={formData.paymentMethod} onChange={(e) => handleChange(e, undefined, 'paymentMethod')} />
-              </div>
-            </div>
-            <div className={style.baseItem}>
               <label>Delivery method</label>
               <div className='flex justify-end w-full md:w-1/2'>
                 <input className={style.input} type="text" name="delivery" value={formData.delivery} onChange={(e) => handleChange(e, undefined, 'delivery')} />
@@ -332,37 +331,59 @@ const MyJobAsk: FC = () => {
                 <textarea className={style.txtArea} name="additionalNotes" value={formData.additionalNotes} onChange={(e) => handleChange(e, undefined, 'additionalNotes')} />
               </div>
             </div>
-            <div className={style.baseItem}>
-              <label>Send to All Companies</label>
-              <div className='flex justify-end w-full md:w-1/2'>
-                <input className={style.inputCheckbox} type="checkbox" name="sendToAll" checked={formData.sendToAll} onChange={(e) => handleChange(e, undefined, 'sendToAll')} />
+            <div className={`${user ? 'w-full' : 'hidden'}`}>
+              <div className={style.baseItem}>
+                <label>Send to All Companies</label>
+                <div className='flex justify-end w-full md:w-1/2'>
+                  <input className={style.inputCheckbox} type="checkbox" name="sendToAll" checked={formData.sendToAll} onChange={(e) => handleChange(e, undefined, 'sendToAll')} />
+                </div>
+              </div>
+              {!formData.sendToAll && (
+                <>
+                  <div className={style.baseItem}>
+                    <label>Search Companies</label>
+                    <input
+                      className={style.input}
+                      type="text"
+                      placeholder="Search by name or description"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <div className={style.baseItem}>
+                    <label>Select Companies</label>
+                    <select className={style.input} multiple onChange={handleCompanySelect}>
+                      {filteredCompanies.map(company => (
+                        <option key={company.id} value={company.id}>{company.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className={`${user.role === 'ADMIN' ? 'w-full' : 'hidden'}`}>
+              <div className={style.baseItem}>
+                <label>Price</label>
+                <div className='flex justify-end w-full md:w-1/2'>
+                  <input className={style.input} type="number" name="price" value={formData.price} onChange={(e) => handleChange(e, undefined, 'price')} />
+                </div>
+              </div>
+              <div className={style.baseItem}>
+                <label>Negotiable</label>
+                <div className='flex justify-end w-full md:w-1/2'>
+                  <input className={style.inputCheckbox} type="checkbox" name="negotiable" checked={formData.negotiable} onChange={(e) => handleChange(e, undefined, 'negotiable')} />
+                </div>
+              </div>
+              <div className={style.baseItem}>
+                <label>Payment Method</label>
+                <div className='flex justify-end w-full md:w-1/2'>
+                  <input className={style.input} type="text" name="paymentMethod" value={formData.paymentMethod} onChange={(e) => handleChange(e, undefined, 'paymentMethod')} />
+                </div>
               </div>
             </div>
-            {!formData.sendToAll && (
-              <>
-                <div className={style.baseItem}>
-                  <label>Search Companies</label>
-                  <input
-                    className={style.input}
-                    type="text"
-                    placeholder="Search by name or description"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <div className={style.baseItem}>
-                  <label>Select Companies</label>
-                  <select className={style.input} multiple onChange={handleCompanySelect}>
-                    {filteredCompanies.map(company => (
-                      <option key={company.id} value={company.id}>{company.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
           </div>
         </div>
-        <Button variant="vegaNormalBtn" type="submit" className='w-full'>Submit Job Request</Button>
+        <Button variant="vegaEmeraldBtn" type="submit" className='w-full'>Submit Job Request</Button>
       </form>
     </div>
   );
@@ -447,7 +468,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
                 className={`border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out h-full w-full resize-none px-4 py-2`}
                 name="description"
                 value={description}
-                placeholder="This section is intended for a detailed description of the image that will be displayed alongside this description. When describing the image."
+                placeholder="The image shows a part with dimensions of 10mm (W), 25mm (H), and 5mm (D), made from stainless steel. I need a replacement part manufactured. Please contact me promptly...."
                 onChange={(e) => handleChange(e, index, 'descriptions')}
                 required
               />

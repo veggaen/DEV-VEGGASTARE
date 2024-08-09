@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     console.log('Start validation of user by ID: ', data.userId);
     const user = await dbPrisma.user.findUnique({
       where: { id: data.userId },
+      
     });
 
     if (!user) {
@@ -63,7 +64,12 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
-    const jobRequests = await dbPrisma.jobRequest.findMany();
+    const jobRequests = await dbPrisma.jobRequest.findMany({
+        include: {
+            user: true, // Include the user who created the job request
+        },
+    });
+    
     console.log(LOG_PREFIX, 'Fetched job requests:', jobRequests);
     return NextResponse.json(jobRequests);
   } catch (error) {

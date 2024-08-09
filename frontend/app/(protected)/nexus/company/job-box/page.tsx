@@ -1,10 +1,13 @@
 'use client';
 
 import JobBox from '@/components/uicustom/job-components/jobboxen';
+import { User } from '@prisma/client';
 import React, { useEffect, useState } from 'react';
 
 interface JobRequest {
   id: string;
+  title: string; 
+  user: User;
   descriptions: string[];
   images: string[];
   links: string[];
@@ -75,28 +78,27 @@ const JobBoxPage: React.FC = () => {
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <label htmlFor="sort" className="mr-2">Sort by:</label>
+    <div className='w-full'>
+      <div className="flex justify-between items-center px-4 pb-4 w-full">
+        <div className=''>
           <select
             id="sort"
             value={sortOption}
             onChange={(e) => setSortOption(e.target.value)}
-            className="border p-2 rounded"
+            className="p-2 border bg-gray-300/50 border-gray-500/10 dark:bg-slate-600 dark:border-slate-700 text-black/80 hover:text-black dark:text-white/80 hover:dark:text-white hover:placeholder-gray-800/70 transition duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-500 focus:outline outline-sky-500 active:border active:border-sky-500 hover:bg-sky-400 dark:hover:bg-sky-700"
           >
             <option value="newest">Newest</option>
             <option value="oldest">Oldest</option>
           </select>
         </div>
-        <div>
-          <label htmlFor="filter-text" className="mr-2">Filter by text:</label>
+        <div className=''>
           <input
             id="filter-text"
             type="text"
             value={filterText}
+            placeholder='Search...'
             onChange={(e) => setFilterText(e.target.value)}
-            className="border p-2 rounded"
+            className="p-2 border bg-gray-300/50 border-gray-500/10 dark:bg-slate-600 dark:border-slate-700 text-black/80 hover:text-black dark:text-white/80 hover:dark:text-white hover:placeholder-gray-800/70 dark:hover:placeholder-gray-200/80 transition duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-500 focus:outline outline-sky-500 active:border active:border-sky-500 hover:bg-sky-400 dark:hover:bg-sky-700"
           />
         </div>
       </div>

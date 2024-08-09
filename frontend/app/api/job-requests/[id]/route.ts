@@ -4,11 +4,15 @@ import { dbPrisma } from '@/lib/db'; // Adjust the import according to your proj
 const LOG_PREFIX = '[frontend/app/api/job-requests/[id]/route.ts]';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    const { id } = params;
-    console.log(LOG_PREFIX, 'Jobrequest for ID: ', id)
+    try {
+      const { id } = params;
+      console.log(LOG_PREFIX, 'Jobrequest for ID: ', id)
+
     const jobRequest = await dbPrisma.jobRequest.findUnique({
       where: { id },
+      include: {
+        user: true, // Include the user who created the job request
+      },
     });
 
     if (!jobRequest) {

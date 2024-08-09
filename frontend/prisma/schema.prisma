@@ -349,6 +349,7 @@ enum PaymentStatus {
 
 model JobRequest {
   id              String   @id @default(cuid())
+  title           String?     
   descriptions    String[] // Array of descriptions
   images          String[] // Array of image URLs
   links           String[] // Array of links

@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
 import JobBox from '@/components/uicustom/job-components/jobboxen';
 import { useParams } from 'next/navigation';
+import { User } from '@prisma/client';
 
 interface JobRequest {
   id: string;
+  title: string;
   descriptions: string[];
   images: string[];
   links: string[];
@@ -16,11 +17,12 @@ interface JobRequest {
   paymentMethod: string | null;
   delivery: string | null;
   additionalNotes: string | null;
-  createdAt: string; // Add createdAt property
+  createdAt: string;
+  user: User; // Add user details here
 }
 
 const JobBoxDetailPage: React.FC = () => {
-const params = useParams();
+  const params = useParams();
   const { id } = params;
   console.log(`JobBoxDetailPage: id=${id}`);
   const [jobRequest, setJobRequest] = useState<JobRequest | null>(null);
