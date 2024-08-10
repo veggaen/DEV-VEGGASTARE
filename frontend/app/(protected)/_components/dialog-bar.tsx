@@ -3,8 +3,9 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AiOutlineCloudServer, AiOutlineSetting, AiOutlineUser } from "react-icons/ai";
-import { MdWork, MdAddCircleOutline, MdBusiness } from "react-icons/md";
+import { TiMessages } from "react-icons/ti";
+import { AiOutlineSetting } from "react-icons/ai";
+import { MdAddCircleOutline, MdBusiness } from "react-icons/md";
 import { CiInboxIn } from "react-icons/ci";
 import { SiGooglebigquery } from "react-icons/si";
 import { TbHexagons } from "react-icons/tb";
@@ -46,7 +47,7 @@ export const MyDialogbarNavigator = () => {
           <p className=''>Nexus</p>
         </div>
       </DialogTrigger>
-      <DialogContent className='bg-black lg:min-w-[800px] bg-gradient-to-tr dark:from-slate-700 dark:to-slate-800 from-blue-100 via-gray-200 to-blue-200 border-gray-500/50 top-[50%] lg:top-[25%]'>
+      <DialogContent className='bg-black lg:min-w-[1650px] bg-gradient-to-tr dark:from-slate-700 dark:to-slate-800 from-blue-100 via-gray-200 to-blue-200 border-gray-500/50 top-[50%] lg:top-[25%]'>
         <DialogHeader className=''>
           <DialogTitle className='flex justify-center items-center gap-1'>
             <TbHexagons className={`min-h-[1.6rem] min-w-[1.6rem]`} />
@@ -58,7 +59,7 @@ export const MyDialogbarNavigator = () => {
               <Link href='/nexus'>
                 <div className='flex items-center w-fit h-fit gap-2'>
                   <AiOutlineSetting className="text-2xl" />
-                  <span className="text-xxs  group-hover:font-semibold">Settings</span>
+                  <span className="text-xxs  group-hover:font-semibold">User Settings</span>
                 </div>
               </Link>
           </Button>
@@ -92,6 +93,14 @@ export const MyDialogbarNavigator = () => {
               <div className='flex items-center w-fit h-fit gap-2'>
                 <SiGooglebigquery className="text-2xl" />
                 <span className="text-xxs  group-hover:font-semibold">Job Ask</span>
+              </div>
+            </Link>
+          </Button>
+          <Button asChild variant="vegaThemeBtn" className={`${style.btn} ${pathname === '/conversations' ? 'bg-black/20 border-black/50 dark:border-white/20 border  dark:bg-zinc-200/10' : ''}`} onClick={handleLinkClick} >
+            <Link href='/conversations'>
+              <div className='flex items-center w-fit h-fit gap-2'>
+                <TiMessages  className="text-2xl" />
+                <span className="text-xxs  group-hover:font-semibold">Conversations</span>
               </div>
             </Link>
           </Button>

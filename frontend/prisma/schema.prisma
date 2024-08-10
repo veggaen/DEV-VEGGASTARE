@@ -28,14 +28,16 @@ model User {
   reviews               Review[]
   isTwoFactorEnabled    Boolean                @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
-  createdCompanies      Company[]              @relation("Creator") // Relation field for companies created by the user
-  ownedCompanies        Company[]              @relation("Owner") // Relation field for companies owned by the user
+  createdCompanies      Company[]              @relation("Creator") 
+  ownedCompanies        Company[]              @relation("Owner") 
   Employee              Employee[]
   Package               Package[]
   warehouseLocations    WarehouseLocation[]    @relation("UserWarehouses")
   carts                 Cart[]
   orders                Order[]
-  jobRequests           JobRequest[] // Add this line
+  jobRequests           JobRequest[] 
+  messages              Message[]              @relation("UserMessages")
+  createdConversations  Conversation[]         @relation("CreatedConversations")
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 }
@@ -113,7 +115,7 @@ model Product {
   inventory        Inventory[]
   shippingDetails  ShippingDetails[]
   reviews          Review[]
-  cartItems        CartItem[] // Add this line
+  cartItems        CartItem[] 
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @default(now())
 }
@@ -121,7 +123,7 @@ model Product {
 model Inventory {
   id          String            @id @default(cuid())
   quantity    Int
-  stock       Int               @default(0) // Add stock field
+  stock       Int               @default(0)
   warehouseId String
   productId   String
   warehouse   WarehouseLocation @relation(fields: [warehouseId], references: [id])
@@ -145,7 +147,7 @@ model ShippingDetails {
   price     Float
   regions   String[]
   productId String
-  product   Product? @relation(fields: [productId], references: [id]) // Make this optional
+  product   Product? @relation(fields: [productId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 }
@@ -180,11 +182,12 @@ model Company {
   usesShipping       Boolean             @default(false)
   warehouseLocations WarehouseLocation[] @relation("CompanyWarehouses")
   createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
   Sale               Sale[]
   MonthlyReport      MonthlyReport[]
   Package            Package[]
   Product            Product[]           @relation("CompanyProducts")
+  conversations      Conversation[]      @relation("CompanyConversations")
 }
 
 model Employee {
@@ -194,7 +197,7 @@ model Employee {
   user        User         @relation(fields: [userId], references: [id])
   company     Company      @relation(fields: [companyId], references: [id])
   role        EmployeeRole
-  permissions Json // This can be an array of permissions or roles
+  permissions Json 
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -235,7 +238,7 @@ model Sale {
   date         DateTime
   totalAmount  Float
   profit       Float
-  productsSold Json // Could detail products sold, quantities, and prices
+  productsSold Json 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -248,7 +251,7 @@ model MonthlyReport {
   month          Int
   totalSales     Float
   totalProfit    Float
-  productSummary Json // Summary of products sold in the month
+  productSummary Json 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now())
 }
@@ -263,7 +266,7 @@ model Package {
   user              User          @relation(fields: [userId], references: [id])
   status            PackageStatus
   estimatedDelivery DateTime?
-  history           Json // Could detail the tracking history as provided by Bring API
+  history           Json 
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @default(now())
 }
@@ -278,7 +281,7 @@ enum PackageStatus {
 // Cart-related models
 model Cart {
   id        String     @id @default(cuid())
-  userId    String     @unique // Add this line to make it one-to-one relation
+  userId    String     @unique 
   user      User       @relation(fields: [userId], references: [id])
   items     CartItem[]
   createdAt DateTime   @default(now())
@@ -293,9 +296,9 @@ model CartItem {
   product   Product  @relation(fields: [productId], references: [id])
   quantity  Int
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now())
 
-  @@unique([productId, cartId]) // Compound unique constraint
+  @@unique([productId, cartId])
 }
 
 model Order {
@@ -308,7 +311,7 @@ model Order {
   payment         Payment?
   transactionId   String?
   createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  updatedAt       DateTime    @default(now())
 }
 
 enum OrderStatus {
@@ -350,10 +353,10 @@ enum PaymentStatus {
 model JobRequest {
   id              String   @id @default(cuid())
   title           String?     
-  descriptions    String[] // Array of descriptions
-  images          String[] // Array of image URLs
-  links           String[] // Array of links
-  docs            String[] // Array of document URLs
+  descriptions    String[] 
+  images          String[] 
+  links           String[] 
+  docs            String[] 
   price           Float?
   negotiable      Boolean?
   paymentMethod   String?
@@ -363,5 +366,30 @@ model JobRequest {
   updatedAt       DateTime @default(now())
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyIds      String[] @default([]) // Array of company IDs
+  companyIds      String[] @default([])
+}
+
+// Messaging Models
+model Conversation {
+  id             String        @id @default(cuid())
+  title          String?
+  userId         String
+  user           User          @relation("CreatedConversations", fields: [userId], references: [id])
+  participants   String[]
+  companyId      String?
+  company        Company?      @relation("CompanyConversations", fields: [companyId], references: [id])
+  messages       Message[]     @relation("ConversationMessages")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  content        String
+  senderId       String
+  sender         User          @relation("UserMessages", fields: [senderId], references: [id])
+  conversationId String
+  conversation   Conversation  @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 }

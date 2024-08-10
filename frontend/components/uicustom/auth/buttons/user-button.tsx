@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { ExitIcon } from '@radix-ui/react-icons';
 import { MyThemeBtn } from '../../themebtn';
 import { useTheme } from 'next-themes';
-import { MdBusiness } from 'react-icons/md';
+import { TiMessages } from "react-icons/ti";
 import { MyDialogbarNavigator } from '@/app/(protected)/_components/dialog-bar';
 
 export const MyUserButton = () => {
@@ -58,19 +58,19 @@ export const MyUserButton = () => {
             <p className='dark:hidden'>Light mode</p>
           </div>
         </div>
-        <Link href='/nexus/company'>
-          <div className={style.dropDownItemStyle} onClick={handleMenuItemClick}>
-            <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
-              <MdBusiness className={`min-h-[1.2rem] min-w-[1.2rem]`} />
-              <p className=''>Company</p>
-            </div>
-          </div>
-        </Link>
         <div className={style.dropDownItemStyle}>
           <div className='w-full flex '>
             <MyDialogbarNavigator />
           </div>
         </div>
+        <Link href='/conversations'>
+          <div className={style.dropDownItemStyle} onClick={handleMenuItemClick}>
+            <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
+              <TiMessages className={`min-h-[1.2rem] min-w-[1.2rem]`} />
+              <p className=''>Conversations</p>
+            </div>
+          </div>
+        </Link>
         <Link href='/cart'>
           <div className={style.dropDownItemStyle} onClick={handleMenuItemClick}>
             <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
