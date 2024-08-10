@@ -5,6 +5,7 @@ import Pusher from 'pusher-js';
 import { MessageInput } from '@/components/uicustom/chats/message-input';
 import { MessageList } from '@/components/uicustom/chats/message-list';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { User } from '@prisma/client';
 
 interface ConversationPageProps {
   params: { id: string };
@@ -65,8 +66,12 @@ const ConversationPage: React.FC<ConversationPageProps> = ({ params }) => {
   }, [fetchMessages]);
 
   return (
-    <div className="flex flex-col h-[calc(100%-102px)] bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
-      <div className="flex-1 overflow-y-auto">
+    <div className="flex flex-col h-[calc(100%-102px)] bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8 space-y-2">
+        <p className='flex flex-col md:flex-row justify-between items-center w-full px-4 py-4 bg-white dark:bg-black/40 transition-colors duration-300 rounded'
+        >{users.map((user: User) => {
+            return `${user.name}`;
+        }).join(', ')}</p>
+      <div className="flex-1 overflow-y-auto flex flex-col gap-2 bg-white dark:bg-black/40 rounded-lg shadow-md ">
         <MessageList messages={messages} users={users} conversationId={conversationId} />
       </div>
       <div className="mt-4">

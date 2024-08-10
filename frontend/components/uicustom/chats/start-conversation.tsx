@@ -93,7 +93,7 @@ function StartConversationForm() {
   };
 
   return (
-    <div className={`${style.baseRoot} `}>
+    <div className={`${style.baseRoot} hover:bg-white/20 dark:hover:bg-black/20 transition-colors duration-300 rounded`}>
       <h1 className='font-bold text-lg'>Create a new Conversation</h1>
       <div className={`flex flex-col justify-between items-center w-full p-4 gap-2 hover:bg-white/30 dark:hover:bg-black/30 transition-colors duration-300 rounded`}>
         <input
@@ -109,7 +109,7 @@ function StartConversationForm() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Add Participant Email or User ID"
+            placeholder="Add Participant by Name, Email or User ID"
           />
           <Button
             variant='vegaNormalBtn'

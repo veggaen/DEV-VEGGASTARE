@@ -97,10 +97,9 @@ export const MessageList: React.FC<MessageListProps> = ({ messages = [], users =
   return (
     <div
       ref={containerRef}
-      className="space-y-4 p-4 sm:p-6 md:p-8 lg:p-10 bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-y-auto"
+      className="space-y-4 p-4 sm:p-6 md:p-8 lg:p-1overflow-y-auto"
       style={{ maxHeight: '100%' }}
     >
-      <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Messages</h3>
       <ul className="space-y-2">
         {messages.map((message) => {
           const isCurrentUser = message.senderId === currentUser?.id;
