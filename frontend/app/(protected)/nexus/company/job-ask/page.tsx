@@ -346,7 +346,7 @@ const MyJobAsk: FC = () => {
               {formData.links.map((link, index) => (
                 <div key={index} className={`${style.baseItem} `}>
                   <label>Reference linking</label>
-                  <div className="flex justify-end w-full md:w-1/2 space-x-2">
+                  <div className="flex flex-col justify-end w-full md:w-1/2  gap-2">
                     <input
                       className={style.input}
                       type="text"
@@ -355,12 +355,14 @@ const MyJobAsk: FC = () => {
                       placeholder='https://en.wikipedia.org/wiki/Help:External_links_and_references'
                       onChange={(e) => handleChange(e, index, 'links')}
                     />
-                    <Button variant="vegaNormalBtn" type="button" onClick={() => handleRemoveFields(index, 'links')}>
-                      Remove
-                    </Button>
-                    <Button variant="vegaNormalBtn" type="button" onClick={() => handleAddFields('links')}>
-                      Add Link
-                    </Button>
+                    <div className="flex justify-between w-full gap-2">
+                      <Button variant="vegaNormalBtn" type="button" className='w-full' onClick={() => handleRemoveFields(index, 'links')}>
+                        Remove
+                      </Button>
+                      <Button variant="vegaNormalBtn" type="button" className='w-full' onClick={() => handleAddFields('links')}>
+                        Add Link
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}

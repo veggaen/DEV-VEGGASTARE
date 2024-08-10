@@ -1,67 +1,133 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
 import JobBox from '@/components/uicustom/job-components/jobboxen';
-import { useParams } from 'next/navigation';
 import { User } from '@prisma/client';
+import React, { useEffect, useState } from 'react';
+import { useCurrentUser } from '@/hooks/use-current-user';
 
 interface JobRequest {
   id: string;
-  title: string;
+  title: string; 
+  user: User;
   descriptions: string[];
   images: string[];
   links: string[];
   docs: string[];
-  price: string | null;
-  negotiable: boolean | null;
-  paymentMethod: string | null;
-  delivery: string | null;
-  additionalNotes: string | null;
-  createdAt: string;
-  user: User; // Add user details here
+  price: string;
+  negotiable: boolean;
+  paymentMethod: string;
+  delivery: string;
+  additionalNotes: string;
+  companyIds: string[];
+  createdAt: string; // Add createdAt to the JobRequest interface
 }
 
-const JobBoxDetailPage: React.FC = () => {
-  const params = useParams();
-  const { id } = params;
-  console.log(`JobBoxDetailPage: id=${id}`);
-  const [jobRequest, setJobRequest] = useState<JobRequest | null>(null);
+const JobBoxPage: React.FC = () => {
+  const [jobRequests, setJobRequests] = useState<JobRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortOption, setSortOption] = useState('newest');
+  const [filterText, setFilterText] = useState('');
+  const currentUser = useCurrentUser(); // Hook to get the current logged-in user
 
   useEffect(() => {
-    if (id) {
-      const fetchJobRequest = async () => {
-        try {
-          const response = await fetch(`/api/job-requests/${id}`);
-          if (!response.ok) {
-            throw new Error('Failed to fetch job request');
-          }
-          const data = await response.json();
-          setJobRequest(data);
-        } catch (error) {
-          console.error('Error fetching job request:', error);
-        } finally {
-          setLoading(false);
+    const fetchJobRequests = async () => {
+      try {
+        const response = await fetch('/api/job-requests');
+        if (!response.ok) {
+          throw new Error('Failed to fetch job requests');
         }
-      };
+        const data = await response.json();
+        setJobRequests(data);
+      } catch (error) {
+        console.error('Error fetching job requests:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      fetchJobRequest();
+    fetchJobRequests();
+  }, []);
+
+  const isAllowedToSeeJobRequest = (jobRequest: JobRequest) => {
+    // If companyIds is empty, everyone can see it
+    if (jobRequest.companyIds.length === 0) {
+      return true;
     }
-  }, [id]);
+
+    // If the current user is the creator, they can see it
+    if (jobRequest.user.id === currentUser?.id) {
+      return true;
+    }
+
+    // If the current user is an employee of any of the companies in companyIds, they can see it
+    const userCompanyIds = currentUser?.Employee.map(emp => emp.companyId);
+    return jobRequest.companyIds.some(companyId => userCompanyIds?.includes(companyId));
+  };
+
+  const filteredJobRequests = jobRequests.filter(isAllowedToSeeJobRequest);
+
+  const sortJobRequests = (requests: JobRequest[]) => {
+    return requests.sort((a, b) => {
+      if (sortOption === 'newest') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      } else if (sortOption === 'oldest') {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      return 0;
+    });
+  };
+
+  const filterJobRequests = (requests: JobRequest[]) => {
+    return requests.filter((request) => {
+      const matchesText = request.descriptions.some(description =>
+        description.toLowerCase().includes(filterText.toLowerCase())
+      ) || request.additionalNotes?.toLowerCase().includes(filterText.toLowerCase()) ||
+        request.paymentMethod?.toLowerCase().includes(filterText.toLowerCase());
+
+      return matchesText;
+    });
+  };
+
+  const sortedAndFilteredRequests = filterJobRequests(sortJobRequests(filteredJobRequests));
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  if (!jobRequest) {
-    return <div>Job request not found.</div>;
+  if (sortedAndFilteredRequests.length === 0) {
+    return <div>No job requests available.</div>;
   }
 
   return (
     <div className='w-full'>
-      <JobBox jobRequest={jobRequest} />
+      <div className="flex justify-between items-center px-4 pb-4 w-full">
+        <div className=''>
+          <select
+            id="sort"
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+            className="p-2 border bg-gray-300/50 border-gray-500/10 dark:bg-slate-600 dark:border-slate-700 text-black/80 hover:text-black dark:text-white/80 hover:dark:text-white hover:placeholder-gray-800/70 transition duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-500 focus:outline outline-sky-500 active:border active:border-sky-500 hover:bg-sky-400 dark:hover:bg-sky-700"
+          >
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </div>
+        <div className=''>
+          <input
+            id="filter-text"
+            type="text"
+            value={filterText}
+            placeholder='Search...'
+            onChange={(e) => setFilterText(e.target.value)}
+            className="p-2 border bg-gray-300/50 border-gray-500/10 dark:bg-slate-600 dark:border-slate-700 text-black/80 hover:text-black dark:text-white/80 hover:dark:text-white hover:placeholder-gray-800/70 dark:hover:placeholder-gray-200/80 transition duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-500 focus:outline outline-sky-500 active:border active:border-sky-500 hover:bg-sky-400 dark:hover:bg-sky-700"
+          />
+        </div>
+      </div>
+      {sortedAndFilteredRequests.map((jobRequest, index) => (
+        <JobBox key={index} jobRequest={jobRequest} />
+      ))}
     </div>
   );
 };
 
-export default JobBoxDetailPage;
+export default JobBoxPage;

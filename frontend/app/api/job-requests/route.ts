@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db'; // Adjust the import according to your project structure
+import { MyLibUserAuth } from '@/lib/user-auth';
 
 interface JobRequestData {
   descriptions: string[];
@@ -64,16 +65,51 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const jobRequests = await dbPrisma.jobRequest.findMany({
-        include: {
-            user: true, // Include the user who created the job request
-        },
+    const session = await MyLibUserAuth();
+    const userId = session?.id;
+
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Fetch the user's companies
+    const user = await dbPrisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        Employee: { include: { company: true } },
+        ownedCompanies: true,
+        createdCompanies: true,
+      },
     });
-    
-    console.log(LOG_PREFIX, 'Fetched job requests:', jobRequests);
-    return NextResponse.json(jobRequests);
+
+    // Extract all associated company IDs
+    const userCompanyIds = [
+      ...user?.Employee.map(emp => emp.companyId) || [],
+      ...user?.ownedCompanies.map(company => company.id) || [],
+      ...user?.createdCompanies.map(company => company.id) || [],
+    ];
+
+    // Fetch job requests
+    const jobRequests = await dbPrisma.jobRequest.findMany({
+      include: {
+        user: true, // Include the user who created the job request
+      },
+    });
+
+    // Filter job requests based on the logic:
+    // 1. Job request is visible to everyone if companyIds is empty.
+    // 2. Job request is visible to the creator or employees of the companies in companyIds.
+    const filteredJobRequests = jobRequests.filter(jobRequest => {
+      return (
+        jobRequest.companyIds.length === 0 || // Visible to everyone
+        jobRequest.userId === userId || // Visible to the creator
+        jobRequest.companyIds.some(companyId => userCompanyIds.includes(companyId)) // Visible to employees of the specified companies
+      );
+    });
+
+    return NextResponse.json(filteredJobRequests);
   } catch (error) {
     console.error(LOG_PREFIX, 'Error fetching job requests:', error);
     return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
