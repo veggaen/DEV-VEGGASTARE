@@ -6,7 +6,7 @@ const LOG_PREFIX = '[frontend/app/api/products/route.ts]';
 export const GET = async (request: Request) => {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1', 10);
-  const perPage = parseInt(searchParams.get('perPage') || '10', 10);
+  const perPage = parseInt(searchParams.get('perPage') || '30', 30);
   const categories = searchParams.get('categories')?.split(',').filter(category => category.trim() !== '') || [];
   const minPrice = parseFloat(searchParams.get('minPrice') || '0');
   const maxPrice = parseFloat(searchParams.get('maxPrice') || 'Infinity');

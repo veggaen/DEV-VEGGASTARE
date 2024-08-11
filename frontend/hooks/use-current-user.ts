@@ -1,4 +1,4 @@
-import { Product, Review, User, UserRole } from "@prisma/client";
+import { Employee, Product, Review, User, UserRole } from "@prisma/client";
 import { useSession } from "next-auth/react";
 
 type ExtendedUser = User & {
@@ -8,6 +8,7 @@ type ExtendedUser = User & {
   productsListed?: Product[];
   reviews?: Review[];
   isOAuth?: boolean;
+  employee?: Employee[];
 };
 
 const LOG_PREFIX = '[use-current-user.ts]'

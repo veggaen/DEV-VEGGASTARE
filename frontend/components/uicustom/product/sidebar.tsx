@@ -49,8 +49,8 @@ export const MySidebarProductsMenu = ({ isOpen }: MySidebarProductsMenuProps) =>
   }, [categories]);
 
   return (
-    <div className="max-w-[350px]">
-      <div className={`sidebar-products bg-white-10 ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 bg-slate-50 dark:bg-slate-900`}>
+    <div className="h-full max-w-[350px]">
+      <div className={`sidebar-products bg-white-10 h-full ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 bg-slate-50 dark:bg-slate-900`}>
         <div className={`flex flex-col justify-start items-center overflow-y-auto specificElement182`}>
           <div className="w-full space-y-2 p-3 text-center">
             <input

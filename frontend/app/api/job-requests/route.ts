@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
     console.log('Start validation of user by ID: ', data.userId);
     const user = await dbPrisma.user.findUnique({
       where: { id: data.userId },
+      include: {
+        Employee: true, // Include the Employee relation
+      },
       
     });
 

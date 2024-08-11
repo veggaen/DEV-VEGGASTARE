@@ -14,7 +14,15 @@ export const getUserByEmail = async(email: string) => {
 export const getUserById = async(id: string) => {
     if (!id) return null;
     try {
-        const user = await dbPrisma.user.findUnique({ where: { id }});
+        const user = await dbPrisma.user.findUnique(
+            { where: { id },
+              include: {
+                Employee: true,
+                ownedCompanies: true,
+                createdCompanies: true,
+              },
+            }
+        );
 
         return user
     } catch {

@@ -56,37 +56,39 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
         <div className='flex justify-center items-center xl:h-[72px] mb-2 md:mb-0'>
           {jobRequest.title && 
             <Link href={`/nexus/company/job-box/${jobRequest.id}`} passHref>
-              <h1 className='text-xl font-bold text-indigo-300 underline decoration-indigo-300/50 overflow-hidden'>{jobRequest.title}</h1>
+              <h1 className='text-2xl font-bold text-indigo-300 underline decoration-indigo-300/50 overflow-hidden'>{jobRequest.title}</h1>
             </Link>
           }
           {!jobRequest.title && <Link href={`/nexus/company/job-box/${jobRequest.id}`} passHref>
             <div className="text-xl font-bold text-indigo-300 underline decoration-indigo-300/50">{jobRequest.id}</div>
           </Link>}
         </div>
-        <div className={`user-details xl:absolute xl:left-0 mb-4 `}>
-          <div className="flex items-start">
-            {jobRequest.user.image && (
-              <Image 
-                src={jobRequest.user.image} 
-                alt={jobRequest.user.name || 'User image'} 
-                width={64} 
-                height={64} 
-                className="w-16 h-16 rounded-full mr-4" 
-              />
-            )}
-            <div>
-              
-              <div className="flex gap-2">
-                {jobRequest.user.name && (
-                  <p className="text-md font-bold">{jobRequest.user.name}</p>
+        {pathname.includes(`${jobRequest.id}`) && (
+          <div className={`user-details xl:absolute xl:left-0 mb-4 `}>
+            <div className="flex items-start">
+              {jobRequest.user.image && (
+                <Image 
+                  src={jobRequest.user.image} 
+                  alt={jobRequest.user.name || 'User image'} 
+                  width={64} 
+                  height={64} 
+                  className="w-16 h-16 rounded-full mr-4" 
+                />
+              )}
+              <div>
+                
+                <div className="flex gap-2">
+                  {jobRequest.user.name && (
+                    <p className="text-md font-bold">{jobRequest.user.name}</p>
+                  )}
+                </div>
+                {jobRequest.user.email && (
+                  <p className="text-sm text-gray-600">{jobRequest.user.email}</p>
                 )}
               </div>
-              {jobRequest.user.email && (
-                <p className="text-sm text-gray-600">{jobRequest.user.email}</p>
-              )}
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {jobRequest.descriptions.map((description, index) => (

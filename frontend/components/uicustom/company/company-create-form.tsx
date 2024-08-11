@@ -428,57 +428,59 @@ export const MyCompanyCreateForm = () => {
               </div>
             </div>
           </div>
-          <FormField control={form.control} name='employees' render={({ field }) => (
-            <FormItem className='w-full px-4 py-2'>
-              <FormLabel>Employees</FormLabel>
-              <FormDescription className='px-4 py-0'>
-                Select users to add to your company as Employees and assign their roles.
-              </FormDescription>
-              <div className="flex flex-col bg-slate-50 dark:bg-slate-900 p-2 rounded">
-                <div className={'grid gap-2 p-2'}>
-                  <Select onValueChange={setSelectedEmployeeId} value={selectedEmployeeId}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a user" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {users
-                        .filter(userMap => !employeeList.some(employee => employee.userId === userMap.id))
-                        .map((userMap) => (
-                          <React.Fragment key={userMap.id}>
-                            <SelectItem value={userMap.id}>{userMap.email}</SelectItem>
-                          </React.Fragment>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  <Button type='button' onClick={handleAddEmployee} variant='vegaNormalBtn' className={''}>
-                    Add Employee
-                  </Button>
-                  {error2 && <p className='text-orange-300'>{error2 && error2}</p>}
-                </div>
-                <div className={`flex flex-col justify-between items-center gap-3 p-4 pt-0 ${employeeList.length <= 1 ? 'hidden' : ''}`}>
-                  {employeeList.map((employee, index) => (
-                    <div key={employee.userId} className={`flex justify-between items-center gap-3 p-2 w-full bg-slate-200 dark:bg-slate-700 ${employee.userId === user?.id && 'hidden'} rounded`} >
-                      <div className={'capitalize bg-slate-100 dark:bg-slate-800 p-2 rounded'}>{employee.email}</div>
-                      <Select defaultValue={employee.role} onValueChange={(newRole) => handleRoleChange(employee.userId, newRole as EmployeeRole)}>
+          {user.role === 'ADMIN' && (
+            <FormField control={form.control} name='employees' render={({ field }) => (
+              <FormItem className='w-full px-4 py-2'>
+                <FormLabel>Employees</FormLabel>
+                <FormDescription className='px-4 py-0'>
+                  Select users to add to your company as Employees and assign their roles.
+                </FormDescription>
+                <div className="flex flex-col bg-slate-50 dark:bg-slate-900 p-2 rounded">
+                  <div className={'grid gap-2 p-2'}>
+                    <Select onValueChange={setSelectedEmployeeId} value={selectedEmployeeId}>
+                      <FormControl>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select a user" />
                         </SelectTrigger>
-                        <SelectContent >
-                          {Object.values(EmployeeRole).filter(role => role !== 'OWNER' || employee.userId === user?.id).map((role) => (
-                            <SelectItem key={role} value={role}>{role}</SelectItem>
+                      </FormControl>
+                      <SelectContent>
+                        {users
+                          .filter(userMap => !employeeList.some(employee => employee.userId === userMap.id))
+                          .map((userMap) => (
+                            <React.Fragment key={userMap.id}>
+                              <SelectItem value={userMap.id}>{userMap.email}</SelectItem>
+                            </React.Fragment>
                           ))}
-                        </SelectContent>
-                      </Select>
-                      <Button variant='vegaNormalBtn' disabled={employee.userId === user?.id} onClick={(e) => removeEmployee(e, employee.userId)}>Remove</Button>
-                    </div>
-                  ))}
+                      </SelectContent>
+                    </Select>
+                    <Button type='button' onClick={handleAddEmployee} variant='vegaNormalBtn' className={''}>
+                      Add Employee
+                    </Button>
+                    {error2 && <p className='text-orange-300'>{error2 && error2}</p>}
+                  </div>
+                  <div className={`flex flex-col justify-between items-center gap-3 p-4 pt-0 ${employeeList.length <= 1 ? 'hidden' : ''}`}>
+                    {employeeList.map((employee, index) => (
+                      <div key={employee.userId} className={`flex justify-between items-center gap-3 p-2 w-full bg-slate-200 dark:bg-slate-700 ${employee.userId === user?.id && 'hidden'} rounded`} >
+                        <div className={'capitalize bg-slate-100 dark:bg-slate-800 p-2 rounded'}>{employee.email}</div>
+                        <Select defaultValue={employee.role} onValueChange={(newRole) => handleRoleChange(employee.userId, newRole as EmployeeRole)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent >
+                            {Object.values(EmployeeRole).filter(role => role !== 'OWNER' || employee.userId === user?.id).map((role) => (
+                              <SelectItem key={role} value={role}>{role}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button variant='vegaNormalBtn' disabled={employee.userId === user?.id} onClick={(e) => removeEmployee(e, employee.userId)}>Remove</Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )} />
+                <FormMessage />
+              </FormItem>
+            )} />
+          )}
           <FormField control={form.control} name='usesShipping' render={({ field }) => (
             <FormItem className='w-full px-4 py-2'>
               <div className="flex flex-col justify-start w-full items-start space-y-2">

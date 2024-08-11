@@ -1,18 +1,19 @@
-import { Product, Review, User, UserRole } from "@prisma/client"
+import { Employee, Product, Review, User, UserRole } from "@prisma/client"
 import NextAuth, { type DefaultSession } from "next-auth"
 
 export type ExtendedUser = DefaultSession['user'] & {
     /** 
-     * Types for User just Extended from desault session['user']
+     * Types for User just Extended from default session['user']
      * You can add more custom types if needed here
      * 
     */
     role: UserRole
-    referredBy: String
+    referredBy: string
     isTwoFactorEnabled: boolean;
     productsListed: Product[]
     reviews: Review[]
     isOAuth: boolean;
+    employee?: Employee[];
 }
 
 declare module "next-auth" {
@@ -30,7 +31,7 @@ declare module "next-auth" {
     interface JWT {
       /** OpenID ID Token */
       /* role?: 'ADMIN' | 'USER'
-      referredBy?: String */
-      id?: String
+      referredBy?: string */
+      id?: string
     }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { StarIcon } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, StarIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import ProductsSkeleton from '@/components/uicustom/skeletons/products-skeleton';
@@ -14,6 +14,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { useInView } from 'react-intersection-observer';
 import Spinner from '@/components/uicustom/spinner';
 import debounce from 'lodash.debounce';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { useSidebar } from '@/components/providers/product-layoutProvider';
 
 interface ExtendedProduct extends Product {
   user?: Pick<User, 'id' | 'name'>;
@@ -68,7 +70,7 @@ export default function MyProductsPage() {
   const { categories, setCategories, selectedCategories, minPrice, maxPrice, searchTerm } = useCategories();
   const [products, setProducts] = useState<ExtendedProduct[]>([]);
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(30);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -77,6 +79,9 @@ export default function MyProductsPage() {
     threshold: 0,
   });
   const pageRef = useRef(1);
+  const user = useCurrentUser();
+  //const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarHidden, setIsSidebarHidden] = useState(false);
 
   const fetchProducts = useCallback(async (page: number, perPage: number, reset: boolean = false, retries = 3) => {
     setLoading(true);
@@ -169,12 +174,36 @@ export default function MyProductsPage() {
     return `sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6`;
   }, [products.length]);
 
+  /* const toggleSidebar = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (isSidebarOpen) {
+      setTimeout(() => {
+        console.log("Toggle sidebar visibility");
+        setIsSidebarHidden(!isSidebarHidden);
+      }, 50);
+    } else {
+      setIsSidebarHidden(!isSidebarHidden);
+    }
+    setIsSidebarOpen(!isSidebarOpen);
+  }; */
+
+  const { isSidebarOpen, toggleSidebar } = useSidebar();
+
   return (
     <div className="w-full h-full space-y-4">
       <div className='flex flex-col justify-center items-center'>
         <h1 className='text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-bl dark:from-slate-300 from-slate-500 dark:to-slate-300 to-slate-900 text-pretty'>Products Page</h1>
       </div>
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-between items-center px-4">
+        <div className='flex h-10 items-center justify-between rounded-md px-3 py-2 disabled:opacity-50 [&>span]:line-clamp-1 w-[180px]'>
+          <button onClick={toggleSidebar} className={`sidebar-toggle-btn-products ${isSidebarOpen ? 'rounded-tr-lg bg-slate-300 dark:bg-slate-950' : 'rounded-r'}`}>
+            {isSidebarOpen ? (
+              <div className="animate-pulse"><PanelLeftClose className="h-10 w-10" /></div>
+            ) : (
+              <div className="animate-pulse"><PanelLeftOpen className="h-10 w-10" /></div>
+            )}
+          </button>
+        </div>
         <Select value={perPage.toString()} onValueChange={handlePerPageChange}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="pages" />

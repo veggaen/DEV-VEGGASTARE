@@ -7,15 +7,15 @@ interface ProtectedLayoutProps {
 }
 
 const MyProtectedLayout = ({ children }: ProtectedLayoutProps) => {
-        
-    return (
-        <div className="max-h-full w-full flex">
-            <CategoriesProvider>
-                <ProductProvider>
-                    {children}
-                </ProductProvider>
-            </CategoriesProvider>
-        </div>
-    )
+
+  return (
+    <div className="max-h-full w-full flex">
+      <CategoriesProvider>
+        <ProductProvider>
+            {children}
+        </ProductProvider>
+      </CategoriesProvider>
+    </div>
+  )
 }
 export default MyProtectedLayout; // protected router component
