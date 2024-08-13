@@ -14,6 +14,7 @@ import { Company } from '@prisma/client';
 
 interface FormData {
   title: string;
+  email: string;
   descriptions: string[];
   images: File[][];
   links: string[];
@@ -37,6 +38,7 @@ const MyJobAsk: FC = () => {
   const { edgestore } = useEdgeStore();
   const [formData, setFormData] = useState<FormData>({
     title: '',
+    email: user?.email!!,
     descriptions: [''],
     images: [[]],
     links: [''],
@@ -48,7 +50,7 @@ const MyJobAsk: FC = () => {
     additionalNotes: '',
     companyIds: [],
     sendToAll: true,
-    userId: user?.id ?? '',
+    userId: user?.id !!,
   });
   const [companies, setCompanies] = useState<Company[]>([]);
   const [searchTerm, setSearchTerm] = useState('');

@@ -101,7 +101,8 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
                     <Image
                       src={jobRequest.images[index] || ''}  // Fallback to an empty string if null
                       alt={`Image ${index + 1}`}
-                      layout="fill"
+                      sizes={`${pathname.includes(`${jobRequest.id}`) ? '1080px' : '540px'}`}
+                      fill
                       className="rounded object-cover"
                     />
                   </AspectRatio>

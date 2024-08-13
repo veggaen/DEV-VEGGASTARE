@@ -20,6 +20,18 @@ const nextConfig = {
               pathname: '**',
             },
             {
+              protocol: 'https',
+              hostname: 'cloudflare-ipfs.com',
+              port: '',
+              pathname: '**',
+            },
+            {
+              protocol: 'https',
+              hostname: 'loremflickr.com',
+              port: '',
+              pathname: '**',
+            },
+            {
                 protocol: 'https',
                 hostname: 'unsplash.com',
                 port: '',

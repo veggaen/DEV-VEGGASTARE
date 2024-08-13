@@ -364,6 +364,7 @@ model JobRequest {
   additionalNotes String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @default(now())
+  email           String
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   companyIds      String[] @default([])
@@ -390,6 +391,8 @@ model Message {
   sender         User          @relation("UserMessages", fields: [senderId], references: [id])
   conversationId String
   conversation   Conversation  @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
+  imageUrl       String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  editedAt       DateTime?
 }

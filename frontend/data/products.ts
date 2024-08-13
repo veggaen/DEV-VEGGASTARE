@@ -54,7 +54,7 @@ export const getProductById = async (id: string) => {
     }
 } */
 
-export const getProductsMany = async (page: number = 1, perPage: number = 10) => {
+export const getProductsMany = async (page: number = 1, perPage: number = 30) => {
     console.log(`${LOG_PREFIX} getProductsMany() page: ${page}, perPage: ${perPage}`);
     try {
         const skip = (page - 1) * perPage;

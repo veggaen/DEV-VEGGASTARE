@@ -12,7 +12,7 @@ export const publicRoutes = [
     "/api/bring-shipping-suggest-postcode",
     "/api/companies/employees/add",
     "/api/companies/employees/remove",
-    // "/settings"
+    // add more as needed...
 ];
 
 /**

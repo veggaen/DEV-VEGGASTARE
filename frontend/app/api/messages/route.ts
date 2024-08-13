@@ -3,24 +3,28 @@ import { pusherServer } from '@/lib/pusher';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
 
-export async function POST(req: Request) {
-  const session = await MyLibUserAuth();
+const LOG_PREFIX = '[frontend/app/api/messages/route.ts]'
 
+export async function POST(req: Request) {
+  console.log(LOG_PREFIX, 'POST(1/2) - creating message...');
+  const session = await MyLibUserAuth();
   if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
   const userId = session.id;
-  const { conversationId, content } = await req.json();
+  const { conversationId, content, imageUrl } = await req.json();
 
   if (!userId) {
     return NextResponse.json({ message: 'Unauthorized ID' }, { status: 401 });
   }
 
   try {
+    
     const message = await dbPrisma.message.create({
       data: {
         content,
+        imageUrl,
         senderId: userId,
         conversationId,
       },
@@ -32,18 +36,21 @@ export async function POST(req: Request) {
       message: {
         id: message.id,
         content: message.content,
+        imageUrl: message.imageUrl,
         senderId: message.senderId,
         createdAt: message.createdAt,
       },
     });
-
+    console.log(LOG_PREFIX, 'POST(2/2) - message successfully created, triggering pusher event...', `ConversationChannel_${conversationId} - new-message`);
     return NextResponse.json(message, { status: 201 });
   } catch (error) {
+    console.error(LOG_PREFIX, 'POST(2/2) - error creating message:', error);
     return NextResponse.json({ message: 'Error sending message', error }, { status: 500 });
   }
 }
 
 export async function GET(req: Request) {
+  console.log(LOG_PREFIX, `GET(1/2) - fetching messages...`);
   const { searchParams } = new URL(req.url);
   const conversationId = searchParams.get('conversationId');
   if (!conversationId) {
@@ -73,9 +80,10 @@ export async function GET(req: Request) {
       select: { id: true, name: true },
     });
 
+    console.log(LOG_PREFIX, `GET(2/2) - fetched messages successfully`);
     return NextResponse.json({ messages, users }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching messages:', error);
-    return NextResponse.json({ message: 'Error fetching messages', error: error.message }, { status: 500 });
+    console.error(LOG_PREFIX, `GET(2/2) - error fetching messages:`, error);
+    return NextResponse.json({ message: 'Error fetching messages', error: error instanceof Error ? error.message : 'An unknown error occurred'}, { status: 500 });
   }
 }
