@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { Button } from '@/components/ui/button';
-import { CiEdit } from "react-icons/ci";
-import { MdCancel } from "react-icons/md";
 
 interface Message {
   id: string;

@@ -3,12 +3,17 @@ import { MyLoginButton } from "@/components/uicustom/auth/buttons/login-button";
 import MyHeroImage from "@/components/uicustom/hero-image";
 import { MyLibEmailAuth, MyLibUserAuth } from "@/lib/user-auth";
 import { LockKeyhole } from "lucide-react";
+import { Resend } from 'resend';
 
 const LOG_PREFIX = '[page.tsx]';
 export default async function Home() {
   const user = await MyLibUserAuth();
   console.log(`${LOG_PREFIX} user`, user);
 
+  const resend = new Resend('re_123456789');
+  
+  resend.domains.verify('3da349e5-2b0e-4935-acec-7f2ddf701246');
+  
   return (
     <div className={`relative flex flex-col items-center ${user ? 'justify-start' : 'justify-center'} h-[calc(100%-102px)] max-h-full`}>
       <MyHeroImage />
