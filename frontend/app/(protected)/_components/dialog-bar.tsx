@@ -51,7 +51,7 @@ export const MyDialogbarNavigator = () => {
         <DialogHeader className=''>
           <DialogTitle className='flex justify-center items-center gap-1'>
             <TbHexagons className={`min-h-[1.6rem] min-w-[1.6rem]`} />
-            <h1 className='py-4'>Nexus Navigator</h1>
+            <div className='py-4'>Nexus Navigator</div>
           </DialogTitle>
         </DialogHeader>
         <div className="flex flex-wrap md:flex-row justify-center items-center gap-4 py-2">

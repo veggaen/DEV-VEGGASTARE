@@ -39,11 +39,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
-  const { getRootProps, getInputProps } = useDropzone({
+  const { getRootProps, getInputProps, open } = useDropzone({
     onDrop: handleDrop,
     accept: { 'image/*': [] },
     multiple: false,
-    noClick: true,
+    noClick: true, // Prevent automatic file dialog when clicking the dropzone
   });
 
   const handleRemoveImage = () => {
@@ -99,6 +99,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       <div
         {...getRootProps()}
         className="dropzone cursor-pointer p-2 rounded-md bg-gray-200 dark:bg-gray-800"
+        onClick={open} // Trigger the file input dialog on click
       >
         <input {...getInputProps()} />
         {imagePreview ? (

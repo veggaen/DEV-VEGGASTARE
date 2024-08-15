@@ -9,7 +9,7 @@ export async function PATCH(req: Request, { params }: { params: { messageId: str
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const { content } = await req.json();
+  const { content, imageUrl } = await req.json(); // Make sure imageUrl is destructured
   const userId = session.id;
 
   try {
@@ -25,10 +25,12 @@ export async function PATCH(req: Request, { params }: { params: { messageId: str
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
+    // Update the message with the new content and imageUrl
     const updatedMessage = await dbPrisma.message.update({
       where: { id: params.messageId },
       data: {
         content,
+        imageUrl, // Ensure the imageUrl is updated
         editedAt: new Date(),
       },
     });
@@ -37,6 +39,7 @@ export async function PATCH(req: Request, { params }: { params: { messageId: str
     await pusherServer.trigger(`ConversationChannel_${message.conversationId}`, 'edit-message', {
       messageId: updatedMessage.id,
       content: updatedMessage.content,
+      imageUrl: updatedMessage.imageUrl, // Include the updated imageUrl in the Pusher event
       editedAt: updatedMessage.editedAt,
     });
 

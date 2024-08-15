@@ -91,7 +91,7 @@ const ConversationPage: React.FC<ConversationPageProps> = ({ params }) => {
         }).join(', ')}
       </p>
       <div className="flex-1 overflow-y-auto flex flex-col gap-2 bg-white dark:bg-black/40 rounded-lg shadow-md">
-        <MessageList messages={messages} users={users} conversationId={conversationId} />
+        <MessageList messages={messages} users={users} conversationId={conversationId} loading={loading} />
       </div>
       <div className="mt-4">
         <MessageInput conversationId={conversationId} onMessageSent={refreshMessages} />
