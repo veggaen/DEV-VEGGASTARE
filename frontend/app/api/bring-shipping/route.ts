@@ -34,18 +34,22 @@ export async function POST(req: NextRequest) {
     const requestBody: BringShippingRequestBody = await req.json();
 
     //console.log('Request body to Bring API:', requestBody);
+    // Simplified environment detection
+    const whatENV = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3000/' 
+      : '/';
 
+    console.log('whatENV:', whatENV);
     const response = await fetch('https://api.bring.com/shippingguide/api/v2/products', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Mybring-API-Uid': bringApiUID!,
         'X-Mybring-API-Key': bringApiKey!,
-        'X-Bring-Client-URL': 'http://localhost:3000/',
+        'X-Bring-Client-URL': whatENV,
       },
       body: JSON.stringify(requestBody),
     });
-
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Error response from Bring API:', errorData);

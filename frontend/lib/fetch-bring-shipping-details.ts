@@ -63,13 +63,19 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
     };
 
     try {
+      // Simplified environment detection
+      const whatENV = process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:3000/' 
+        : '/';
+  
+      console.log('whatENV:', whatENV);
         const response = await fetch('/api/bring-shipping', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Mybring-API-Uid': bringApiUid as string,
                 'X-Mybring-API-Key': bringApiKey as string,
-                'X-Bring-Client-URL': 'http://localhost:3000/', // todo CHANGE FOR PRODUCTION MAKE DYNAMIC ENV VARIABLE
+                'X-Bring-Client-URL': whatENV, // todo CHANGE FOR PRODUCTION MAKE DYNAMIC ENV VARIABLE
             },
             body: JSON.stringify(requestBody),
         });

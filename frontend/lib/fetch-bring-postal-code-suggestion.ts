@@ -10,11 +10,17 @@ type PostalCodeSuggestion = {
     if (!postalCodeInput) return null;
   
     try {
+      // Simplified environment detection
+      const whatENV = process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:3000/' 
+        : '/';
+  
+      console.log('whatENV:', whatENV);
       const response = await fetch(`https://api.bring.com/address/api/no/postal-codes/suggestions?q=${postalCodeInput}`, {
         headers: {
           'X-Mybring-API-Uid': process.env.MYBRING_API_UID || '',
           'X-Mybring-API-Key': process.env.MYBRING_API_KEY || '',
-          'X-Bring-Client-URL': 'http://localhost:3000/',
+          'X-Bring-Client-URL': whatENV,
           'Accept': 'application/json',
         },
       });

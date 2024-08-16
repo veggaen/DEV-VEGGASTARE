@@ -1,10 +1,15 @@
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+// Simplified environment detection
+const whatENV = process.env.NODE_ENV === 'development' 
+? 'http://localhost:3000/' 
+: '/';
 
+console.log('whatENV:', whatENV);
 const getBaseUrl = () => {
   // Fallback to localhost if NEXT_PUBLIC_BASE_URL is not defined
-  return process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  return whatENV;
 }
 
 export const sendTwoFactorTokenEmail = async (email: string, token: string) => {
