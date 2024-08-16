@@ -66,7 +66,7 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
       // Simplified environment detection
       const whatENV = process.env.NODE_ENV === 'development' 
         ? 'http://localhost:3000/' 
-        : '/';
+        : 'https://www.veggat.com/';
   
       console.log('whatENV:', whatENV);
         const response = await fetch('/api/bring-shipping', {
