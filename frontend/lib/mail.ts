@@ -26,7 +26,7 @@ export const sendTwoFactorTokenEmail = async (email: string, token: string) => {
  * import { Resend } from 'resend';
 */
 export const sendPasswordResetEmail = async (email: string, token: string) => {
-  const resetLink = `${whatENV}/auth/new-password?token=${token}`;
+  const resetLink = `/auth/new-password?token=${token}`;
   await resend.emails.send({
     from: 'whatever@veggat.com',
     to: email,
@@ -44,7 +44,7 @@ export const sendPasswordResetEmail = async (email: string, token: string) => {
  * import { Resend } from 'resend';
 */
 export const sendVerificationEmail = async (email: string, token: string) => {
-  const confirmLink = `${whatENV}/auth/new-verification?token=${token}`;
+  const confirmLink = `/auth/new-verification?token=${token}`;
   await resend.emails.send({
     from: 'whatever@veggat.com',
     to: email,
