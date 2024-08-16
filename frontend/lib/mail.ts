@@ -4,7 +4,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // Simplified environment detection
 const whatENV = process.env.NODE_ENV === 'development' 
 ? 'http://localhost:3000/' 
-: '/';
+: 'https://www.veggat.com/';
 
 console.log('whatENV:', whatENV);
 
@@ -26,7 +26,7 @@ export const sendTwoFactorTokenEmail = async (email: string, token: string) => {
  * import { Resend } from 'resend';
 */
 export const sendPasswordResetEmail = async (email: string, token: string) => {
-  const resetLink = `/auth/new-password?token=${token}`;
+  const resetLink = `${whatENV}/auth/new-password?token=${token}`;
   await resend.emails.send({
     from: 'whatever@veggat.com',
     to: email,
@@ -44,7 +44,7 @@ export const sendPasswordResetEmail = async (email: string, token: string) => {
  * import { Resend } from 'resend';
 */
 export const sendVerificationEmail = async (email: string, token: string) => {
-  const confirmLink = `/auth/new-verification?token=${token}`;
+  const confirmLink = `${whatENV}/auth/new-verification?token=${token}`;
   await resend.emails.send({
     from: 'whatever@veggat.com',
     to: email,
