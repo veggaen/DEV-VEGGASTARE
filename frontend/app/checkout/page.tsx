@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Connection, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
+import { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import WalletConnection from '@/components/crypto-related/WalletAdapter';
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { useCurrentUser } from '@/hooks/use-current-user';
 
 const SOLANA_NETWORK = 'https://api.devnet.solana.com';
-const SOLANA_TOKEN_ADDRESS = '59jss4pubSQQbJQqrAatPCc82f7vjbb41FtFZEZgPKk8'; // Receiver address
-const LAMPORTS_PER_SOL = 1000000000;
+const SOLANA_TOKEN_RECEIVER_ADDRESS = '59jss4pubSQQbJQqrAatPCc82f7vjbb41FtFZEZgPKk8'; // Receiver address
 
 const CheckoutPage = () => {
   const user = useCurrentUser();
   const router = useRouter();
   const { publicKey, signTransaction } = useWallet();
   const [totalPrice, setTotalPrice] = useState<number>(0);
+  const [solToUsdcRate, setSolToUsdcRate] = useState<number | null>(null);
   const [foundData, setFoundData] = useState<any>();
   const [open, setOpen] = useState<boolean>(false);
 
@@ -37,14 +37,37 @@ const CheckoutPage = () => {
       }
       const data = await response.json();
       setFoundData(data);
-      console.log('foundData: ',foundData);
-      if (data.items) {
-        console.log('foundDataMap:', data.items.map(item => item.product.title).join(', '));
-      }
       const total = data.items.reduce((sum: number, item: any) => sum + item.quantity * item.product.price, 0);
       setTotalPrice(total);
+
+      // Fetch SOL/USDC rate
+      fetchSolToUsdcRate();
     } catch (error) {
       console.error('Error fetching cart items:', error);
+    }
+  };
+
+  const fetchSolToUsdcRate = async () => {
+    try {
+      const [coingeckoResponse, cryptocompareResponse] = await Promise.all([
+        fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"),
+        fetch("https://min-api.cryptocompare.com/data/price?fsym=SOL&tsyms=USD"),
+      ]);
+
+      const coingeckoData = await coingeckoResponse.json();
+      const cryptocompareData = await cryptocompareResponse.json();
+
+      const coingeckoPrice = coingeckoData.solana.usd;
+      const cryptocomparePrice = cryptocompareData.USD;
+
+      // Compare the prices and select the most accurate one
+      const mostAccuratePrice = Math.abs(coingeckoPrice - cryptocomparePrice) < 0.5
+        ? (coingeckoPrice + cryptocomparePrice) / 2
+        : coingeckoPrice;
+
+      setSolToUsdcRate(mostAccuratePrice);
+    } catch (error) {
+      console.error("Error fetching SOL price:", error);
     }
   };
 
@@ -55,31 +78,23 @@ const CheckoutPage = () => {
     }
 
     try {
-      console.log('PublicKey:', publicKey.toBase58());
-      console.log('Total Price in SOL:', totalPrice);
-
       const connection = new Connection(SOLANA_NETWORK);
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
-          toPubkey: new PublicKey(SOLANA_TOKEN_ADDRESS),
-          lamports: Math.floor(totalPrice * LAMPORTS_PER_SOL),
+          toPubkey: new PublicKey(SOLANA_TOKEN_RECEIVER_ADDRESS),
+          lamports: Math.floor((totalPrice / solToUsdcRate!) * LAMPORTS_PER_SOL),
         })
       );
-
-      console.log('Transaction:', transaction);
 
       transaction.feePayer = publicKey;
       const { blockhash } = await connection.getRecentBlockhash();
       transaction.recentBlockhash = blockhash;
 
       const signedTransaction = await signTransaction(transaction);
-      console.log('Signed Transaction:', signedTransaction);
-
       const signature = await connection.sendRawTransaction(signedTransaction.serialize());
       await connection.confirmTransaction(signature);
 
-      console.log('Transaction successful with signature:', signature);
       alert('Payment successful!');
 
       // Create order in the database
@@ -107,22 +122,41 @@ const CheckoutPage = () => {
     }
   };
 
+  function formatWalletAddress(address: string): string {
+    if (address.length <= 6) return address; // In case the address is very short
+    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  }
+
   return (
     <div className="w-full p-8">
       <h1 className="text-2xl font-bold mb-4">Checkout</h1>
-      <p>Total Price: ${totalPrice.toFixed(2)}</p>
-      <p>{`Total Price in SOL: ${totalPrice}`}</p>
+      <p className='w-full'>Total Price: ${totalPrice.toFixed(2)}</p>
+      {solToUsdcRate !== null && (
+        <p>{`Total Price in SOL: ${(totalPrice / solToUsdcRate).toFixed(4)} SOL`}</p>
+      )}
       <WalletConnection />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <Button onClick={() => setOpen(true)} className="mt-4">Pay now</Button>
         </DialogTrigger>
-        <DialogContent className="w-full h-fit bg-black" style={{ borderRadius: '30px' }}>
-          <div className="flex justify-center items-center">
-            <div className="flex flex-col justify-start items-center space-y-5">
-              <p>Total Price: ${totalPrice.toFixed(2)}</p>
-              <p>{`Total Price in SOL: ${totalPrice}`}</p>
-              <p>Receiver Address: {SOLANA_TOKEN_ADDRESS}</p>
+        <DialogContent className="flex flex-col justify-start items-center md:min-w-fit w-full h-fit bg-black" style={{ borderRadius: '30px' }}>
+          <div className="flex justify-center items-center w-full">
+            <div className="flex flex-col justify-center items-center w-full">
+              <div className='flex flex-col justify-start items-center w-full'>
+                <div className='flex flex-col md:flex-row justify-between items-start w-full p-4 md:gap-2'>
+                  <p className='whitespace-nowrap'>Send to Address:</p>
+                  <p className='hidden md:block'>{SOLANA_TOKEN_RECEIVER_ADDRESS}</p>
+                  {publicKey !== null && <p className="md:hidden"> {formatWalletAddress(publicKey && publicKey.toBase58())}</p>}
+                </div>
+                <div className='flex flex-col md:flex-row justify-between items-start w-full p-4'>
+                  <p className='whitespace-nowrap'>Total Price: </p>
+                  <p>{totalPrice.toFixed(2)}$</p>
+                </div>
+                <div className='flex flex-col md:flex-row justify-between items-start w-full p-4'>
+                  <p className='whitespace-nowrap'>Total Price in SOL: </p>
+                  {solToUsdcRate !== null && ( <p>{`${(totalPrice / solToUsdcRate).toFixed(4)} SOL`}</p> )}
+                </div>
+              </div>
               <Button onClick={handlePayment} className="mt-4">Confirm Payment</Button>
             </div>
           </div>

@@ -13,6 +13,7 @@ import { MyThemeBtn } from '../../themebtn';
 import { useTheme } from 'next-themes';
 import { TiMessages } from "react-icons/ti";
 import { MyDialogbarNavigator } from '@/app/(protected)/_components/dialog-bar';
+import WalletConnection from '@/components/crypto-related/WalletAdapter';
 
 export const MyUserButton = () => {
   const user = useCurrentUser();
@@ -79,6 +80,7 @@ export const MyUserButton = () => {
             </div>
           </div>
         </Link>
+        <WalletConnection />
         <MyLogoutButton>
           <div className={style.dropDownItemStyle} onClick={handleMenuItemClick}>
             <div className={'flex items-center justify-center gap-2 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>

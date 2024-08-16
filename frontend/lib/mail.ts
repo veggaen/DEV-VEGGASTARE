@@ -2,13 +2,18 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const getBaseUrl = () => {
+  // Fallback to localhost if NEXT_PUBLIC_BASE_URL is not defined
+  return process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+}
+
 export const sendTwoFactorTokenEmail = async (email: string, token: string) => {
   await resend.emails.send({
-    from: 'onboarding@resend.dev',
+    from: 'whatever@veggat.com',
     to: email,
     subject: '2FA Code',
     html: `<p>Your two factor authentication code is: ${token}</p>`
-  })
+  });
 }
 
 /** 
@@ -20,13 +25,13 @@ export const sendTwoFactorTokenEmail = async (email: string, token: string) => {
  * import { Resend } from 'resend';
 */
 export const sendPasswordResetEmail = async (email: string, token: string) => {
-  const resetLink = `http://localhost:3000/auth/new-password?token=${token}`;
-    await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: email,
-      subject: 'Reset your password',
-      html: `<p>Click <a href="${resetLink}">here</a> to reset your password</p>`
-    });
+  const resetLink = `${getBaseUrl()}/auth/new-password?token=${token}`;
+  await resend.emails.send({
+    from: 'whatever@veggat.com',
+    to: email,
+    subject: 'Reset your password',
+    html: `<p>Click <a href="${resetLink}">here</a> to reset your password</p>`
+  });
 }
 
 /** 
@@ -38,9 +43,9 @@ export const sendPasswordResetEmail = async (email: string, token: string) => {
  * import { Resend } from 'resend';
 */
 export const sendVerificationEmail = async (email: string, token: string) => {
-  const confirmLink = `http://localhost:3000/auth/new-verification?token=${token}`;
+  const confirmLink = `${getBaseUrl()}/auth/new-verification?token=${token}`;
   await resend.emails.send({
-    from: 'onboarding@resend.dev',
+    from: 'whatever@veggat.com',
     to: email,
     subject: 'Confirm your email',
     html: `<p>Click <a href="${confirmLink}">here</a> to confirm your email</p>`

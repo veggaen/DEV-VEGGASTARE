@@ -48,7 +48,7 @@ async function main() {
           description: faker.commerce.productDescription(),
           category: faker.commerce.department(),
           price: parseFloat(faker.commerce.price()),
-          stock: faker.datatype.number({ min: 0, max: 100 }),
+          stock: 0,
           shipFromPostalId: faker.address.zipCode(),
           image: [faker.image.abstract(1080, 1080, true)],
           userId: users[faker.datatype.number({ min: 0, max: users.length - 1 })].id,
