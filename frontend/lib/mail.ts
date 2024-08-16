@@ -7,10 +7,6 @@ const whatENV = process.env.NODE_ENV === 'development'
 : '/';
 
 console.log('whatENV:', whatENV);
-const getBaseUrl = () => {
-  // Fallback to localhost if NEXT_PUBLIC_BASE_URL is not defined
-  return whatENV;
-}
 
 export const sendTwoFactorTokenEmail = async (email: string, token: string) => {
   await resend.emails.send({
@@ -30,7 +26,7 @@ export const sendTwoFactorTokenEmail = async (email: string, token: string) => {
  * import { Resend } from 'resend';
 */
 export const sendPasswordResetEmail = async (email: string, token: string) => {
-  const resetLink = `${getBaseUrl()}/auth/new-password?token=${token}`;
+  const resetLink = `${whatENV}/auth/new-password?token=${token}`;
   await resend.emails.send({
     from: 'whatever@veggat.com',
     to: email,
@@ -48,7 +44,7 @@ export const sendPasswordResetEmail = async (email: string, token: string) => {
  * import { Resend } from 'resend';
 */
 export const sendVerificationEmail = async (email: string, token: string) => {
-  const confirmLink = `${getBaseUrl()}/auth/new-verification?token=${token}`;
+  const confirmLink = `${whatENV}/auth/new-verification?token=${token}`;
   await resend.emails.send({
     from: 'whatever@veggat.com',
     to: email,
