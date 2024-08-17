@@ -80,11 +80,17 @@ export const MyLoginAction = async (values: z.infer<typeof MyAuthLoginSchema>, c
     }
 
     try {
-      await signIn('credentials', {
+      const result = await signIn('credentials', {
         email,
         password,
-        redirectTo: callbackUrl || DEFAULT_LOGIN_REDIRECT
+        redirect: false, // Use redirect: false to handle the redirect manually
       });
+  
+      if (result?.error) {
+        throw new AuthError(result.error);
+      }
+  
+      return { success: 'Signed in successfully!', redirectUrl: callbackUrl || DEFAULT_LOGIN_REDIRECT };
     } catch(error){
       if (error instanceof AuthError){
         switch (error.type){

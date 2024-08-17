@@ -20,7 +20,7 @@ const MyCompanies = () => {
       if (!user) return;
       setLoading(true);
       try {
-        const response = await fetch(`/api/companies?userId=${user.id}`);
+        const response = await fetch(`/api/companies/filter-by-user-relation?userId=${user.id}`);
         if (!response.ok) throw new Error('Failed to fetch companies');
         const data = await response.json();
         setCompanies(data);

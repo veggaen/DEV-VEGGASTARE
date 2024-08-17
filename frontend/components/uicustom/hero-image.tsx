@@ -30,13 +30,7 @@ export default function MyHeroImage() {
 
     return (
         <div className="absolute inset-0 w-full h-full z-0">
-            <Image
-                className='object-cover w-full h-full'
-                src={imageSrc}
-                alt={`Homehero`}
-                layout="fill"
-                priority
-            />
-        </div>
+            <Image src={imageSrc} alt={`Homehero`} fill sizes="100%" priority className="object-cover"/>
+       </div>
     );
 }

@@ -12,6 +12,8 @@ export const publicRoutes = [
     "/api/bring-shipping-suggest-postcode",
     "/api/companies/employees/add",
     "/api/companies/employees/remove",
+    "/api/edgestore/request-upload",
+    "/api/edgestore/confirm-upload",
     // add more as needed...
 ];
 

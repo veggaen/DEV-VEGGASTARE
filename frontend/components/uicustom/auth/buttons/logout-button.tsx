@@ -1,15 +1,17 @@
-'use client';
+'use client'
 
 import { LogoutMyAction } from "@/actions/logout";
+import { signOut } from "next-auth/react"
 
 interface LoutoutButtonProps {
     children?: React.ReactNode;
 };
-const LOG_PREFIX = '[[USE CLIENT]logout-button.tsx]'
+const LOG_PREFIX = '[frontend/components/uicustom/auth/buttons/logout-button.tsx]'
 export const MyLogoutButton = ({children}: LoutoutButtonProps) => {
   const onClick = () => {
     console.log(`${LOG_PREFIX} LOGOUT Client => LogoutMyAction()`)
-    LogoutMyAction()
+    signOut()
+
   }
 
   return (
@@ -18,3 +20,4 @@ export const MyLogoutButton = ({children}: LoutoutButtonProps) => {
     </div>
   )
 }
+

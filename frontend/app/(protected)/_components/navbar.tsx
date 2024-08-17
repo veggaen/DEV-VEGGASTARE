@@ -9,12 +9,12 @@ import { CiInboxIn } from "react-icons/ci";
 import { SiGooglebigquery } from "react-icons/si";
 
 import { useState } from 'react';
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { MyDialogbarNavigator } from "./dialog-bar";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export const MyNavbarProtected = () => {
-  const user = useCurrentUser();
   const pathname = usePathname();
+  const user = useCurrentUser();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleDialogOpenChange = (isOpen: boolean) => {

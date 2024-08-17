@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from '@/components/ui/input';
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,7 +19,7 @@ import { MyFormError } from '@/components/uicustom/forms/form-error';
 import { MyFormSuccess } from '@/components/uicustom/forms/form-sucess';
 import { UserRole } from '@prisma/client';
 
-const LOG_PREFIX = '[[USE CLIENT] layout.tsx]'
+const LOG_PREFIX = '[frontend/app/(protected)/nexus/page.tsx]'
 const MyProtectedSettings = () => {
   const user = useCurrentUser();
   const formRef = useRef<HTMLFormElement>(null);
@@ -92,7 +92,7 @@ const MyProtectedSettings = () => {
 
   return(
     <div className={`flex flex-col justify-center items-center gap-4 bg-white/10 dark:bg-secondary/10 p-4 rounded-lg`}>
-      <Card className="w-full max-w-[600px] bg-white dark:bg-zinc-900/20 border-black/10" >
+      {user && <Card className="w-full max-w-[600px] bg-white dark:bg-zinc-900/20 border-black/10" >
         <CardHeader>
           <p className="text-xl font-semibold text-center">User Settings</p>
         </CardHeader>
@@ -112,7 +112,7 @@ const MyProtectedSettings = () => {
                         <Input
                           {...field}
                           disabled={isPending || !isEditing}
-                          placeholder="Choose a name"
+                          placeholder={`${user?.name ? user.name : 'Choose a name' }`}
                           className='bg-slate-100 dark:bg-slate-950/50 border-black/60 focus:border-sky-400/60 dark:border-white/60 dark:focus:border-sky-600/60 no-underline'
                         />
                       </FormControl>
@@ -237,7 +237,7 @@ const MyProtectedSettings = () => {
             </form>
           </Form>
         </CardContent>
-      </Card>
+      </Card>}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 
+
 interface PackageDetail {
     length: number;
     width: number;
@@ -15,10 +16,7 @@ interface ShippingRequest {
 export async function fetchBringShippingDetails(requestData: any): Promise<any> {
     const bringApiKey: string | undefined = process.env.BRING_SHIPPING_API_KEY
     const bringApiUid: string | undefined = process.env.BRING_SHIPPING_API_UID
-    if (!bringApiKey  || !bringApiUid) {
-        console.error('API Key or User ID not set');
-        // throw new Error('API Key or User ID not set');
-    }
+    
     
     console.log('[frontend/lib/fetch-bring-shipping-details.ts] requestData', requestData)
     const requestBody = {  
@@ -68,7 +66,6 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
         ? 'http://localhost:3000/' 
         : 'https://www.veggat.com/';
   
-      console.log('whatENV:', whatENV);
         const response = await fetch('/api/bring-shipping', {
             method: 'POST',
             headers: {

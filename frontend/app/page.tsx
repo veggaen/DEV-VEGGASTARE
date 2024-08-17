@@ -12,7 +12,7 @@ export default async function Home() {
   
   return (
     <div className={`relative flex flex-col items-center ${user ? 'justify-start' : 'justify-center'} h-[calc(100%-102px)] max-h-full`}>
-      <MyHeroImage />
+      {/* <MyHeroImage /> */}
       {!user ? (
         <div className="relative z-10 space-y-6 p-6">
           <h1 className="text-6xl font-semibold text-white drop-shadow-md mb-2">The Future awaits!</h1>
@@ -26,7 +26,7 @@ export default async function Home() {
         </div>
       ) : (
         <div className="relative z-10 flex max-h-screen flex-col items-center justify-start text-black dark:text-white p-4">
-          <div className="relative text-center place-items-center bg-opacity-95 dark:bg-opacity-80 bg-white dark:bg-black rounded-lg p-4">
+          <div className="relative text-center place-items-center bg-opacity-95 dark:bg-opacity-80 bg-white dark:bg-black/50 rounded-lg p-4">
             <h1 className='font-bold font-sans text-lg xs:text-xl sm:text-2xl md:text-3xl lg:text-4xl pt-6 md:pt-8 lg:pt-10'>
               Where Choices Know No Limits
             </h1>

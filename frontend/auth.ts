@@ -24,7 +24,7 @@ export const {
     },
     events: {
       async signOut(message){
-        console.log(`event.signOut token:`,message)
+        //console.log(`event.signOut token:`,message)
 
         if ('token' in message && message.token) {
           const token = await message.token;
@@ -36,15 +36,16 @@ export const {
 
           const isOAuth = token?.isOAuth;
           if (isOAuth) {
-            console.log(`async signOut token: ${isOAuth} and yea`, isOAuth)
+            //console.log(`async signOut token: ${isOAuth} and yea`, isOAuth)
             const userId = token.sub;
-            console.log(`event.signOut.User ID: ${userId}`);
+            //console.log(`event.signOut.User ID: ${userId}`);
             
             // Now you can use userId for further logic, such as fetching the user details
             // Ensure you have defined and implemented getUserById or similar function to use here
             if (userId) {
               const existingUser = await getUserById(userId);
-              console.log(`event.signOut.User details:`, existingUser);
+              
+              //console.log(`event.signOut.User details:`, existingUser);
 
                 // Find all accounts for the user with the same provider
                 const accounts = await dbPrisma.account.findFirst({
@@ -61,7 +62,7 @@ export const {
                   await dbPrisma.account.delete({
                     where: { id: accounts.id },
                   });
-                  console.log(`Deleted account data form provider: ${accounts.provider}, AccountId: ${accounts.userId}`);
+                  //console.log(`Deleted account data form provider: ${accounts.provider}, AccountId: ${accounts.userId}`);
                 }
             }
           }

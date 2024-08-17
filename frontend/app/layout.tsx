@@ -10,6 +10,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Toaster } from "@/components/ui/sonner";
 import MyTopBar from "@/components/uicustom/topbar";
 import WalletContextProvider from "@/components/crypto-related/WalletContextProvider";
+import { MyLibUserAuth } from "@/lib/user-auth";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -27,7 +28,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} myamination transition-colors h-full`} suppressHydrationWarning={true}>
-        <SessionProvider session={session}>
+        <SessionProvider session={session} refetchOnWindowFocus={true}>
           <EdgeStoreProvider>
             <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange >
               <WalletContextProvider>

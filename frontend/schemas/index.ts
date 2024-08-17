@@ -70,9 +70,8 @@ export const MyAuthRegisterSchema = z.object({
     name: z.string().min(1, {
         message: 'Name is required'
     }),
-    referredBy: z.union([z.string().length(0), z.string().min(3)]).optional().transform(e => e === "" ? undefined : e)
-    // `referredBy` is a string that can be either optional (undefined or missing),
-    // empty, or min 3
+    referredBy: z.union([z.string().length(0), z.string().min(3)]).optional().transform(e => e === "" ? undefined : e), // `referredBy` is a string that can be either optional (undefined or missing), empty, or min 3
+    image: z.string().optional(),
 })
 
 /**

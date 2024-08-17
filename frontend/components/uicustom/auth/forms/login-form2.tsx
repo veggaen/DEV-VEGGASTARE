@@ -12,10 +12,11 @@ import { MyFormError } from '@/components//uicustom/forms/form-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MyAuthLoginSchema } from '@/schemas';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { MyLoginAction } from '@/actions/login';
+import { signIn } from "next-auth/react"
 
-const LOG_PREFIX = '[[USE CLIENT] login-form2.tsx]'
+const LOG_PREFIX = '[frontend/components/uicustom/auth/forms/login-form2.tsx]'
 export const MyLoginForm2 = () => {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
@@ -25,6 +26,7 @@ export const MyLoginForm2 = () => {
   const [error, setError] = useState<string | undefined>('')
   const [success, setSuccess] = useState<string | undefined>('')
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const form = useForm<z.infer<typeof MyAuthLoginSchema>>({
     resolver: zodResolver(MyAuthLoginSchema),
     defaultValues: {
@@ -39,7 +41,7 @@ export const MyLoginForm2 = () => {
       setError('');
       setSuccess('');
     startTransition(() => {
-      MyLoginAction(values, callbackUrl)
+      MyLoginAction(values)
       .then ((data) =>{
         if (data?.error){
           form.reset();
@@ -47,9 +49,10 @@ export const MyLoginForm2 = () => {
           console.log(`${LOG_PREFIX} onSubmit 2/2 (data.error)`, data)
         }
         if (data?.success) {
-          form.reset();
-          setSuccess(data.success)
           console.log(`${LOG_PREFIX} onSubmit 2/2 (success)`, data)
+          signIn('credentials', { redirectTo: callbackUrl ? callbackUrl : "/products" })
+          setSuccess(data.success)
+          form.reset();
         }
 
         if (data?.twoFactor) {

@@ -11,7 +11,7 @@ interface LoginButtonProps {
     classNamedProps?: string
 }
 
-const LOG_PREFIX = '[[USE CLIENT] login-button.tsx]'
+const LOG_PREFIX = '[frontend/components/uicustom/auth/buttons/login-button.tsx]'
 export const MyLoginButton = ({
     children,
     mode =  'modal' || 'redirect',

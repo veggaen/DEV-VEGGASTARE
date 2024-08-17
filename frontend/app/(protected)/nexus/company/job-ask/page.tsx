@@ -247,10 +247,11 @@ const MyJobAsk: FC = () => {
             <AspectRatio ratio={1 / 2} className=''>
               <Image 
                 src={bannerImageUrl} 
-                layout="fill" 
+                fill sizes="100%"
                 objectFit="cover" 
                 alt="Job Ask Banner" 
-                className="object-cover" 
+                className="object-cover"
+                priority
               />
             </AspectRatio>
           </div>
@@ -258,10 +259,11 @@ const MyJobAsk: FC = () => {
             <AspectRatio ratio={1 / 1} className=''>
               <Image 
                 src={bannerImageUrl} 
-                layout="fill" 
+                fill sizes="100%"
                 objectFit="cover" 
                 alt="Job Ask Banner" 
-                className="object-cover" 
+                className="object-cover"
+                priority
               />
             </AspectRatio>
           </div>
@@ -269,10 +271,11 @@ const MyJobAsk: FC = () => {
             <AspectRatio ratio={2 / 1} className=''>
               <Image 
                 src={bannerImageUrl} 
-                layout="fill" 
+                fill sizes="100%"
                 objectFit="cover" 
                 alt="Job Ask Banner" 
-                className="object-cover" 
+                className="object-cover"
+                priority
               />
             </AspectRatio>
           </div>
@@ -280,10 +283,10 @@ const MyJobAsk: FC = () => {
             <AspectRatio ratio={3 / 1} className=''>
               <Image 
                 src={bannerImageUrl} 
-                layout="fill" 
-                objectFit="cover" 
+                fill sizes="100%"
                 alt="Job Ask Banner" 
                 className="object-cover" 
+                priority
               />
             </AspectRatio>
           </div>

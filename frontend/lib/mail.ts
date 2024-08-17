@@ -10,7 +10,7 @@ console.log('whatENV:', whatENV);
 
 export const sendTwoFactorTokenEmail = async (email: string, token: string) => {
   await resend.emails.send({
-    from: 'whatever@veggat.com',
+    from: 'User-TwoFactorToken@veggat.com',
     to: email,
     subject: '2FA Code',
     html: `<p>Your two factor authentication code is: ${token}</p>`
@@ -28,7 +28,7 @@ export const sendTwoFactorTokenEmail = async (email: string, token: string) => {
 export const sendPasswordResetEmail = async (email: string, token: string) => {
   const resetLink = `${whatENV}/auth/new-password?token=${token}`;
   await resend.emails.send({
-    from: 'whatever@veggat.com',
+    from: 'User-Reset@veggat.com',
     to: email,
     subject: 'Reset your password',
     html: `<p>Click <a href="${resetLink}">here</a> to reset your password</p>`
@@ -46,7 +46,7 @@ export const sendPasswordResetEmail = async (email: string, token: string) => {
 export const sendVerificationEmail = async (email: string, token: string) => {
   const confirmLink = `${whatENV}/auth/new-verification?token=${token}`;
   await resend.emails.send({
-    from: 'whatever@veggat.com',
+    from: 'User-Registration@veggat.com',
     to: email,
     subject: 'Confirm your email',
     html: `<p>Click <a href="${confirmLink}">here</a> to confirm your email</p>`
