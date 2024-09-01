@@ -21,7 +21,7 @@ const MyTopBar = () => {
             <Link href="/products" className={`hover:bg-black/10 dark:hover:bg-white/10 rounded-sm py-1 md:py-2 px-2 md:px-4 transition-colors underline-offset-4 ${pathname.includes('/products') ? 'underline' : ''}`}> Products </Link>
           </div>
           <div className="transition duration-500 ease-in-out transform">
-            <Link href="/warehouses" className={`hover:bg-black/10 dark:hover:bg-white/10 rounded-sm py-1 md:py-2 px-2 md:px-4 transition-colors underline-offset-4 ${pathname.includes('/warehouses') ? 'underline' : ''}`}> Warehouses </Link>
+            <Link href="/analytics" className={`hover:bg-black/10 dark:hover:bg-white/10 rounded-sm py-1 md:py-2 px-2 md:px-4 transition-colors underline-offset-4 ${pathname.includes('/analytics') ? 'underline' : ''}`}> Analytics </Link>
           </div>
         </div>
         {clientUser && <div className="hidden sm:flex">
