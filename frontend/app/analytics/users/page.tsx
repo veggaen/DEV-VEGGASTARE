@@ -4,7 +4,10 @@ import { format } from 'date-fns';
 import React, { useMemo, useState, useEffect } from 'react';
 import { Chart, AxisOptions } from 'react-charts';
 import { useFetchAnalytics } from '@/hooks/useFetchAnalytics'; // Import the custom hook
+import UserProductCreationChart from '@/components/uicustom/charts/analytics/UserProductCreationChart';
 
+// Define the DataType for users
+type DataType = { date: Date; users?: number; companies?: number }; // Update to match hook's definition
 type UserGrowthDatum = { date: Date; users: number };
 
 const MyPageAnalyticsUsers = () => {
@@ -78,9 +81,12 @@ const MyPageAnalyticsUsers = () => {
       startDate = firstDate ? new Date(firstDate) : new Date(0);
     }
 
+    // Filter and map data correctly
     return data.map(item => ({
       ...item,
-      data: item.data.filter((datum: UserGrowthDatum) => datum.date >= startDate && datum.date <= endDate),
+      data: item.data.filter((datum: DataType): datum is UserGrowthDatum => {
+        return datum.date >= startDate && datum.date <= endDate && typeof datum.users === 'number';
+      }),
     }));
   }, [data, interval, customStartDate, customEndDate, firstDate, lastDate, today]);
 
@@ -111,7 +117,7 @@ const MyPageAnalyticsUsers = () => {
   );
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 p-6">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-102px)] bg-gray-100 dark:bg-gray-900 p-6">
       <div className="max-w-3xl w-full text-center">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">User Growth Analytics</h1>
         <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-300 mb-8">
@@ -193,6 +199,7 @@ const MyPageAnalyticsUsers = () => {
             </div>
           </div>
         )}
+      <UserProductCreationChart />
       </div>
     </div>
   );

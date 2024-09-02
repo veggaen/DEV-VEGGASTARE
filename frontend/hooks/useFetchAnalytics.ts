@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 
+type DataType = { date: Date; users?: number; companies?: number }; // Both are optional
+
 export const useFetchAnalytics = (endpoint: string) => {
-  const [data, setData] = useState<{ label: string; data: { date: Date; users: number }[] }[]>([]);
+  const [data, setData] = useState<{ label: string; data: DataType[] }[]>([]);
   const [firstDate, setFirstDate] = useState<Date | null>(null);
   const [lastDate, setLastDate] = useState<Date | null>(null);
   const [today, setToday] = useState<Date>(new Date());
@@ -27,12 +29,13 @@ export const useFetchAnalytics = (endpoint: string) => {
             ...datum,
             date: datum.date ? new Date(datum.date) : new Date(),
             users: isNaN(datum.users) ? 0 : datum.users,
+            companies: isNaN(datum.companies) ? 0 : datum.companies, // Handle companies correctly
           })),
         }));
 
         setData(sanitizedData);
-        setFirstDate(new Date(result.firstUserDate));
-        setLastDate(new Date(result.lastUserDate));
+        setFirstDate(new Date(result.firstCompanyDate || result.firstUserDate));
+        setLastDate(new Date(result.lastCompanyDate || result.lastUserDate));
         setToday(new Date(result.today));
       } catch (error) {
         console.error('Error fetching data:', error);
