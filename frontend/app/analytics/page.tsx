@@ -19,7 +19,7 @@ const styles = {
 const MyPageAnalytics = () => {
   return (
     <div className={styles.container}>
-      <div className="max-w-3xl w-full">
+      <div className="max-w-4xl w-full">
         <h1 className={styles.header}>Analytics Dashboard</h1>
         <div className={styles.description}>
           <p>

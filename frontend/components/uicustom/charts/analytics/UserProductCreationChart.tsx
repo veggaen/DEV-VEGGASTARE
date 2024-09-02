@@ -29,8 +29,8 @@ const UserProductCreationChart = () => {
   );
 
   return (
-    <div className="flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-6">
-      <div className="max-w-3xl w-full text-center">
+    <div className="flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 py-6">
+      <div className="max-w-4xl w-full text-center">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">
           User Product Creation Overview
         </h1>
@@ -51,7 +51,7 @@ const UserProductCreationChart = () => {
           <div className="flex flex-col items-center">
             <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 w-full h-full">
               {data.length > 0 ? (
-                <div className="w-full h-96 md:h-128">
+                <div className="w-full h-96 md:h-128 lg:h-[48rem]">
                   <Chart
                     className="w-full h-full text-black dark:text-white"
                     options={{

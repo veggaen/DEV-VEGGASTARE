@@ -148,7 +148,7 @@ const ProductGrowthAnalytics = () => {
   // Render the chart
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-102px)] bg-gray-100 dark:bg-gray-900 p-6">
-      <div className="max-w-3xl w-full text-center">
+      <div className="max-w-4xl w-full text-center">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">Product Growth Analytics</h1>
         <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-300 mb-8">
           This chart displays the product growth over time, helping you understand the growth trend for your application.
@@ -216,7 +216,7 @@ const ProductGrowthAnalytics = () => {
 
             <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 w-full h-full">
               {filteredData.length > 0 && filteredData[0].data.length > 0 ? (
-                <div className='w-full h-96 md:h-128'>
+                <div className='w-full h-96 md:h-128 lg:h-[48rem]'>
                   <Chart
                     className='w-full h-full text-black dark:text-white'
                     options={{
