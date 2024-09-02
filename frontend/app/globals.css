@@ -165,3 +165,11 @@ body.dark-mode {
   height: calc(100vh - 214px);
   box-sizing: border-box;
 }
+
+.dark .tickLabel {
+  fill: white !important; /* Override the default fill color */
+}
+
+.tickLabel {
+  fill: black !important; /* Override the default fill color */
+}

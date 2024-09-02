@@ -53,7 +53,10 @@ const UserProductCreationChart = () => {
               {data.length > 0 ? (
                 <div className="w-full h-96 md:h-128 lg:h-[48rem]">
                   <Chart
-                    className="w-full h-full text-black dark:text-white"
+                    className="w-full h-full"
+                    style={{
+                      color: 'white'
+                    }}
                     options={{
                       data: [{ label: 'User Product Creation', data }],
                       primaryAxis,
