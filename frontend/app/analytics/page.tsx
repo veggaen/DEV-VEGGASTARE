@@ -42,6 +42,9 @@ const MyPageAnalytics = () => {
           <Link href="/analytics/companies" className={styles.buttonRep}>
             Companies
           </Link>
+          <Link href="/analytics/crypto" className={styles.buttonRep}>
+            Crypto
+          </Link>
           {/* Future links can be added here */}
         </div>
       </div>

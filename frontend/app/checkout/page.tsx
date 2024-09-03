@@ -108,7 +108,7 @@ const CheckoutPage = () => {
           totalAmount: totalPrice,
           transactionId: signature,
           method: 'COINBASE',
-          commentOrder: `${foundData.items.map(item => item.product.title).join(', ')}`,
+          commentOrder: `${foundData.items.map((item: any) => item.product.title).join(', ')}`,
           commentPay: 'Payment was smooth',
         }),
       });
