@@ -1,7 +1,6 @@
 'use client';
 
 import { createContext, useContext, useState } from "react";
-import { MyNavbarProducts } from "../uicustom/product/navbar";
 import { MySidebarProductsMenu } from "../uicustom/product/sidebar";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
@@ -72,9 +71,6 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
         <div className="w-full H-full flex flex-col justify-start items-center overflow-y-auto">
           <div className="w-full min-w-screen max-w-screen min-h-screen flex flex-col justify-start items-center">
-          <div className="flex w-full justify-center items-center">
-            <MyNavbarProducts />
-          </div>
             {children}
           </div>
         </div>

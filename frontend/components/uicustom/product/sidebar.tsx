@@ -1,120 +1,152 @@
 'use client';
 
+import React, { useState } from 'react';
 import { useCategories } from "@/components/providers/categoriesContext";
-import { useCurrentUser } from "@/hooks/use-current-user";
-import { ArrowDownIcon, EyeOff } from "lucide-react";
-import { useEffect, useState, useCallback } from "react";
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
+import { useSidebar } from '@/components/providers/product-layoutProvider';
 
-interface MySidebarProductsMenuProps {
-  isOpen: boolean;
-}
+export const MySidebarProductsMenu = () => {
+  const { isSidebarOpen, toggleSidebar } = useSidebar();
+  const {
+    categories,
+    selectedCategories,
+    setSelectedCategories,
+    minPrice,
+    setMinPrice,
+    maxPrice,
+    setMaxPrice,
+    searchTerm,
+    setSearchTerm,
+  } = useCategories();
 
-export const MySidebarProductsMenu = ({ isOpen }: MySidebarProductsMenuProps) => {
-  const user = useCurrentUser();
-  const { categories, selectedCategories, setSelectedCategories, setMinPrice, minPrice, setMaxPrice, maxPrice, searchTerm, setSearchTerm, titles } = useCategories();
-  const [localSelectedCategories, setLocalSelectedCategories] = useState<string[]>(selectedCategories || []);
-  const [localCategories, setLocalCategories] = useState<string[]>(categories || []);
-  const [isFilterTabCategories, setIsFilterTabCategories] = useState<{ categories: boolean, price: boolean, [key: string]: boolean }>({ categories: true, price: true });
+  const [isPriceOpen, setIsPriceOpen] = useState(true);
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
 
-  const handleFilterTabOpen = useCallback((tab: keyof typeof isFilterTabCategories) => {
-    setIsFilterTabCategories(prevTab => ({ ...prevTab, [tab]: !prevTab[tab] }));
-  }, []);
+  // Toggle functions
+  const togglePriceSection = () => setIsPriceOpen((prev) => !prev);
+  const toggleCategoriesSection = () => setIsCategoriesOpen((prev) => !prev);
 
-  const handleCategoryChange = useCallback((category: string, isChecked: boolean) => {
-    setSelectedCategories(prev => 
-      isChecked ? [...prev, category] : prev.filter(c => c !== category)
+  // Handle category selection
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(category)
+        ? prev.filter((c) => c !== category)
+        : [...prev, category]
     );
-  }, [setSelectedCategories]);
+  };
 
-  const handleResetPrice = useCallback(() => {
+  // Reset price filters
+  const handleResetPrice = () => {
     setMinPrice(null);
     setMaxPrice(null);
-  }, [setMinPrice, setMaxPrice]);
-
-  useEffect(() => {
-    if (categories !== localCategories) {
-      setLocalCategories(categories);
-    }
-    if (selectedCategories !== localSelectedCategories) {
-      setLocalSelectedCategories(selectedCategories);
-    }
-  }, [categories, selectedCategories, localCategories, localSelectedCategories]);
-
-  useEffect(() => {
-    if (categories.length > 0) {
-      setLocalCategories(categories);
-    } else {
-      setLocalCategories([]);
-    }
-  }, [categories]);
+  };
 
   return (
-    <div className="h-full max-w-[350px]">
-      <div className={`sidebar-products bg-white-10 h-full ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 bg-slate-50 dark:bg-slate-900`}>
-        <div className={`flex flex-col justify-start items-center overflow-y-auto specificElement182`}>
-          <div className="w-full space-y-2 p-3 text-center">
+    <>
+      {/* Overlay for small screens */}
+      {isSidebarOpen && (
+        <div
+          onClick={toggleSidebar}
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+        ></div>
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 h-full max-w-[300px] w-full bg-white dark:bg-gray-800 shadow-md z-50 transform transition-transform duration-300 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex flex-col h-full">
+          {/* Search Input */}
+          <div className="p-4">
             <input
               type="text"
-              placeholder="Search by title..."
+              placeholder="Search products..."
+              value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full border-2 bg-white dark:bg-black/30 border-black/50 dark:border-white/50 py-1 px-2 rounded-xl"
+              className="w-full border border-gray-300 dark:border-gray-700 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <div className={`w-full space-y-2 my-2`}>
-            <div onClick={() => handleFilterTabOpen('price')} className="flex justify-start items-center py-1 px-2 gap-2 font-bold text-center bg-slate-200 dark:bg-slate-800">
-              <h2>Price</h2>
-              {isFilterTabCategories.price ? <ArrowDownIcon className="h-5 w-5" /> : <EyeOff className="h-4 w-4" />}
-            </div>
-          </div>
-          <div>
-            {isFilterTabCategories.price && (
-              <div className={'flex flex-col sm:flex-row justify-center items-center w-full gap-0 bg-slate-100 dark:bg-slate-900 py-2 px-2'}>
-                <input
-                  type="number"
-                  placeholder="Min Price"
-                  value={minPrice !== null ? minPrice.toString() : ''}
-                  onChange={(e) => setMinPrice(e.target.value ? parseInt(e.target.value) : null)}
-                  className={'w-full border-2 bg-white dark:bg-black/30 border-black/50 dark:border-white/50 p-1 sm:mr-2 rounded'}
-                />
-                <input
-                  type="number"
-                  placeholder="Max Price"
-                  value={maxPrice !== null ? maxPrice.toString() : ''}
-                  onChange={(e) => setMaxPrice(e.target.value ? parseInt(e.target.value) : null)}
-                  className={'border-2 bg-white dark:bg-black/30 border-black/50 dark:border-white/50 p-1 w-full sm:mr-2 rounded'}
-                />
-                <div onClick={handleResetPrice} className='bg-white dark:bg-black/30 w-full py-1 px-2 border-2 border-black/50 dark:border-white/50 rounded hover:bg-blue-500 '>Reset</div>
+
+          {/* Price Filter */}
+          <div className="px-4">
+            <button
+              onClick={togglePriceSection}
+              className="flex justify-between items-center w-full text-lg font-semibold text-gray-700 dark:text-gray-200 focus:outline-none"
+            >
+              <span>Price</span>
+              {isPriceOpen ? (
+                <ArrowUpIcon className="w-5 h-5" />
+              ) : (
+                <ArrowDownIcon className="w-5 h-5" />
+              )}
+            </button>
+            {isPriceOpen && (
+              <div className="mt-4 space-y-2">
+                <div className="flex space-x-2">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={minPrice !== null ? minPrice : ''}
+                    onChange={(e) =>
+                      setMinPrice(e.target.value ? parseInt(e.target.value) : null)
+                    }
+                    className="w-1/2 border border-gray-300 dark:border-gray-700 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={maxPrice !== null ? maxPrice : ''}
+                    onChange={(e) =>
+                      setMaxPrice(e.target.value ? parseInt(e.target.value) : null)
+                    }
+                    className="w-1/2 border border-gray-300 dark:border-gray-700 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <button
+                  onClick={handleResetPrice}
+                  className="w-full bg-blue-500 text-white rounded-md px-3 py-2 mt-2 hover:bg-blue-600 focus:outline-none"
+                >
+                  Reset Price
+                </button>
               </div>
             )}
           </div>
-          <div className={`w-full space-y-2 my-2`}>
-            <div onClick={() => handleFilterTabOpen('categories')} className="flex justify-start items-center py-1 px-2 gap-2 font-bold text-center bg-slate-200 dark:bg-slate-800">
-              <h2>Categories</h2>
-              {isFilterTabCategories.categories ? <ArrowDownIcon className="h-5 w-5" /> : <EyeOff className="h-4 w-4" />}
-            </div>
-          </div>
-          <div className={`w-full`}>
-            {isFilterTabCategories.categories && (
-              <div className="flex flex-col gap-2 justify-center items-start text-center p-2">
-                {localCategories && localCategories.map((category, index) => (
-                  <div key={index} className={`bg-slate-200 dark:bg-slate-800 w-full py-1 px-2 rounded`}>
-                    <div className={`flex flex-row-reverse justify-between`} >
-                      <input
-                        className={'mx-1'}
-                        type="checkbox"
-                        id={`checkbox-${category}-${index}`} // Ensure unique ID
-                        name={category}
-                        onChange={(e) => handleCategoryChange(category, e.target.checked)}
-                      />
-                      <label htmlFor={`checkbox-${category}-${index}`} className={'capitalize'}>{category}</label>
-                    </div>
-                  </div>
+
+          {/* Categories Filter */}
+          <div className="flex-1 flex flex-col overflow-y-hidden px-4 mt-6">
+            <button
+              onClick={toggleCategoriesSection}
+              className="flex justify-between items-center w-full text-lg font-semibold text-gray-700 dark:text-gray-200 focus:outline-none"
+            >
+              <span>Categories</span>
+              {isCategoriesOpen ? (
+                <ArrowUpIcon className="w-5 h-5" />
+              ) : (
+                <ArrowDownIcon className="w-5 h-5" />
+              )}
+            </button>
+            {isCategoriesOpen && (
+              <div className="mt-4 flex-1 overflow-y-auto space-y-2">
+                {categories.map((category, index) => (
+                  <label key={index} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedCategories.includes(category)}
+                      onChange={() => handleCategoryChange(category)}
+                      className="form-checkbox h-5 w-5 text-blue-600"
+                    />
+                    <span className="text-gray-700 dark:text-gray-200 capitalize">
+                      {category}
+                    </span>
+                  </label>
                 ))}
               </div>
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </aside>
+    </>
   );
 };
