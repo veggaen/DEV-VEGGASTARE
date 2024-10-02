@@ -83,6 +83,7 @@ export default function MyProductsPage() {
   //const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
   const { categories, setCategories, selectedCategories, minPrice, maxPrice, searchTerm, setSearchTerm } = useCategories();
+  
 
   const fetchProducts = useCallback(async (page: number, perPage: number, reset: boolean = false, retries = 3) => {
     setLoading(true);
@@ -190,77 +191,105 @@ export default function MyProductsPage() {
 
   const { isSidebarOpen, toggleSidebar } = useSidebar();
   return (
-    <div className="w-full h-full space-y-4">
-      <div className='flex flex-col justify-center items-center'>
-        <h1 className='text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-bl dark:from-slate-300 from-slate-500 dark:to-slate-300 to-slate-900 text-pretty'>Products Page</h1>
+    <div className="flex flex-col h-[calc(100vh-102px)]">
+      {/* Non-sticky content (will scroll under main header) */}
+      <div className="flex flex-col justify-center items-center">
+        <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-bl dark:from-slate-300 from-slate-500 dark:to-slate-300 to-slate-900 text-pretty">
+          Products Page
+        </h1>
       </div>
-      <div className="flex flex-wrap items-center justify-between px-4 w-full gap-4">
-  {/* Sidebar Toggle Button */}
-  <div className="flex items-center w-full xs:w-auto">
-    <button onClick={toggleSidebar} className={`sidebar-toggle-btn-products ${isSidebarOpen ? '' : 'rounded-r'}`}>
-      {isSidebarOpen ? (
-        <div className="flex justify-center items-center px-3 py-2 gap-2 border border-input rounded-md text-sm">
-          <PanelLeftClose className="h-6 w-6" />
-          <p>Side Menu</p>
-        </div>
-      ) : (
-        <div className="flex justify-center items-center px-3 py-2 gap-2 border border-input rounded-md text-sm">
-          <PanelLeftOpen className="h-6 w-6" />
-          <p>Side Menu</p>
-        </div>
-      )}
-    </button>
-  </div>
 
-  {/* Search Input */}
-  <div className="flex-1 w-full xs:mx-4 mt-2 xs:mt-0">
-    <input
-      type="text"
-      placeholder="Search by title..."
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-      className="w-full border-2 bg-white dark:bg-black/30 border-black/50 dark:border-white/50 py-1 px-2 rounded-xl"
-    />
-  </div>
+      {/* Scrollable area */}
+      <div className="flex flex-col">
+        {/* Controls Header (sticky) */}
+        <div className="sticky top-0 z-10 bg-white dark:bg-gray-800">
+          <div className="flex flex-wrap items-center justify-between px-4 w-full gap-4 py-2">
+            {/* Sidebar Toggle Button */}
+            <div className="flex items-center w-full xs:w-auto">
+              <button
+                onClick={toggleSidebar}
+                className={`sidebar-toggle-btn-products ${isSidebarOpen ? '' : 'rounded-r'}`}
+              >
+                {isSidebarOpen ? (
+                  <div className="flex justify-center items-center px-3 py-2 gap-2 border border-input rounded-md text-sm">
+                    <PanelLeftClose className="h-6 w-6" />
+                    <p>Side Menu</p>
+                  </div>
+                ) : (
+                  <div className="flex justify-center items-center px-3 py-2 gap-2 border border-input rounded-md text-sm">
+                    <PanelLeftOpen className="h-6 w-6" />
+                    <p>Side Menu</p>
+                  </div>
+                )}
+              </button>
+            </div>
 
-  {/* Create Button and Per Page Select */}
-  <div className="flex items-center gap-2 w-full xs:w-auto mt-2 xs:mt-0">
-    <div className="flex justify-center items-center h-10 px-3 py-2 gap-2 border border-input rounded-md text-sm">
-      <Link className="flex justify-center items-center gap-2" href={`/products/create`} passHref>
-        <MdAddCircleOutline className="h-6 w-6" />
-        <div>Create</div>
-      </Link>
-    </div>
-    <Select value={perPage.toString()} onValueChange={handlePerPageChange}>
-      <SelectTrigger className="w-full xs:w-[180px]">
-        <SelectValue placeholder="pages" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="10">10 per page</SelectItem>
-        <SelectItem value="20">20 per page</SelectItem>
-        <SelectItem value="30">30 per page</SelectItem>
-        <SelectItem value="50">50 per page</SelectItem>
-      </SelectContent>
-    </Select>
-  </div>
-</div>
+            {/* Search Input */}
+            <div className="flex-1 w-full xs:mx-4 mt-2 xs:mt-0">
+              <input
+                type="text"
+                placeholder="Search by title..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full border-2 bg-white dark:bg-black/30 border-black/50 dark:border-white/50 py-1 px-2 rounded-xl"
+              />
+            </div>
 
-      {error && !loading && products.length === 0 && <div className="text-red-500">{error}</div>}
-      {(loading || isRetrying) && products.length === 0 && <ProductsSkeleton />}
-      {products.length > 0 && (
-        <div className={`${products.length === 1 && 'flex justify-center'}`}>
-          <div className={`grid py-6 px-2 md:px-4 ${products.length === 1 ? 'sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-1 xl:grid-cols-1' : gridClasses} `}>
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+            {/* Create Button and Per Page Select */}
+            <div className="hidden md:flex items-center gap-2 w-full xs:w-auto mt-2 xs:mt-0">
+              <div className="flex justify-center items-center h-10 px-3 py-2 gap-2 border border-input rounded-md text-sm">
+                <Link
+                  className="flex justify-center items-center gap-2"
+                  href={`/products/create`}
+                  passHref
+                >
+                  <MdAddCircleOutline className="h-6 w-6" />
+                  <div>Create</div>
+                </Link>
+              </div>
+              <Select value={perPage.toString()} onValueChange={handlePerPageChange}>
+                <SelectTrigger className="w-full xs:w-[180px]">
+                  <SelectValue placeholder="pages" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 per page</SelectItem>
+                  <SelectItem value="20">20 per page</SelectItem>
+                  <SelectItem value="30">30 per page</SelectItem>
+                  <SelectItem value="50">50 per page</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          {hasMore && (
-            <div ref={ref} className="flex justify-center py-4">
-              <Spinner />
+        </div>
+
+        {/* Products Grid */}
+        <div className="flex-1">
+          {error && !loading && products.length === 0 && (
+            <div className="text-red-500">{error}</div>
+          )}
+          {(loading || isRetrying) && products.length === 0 && <ProductsSkeleton />}
+          {products.length > 0 && (
+            <div className={`${products.length === 1 && 'flex justify-center'}`}>
+              <div
+                className={`grid py-6 px-2 md:px-4 ${
+                  products.length === 1
+                    ? 'sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-1 xl:grid-cols-1'
+                    : gridClasses
+                } `}
+              >
+                {products.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+              {hasMore && (
+                <div ref={ref} className="flex justify-center py-4">
+                  <Spinner />
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

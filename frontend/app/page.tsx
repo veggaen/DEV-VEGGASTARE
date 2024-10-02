@@ -11,7 +11,7 @@ export default async function Home() {
   console.log(`${LOG_PREFIX} user`, user);
   
   return (
-    <div className={`relative flex flex-col items-center ${user ? 'justify-start' : 'justify-center'} h-[calc(100%-102px)] max-h-full`}>
+    <div className={`relative flex flex-col items-center ${user ? 'justify-start' : 'justify-center'} h-[calc(100vh-102px)] max-h-full`}>
       {/* <MyHeroImage /> */}
       {!user ? (
         <div className="relative z-10 space-y-6 p-6">

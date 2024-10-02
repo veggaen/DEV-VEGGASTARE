@@ -9,7 +9,7 @@ interface ProtectedLayoutProps {
 const MyProtectedLayout = ({ children }: ProtectedLayoutProps) => {
 
   return (
-    <div className="max-h-full w-full flex">
+    <div className="max-h-[calc(100vh-102px)] h-full w-full flex">
       <CategoriesProvider>
         <ProductProvider>
             {children}
