@@ -11,12 +11,13 @@ export const GET = async (request: Request) => {
   const minPrice = parseFloat(searchParams.get('minPrice') || '0');
   const maxPrice = parseFloat(searchParams.get('maxPrice') || 'Infinity');
   const searchTerm = searchParams.get('searchTerm') || '';
+  const sellerIds = searchParams.get('sellerIds')?.split(',').filter(id => id.trim() !== '') || [];
 
   console.log(`${LOG_PREFIX} Request received for page ${page} with ${perPage} items per page.`);
-  console.log(`${LOG_PREFIX} Filters: categories=${categories.join(',')}, minPrice=${minPrice}, maxPrice=${maxPrice}, searchTerm=${searchTerm}`);
+  console.log(`${LOG_PREFIX} Filters: categories=${categories.join(',')}, minPrice=${minPrice}, maxPrice=${maxPrice}, searchTerm=${searchTerm}, sellerIds=${sellerIds.join(',')}`);
   
   try {
-    const products = await fetchProductsWithDetails({ page, perPage, categories, minPrice, maxPrice, searchTerm });
+    const products = await fetchProductsWithDetails({ page, perPage, categories, minPrice, maxPrice, searchTerm, sellerIds });
     console.log(`${LOG_PREFIX} Successfully fetched products`);
     return NextResponse.json(products, { status: 200 });
   } catch (error) {

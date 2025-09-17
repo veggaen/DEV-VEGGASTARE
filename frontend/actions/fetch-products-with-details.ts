@@ -15,6 +15,7 @@ interface FetchProductsParams {
   minPrice: number;
   maxPrice?: number;  // make maxPrice optional
   searchTerm: string;
+  sellerIds?: string[]; // Add sellerIds as an optional property
 }
 
 const LOG_PREFIX = '[frontend/actions/fetch-products-with-details.ts]';
@@ -26,10 +27,15 @@ export const fetchProductsWithDetails = async ({
   minPrice,
   maxPrice,
   searchTerm,
+  sellerIds = [], // Add sellerIds with a default empty array
 }: FetchProductsParams): Promise<ExtendedProduct[]> => {
-  console.log(`${LOG_PREFIX} Fetching products for page ${page} with ${perPage} items per page.`);
-  console.log(`${LOG_PREFIX} Parameters: categories=${categories.join(',')}, minPrice=${minPrice}, maxPrice=${maxPrice}, searchTerm=${searchTerm}`);
-  
+  console.log(
+    `${LOG_PREFIX} Fetching products for page ${page} with ${perPage} items per page.`
+  );
+  console.log(
+    `${LOG_PREFIX} Parameters: categories=${categories.join(',')}, minPrice=${minPrice}, maxPrice=${maxPrice}, searchTerm=${searchTerm}, sellerIds=${sellerIds.join(',')}`
+  );
+
   try {
     const skip = (page - 1) * perPage;
 
@@ -54,6 +60,16 @@ export const fetchProductsWithDetails = async ({
         { title: { contains: searchTerm, mode: 'insensitive' } },
         { description: { contains: searchTerm, mode: 'insensitive' } },
       ];
+    }
+
+    if (sellerIds.length > 0) {
+      whereClause.AND = whereClause.AND || [];
+      whereClause.AND.push({
+        OR: [
+          { userId: { in: sellerIds } },
+          { companyId: { in: sellerIds } },
+        ],
+      });
     }
 
     const products = await dbPrisma.product.findMany({

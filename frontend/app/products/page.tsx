@@ -82,7 +82,7 @@ export default function MyProductsPage() {
   const user = useCurrentUser();
   //const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
-  const { categories, setCategories, selectedCategories, minPrice, maxPrice, searchTerm, setSearchTerm } = useCategories();
+  const { categories, setCategories, selectedCategories, minPrice, maxPrice, searchTerm, setSearchTerm, selectedSellers } = useCategories();
   
 
   const fetchProducts = useCallback(async (page: number, perPage: number, reset: boolean = false, retries = 3) => {
@@ -103,6 +103,10 @@ export default function MyProductsPage() {
 
       if (maxPrice !== null && maxPrice !== undefined) {
         params.append('maxPrice', maxPrice.toString());
+      }
+
+      if (selectedSellers && selectedSellers.length > 0) {
+        params.append('sellerIds', selectedSellers.join(','));
       }
 
       const response = await fetch(`/api/products?${params}`);
@@ -173,28 +177,16 @@ export default function MyProductsPage() {
   };
 
   const gridClasses = useMemo(() => {
-    return `sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6`;
+    return `sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8`;
   }, [products.length]);
 
-  /* const toggleSidebar = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    if (isSidebarOpen) {
-      setTimeout(() => {
-        console.log("Toggle sidebar visibility");
-        setIsSidebarHidden(!isSidebarHidden);
-      }, 50);
-    } else {
-      setIsSidebarHidden(!isSidebarHidden);
-    }
-    setIsSidebarOpen(!isSidebarOpen);
-  }; */
 
   const { isSidebarOpen, toggleSidebar } = useSidebar();
   return (
-    <div className="flex flex-col h-[calc(100vh-102px)]">
+    <div className="flex flex-col h-[calc(100vh-102px)] w-full">
       {/* Non-sticky content (will scroll under main header) */}
       <div className="flex flex-col justify-center items-center">
-        <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-bl dark:from-slate-300 from-slate-500 dark:to-slate-300 to-slate-900 text-pretty">
+        <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-bl dark:from-slate-300 from-slate-500 dark:to-slate-300 to-slate-900 text-pretty py-4">
           Products Page
         </h1>
       </div>
@@ -202,7 +194,7 @@ export default function MyProductsPage() {
       {/* Scrollable area */}
       <div className="flex flex-col">
         {/* Controls Header (sticky) */}
-        <div className="sticky top-0 z-10 bg-white dark:bg-gray-800">
+        <div className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 rounded">
           <div className="flex flex-wrap items-center justify-between px-4 w-full gap-4 py-2">
             {/* Sidebar Toggle Button */}
             <div className="flex items-center w-full xs:w-auto">
@@ -213,12 +205,12 @@ export default function MyProductsPage() {
                 {isSidebarOpen ? (
                   <div className="flex justify-center items-center px-3 py-2 gap-2 border border-input rounded-md text-sm">
                     <PanelLeftClose className="h-6 w-6" />
-                    <p>Side Menu</p>
+                    <p className='whitespace-nowrap'>Side Menu</p>
                   </div>
                 ) : (
                   <div className="flex justify-center items-center px-3 py-2 gap-2 border border-input rounded-md text-sm">
                     <PanelLeftOpen className="h-6 w-6" />
-                    <p>Side Menu</p>
+                    <p className='whitespace-nowrap'>Side Menu</p>
                   </div>
                 )}
               </button>
@@ -228,16 +220,16 @@ export default function MyProductsPage() {
             <div className="flex-1 w-full xs:mx-4 mt-2 xs:mt-0">
               <input
                 type="text"
-                placeholder="Search by title..."
+                placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full border-2 bg-white dark:bg-black/30 border-black/50 dark:border-white/50 py-1 px-2 rounded-xl"
+                className="w-full h-12 bg-white/30 dark:bg-black/30 border border-input py-1 px-2 rounded-md focus:outline-0"
               />
             </div>
 
             {/* Create Button and Per Page Select */}
             <div className="hidden md:flex items-center gap-2 w-full xs:w-auto mt-2 xs:mt-0">
-              <div className="flex justify-center items-center h-10 px-3 py-2 gap-2 border border-input rounded-md text-sm">
+              <div className="flex justify-center items-center h-12 px-3 py-2 gap-2 border border-input rounded-md text-sm">
                 <Link
                   className="flex justify-center items-center gap-2"
                   href={`/products/create`}
@@ -248,14 +240,14 @@ export default function MyProductsPage() {
                 </Link>
               </div>
               <Select value={perPage.toString()} onValueChange={handlePerPageChange}>
-                <SelectTrigger className="w-full xs:w-[180px]">
+                <SelectTrigger className="w-full xs:w-[180px] h-12">
                   <SelectValue placeholder="pages" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="10">10 per page</SelectItem>
-                  <SelectItem value="20">20 per page</SelectItem>
-                  <SelectItem value="30">30 per page</SelectItem>
-                  <SelectItem value="50">50 per page</SelectItem>
+                  <SelectItem value="10" className='whitespace-nowrap'>10 per page</SelectItem>
+                  <SelectItem value="20" className='whitespace-nowrap'>20 per page</SelectItem>
+                  <SelectItem value="30" className='whitespace-nowrap'>30 per page</SelectItem>
+                  <SelectItem value="50" className='whitespace-nowrap'>50 per page</SelectItem>
                 </SelectContent>
               </Select>
             </div>

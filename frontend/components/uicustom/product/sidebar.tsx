@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useCategories } from "@/components/providers/categoriesContext";
-import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon } from 'lucide-react';
 import { useSidebar } from '@/components/providers/product-layoutProvider';
+import { useCategories } from '@/components/providers/categoriesContext';
 
 export const MySidebarProductsMenu = () => {
   const { isSidebarOpen, toggleSidebar } = useSidebar();
@@ -17,14 +17,19 @@ export const MySidebarProductsMenu = () => {
     setMaxPrice,
     searchTerm,
     setSearchTerm,
+    sellers,
+    selectedSellers,
+    setSelectedSellers,
   } = useCategories();
 
   const [isPriceOpen, setIsPriceOpen] = useState(true);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
+  const [isSellersOpen, setIsSellersOpen] = useState(true);
 
   // Toggle functions
   const togglePriceSection = () => setIsPriceOpen((prev) => !prev);
   const toggleCategoriesSection = () => setIsCategoriesOpen((prev) => !prev);
+  const toggleSellersSection = () => setIsSellersOpen((prev) => !prev);
 
   // Handle category selection
   const handleCategoryChange = (category: string) => {
@@ -35,10 +40,28 @@ export const MySidebarProductsMenu = () => {
     );
   };
 
+  // Handle seller selection
+  const handleSellerChange = (sellerId: string) => {
+    setSelectedSellers((prev) =>
+      prev.includes(sellerId)
+        ? prev.filter((id) => id !== sellerId)
+        : [...prev, sellerId]
+    );
+  };
+
   // Reset price filters
   const handleResetPrice = () => {
     setMinPrice(null);
     setMaxPrice(null);
+  };
+
+  // Reset all filters
+  const handleResetFilters = () => {
+    setSelectedCategories([]);
+    setSelectedSellers([]);
+    setMinPrice(null);
+    setMaxPrice(null);
+    setSearchTerm('');
   };
 
   return (
@@ -53,11 +76,21 @@ export const MySidebarProductsMenu = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full max-w-[300px] w-full bg-white dark:bg-gray-800 shadow-md z-50 transform transition-transform duration-300 ${
+        className={`fixed top-0 left-0 h-full max-w-[300px] w-full bg-slate-100 dark:bg-gray-800 shadow-md z-50 transform transition-transform duration-300 ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex flex-col h-full">
+          {/* Close Button for Mobile */}
+          <div className="p-4 flex justify-end md:hidden">
+            <button
+              onClick={toggleSidebar}
+              className="text-gray-700 dark:text-gray-200 focus:outline-none"
+            >
+              Close
+            </button>
+          </div>
+
           {/* Search Input */}
           <div className="p-4">
             <input
@@ -115,7 +148,7 @@ export const MySidebarProductsMenu = () => {
           </div>
 
           {/* Categories Filter */}
-          <div className="flex-1 flex flex-col overflow-y-hidden px-4 mt-6">
+          <div className="px-4 mt-6">
             <button
               onClick={toggleCategoriesSection}
               className="flex justify-between items-center w-full text-lg font-semibold text-gray-700 dark:text-gray-200 focus:outline-none"
@@ -144,6 +177,52 @@ export const MySidebarProductsMenu = () => {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Sellers Filter */}
+          <div className="px-4 mt-6">
+            <button
+              onClick={toggleSellersSection}
+              className="flex justify-between items-center w-full text-lg font-semibold text-gray-700 dark:text-gray-200 focus:outline-none"
+            >
+              <span>Sellers</span>
+              {isSellersOpen ? (
+                <ArrowUpIcon className="w-5 h-5" />
+              ) : (
+                <ArrowDownIcon className="w-5 h-5" />
+              )}
+            </button>
+            {isSellersOpen && (
+              <div className="mt-4 flex-1 overflow-y-auto space-y-2">
+                {sellers && sellers.length === 0 && (
+                  <div>
+                    {sellers.map((seller) => (
+                    <div key={seller.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedSellers.includes(seller.id)}
+                        onChange={() => handleSellerChange(seller.id)}
+                        className="form-checkbox h-5 w-5 text-blue-600"
+                      />
+                      <span className="text-gray-700 dark:text-gray-200 capitalize">
+                        {seller.name}
+                      </span>
+                    </div>
+                  ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Reset All Filters Button */}
+          <div className="p-4">
+            <button
+              onClick={handleResetFilters}
+              className="w-full bg-gray-500 text-white rounded-md px-3 py-2 mt-2 hover:bg-gray-600 focus:outline-none"
+            >
+              Reset All Filters
+            </button>
           </div>
         </div>
       </aside>

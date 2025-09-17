@@ -24,3 +24,12 @@ export const fetchAllTitles = async () => {
   const titles = await res.json();
   return titles;
 };
+
+export const fetchAllSellers = async () => {
+  const res = await fetch('/api/products/sellers');
+  if (!res.ok) {
+    throw new Error('Failed to fetch sellers');
+  }
+  const sellers = await res.json();
+  return sellers;
+};

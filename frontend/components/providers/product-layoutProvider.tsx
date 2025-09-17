@@ -51,19 +51,6 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     <SidebarContext.Provider value={{ isSidebarOpen, isSidebarHidden, toggleSidebar }}>
       <div className={`productProvider ${isSidebarOpen ? 'flex' : 'flex'} w-full h-full gap-2`}>
         <div className={`${isSidebarOpen ? 'w-full md:w-[360px] md:max-w-[360px]' : 'absolute z-10 top-0 left-1 bottom-0'}`}>
-          <div className=''>
-            <button onClick={toggleSidebar} className={`sidebar-toggle-btn w-full ${isSidebarOpen ? 'rounded-tr-lg bg-slate-300 dark:bg-slate-950' : 'rounded-r'}`}>
-              {isSidebarOpen && (
-                <div className="flex justify-start items-center h-[56px]">
-                  {user ? (
-                    <h1 className="w-full flex justify-between items-center py-2 px-4 font-bold text-center">Welcome, {user.name}! <div className="animate-pulse"><PanelLeftClose className="h-6 w-6" /></div></h1>
-                  ) : (
-                    <h1 className="w-full py-2 px-4 font-bold text-center">Welcome, Sign in here!</h1>
-                  )}
-                </div>
-              ) }
-            </button>
-          </div>
           <div className={`h-full min-h-fit w-full ${isSidebarHidden ? '' : 'hidden'}`}>
             <MySidebarProductsMenu isOpen={isSidebarOpen} />
           </div>

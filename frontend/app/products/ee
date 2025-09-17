@@ -1,0 +1,6 @@
+#showtooltip
+/targetenemy [noharm][dead]
+Tempest
+/cast [mod:alt,@player] Tempest; Chain Lightning;[@mouseover,harm,nodead] Tempest; Chain Lightning;[@mouseover,help,nodead] [help] Tempest; Chain Lightning; Tempest; Chain Lightning
+
+/cast [mod:alt,@player] Chain Lightning;[@mouseover,harm,nodead] Chain Lightning;[@mouseover,help,nodead] [help] Chain Lightning; Chain Lightning
