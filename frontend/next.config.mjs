@@ -6,6 +6,14 @@
 const nextConfig = {
     webpack: (config) => {
         config.externals.push("pino-pretty", "lokijs", "encoding");
+
+        // Some wallet SDKs pull in optional React-Native deps even for web builds.
+        // We don't use RN storage in the browser, so alias it out to prevent build errors.
+        config.resolve.alias = {
+            ...(config.resolve.alias || {}),
+            "@react-native-async-storage/async-storage": false,
+        };
+
         return config;
     },
     typescript: {

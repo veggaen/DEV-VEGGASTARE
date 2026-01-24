@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { BeatLoader } from 'react-spinners'
+import { toast } from "sonner";
 import { CardWrapper } from "../card-wrapper"
 import { MyFormSuccess } from '../../forms/form-sucess';
 import { MyFormError } from '../../forms/form-error';
@@ -69,7 +69,7 @@ export const MyNewVerificationForm = () => {
     >
       <div className="flex flex-col w-full justify-center items-center">
         {!success && !error && (
-          <BeatLoader color="white" />
+          toast.success('Successfully verified your email!', { position: 'top-center' })
         )}
         <MyFormSuccess message={success} />
         {!success && (

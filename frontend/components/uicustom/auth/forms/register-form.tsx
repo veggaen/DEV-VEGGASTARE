@@ -14,7 +14,8 @@ import { MyRegisterAction } from '@/actions/register';
 import { MyAuthRegisterSchema } from '@/schemas';
 import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
-import { UploadCloudIcon, XCircle } from 'lucide-react';
+import { RxCrossCircled } from "react-icons/rx";
+import { FaFileUpload } from "react-icons/fa";
 import { useEdgeStore } from '@/lib/edgestore';
 import { uploadImageToEdgeStore } from '@/lib/edgestore-hook';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
@@ -177,12 +178,12 @@ export const MyRegisterform = () => {
                                               </AspectRatio>
                                             </div>
                                             <button type='button' onClick={removeImage} className='absolute top-1 right-1 bg-gray-800 p-1 rounded-full'>
-                                                <XCircle className='h-5 w-5 text-white' />
+                                                <RxCrossCircled className='h-5 w-5 text-white' />
                                             </button>
                                         </div>
                                     ) : (
                                         <div className='text-center'>
-                                            <UploadCloudIcon className='h-8 w-8 text-gray-600' />
+                                            <FaFileUpload className='h-8 w-8 text-gray-600' />
                                             <p>Drag & drop or click to select an image</p>
                                         </div>
                                     )}

@@ -1,12 +1,12 @@
 'use client'
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ShieldCheckIcon } from "lucide-react";
+import { FaShield } from "react-icons/fa6";
 import { UserRole } from "@prisma/client";
 
 import { RoleGate } from "@/components/uicustom/auth/role-gate";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { toast } from "sonner"; 
 import { admin } from "@/actions/admin";
 
 const MyPageAdmin = () => {
@@ -37,7 +37,7 @@ const MyPageAdmin = () => {
       <Card className="w-full max-w-600">
         <CardHeader className="flex items-start justify-center">
             <div className="relative flex w-fit">
-              <ShieldCheckIcon className="relative top-1 h-10 w-10" />
+              <FaShield className="relative top-1 h-10 w-10" />
               <h1 className="text-xl">Admin</h1>
               <span className="absolute top-5 left-10">Administrator</span>
             </div>

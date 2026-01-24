@@ -18,7 +18,7 @@ This web application aims to revolutionize how users interact with each other, m
 
 #### Frontend
 
-- **Next.js 14.1.0** with TypeScript for SSR, SSG, and API routes
+- **Next.js 15** with TypeScript for SSR, SSG, and API routes
 - **Tailwind CSS** for styling and **Next Themes** for theme management
 - **Radix UI** components for accessibility and UI flexibility
 - **React Hook Form** and **Zod** for form handling and validation

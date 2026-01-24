@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { MyLoginButton } from "@/components/uicustom/auth/buttons/login-button";
 import MyHeroImage from "@/components/uicustom/hero-image";
 import { MyLibEmailAuth, MyLibUserAuth } from "@/lib/user-auth";
-import { LockKeyhole } from "lucide-react";
+import { FaUnlockAlt } from "react-icons/fa";
 
 
 const LOG_PREFIX = '[page.tsx]';
@@ -18,7 +18,7 @@ export default async function Home() {
           <h1 className="text-6xl font-semibold text-white drop-shadow-md mb-2">The Future awaits!</h1>
           <MyLoginButton mode="modal" asChild>
             <Button size="lg" variant='vegaEmeraldBtn' className="group">
-              <LockKeyhole size={21} className="mr-2 group-hover:animate-bounce" />
+              <FaUnlockAlt size={21} className="mr-2 group-hover:animate-bounce" />
               Auth
             </Button>
           </MyLoginButton>

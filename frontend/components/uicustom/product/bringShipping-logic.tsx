@@ -83,27 +83,32 @@ export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ ship
   const [shippingResponse, setShippingResponse] = useState<ShippingDetails | null>(null);
   const [error, setError] = useState<string>('');
 
-  const fetchData = async () => {
-    try {
-        console.log(LOG_PREFIX,' try fetchBringShippingDetails', shippingDetailsFromUser)
-      if (shippingDetailsFromUser !== null) {
-        const response = await fetchBringShippingDetails(shippingDetailsFromUser);
-        setShippingResponse(response);
-      }
-    } catch (error) {
-      setError('Failed to fetch shipping details');
-    }
-  };
+  useEffect(() => {
+    let cancelled = false;
 
-  if (shippingDetailsFromUser.toPostalCode !== '') {
-    if (!shippingResponse){
-      console.log(LOG_PREFIX,'got here! fetchData now!')
-      fetchData()
-    }
-  }
+    const run = async () => {
+      try {
+        if (!shippingDetailsFromUser?.toPostalCode) return;
+        setError('');
+        setShippingResponse(null);
+
+        console.log(LOG_PREFIX, 'fetchBringShippingDetails()', shippingDetailsFromUser);
+        const response = await fetchBringShippingDetails(shippingDetailsFromUser);
+        if (!cancelled) setShippingResponse(response);
+	      } catch (e) {
+	        const message = e instanceof Error ? e.message : 'Failed to fetch shipping details';
+	        if (!cancelled) setError(message || 'Failed to fetch shipping details');
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [shippingDetailsFromUser]);
 
   if (error) {
-    return <div>Error loading shipping details</div>;
+	    return <div>Error loading shipping details: {error}</div>;
   }
 
   return (

@@ -13,7 +13,8 @@ import { MyFormSuccess } from '../../forms/form-sucess';
 import { MyCreateProductAction } from '@/actions/products';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { UserRole, WarehouseLocation } from '@prisma/client';
-import { UploadCloudIcon, XCircle } from 'lucide-react';
+import { RxCrossCircled } from "react-icons/rx";
+import { FaFileUpload } from "react-icons/fa";
 import Image from 'next/image';
 import { useDropzone } from 'react-dropzone';
 import { useEdgeStore } from '@/lib/edgestore';
@@ -679,7 +680,7 @@ export const MyProductCreationForm = () => {
                 <div {...getRootProps()} className={`disabled:bg-white/60 bg-white dark:disabled:bg-black/50 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded focus:outline-none transition dropzone flex flex-col h-full w-full justify-center items-center border border-dashed ${imagePreviews ? ' border-gray-600/60 dark:border-gray-600/60' : 'border-gray-400 dark:border-gray-400'} rounded-md cursor-pointer`}>
                   {imagePreviews.length < 1 && (
                     <div className="text-center flex flex-col min-h-48 justify-center items-center h-[420px] max-h-[420px]">
-                      <UploadCloudIcon className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200" />
+                      <FaFileUpload className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200" />
                       <p className="mt-1 text-sm text-gray-600 dark:text-gray-200">
                         Drag n drop an IMAGE here, or click to select an IMAGE
                       </p>
@@ -690,7 +691,7 @@ export const MyProductCreationForm = () => {
                       <div key={index} className="relative m-1">
                         <Image src={preview} alt={`preview-${index}`} height={600} width={450} className="h-full w-full rounded-md object-cover" />
                         <div onClick={(e) => removeImage(e, index)} className="absolute top-1 right-1 hover:scale-110 transform duration-300 bg-gray-800/30 hover:bg-red-600/40 text-white p-1 rounded-full">
-                          <XCircle className="h-4 w-4" />
+                          <RxCrossCircled className="h-4 w-4" />
                         </div>
                       </div>
                     ))}

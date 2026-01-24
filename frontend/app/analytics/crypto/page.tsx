@@ -29,7 +29,7 @@ const MyPageAnalytics = () => {
         <CryptoPriceChart />
       </div>
       <footer className="mt-8 text-center text-gray-500 dark:text-gray-400 text-sm">
-        Data provided by the <a href="https://www.coingecko.com/" className="text-blue-500 hover:underline">CoinGecko API</a>. This application is powered by a free API tier, which has some limitations such as data availability for up to 365 days. If you'd like to see more features or support further development, consider sending a friendly donation to the owner of this site. Thank you for your support!
+        Data provided by the <a href="https://www.coingecko.com/" className="text-blue-500 hover:underline">CoinGecko API</a>. This application is powered by a free API tier, which has some limitations such as data availability for up to 365 days. If you&apos;d like to see more features or support further development, consider sending a friendly donation to the owner of this site. Thank you for your support!
       </footer>
     </div>
   );

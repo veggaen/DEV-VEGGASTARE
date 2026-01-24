@@ -13,7 +13,8 @@ import { MyFormSuccess } from '../forms/form-sucess';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useEdgeStore } from '@/lib/edgestore';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloudIcon, XCircle } from 'lucide-react';
+import { RxCrossCircled } from "react-icons/rx";
+import { FaFileUpload } from "react-icons/fa";
 import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { MyCreateCompanyAction } from '@/actions/create-company';
@@ -354,7 +355,7 @@ export const MyCompanyCreateForm = () => {
                 {logoPreview.length < 1 && (
                   <AspectRatio ratio={1 / 1}>
                     <div className={`text-center flex flex-col justify-center items-center w-full h-full text-black dark:text-white focus:outline-none transition rounded-md`} title='Optimal image ratio 1:1'>
-                      <UploadCloudIcon className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200" />
+                      <FaFileUpload className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200" />
                       <p className="p-4 pt-0 text-sm text-gray-600 dark:text-gray-200 hidden xxs:flex">
                         Drag a LOGO here or <br /> Click to select
                       </p>
@@ -372,7 +373,7 @@ export const MyCompanyCreateForm = () => {
                             </AspectRatio>
                           </div>
                           <div onClick={(e) => removeImageLogo(e, index)} className="absolute top-1 right-1 hover:scale-110 transform duration-300 bg-gray-800/30 hover:bg-red-600/40 text-white p-1 rounded-full">
-                            <XCircle className="h-4 w-4" />
+                            <RxCrossCircled className="h-4 w-4" />
                           </div>
                         </div>
                       </div>
@@ -400,7 +401,7 @@ export const MyCompanyCreateForm = () => {
                 {bannerPreview.length < 1 && (
                   <AspectRatio ratio={3 / 1}>
                     <div className={`text-center flex flex-col justify-center items-center w-full h-full text-black dark:text-white focus:outline-none transition rounded-md`} title='Optimal image ratio 3:1'>
-                      <UploadCloudIcon className="h-8 w-8 text-gray-600 dark:text-gray-200" />
+                      <FaFileUpload className="h-8 w-8 text-gray-600 dark:text-gray-200" />
                       <p className="p-4 pt-0 text-sm text-gray-600 dark:text-gray-200 hidden xs:block">
                         Drag a Banner here or Click to select
                       </p>
@@ -418,7 +419,7 @@ export const MyCompanyCreateForm = () => {
                             </AspectRatio>
                           </div>
                           <div onClick={(e) => removeImageBanner(e, index)} className="absolute top-1 right-1 hover:scale-110 transform duration-300 bg-gray-800/30 hover:bg-red-600/40 text-white p-1 rounded-full">
-                            <XCircle className="h-4 w-4" />
+                            <RxCrossCircled className="h-4 w-4" />
                           </div>
                         </div>
                       </div>

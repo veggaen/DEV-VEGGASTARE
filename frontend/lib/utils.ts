@@ -29,3 +29,5 @@ export const getCountryCode = (countryName: string): string => {
   return countryCodes[countryName] || "NO";
 };
 
+
+

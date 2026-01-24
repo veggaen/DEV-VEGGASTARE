@@ -1,38 +1,19 @@
-'use server';
+"use client";
 
-interface GeocodeApiResponse {
-  results: GeocodeResult[];
-  status: string;
-}
-
-interface GeocodeResult {
-  address_components: AddressComponent[];
-}
-
-interface AddressComponent {
-  long_name: string;
-  short_name: string;
-  types: string[];
-}
-const LOG_PREFIX = '[frontend/components/uicustom/postal-code-from-coords.tsx]'
-const googleMapApiKey = process.env.AUTH_GOOGLE_API_KEY
-
+const LOG_PREFIX = "[frontend/components/uicustom/postal-code-from-coords.tsx]";
 export const fetchPostalCodeFromCoords = async (latitude: number, longitude: number): Promise<string | null> => {
-    console.log(LOG_PREFIX,`fetchPostalCodeFromCoords(${latitude},${longitude}) 1/2`)
-    const url: string = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${googleMapApiKey}`;
-  
-    try {
-      const response = await fetch(url);
-      const data: GeocodeApiResponse = await response.json();
-  
-      // Find the postal code in the response
-      const postalCodeObj = data.results
-        .flatMap((result: GeocodeResult) => result.address_components)
-        .find((component: AddressComponent) => component.types.includes('postal_code'));
-      console.log(LOG_PREFIX, '2/2 ', JSON.stringify( postalCodeObj));
-      return postalCodeObj ? postalCodeObj.long_name : null;
-    } catch (error) {
-      console.error('Error fetching postal code from coordinates:', error);
-      return null;
-    }
+	console.log(LOG_PREFIX, `fetchPostalCodeFromCoords(${latitude},${longitude}) 1/2`);
+	try {
+		const res = await fetch(`/api/geocode/reverse?lat=${latitude}&lon=${longitude}`, { cache: "no-store" });
+		const data = (await res.json().catch(() => null)) as any;
+		if (!res.ok) {
+			console.warn(LOG_PREFIX, "reverse geocode failed", data);
+			return null;
+		}
+		console.log(LOG_PREFIX, "2/2", data?.postalCode);
+		return typeof data?.postalCode === "string" ? data.postalCode : null;
+	} catch (error) {
+		console.error(LOG_PREFIX, "Error fetching postal code from coordinates:", error);
+		return null;
+	}
   };

@@ -1,24 +1,30 @@
 
 
-interface PackageDetail {
-    length: number;
-    width: number;
-    height: number;
-    grossWeight: number;
-}
-
-interface ShippingRequest {
-  fromPostalCode: string;
-  toPostalCode: string;
-
-}
-
 export async function fetchBringShippingDetails(requestData: any): Promise<any> {
-    const bringApiKey: string | undefined = process.env.BRING_SHIPPING_API_KEY
-    const bringApiUid: string | undefined = process.env.BRING_SHIPPING_API_UID
-    
-    
     console.log('[frontend/lib/fetch-bring-shipping-details.ts] requestData', requestData)
+
+    // Bring Shipping Guide rejects dates in the past; generate a current shipping date.
+    const now = new Date();
+    const shippingDate = {
+      day: String(now.getDate()),
+      hour: String(now.getHours()),
+      minute: String(now.getMinutes()),
+      month: String(now.getMonth() + 1),
+      year: String(now.getFullYear()),
+    };
+
+    const rawPackages = Array.isArray(requestData?.packages) && requestData.packages.length > 0
+      ? requestData.packages
+      : [{ length: 10, width: 10, height: 10, grossWeight: 300 }];
+
+    const packages = rawPackages.map((p: any, idx: number) => ({
+      id: String(idx + 1),
+      length: Number(p?.length ?? 10),
+      width: Number(p?.width ?? 10),
+      height: Number(p?.height ?? 10),
+      grossWeight: Number(p?.grossWeight ?? 300),
+    }));
+
     const requestBody = {  
       language: "en",
       withPrice: true,
@@ -40,52 +46,31 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
           toCountryCode: "NO",
           fromPostalCode: requestData ? requestData.fromPostalCode : "1234",
           toPostalCode: requestData ? requestData.toPostalCode : "4321",
-          shippingDate: {
-            day: "21",
-            hour: "10",
-            minute: "0",
-            month: "2",
-            year: "2024"
-          },
-          packages: [
-            {
-              id: "10",
-              length: 10,
-              width: 10,
-              height: 10,
-              grossWeight: 300
-            }   
-          ]
+          shippingDate,
+          packages,
         }
       ]
     };
 
     try {
-      // Simplified environment detection
-      const whatENV = process.env.NODE_ENV === 'development' 
-        ? 'http://localhost:3000/' 
-        : 'https://www.veggat.com/';
-  
         const response = await fetch('/api/bring-shipping', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Mybring-API-Uid': bringApiUid as string,
-                'X-Mybring-API-Key': bringApiKey as string,
-                'X-Bring-Client-URL': whatENV, // todo CHANGE FOR PRODUCTION MAKE DYNAMIC ENV VARIABLE
             },
             body: JSON.stringify(requestBody),
         });
-        const result = await response.json();
-        console.log('[frontend/lib/fetch-bring-shipping-details.ts] result', result)
-        
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
+	        const result = await response.json().catch(() => null);
+	        console.log('[frontend/lib/fetch-bring-shipping-details.ts] result', result)
+	        
+	        if (!response.ok) {
+	            const message = result?.error || response.statusText || `HTTP error! status: ${response.status}`;
+	            throw new Error(message);
+	        }
 
-        return result
+	        return result;
     } catch (error) {
-        console.error('There was an error fetching the shipping details:', error);
+	        console.error('There was an error fetching the shipping details:', error);
         throw error;
     }
 }

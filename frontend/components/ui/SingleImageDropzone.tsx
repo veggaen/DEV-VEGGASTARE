@@ -1,5 +1,6 @@
 'use client';
-import { UploadCloudIcon, X } from 'lucide-react';
+import { FaFileUpload } from "react-icons/fa";
+import { RxCrossCircled } from "react-icons/rx";
 import Image from 'next/image';
 import * as React from 'react';
 import { useDropzone, type DropzoneOptions } from 'react-dropzone';
@@ -134,7 +135,7 @@ const SingleImageDropzone = React.forwardRef<HTMLInputElement, InputProps>(
           ) : (
             // Upload Icon
             <div className="flex flex-col items-center justify-center text-xs text-gray-400">
-              <UploadCloudIcon className="mb-2 h-7 w-7" />
+              <FaFileUpload className="mb-2 h-7 w-7" />
               <div className="text-gray-400">drag & drop to upload</div>
               <div className="mt-3">
                 <Button disabled={disabled}>select</Button>
@@ -151,7 +152,7 @@ const SingleImageDropzone = React.forwardRef<HTMLInputElement, InputProps>(
               }} */
             >
               <div className="flex h-5 w-5 items-center justify-center rounded-md border border-solid border-gray-500 bg-white transition-all duration-300 hover:h-6 hover:w-6 dark:border-gray-400 dark:bg-black">
-                <X
+                <RxCrossCircled
                   className="text-gray-500 dark:text-gray-400"
                   width={16}
                   height={16}

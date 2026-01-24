@@ -24,6 +24,8 @@ interface JobBoxProps {
 }
 
 const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
+  const pathname = usePathname()
+
   if (!jobRequest) {
     return <div>No job request data available.</div>;
   }
@@ -48,8 +50,6 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
     }
     return `${diffSeconds} sec ago`;
   };
-  const pathname = usePathname()
-
   return (
     <div className="job-box bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 m-4">
       <div className="w-full xl:relative flex justify-center flex-col xl:flex-row-reverse">
