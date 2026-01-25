@@ -14,7 +14,6 @@
   "dependencies": {
     "@hapi/hapi": "^21.3.10",
     "@prisma/client": "^5.17.0",
-    "@railway/cli": "^3.11.0",
     "@types/hapi": "^18.0.14",
     "dotenv": "^16.4.5",
     "pusher": "^5.2.0",
@@ -25,9 +24,13 @@
   "devDependencies": {
     "@types/node": "^20.14.12",
     "@types/ws": "^8.5.11",
+    "@railway/cli": "^3.11.0",
     "nodemon": "^3.1.4",
     "prisma": "^5.17.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
+  },
+  "overrides": {
+    "tar": "7.5.6"
   }
 }

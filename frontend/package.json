@@ -106,6 +106,10 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   },
+  "overrides": {
+    "cookie": "0.7.2",
+    "tar": "7.5.6"
+  },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   }
