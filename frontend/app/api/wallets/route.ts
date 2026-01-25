@@ -1,12 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbPrisma } from "@/lib/db";
 import { MyLibUserAuth } from "@/lib/user-auth";
+import { parseJsonOrError } from "@/lib/api-validate";
+import { ChainFamily } from "@prisma/client";
+import { z } from "zod";
+
+const createWalletSchema = z.object({
+  label: z.string().trim().min(1).max(64),
+  family: z.nativeEnum(ChainFamily),
+  address: z.string().trim().min(1).max(256),
+  chainId: z.coerce.number().int().positive().optional().nullable(),
+  solanaCluster: z.string().trim().min(1).max(64).optional().nullable(),
+  ownerCompanyId: z.string().trim().min(1).max(200).optional().nullable(),
+  isDefault: z.boolean().optional().default(false),
+});
 
 export async function POST(req: NextRequest) {
   const me = await MyLibUserAuth();
   if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { label, family, address, chainId, solanaCluster, ownerCompanyId, isDefault } = await req.json();
+  const bodyResult = await parseJsonOrError(req, createWalletSchema);
+  if (!bodyResult.ok) return bodyResult.response;
+
+  const { label, family, address, chainId, solanaCluster, ownerCompanyId, isDefault } = bodyResult.data;
 
   // If attaching to a company, ensure the caller owns or created it
   if (ownerCompanyId) {

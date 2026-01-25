@@ -2,12 +2,14 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { pusherServer } from '@/lib/pusher';
 import { NextResponse } from 'next/server';
+import { parseJsonOrError, parseQueryOrError } from '@/lib/api-validate';
 import {
   ConversationType,
   ConversationVisibility,
   ReplyPermission,
   DeletionVisibility
 } from '@prisma/client';
+import { z } from 'zod';
 import {
   getReachLevel,
   calculateDeletionDate,
@@ -17,6 +19,24 @@ import {
 } from '@/lib/conversation-deletion';
 
 const LOG_PREFIX = '[api/conversations/[id]]';
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+const deleteQuerySchema = z.object({
+  visibility: z.nativeEnum(DeletionVisibility).optional(),
+  force: z.preprocess((v) => v === 'true', z.boolean()).optional().default(false),
+  cancel: z.preprocess((v) => v === 'true', z.boolean()).optional().default(false),
+});
+
+const patchBodySchema = z.object({
+  title: z.string().trim().max(200).optional().nullable(),
+  description: z.string().trim().max(2000).optional().nullable(),
+  visibility: z.nativeEnum(ConversationVisibility).optional(),
+  replyPermission: z.nativeEnum(ReplyPermission).optional(),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
+  isPinned: z.boolean().optional(),
+  isLocked: z.boolean().optional(),
+});
 
 /**
  * Notify participants about a pending deletion
@@ -72,10 +92,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: conversationId } = await params;
-  const { searchParams } = new URL(req.url);
-  const visibilityParam = searchParams.get('visibility') as DeletionVisibility | null;
-  const forceDelete = searchParams.get('force') === 'true';
-  const cancelDeletion = searchParams.get('cancel') === 'true';
+  const queryResult = parseQueryOrError(req, deleteQuerySchema);
+  if (!queryResult.ok) return queryResult.response;
+  const { visibility: visibilityParam, force: forceDelete, cancel: cancelDeletion } = queryResult.data;
 
   const session = await MyLibUserAuth();
   if (!session) {
@@ -204,7 +223,10 @@ export async function DELETE(
     }, { status: 200 });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error processing deletion:', error);
-    return NextResponse.json({ message: 'Error processing deletion' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Error processing deletion', ...(isDev && error instanceof Error ? { error: error.message } : {}) },
+      { status: 500 }
+    );
   }
 }
 
@@ -253,7 +275,10 @@ export async function GET(
     return NextResponse.json(conversation, { status: 200 });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error fetching conversation:', error);
-    return NextResponse.json({ message: 'Error fetching conversation' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Error fetching conversation', ...(isDev && error instanceof Error ? { error: error.message } : {}) },
+      { status: 500 }
+    );
   }
 }
 
@@ -294,7 +319,9 @@ export async function PATCH(
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await req.json();
+    const bodyResult = await parseJsonOrError(req, patchBodySchema);
+    if (!bodyResult.ok) return bodyResult.response;
+
     const {
       title,
       description,
@@ -303,7 +330,7 @@ export async function PATCH(
       tags,
       isPinned,
       isLocked,
-    } = body;
+    } = bodyResult.data;
 
     // Build update data - only include fields that were explicitly provided
     const updateData: Record<string, unknown> = {};
@@ -314,15 +341,9 @@ export async function PATCH(
     if (typeof description === 'string') {
       updateData.description = description.trim() || null;
     }
-    if (visibility && ['PUBLIC', 'PARTICIPANTS', 'ROLE_BASED', 'CUSTOM'].includes(visibility)) {
-      updateData.visibility = visibility as ConversationVisibility;
-    }
-    if (replyPermission && ['EVERYONE', 'PARTICIPANTS', 'MENTIONED', 'MODS_ONLY', 'CREATOR_ONLY'].includes(replyPermission)) {
-      updateData.replyPermission = replyPermission as ReplyPermission;
-    }
-    if (Array.isArray(tags)) {
-      updateData.tags = tags.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim());
-    }
+    if (visibility) updateData.visibility = visibility;
+    if (replyPermission) updateData.replyPermission = replyPermission;
+    if (tags) updateData.tags = tags;
     // Only admin/owner can pin/lock
     if (isAdmin) {
       if (typeof isPinned === 'boolean') {
@@ -348,6 +369,9 @@ export async function PATCH(
     return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error updating conversation:', error);
-    return NextResponse.json({ message: 'Error updating conversation' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Error updating conversation', ...(isDev && error instanceof Error ? { error: error.message } : {}) },
+      { status: 500 }
+    );
   }
 }

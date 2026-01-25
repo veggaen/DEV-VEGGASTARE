@@ -1,5 +1,7 @@
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { parseQueryOrError } from '@/lib/api-validate';
+import { z } from 'zod';
 
 export interface FilterCountsResponse {
   categories: { category: string; count: number }[];
@@ -16,18 +18,53 @@ export interface FilterCountsResponse {
  */
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const selectedCategories = searchParams.get('selectedCategories')?.split(',').filter(Boolean) || [];
-    const selectedSellers = searchParams.get('selectedSellers')?.split(',').filter(Boolean) || [];
-    const minPrice = parseFloat(searchParams.get('minPrice') || '0');
-    const maxPrice = parseFloat(searchParams.get('maxPrice') || 'Infinity');
-    const searchTerm = searchParams.get('searchTerm') || '';
+    const queryResult = parseQueryOrError(
+      request,
+      z
+        .object({
+          selectedCategories: z
+            .preprocess(
+              (v) =>
+                typeof v === 'string'
+                  ? v
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                  : [],
+              z.array(z.string().min(1).max(100)).max(50)
+            )
+            .optional()
+            .default([]),
+          selectedSellers: z
+            .preprocess(
+              (v) =>
+                typeof v === 'string'
+                  ? v
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                  : [],
+              z.array(z.string().min(1).max(200)).max(200)
+            )
+            .optional()
+            .default([]),
+          minPrice: z.coerce.number().min(0).optional().default(0),
+          maxPrice: z
+            .preprocess((v) => (v === undefined ? undefined : Number(v)), z.number().min(0))
+            .optional()
+            .default(Number.POSITIVE_INFINITY),
+          searchTerm: z.string().trim().max(200).optional().default(''),
+        })
+        .refine((v) => v.maxPrice >= v.minPrice, { message: 'maxPrice must be >= minPrice' })
+    );
+    if (!queryResult.ok) return queryResult.response;
+    const { selectedCategories, selectedSellers, minPrice, maxPrice, searchTerm } = queryResult.data;
 
     // Build base where clause (excluding the dimension we're counting)
     const baseWhere: any = {
       price: { gte: minPrice },
     };
-    if (maxPrice !== Infinity) {
+    if (Number.isFinite(maxPrice)) {
       baseWhere.price.lte = maxPrice;
     }
     if (searchTerm) {

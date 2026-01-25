@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db'; // Adjust the import according to your project structure
 import { MyLibUserAuth } from '@/lib/user-auth';
+import { parseJsonOrError } from '@/lib/api-validate';
+import { z } from 'zod';
 
 interface JobRequestData {
   descriptions: string[];
@@ -20,27 +22,49 @@ interface JobRequestData {
 
 const LOG_PREFIX = '[frontend/app/api/job-requests/route.ts]';
 
+const createJobRequestSchema = z.object({
+  descriptions: z.array(z.string().trim().min(1).max(1000)).min(1).max(50),
+  title: z.string().trim().max(200).optional().nullable(),
+  images: z.array(z.string().trim().max(2048)).max(50).optional().default([]),
+  links: z.array(z.string().trim().max(2048)).max(50).optional().default([]),
+  docs: z.array(z.string().trim().max(2048)).max(50).optional().default([]),
+  price: z.string().trim().max(50).optional().nullable(),
+  negotiable: z.boolean().optional().nullable(),
+  paymentMethod: z.string().trim().max(200).optional().nullable(),
+  delivery: z.string().trim().max(200).optional().nullable(),
+  additionalNotes: z.string().trim().max(2000).optional().nullable(),
+  companyIds: z.array(z.string().trim().min(1).max(200)).max(200).optional().default([]),
+  sendToAll: z.boolean(),
+  userId: z.string().trim().min(1).max(200),
+});
+
 export async function POST(req: NextRequest) {
   try {
-    const data: JobRequestData = await req.json();
-    console.log(LOG_PREFIX, 'Received job request data:', data);
+    const session = await MyLibUserAuth();
+    if (!session?.id) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const bodyResult = await parseJsonOrError(req, createJobRequestSchema);
+    if (!bodyResult.ok) return bodyResult.response;
+
+    const data: JobRequestData = bodyResult.data;
+
+    const isAdmin = session.role === 'ADMIN' || session.role === 'OWNER';
+    if (!isAdmin && data.userId !== session.id) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
 
     // Validate userId
-    console.log('Start validation of user by ID: ', data.userId);
     const user = await dbPrisma.user.findUnique({
       where: { id: data.userId },
-      
     });
 
     if (!user) {
       console.error(LOG_PREFIX, 'Invalid userId:', data.userId);
       return NextResponse.json({ success: false, error: 'Invalid userId' }, { status: 400 });
     }
-    if (user) {
-        console.log(LOG_PREFIX, 'User is valid:', user.id);
-    }
     if (!user.email) {
-        console.error(LOG_PREFIX, 'Invalid userId:', data.userId);
       return NextResponse.json({ success: false, error: 'Invalid userId' }, { status: 400 });
     }
 
@@ -62,7 +86,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log(LOG_PREFIX, 'Job request created:', jobRequest);
     return NextResponse.json({ success: true, jobRequest });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error creating job request:', (error as Error).message);

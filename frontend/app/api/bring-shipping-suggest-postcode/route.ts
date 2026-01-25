@@ -1,52 +1,96 @@
 // frontend/app/api/bring-shipping-suggest-postcode/route.ts
 import { BringPostalCodeSuggestionsResponse } from '@/lib/BringPostalCodeSuggestionTypes';
 import type { NextRequest } from 'next/server';
+import { parseQueryOrError } from '@/lib/api-validate';
+import { z } from 'zod';
+import { getIntegrationCoreBaseUrl } from '@/lib/integration-core';
 
 const bringApiUID = process.env.BRING_SHIPPING_API_UID;
 const bringApiKey = process.env.BRING_SHIPPING_API_KEY;
   
 export async function GET(req: NextRequest) {
-	if (!bringApiUID || !bringApiKey) {
-		return new Response(
-			JSON.stringify({
-				error:
-					'Bring API credentials are missing. Set BRING_SHIPPING_API_UID and BRING_SHIPPING_API_KEY in the server env.',
-			}),
-			{ status: 500, headers: { 'Content-Type': 'application/json' } }
-		);
-	}
+  const queryResult = parseQueryOrError(
+    req,
+    z.object({
+      postalCode: z.string().trim().min(1).max(20),
+      page: z.coerce.number().int().min(1).max(100).optional().default(1),
+      countryCode: z.string().trim().min(2).max(2).optional().default('no'),
+    })
+  );
+  if (!queryResult.ok) return queryResult.response;
 
-  const query = req.nextUrl.searchParams.get('postalCode');
-  const page = req.nextUrl.searchParams.get('page') || '1'; // Default to page 1 if not specified
-  const countryCode = req.nextUrl.searchParams.get('countryCode') || 'no'; // Default to page 1 if not specified
-
-  console.log('Received query parameter:', query, 'Page:', page);
-
-  if (!query) {
-    console.log('No query parameter provided.');
-    return new Response(JSON.stringify({ error: 'Query parameter "postalCode" is required.' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+  const query = queryResult.data.postalCode;
+  const page = String(queryResult.data.page);
+  const countryCode = queryResult.data.countryCode.toLowerCase();
 
   try {
-    // Include the page parameter in the API URL
+    const coreBaseUrl = getIntegrationCoreBaseUrl();
+    if (coreBaseUrl) {
+      const coreUrl = `${coreBaseUrl}/v1/shipping/postal-codes/suggestions?countryCode=${encodeURIComponent(
+        countryCode
+      )}&q=${encodeURIComponent(query)}&page=${encodeURIComponent(page)}`;
+
+      const coreRes = await fetch(coreUrl, { cache: 'no-store' });
+      const coreJson = (await coreRes.json().catch(() => null)) as any;
+
+      if (!coreRes.ok) {
+        const msg = coreJson?.error || coreRes.statusText || 'Integration Core error';
+        throw new Error(msg);
+      }
+
+      const suggestions = Array.isArray(coreJson?.suggestions) ? coreJson.suggestions : [];
+      const data: BringPostalCodeSuggestionsResponse = {
+        navigation: {
+          total_hits: suggestions.length,
+          self: coreUrl,
+          first: coreUrl,
+          last: coreUrl,
+        },
+        postal_codes: suggestions.map((s: any) => ({
+          postal_code: String(s?.postalCode ?? ''),
+          city: String(s?.city ?? ''),
+          municipalityId: '',
+          municipality: '',
+          county: '',
+          po_box: false,
+          latitude: '',
+          longitude: '',
+        })),
+      };
+
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Fallback: call Bring directly (requires credentials)
+    if (!bringApiUID || !bringApiKey) {
+      return new Response(
+        JSON.stringify({
+          error:
+            'Integration Core not configured and Bring API credentials are missing. Set NEXT_PUBLIC_INTEGRATION_CORE_URL (recommended) or BRING_SHIPPING_API_UID/KEY.',
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const apiURL = `https://api.bring.com/address/api/${countryCode}/postal-codes/suggestions?q=${query}&page=${page}`;
     console.log('Calling Bring API with URL:', apiURL);
 
-		const fallbackClientUrl = process.env.NODE_ENV === 'development'
-			? 'http://localhost:3000/'
-			: 'https://www.veggat.com/';
-		const clientUrl = req.headers.get('origin') || fallbackClientUrl;
+    const fallbackClientUrl = process.env.NODE_ENV === 'development'
+      ? 'http://localhost:3000/'
+      : 'https://www.veggat.com/';
+    const clientUrl = req.headers.get('origin') || fallbackClientUrl;
 
     const response = await fetch(apiURL, {
       headers: {
         'X-Mybring-API-Uid': bringApiUID || '',
         'X-Mybring-API-Key': bringApiKey || '',
-				'X-Bring-Client-URL': clientUrl,
-        'Accept': 'application/json',
+        'X-Bring-Client-URL': clientUrl,
+        Accept: 'application/json',
       },
+      cache: 'no-store',
     });
 
     if (!response.ok) {
@@ -60,7 +104,6 @@ export async function GET(req: NextRequest) {
     }
 
     const data: BringPostalCodeSuggestionsResponse = await response.json();
-    console.log('Data received from Bring API:', data);
     return new Response(JSON.stringify(data), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

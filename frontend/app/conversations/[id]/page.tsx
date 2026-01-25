@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback, use } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import Pusher from 'pusher-js';
 import { MessageInput } from '@/components/uicustom/chats/message-input';
 import { MessageList } from '@/components/uicustom/chats/message-list';
@@ -10,10 +11,7 @@ import { User } from '@prisma/client';
 import { FiTrash2, FiX } from 'react-icons/fi';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { Button } from '@/components/ui/button';
-
-interface ConversationPageProps {
-  params: Promise<{ id: string }>;
-}
+import { z } from 'zod';
 
 interface ConversationDetails {
   id: string;
@@ -25,9 +23,10 @@ interface ConversationDetails {
   userId: string;
   originalUserId: string | null;
 }
-
-const ConversationPage: React.FC<ConversationPageProps> = ({ params }) => {
-  const { id: conversationId } = use(params);
+const ConversationPage: React.FC = () => {
+  const params = useParams();
+  const idParam = (params as Record<string, string | string[] | undefined>)?.id;
+  const conversationId = Array.isArray(idParam) ? idParam[0] : idParam;
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,23 +35,76 @@ const ConversationPage: React.FC<ConversationPageProps> = ({ params }) => {
 
   const currentUser = useCurrentUser();
 
+  const messagesResponseSchema = z.union([
+    z.object({
+      messages: z.array(z.unknown()),
+      users: z.array(z.unknown()),
+      conversation: z.unknown().optional(),
+    }),
+    z.object({
+      message: z.string(),
+    }),
+  ]);
+
   const fetchMessages = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/messages?conversationId=${conversationId}`);
-      const data = await response.json();
-      if (data.messages && data.users) {
-        setMessages(data.messages);
-        setUsers(data.users);
-      } else {
-        console.error('Invalid data format from API:', data);
+      if (!conversationId) {
+        setMessages([]);
+        setUsers([]);
+        setConversation(null);
+        return;
       }
-      // Also fetch conversation details for deletion status
-      if (data.conversation) {
-        setConversation(data.conversation);
+
+      const response = await fetch(`/api/messages?conversationId=${encodeURIComponent(conversationId)}`, {
+        cache: 'no-store',
+      });
+
+      const rawText = await response.text();
+      const parsedJson = rawText ? (() => {
+        try {
+          return JSON.parse(rawText);
+        } catch {
+          return null;
+        }
+      })() : null;
+
+      if (!response.ok) {
+        console.error('Failed to fetch messages:', {
+          status: response.status,
+          body: parsedJson ?? rawText,
+        });
+        setMessages([]);
+        setUsers([]);
+        setConversation(null);
+        return;
       }
+
+      const shape = messagesResponseSchema.safeParse(parsedJson);
+      if (!shape.success) {
+        console.error('Invalid data format from API:', parsedJson);
+        setMessages([]);
+        setUsers([]);
+        setConversation(null);
+        return;
+      }
+
+      if ('message' in shape.data) {
+        console.error('API returned an error payload:', shape.data);
+        setMessages([]);
+        setUsers([]);
+        setConversation(null);
+        return;
+      }
+
+      setMessages(shape.data.messages as any);
+      setUsers(shape.data.users as any);
+      if (shape.data.conversation) setConversation(shape.data.conversation as any);
     } catch (error) {
       console.error('Failed to fetch messages:', error);
+      setMessages([]);
+      setUsers([]);
+      setConversation(null);
     } finally {
       setLoading(false);
     }

@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
+import { parseQueryOrError } from '@/lib/api-validate';
+import { z } from 'zod';
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+const querySchema = z.object({
+  id: z.string().trim().min(1).max(200),
+});
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get('id');
-
-  if (!id) {
-    return NextResponse.json({ error: 'Warehouse ID is required' }, { status: 400 });
-  }
+  const queryResult = parseQueryOrError(req, querySchema);
+  if (!queryResult.ok) return queryResult.response;
+  const { id } = queryResult.data;
 
   try {
-    console.log('[frontend/app/api/warehouses/[...id]/route.ts] GET warehouse details for ID:', id);
+    if (isDev) console.log('[frontend/app/api/warehouses/[...id]/route.ts] GET warehouse details for ID:', id);
     const warehouse = await dbPrisma.warehouseLocation.findUnique({
       where: { id: id },
       include: {
@@ -35,7 +40,7 @@ export async function GET(req: NextRequest) {
       })),
     };
 
-    console.log('[frontend/app/api/warehouses/[...id]/route.ts] Fetched warehouse details:', warehouseDetails);
+    if (isDev) console.log('[frontend/app/api/warehouses/[...id]/route.ts] Fetched warehouse details');
     return NextResponse.json(warehouseDetails, { status: 200 });
   } catch (error) {
     console.error('[frontend/app/api/warehouses/[...id]/route.ts] Error fetching warehouse details:', error);

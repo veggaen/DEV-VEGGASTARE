@@ -3,8 +3,30 @@ import { pusherServer } from '@/lib/pusher';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { canReplyToConversation } from '@/lib/conversation-permissions';
 import { NextResponse } from 'next/server';
+import { parseJsonOrError, parseQueryOrError } from '@/lib/api-validate';
+import { z } from 'zod';
 
 const LOG_PREFIX = '[frontend/app/api/messages/route.ts]'
+
+export const dynamic = 'force-dynamic';
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+const postBodySchema = z
+  .object({
+    conversationId: z.string().min(1),
+    content: z.string().trim().max(5000).optional().nullable(),
+    imageUrl: z.string().trim().max(2048).optional().nullable(),
+  })
+  .refine((val) => {
+    const content = val.content?.trim() || '';
+    const imageUrl = val.imageUrl?.trim() || '';
+    return Boolean(content || imageUrl);
+  }, { message: 'Either content or imageUrl must be provided' });
+
+const getQuerySchema = z.object({
+  conversationId: z.string().min(1),
+});
 
 export async function POST(req: Request) {
   console.log(LOG_PREFIX, 'POST(1/3) - creating message...');
@@ -15,7 +37,11 @@ export async function POST(req: Request) {
 
   const userId = session.id;
   const userRole = session.role;
-  const { conversationId, content, imageUrl } = await req.json();
+
+  const bodyResult = await parseJsonOrError(req, postBodySchema);
+  if (!bodyResult.ok) return bodyResult.response;
+
+  const { conversationId, content, imageUrl } = bodyResult.data;
 
   if (!userId) {
     return NextResponse.json({ message: 'Unauthorized ID' }, { status: 401 });
@@ -86,17 +112,18 @@ export async function POST(req: Request) {
     return NextResponse.json(message, { status: 201 });
   } catch (error) {
     console.error(LOG_PREFIX, 'POST - error creating message:', error);
-    return NextResponse.json({ message: 'Error sending message', error }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Error sending message', ...(isDev && error instanceof Error ? { error: error.message } : {}) },
+      { status: 500 }
+    );
   }
 }
 
 export async function GET(req: Request) {
   console.log(LOG_PREFIX, `GET(1/3) - fetching messages...`);
-  const { searchParams } = new URL(req.url);
-  const conversationId = searchParams.get('conversationId');
-  if (!conversationId) {
-    return NextResponse.json({ message: 'Invalid conversation ID' }, { status: 400 });
-  }
+  const queryResult = parseQueryOrError(req, getQuerySchema);
+  if (!queryResult.ok) return queryResult.response;
+  const { conversationId } = queryResult.data;
 
   // Get session - may be null for public conversations
   const session = await MyLibUserAuth();
@@ -142,6 +169,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ messages, users, conversation }, { status: 200 });
   } catch (error) {
     console.error(LOG_PREFIX, `GET - error fetching messages:`, error);
-    return NextResponse.json({ message: 'Error fetching messages', error: error instanceof Error ? error.message : 'An unknown error occurred'}, { status: 500 });
+    return NextResponse.json(
+      { message: 'Error fetching messages', ...(isDev && error instanceof Error ? { error: error.message } : {}) },
+      { status: 500 }
+    );
   }
 }

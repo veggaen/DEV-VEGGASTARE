@@ -4,10 +4,10 @@ import type { Connector } from "wagmi";
 
 // Simple static icons you already have in /public
 const ICONS = {
-  metamask: "/metamask.png",
+  metamask: "/metamask/metamask.webp",
   coinbase: "/wallets/coinbase.webp",
-  injected: "/wallet-generic.png",
-  generic: "/wallet-generic.png",
+  injected: "/wallets/inj.png",
+  generic: "/wallets/wallet-generic.jpg",
 };
 
 function runtimeInjectedBrand(): "metamask" | "coinbase" | "injected" {

@@ -215,6 +215,10 @@ const ConversationsPage: React.FC = () => {
 
   const renderConversationCard = (conversation: Conversation) => {
     const participants = conversation.participantDetails || [];
+    const otherDmParticipant =
+      conversation.type === 'PRIVATE_DM' && currentUser?.id
+        ? participants.find((p) => p.id !== currentUser.id) || participants[0]
+        : null;
     const timeAgo = conversation.updatedAt
       ? formatDistanceToNow(new Date(conversation.updatedAt), { addSuffix: true })
       : '';
@@ -223,7 +227,7 @@ const ConversationsPage: React.FC = () => {
       <li
         key={conversation.id}
         onClick={() => handleConversationClick(conversation.id)}
-        className="cursor-pointer bg-white dark:bg-slate-900 border border-border p-4 rounded-lg shadow-sm hover:bg-muted/50 transition relative group"
+        className="group relative cursor-pointer rounded-2xl border border-border/60 bg-card/30 p-4 shadow-sm transition hover:bg-card/50 hover:shadow-md"
       >
         {isNavigating === conversation.id && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/75 dark:bg-black/50 rounded-lg z-10">
@@ -232,8 +236,17 @@ const ConversationsPage: React.FC = () => {
         )}
 
         <div className="flex items-center gap-3">
-          {/* Type icon */}
-          <div className="mt-1">{TYPE_ICONS[conversation.type]}</div>
+          {/* Leading visual: DM avatar when possible, else type icon */}
+          {conversation.type === 'PRIVATE_DM' && otherDmParticipant ? (
+            <Avatar className="h-10 w-10 shrink-0">
+              <AvatarImage src={otherDmParticipant.image} />
+              <AvatarFallback>
+                {otherDmParticipant.name?.[0] || '?'}
+              </AvatarFallback>
+            </Avatar>
+          ) : (
+            <div className="mt-1 shrink-0">{TYPE_ICONS[conversation.type]}</div>
+          )}
 
           <div className="flex-1 min-w-0">
             {/* Pending deletion banner (public visibility) */}
@@ -331,12 +344,21 @@ const ConversationsPage: React.FC = () => {
                 <FiTrash2 className="h-3 w-3 text-orange-500 flex-shrink-0" title="Pending deletion" />
               )}
               <h3 className={`font-semibold truncate ${conversation.isAnonymized ? 'italic' : ''}`}>
-                {conversation.title || 'Untitled'}
+                {conversation.type === 'PRIVATE_DM' && otherDmParticipant
+                  ? otherDmParticipant.name || conversation.title || 'Direct message'
+                  : conversation.title || 'Untitled'}
               </h3>
               {conversation.isLocked && (
                 <Badge variant="outline" className="text-xs">Locked</Badge>
               )}
             </div>
+
+            {/* Lightweight preview for non-thread chats */}
+            {conversation.type !== 'PUBLIC_THREAD' && conversation.lastMessage?.content && (
+              <p className="text-sm text-muted-foreground line-clamp-1 mb-2">
+                {conversation.lastMessage.content}
+              </p>
+            )}
 
             {/* Description for public threads */}
             {conversation.description && (
@@ -369,9 +391,16 @@ const ConversationsPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Participants count */}
-              {participants.length > 0 && (
-                <span>{participants.length} participant{participants.length !== 1 ? 's' : ''}</span>
+              {/* DM target / participants */}
+              {conversation.type === 'PRIVATE_DM' && otherDmParticipant ? (
+                <span className="flex items-center gap-1">
+                  <span className="text-muted-foreground">to</span>
+                  <span className="font-medium text-foreground/90">{otherDmParticipant.name || 'User'}</span>
+                </span>
+              ) : (
+                participants.length > 0 && (
+                  <span>{participants.length} participant{participants.length !== 1 ? 's' : ''}</span>
+                )
               )}
 
               {/* Message count */}

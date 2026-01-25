@@ -1,14 +1,43 @@
 import { fetchUserManyDetails } from '@/data/user';
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
+import { parseJsonOrError, parseQueryOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
 import {
   ConversationType,
   ConversationVisibility,
   ReplyPermission
 } from '@prisma/client';
+import { z } from 'zod';
 
 const LOG_PREFIX = '[api/conversations]';
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+const createConversationSchema = z.object({
+  title: z.string().trim().max(200).optional().nullable(),
+  description: z.string().trim().max(2000).optional().nullable(),
+  participants: z.array(z.string().trim().min(1).max(200)).max(50).optional().default([]),
+  type: z.nativeEnum(ConversationType).optional().default(ConversationType.PRIVATE_DM),
+  visibility: z.nativeEnum(ConversationVisibility).optional().default(ConversationVisibility.PARTICIPANTS),
+  replyPermission: z.nativeEnum(ReplyPermission).optional().default(ReplyPermission.PARTICIPANTS),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).optional().default([]),
+  allowedRoles: z.array(z.string().trim().min(1).max(50)).max(20).optional().default([]),
+  customViewers: z.array(z.string().trim().min(1).max(200)).max(200).optional().default([]),
+  initialMessage: z.string().trim().max(5000).optional().nullable(),
+  initialImageUrl: z.string().trim().max(2048).optional().nullable(),
+  pollQuestion: z.string().trim().max(500).optional().nullable(),
+});
+
+const listConversationsQuerySchema = z.object({
+  filter: z.enum(['mine', 'public', 'all']).optional().default('mine'),
+  sort: z.enum(['recent', 'reach', 'active', 'replies']).optional().default('recent'),
+  limit: z
+    .preprocess((v) => (typeof v === 'string' ? Number.parseInt(v, 10) : v), z.number().int().min(1).max(100))
+    .optional()
+    .default(50),
+  cursor: z.string().min(1).optional(),
+});
 
 export async function POST(req: Request) {
   const session = await MyLibUserAuth();
@@ -24,44 +53,28 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = await req.json();
+    const bodyResult = await parseJsonOrError(req, createConversationSchema);
+    if (!bodyResult.ok) return bodyResult.response;
+
     const {
       title,
       description,
-      participants = [],
-      type = 'PRIVATE_DM',
-      visibility = 'PARTICIPANTS',
-      replyPermission = 'PARTICIPANTS',
-      tags = [],
-      allowedRoles = [],
-      customViewers = [],
+      participants,
+      type,
+      visibility,
+      replyPermission,
+      tags,
+      allowedRoles,
+      customViewers,
       initialMessage,
       initialImageUrl,
-      pollQuestion, // Used for title fallback if no title/message provided
-    } = body;
-
-    // Validate type
-    const validTypes: ConversationType[] = ['PUBLIC_THREAD', 'PRIVATE_DM', 'GROUP', 'RESTRICTED'];
-    if (!validTypes.includes(type)) {
-      return NextResponse.json({ message: 'Invalid conversation type' }, { status: 400 });
-    }
-
-    // Validate visibility
-    const validVisibilities: ConversationVisibility[] = ['PUBLIC', 'PARTICIPANTS', 'ROLE_BASED', 'CUSTOM'];
-    if (!validVisibilities.includes(visibility)) {
-      return NextResponse.json({ message: 'Invalid visibility' }, { status: 400 });
-    }
-
-    // Validate replyPermission
-    const validReplyPerms: ReplyPermission[] = ['EVERYONE', 'PARTICIPANTS', 'MENTIONED', 'MODS_ONLY', 'CREATOR_ONLY'];
-    if (!validReplyPerms.includes(replyPermission)) {
-      return NextResponse.json({ message: 'Invalid reply permission' }, { status: 400 });
-    }
+      pollQuestion,
+    } = bodyResult.data;
 
     // Process participants - can be user IDs or emails
     let participantIds: string[] = [];
 
-    if (Array.isArray(participants) && participants.length > 0) {
+    if (participants.length > 0) {
       const participantData = await Promise.all(
         participants.map(async (participant: string) => {
           // Check if participant is an email or a user ID
@@ -138,9 +151,9 @@ export async function POST(req: Request) {
         type,
         visibility,
         replyPermission,
-        tags: Array.isArray(tags) ? tags : [],
-        allowedRoles: Array.isArray(allowedRoles) ? allowedRoles : [],
-        customViewers: Array.isArray(customViewers) ? customViewers : [],
+        tags,
+        allowedRoles,
+        customViewers,
       },
     });
 
@@ -175,19 +188,20 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error(LOG_PREFIX, 'Error creating conversation:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ message: 'Error creating conversation', error: message }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Error creating conversation', ...(isDev ? { error: message } : {}) },
+      { status: 500 }
+    );
   }
 }
 
 export async function GET(req: Request) {
   const session = await MyLibUserAuth();
 
-  // Parse query params
-  const { searchParams } = new URL(req.url);
-  const filter = searchParams.get('filter') || 'mine'; // 'mine' | 'public' | 'all'
-  const sort = searchParams.get('sort') || 'recent'; // 'recent' | 'reach' | 'active' | 'replies'
-  const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100);
-  const cursor = searchParams.get('cursor') || undefined;
+  const queryResult = parseQueryOrError(req, listConversationsQuerySchema);
+  if (!queryResult.ok) return queryResult.response;
+
+  const { filter, sort, limit, cursor } = queryResult.data;
 
   // For public feed, authentication is optional
   const userId = session?.id;
@@ -340,7 +354,10 @@ export async function GET(req: Request) {
     console.error(LOG_PREFIX, 'Error fetching conversations:', error);
 
     if (error instanceof Error) {
-      return NextResponse.json({ message: 'Error fetching conversations', error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { message: 'Error fetching conversations', ...(isDev ? { error: error.message } : {}) },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ message: 'Unknown error occurred' }, { status: 500 });

@@ -1,6 +1,8 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
+import { parseQueryOrError } from '@/lib/api-validate';
+import { z } from 'zod';
 
 const LOG_PREFIX = '[api/users/search]';
 
@@ -18,36 +20,39 @@ const LOG_PREFIX = '[api/users/search]';
 export async function GET(req: Request) {
   try {
     const currentUser = await MyLibUserAuth();
-    
-    // Parse URL params
-    const { searchParams } = new URL(req.url);
-    const query = searchParams.get('q')?.trim() || '';
-    const limitParam = parseInt(searchParams.get('limit') || '10', 10);
-    const excludeSelf = searchParams.get('excludeSelf') !== 'false';
-    
-    // Validate query
-    if (query.length < 1) {
-      return NextResponse.json(
-        { users: [], message: 'Query must be at least 1 character' },
-        { status: 200 }
-      );
+    if (!currentUser?.id) {
+      return NextResponse.json({ users: [], message: 'Unauthorized' }, { status: 401 });
     }
     
-    // Clamp limit
-    const limit = Math.min(Math.max(1, limitParam), 50);
+    const queryResult = parseQueryOrError(
+      req,
+      z.object({
+        q: z.string().trim().min(1).max(100),
+        limit: z.coerce.number().int().min(1).max(20).optional().default(10),
+        excludeSelf: z
+          .preprocess((v) => v !== 'false', z.boolean())
+          .optional()
+          .default(true),
+      })
+    );
+    if (!queryResult.ok) return queryResult.response;
+    const { q, limit, excludeSelf } = queryResult.data;
     
-    console.log(LOG_PREFIX, `Searching users: q="${query}", limit=${limit}, excludeSelf=${excludeSelf}`);
+    // Reduce enumeration: require at least 2 chars.
+    if (q.length < 2) {
+      return NextResponse.json({ users: [], count: 0, message: 'Query too short' }, { status: 200 });
+    }
     
     // Build where clause with case-insensitive search
     const whereClause: Record<string, unknown> = {
       OR: [
-        { name: { contains: query, mode: 'insensitive' } },
-        { email: { contains: query, mode: 'insensitive' } },
+        { name: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } },
       ],
     };
     
     // Exclude current user if requested and authenticated
-    if (excludeSelf && currentUser?.id) {
+    if (excludeSelf) {
       whereClause.NOT = { id: currentUser.id };
     }
     

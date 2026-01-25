@@ -1,32 +1,45 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import Pusher from 'pusher';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { parseJsonOrError } from '@/lib/api-validate';
+import { pusherServer } from '@/lib/pusher';
+import { MyLibUserAuth } from '@/lib/user-auth';
 
 const LOG_PREFIX = '[frontend/app/api/pusher/route.ts]';
 
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-  useTLS: true,
+export const dynamic = 'force-dynamic';
+
+const postBodySchema = z.object({
+  channel: z.string().min(1).max(200),
+  event: z.string().min(1).max(200),
+  data: z.unknown(),
 });
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  console.log(LOG_PREFIX, 'Received request:', req.method, req.body);
-
-  if (req.method === 'POST') {
-    const { channel, event, data } = req.body;
-
-    try {
-      console.log(LOG_PREFIX, 'Triggering event:', event, 'on channel:', channel, 'with data:', data);
-      await pusher.trigger(channel, event, data);
-      console.log(LOG_PREFIX, 'Event triggered successfully');
-      res.status(200).json({ message: 'Event triggered successfully' });
-    } catch (error) {
-      console.error(LOG_PREFIX, 'Error triggering event:', error);
-      res.status(500).json({ error: 'Error triggering event' });
-    }
-  } else {
-    res.status(405).json({ error: 'Method not allowed' });
+export async function POST(req: Request) {
+  const sessionUser = await MyLibUserAuth();
+  if (!sessionUser?.id) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
+
+  const role = (sessionUser as any).role as string | undefined;
+  if (role !== 'ADMIN' && role !== 'OWNER') {
+    return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+  }
+
+  const bodyResult = await parseJsonOrError(req, postBodySchema);
+  if (!bodyResult.ok) return bodyResult.response;
+
+  const { channel, event, data } = bodyResult.data;
+
+  try {
+    console.log(LOG_PREFIX, 'Triggering event:', event, 'on channel:', channel);
+    await pusherServer.trigger(channel, event, data);
+    return NextResponse.json({ message: 'Event triggered successfully' }, { status: 200 });
+  } catch (error) {
+    console.error(LOG_PREFIX, 'Error triggering event:', error);
+    return NextResponse.json({ message: 'Error triggering event' }, { status: 500 });
+  }
+}
+
+export async function GET() {
+  return NextResponse.json({ message: 'Method not allowed' }, { status: 405 });
 }

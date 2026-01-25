@@ -1,14 +1,19 @@
 import { fetchProductById } from '@/actions/fetch-product-by-id';
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
+const paramsSchema = z.object({
+  id: z.array(z.string().trim().min(1).max(200)).min(1).max(1),
+});
 
-export async function GET(request: Request) {
-  const { pathname } = new URL(request.url);
-  const id = pathname.split('/').pop(); // Extract the ID from the URL
-
-  if (!id) {
-    return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
+export async function GET(_request: Request, context: { params: Promise<{ id: string[] }> }) {
+  const rawParams = await context.params;
+  const parsed = paramsSchema.safeParse(rawParams);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid product id' }, { status: 400 });
   }
+
+  const id = parsed.data.id[0];
 
   try {
     const product = await fetchProductById(id);

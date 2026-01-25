@@ -1,5 +1,6 @@
 'use server'
 
+import { cache } from 'react';
 import { dbPrisma } from '@/lib/db';
 import { Product as PrismaProduct } from '@prisma/client';
 
@@ -14,9 +15,7 @@ interface Product extends Omit<PrismaProduct, 'specifications'> {
   specifications: Specification[] | null; // Adjust according to your actual specifications structure
 }
 
-export const fetchProductById = async (id: string): Promise<Product | null> => {
-  console.log('Fetching product with ID:', id);
-
+export const fetchProductById = cache(async (id: string): Promise<Product | null> => {
   try {
     // Fetch product data from the database
     const productData = await dbPrisma.product.findUnique({
@@ -32,11 +31,8 @@ export const fetchProductById = async (id: string): Promise<Product | null> => {
     });
 
     if (!productData) {
-      console.warn('No product found with ID:', id);
       return null;
     }
-
-    console.log('Product data retrieved:', productData);
 
     // Parse specifications if needed
     const product: Product = {
@@ -51,4 +47,4 @@ export const fetchProductById = async (id: string): Promise<Product | null> => {
     console.error('Error fetching product by ID:', error);
     return null;
   }
-};
+});

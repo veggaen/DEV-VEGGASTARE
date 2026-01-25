@@ -1,13 +1,23 @@
 import { dbPrisma } from '@/lib/db';
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
+
+const bodySchema = z.object({
+  input: z.string().trim().min(1).max(200),
+});
 
 export async function POST(req: Request) {
-  try {
-    const { input } = await req.json();
+  const session = await MyLibUserAuth();
+  if (!session?.id) {
+    return NextResponse.json({ isValid: false, message: 'Unauthorized' }, { status: 401 });
+  }
 
-    if (!input) {
-      return NextResponse.json({ isValid: false, message: 'Input is required.' }, { status: 400 });
-    }
+  try {
+    const bodyResult = await parseJsonOrError(req, bodySchema);
+    if (!bodyResult.ok) return bodyResult.response;
+    const { input } = bodyResult.data;
 
     const user = await dbPrisma.user.findFirst({
       where: {

@@ -1,24 +1,29 @@
 import { dbPrisma } from '@/lib/db';
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { parseJsonOrError } from '@/lib/api-validate';
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 
-export async function POST(req: NextRequest, res: NextResponse) {
-    try {
+const permissionFilterSchema = z.object({
+  permissionTag: z.string().trim().min(1).max(100),
+  // legacy payload; ignored unless admin
+  userId: z.string().trim().min(1).max(200).optional(),
+  companyId: z.string().trim().min(1).max(200).optional(),
+});
 
-      const data = await req.json();
-      const { companyId, userId, permissionTag } = data;
-      console.log('PERMFILTER', data)
-      console.log('Fetching companies with permission for user ID:', userId, 'and permission tag:', permissionTag);
-  
-      if (!userId || !permissionTag) {
-        //return res.status(400).json({ error: 'User ID and permission tag are required' });
-        return new Response(JSON.stringify({ error: 'User ID and permission tag are required' }), {
-          status: 400, // Bad Request
-          headers: {
-              'Content-Type': 'application/json',
-          },
-        });
-      }
+export async function POST(req: NextRequest) {
+  const session = await MyLibUserAuth();
+  if (!session?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const bodyResult = await parseJsonOrError(req, permissionFilterSchema);
+    if (!bodyResult.ok) return bodyResult.response;
+
+    const { userId: requestedUserId, permissionTag } = bodyResult.data;
+    const isAdmin = session.role === 'ADMIN' || session.role === 'OWNER';
+    const userId = requestedUserId && isAdmin ? requestedUserId : session.id;
   
       // Fetch companies where the user has the specific permission
       const companiesWithPermission = await dbPrisma.company.findMany({
@@ -50,21 +55,9 @@ export async function POST(req: NextRequest, res: NextResponse) {
       //console.log('Companies with permission fetched:', companiesWithPermission);
       //res.status(200).json(companiesWithPermission);
       
-      const response = JSON.stringify(companiesWithPermission)
-        console.log('Companies with permission fetched...')
-        return new Response(JSON.stringify(companiesWithPermission), {
-            status: 200, // OK
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-    } catch (error) {
-      console.error('Error fetching companies with permission:', error);
-      return new Response(JSON.stringify({ error: (error as Error).message }), {
-        status: 500,
-        headers: {
-            'Content-Type': 'application/json',
-        },
-      });
-    }
+    return NextResponse.json(companiesWithPermission, { status: 200 });
+  } catch (error) {
+    console.error('Error fetching companies with permission:', error);
+    return NextResponse.json({ error: 'Error fetching companies with permission' }, { status: 500 });
   }
+}

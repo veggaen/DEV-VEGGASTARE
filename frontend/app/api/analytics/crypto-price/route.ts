@@ -1,22 +1,27 @@
 import { NextResponse } from 'next/server';
+import { parseQueryOrError } from '@/lib/api-validate';
+import { z } from 'zod';
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const vs_currency = searchParams.get('vs_currency') || 'usd';
-  const crypto = searchParams.get('crypto') || 'ethereum';  // Default to 'ethereum' if not provided
-  const interval = searchParams.get('interval') || 'daily';
-  const fromDate = searchParams.get('fromDate');
-  const toDate = searchParams.get('toDate');
+  const queryResult = parseQueryOrError(
+    request,
+    z.object({
+      vs_currency: z.string().trim().min(2).max(10).optional().default('usd'),
+      crypto: z.string().trim().regex(/^[a-z0-9-]{1,50}$/).optional().default('ethereum'),
+      interval: z.enum(['daily', 'weekly', 'monthly']).optional().default('daily'),
+      fromDate: z.string().trim().optional(),
+      toDate: z.string().trim().optional(),
+      days: z.coerce.number().int().min(1).max(365).optional().default(365),
+    })
+  );
+  if (!queryResult.ok) return queryResult.response;
 
-  // Set default days to 365 to avoid CoinGecko's time range restriction
-  const days = searchParams.get('days') || '365';
-
-  // Restrict days to a maximum of 365 for free CoinGecko API tier
-  const adjustedDays = Math.min(parseInt(days), 365);
+  const { vs_currency, crypto, interval, fromDate, toDate, days } = queryResult.data;
+  const adjustedDays = days;
 
   // Build API URL for CoinGecko
   const apiUrl = `https://api.coingecko.com/api/v3/coins/${crypto}/market_chart?vs_currency=${vs_currency}&days=${adjustedDays}&interval=${interval}`;
-  console.log('Fetching from URL:', apiUrl);  // Log the URL for debugging
+  // Avoid noisy URL logs in prod
 
   try {
     const response = await fetch(apiUrl);
@@ -32,7 +37,9 @@ export async function GET(request: Request) {
     const filteredData = result.prices
       .filter((price: [number, number]) => {
         const date = new Date(price[0]);
-        return (!fromDate || date >= new Date(fromDate)) && (!toDate || date <= new Date(toDate));
+        const fromOk = !fromDate || date >= new Date(fromDate);
+        const toOk = !toDate || date <= new Date(toDate);
+        return fromOk && toOk;
       })
       .map((price: [number, number]) => ({
         date: new Date(price[0]).toISOString(),

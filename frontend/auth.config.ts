@@ -8,6 +8,7 @@ import { MyAuthLoginSchema } from "@/schemas"
 import { getUserByEmail } from "./data/user";
 
 const LOG_PREFIX = '[frontend/auth.config.ts]'
+const isDev = process.env.NODE_ENV !== 'production'
 
 export default {
   providers: [
@@ -28,16 +29,22 @@ export default {
             const { email, password } = validateFields.data
             
             const user = await getUserByEmail(email);
-            console.log(`${LOG_PREFIX} No user found for :`, email);
-            if (!user || !user.password) return null;
+            if (!user || !user.password) {
+              if (isDev) console.log(`${LOG_PREFIX} credentials authorize: user not found`);
+              return null;
+            }
 
             const passwordMatch = await bcrypt.compare(
                 password,
                 user.password
             );
 
-            console.log(`${LOG_PREFIX} User authenticated successfully:`, user);
-            if (passwordMatch) return user;
+            if (!passwordMatch) {
+              if (isDev) console.log(`${LOG_PREFIX} credentials authorize: password mismatch`);
+              return null;
+            }
+
+            return user;
         }
 
         return null;

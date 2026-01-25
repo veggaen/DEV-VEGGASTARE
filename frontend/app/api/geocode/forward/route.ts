@@ -1,4 +1,6 @@
 import type { NextRequest } from "next/server";
+import { parseQueryOrError } from '@/lib/api-validate';
+import { z } from 'zod';
 
 type ForwardOk = { latitude: number; longitude: number };
 
@@ -43,11 +45,16 @@ async function forwardWithNominatim(postalCode: string, countryCode: string): Pr
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const postalCode = (searchParams.get("postalCode") || "").trim();
-  const countryCode = (searchParams.get("countryCode") || "NO").trim();
+  const queryResult = parseQueryOrError(
+    req,
+    z.object({
+      postalCode: z.string().trim().min(1).max(20),
+      countryCode: z.string().trim().min(2).max(2).optional().default('NO'),
+    })
+  );
+  if (!queryResult.ok) return queryResult.response;
 
-  if (!postalCode) return json(400, { error: "Missing 'postalCode' query param" });
+  const { postalCode, countryCode } = queryResult.data;
 
   try {
     const googleKey = process.env.AUTH_GOOGLE_API_KEY;

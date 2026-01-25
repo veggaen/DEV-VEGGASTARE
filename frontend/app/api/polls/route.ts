@@ -1,8 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
+import { parseJsonOrError, parseQueryOrError } from '@/lib/api-validate';
+import { z } from 'zod';
 
 const LOG_PREFIX = '[api/polls]';
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+const createPollSchema = z.object({
+  conversationId: z.string().min(1),
+  question: z.string().trim().min(1).max(500),
+  options: z.array(z.string().trim().min(1).max(200)).min(2).max(20),
+  allowMultiple: z.boolean().optional().default(false),
+  isAnonymous: z.boolean().optional().default(false),
+  expiresAt: z.string().datetime().optional().nullable(),
+});
+
+const getPollQuerySchema = z.object({
+  conversationId: z.string().min(1),
+});
 
 // POST - Create a poll for an existing conversation
 export async function POST(req: NextRequest) {
@@ -12,16 +29,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
-    const { conversationId, question, options, allowMultiple, isAnonymous, expiresAt } = body;
+    const bodyResult = await parseJsonOrError(req, createPollSchema);
+    if (!bodyResult.ok) return bodyResult.response;
 
-    // Validate required fields
-    if (!conversationId || !question || !options || !Array.isArray(options) || options.length < 2) {
-      return NextResponse.json(
-        { message: 'conversationId, question, and at least 2 options are required' },
-        { status: 400 }
-      );
-    }
+    const { conversationId, question, options, allowMultiple, isAnonymous, expiresAt } = bodyResult.data;
 
     // Check if conversation exists and user can create a poll
     const conversation = await dbPrisma.conversation.findUnique({
@@ -49,8 +60,8 @@ export async function POST(req: NextRequest) {
         question: question.trim(),
         conversationId,
         creatorId: currentUser.id,
-        allowMultiple: allowMultiple || false,
-        isAnonymous: isAnonymous || false,
+        allowMultiple,
+        isAnonymous,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         options: {
           create: options.map((text: string, index: number) => ({
@@ -75,7 +86,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error(LOG_PREFIX, 'Error creating poll:', error);
     return NextResponse.json(
-      { message: 'Error creating poll', error: error instanceof Error ? error.message : 'Unknown error' },
+      { message: 'Error creating poll', ...(isDev && error instanceof Error ? { error: error.message } : {}) },
       { status: 500 }
     );
   }
@@ -83,12 +94,9 @@ export async function POST(req: NextRequest) {
 
 // GET - Get poll for a conversation
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const conversationId = searchParams.get('conversationId');
-
-  if (!conversationId) {
-    return NextResponse.json({ message: 'conversationId is required' }, { status: 400 });
-  }
+  const queryResult = parseQueryOrError(req, getPollQuerySchema);
+  if (!queryResult.ok) return queryResult.response;
+  const { conversationId } = queryResult.data;
 
   try {
     const poll = await dbPrisma.poll.findUnique({
@@ -147,7 +155,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error(LOG_PREFIX, 'Error fetching poll:', error);
     return NextResponse.json(
-      { message: 'Error fetching poll', error: error instanceof Error ? error.message : 'Unknown error' },
+      { message: 'Error fetching poll', ...(isDev && error instanceof Error ? { error: error.message } : {}) },
       { status: 500 }
     );
   }

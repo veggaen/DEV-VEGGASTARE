@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 interface Conversation {
   id: string;
@@ -18,7 +18,8 @@ export const ConversationList: React.FC = () => {
       try {
         const response = await fetch('/api/conversations');
         const data = await response.json();
-        setConversations(data);
+        const list = Array.isArray(data) ? data : (data?.conversations ?? []);
+        setConversations(list);
       } catch (error) {
         console.error('Error fetching conversations:', error);
       }

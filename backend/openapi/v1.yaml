@@ -1,0 +1,199 @@
+openapi: 3.0.3
+info:
+  title: Veggat Integration Core API
+  version: 0.1.0
+  description: |
+    Minimal v1 API surface intended for third-party integration.
+
+    Notes:
+    - This API is designed to live in the standalone backend service (not Next.js).
+    - Shipping providers are exposed behind a stable interface.
+    - For demos/templates, BRING_MODE=mock provides dummy data without Bring credentials.
+servers:
+  - url: http://localhost:3001
+    description: Local dev
+paths:
+  /v1/health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  service:
+                    type: string
+                  time:
+                    type: string
+
+  /v1/shipping/rates:
+    post:
+      summary: Get shipping rates
+      description: |
+        Returns rate options for a shipment request.
+
+        Bring notes:
+        - Some services/pricing require a customer number.
+        - In Bring testing, you can use customerNumber "5" / "6" / "7" to get dummy responses.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RateRequest'
+      responses:
+        '200':
+          description: Rate options
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  provider:
+                    type: string
+                    enum: [bring, mock]
+                  options:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RateOption'
+
+  /v1/shipping/postal-codes/suggestions:
+    get:
+      summary: Postal code suggestions
+      parameters:
+        - in: query
+          name: countryCode
+          required: true
+          schema:
+            type: string
+            example: no
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+            example: 095
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        '200':
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PostalCodeSuggestion'
+
+  /v1/shipping/tracking/{trackingNumber}:
+    get:
+      summary: Track a shipment
+      parameters:
+        - in: path
+          name: trackingNumber
+          required: true
+          schema:
+            type: string
+            example: TESTPACKAGEDELIVERED
+      responses:
+        '200':
+          description: Tracking payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+components:
+  schemas:
+    PackageSpec:
+      type: object
+      required: [length, width, height, grossWeight]
+      properties:
+        length:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        grossWeight:
+          type: number
+          description: Weight in grams (Bring commonly uses grams)
+
+    RateRequest:
+      type: object
+      required: [fromCountryCode, toCountryCode, fromPostalCode, toPostalCode, packages]
+      properties:
+        fromCountryCode:
+          type: string
+          example: NO
+        toCountryCode:
+          type: string
+          example: NO
+        fromPostalCode:
+          type: string
+          example: 0951
+        toPostalCode:
+          type: string
+          example: 5004
+        packages:
+          type: array
+          items:
+            $ref: '#/components/schemas/PackageSpec'
+        language:
+          type: string
+          example: en
+        customerNumber:
+          type: string
+          description: Bring customer number ("5" / "6" / "7" are common test numbers)
+
+    RateOption:
+      type: object
+      required: [provider, serviceCode, serviceName]
+      properties:
+        provider:
+          type: string
+          enum: [bring, mock]
+        serviceCode:
+          type: string
+          example: '5800'
+        serviceName:
+          type: string
+        price:
+          type: object
+          required: [amount, currency]
+          properties:
+            amount:
+              type: number
+            currency:
+              type: string
+        meta:
+          type: object
+          additionalProperties: true
+
+    PostalCodeSuggestion:
+      type: object
+      required: [countryCode, postalCode]
+      properties:
+        countryCode:
+          type: string
+          example: no
+        postalCode:
+          type: string
+          example: '0951'
+        city:
+          type: string
+          example: Oslo

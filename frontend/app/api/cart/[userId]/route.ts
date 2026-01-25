@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbPrisma } from "@/lib/db";
 import { MyLibUserAuth } from "@/lib/user-auth";
+import { parseJsonOrError } from "@/lib/api-validate";
+import { z } from "zod";
+
+const addItemSchema = z.object({
+  productId: z.string().trim().min(1).max(200),
+  quantity: z.coerce.number().int().min(1).max(1000).optional().default(1),
+});
+
+const updateItemSchema = z.object({
+  itemId: z.string().trim().min(1).max(200),
+  type: z.enum(["increment", "decrement"]),
+});
+
+const removeItemSchema = z.object({
+  itemId: z.string().trim().min(1).max(200),
+});
 
 export async function GET(request: NextRequest, { params }: { params: { userId: string } }) {
   const user = await MyLibUserAuth();
@@ -45,10 +61,11 @@ export async function POST(request: NextRequest, { params }: { params: { userId:
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await request.json();
-  const productId: string = body.productId;
-  let quantity: number = Number(body.quantity) || 1;
-  if (quantity < 1) quantity = 1;
+  const bodyResult = await parseJsonOrError(request, addItemSchema);
+  if (!bodyResult.ok) return bodyResult.response;
+
+  const { productId } = bodyResult.data;
+  let quantity = bodyResult.data.quantity;
 
   try {
     let cart = await dbPrisma.cart.findUnique({ where: { userId } });
@@ -96,11 +113,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { userId
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await request.json();
-  const { itemId, type } = body;
+  const bodyResult = await parseJsonOrError(request, updateItemSchema);
+  if (!bodyResult.ok) return bodyResult.response;
+
+  const { itemId, type } = bodyResult.data;
 
   try {
-    const item = await dbPrisma.cartItem.findUnique({ where: { id: itemId } });
+    const cart = await dbPrisma.cart.findUnique({ where: { userId } });
+    if (!cart) {
+      return NextResponse.json({ error: "Cart not found" }, { status: 404 });
+    }
+
+    const item = await dbPrisma.cartItem.findFirst({ where: { id: itemId, cartId: cart.id } });
     if (!item) {
       return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
@@ -135,13 +159,23 @@ export async function DELETE(request: NextRequest, { params }: { params: { userI
     return NextResponse.json({ error: "Forbidden (user.id !== userId)" }, { status: 403 });
   }
 
-  const body = await request.json();
-  const { itemId } = body;
+  const bodyResult = await parseJsonOrError(request, removeItemSchema);
+  if (!bodyResult.ok) return bodyResult.response;
+
+  const { itemId } = bodyResult.data;
 
   try {
-    await dbPrisma.cartItem.delete({
-      where: { id: itemId },
-    });
+    const cart = await dbPrisma.cart.findUnique({ where: { userId } });
+    if (!cart) {
+      return NextResponse.json({ error: "Cart not found" }, { status: 404 });
+    }
+
+    const existingItem = await dbPrisma.cartItem.findFirst({ where: { id: itemId, cartId: cart.id } });
+    if (!existingItem) {
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    }
+
+    await dbPrisma.cartItem.delete({ where: { id: existingItem.id } });
 
     return NextResponse.json({ message: "Item removed from cart" });
   } catch (error) {

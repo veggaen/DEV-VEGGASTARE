@@ -2,6 +2,19 @@ import { dbPrisma } from '@/lib/db';
 import { pusherServer } from '@/lib/pusher';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
+import { parseJsonOrError } from '@/lib/api-validate';
+import { z } from 'zod';
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+const patchBodySchema = z
+  .object({
+    content: z.string().trim().max(5000).optional().nullable(),
+    imageUrl: z.string().trim().max(2048).optional().nullable(),
+  })
+  .refine((val) => val.content !== undefined || val.imageUrl !== undefined, {
+    message: 'At least one of content or imageUrl must be provided',
+  });
 
 export async function PATCH(req: Request, { params }: { params: { messageId: string } }) {
   const session = await MyLibUserAuth();
@@ -9,7 +22,10 @@ export async function PATCH(req: Request, { params }: { params: { messageId: str
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const { content, imageUrl } = await req.json(); // Make sure imageUrl is destructured
+  const bodyResult = await parseJsonOrError(req, patchBodySchema);
+  if (!bodyResult.ok) return bodyResult.response;
+
+  const { content, imageUrl } = bodyResult.data;
   const userId = session.id;
 
   try {
@@ -29,8 +45,8 @@ export async function PATCH(req: Request, { params }: { params: { messageId: str
     const updatedMessage = await dbPrisma.message.update({
       where: { id: params.messageId },
       data: {
-        content,
-        imageUrl, // Ensure the imageUrl is updated
+        ...(content !== undefined ? { content } : {}),
+        ...(imageUrl !== undefined ? { imageUrl } : {}),
         editedAt: new Date(),
       },
     });
@@ -45,7 +61,10 @@ export async function PATCH(req: Request, { params }: { params: { messageId: str
 
     return NextResponse.json(updatedMessage, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: 'Error updating message' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Error updating message', ...(isDev && error instanceof Error ? { detail: error.message } : {}) },
+      { status: 500 }
+    );
   }
 }
 
@@ -81,6 +100,9 @@ export async function DELETE(req: Request, { params }: { params: { messageId: st
 
     return NextResponse.json({ message: 'Message deleted' }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: 'Error deleting message' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Error deleting message', ...(isDev && error instanceof Error ? { detail: error.message } : {}) },
+      { status: 500 }
+    );
   }
 }

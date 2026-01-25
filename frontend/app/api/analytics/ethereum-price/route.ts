@@ -1,13 +1,24 @@
 import { NextResponse } from 'next/server';
+import { parseQueryOrError } from '@/lib/api-validate';
+import { z } from 'zod';
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const vs_currency = searchParams.get('vs_currency') || 'usd';
-  const days = searchParams.get('days') || '365'; // Default to 1 year if no input
-  const interval = searchParams.get('interval') || 'daily';
+  const queryResult = parseQueryOrError(
+    request,
+    z.object({
+      vs_currency: z.string().trim().min(2).max(10).optional().default('usd'),
+      days: z.union([z.literal('max'), z.coerce.number().int().min(1).max(365)]).optional().default(365),
+      interval: z.string().trim().optional().default('daily'),
+    })
+  );
+  if (!queryResult.ok) return queryResult.response;
+
+  const vs_currency = queryResult.data.vs_currency;
+  const days = queryResult.data.days;
+  const interval = queryResult.data.interval;
 
   // Handle the 'days=max' condition for the CoinGecko API free tier limitation
-  const adjustedDays = days === 'max' ? '365' : days; // Limit max days to 365 for free tier
+  const adjustedDays = days === 'max' ? '365' : String(days);
 
   // Handle unsupported intervals by the CoinGecko API
   const supportedIntervals = ['daily', 'weekly', 'monthly'];

@@ -1,29 +1,35 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { EmployeeRole } from '@prisma/client';
+import { parseJsonOrError } from '@/lib/api-validate';
 import { editEmployeeRoleAction } from '@/actions/edit-employee-role';
 
 const LOG_PREFIX = '[frontend/app/api/companies/employees/edit-role/route.ts]';
 
-export async function POST(req: NextApiRequest, res: NextApiResponse) {
+export const dynamic = 'force-dynamic';
+
+const postBodySchema = z.object({
+  employeeId: z.string().min(1),
+  newRole: z.nativeEnum(EmployeeRole),
+  companyId: z.string().min(1),
+});
+
+export async function POST(req: Request) {
+  const bodyResult = await parseJsonOrError(req, postBodySchema);
+  if (!bodyResult.ok) return bodyResult.response;
+
   try {
-    const { employeeId, newRole, clientUser, companyId } = req.body;
-    console.log(`${LOG_PREFIX} Request received to edit role. Employee ID: ${employeeId}, New Role: ${newRole}, Company ID: ${companyId}, Client User: ${clientUser?.id}`);
-
-    if (!employeeId || !newRole || !clientUser || !companyId) {
-      console.error(`${LOG_PREFIX} Missing required fields`);
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    const response = await editEmployeeRoleAction({ employeeId, newRole, clientUser, companyId });
-
+    const response = await editEmployeeRoleAction(bodyResult.data);
     if (response.success) {
-      console.log(`${LOG_PREFIX} Employee role updated successfully:`, response.updatedEmployee);
-      return res.status(200).json(response.updatedEmployee);
-    } else {
-      console.error(`${LOG_PREFIX} Failed to update employee role:`, response.message);
-      return res.status(403).json({ message: response.message });
+      console.log(`${LOG_PREFIX} Employee role updated successfully`);
+      return NextResponse.json(response.updatedEmployee, { status: 200 });
     }
+
+    const message = response.message ?? 'Forbidden';
+    const status = message === 'Unauthorized' ? 401 : 403;
+    return NextResponse.json({ message }, { status });
   } catch (error) {
     console.error(`${LOG_PREFIX} Error updating employee role:`, error);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -1,17 +1,8 @@
+import { getIntegrationCoreBaseUrl } from "@/lib/integration-core";
 
 
 export async function fetchBringShippingDetails(requestData: any): Promise<any> {
     console.log('[frontend/lib/fetch-bring-shipping-details.ts] requestData', requestData)
-
-    // Bring Shipping Guide rejects dates in the past; generate a current shipping date.
-    const now = new Date();
-    const shippingDate = {
-      day: String(now.getDate()),
-      hour: String(now.getHours()),
-      minute: String(now.getMinutes()),
-      month: String(now.getMonth() + 1),
-      year: String(now.getFullYear()),
-    };
 
     const rawPackages = Array.isArray(requestData?.packages) && requestData.packages.length > 0
       ? requestData.packages
@@ -25,7 +16,25 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
       grossWeight: Number(p?.grossWeight ?? 300),
     }));
 
-    const requestBody = {  
+    const fromPostalCode = requestData ? requestData.fromPostalCode : "1234";
+    const toPostalCode = requestData ? requestData.toPostalCode : "4321";
+
+    // New preferred path: call Integration Core backend service (rich Bring Shipping Guide response).
+    const coreBaseUrl = getIntegrationCoreBaseUrl();
+    const coreRequestBody = {
+      fromCountryCode: "NO",
+      toCountryCode: "NO",
+      fromPostalCode,
+      toPostalCode,
+      packages,
+      language: "en",
+      // Bring testing: customerNumber "5"/"6"/"7" can unlock dummy pricing for some services.
+      customerNumber: "5",
+    };
+
+    // Legacy fallback path: call Next route that proxies Bring Shipping Guide directly.
+    // Keep this around so existing deployments that don't run the backend service still work.
+    const legacyRequestBody = {
       language: "en",
       withPrice: true,
       withExpectedDelivery: false,
@@ -37,38 +46,62 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
       consignments: [
         {
           id: 101,
-          products: [
-            {
-              id: "5800"
-            }
-          ],
+          products: [{ id: "5800" }],
           fromCountryCode: "NO",
           toCountryCode: "NO",
-          fromPostalCode: requestData ? requestData.fromPostalCode : "1234",
-          toPostalCode: requestData ? requestData.toPostalCode : "4321",
-          shippingDate,
+          fromPostalCode,
+          toPostalCode,
+          shippingDate: {
+            day: String(new Date().getDate()),
+            hour: String(new Date().getHours()),
+            minute: String(new Date().getMinutes()),
+            month: String(new Date().getMonth() + 1),
+            year: String(new Date().getFullYear()),
+          },
           packages,
-        }
-      ]
+        },
+      ],
     };
 
     try {
-        const response = await fetch('/api/bring-shipping', {
-            method: 'POST',
+        let response: Response;
+        if (coreBaseUrl) {
+          response = await fetch(`${coreBaseUrl}/v1/shipping/bring/products`, {
+            method: "POST",
             headers: {
-                'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
-            body: JSON.stringify(requestBody),
-        });
+            body: JSON.stringify(coreRequestBody),
+          });
+        } else {
+          response = await fetch("/api/bring-shipping", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(legacyRequestBody),
+          });
+        }
+
 	        const result = await response.json().catch(() => null);
 	        console.log('[frontend/lib/fetch-bring-shipping-details.ts] result', result)
 	        
 	        if (!response.ok) {
 	            const message = result?.error || response.statusText || `HTTP error! status: ${response.status}`;
+	            // If the backend is misconfigured/unavailable, fall back to legacy route.
+	            if (coreBaseUrl) {
+	              const legacyResponse = await fetch("/api/bring-shipping", {
+	                method: "POST",
+	                headers: { "Content-Type": "application/json" },
+	                body: JSON.stringify(legacyRequestBody),
+	              });
+	              const legacyResult = await legacyResponse.json().catch(() => null);
+	              if (legacyResponse.ok) return legacyResult;
+	            }
 	            throw new Error(message);
 	        }
 
-	        return result;
+          return result;
     } catch (error) {
 	        console.error('There was an error fetching the shipping details:', error);
         throw error;

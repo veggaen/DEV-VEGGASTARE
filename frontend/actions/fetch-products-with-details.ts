@@ -19,6 +19,7 @@ interface FetchProductsParams {
 }
 
 const LOG_PREFIX = '[frontend/actions/fetch-products-with-details.ts]';
+const shouldLog = process.env.DEBUG_PRODUCTS === '1';
 
 export const fetchProductsWithDetails = async ({
   page,
@@ -29,12 +30,14 @@ export const fetchProductsWithDetails = async ({
   searchTerm,
   sellerIds = [], // Add sellerIds with a default empty array
 }: FetchProductsParams): Promise<ExtendedProduct[]> => {
-  console.log(
-    `${LOG_PREFIX} Fetching products for page ${page} with ${perPage} items per page.`
-  );
-  console.log(
-    `${LOG_PREFIX} Parameters: categories=${categories.join(',')}, minPrice=${minPrice}, maxPrice=${maxPrice}, searchTerm=${searchTerm}, sellerIds=${sellerIds.join(',')}`
-  );
+  if (shouldLog) {
+    console.log(
+      `${LOG_PREFIX} Fetching products for page ${page} with ${perPage} items per page.`
+    );
+    console.log(
+      `${LOG_PREFIX} Parameters: categories=${categories.join(',')}, minPrice=${minPrice}, maxPrice=${maxPrice}, searchTerm=${searchTerm}, sellerIds=${sellerIds.join(',')}`
+    );
+  }
 
   try {
     const skip = (page - 1) * perPage;
@@ -105,7 +108,7 @@ export const fetchProductsWithDetails = async ({
       },
     });
 
-    console.log(`${LOG_PREFIX} Successfully fetched ${products.length} products.`);
+    if (shouldLog) console.log(`${LOG_PREFIX} Successfully fetched ${products.length} products.`);
     return products;
   } catch (error) {
     console.error(`${LOG_PREFIX} Error fetching products with details:`, error);

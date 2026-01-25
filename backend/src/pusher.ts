@@ -7,22 +7,28 @@ const P_KEY = process.env.PUSHER_KEY;
 const P_SECRET = process.env.PUSHER_SECRET;
 const P_CLUSTER = process.env.PUSHER_CLUSTER;
 
-if (!P_APP_ID || !P_KEY || !P_SECRET || !P_CLUSTER) {
-    throw new Error(`${LOG_PREFIX} 'Pusher environment variables are not set!'`);
+export const isPusherConfigured = Boolean(P_APP_ID && P_KEY && P_SECRET && P_CLUSTER);
+
+let pusherServer: PusherServer | null = null;
+if (isPusherConfigured) {
+  // todo: remove this log when done
+  console.log(LOG_PREFIX, 'Pusher environment variables loaded successfully.');
+
+  pusherServer = new PusherServer({
+    appId: P_APP_ID as string,
+    key: P_KEY as string,
+    secret: P_SECRET as string,
+    cluster: (P_CLUSTER || 'eu') as string,
+    useTLS: true,
+  });
+} else {
+  console.warn(LOG_PREFIX, 'Pusher not configured; skipping real-time Pusher broadcasts.');
 }
 
-// todo: remove this log when done
-console.log(LOG_PREFIX, 'Pusher environment variables loaded successfully.');
-
-const pusherServer = new PusherServer({
-  appId: P_APP_ID,
-  key: P_KEY,
-  secret: P_SECRET,
-  cluster: P_CLUSTER || 'eu',
-  useTLS: true,
-});
-
 export const triggerEvent = (channel: string, event: string, data: any) => {
-    console.log(LOG_PREFIX,'Triggering Pusher event:', channel, event, data);
+    if (!pusherServer) {
+      return;
+    }
+    console.log(LOG_PREFIX,'Triggering Pusher event:', channel, event);
     pusherServer.trigger(channel, event, data);
 };

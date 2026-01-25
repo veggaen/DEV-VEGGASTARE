@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { EmployeeRole } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogTrigger, DialogHeader, DialogContent, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { useCurrentUser } from '@/hooks/use-current-user';
 import { ExtendedCompany, ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/page';
 import { editEmployeeRoleAction } from '@/actions/edit-employee-role';
 
@@ -15,7 +14,6 @@ interface EditEmployeeRoleModalProps {
 }
 
 const EditEmployeeRoleModal: React.FC<EditEmployeeRoleModalProps> = ({ selectedEmployee, company, setCompany }) => {
-  const clientUser = useCurrentUser();
   const [isShowing, setIsShowing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +33,7 @@ const EditEmployeeRoleModal: React.FC<EditEmployeeRoleModalProps> = ({ selectedE
   const handleSaveRole = async () => {
     setIsLoading(true);
     try {
-      const response = await editEmployeeRoleAction({ employeeId: selectedEmployee.id, newRole, clientUser, companyId: company.id });
+      const response = await editEmployeeRoleAction({ employeeId: selectedEmployee.id, newRole, companyId: company.id });
       if (response.success) {
         setCompany((prevCompany) => {
           if (!prevCompany) return null;

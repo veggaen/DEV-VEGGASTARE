@@ -1,12 +1,13 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { Server as HttpServer } from 'http';
-import { PrismaClient } from '@prisma/client';
 import { setupKeepAlive } from './utils/keepAlive';
 import { triggerEvent } from './pusher';
+import { dbbPrisma } from './db';
+import { isDbConfigured } from './db';
 
 let io: SocketIOServer;
-const prisma = new PrismaClient();
 const LOG_PREFIX = '[backend/src/websocket.ts]';
+const isDev = process.env.NODE_ENV !== 'production';
 
 export const initWebSocketServer = (server: HttpServer) => {
   io = new SocketIOServer(server, {
@@ -46,7 +47,11 @@ export const initWebSocketServer = (server: HttpServer) => {
 
 export const broadcastWarehousesUpdate = async () => {
   try {
-    const warehouses = await prisma.warehouseLocation.findMany({
+    if (!isDbConfigured) {
+      console.warn(LOG_PREFIX, '[Socket.IO] DB not configured; skipping warehouse broadcast.');
+      return;
+    }
+    const warehouses = await dbbPrisma.warehouseLocation.findMany({
       include: {
         inventory: {
           include: {
@@ -59,7 +64,7 @@ export const broadcastWarehousesUpdate = async () => {
       type: 'WAREHOUSES_UPDATE',
       payload: warehouses,
     };
-    console.log(LOG_PREFIX, '[Socket.IO] Broadcasting message:', JSON.stringify(payload, null, 2));
+    if (isDev) console.log(LOG_PREFIX, `[Socket.IO] Broadcasting warehouses: ${warehouses.length}`);
     io.emit('WAREHOUSES_UPDATE', payload);
 
     // Trigger Pusher event

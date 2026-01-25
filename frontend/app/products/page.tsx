@@ -33,6 +33,10 @@ interface ExtendedProduct extends Product {
 
 const LOG_PREFIX = 'frontend/app/products/page.tsx';
 
+const DEBUG_PRODUCTS =
+	process.env.NODE_ENV !== 'production' &&
+	process.env.NEXT_PUBLIC_DEBUG_PRODUCTS === '1';
+
 	const ProductCard = React.memo(
 	  ({ product, priority }: { product: ExtendedProduct; priority?: boolean }) => (
 		  <div className="group flex flex-col overflow-hidden rounded-lg border border-black/10 dark:border-white/10 bg-white/35 dark:bg-white/[0.02] hover:bg-white/50 dark:hover:bg-white/[0.03] transition-colors">
@@ -107,12 +111,26 @@ export default function MyProductsPage() {
     threshold: 0,
   });
   const pageRef = useRef(1);
+	const lastFilterKeyRef = useRef<string>('');
   const { setCategories, selectedCategories, minPrice, maxPrice, searchTerm, setSearchTerm, selectedSellers } = useCategories();
+
+	const filterKey = useMemo(
+		() =>
+			JSON.stringify({
+				selectedCategories,
+				selectedSellers,
+				minPrice,
+				maxPrice,
+				searchTerm,
+				perPage,
+			}),
+		[selectedCategories, selectedSellers, minPrice, maxPrice, searchTerm, perPage]
+	);
 
   const fetchProducts = useCallback(async (page: number, perPage: number, reset: boolean = false, retries = 3) => {
     setLoading(true);
     setError(null);
-    console.log(`${LOG_PREFIX} Fetching products page:`, page);
+		if (DEBUG_PRODUCTS) console.log(`${LOG_PREFIX} Fetching products page:`, page);
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -168,14 +186,8 @@ export default function MyProductsPage() {
   const debouncedFetchProducts = useCallback(debounce(fetchProducts, 300), [fetchProducts]);
 
   useEffect(() => {
-    console.log(`${LOG_PREFIX} Initial fetch`);
-    fetchProducts(1, perPage, true);
-    return () => debouncedFetchProducts.cancel();
-  }, [fetchProducts, perPage]);
-
-  useEffect(() => {
     if (inView && hasMore && !loading && !isRetrying) {
-      console.log(`${LOG_PREFIX} Loader intersecting, fetching more products`);
+			if (DEBUG_PRODUCTS) console.log(`${LOG_PREFIX} Loader intersecting, fetching more products`);
       const nextPage = pageRef.current + 1;
       pageRef.current = nextPage;
       fetchProducts(nextPage, perPage);
@@ -183,16 +195,23 @@ export default function MyProductsPage() {
   }, [inView, hasMore, loading, isRetrying, fetchProducts, perPage]);
 
   useEffect(() => {
-    console.log(`${LOG_PREFIX} Filters changed, fetching filtered products`);
+		// Avoid duplicate work (including dev StrictMode effect re-runs) by only
+		// refetching when the effective filter key changes.
+		if (lastFilterKeyRef.current === filterKey) return;
+		lastFilterKeyRef.current = filterKey;
+
+		if (DEBUG_PRODUCTS) console.log(`${LOG_PREFIX} Filters changed, fetching filtered products`);
     setPage(1);
     pageRef.current = 1;
     setHasMore(true);
-    debouncedFetchProducts(1, perPage, true);
+		// Use immediate fetch to ensure UI updates quickly; debounce still helps when user
+		// types/adjusts multiple controls rapidly.
+		debouncedFetchProducts(1, perPage, true);
     return () => debouncedFetchProducts.cancel();
-  }, [selectedCategories, selectedSellers, minPrice, maxPrice, searchTerm, debouncedFetchProducts, perPage]);
+	}, [filterKey, debouncedFetchProducts, perPage]);
 
   const handlePerPageChange = (value: string) => {
-    console.log(`${LOG_PREFIX} Changing perPage to:`, value);
+		if (DEBUG_PRODUCTS) console.log(`${LOG_PREFIX} Changing perPage to:`, value);
     setPerPage(Number(value));
     setPage(1);
     pageRef.current = 1;

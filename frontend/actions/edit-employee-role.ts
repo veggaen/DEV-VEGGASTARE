@@ -2,19 +2,16 @@
 
 import { dbPrisma } from '@/lib/db';
 import { EmployeeRole } from '@prisma/client';
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { z } from 'zod';
 
 const LOG_PREFIX = '[frontend/actions/edit-employee-role.ts]';
 
-// Define types for the form data and response
-interface EditEmployeeRoleFormData {
-  employeeId: string;
-  newRole: EmployeeRole;
-  clientUser: {
-    id: string;
-    name: string;
-  };
-  companyId: string;
-}
+const inputSchema = z.object({
+  employeeId: z.string().min(1),
+  newRole: z.nativeEnum(EmployeeRole),
+  companyId: z.string().min(1),
+});
 
 interface EditEmployeeRoleResponse {
   success: boolean;
@@ -22,15 +19,26 @@ interface EditEmployeeRoleResponse {
   updatedEmployee?: any;
 }
 
-export const editEmployeeRoleAction = async (formData: EditEmployeeRoleFormData): Promise<EditEmployeeRoleResponse> => {
-  const { employeeId, newRole, clientUser, companyId } = formData;
-  console.log(`${LOG_PREFIX} ${clientUser.name} is initiating request to edit employee role [Employee ID: ${employeeId}, New Role: ${newRole}, Company ID: ${companyId}]`);
+export const editEmployeeRoleAction = async (formData: unknown): Promise<EditEmployeeRoleResponse> => {
+  const parsed = inputSchema.safeParse(formData);
+  if (!parsed.success) {
+    return { success: false, message: 'Invalid request' };
+  }
+
+  const { employeeId, newRole, companyId } = parsed.data;
+
+  const sessionUser = await MyLibUserAuth();
+  if (!sessionUser?.id) {
+    return { success: false, message: 'Unauthorized' };
+  }
+
+  console.log(`${LOG_PREFIX} ${sessionUser.name ?? sessionUser.id} is initiating request to edit employee role [Employee ID: ${employeeId}, New Role: ${newRole}, Company ID: ${companyId}]`);
 
   try {
     // Fetch client employee data for permission check
     const clientEmployee = await dbPrisma.employee.findFirst({
       where: {
-        userId: clientUser.id,
+        userId: sessionUser.id,
         companyId: companyId,
       },
     });

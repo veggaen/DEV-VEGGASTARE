@@ -1,4 +1,6 @@
 import type { NextRequest } from "next/server";
+import { parseQueryOrError } from '@/lib/api-validate';
+import { z } from 'zod';
 
 type ReverseOk = { postalCode: string };
 
@@ -33,13 +35,16 @@ async function reverseWithNominatim(lat: number, lon: number): Promise<string | 
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const lat = Number(searchParams.get("lat"));
-  const lon = Number(searchParams.get("lon"));
+  const queryResult = parseQueryOrError(
+    req,
+    z.object({
+      lat: z.coerce.number().min(-90).max(90),
+      lon: z.coerce.number().min(-180).max(180),
+    })
+  );
+  if (!queryResult.ok) return queryResult.response;
 
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    return json(400, { error: "Missing or invalid 'lat'/'lon' query params" });
-  }
+  const { lat, lon } = queryResult.data;
 
   try {
     const googleKey = process.env.AUTH_GOOGLE_API_KEY;

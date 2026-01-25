@@ -18,10 +18,12 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { MyFormError } from '@/components/uicustom/forms/form-error';
 import { MyFormSuccess } from '@/components/uicustom/forms/form-sucess';
 import { UserRole } from '@prisma/client';
+import { useUiPreferences } from '@/components/providers/ui-preferences';
 
 const LOG_PREFIX = '[frontend/app/(protected)/nexus/page.tsx]'
 const MyProtectedSettings = () => {
   const user = useCurrentUser();
+  const { prefs, setPrefs, resetPrefs } = useUiPreferences();
   const formRef = useRef<HTMLFormElement>(null);
   const { update } = useSession();
 
@@ -238,6 +240,37 @@ const MyProtectedSettings = () => {
           </Form>
         </CardContent>
       </Card>}
+
+      {user && (
+        <Card className="w-full max-w-[600px] bg-white dark:bg-zinc-900/20 border-black/10">
+          <CardHeader>
+            <p className="text-xl font-semibold text-center">Experience</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">Extra fancy product title (RSVP)</p>
+                <p className="text-xs text-muted-foreground">
+                  Optional rapid word reveal on product pages. Respects reduced-motion.
+                </p>
+              </div>
+              <Switch
+                checked={prefs.productTitleAnimationMode === 'rsvp'}
+                onCheckedChange={(checked) =>
+                  setPrefs({ productTitleAnimationMode: checked ? 'rsvp' : 'letters' })
+                }
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">Reset UI preferences</p>
+              <Button type="button" variant="secondary" onClick={resetPrefs}>
+                Reset
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

@@ -1,67 +1,87 @@
 import { dbPrisma } from '@/lib/db';
-import { NextApiRequest, NextApiResponse } from 'next';
-import Pusher from 'pusher';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { parseJsonOrError } from '@/lib/api-validate';
+import { pusherServer } from '@/lib/pusher';
+import { MyLibUserAuth } from '@/lib/user-auth';
 
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-  useTLS: true,
+export const dynamic = 'force-dynamic';
+
+const postBodySchema = z.object({
+  warehouseId: z.string().min(1),
+  inventoryId: z.string().min(1),
+  stock: z.number().int().min(0),
 });
 
-export async function POST(req: NextApiRequest, res: NextApiResponse) {
-    const { warehouseId, inventoryId, stock } = req.body;
-  
-    try {
-      const updatedInventory = await dbPrisma.$transaction(async (prisma) => {
-        const inventory = await prisma.inventory.findUnique({
-          where: { id: inventoryId },
-          select: { version: true },
-        });
-  
-        if (!inventory) throw new Error('Inventory not found');
-        console.log('inventory:', inventory);
-        
-        // Update the inventory with the new stock and increment the version for optimistic locking
-        await prisma.inventory.update({
-          where: { id_version: { id: inventoryId, version: inventory.version } },
-          data: {
-            stock,
-            version: inventory.version + 1,
-          },
-        });
-  
-        return prisma.inventory.findUnique({
-          where: { id: inventoryId },
-          select: {
-            id: true,
-            stock: true,
-            version: true,
-            product: {
-              select: {
-                id: true,
-                title: true,
-              },
-            },
-          },
-        });
+export async function POST(req: Request) {
+  const sessionUser = await MyLibUserAuth();
+  if (!sessionUser?.id) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  const role = (sessionUser as any).role as string | undefined;
+  if (role !== 'ADMIN' && role !== 'OWNER') {
+    return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+  }
+
+  const bodyResult = await parseJsonOrError(req, postBodySchema);
+  if (!bodyResult.ok) return bodyResult.response;
+
+  const { warehouseId, inventoryId, stock } = bodyResult.data;
+
+  try {
+    const updatedInventory = await dbPrisma.$transaction(async (prisma) => {
+      const inventory = await prisma.inventory.findUnique({
+        where: { id: inventoryId },
+        select: { version: true },
       });
-  
-      await pusher.trigger(`WarehouseChannel_${warehouseId}`, 'inventory-update', {
-        warehouseId,
-        inventoryId,
-        stock: updatedInventory?.stock,
-        version: updatedInventory?.version,
-        product: {
-          id: updatedInventory?.product.id,
-          title: updatedInventory?.product.title,
+
+      if (!inventory) {
+        return null;
+      }
+
+      await prisma.inventory.update({
+        where: { id_version: { id: inventoryId, version: inventory.version } },
+        data: {
+          stock,
+          version: inventory.version + 1,
         },
       });
-  
-      res.status(200).json({ message: 'Inventory updated successfully' });
-    } catch (error) {
-      console.error('Error updating inventory:', error);
-      res.status(500).json({ error: 'Failed to update inventory' });
+
+      return prisma.inventory.findUnique({
+        where: { id: inventoryId },
+        select: {
+          id: true,
+          stock: true,
+          version: true,
+          product: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+        },
+      });
+    });
+
+    if (!updatedInventory) {
+      return NextResponse.json({ message: 'Inventory not found' }, { status: 404 });
     }
+
+    await pusherServer.trigger(`WarehouseChannel_${warehouseId}`, 'inventory-update', {
+      warehouseId,
+      inventoryId,
+      stock: updatedInventory.stock,
+      version: updatedInventory.version,
+      product: {
+        id: updatedInventory.product.id,
+        title: updatedInventory.product.title,
+      },
+    });
+
+    return NextResponse.json({ message: 'Inventory updated successfully' }, { status: 200 });
+  } catch (error) {
+    console.error('Error updating inventory:', error);
+    return NextResponse.json({ message: 'Failed to update inventory' }, { status: 500 });
   }
+}

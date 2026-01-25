@@ -1,9 +1,12 @@
-import { use } from "react";
+"use client";
+
+import { useParams } from "next/navigation";
+
 import ProductClient from "./ProductClient";
 
-// params is now a Promise in Next 15 server components
-export default function Page({ params }: { params: Promise<{ id: string[] }> }) {
-  const { id } = use(params);
+export default function Page() {
+  const { id } = useParams();
   const productId = Array.isArray(id) ? id[0] : id;
+
   return <ProductClient productId={productId} />;
 }

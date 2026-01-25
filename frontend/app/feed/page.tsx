@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -120,6 +120,34 @@ const FeedPage: React.FC = () => {
     fetchFeed();
   }, [fetchFeed]);
 
+  const trendingTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of items) {
+      for (const tag of item.tags || []) {
+        counts.set(tag, (counts.get(tag) || 0) + 1);
+      }
+    }
+
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([tag, count]) => ({ tag, count }));
+  }, [items]);
+
+  const topPosts = useMemo(() => {
+    return [...items]
+      .sort((a, b) => {
+        const aViews = a.uniqueViewCount || 0;
+        const bViews = b.uniqueViewCount || 0;
+        if (bViews !== aViews) return bViews - aViews;
+
+        const aMsgs = a.messageCount || 0;
+        const bMsgs = b.messageCount || 0;
+        return bMsgs - aMsgs;
+      })
+      .slice(0, 5);
+  }, [items]);
+
   // Handle post submission
   const handlePost = async () => {
     if (!composeText.trim() && !pollQuestion.trim()) return;
@@ -211,261 +239,348 @@ const FeedPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
-      {/* Compose Box */}
-      {currentUser && (
-        <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="p-4 space-y-3">
-            {/* User avatar + textarea */}
-            <div className="flex gap-3">
-              <Avatar className="h-10 w-10 shrink-0">
-                <AvatarImage src={currentUser.image || undefined} />
-                <AvatarFallback>{currentUser.name?.[0] || '?'}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 space-y-2">
-                <Textarea
-                  ref={textareaRef}
-                  value={composeText}
-                  onChange={(e) => setComposeText(e.target.value)}
-                  placeholder="What's happening?"
-                  className="min-h-[60px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0 text-base"
-                  rows={2}
-                />
-
-                {/* Poll input (if enabled) */}
-                {includePoll && (
-                  <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
-                    <Input
-                      value={pollQuestion}
-                      onChange={(e) => setPollQuestion(e.target.value)}
-                      placeholder="Ask a question..."
-                      className="font-medium"
+    <div className="mx-auto w-full max-w-6xl px-3 sm:px-6 lg:px-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6">
+        <div className="min-w-0">
+          {/* Compose Box */}
+          {currentUser && (
+            <div className="rounded-2xl border border-border/60 bg-card/40 backdrop-blur-sm sticky top-3 z-10">
+              <div className="p-4 space-y-3">
+                {/* User avatar + textarea */}
+                <div className="flex gap-3">
+                  <Avatar className="h-10 w-10 shrink-0">
+                    <AvatarImage src={currentUser.image || undefined} />
+                    <AvatarFallback>{currentUser.name?.[0] || '?'}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-2">
+                    <Textarea
+                      ref={textareaRef}
+                      value={composeText}
+                      onChange={(e) => setComposeText(e.target.value)}
+                      placeholder="What's happening?"
+                      className="min-h-[60px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0 text-base"
+                      rows={2}
                     />
-                    {pollOptions.map((opt, i) => (
-                      <div key={i} className="flex gap-2">
+
+                    {/* Poll input (if enabled) */}
+                    {includePoll && (
+                      <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
                         <Input
-                          value={opt}
-                          onChange={(e) => updatePollOption(i, e.target.value)}
-                          placeholder={`Option ${i + 1}`}
-                          className="flex-1"
+                          value={pollQuestion}
+                          onChange={(e) => setPollQuestion(e.target.value)}
+                          placeholder="Ask a question..."
+                          className="font-medium"
                         />
-                        {pollOptions.length > 2 && (
+                        {pollOptions.map((opt, i) => (
+                          <div key={i} className="flex gap-2">
+                            <Input
+                              value={opt}
+                              onChange={(e) => updatePollOption(i, e.target.value)}
+                              placeholder={`Option ${i + 1}`}
+                              className="flex-1"
+                            />
+                            {pollOptions.length > 2 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removePollOption(i)}
+                                className="shrink-0"
+                              >
+                                <FiX className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        {pollOptions.length < 6 && (
                           <Button
                             type="button"
                             variant="ghost"
-                            size="icon"
-                            onClick={() => removePollOption(i)}
-                            className="shrink-0"
+                            size="sm"
+                            onClick={addPollOption}
+                            className="text-muted-foreground"
                           >
-                            <FiX className="h-4 w-4" />
+                            <FiPlus className="h-4 w-4 mr-1" /> Add option
                           </Button>
                         )}
                       </div>
-                    ))}
-                    {pollOptions.length < 6 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={addPollOption}
-                        className="text-muted-foreground"
-                      >
-                        <FiPlus className="h-4 w-4 mr-1" /> Add option
-                      </Button>
+                    )}
+
+                    {/* Tags */}
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {tags.map(tag => (
+                          <Badge key={tag} variant="secondary" className="text-xs">
+                            #{tag}
+                            <button onClick={() => removeTag(tag)} className="ml-1">
+                              <FiX className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {showTagInput && (
+                      <div className="flex gap-2">
+                        <Input
+                          value={tagInput}
+                          onChange={(e) => setTagInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                          placeholder="Add tag..."
+                          className="flex-1 h-8 text-sm"
+                        />
+                        <Button type="button" size="sm" variant="ghost" onClick={addTag}>
+                          Add
+                        </Button>
+                      </div>
                     )}
                   </div>
-                )}
+                </div>
 
-                {/* Tags */}
-                {tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {tags.map(tag => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        #{tag}
-                        <button onClick={() => removeTag(tag)} className="ml-1">
-                          <FiX className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-
-                {showTagInput && (
-                  <div className="flex gap-2">
-                    <Input
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                      placeholder="Add tag..."
-                      className="flex-1 h-8 text-sm"
-                    />
-                    <Button type="button" size="sm" variant="ghost" onClick={addTag}>
-                      Add
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Action bar */}
-            <div className="flex items-center justify-between pl-13">
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant={includePoll ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setIncludePoll(!includePoll)}
-                  className="text-muted-foreground"
-                >
-                  <FiBarChart2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant={showTagInput ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setShowTagInput(!showTagInput)}
-                  className="text-muted-foreground"
-                >
-                  <FiHash className="h-4 w-4" />
-                </Button>
-
-                {/* Visibility & Reply Permissions Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                {/* Action bar */}
+                <div className="flex items-center justify-between pl-13">
+                  <div className="flex items-center gap-1">
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant={includePoll ? 'secondary' : 'ghost'}
                       size="sm"
-                      className="text-muted-foreground gap-1"
+                      onClick={() => setIncludePoll(!includePoll)}
+                      className="text-muted-foreground"
                     >
-                      {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.icon}
-                      <FiChevronDown className="h-3 w-3" />
+                      <FiBarChart2 className="h-4 w-4" />
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-64">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">Who can see this?</DropdownMenuLabel>
-                    {VISIBILITY_OPTIONS.map(opt => (
-                      <DropdownMenuItem
-                        key={opt.value}
-                        onClick={() => setVisibility(opt.value)}
-                        className="flex items-center gap-2"
-                      >
-                        <span className={visibility === opt.value ? 'text-primary' : 'text-muted-foreground'}>
-                          {opt.icon}
-                        </span>
-                        <div className="flex-1">
-                          <div className={visibility === opt.value ? 'font-medium' : ''}>{opt.label}</div>
-                          <div className="text-xs text-muted-foreground">{opt.description}</div>
-                        </div>
-                        {visibility === opt.value && <span className="text-primary">✓</span>}
-                      </DropdownMenuItem>
-                    ))}
+                    <Button
+                      type="button"
+                      variant={showTagInput ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setShowTagInput(!showTagInput)}
+                      className="text-muted-foreground"
+                    >
+                      <FiHash className="h-4 w-4" />
+                    </Button>
 
-                    <DropdownMenuSeparator />
+                    {/* Visibility & Reply Permissions Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground gap-1"
+                        >
+                          {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.icon}
+                          <FiChevronDown className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-64">
+                        <DropdownMenuLabel className="text-xs text-muted-foreground">Who can see this?</DropdownMenuLabel>
+                        {VISIBILITY_OPTIONS.map(opt => (
+                          <DropdownMenuItem
+                            key={opt.value}
+                            onClick={() => setVisibility(opt.value)}
+                            className="flex items-center gap-2"
+                          >
+                            <span className={visibility === opt.value ? 'text-primary' : 'text-muted-foreground'}>
+                              {opt.icon}
+                            </span>
+                            <div className="flex-1">
+                              <div className={visibility === opt.value ? 'font-medium' : ''}>{opt.label}</div>
+                              <div className="text-xs text-muted-foreground">{opt.description}</div>
+                            </div>
+                            {visibility === opt.value && <span className="text-primary">✓</span>}
+                          </DropdownMenuItem>
+                        ))}
 
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">Who can reply?</DropdownMenuLabel>
-                    {REPLY_OPTIONS.map(opt => (
-                      <DropdownMenuItem
-                        key={opt.value}
-                        onClick={() => setReplyPermission(opt.value)}
-                        className="flex items-center gap-2"
-                      >
-                        <div className="flex-1">
-                          <div className={replyPermission === opt.value ? 'font-medium' : ''}>{opt.label}</div>
-                          <div className="text-xs text-muted-foreground">{opt.description}</div>
-                        </div>
-                        {replyPermission === opt.value && <span className="text-primary">✓</span>}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+                        <DropdownMenuSeparator />
 
-              <div className="flex items-center gap-2">
-                {/* Show current settings as badges if not default */}
-                {(visibility !== 'PUBLIC' || replyPermission !== 'EVERYONE') && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    {visibility !== 'PUBLIC' && (
-                      <Badge variant="outline" className="text-xs py-0">
-                        {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.label}
-                      </Badge>
-                    )}
-                    {replyPermission !== 'EVERYONE' && (
-                      <Badge variant="outline" className="text-xs py-0">
-                        {REPLY_OPTIONS.find(r => r.value === replyPermission)?.label} replies
-                      </Badge>
-                    )}
+                        <DropdownMenuLabel className="text-xs text-muted-foreground">Who can reply?</DropdownMenuLabel>
+                        {REPLY_OPTIONS.map(opt => (
+                          <DropdownMenuItem
+                            key={opt.value}
+                            onClick={() => setReplyPermission(opt.value)}
+                            className="flex items-center gap-2"
+                          >
+                            <div className="flex-1">
+                              <div className={replyPermission === opt.value ? 'font-medium' : ''}>{opt.label}</div>
+                              <div className="text-xs text-muted-foreground">{opt.description}</div>
+                            </div>
+                            {replyPermission === opt.value && <span className="text-primary">✓</span>}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                )}
 
-                <Button
-                  onClick={handlePost}
-                  disabled={isSubmitting || (!composeText.trim() && !pollQuestion.trim())}
-                  size="sm"
-                  className="rounded-full px-4"
-                >
-                  {isSubmitting ? <Spinner /> : <><FiSend className="h-4 w-4 mr-1" /> Post</>}
-                </Button>
+                  <div className="flex items-center gap-2">
+                    {/* Show current settings as badges if not default */}
+                    {(visibility !== 'PUBLIC' || replyPermission !== 'EVERYONE') && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        {visibility !== 'PUBLIC' && (
+                          <Badge variant="outline" className="text-xs py-0">
+                            {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.label}
+                          </Badge>
+                        )}
+                        {replyPermission !== 'EVERYONE' && (
+                          <Badge variant="outline" className="text-xs py-0">
+                            {REPLY_OPTIONS.find(r => r.value === replyPermission)?.label} replies
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+
+                    <Button
+                      onClick={handlePost}
+                      disabled={isSubmitting || (!composeText.trim() && !pollQuestion.trim())}
+                      size="sm"
+                      className="rounded-full px-4"
+                    >
+                      {isSubmitting ? <Spinner /> : <><FiSend className="h-4 w-4 mr-1" /> Post</>}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Filters */}
+          <div className="mt-4 flex items-center gap-2">
+            <Button
+              variant={filter === 'all' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setFilter('all')}
+            >
+              All
+            </Button>
+            <Button
+              variant={filter === 'polls' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setFilter('polls')}
+            >
+              <FiBarChart2 className="h-4 w-4 mr-1" /> Polls
+            </Button>
+            <Button
+              variant={filter === 'trending' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setFilter('trending')}
+            >
+              <FiTrendingUp className="h-4 w-4 mr-1" /> Trending
+            </Button>
+
+            {tagFilter && (
+              <Badge variant="outline" className="ml-auto flex items-center gap-1">
+                #{tagFilter}
+                <button onClick={() => setTagFilter(null)}>
+                  <FiX className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+          </div>
+
+          {/* Feed */}
+          <div className="mt-4 space-y-3">
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <Spinner />
+              </div>
+            ) : items.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>No posts yet. Be the first to share something!</p>
+              </div>
+            ) : (
+              items.map((item) => (
+                <FeedCard
+                  key={item.id}
+                  item={item}
+                  onTagClick={(tag) => setTagFilter(tag)}
+                  onClick={() => router.push(`/conversations/${item.id}`)}
+                />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Explore sidebar */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-3 space-y-4">
+            {!currentUser && (
+              <div className="rounded-2xl border border-border/60 bg-card/40 p-4">
+                <div className="font-semibold">Welcome</div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Browse public posts, polls, and updates. Sign in to post and join the conversation.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" onClick={() => router.push('/auth/login')}>Sign in</Button>
+                  <Button size="sm" variant="secondary" onClick={() => router.push('/auth/register')}>Create account</Button>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-border/60 bg-card/40 p-4">
+              <div className="flex items-center justify-between">
+                <div className="font-semibold">Trending tags</div>
+                {tagFilter && (
+                  <Button size="sm" variant="ghost" onClick={() => setTagFilter(null)}>
+                    Clear
+                  </Button>
+                )}
+              </div>
+              {trendingTags.length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">No tags yet.</p>
+              ) : (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {trendingTags.map(({ tag, count }) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setTagFilter(tag)}
+                      className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/30 px-3 py-1 text-sm text-foreground/90 transition hover:bg-background/50"
+                    >
+                      <span className="font-medium">#{tag}</span>
+                      <span className="text-xs text-muted-foreground">{count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-border/60 bg-card/40 p-4">
+              <div className="font-semibold">Top posts</div>
+              <div className="mt-3 space-y-2">
+                {topPosts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nothing yet.</p>
+                ) : (
+                  topPosts.map((post) => {
+                    const headline =
+                      post.description?.trim() ||
+                      post.lastMessage?.content?.trim() ||
+                      post.poll?.question?.trim() ||
+                      post.title?.trim() ||
+                      'Post';
+
+                    return (
+                      <button
+                        key={post.id}
+                        type="button"
+                        onClick={() => router.push(`/conversations/${post.id}`)}
+                        className="w-full rounded-xl border border-border/50 bg-background/20 px-3 py-2 text-left transition hover:bg-background/40"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">{post.user?.name || 'Anonymous'}</div>
+                            <div className="text-xs text-muted-foreground truncate">{headline}</div>
+                          </div>
+                          <div className="shrink-0 text-xs text-muted-foreground">
+                            {(post.uniqueViewCount || 0) > 0 ? `${post.uniqueViewCount} views` : `${post.messageCount} msgs`}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex items-center gap-2 p-3 border-b border-border">
-        <Button
-          variant={filter === 'all' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => setFilter('all')}
-        >
-          All
-        </Button>
-        <Button
-          variant={filter === 'polls' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => setFilter('polls')}
-        >
-          <FiBarChart2 className="h-4 w-4 mr-1" /> Polls
-        </Button>
-        <Button
-          variant={filter === 'trending' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => setFilter('trending')}
-        >
-          <FiTrendingUp className="h-4 w-4 mr-1" /> Trending
-        </Button>
-
-        {tagFilter && (
-          <Badge variant="outline" className="ml-auto flex items-center gap-1">
-            #{tagFilter}
-            <button onClick={() => setTagFilter(null)}>
-              <FiX className="h-3 w-3" />
-            </button>
-          </Badge>
-        )}
-      </div>
-
-      {/* Feed */}
-      <div className="divide-y divide-border">
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Spinner />
-          </div>
-        ) : items.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <p>No posts yet. Be the first to share something!</p>
-          </div>
-        ) : (
-          items.map((item) => (
-            <FeedCard
-              key={item.id}
-              item={item}
-              onTagClick={(tag) => setTagFilter(tag)}
-              onClick={() => router.push(`/conversations/${item.id}`)}
-            />
-          ))
-        )}
+        </aside>
       </div>
     </div>
   );
@@ -496,7 +611,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick }) => {
 
   return (
     <article
-      className="group relative p-4 sm:p-5 cursor-pointer transition-colors hover:bg-muted/25"
+      className="group relative cursor-pointer rounded-2xl border border-border/60 bg-card/30 p-4 sm:p-5 shadow-sm transition hover:bg-card/50 hover:shadow-md"
       onClick={onClick}
     >
       <div className="flex gap-3">

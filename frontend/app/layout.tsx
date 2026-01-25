@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import type { Metadata } from "next";
 import { EdgeStoreProvider } from "../lib/edgestore";
 import { ThemeProvider } from "@/components/providers/themeprovider";
+import { UiPreferencesProvider } from "@/components/providers/ui-preferences";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/auth";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -28,12 +29,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SessionProvider session={session} refetchOnWindowFocus={true}>
           <EdgeStoreProvider>
             <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-              <Web3Providers>
+              <UiPreferencesProvider>
+                <Web3Providers>
 
-                <MyTopBar />
-                {children}
-                <Toaster />
-              </Web3Providers>
+                  <MyTopBar />
+                  {children}
+                  <Toaster />
+                </Web3Providers>
+              </UiPreferencesProvider>
               <SpeedInsights />
             </ThemeProvider>
           </EdgeStoreProvider>

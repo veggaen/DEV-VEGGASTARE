@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
+import { parseJsonOrError } from '@/lib/api-validate';
+import { z } from 'zod';
 
 const LOG_PREFIX = '[api/polls/vote]';
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+const voteBodySchema = z.object({
+  optionId: z.string().min(1),
+});
 
 // POST - Vote on a poll option (toggle: vote or unvote)
 export async function POST(req: NextRequest) {
@@ -12,12 +20,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
-    const { optionId } = body;
-
-    if (!optionId) {
-      return NextResponse.json({ message: 'optionId is required' }, { status: 400 });
-    }
+    const bodyResult = await parseJsonOrError(req, voteBodySchema);
+    if (!bodyResult.ok) return bodyResult.response;
+    const { optionId } = bodyResult.data;
 
     // Get the option and its poll
     const option = await dbPrisma.pollOption.findUnique({
@@ -77,7 +82,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error(LOG_PREFIX, 'Error voting:', error);
     return NextResponse.json(
-      { message: 'Error voting', error: error instanceof Error ? error.message : 'Unknown error' },
+      { message: 'Error voting', ...(isDev && error instanceof Error ? { error: error.message } : {}) },
       { status: 500 }
     );
   }

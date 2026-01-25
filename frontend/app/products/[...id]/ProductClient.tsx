@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CiStar } from "react-icons/ci";
 import { useSession } from "next-auth/react";
 import { CiMapPin } from "react-icons/ci";
@@ -24,6 +24,7 @@ import { fetchCoordsFromPostalCode } from "@/components/uicustom/product/postal-
 import { getCountryCode, haversineDistance } from "@/lib/utils";
 import ProductSkeleton from "@/components/uicustom/skeletons/product-skeleton";
 import PriceAmount from "@/components/crypto-related/PriceAmount";
+import { useUiPreferences, type ProductTitleAnimationMode } from "@/components/providers/ui-preferences";
 
 interface Specification { key: string; value: string; }
 interface WarehouseLocation { id: string; country: string; postalCode: string; countryCode?: string; }
@@ -60,8 +61,167 @@ const getPosition = () =>
     );
   });
 
+function AnimatedTitle({
+  text,
+  mode,
+  rsvpWpm,
+}: {
+  text: string;
+  mode: ProductTitleAnimationMode;
+  rsvpWpm: number;
+}) {
+  const reduceMotion = useReducedMotion();
+  const letters = useMemo(() => Array.from(text ?? ""), [text]);
+  const words = useMemo(
+    () => String(text ?? "").split(/\s+/).filter(Boolean),
+    [text]
+  );
+
+  const safeWpm = Number.isFinite(rsvpWpm) ? Math.min(900, Math.max(120, rsvpWpm)) : 420;
+  const msPerWord = Math.min(500, Math.max(120, Math.round(60000 / safeWpm)));
+
+  const [wordIndex, setWordIndex] = useState(0);
+  const [rsvpDone, setRsvpDone] = useState(false);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    if (mode !== "rsvp") return;
+    if (words.length <= 1) return;
+
+    setWordIndex(0);
+    setRsvpDone(false);
+
+    let i = 0;
+    const t = window.setInterval(() => {
+      i += 1;
+      if (i >= words.length) {
+        window.clearInterval(t);
+        setRsvpDone(true);
+        return;
+      }
+      setWordIndex(i);
+    }, msPerWord);
+
+    return () => window.clearInterval(t);
+  }, [reduceMotion, mode, msPerWord, words.length, text]);
+
+  if (reduceMotion || mode === "off") {
+    return (
+      <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight">
+        {text}
+      </h1>
+    );
+  }
+
+  if (mode === "rsvp" && words.length > 1) {
+    return (
+      <div className="relative">
+        <div className="min-h-[2.25rem] md:min-h-[2.75rem]">
+          <AnimatePresence mode="wait" initial={false}>
+            {!rsvpDone && (
+              <motion.h1
+                key={`${words[wordIndex]}-${wordIndex}`}
+                className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight tracking-tight"
+                initial={{ opacity: 0, y: 10, filter: "blur(8px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -10, filter: "blur(10px)" }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+              >
+                {String(words[wordIndex]).toUpperCase()}
+              </motion.h1>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* settle into full title */}
+        <motion.h1
+          className="absolute inset-0 text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight"
+          initial={{ opacity: 0, filter: "blur(8px)" }}
+          animate={{ opacity: rsvpDone ? 1 : 0, filter: rsvpDone ? "blur(0px)" : "blur(8px)" }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+        >
+          {text}
+        </motion.h1>
+      </div>
+    );
+  }
+
+  const baseDelay = 0.15;
+  const perLetter = 0.02;
+  const settleDelay = baseDelay + Math.min(letters.length * perLetter, 0.9) + 0.15;
+
+  return (
+    <div className="relative">
+      {/* Animated reveal layer (slightly tighter tracking + uppercase vibe) */}
+      <motion.h1
+        aria-hidden
+        className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight tracking-tight"
+        initial="hidden"
+        animate="show"
+        variants={{
+          hidden: {},
+          show: { transition: { delayChildren: baseDelay, staggerChildren: perLetter } },
+        }}
+      >
+        {letters.map((ch, i) => (
+          <motion.span
+            key={`${ch}-${i}`}
+            className="inline-block"
+            variants={{
+              hidden: { opacity: 0, y: 10, filter: "blur(6px)" },
+              show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.28, ease: "easeOut" } },
+            }}
+          >
+            {ch === " " ? "\u00A0" : ch.toUpperCase()}
+          </motion.span>
+        ))}
+      </motion.h1>
+
+      {/* Final text layer (fades in after reveal to "settle" into normal casing) */}
+      <motion.h1
+        className="absolute inset-0 text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight"
+        initial={{ opacity: 0, filter: "blur(6px)" }}
+        animate={{ opacity: 1, filter: "blur(0px)" }}
+        transition={{ delay: settleDelay, duration: 0.35, ease: "easeOut" }}
+      >
+        {text}
+      </motion.h1>
+    </div>
+  );
+}
+
+function AnimatedPrice({ children }: { children: React.ReactNode }) {
+  const reduceMotion = useReducedMotion();
+  if (reduceMotion) return <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{children}</div>;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        boxShadow: [
+          "0 0 0px rgba(34,197,94,0)",
+          "0 0 18px rgba(34,197,94,0.35)",
+          "0 0 0px rgba(34,197,94,0)",
+        ],
+      }}
+      transition={{
+        opacity: { duration: 0.25, ease: "easeOut" },
+        y: { duration: 0.25, ease: "easeOut" },
+        boxShadow: { delay: 0.35, duration: 1.1, ease: "easeInOut" },
+      }}
+      className="text-2xl font-bold text-gray-900 dark:text-gray-100 rounded-md px-2 py-1 -mx-2"
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 function ProductDetails({ product }: { product: Product }) {
   const { data: session } = useSession();
+  const reduceMotion = useReducedMotion();
+  const { prefs } = useUiPreferences();
 
   const [userPostalCode, setUserPostalCode] = useState<string | null>(null);
   const [closestWarehouse, setClosestWarehouse] = useState<WarehouseLocation | null>(null);
@@ -213,9 +373,23 @@ function ProductDetails({ product }: { product: Product }) {
   return (
     <div className="w-full">
       {/* Top section */}
-      <section className="grid lg:grid-cols-2 gap-6 lg:gap-10">
+      <motion.section
+        className="grid lg:grid-cols-2 gap-6 lg:gap-10"
+        initial={reduceMotion ? false : "hidden"}
+        animate={reduceMotion ? undefined : "show"}
+        variants={{
+          hidden: {},
+          show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+        }}
+      >
         {/* Gallery */}
-        <div className="lg:sticky lg:top-6">
+        <motion.div
+          className="lg:sticky lg:top-6"
+          variants={{
+            hidden: { opacity: 0, y: 14, filter: "blur(10px)" },
+            show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.45, ease: "easeOut" } },
+          }}
+        >
           <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-900/40 backdrop-blur p-2">
             <Carousel>
               <CarouselContent>
@@ -238,40 +412,69 @@ function ProductDetails({ product }: { product: Product }) {
               <CarouselNext />
             </Carousel>
           </div>
-        </div>
+        </motion.div>
 
         {/* Details */}
-        <div className="flex flex-col gap-4">
+        <motion.div
+          className="flex flex-col gap-4"
+          variants={{
+            hidden: { opacity: 0, y: 10 },
+            show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
+          }}
+        >
           {/* category + title */}
-          <div className="flex items-center gap-2">
+          <motion.div
+            className="flex items-center gap-2"
+            variants={{
+              hidden: { opacity: 0, y: 8 },
+              show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: "easeOut" } },
+            }}
+          >
             <span className="text-[11px] uppercase tracking-wide rounded-full px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">
               {product.category}
             </span>
-          </div>
+          </motion.div>
 
-          <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight">
-            {product.title}
-          </h1>
+          <motion.div
+            variants={{
+              hidden: { opacity: 0 },
+              show: { opacity: 1, transition: { duration: 0.2, ease: "easeOut" } },
+            }}
+          >
+            <AnimatedTitle
+              text={product.title}
+              mode={reduceMotion ? "off" : prefs.productTitleAnimationMode}
+              rsvpWpm={prefs.rsvpWpm}
+            />
+          </motion.div>
 
           {/* rating + price */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <motion.div
+            className="flex flex-wrap items-center justify-between gap-3"
+            variants={{
+              hidden: { opacity: 0, y: 10 },
+              show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
+            }}
+          >
             <div className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-300">
               <CiStar className="h-5 w-5 text-yellow-500" />
               <span className="text-sm">Rating coming soon</span>
             </div>
 
             {/* network-aware pricing */}
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-2xl font-bold text-gray-900 dark:text-gray-100"
-            >
+            <AnimatedPrice>
               <PriceAmount usd={product.price} />
-            </motion.div>
-          </div>
+            </AnimatedPrice>
+          </motion.div>
 
           {/* actions */}
-          <div className="mt-2 flex flex-wrap gap-2">
+          <motion.div
+            className="mt-2 flex flex-wrap gap-2"
+            variants={{
+              hidden: { opacity: 0, y: 10 },
+              show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
+            }}
+          >
             <Button variant="vegaBuyBtn" className="hover:shadow-md transition-shadow duration-300">
               Buy Now
             </Button>
@@ -285,10 +488,16 @@ function ProductDetails({ product }: { product: Product }) {
             <Button variant="vegaAddWishlistBtn" className="hover:shadow-md transition-shadow duration-300">
               Add to Wishlist
             </Button>
-          </div>
+          </motion.div>
 
           {/* shipping */}
-          <div className="mt-4 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+          <motion.div
+            className="mt-4 rounded-xl border border-gray-200 dark:border-gray-800 p-4"
+            variants={{
+              hidden: { opacity: 0, y: 12 },
+              show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
+            }}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-200">
                 <CiDeliveryTruck className="h-4 w-4" />
@@ -352,10 +561,16 @@ function ProductDetails({ product }: { product: Product }) {
 							)}
               </div>
             )}
-          </div>
+              </motion.div>
 
           {/* availability */}
-          <div className="grid sm:grid-cols-2 gap-3 mt-2">
+          <motion.div
+            className="grid sm:grid-cols-2 gap-3 mt-2"
+            variants={{
+              hidden: { opacity: 0, y: 12 },
+              show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
+            }}
+          >
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-4">
               <div className="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-200">
                 <GoPackage className="h-4 w-4" />
@@ -380,17 +595,29 @@ function ProductDetails({ product }: { product: Product }) {
                 {closestWarehouse?.postalCode || product.shipFromPostalId || "—"}
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* description */}
-          <div className="mt-2 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+          <motion.div
+            className="mt-2 rounded-xl border border-gray-200 dark:border-gray-800 p-4"
+            variants={{
+              hidden: { opacity: 0, y: 10 },
+              show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
+            }}
+          >
             <p className="text-sm leading-6 text-gray-700 dark:text-gray-300">{product.description}</p>
-          </div>
-        </div>
-      </section>
+          </motion.div>
+        </motion.div>
+      </motion.section>
 
       {/* Bottom section */}
-      <section className="mt-8 rounded-2xl bg-slate-100/60 dark:bg-gray-800/50 border border-slate-200 dark:border-gray-800 p-6">
+      <motion.section
+        className="mt-8 rounded-2xl bg-slate-100/60 dark:bg-gray-800/50 border border-slate-200 dark:border-gray-800 p-6"
+        initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+        whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      >
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Specifications</h3>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {(product.specifications || []).map((spec, idx) => (
@@ -420,7 +647,7 @@ function ProductDetails({ product }: { product: Product }) {
             </dd>
           </div>
         </dl>
-      </section>
+      </motion.section>
     </div>
   );
 }

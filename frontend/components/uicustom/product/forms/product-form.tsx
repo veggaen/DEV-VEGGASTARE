@@ -21,7 +21,6 @@ import { useEdgeStore } from '@/lib/edgestore';
 import { Textarea } from '@/components/ui/textarea';
 import UserCompanyPermission from '../../user-company-permission';
 import { fetchUserEmployeePermissions } from '@/actions/user-company-permissions';
-import { getUserById } from '@/data/user';
 
 interface PostalCodeDetails {
   postal_code: string;
@@ -130,21 +129,6 @@ export const MyProductCreationForm = () => {
     }
   }, [postalCodeInput]);
 
-  const validateIsAdmin = async (values: z.infer<typeof MyProductCreateSchema>) => {
-    if (values.userId) {
-      console.log('Checking clientUser role by Id:', values.userId);
-      startTransitionSpecifications(async () => {
-        await getUserById(values.userId)
-          .then((data) => {
-            if (data?.role === UserRole.ADMIN) {
-              console.log(`${MyLogPrefix} validateIsAdmin(data.role) TRUE`, data?.role);
-            } else {
-              console.log(`${MyLogPrefix} validateIsAdmin(data.role) FALSE`, data?.role.toString());
-            }
-          });
-      });
-    }
-  };
 
   const onDrop = (acceptedFiles: File[]) => {
     setImages([...images, ...acceptedFiles]);
@@ -275,7 +259,6 @@ export const MyProductCreationForm = () => {
     values.shipFromPostalId = postalCodes.join(', ');
   
     startTransition(() => {
-      validateIsAdmin(values);
       MyCreateProductAction(values, postalCodes)
         .then((data) => {
           if (data.error) {

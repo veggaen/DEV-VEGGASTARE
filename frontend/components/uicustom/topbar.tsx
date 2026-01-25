@@ -30,11 +30,14 @@ const NavLink = ({ href, children, isActive }: NavLinkProps) => (
 	<Link
 		href={href}
 		aria-current={isActive ? "page" : undefined}
-		className={`px-2 py-1 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sky-400/70 ${
-			isActive
+		className={
+			"relative px-2 py-1 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-emerald-400/70 " +
+			(isActive
 				? "text-slate-950 dark:text-slate-50"
-				: "text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-slate-50"
-		}`}
+				: "text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-slate-50") +
+			" after:absolute after:left-2 after:right-2 after:-bottom-0.5 after:h-[2px] after:rounded-full after:bg-emerald-500/70 after:transition-opacity after:duration-200 " +
+			(isActive ? "after:opacity-100" : "after:opacity-0 hover:after:opacity-40")
+		}
 	>
 		{children}
 	</Link>
@@ -150,16 +153,15 @@ const MyTopBar = () => {
 				<motion.div
 					transition={morphTransition}
 					className={
-						"w-full border-b border-transparent transition-[background-color,border-color] duration-200 will-change-transform " +
+						"w-full border-b transition-[background-color,border-color,box-shadow] duration-200 will-change-transform " +
 						(isScrolled
-							? "border-black/10 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/60"
-							: "bg-transparent")
+							? "border-black/10 bg-white/70 shadow-[0_10px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/60"
+							: "border-black/10 bg-white/25 backdrop-blur-md dark:border-white/10 dark:bg-slate-950/25")
 					}
 				>
 					<div
 						className={
-							"mx-auto flex h-[var(--app-header)] max-w-screen-2xl items-center justify-between border-b border-transparent px-3 sm:px-4 md:px-6 " +
-							(!isScrolled ? "border-black/10 dark:border-white/10" : "")
+							"mx-auto flex h-[var(--app-header)] max-w-screen-2xl items-center justify-between px-3 sm:px-4 md:px-6"
 						}
 					>
 						<div className="flex min-w-0 items-center gap-4">
@@ -214,7 +216,7 @@ const MyTopBar = () => {
 													variant="ghost"
 													size="icon"
 													aria-label="Open navigation menu"
-												className="h-10 w-10 rounded-none bg-transparent text-slate-700 hover:bg-transparent hover:text-slate-950 dark:text-slate-200 dark:hover:bg-transparent dark:hover:text-slate-50"
+												className="h-10 w-10 rounded-xl bg-transparent text-slate-700 hover:bg-black/5 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10 dark:hover:text-slate-50"
 												>
 													<FiMenu className="h-5 w-5" />
 												</Button>

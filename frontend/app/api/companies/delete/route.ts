@@ -1,15 +1,28 @@
 import { EmployeePermissions } from '@/actions/edit-company-employee-permission';
 import { dbPrisma } from '@/lib/db';
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { parseJsonOrError } from '@/lib/api-validate';
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+
+const deleteCompanySchema = z.object({
+  companyId: z.string().trim().min(1).max(200),
+  // legacy: some callers send userId; ignore and use session user instead
+  userId: z.string().trim().min(1).max(200).optional(),
+});
 
 export async function DELETE(req: NextRequest) {
   try {
-    const data = await req.json();
-    const { companyId, userId } = data;
-
-    if (!companyId || !userId) {
-      return NextResponse.json({ error: 'Company ID and User ID are required' }, { status: 400 });
+    const session = await MyLibUserAuth();
+    if (!session?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const bodyResult = await parseJsonOrError(req, deleteCompanySchema);
+    if (!bodyResult.ok) return bodyResult.response;
+
+    const { companyId } = bodyResult.data;
+    const userId = session.id;
 
     const company = await dbPrisma.company.findUnique({
       where: { id: companyId },

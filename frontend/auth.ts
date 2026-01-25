@@ -11,6 +11,7 @@ import { getAccountByUserId } from "./lib/account"
 
 // Console.log PREFIX
 const LOG_PREFIX = '[auth.ts] '
+const isDev = process.env.NODE_ENV !== 'production'
 
 export const {
   handlers: { GET, POST },
@@ -83,11 +84,11 @@ export const {
     },
     callbacks: {
         async signIn({ user, account, profile, email, credentials }) {
-          console.log(`${LOG_PREFIX} callbacks.signIn: `, {user});
+          if (isDev) console.log(`${LOG_PREFIX} callbacks.signIn`);
 
           // Allow OAuth without email verification. Consider a change to this logic if in the future we want to be adding more login providers
           if ( account?.provider !== 'credentials' ){
-            console.log(`${LOG_PREFIX} callbacks.signIn: OAuth provider`)
+            if (isDev) console.log(`${LOG_PREFIX} callbacks.signIn: OAuth provider`)
             return true;
           }
           
@@ -95,13 +96,13 @@ export const {
             const existingUser = await getUserById(user.id);
             // Prevent sign in without email verification aka 1fa check
             if (!existingUser?.emailVerified){
-              console.log(`${LOG_PREFIX} callbacks.signIn: email not verified ${existingUser?.name}`)
+              if (isDev) console.log(`${LOG_PREFIX} callbacks.signIn: email not verified`)
               return false;
             };
             // 2fa check
             if ( existingUser.isTwoFactorEnabled ) {
               const twoFactorConfirmation = await getTwoFactorConfirmationByUserId(existingUser.id)
-              console.log(`${LOG_PREFIX} callbacks.signIn: 2fa check `,{twoFactorConfirmation})
+              if (isDev) console.log(`${LOG_PREFIX} callbacks.signIn: 2fa check`)
               if (!twoFactorConfirmation) return false
               
               // delete two factor confirmation for next sign in

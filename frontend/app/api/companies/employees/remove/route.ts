@@ -1,77 +1,70 @@
 import { dbPrisma } from '@/lib/db';
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { Prisma } from '@prisma/client';
-import { NextResponse } from 'next/server';
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { parseJsonOrError } from '@/lib/api-validate';
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 
+const isDev = process.env.NODE_ENV !== 'production';
 
-// Note: Adjust this function signature if you're using `Request` from the Web API instead
-export async function DELETE(req: any, res: NextApiResponse) {
-    console.log("Received DELETE request"); // Additional log
-    const { userId, companyId, clientUser } = await req.json()
-    console.log(`${clientUser.name} Attempting to remove employee with ID: ${userId} from company ID: ${companyId}`)
-    
-    try {
-      // validate client user
-      if (!clientUser || !clientUser.id) {
-        console.error('Permission denied: Missing client ID');
-        return new Response(JSON.stringify({ message: 'Permission denied: Missing client ID' }), {
-            status: 400,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-      }
-      const employee = await dbPrisma.employee.findFirst({
-        where: {
-            userId: clientUser.id,
-            companyId,
-        },
-      });
-      const employeeWithPermissions = employee as { permissions?: { CAN_REMOVE_EMPLOYEE?: boolean } };
+const removeEmployeeSchema = z.object({
+  userId: z.string().trim().min(1).max(200),
+  companyId: z.string().trim().min(1).max(200),
+  // legacy payload some clients send; ignored
+  clientUser: z.any().optional(),
+});
 
-      if (!employeeWithPermissions || !employeeWithPermissions.permissions?.CAN_REMOVE_EMPLOYEE) {
-        console.error('Permission denied: You do not have permission to remove employees');
-        return new Response(JSON.stringify({ message: 'Permission denied: You do not have permission to remove employees' }), {
-            status: 400,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-      }
-      
-      // Optional: Validate that the employee belongs to the company
-      const existingEmployee = await dbPrisma.employee.findFirst({
-        where: {
-            userId: userId,
-            company: { id: companyId }, // Assuming you have relations set up
-        },
-      });
+export async function DELETE(req: NextRequest) {
+  const session = await MyLibUserAuth();
+  if (!session?.id) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
 
-      console.log(`Employee found: ${JSON.stringify(existingEmployee)}`);
-      if (!existingEmployee) {
-        return res.status(404).json({ message: 'Employee not found in the specified company' });
-      }
-  
-      await dbPrisma.employee.delete({
-        where: { id: existingEmployee.id },
-      });
-  
-      console.log(`Employee ${userId} removed from company ${companyId}`);
+  const bodyResult = await parseJsonOrError(req, removeEmployeeSchema);
+  if (!bodyResult.ok) return bodyResult.response;
 
-      return NextResponse.json({ message: `Successfully removed Employee ' ${userId} ' from company ' ${companyId}'` }, {
-        status: 200,
-        headers: {
-            'Content-Type': 'application/json',
-        },
-      });
-    } catch (error) {
-      console.error(`Failed to remove employee: ${error}`);
-      return NextResponse.json({ message: 'Internal Server Error' }, {
-        status: 400,
-        headers: {
-            'Content-Type': 'application/json',
-        },
-      })
+  const { userId, companyId } = bodyResult.data;
+
+  try {
+    const employee = await dbPrisma.employee.findFirst({
+      where: {
+        userId: session.id,
+        companyId,
+      },
+    });
+    const employeeWithPermissions = employee as { permissions?: { CAN_REMOVE_EMPLOYEE?: boolean } };
+
+    if (!employeeWithPermissions?.permissions?.CAN_REMOVE_EMPLOYEE) {
+      return NextResponse.json(
+        { message: 'Permission denied: You do not have permission to remove employees' },
+        { status: 403 }
+      );
     }
+
+    const existingEmployee = await dbPrisma.employee.findFirst({
+      where: {
+        userId,
+        companyId,
+      },
+    });
+
+    if (!existingEmployee) {
+      return NextResponse.json({ message: 'Employee not found in the specified company' }, { status: 404 });
+    }
+
+    await dbPrisma.employee.delete({
+      where: { id: existingEmployee.id },
+    });
+
+    return NextResponse.json(
+      { message: `Successfully removed employee ${userId} from company ${companyId}` },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('Failed to remove employee:', error);
+    return NextResponse.json(
+      { message: 'Internal Server Error', ...(isDev && error instanceof Error ? { detail: error.message } : {}) },
+      { status: 500 }
+    );
+  }
 }
 
