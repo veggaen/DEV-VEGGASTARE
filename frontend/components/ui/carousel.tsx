@@ -4,7 +4,7 @@ import * as React from "react"
 import useEmblaCarousel, {
   type UseEmblaCarouselType,
 } from "embla-carousel-react"
-import { ArrowLeft, ArrowRight } from "lucide-react"
+import { IoArrowBackCircleOutline, IoArrowForwardCircleOutline} from "react-icons/io5";
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -151,9 +151,9 @@ const Carousel = React.forwardRef<
           {...props}
         >
           {children}
-          <div className="absolute bottom-0 right-[48%] w-[2%] py-2 text-white text-sm">
-            {`${currentIndex + 1}/${totalSlides}`}
-          </div>
+	          <div className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/50 px-2 py-1 text-xs font-medium text-white backdrop-blur">
+	            {`${currentIndex + 1}/${totalSlides}`}
+	          </div>
         </div>
       </CarouselContext.Provider>
     )
@@ -227,7 +227,7 @@ const CarouselPrevious = React.forwardRef<
       onClick={scrollPrev}
       {...props}
     >
-      <ArrowLeft className="h-4 w-4 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
+      <IoArrowBackCircleOutline className="h-4 w-4 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
       <span className="sr-only">Previous slide</span>
     </Button>
   )
@@ -256,7 +256,7 @@ const CarouselNext = React.forwardRef<
       onClick={scrollNext}
       {...props}
     >
-      <ArrowRight className="h-4 w-4 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
+      <IoArrowForwardCircleOutline className="h-4 w-4 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
       <span className="sr-only">Next slide</span>
     </Button>
   )

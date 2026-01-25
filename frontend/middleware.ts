@@ -1,61 +1,66 @@
-import NextAuth from "next-auth";
-
-import authConfig from "@/auth.config";
 import {
   DEFAULT_LOGIN_REDIRECT,
   apiAuthPrefix,
   authRoutes,
   publicRoutes,
-} from "@/routes";
-import type { NextAuthConfig } from "next-auth";
-const { auth } = NextAuth(authConfig);
+} from "@/routes"
 
-export default auth((req): any => {
-    const  { nextUrl } = req;
-    const isLoggedIn = !!req.auth;
-  
-    const isApiAuthRoute = nextUrl.pathname.startsWith(apiAuthPrefix[0]); // Fix: Access the first element of the apiAuthPrefix array
-    const isPublicRoute = publicRoutes.includes(nextUrl.pathname);
-    const isAuthRoute = authRoutes.includes(nextUrl.pathname);
-  
-    if (isApiAuthRoute){
-      return null;
-    }
-  
-    if (isAuthRoute) {
-      if (isLoggedIn) {
-        return Response.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl))
-      }
-      return null;
-    }
+import type { NextRequest } from "next/server"
+import { NextResponse } from "next/server"
 
-    if (!isLoggedIn && !isPublicRoute) {
-      let callbackUrl = nextUrl.pathname;
-      if (nextUrl.search) {
-        callbackUrl += nextUrl.search;
-      }
-  
-      const encodedCallbackUrl = encodeURIComponent(callbackUrl);
-  
-      return Response.redirect(new URL(`/auth/login?callbackUrl=${encodedCallbackUrl}`, nextUrl));
-    }
+const SESSION_COOKIE_NAMES = [
+  // next-auth v4
+  "__Secure-next-auth.session-token",
+  "next-auth.session-token",
 
-    return null;
+  // Auth.js / next-auth v5
+  "__Secure-authjs.session-token",
+  "authjs.session-token",
+]
+
+function hasSessionCookie(req: NextRequest): boolean {
+  return SESSION_COOKIE_NAMES.some((name) => Boolean(req.cookies.get(name)?.value))
+}
+
+export default function middleware(req: NextRequest) {
+  const { nextUrl } = req
+  const isLoggedIn = hasSessionCookie(req)
+
+  const isApiAuthRoute = apiAuthPrefix.some((prefix) =>
+    nextUrl.pathname.startsWith(prefix)
+  )
+  const isAuthRoute = authRoutes.includes(nextUrl.pathname)
+
+  // ✅ Allow /products and /products/[id]
+  const isPublicProductPage =
+    nextUrl.pathname === "/products" ||
+    nextUrl.pathname.startsWith("/products/")
+
+  const isPublicRoute =
+    publicRoutes.includes(nextUrl.pathname) || isPublicProductPage
+
+  if (isApiAuthRoute) return NextResponse.next()
+
+  if (isAuthRoute) {
+    if (isLoggedIn) {
+      return NextResponse.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl))
+    }
+    return NextResponse.next()
   }
-)
 
-// Optionally, don't invoke Middleware on some paths
+  if (!isLoggedIn && !isPublicRoute) {
+    let callbackUrl = nextUrl.pathname
+    if (nextUrl.search) callbackUrl += nextUrl.search
+
+    const encodedCallbackUrl = encodeURIComponent(callbackUrl)
+    return NextResponse.redirect(
+      new URL(`/auth/login?callbackUrl=${encodedCallbackUrl}`, nextUrl)
+    )
+  }
+
+  return NextResponse.next()
+}
+
 export const config = {
   matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
 }
-
-// how it was before--->
-
-// matcher: ["/auth/login", "/auth/register"],
-// matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
-
-/* export default auth((req) => {
-  const isLoggedIn = !!req.auth;
-  console.log('ROUTE ', req.nextUrl.pathname)
-  console.log('isLoggedIn', isLoggedIn)
-}) */

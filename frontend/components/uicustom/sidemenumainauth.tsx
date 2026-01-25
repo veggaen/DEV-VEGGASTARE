@@ -2,104 +2,102 @@
 // make me server later..
 import Link from "next/link";
 import { MyThemeBtn } from "./themebtn";
-import { useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { MySidebarToggleBtn } from "./sidebartogglebtn";
-import { authRoutes } from "@/routes";
 import { LogoutMyAction } from "@/actions/logout";
 import { usePathname } from "next/navigation";
+import { FiGrid, FiMessageSquare, FiPackage, FiSettings, FiShoppingCart, FiLogOut, FiRss } from "react-icons/fi";
 
 const LOG_PREFIX = '[[USE CLIENT] sidemenumainauth.tsx.tsx]'
 export const MyMenuSide = () => {
-  const [isHiddenMainMenuTab, setIsHiddenMainMenuTab] = useState(false);
-  const [isHiddenDashboardTab, setIsHiddenDashboardTab] = useState(false);
-  const [isHiddenSupportTab, setIsHiddenSupportTab] = useState(false);
-  const [isHiddenFooterTab, setIsHiddenFooterTab] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  const [isAuthRoute, setIsAuthRoute] = useState(false);
+  const pathname = usePathname();
 
-  // Toggle functions
-  const toggleMainMenu = () => setIsHiddenMainMenuTab(!isHiddenMainMenuTab);
-  const toggleDashboardTab = () => setIsHiddenDashboardTab(!isHiddenDashboardTab);
-  const toggleSupportTab = () => setIsHiddenSupportTab(!isHiddenSupportTab);
-  const toggleFootBar = () => setIsHiddenFooterTab(!isHiddenFooterTab);
-  const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
+  const navItems = useMemo(
+    () => [
+      { href: "/dashboard", label: "Dashboard", icon: FiGrid },
+      { href: "/products", label: "Products", icon: FiPackage },
+      { href: "/feed", label: "Feed", icon: FiRss },
+      { href: "/conversations", label: "Conversations", icon: FiMessageSquare },
+      { href: "/cart", label: "Cart", icon: FiShoppingCart },
+      { href: "/nexus", label: "Settings", icon: FiSettings },
+    ],
+    []
+  );
 
-  const MyAuthRoutes = authRoutes;
-  const params = usePathname() 
-    const useIsAuthRoute = () => {
-      const myAuthRouteArray = MyAuthRoutes.includes(params);
-      setIsAuthRoute(myAuthRouteArray);
-    };
-    useIsAuthRoute();
+  const toggleSidebar = () => setIsSidebarCollapsed((v) => !v);
 
   const onClick = () => {
     console.log(`${LOG_PREFIX} LOGOUT Client => LogoutMyAction()`)
-    LogoutMyAction()
+    startTransition(() => {
+      LogoutMyAction()
+    })
   }
 
   return (
-    <div className={`MyMenuSideMainRoot ${isSidebarCollapsed ? 'absolute max-w-[64px] max-h-[64px] overflow-hidden' : 'overflow-auto no-scrollbar max-h-screen w-96 max-w-[360px] transition-width duration-300 ease-in-out bg-slate-100 text-black dark:bg-slate-950 dark:text-white'} `}>
-      <div className={`MyMenuSideMainHeader flex p-4 ${isSidebarCollapsed ? 'justify-center items-center' : 'justify-between bg-slate-300 dark:bg-slate-900'}`}>
-        <h1 className={`MyMenuSideMainHeaderTittle font-bold text-nowrap ${isSidebarCollapsed ? 'hidden' : ''}`}>Auth Sidebar</h1>
-        <div className="flex">
-          <div onClick={() => toggleSidebar()}>
-          <MySidebarToggleBtn />
-          </div>
-          <div className={`${isSidebarCollapsed ? 'hidden' : ''}`}>
-           <MyThemeBtn />
-          </div>
+    <aside
+      className={`MyMenuSideMainRoot h-[calc(100dvh-var(--app-header))] border-r border-black/10 dark:border-white/10 bg-white/50 dark:bg-black/20 text-slate-900 dark:text-slate-100 backdrop-blur-xl ${
+        isSidebarCollapsed ? "w-[64px]" : "w-[280px]"
+      } transition-[width] duration-200 ease-out overflow-hidden`}
+    >
+      <div className="flex items-center justify-between gap-2 px-3 py-3 border-b border-black/5 dark:border-white/10">
+        <div className={`flex items-center gap-2 ${isSidebarCollapsed ? "justify-center w-full" : ""}`}>
+          <span className={`font-semibold text-sm tracking-tight ${isSidebarCollapsed ? "hidden" : ""}`}>
+            Workspace
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {!isSidebarCollapsed && <MyThemeBtn />}
+          <MySidebarToggleBtn
+            onClick={toggleSidebar}
+            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+          />
         </div>
       </div>
-      <div className="MyMenuSideBody LeftSideNav-category flex flex-col justify-between h-max p-4">
-        <ul className="space-y-2 text-start">
-          <li className={`group w-full px-2 py-1 hover:bg-slate-400/20 hover:dark:bg-slate-600/10 hover:cursor-pointer text-nowrap rounded ${isHiddenMainMenuTab? 'hidden': ''}`}>
-            <h1 onClick={toggleMainMenu} className={`bg-red-500/0 font-serif text-start p-4 text-black/40 dark:text-white/40 group-hover:text-black/80 dark:group-hover:text-white/80`}>Main Menu</h1>
-            <ul className={`w-full py-1 px-8 pb-8 space-y-1 hover:cursor-pointer text-nowrap rounded ${isHiddenMainMenuTab? 'hidden': ''}`}>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Home</li></Link>
-              <Link href='/auth/login' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : 'hidden'}`}>Login</li></Link>
-              <Link href='/auth/register' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : 'hidden'}`}>Register</li></Link>
-              <Link href='/dashboard' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>dashboard</li></Link>
-              <Link href='/nexus' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>settings</li></Link>
-              { !isAuthRoute && <li onClick={onClick} className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Logout</li>}
-            </ul>
-          </li>
-          <li className='group w-full px-2 py-1 hover:bg-slate-400/20 hover:dark:bg-slate-600/10 hover:cursor-pointer text-nowrap rounded'>
-            <h1 onClick={toggleDashboardTab} className='bg-red-500/0 font-serif text-start p-4 text-black/40 dark:text-white/40 group-hover:text-black/80 dark:group-hover:text-white/80'>Dashboard</h1>
-            <ul className={`w-full py-1 px-8 pb-8  space-y-1 hover:cursor-pointer text-nowrap rounded ${isHiddenDashboardTab? 'hidden': ''}`}>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Overview</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Inventory</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Stats</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Profile</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Users</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Guilds</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Settings</li></Link>
-            </ul>
-          </li>
-          <li className='group w-full px-2 py-1 hover:bg-slate-400/20 hover:dark:bg-slate-600/10 hover:cursor-pointer text-nowrap rounded'>
-            <h1 onClick={toggleSupportTab} className='bg-red-500/0 font-serif text-start p-4 text-black/40 dark:text-white/40 group-hover:text-black/80 dark:group-hover:text-white/80'>Support</h1>
-            <ul className={`w-full py-1 px-8 pb-8  space-y-1 hover:cursor-pointer text-nowrap rounded ${isHiddenSupportTab? 'hidden': ''}`}>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Sales and refund</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Shipping and delivery</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Technical support</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Spacial planners</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Areal arcitecture</li></Link>
-            </ul>
-          </li>
-        </ul>
-        <ul className="group space-y-2 text-start">
-          <li className='w-full px-2 py-1 hover:bg-slate-400/20 hover:dark:bg-slate-600/10 hover:cursor-pointer text-nowrap rounded'>
-            <h1 onClick={toggleFootBar} className='bg-red-500/0 font-serif text-start p-4 text-black/40 dark:text-white/40 group-hover:text-black/80 dark:group-hover:text-white/80'>User</h1>
-            <ul className={`w-full py-1 px-8 pb-8  space-y-1 hover:cursor-pointer text-nowrap rounded ${isHiddenFooterTab? 'hidden': ''}`}>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Fese</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Enfis</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Retail</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Vintage</li></Link>
-              <Link href='/' className=''><li className={`w-full py-2 px-4 hover:bg-slate-400/20 hover:dark:bg-slate-600/20 hover:font-bold hover:cursor-pointer text-nowrap rounded ${isAuthRoute? '' : ''}`}>Artistic</li></Link>
-            </ul>
-          </li>
-        </ul>
+
+      <div className="flex h-full flex-col justify-between">
+        <nav className="p-2">
+          <ul className="space-y-1">
+            {navItems.map((item) => {
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const Icon = item.icon;
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${
+                      active
+                        ? "bg-white/70 dark:bg-white/10 font-medium ring-1 ring-black/10 dark:ring-white/10 shadow-sm"
+                        : "hover:bg-black/5 dark:hover:bg-white/5"
+                    }`}
+                    title={isSidebarCollapsed ? item.label : undefined}
+                  >
+                    <Icon className={`h-4 w-4 shrink-0 ${active ? "text-sky-600 dark:text-sky-400" : "text-slate-600 dark:text-slate-300"}`} />
+                    <span className={`${isSidebarCollapsed ? "hidden" : ""}`}>{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div className="p-2 border-t border-black/5 dark:border-white/10">
+          <button
+            type="button"
+            onClick={onClick}
+            disabled={isPending}
+            className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50`}
+            title={isSidebarCollapsed ? "Logout" : undefined}
+          >
+            <FiLogOut className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+            <span className={`${isSidebarCollapsed ? "hidden" : ""}`}>{isPending ? "Signing out..." : "Logout"}</span>
+          </button>
+        </div>
       </div>
-    </div>
+    </aside>
   );
 };

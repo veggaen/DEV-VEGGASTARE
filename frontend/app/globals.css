@@ -2,32 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-/* width */
+/* Scrollbar (subtle + less obstructive) */
 ::-webkit-scrollbar {
-  width: 10px;
+	  width: 8px;
+	  height: 8px;
 }
 
-/* Track */
 ::-webkit-scrollbar-track {
-  background: #292929be;
-  border-radius: 5px;
+	  background: var(--scrollbar-track);
 }
 
-/* Handle */
 ::-webkit-scrollbar-thumb {
-  background: rgba(241, 241, 241, 0.475);
-  border-radius: 6px;
+	  background-color: var(--scrollbar-thumb);
+	  border-radius: 999px;
+	  border: 2px solid transparent;
+	  background-clip: content-box;
 }
 
-/* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
-  background: #739dadbe;
+	  background-color: var(--scrollbar-thumb-hover);
+}
+
+/* Products page scroll container - hide scrollbar completely */
+.productProvider [data-app-scroll-container="true"] {
+	overflow-y: auto;
+	-ms-overflow-style: none; /* IE and Edge */
+	scrollbar-width: none; /* Firefox */
+}
+
+.productProvider [data-app-scroll-container="true"]::-webkit-scrollbar {
+	display: none; /* Chrome, Safari, Opera */
 }
  
 @layer base {
   :root {
     height: 100%;
 
+    /* App layout tokens */
+    --app-header: 72px;
+	    /*
+	     * Actual sticky header height (can be larger than --app-header when the
+	     * TopBar adds vertical padding in its "floating" state).
+	     * JS updates this from the rendered header height.
+	     */
+	    --app-header-offset: var(--app-header);
+
+		    /* /products sticky controls bar height (set dynamically when stuck). */
+		    --products-controls-offset: 0px;
+		    /* /products controls bar rendered height (always measured; used for alignment). */
+		    --products-controls-height: 0px;
+
+    /* shadcn/ui base tokens */
+    --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -55,10 +81,16 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
  
-    --radius: 0.5rem;
+	    --radius: 0.5rem;
+
+			/* Scrollbar colors (used by ::-webkit-scrollbar rules above) */
+			--scrollbar-track: transparent;
+			--scrollbar-thumb: rgba(15, 23, 42, 0.22);
+			--scrollbar-thumb-hover: rgba(15, 23, 42, 0.38);
   }
  
   .dark {
+    --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
  
     --card: 222.2 84% 4.9%;
@@ -84,7 +116,11 @@
  
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+	    --ring: 212.7 26.8% 83.9%;
+
+			--scrollbar-track: transparent;
+			--scrollbar-thumb: rgba(226, 232, 240, 0.22);
+			--scrollbar-thumb-hover: rgba(226, 232, 240, 0.38);
   }
 }
 /*  
@@ -110,45 +146,49 @@
 
 }
 
-@keyframes moveBackground {
+@keyframes ambientShift {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
 
+html,
 body {
   height: 100%;
-  background-size: 250% 250%;
-  animation: moveBackground 15s linear infinite; /* Increased duration and changed timing function to 'linear' for constant speed */
 }
 
-.myamination {
-  background-size: 250% 250%;
-  animation: moveBackground 15s linear infinite; /* Increased duration and changed timing function to 'linear' for constant speed */
+body {
+  min-height: 100dvh;
+  background-attachment: fixed;
+  background-size: 200% 200%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .myanimation {
+    animation: ambientShift 60s linear infinite;
+  }
 }
 
 
 body.light-mode {
-  background-image: linear-gradient(
-    45deg,
-    rgb(120, 152, 184) 0%, /* Start color */
-    #e2f0e3 50%, /* Mid color */
-    rgb(120, 152, 184) 100% /* End color - same as start for seamless transition */
-  );
+  background-image:
+    radial-gradient(900px circle at 10% 10%, rgba(56, 189, 248, 0.22), transparent 55%),
+    radial-gradient(700px circle at 90% 15%, rgba(168, 85, 247, 0.18), transparent 55%),
+    radial-gradient(900px circle at 50% 95%, rgba(34, 197, 94, 0.14), transparent 60%),
+    linear-gradient(120deg, rgb(248, 250, 252) 0%, rgb(226, 232, 240) 50%, rgb(248, 250, 252) 100%);
 }
 
 body.dark-mode {
-  background-image: linear-gradient(
-    45deg,
-    rgb(16, 37, 68) 0%, /* Start color */
-    #1e232b 50%, /* Mid color */
-    rgb(16, 37, 68) 100% /* End color - same as start for seamless transition */
-  );
+  background-image:
+    radial-gradient(900px circle at 10% 10%, rgba(56, 189, 248, 0.14), transparent 55%),
+    radial-gradient(700px circle at 90% 15%, rgba(168, 85, 247, 0.12), transparent 55%),
+    radial-gradient(900px circle at 50% 95%, rgba(34, 197, 94, 0.10), transparent 60%),
+    linear-gradient(120deg, rgb(2, 6, 23) 0%, rgb(15, 23, 42) 50%, rgb(2, 6, 23) 100%);
 }
 
 .pppage {
   background-size: 250% 250%;
-  animation: moveBackground 15s linear infinite;
+  animation: ambientShift 60s linear infinite;
 }
 
 .specificElement102 {

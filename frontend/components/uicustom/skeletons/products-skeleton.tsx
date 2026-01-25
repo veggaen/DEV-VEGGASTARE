@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { CogIcon } from "lucide-react";
+import { HiOutlineCog6Tooth } from "react-icons/hi2";
 
 export default function ProductsSkeleton() {
   const placeholderItems = Array.from({ length: 10 });
@@ -25,7 +25,7 @@ export default function ProductsSkeleton() {
                 <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div>
               </div>
               <div className="flex justify-between items-center my-2 sm:mt-4 gap-2">
-                <CogIcon className="h-5 w-5 text-gray-500" />
+                <HiOutlineCog6Tooth className="h-5 w-5 text-gray-500" />
                 <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/4"></div>
               </div>
               <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-full"></div>

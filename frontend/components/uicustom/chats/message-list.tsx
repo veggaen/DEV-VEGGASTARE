@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { Button } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloudIcon, XCircle } from 'lucide-react';
+import { RxCrossCircled } from "react-icons/rx";
+import { FaFileUpload } from "react-icons/fa";
 import { useEdgeStore } from '@/lib/edgestore';
 import Pusher from 'pusher-js';
 import Spinner from '../spinner';
@@ -209,12 +210,12 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                               onClick={handleRemoveImage}
                               disabled={isSaving}
                             >
-                              <XCircle className="h-4 w-4" />
+                              <RxCrossCircled className="h-4 w-4" />
                             </button>
                           </div>
                         ) : (
                           <div className="text-center">
-                            <UploadCloudIcon className="h-6 w-6 text-gray-500 dark:text-gray-300 mx-auto" />
+                            <FaFileUpload className="h-6 w-6 text-gray-500 dark:text-gray-300 mx-auto" />
                             <p className="text-sm">Drag or click to replace image</p>
                           </div>
                         )}

@@ -1,3 +1,4 @@
+// datasource & generator
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -14,6 +15,81 @@ enum UserRole {
   USER
 }
 
+enum EmployeeRole {
+  OWNER
+  MANAGER
+  STAFF
+  USER
+}
+
+enum PackageStatus {
+  PENDING
+  IN_TRANSIT
+  DELIVERED
+  EXCEPTION
+}
+
+// Conversation type determines the nature of the conversation
+enum ConversationType {
+  PUBLIC_THREAD    // Open forum-style thread, anyone can view
+  PRIVATE_DM       // Direct message between 2 users
+  GROUP            // Private group chat with invited participants
+  RESTRICTED       // Visible to specific roles or custom list
+}
+
+// Who can see/read the conversation
+enum ConversationVisibility {
+  PUBLIC           // Anyone can read
+  PARTICIPANTS     // Only participants can read
+  ROLE_BASED       // Only users with specific roles can read
+  CUSTOM           // Custom list of allowed viewers
+}
+
+// Who can reply/post messages
+enum ReplyPermission {
+  EVERYONE         // Anyone who can view can reply
+  PARTICIPANTS     // Only participants can reply
+  MENTIONED        // Only mentioned users can reply
+  MODS_ONLY        // Only moderators/admins can reply
+  CREATOR_ONLY     // Only the creator can post (announcement mode)
+}
+
+// Deletion visibility - how the pending deletion is shown
+enum DeletionVisibility {
+  PUBLIC           // Shows "This thread is being deleted in X days"
+  PRIVATE          // Silent deletion, no public notice
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  METAMASK
+  PAYPAL
+  COINBASEWALLET
+  VISA
+  SOLFLARE
+  PHANTOM
+  MATHWALLET
+  TRUST
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+// NEW: which chain family a wallet/token belongs to
+enum ChainFamily {
+  EVM
+  SOLANA
+}
+
 model User {
   id                    String                 @id @default(cuid())
   name                  String?
@@ -28,16 +104,21 @@ model User {
   reviews               Review[]
   isTwoFactorEnabled    Boolean                @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
-  createdCompanies      Company[]              @relation("Creator") 
-  ownedCompanies        Company[]              @relation("Owner") 
+  createdCompanies      Company[]              @relation("Creator")
+  ownedCompanies        Company[]              @relation("Owner")
   Employee              Employee[]
   Package               Package[]
   warehouseLocations    WarehouseLocation[]    @relation("UserWarehouses")
   carts                 Cart[]
   orders                Order[]
-  jobRequests           JobRequest[] 
+  jobRequests           JobRequest[]
   messages              Message[]              @relation("UserMessages")
   createdConversations  Conversation[]         @relation("CreatedConversations")
+  conversationViews     ConversationView[]     @relation("UserConversationViews")
+
+  // NEW: user-scoped wallets
+  wallets               Wallet[]               @relation("UserWallets")
+
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 }
@@ -97,7 +178,10 @@ model TwoFactorConfirmation {
   @@unique([userId])
 }
 
+// ───────────────────────────────────────────────────────────────────────────────
 // PRODUCTS RELATED
+// ───────────────────────────────────────────────────────────────────────────────
+
 model Product {
   id               String            @id @default(cuid())
   title            String
@@ -115,9 +199,17 @@ model Product {
   inventory        Inventory[]
   shippingDetails  ShippingDetails[]
   reviews          Review[]
-  cartItems        CartItem[] 
+  cartItems        CartItem[]
+
+  // NEW: where payments for this product should be received
+  receiverWalletId String?
+  receiverWallet   Wallet?           @relation("ProductReceiverWallet", fields: [receiverWalletId], references: [id])
+
+  // NEW: optional token allowlist for this product
+  acceptedTokens   ProductAcceptedToken[]
+
   createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 }
 
 model Inventory {
@@ -138,7 +230,7 @@ model Inventory {
 model SpecificationsDetails {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ShippingDetails {
@@ -149,7 +241,7 @@ model ShippingDetails {
   productId String
   product   Product? @relation(fields: [productId], references: [id])
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Review {
@@ -162,10 +254,13 @@ model Review {
   userId     String
   user       User     @relation(fields: [userId], references: [id])
   createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
+// ───────────────────────────────────────────────────────────────────────────────
 // Company Related
+// ───────────────────────────────────────────────────────────────────────────────
+
 model Company {
   id                 String              @id @default(cuid())
   name               String
@@ -188,6 +283,9 @@ model Company {
   Package            Package[]
   Product            Product[]           @relation("CompanyProducts")
   conversations      Conversation[]      @relation("CompanyConversations")
+
+  // NEW: company-scoped wallets
+  wallets            Wallet[]            @relation("CompanyWallets")
 }
 
 model Employee {
@@ -197,11 +295,12 @@ model Employee {
   user        User         @relation(fields: [userId], references: [id])
   company     Company      @relation(fields: [companyId], references: [id])
   role        EmployeeRole
-  permissions Json 
+  permissions Json
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
 
+// Where stock is located
 model WarehouseLocation {
   id         String      @id @default(cuid())
   userId     String?
@@ -223,14 +322,56 @@ model WarehouseLocation {
   @@unique([companyId, postalCode])
 }
 
-enum EmployeeRole {
-  OWNER
-  MANAGER
-  STAFF
-  USER
+// ───────────────────────────────────────────────────────────────────────────────
+// NEW: Wallets and accepted tokens
+// ───────────────────────────────────────────────────────────────────────────────
+
+model Wallet {
+  id              String      @id @default(cuid())
+  label           String
+  family          ChainFamily
+  // EVM specifics
+  chainId         Int?
+  // Solana specifics
+  solanaCluster   String?
+  address         String
+  isDefault       Boolean     @default(false)
+
+  // ownership (one of these is set)
+  ownerUserId     String?
+  ownerCompanyId  String?
+
+  user            User?       @relation("UserWallets", fields: [ownerUserId], references: [id])
+  company         Company?    @relation("CompanyWallets", fields: [ownerCompanyId], references: [id])
+
+  // products that pay to this wallet
+  products        Product[]   @relation("ProductReceiverWallet")
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
 
-// Company Business Analytics related
+model ProductAcceptedToken {
+  id           String      @id @default(cuid())
+  productId    String
+  product      Product     @relation(fields: [productId], references: [id])
+
+  family       ChainFamily
+  tokenAddress String?     // EVM/PRC20
+  tokenMint    String?     // SPL
+  symbol       String
+  decimals     Int
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([productId, family, symbol])
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Analytics / Shipping / Cart / Orders / Chat
+// ───────────────────────────────────────────────────────────────────────────────
+
 model Sale {
   id           String   @id @default(cuid())
   companyId    String
@@ -238,7 +379,7 @@ model Sale {
   date         DateTime
   totalAmount  Float
   profit       Float
-  productsSold Json 
+  productsSold Json
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -251,12 +392,11 @@ model MonthlyReport {
   month          Int
   totalSales     Float
   totalProfit    Float
-  productSummary Json 
+  productSummary Json
   createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
-// Company Shipping related
 model Package {
   id                String        @id @default(cuid())
   trackingNumber    String
@@ -266,22 +406,14 @@ model Package {
   user              User          @relation(fields: [userId], references: [id])
   status            PackageStatus
   estimatedDelivery DateTime?
-  history           Json 
+  history           Json
   createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 }
 
-enum PackageStatus {
-  PENDING
-  IN_TRANSIT
-  DELIVERED
-  EXCEPTION
-}
-
-// Cart-related models
 model Cart {
   id        String     @id @default(cuid())
-  userId    String     @unique 
+  userId    String     @unique
   user      User       @relation(fields: [userId], references: [id])
   items     CartItem[]
   createdAt DateTime   @default(now())
@@ -296,7 +428,7 @@ model CartItem {
   product   Product  @relation(fields: [productId], references: [id])
   quantity  Int
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([productId, cartId])
 }
@@ -311,14 +443,7 @@ model Order {
   payment         Payment?
   transactionId   String?
   createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @default(now())
-}
-
-enum OrderStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  CANCELLED
+  updatedAt       DateTime    @updatedAt
 }
 
 model Payment {
@@ -330,33 +455,16 @@ model Payment {
   commentPay      String?
   transactionId   String?
   createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @default(now())
-}
-
-enum PaymentMethod {
-  METAMASK
-  PAYPAL
-  COINBASEWALLET
-  VISA
-  SOLFLARE
-  PHANTOM
-  MATHWALLET
-  TRUST
-}
-
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
+  updatedAt       DateTime      @updatedAt
 }
 
 model JobRequest {
   id              String   @id @default(cuid())
-  title           String?     
-  descriptions    String[] 
-  images          String[] 
-  links           String[] 
-  docs            String[] 
+  title           String?
+  descriptions    String[]
+  images          String[]
+  links           String[]
+  docs            String[]
   price           Float?
   negotiable      Boolean?
   paymentMethod   String?
@@ -372,16 +480,122 @@ model JobRequest {
 
 // Messaging Models
 model Conversation {
+  id               String                  @id @default(cuid())
+  title            String?
+  description      String?                 // Optional description for public threads
+  userId           String                  // Creator
+  user             User                    @relation("CreatedConversations", fields: [userId], references: [id])
+  participants     String[]                // Array of user IDs (kept for backwards compatibility)
+  companyId        String?
+  company          Company?                @relation("CompanyConversations", fields: [companyId], references: [id])
+  messages         Message[]               @relation("ConversationMessages")
+
+  // New fields for visibility and permissions
+  type             ConversationType        @default(PRIVATE_DM)
+  visibility       ConversationVisibility  @default(PARTICIPANTS)
+  replyPermission  ReplyPermission         @default(PARTICIPANTS)
+
+  // Optional: allowed roles for ROLE_BASED visibility (stored as JSON array of role strings)
+  allowedRoles     String[]                @default([])
+
+  // Optional: custom viewer list for CUSTOM visibility (user IDs)
+  customViewers    String[]                @default([])
+
+  // Moderation
+  isPinned         Boolean                 @default(false)
+  isLocked         Boolean                 @default(false)  // No new replies allowed
+
+  // Topics/Tags for forum browsing
+  tags             String[]                @default([])
+
+  // Engagement metrics (for "reach over followers" sorting)
+  // These track actual engagement, not vanity metrics
+  viewCount        Int                     @default(0)      // Total page loads/views
+  uniqueViewCount  Int                     @default(0)      // Unique users who viewed
+  replyCount       Int                     @default(0)      // Total replies (cached for performance)
+  uniqueRepliers   Int                     @default(0)      // Unique users who replied
+  lastActivityAt   DateTime                @default(now())  // Last message or interaction
+  views            ConversationView[]      @relation("ConversationViews")
+
+  // Deletion system (tiered based on reach)
+  deletionRequestedAt  DateTime?                            // When creator requested deletion
+  deletionScheduledFor DateTime?                            // When it will actually be deleted
+  deletionVisibility   DeletionVisibility  @default(PRIVATE) // Public notice or silent deletion
+  isAnonymized         Boolean             @default(false)  // Creator anonymized immediately on delete request
+  originalUserId       String?                              // Store original creator ID when anonymized
+
+  // Suspicious activity detection (for viral velocity checks)
+  suspiciousActivity   Boolean             @default(false)  // Flagged for admin review
+  suspiciousReason     String?                              // Why it was flagged
+
+  // Poll attached to conversation (optional)
+  poll             Poll?                   @relation("ConversationPoll")
+
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+}
+
+// Track unique views per user for conversations
+model ConversationView {
   id             String        @id @default(cuid())
-  title          String?
-  userId         String
-  user           User          @relation("CreatedConversations", fields: [userId], references: [id])
-  participants   String[]
-  companyId      String?
-  company        Company?      @relation("CompanyConversations", fields: [companyId], references: [id])
-  messages       Message[]     @relation("ConversationMessages")
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  conversationId String
+  conversation   Conversation  @relation("ConversationViews", fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String        // Who viewed (null for anonymous - but we only track logged-in users)
+  user           User          @relation("UserConversationViews", fields: [userId], references: [id], onDelete: Cascade)
+  viewCount      Int           @default(1)  // How many times this user viewed
+  firstViewedAt  DateTime      @default(now())
+  lastViewedAt   DateTime      @default(now())
+
+  @@unique([conversationId, userId])  // One record per user per conversation
+  @@index([conversationId])
+  @@index([userId])
+}
+
+// Poll for conversations - allows voting within a thread
+model Poll {
+  id               String        @id @default(cuid())
+  question         String        // The poll question
+  conversationId   String        @unique
+  conversation     Conversation  @relation("ConversationPoll", fields: [conversationId], references: [id], onDelete: Cascade)
+  creatorId        String        // Who created the poll
+
+  // Poll configuration
+  allowMultiple    Boolean       @default(false)  // Can vote for multiple options
+  isAnonymous      Boolean       @default(false)  // Hide who voted for what
+  expiresAt        DateTime?                      // When voting closes (null = never)
+
+  // Poll options and votes (stored as relations)
+  options          PollOption[]  @relation("PollOptions")
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+// Poll option - each choice in a poll
+model PollOption {
+  id        String      @id @default(cuid())
+  pollId    String
+  poll      Poll        @relation("PollOptions", fields: [pollId], references: [id], onDelete: Cascade)
+  text      String      // The option text
+  order     Int         @default(0)  // Display order
+
+  // Votes for this option
+  votes     PollVote[]  @relation("OptionVotes")
+
+  createdAt DateTime    @default(now())
+}
+
+// Poll vote - tracks who voted for what
+model PollVote {
+  id        String      @id @default(cuid())
+  optionId  String
+  option    PollOption  @relation("OptionVotes", fields: [optionId], references: [id], onDelete: Cascade)
+  userId    String
+
+  createdAt DateTime    @default(now())
+
+  // Ensure one vote per user per option
+  @@unique([optionId, userId])
 }
 
 model Message {
@@ -392,6 +606,13 @@ model Message {
   conversationId String
   conversation   Conversation  @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
   imageUrl       String?
+
+  // Mentions: array of user IDs mentioned in this message
+  mentions       String[]      @default([])
+
+  // Optional: parent message ID for threaded replies
+  parentId       String?
+
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   editedAt       DateTime?

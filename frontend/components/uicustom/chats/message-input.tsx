@@ -2,7 +2,8 @@
 
 import React, { useState, useRef } from 'react';
 import { useEdgeStore } from '@/lib/edgestore';
-import { UploadCloudIcon, XCircle } from 'lucide-react';
+import { RxCrossCircled } from "react-icons/rx";
+import { FaFileUpload } from "react-icons/fa";
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 
@@ -110,11 +111,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               className="absolute top-0 right-0 p-1 rounded-full bg-red-600 text-white hover:bg-red-700"
               onClick={handleRemoveImage}
             >
-              <XCircle className="h-4 w-4" />
+              <RxCrossCircled className="h-4 w-4" />
             </button>
           </div>
         ) : (
-          <UploadCloudIcon className="h-6 w-6 text-gray-500 dark:text-gray-300" />
+          <FaFileUpload className="h-6 w-6 text-gray-500 dark:text-gray-300" />
         )}
       </div>
       <div className="flex-1 relative">

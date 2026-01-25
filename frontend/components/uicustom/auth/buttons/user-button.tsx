@@ -1,107 +1,102 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { FaCartFlatbed } from "react-icons/fa6";
-import { FaUser } from 'react-icons/fa';
-import { MyLogoutButton } from './logout-button';
-import Link from 'next/link';
-import { ExitIcon } from '@radix-ui/react-icons';
-import { MyThemeBtn } from '../../themebtn';
-import { useTheme } from 'next-themes';
+import { FaUser } from "react-icons/fa";
+import Link from "next/link";
+import { signOut } from "next-auth/react";
+import { ExitIcon } from "@radix-ui/react-icons";
 import { TiMessages } from "react-icons/ti";
-import { MyDialogbarNavigator } from '@/app/(protected)/_components/dialog-bar';
-import WalletConnection from '@/components/crypto-related/WalletAdapter';
-import { useCurrentUser } from '@/hooks/use-current-user';
+import { AiOutlineSetting } from "react-icons/ai";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export const MyUserButton = () => {
-  const customName = 'vegaThemeBtnDefault';
-  const { setTheme, theme } = useTheme();
   const user = useCurrentUser();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  const handleThemeToggle = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
-    setDropdownOpen(false); // Hide the dropdown menu
-  };
-
-  const handleMenuItemClick = () => {
-    setDropdownOpen(false); // Hide the dropdown menu
-  };
-
-  const style = {
-    dropDownItemStyle: 'relative hover:bg-sky-500/40 dark:hover:bg-sky-500/40 flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-  };
 
   if (!user) {
     return (
-      <div className='flex justify-center items-center gap-3'>
-        <div className='hidden md:flex'>
-          Guest
-        </div>
-      </div>
+			<div className="hidden md:flex items-center text-sm text-slate-600 dark:text-slate-300">Guest</div>
     );
   }
 
   return (
-    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-      {user && (
-      <div className='flex justify-center items-center gap-3'>
-        <div className='hidden md:flex'>
-          {user && user.name}
-        </div>
-        <DropdownMenuTrigger className='outline-none'>
-          <Avatar className={`h-12 w-12 hover:scale-105`}>
-            <AvatarImage src={user && user.image !== null ? user.image : '/users/avatar.webp'} alt="User" />
-            <AvatarFallback className='bg-emerald-500 outline-none'>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+	          size="icon"
+					className="group h-[52px] w-[52px] rounded-full bg-transparent p-0 text-slate-700 hover:bg-transparent hover:text-slate-950 dark:text-slate-200 dark:hover:bg-transparent dark:hover:text-slate-50 focus-visible:ring-2 focus-visible:ring-sky-400/70 transform-none hover:scale-100 active:scale-100"
+	          aria-label="Open user menu"
+	          title={user.name ?? "User menu"}
+        >
+					<Avatar className="h-[52px] w-[52px] shrink-0 border-0 bg-transparent">
+            <AvatarImage src={user.image || "/users/avatar.webp"} alt="User" />
+            <AvatarFallback className="bg-emerald-500 text-white">
               <FaUser />
             </AvatarFallback>
           </Avatar>
-        </DropdownMenuTrigger>
-      </div>
-      )}
-      <DropdownMenuContent className={`w-40 pr-1`} align='end'>
-        {user && (
-          <div>
-            <div className={style.dropDownItemStyle}>
-              <div className='flex justify-start items-center' onClick={handleThemeToggle}>
-                <MyThemeBtn customName={customName} onClick={handleThemeToggle} />
-                <p className='hidden dark:flex'>Dark mode</p>
-                <p className='dark:hidden'>Light mode</p>
-              </div>
-            </div>
-            <div className={style.dropDownItemStyle}>
-              <div className='w-full flex '>
-                <MyDialogbarNavigator />
-              </div>
-            </div>
-            <Link href='/conversations'>
-              <div className={style.dropDownItemStyle} onClick={handleMenuItemClick}>
-                <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
-                  <TiMessages className={`min-h-[1.2rem] min-w-[1.2rem]`} />
-                  <p className=''>Conversations</p>
-                </div>
-              </div>
-            </Link>
-            <Link href='/cart'>
-              <div className={style.dropDownItemStyle} onClick={handleMenuItemClick}>
-                <div className={'flex items-center justify-center gap-3 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
-                  <FaCartFlatbed className={`min-h-[1.2rem] min-w-[1.2rem]`} />
-                  <p className=''>Cart</p>
-                </div>
-              </div>
-            </Link>
-            <WalletConnection />
-            <MyLogoutButton>
-              <div className={style.dropDownItemStyle} onClick={handleMenuItemClick}>
-                <div className={'flex items-center justify-center gap-2 rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0'}>
-                  <ExitIcon className={`h-6 w-6 pr-1`} /><span>Logout</span>
-                </div>
-              </div>
-            </MyLogoutButton>
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent
+        align="end"
+				sideOffset={10}
+				className="w-72 rounded-2xl border border-black/10 bg-white/85 p-2 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/75"
+      >
+				<DropdownMenuLabel className="px-2 py-2">
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{user.name}</span>
+            {user.email ? (
+              <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</span>
+            ) : null}
           </div>
-        )}
+        </DropdownMenuLabel>
+
+        <DropdownMenuSeparator />
+
+				<DropdownMenuItem asChild className="cursor-pointer rounded-xl px-2.5 py-2 focus:bg-black/5 dark:focus:bg-white/10">
+          <Link href="/conversations" className="flex w-full items-center gap-2">
+            <TiMessages className="h-5 w-5" />
+            Conversations
+          </Link>
+        </DropdownMenuItem>
+
+				<DropdownMenuItem asChild className="cursor-pointer rounded-xl px-2.5 py-2 focus:bg-black/5 dark:focus:bg-white/10">
+          <Link href="/cart" className="flex w-full items-center gap-2">
+            <FaCartFlatbed className="h-5 w-5" />
+            Cart
+          </Link>
+        </DropdownMenuItem>
+
+				<DropdownMenuItem asChild className="cursor-pointer rounded-xl px-2.5 py-2 focus:bg-black/5 dark:focus:bg-white/10">
+          <Link href="/nexus" className="flex w-full items-center gap-2">
+            <AiOutlineSetting className="h-5 w-5" />
+            Settings
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+				<DropdownMenuItem
+					className="cursor-pointer rounded-xl px-2.5 py-2 text-red-600 focus:bg-red-500/10 focus:text-red-700 dark:focus:bg-red-500/15 dark:focus:text-red-400"
+          onSelect={(e) => {
+            e.preventDefault();
+            signOut();
+          }}
+        >
+          <ExitIcon className="h-5 w-5" />
+          Logout
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

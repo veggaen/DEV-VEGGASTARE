@@ -1,18 +1,20 @@
 import { dbPrisma } from '@/lib/db';
 import { pusherServer } from '@/lib/pusher';
 import { MyLibUserAuth } from '@/lib/user-auth';
+import { canReplyToConversation } from '@/lib/conversation-permissions';
 import { NextResponse } from 'next/server';
 
 const LOG_PREFIX = '[frontend/app/api/messages/route.ts]'
 
 export async function POST(req: Request) {
-  console.log(LOG_PREFIX, 'POST(1/2) - creating message...');
+  console.log(LOG_PREFIX, 'POST(1/3) - creating message...');
   const session = await MyLibUserAuth();
   if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
   const userId = session.id;
+  const userRole = session.role;
   const { conversationId, content, imageUrl } = await req.json();
 
   if (!userId) {
@@ -20,13 +22,52 @@ export async function POST(req: Request) {
   }
 
   try {
-    
+    // Fetch conversation to check permissions
+    const conversation = await dbPrisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) {
+      return NextResponse.json({ message: 'Conversation not found' }, { status: 404 });
+    }
+
+    // Check if user can reply to this conversation
+    console.log(LOG_PREFIX, 'POST(2/3) - checking reply permissions...');
+    const user = { id: userId, role: userRole };
+    const canReply = canReplyToConversation(user, conversation);
+    if (!canReply) {
+      console.log(LOG_PREFIX, 'POST - user not authorized to reply');
+      return NextResponse.json({ message: 'You do not have permission to reply to this conversation' }, { status: 403 });
+    }
+
     const message = await dbPrisma.message.create({
       data: {
         content,
         imageUrl,
         senderId: userId,
         conversationId,
+      },
+    });
+
+    // Update conversation engagement metrics (for "reach over followers" sorting)
+    // Check if this user has replied before to track unique repliers
+    const previousReplies = await dbPrisma.message.count({
+      where: {
+        conversationId,
+        senderId: userId,
+        id: { not: message.id }, // Exclude the message we just created
+      },
+    });
+
+    const isNewReplier = previousReplies === 0 && userId !== conversation.userId;
+
+    await dbPrisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        updatedAt: new Date(),
+        lastActivityAt: new Date(),
+        replyCount: { increment: 1 },
+        ...(isNewReplier ? { uniqueRepliers: { increment: 1 } } : {}),
       },
     });
 
@@ -41,21 +82,26 @@ export async function POST(req: Request) {
         createdAt: message.createdAt,
       },
     });
-    console.log(LOG_PREFIX, 'POST(2/2) - message successfully created, triggering pusher event...', `ConversationChannel_${conversationId} - new-message`);
+    console.log(LOG_PREFIX, 'POST(3/3) - message successfully created, triggering pusher event...', `ConversationChannel_${conversationId} - new-message`);
     return NextResponse.json(message, { status: 201 });
   } catch (error) {
-    console.error(LOG_PREFIX, 'POST(2/2) - error creating message:', error);
+    console.error(LOG_PREFIX, 'POST - error creating message:', error);
     return NextResponse.json({ message: 'Error sending message', error }, { status: 500 });
   }
 }
 
 export async function GET(req: Request) {
-  console.log(LOG_PREFIX, `GET(1/2) - fetching messages...`);
+  console.log(LOG_PREFIX, `GET(1/3) - fetching messages...`);
   const { searchParams } = new URL(req.url);
   const conversationId = searchParams.get('conversationId');
   if (!conversationId) {
     return NextResponse.json({ message: 'Invalid conversation ID' }, { status: 400 });
   }
+
+  // Get session - may be null for public conversations
+  const session = await MyLibUserAuth();
+  const userId = session?.id;
+  const userRole = session?.role;
 
   try {
     // Fetch the conversation
@@ -67,6 +113,16 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: 'Conversation not found' }, { status: 404 });
     }
 
+    // Check view permissions
+    console.log(LOG_PREFIX, `GET(2/3) - checking view permissions...`);
+    const { canViewConversation } = await import('@/lib/conversation-permissions');
+    const user = userId && userRole ? { id: userId, role: userRole } : null;
+    const canView = canViewConversation(user, conversation);
+    if (!canView) {
+      console.log(LOG_PREFIX, 'GET - user not authorized to view');
+      return NextResponse.json({ message: 'You do not have permission to view this conversation' }, { status: 403 });
+    }
+
     // Fetch the messages
     const messages = await dbPrisma.message.findMany({
       where: { conversationId },
@@ -74,16 +130,18 @@ export async function GET(req: Request) {
     });
 
     // Fetch users who are participants in the conversation
-    const participantIds = conversation.participants as string[]; // assuming participants is an array of strings
+    const participantIds = conversation.participants as string[];
+    // Also include the creator
+    const allUserIds = [...new Set([...participantIds, conversation.userId])];
     const users = await dbPrisma.user.findMany({
-      where: { id: { in: participantIds } },
-      select: { id: true, name: true },
+      where: { id: { in: allUserIds } },
+      select: { id: true, name: true, image: true },
     });
 
-    console.log(LOG_PREFIX, `GET(2/2) - fetched messages successfully`);
-    return NextResponse.json({ messages, users }, { status: 200 });
+    console.log(LOG_PREFIX, `GET(3/3) - fetched messages successfully`);
+    return NextResponse.json({ messages, users, conversation }, { status: 200 });
   } catch (error) {
-    console.error(LOG_PREFIX, `GET(2/2) - error fetching messages:`, error);
+    console.error(LOG_PREFIX, `GET - error fetching messages:`, error);
     return NextResponse.json({ message: 'Error fetching messages', error: error instanceof Error ? error.message : 'An unknown error occurred'}, { status: 500 });
   }
 }

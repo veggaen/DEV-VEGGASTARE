@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
-import { UploadCloudIcon, XCircle } from 'lucide-react';
+import { FaFileUpload } from "react-icons/fa";
+import { FiXCircle } from "react-icons/fi";
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { useEdgeStore } from '@/lib/edgestore';
@@ -297,13 +298,13 @@ const MyJobAsk: FC = () => {
             <p className="text-sm lg:text-lg text-gray-200 dark:text-gray-300 mt-4 lg:mt-6 xs:font-semibold lg:font-semibold leading-relaxed max-w-4xl">
               Welcome to the Job Ask form! <br /> Here, you can easily submit a detailed job request to companies. Start by giving your request a clear and descriptive title.
               <br /><br />
-              You'll find space to add an image along with a corresponding description. This is where you can highlight exactly what you're looking for. If you have more images to include, you can always add them using the "Add Image with description" button, but it’s totally optional.
+	              You&apos;ll find space to add an image along with a corresponding description. This is where you can highlight exactly what you&apos;re looking for. If you have more images to include, you can always add them using the &quot;Add Image with description&quot; button, but it&apos;s totally optional.
               <br /><br />
-              There are also some optional fields for adding links, documents, delivery details, and additional notes. These aren’t required, but adding them can give companies a better idea of your needs.
+	              There are also some optional fields for adding links, documents, delivery details, and additional notes. These aren&apos;t required, but adding them can give companies a better idea of your needs.
               <br /><br />
               By default, your request will be sent to all companies registered on this platform. This means your job ask will be visible to a wide audience, allowing any potential job takers to express interest in completing your request.
               <br /><br />
-              However, if you prefer to target specific companies, you can easily adjust this in the optional details section. Just click "Show Optional details" to customize your selection.
+	              However, if you prefer to target specific companies, you can easily adjust this in the optional details section. Just click &quot;Show Optional details&quot; to customize your selection.
             </p>
           </div>
         </div>
@@ -507,7 +508,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
             <div className="w-full h-full">
               <AspectRatio ratio={1 / 1}>
                 <div className="text-center flex flex-col justify-center items-center h-full w-full">
-                  <UploadCloudIcon className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200 group-hover:animate-bounce" />
+                  <FaFileUpload className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200 group-hover:animate-bounce" />
                   <p className="mt-1 text-sm text-gray-600 dark:text-gray-200">
                     Drag n drop an IMAGE here, or click to select an IMAGE
                   </p>
@@ -525,7 +526,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
                     onClick={() => handleRemoveImage(index, imgIndex)}
                     className="absolute top-1 right-1 hover:scale-110 transform duration-300 bg-gray-800/30 hover:bg-red-600/40 text-white p-1 rounded-full cursor-pointer"
                   >
-                    <XCircle className="h-4 w-4" />
+                    <FiXCircle className="h-4 w-4" />
                   </div>
                 </div>
               ))}

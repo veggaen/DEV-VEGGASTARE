@@ -2,33 +2,34 @@
 /**
 * An array of routes that are accessible to the public,
 * This is here because by default every route might be protected?
-* Theese routes do not require authentication
+* Public routes that don't require authentication
 * @type {string[]}
 */
 export const publicRoutes = [
-    "/",
-    "/auth/new-verification",
-    "/api/bring-shipping",
-    "/api/bring-shipping-suggest-postcode",
-    "/api/companies/employees/add",
-    "/api/companies/employees/remove",
-    "/api/edgestore/request-upload",
-    "/api/edgestore/confirm-upload",
-    // add more as needed...
+  "/",
+  "/products", // ✅ NEW — allow listing
+  "/feed", // ✅ Public feed page (anyone can view, only logged-in can post)
+  "/auth/new-verification",
+  "/api/bring-shipping",
+  "/api/bring-shipping-suggest-postcode",
+  "/api/companies/employees/add",
+  "/api/companies/employees/remove",
+  "/api/edgestore/request-upload",
+  "/api/edgestore/confirm-upload"
 ];
 
 /**
 * An array of routes that are used for authentication
-* Theese routes will redirect logged in users to /settings
+* Auth routes (redirect logged-in users away)
 * @type {string[]}
 */
 export const authRoutes = [
-    "/auth/login",
-    "/auth/register",
-    "/auth/error",
-    "/auth/reset",
-    "/auth/new-password",
-]
+  "/auth/login",
+  "/auth/register",
+  "/auth/error",
+  "/auth/reset",
+  "/auth/new-password"
+];
 
 /**
 * The prefix for API authentication routes

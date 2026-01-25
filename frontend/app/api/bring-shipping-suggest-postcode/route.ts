@@ -1,13 +1,21 @@
 // frontend/app/api/bring-shipping-suggest-postcode/route.ts
 import { BringPostalCodeSuggestionsResponse } from '@/lib/BringPostalCodeSuggestionTypes';
-import { NextApiRequest, NextApiResponse } from 'next';
 import type { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
 
 const bringApiUID = process.env.BRING_SHIPPING_API_UID;
 const bringApiKey = process.env.BRING_SHIPPING_API_KEY;
   
 export async function GET(req: NextRequest) {
+	if (!bringApiUID || !bringApiKey) {
+		return new Response(
+			JSON.stringify({
+				error:
+					'Bring API credentials are missing. Set BRING_SHIPPING_API_UID and BRING_SHIPPING_API_KEY in the server env.',
+			}),
+			{ status: 500, headers: { 'Content-Type': 'application/json' } }
+		);
+	}
+
   const query = req.nextUrl.searchParams.get('postalCode');
   const page = req.nextUrl.searchParams.get('page') || '1'; // Default to page 1 if not specified
   const countryCode = req.nextUrl.searchParams.get('countryCode') || 'no'; // Default to page 1 if not specified
@@ -27,10 +35,16 @@ export async function GET(req: NextRequest) {
     const apiURL = `https://api.bring.com/address/api/${countryCode}/postal-codes/suggestions?q=${query}&page=${page}`;
     console.log('Calling Bring API with URL:', apiURL);
 
+		const fallbackClientUrl = process.env.NODE_ENV === 'development'
+			? 'http://localhost:3000/'
+			: 'https://www.veggat.com/';
+		const clientUrl = req.headers.get('origin') || fallbackClientUrl;
+
     const response = await fetch(apiURL, {
       headers: {
         'X-Mybring-API-Uid': bringApiUID || '',
         'X-Mybring-API-Key': bringApiKey || '',
+				'X-Bring-Client-URL': clientUrl,
         'Accept': 'application/json',
       },
     });
