@@ -148,14 +148,18 @@ function AnimatedTitle({
 
   const baseDelay = 0.15;
   const perLetter = 0.02;
-  const settleDelay = baseDelay + Math.min(letters.length * perLetter, 0.9) + 0.15;
 
   return (
-    <div className="relative">
-      {/* Animated reveal layer (slightly tighter tracking + uppercase vibe) */}
-      <motion.h1
+    <h1
+      className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight tracking-tight"
+      aria-label={text}
+    >
+      {/* Single visible layer; keep accessibility text intact */}
+      <span className="sr-only">{text}</span>
+
+      <motion.span
         aria-hidden
-        className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight tracking-tight"
+        className="inline"
         initial="hidden"
         animate="show"
         variants={{
@@ -172,21 +176,11 @@ function AnimatedTitle({
               show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.28, ease: "easeOut" } },
             }}
           >
-            {ch === " " ? "\u00A0" : ch.toUpperCase()}
+            {ch === " " ? "\u00A0" : ch}
           </motion.span>
         ))}
-      </motion.h1>
-
-      {/* Final text layer (fades in after reveal to "settle" into normal casing) */}
-      <motion.h1
-        className="absolute inset-0 text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight"
-        initial={{ opacity: 0, filter: "blur(6px)" }}
-        animate={{ opacity: 1, filter: "blur(0px)" }}
-        transition={{ delay: settleDelay, duration: 0.35, ease: "easeOut" }}
-      >
-        {text}
-      </motion.h1>
-    </div>
+      </motion.span>
+    </h1>
   );
 }
 

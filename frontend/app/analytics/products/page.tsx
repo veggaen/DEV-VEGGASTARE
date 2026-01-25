@@ -2,7 +2,8 @@
 
 import { format } from 'date-fns';
 import React, { useEffect, useState, useMemo } from 'react';
-import { Chart, AxisOptions } from 'react-charts';
+import { Line } from 'react-chartjs-2';
+import { defaultChartOptions } from '@/components/uicustom/charts/chartjs';
 
 type ProductGrowthDatum = { date: Date; users: number };
 
@@ -119,31 +120,42 @@ const ProductGrowthAnalytics = () => {
     }));
   }, [data, interval, customStartDate, customEndDate, firstProductDate, lastProductDate, today]);
 
-  // Set up the primary axis (time-based)
-  const primaryAxis = useMemo<AxisOptions<ProductGrowthDatum>>(
-    () => ({
-      getValue: (datum) => datum.date || new Date(),
-      scaleType: 'time',
-      min: filteredData.length > 0 && filteredData[0].data.length > 0 ? new Date(Math.min(...filteredData[0].data.map(d => d.date.getTime()))) : new Date(),
-      max: filteredData.length > 0 && filteredData[0].data.length > 0 ? new Date(Math.max(...filteredData[0].data.map(d => d.date.getTime()))) : new Date(),
-      formatters: {
-        scale: (date) => format(new Date(date), 'MMM d'), // Format date as "Sep 1"
-      },
-    }),
-    [filteredData]
-  );
+  const chartData = useMemo(() => {
+    const dateSet = new Set<number>();
+    for (const series of filteredData) {
+      for (const d of series.data) dateSet.add(new Date(d.date).getTime());
+    }
 
-  // Set up the secondary axis (linear scale for user count)
-  const secondaryAxes = useMemo<AxisOptions<ProductGrowthDatum>[]>(
-    () => [
-      {
-        getValue: (datum) => datum.users || 0, // Ensure user count is always a number
-        scaleType: 'linear',
-        min: 0,
-      },
-    ],
-    []
-  );
+    const dates = Array.from(dateSet)
+      .sort((a, b) => a - b)
+      .map((t) => new Date(t));
+
+    const labels = dates.map((d) => format(d, 'MMM d'));
+
+    const palette = [
+      { stroke: 'rgba(34,197,94,0.95)', fill: 'rgba(34,197,94,0.20)' },
+      { stroke: 'rgba(59,130,246,0.95)', fill: 'rgba(59,130,246,0.20)' },
+      { stroke: 'rgba(168,85,247,0.95)', fill: 'rgba(168,85,247,0.20)' },
+      { stroke: 'rgba(251,146,60,0.95)', fill: 'rgba(251,146,60,0.20)' },
+    ];
+
+    const datasets = filteredData.map((series, index) => {
+      const byTime = new Map<number, number>(series.data.map((d) => [new Date(d.date).getTime(), d.users ?? 0]));
+      const colors = palette[index % palette.length];
+      return {
+        label: series.label ?? `Series ${index + 1}`,
+        data: dates.map((d) => byTime.get(d.getTime()) ?? 0),
+        borderColor: colors.stroke,
+        backgroundColor: colors.fill,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 0,
+        pointHitRadius: 8,
+      };
+    });
+
+    return { labels, datasets };
+  }, [filteredData]);
 
   // Render the chart
   return (
@@ -217,14 +229,7 @@ const ProductGrowthAnalytics = () => {
             <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 w-full h-full">
               {filteredData.length > 0 && filteredData[0].data.length > 0 ? (
                 <div className='w-full h-96 md:h-128 lg:h-[48rem]'>
-                  <Chart
-                    className='w-full h-full text-black dark:text-white'
-                    options={{
-                      data: filteredData,
-                      primaryAxis,
-                      secondaryAxes,
-                    }}
-                  />
+                  <Line data={chartData} options={defaultChartOptions} />
                 </div>
               ) : (
                 <p className="text-gray-600 dark:text-gray-300">No data available for the selected date range.</p>

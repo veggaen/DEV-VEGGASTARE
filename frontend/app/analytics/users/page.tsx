@@ -2,12 +2,12 @@
 
 import { format } from 'date-fns';
 import React, { useMemo, useState, useEffect } from 'react';
-import { Chart, AxisOptions } from 'react-charts';
+import { Line } from 'react-chartjs-2';
+import { defaultChartOptions } from '@/components/uicustom/charts/chartjs';
 import { useFetchAnalytics } from '@/hooks/useFetchAnalytics'; // Import the custom hook
 import UserProductCreationChart from '@/components/uicustom/charts/analytics/UserProductCreationChart';
 
-// Define the DataType for users
-type DataType = { date: Date; users?: number; companies?: number }; // Update to match hook's definition
+type DataType = { date: Date; users?: number; companies?: number };
 type UserGrowthDatum = { date: Date; users: number };
 
 const MyPageAnalyticsUsers = () => {
@@ -90,31 +90,26 @@ const MyPageAnalyticsUsers = () => {
     }));
   }, [data, interval, customStartDate, customEndDate, firstDate, lastDate, today]);
 
-  // Set up the primary axis (time-based)
-  const primaryAxis = useMemo<AxisOptions<UserGrowthDatum>>(
-    () => ({
-      getValue: (datum) => datum.date || new Date(),
-      scaleType: 'time',
-      min: filteredData.length > 0 && filteredData[0].data.length > 0 ? new Date(Math.min(...filteredData[0].data.map(d => d.date.getTime()))) : new Date(),
-      max: filteredData.length > 0 && filteredData[0].data.length > 0 ? new Date(Math.max(...filteredData[0].data.map(d => d.date.getTime()))) : new Date(),
-      formatters: {
-        scale: (date) => format(new Date(date), 'MMM d'), // Format date as "Sep 1"
-      },
-    }),
-    [filteredData]
-  );
-
-  // Set up the secondary axis (linear scale for user count)
-  const secondaryAxes = useMemo<AxisOptions<UserGrowthDatum>[]>(
-    () => [
-      {
-        getValue: (datum) => datum.users || 0,
-        scaleType: 'linear',
-        min: 0,
-      },
-    ],
-    []
-  );
+  const chartData = useMemo(() => {
+    const series = filteredData?.[0]?.data ?? [];
+    const labels = series.map((d) => format(new Date(d.date), 'MMM d'));
+    const values = series.map((d) => d.users ?? 0);
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Users',
+          data: values,
+          borderColor: 'rgba(59,130,246,0.95)',
+          backgroundColor: 'rgba(59,130,246,0.20)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 0,
+          pointHitRadius: 8,
+        },
+      ],
+    };
+  }, [filteredData]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-102px)] bg-gray-100 dark:bg-gray-900 p-6">
@@ -184,14 +179,7 @@ const MyPageAnalyticsUsers = () => {
             <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 w-full h-full">
               {filteredData.length > 0 && filteredData[0].data.length > 0 ? (
                 <div className='w-full h-96 md:h-128 lg:h-[48rem]'>
-                  <Chart
-                    className='w-full h-full text-black dark:text-white'
-                    options={{
-                      data: filteredData,
-                      primaryAxis,
-                      secondaryAxes,
-                    }}
-                  />
+                  <Line data={chartData} options={defaultChartOptions} />
                 </div>
               ) : (
                 <p className="text-gray-600 dark:text-gray-300">No data available for the selected date range.</p>

@@ -1,0 +1,14 @@
+# llms.txt for veggat.com
+
+User-agent: *
+Allow: /
+
+# Preferred canonical domain
+Canonical: https://www.veggat.com/
+
+# Contact
+Contact: https://www.veggat.com/
+
+# Notes
+# - This site is a marketplace for premium digital products and services.
+# - Some content may require authentication.

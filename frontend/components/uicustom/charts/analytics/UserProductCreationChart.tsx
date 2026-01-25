@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Chart, AxisOptions } from 'react-charts';
+import { Bar } from 'react-chartjs-2';
+import { defaultChartOptions } from '@/components/uicustom/charts/chartjs';
 import { useFetchUserProductCreationAnalytics } from '@/hooks/useFetchUserProductCreationAnalytics'; // Use the new custom hook
 
 type UserProductCreationDatum = { label: string; count: number };
@@ -9,24 +10,22 @@ type UserProductCreationDatum = { label: string; count: number };
 const UserProductCreationChart = () => {
   const { data, loading, error } = useFetchUserProductCreationAnalytics('/api/analytics/user-product-creation');
 
-  // Set up the primary axis
-  const primaryAxis = useMemo<AxisOptions<UserProductCreationDatum>>(
-    () => ({
-      getValue: (datum) => datum.label,
-    }),
-    []
-  );
-
-  // Set up the secondary axis
-  const secondaryAxes = useMemo<AxisOptions<UserProductCreationDatum>[]>(
-    () => [
-      {
-        getValue: (datum) => datum.count,
-        scaleType: 'linear',
-      },
-    ],
-    []
-  );
+  const chartData = useMemo(() => {
+    const labels = data.map((d) => d.label);
+    const values = data.map((d) => d.count);
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'User Product Creation',
+          data: values,
+          backgroundColor: 'rgba(34,197,94,0.35)',
+          borderColor: 'rgba(34,197,94,0.9)',
+          borderWidth: 1,
+        },
+      ],
+    };
+  }, [data]);
 
   return (
     <div className="flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 py-6">
@@ -52,15 +51,14 @@ const UserProductCreationChart = () => {
             <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 w-full h-full">
               {data.length > 0 ? (
                 <div className="w-full h-96 md:h-128 lg:h-[48rem]">
-                  <Chart
-                    className="w-full h-full"
-                    style={{
-                      color: 'white'
-                    }}
+                  <Bar
+                    data={chartData}
                     options={{
-                      data: [{ label: 'User Product Creation', data }],
-                      primaryAxis,
-                      secondaryAxes,
+                      ...defaultChartOptions,
+                      plugins: {
+                        ...defaultChartOptions.plugins,
+                        legend: { display: false },
+                      },
                     }}
                   />
                 </div>

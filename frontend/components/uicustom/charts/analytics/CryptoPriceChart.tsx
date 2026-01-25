@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Chart, AxisOptions } from 'react-charts';
+import { Line } from 'react-chartjs-2';
+import { defaultChartOptions } from '@/components/uicustom/charts/chartjs';
 import { format, addDays, subDays, subWeeks, subMonths, isValid, parseISO } from 'date-fns';
 
 type CryptoPriceDatum = { date: string; price: number };
@@ -184,31 +185,26 @@ const CryptoPriceChart = () => {
     return [];
   };
 
-  const primaryAxis = useMemo<AxisOptions<CryptoPriceDatum>>(
-    () => ({
-      getValue: (datum) => new Date(datum.date),
-      scaleType: 'time',
-      formatters: {
-        scale: (date) => {
-          if (!isNaN(new Date(date).getTime())) {
-            return format(new Date(date), 'MM/dd/yyyy');
-          }
-          return '';
+  const chartData = useMemo(() => {
+    const labels = data.map((d) => format(new Date(d.date), 'MM/dd/yyyy'));
+    const values = data.map((d) => d.price);
+    const label = `${crypto.charAt(0).toUpperCase() + crypto.slice(1)} Price`;
+    return {
+      labels,
+      datasets: [
+        {
+          label,
+          data: values,
+          borderColor: 'rgba(34,197,94,0.95)',
+          backgroundColor: 'rgba(34,197,94,0.20)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 0,
+          pointHitRadius: 8,
         },
-      },
-    }),
-    []
-  );
-
-  const secondaryAxes = useMemo<AxisOptions<CryptoPriceDatum>[]>(
-    () => [
-      {
-        getValue: (datum) => datum.price,
-        scaleType: 'linear',
-      },
-    ],
-    []
-  );
+      ],
+    };
+  }, [data, crypto]);
 
   return (
     <div className="flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 py-6">
@@ -295,14 +291,7 @@ const CryptoPriceChart = () => {
             <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 w-full h-full">
               {data.length > 0 ? (
                 <div className="w-full h-96 md:h-128 lg:h-[48rem]">
-                  <Chart
-                    className="w-full h-full text-black dark:text-white"
-                    options={{
-                      data: [{ label: `${crypto.charAt(0).toUpperCase() + crypto.slice(1)} Price`, data }],
-                      primaryAxis,
-                      secondaryAxes,
-                    }}
-                  />
+                  <Line data={chartData} options={defaultChartOptions} />
                 </div>
               ) : (
                 <p className="text-gray-600 dark:text-gray-300">No data available for the selected date range.</p>
