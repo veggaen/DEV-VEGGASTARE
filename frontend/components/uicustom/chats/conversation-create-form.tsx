@@ -247,6 +247,11 @@ export default function ConversationCreateForm() {
       const msgPreview = initialMessage.trim().slice(0, 50);
       return msgPreview.length < initialMessage.trim().length ? `${msgPreview}...` : msgPreview;
     }
+    // If there's a poll question, use it as the title
+    if (includePoll && pollQuestion.trim()) {
+      const pollPreview = pollQuestion.trim().slice(0, 50);
+      return pollPreview.length < pollQuestion.trim().length ? `${pollPreview}...` : pollPreview;
+    }
     // Otherwise fallback to participant-based titles
     if (conversationType === 'PRIVATE_DM' && participants.length > 0) {
       return `Chat with ${participants.map(p => p.name).join(', ')}`;
@@ -259,7 +264,7 @@ export default function ConversationCreateForm() {
       return 'New Thread';
     }
     return `New ${conversationType.replace('_', ' ').toLowerCase()}`;
-  }, [conversationType, participants, initialMessage]);
+  }, [conversationType, participants, initialMessage, includePoll, pollQuestion]);
 
   // Whether initial message is required for this conversation type
   const requiresInitialMessage = conversationType === 'PRIVATE_DM' || conversationType === 'GROUP';
@@ -317,6 +322,8 @@ export default function ConversationCreateForm() {
           // Send initial message for any conversation type if provided
           initialMessage: initialMessage.trim() || undefined,
           initialImageUrl: uploadedImageUrl,
+          // Send poll question for title fallback if no title/message provided
+          pollQuestion: includePoll && pollQuestion.trim() ? pollQuestion.trim() : undefined,
         }),
       });
 

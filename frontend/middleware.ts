@@ -30,7 +30,6 @@ export default function middleware(req: NextRequest) {
     nextUrl.pathname.startsWith(prefix)
   )
   const isAuthRoute = authRoutes.includes(nextUrl.pathname)
-
   // ✅ Allow /products and /products/[id]
   const isPublicProductPage =
     nextUrl.pathname === "/products" ||
