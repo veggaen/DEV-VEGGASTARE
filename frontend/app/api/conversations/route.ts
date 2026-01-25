@@ -292,7 +292,8 @@ export async function GET(req: Request) {
           select: { id: true, name: true, image: true },
         },
         poll: {
-          select: { id: true }, // Just check if poll exists
+          // Feed needs the question to show a longer preview than the truncated title.
+          select: { id: true, question: true },
         },
         _count: {
           select: { messages: true },

@@ -42,6 +42,7 @@ interface FeedItem {
   replyCount?: number;
   messageCount: number;
   hasPoll?: boolean;
+  poll?: { id: string; question?: string } | null;
   lastMessage?: { content: string; createdAt: string } | null;
 }
 
@@ -480,9 +481,22 @@ interface FeedCardProps {
 const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick }) => {
   const timeAgo = formatDistanceToNowStrict(new Date(item.createdAt), { addSuffix: true });
 
+  const MAX_PREVIEW_CHARS = 500;
+  const rawPreviewText =
+    item.description?.trim() ||
+    item.lastMessage?.content?.trim() ||
+    item.poll?.question?.trim() ||
+    item.title?.trim() ||
+    '';
+  const previewText =
+    rawPreviewText.length > MAX_PREVIEW_CHARS
+      ? `${rawPreviewText.slice(0, MAX_PREVIEW_CHARS).trimEnd()}…`
+      : rawPreviewText;
+  const showReadMore = rawPreviewText.length > MAX_PREVIEW_CHARS;
+
   return (
     <article
-      className="p-4 hover:bg-muted/30 cursor-pointer transition-colors"
+      className="group relative p-4 sm:p-5 cursor-pointer transition-colors hover:bg-muted/25"
       onClick={onClick}
     >
       <div className="flex gap-3">
@@ -499,12 +513,42 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick }) => {
             <span className="text-muted-foreground">{timeAgo}</span>
           </div>
 
-          {/* Title/Content */}
-          <p className="mt-1 text-[15px]">{item.title}</p>
+          {/* Content preview */}
+          {previewText && (
+            <div className="mt-2 space-y-1">
+              {/* Keep title as a subtle label if it differs from the preview source */}
+              {item.title && item.title.trim() && item.title.trim() !== rawPreviewText && (
+                <h3 className="text-[13px] text-muted-foreground leading-snug">
+                  {item.title}
+                </h3>
+              )}
+
+              <p
+                className="text-[15px] leading-relaxed text-foreground/90"
+                style={{
+                  display: '-webkit-box',
+                  WebkitBoxOrient: 'vertical',
+                  WebkitLineClamp: 10,
+                  overflow: 'hidden',
+                }}
+              >
+                {previewText}
+              </p>
+
+              {showReadMore && (
+                <div className="text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                  Read more
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Poll preview */}
           {item.hasPoll && (
-            <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="mt-3 rounded-xl border border-border/60 bg-card/40 p-3 shadow-sm transition-transform duration-200 group-hover:translate-y-[-1px]"
+              onClick={(e) => e.stopPropagation()}
+            >
               <PollDisplay conversationId={item.id} />
             </div>
           )}
