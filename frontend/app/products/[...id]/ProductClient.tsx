@@ -341,31 +341,27 @@ const getPosition = () =>
   });
 
 // Helper: build sequential single-character expansion stages with UPPERCASE emphasis
-// Exact sequence: A -> AN -> A N -> A NS -> A N S -> A N SP -> A N S P -> AD N S P -> ...
-// New characters are UPPERCASE, previous chars normalize to proper case
-function buildKineticStages(words: string[]): Array<{ text: string; newCharIdx: number }> {
-  if (words.length === 0) return [{ text: "", newCharIdx: -1 }];
+// Exact sequence for "Advanced Network Security Package":
+// 'A' -> 'A N' -> 'A N S' -> 'A N S P' -> 'AD N S P' -> 'AD NE S P' -> ...
+// New characters are UPPERCASE, previous chars stay as-is until they become lowercase
+function buildKineticStages(words: string[]): Array<{ text: string; newCharIdx: number; isUppercase: boolean[] }> {
+  if (words.length === 0) return [{ text: "", newCharIdx: -1, isUppercase: [] }];
 
-  const stages: Array<{ text: string; newCharIdx: number }> = [];
+  const stages: Array<{ text: string; newCharIdx: number; isUppercase: boolean[] }> = [];
 
-  // Phase 1: Build up the acronym character by character
-  // A -> AN -> A N -> A NS -> A N S -> A N SP -> A N S P
-  const acronymChars = words.map((w) => w[0].toUpperCase());
-  let acronymBuild = "";
-  for (let i = 0; i < acronymChars.length; i++) {
-    // Add the letter (UPPERCASE as it's new)
-    acronymBuild += acronymChars[i];
-    stages.push({ text: acronymBuild, newCharIdx: acronymBuild.length - 1 });
-
-    // Add space after (except for last)
-    if (i < acronymChars.length - 1) {
-      // Before space: next letter appears attached
-      acronymBuild += acronymChars[i + 1];
-      stages.push({ text: acronymBuild, newCharIdx: acronymBuild.length - 1 });
-      // Then space appears
-      acronymBuild = acronymBuild.slice(0, -1) + " " + acronymChars[i + 1];
-      stages.push({ text: acronymBuild, newCharIdx: -1 });
+  // Phase 1: Build spaced acronym directly (all uppercase)
+  // 'A' -> 'A N' -> 'A N S' -> 'A N S P'
+  for (let i = 0; i < words.length; i++) {
+    const acronymParts = words.slice(0, i + 1).map((w) => w[0].toUpperCase());
+    const text = acronymParts.join(" ");
+    // Track which chars are uppercase (all of them in phase 1, spaces excluded from tracking)
+    const isUppercase: boolean[] = [];
+    for (const ch of text) {
+      if (ch !== " ") isUppercase.push(true);
     }
+    // newCharIdx is the position of the last letter (accounting for spaces)
+    const newCharIdx = i === 0 ? 0 : text.length - 1;
+    stages.push({ text, newCharIdx, isUppercase });
   }
 
   // Phase 2: Cycling expansion - add one char to each word in rotation
@@ -386,11 +382,14 @@ function buildKineticStages(words: string[]): Array<{ text: string; newCharIdx: 
         wordLengths[wordIdx]++;
 
         // Build the display text with proper casing:
-        // - Previous chars: first letter upper, rest lower
+        // - Previous chars in THIS word that came before: first char upper, rest lower
         // - New char: UPPERCASE
+        // - Other words: keep their current state
         const displayParts: string[] = [];
+        const isUppercase: boolean[] = [];
         let globalNewCharIdx = -1;
         let charCount = 0;
+        let nonSpaceCount = 0;
 
         for (let wi = 0; wi < words.length; wi++) {
           const w = words[wi];
@@ -402,18 +401,21 @@ function buildKineticStages(words: string[]): Array<{ text: string; newCharIdx: 
             if (isNewChar) {
               globalNewCharIdx = charCount;
               part += w[ci].toUpperCase();
+              isUppercase.push(true);
             } else {
               // Proper case: first char upper, rest lower
               part += ci === 0 ? w[ci].toUpperCase() : w[ci].toLowerCase();
+              isUppercase.push(ci === 0); // only first char is uppercase
             }
             charCount++;
+            nonSpaceCount++;
           }
 
           displayParts.push(part);
           charCount++; // for space
         }
 
-        stages.push({ text: displayParts.join(" "), newCharIdx: globalNewCharIdx });
+        stages.push({ text: displayParts.join(" "), newCharIdx: globalNewCharIdx, isUppercase });
       }
     }
 
@@ -424,9 +426,15 @@ function buildKineticStages(words: string[]): Array<{ text: string; newCharIdx: 
   const finalText = words
     .map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase())
     .join(" ");
+  const finalIsUppercase: boolean[] = [];
+  for (const word of words) {
+    for (let i = 0; i < word.length; i++) {
+      finalIsUppercase.push(i === 0);
+    }
+  }
   const lastStage = stages[stages.length - 1];
   if (!lastStage || lastStage.text !== finalText) {
-    stages.push({ text: finalText, newCharIdx: -1 });
+    stages.push({ text: finalText, newCharIdx: -1, isUppercase: finalIsUppercase });
   }
 
   return stages;
@@ -498,6 +506,72 @@ function buildVisibilityMap(fullText: string, currentStage: string) {
   return positions;
 }
 
+// New stage structure: track revealed characters per word
+interface KineticStage {
+  // How many characters revealed per word [1, 1, 1, 1] -> [2, 1, 1, 1] -> ...
+  revealed: number[];
+  // Which word just got a new character (-1 if none)
+  activeWordIdx: number;
+  // Which character position in that word is new (-1 if none)
+  activeCharIdx: number;
+}
+
+// Build stages for fixed-position animation
+// Each word stays in place, characters fill in from left to right
+function buildFixedPositionStages(words: string[]): KineticStage[] {
+  if (words.length === 0) return [{ revealed: [], activeWordIdx: -1, activeCharIdx: -1 }];
+
+  const stages: KineticStage[] = [];
+
+  // Phase 1: Build acronym - reveal first letter of each word one by one
+  // Stage 0: just first letter of first word
+  // Stage 1: first letter of words 0 and 1
+  // ...
+  for (let i = 0; i < words.length; i++) {
+    const revealed = words.map((_, idx) => (idx <= i ? 1 : 0));
+    stages.push({
+      revealed,
+      activeWordIdx: i,
+      activeCharIdx: 0,
+    });
+  }
+
+  // Phase 2: Cycling expansion - add one char to each word in rotation
+  const revealed = words.map(() => 1); // Start with acronym
+
+  let safetyCounter = 0;
+  const maxIterations = words.length * Math.max(...words.map((w) => w.length)) + 10;
+
+  while (safetyCounter++ < maxIterations) {
+    let anyIncomplete = false;
+
+    for (let wordIdx = 0; wordIdx < words.length; wordIdx++) {
+      const word = words[wordIdx];
+      if (revealed[wordIdx] < word.length) {
+        anyIncomplete = true;
+        revealed[wordIdx]++;
+
+        stages.push({
+          revealed: [...revealed],
+          activeWordIdx: wordIdx,
+          activeCharIdx: revealed[wordIdx] - 1,
+        });
+      }
+    }
+
+    if (!anyIncomplete) break;
+  }
+
+  // Final stage - all revealed, no active char
+  stages.push({
+    revealed: words.map((w) => w.length),
+    activeWordIdx: -1,
+    activeCharIdx: -1,
+  });
+
+  return stages;
+}
+
 function AnimatedProductTitle({
   text,
   mode,
@@ -517,12 +591,15 @@ function AnimatedProductTitle({
   const words = useMemo(() => cleaned.split(/\s+/).filter(Boolean), [cleaned]);
   const shouldAnimate = !reduceMotion && intro && mode !== "off" && words.length > 0;
 
-  const [hoverLetter, setHoverLetter] = useState<string | null>(null);
   const [stageIndex, setStageIndex] = useState(0);
   const [introDone, setIntroDone] = useState(!shouldAnimate);
+  
+  // Hover state: track which letter is hovered and its position
+  const [hoveredChar, setHoveredChar] = useState<string | null>(null);
+  const [hoveredPosition, setHoveredPosition] = useState<{ wordIdx: number; charIdx: number } | null>(null);
 
-  // Build the kinetic stages sequence with UPPERCASE emphasis for new chars
-  const stages = useMemo(() => buildKineticStages(words), [words]);
+  // Build fixed-position stages
+  const stages = useMemo(() => buildFixedPositionStages(words), [words]);
 
   useEffect(() => {
     if (!shouldAnimate) {
@@ -537,34 +614,27 @@ function AnimatedProductTitle({
     let cancelled = false;
     const run = async () => {
       // Initial pause - let user absorb the first letter
-      await new Promise((r) => setTimeout(r, 800));
+      await new Promise((r) => setTimeout(r, 300));
       if (cancelled) return;
 
-      // Advance through stages with smooth, eased pacing
+      // Ease-out speed curve: starts fast, slows toward end for polish
       const totalStages = stages.length;
+      const baseDelay = 120; // Base delay
+      
       for (let i = 1; i < totalStages; i++) {
         if (cancelled) return;
         setStageIndex(i);
         
-        // Smooth easing: start slower, speed up slightly in middle, slow at end
+        // Ease-out curve: fast start, gentle slowdown at end
         const progress = i / totalStages;
-        const isAcronymPhase = i < words.length * 3;
-        const isNearEnd = progress > 0.85;
-        
-        let delay: number;
-        if (isAcronymPhase) {
-          delay = 140; // Build acronym at steady pace
-        } else if (isNearEnd) {
-          delay = 160; // Slow down near the end for anticipation
-        } else {
-          delay = 120; // Main expansion phase
-        }
+        const easeOut = 1 - Math.pow(1 - progress, 2); // quadratic ease-out
+        const delay = Math.round(baseDelay * (0.4 + easeOut * 0.6));
         
         await new Promise((r) => setTimeout(r, delay));
       }
 
-      // Longer settle at the end
-      await new Promise((r) => setTimeout(r, 500));
+      // Brief settle at the end
+      await new Promise((r) => setTimeout(r, 150));
       if (!cancelled) setIntroDone(true);
     };
     run();
@@ -574,6 +644,60 @@ function AnimatedProductTitle({
     };
   }, [shouldAnimate, stages, words.length]);
 
+  // Build a flat list of character positions for neighbor detection
+  const charPositions = useMemo(() => {
+    const positions: Array<{ wordIdx: number; charIdx: number; char: string }> = [];
+    words.forEach((word, wordIdx) => {
+      Array.from(word).forEach((char, charIdx) => {
+        positions.push({ wordIdx, charIdx, char: char.toLowerCase() });
+      });
+    });
+    return positions;
+  }, [words]);
+
+  // Check if a position is a neighbor of hovered position
+  const getHoverEffect = useCallback((wordIdx: number, charIdx: number, char: string): { scale: number; glow: boolean; intensity: number } => {
+    if (!introDone || !hoveredChar) return { scale: 1, glow: false, intensity: 0 };
+
+    const lowerChar = char.toLowerCase();
+    const isMatchingChar = lowerChar === hoveredChar.toLowerCase();
+    
+    // Find flat index of current position
+    let currentFlatIdx = 0;
+    for (let wi = 0; wi < wordIdx; wi++) {
+      currentFlatIdx += words[wi].length;
+    }
+    currentFlatIdx += charIdx;
+
+    // Find flat index of hovered position
+    let hoveredFlatIdx = -1;
+    if (hoveredPosition) {
+      hoveredFlatIdx = 0;
+      for (let wi = 0; wi < hoveredPosition.wordIdx; wi++) {
+        hoveredFlatIdx += words[wi].length;
+      }
+      hoveredFlatIdx += hoveredPosition.charIdx;
+    }
+
+    // Check if this is a neighbor (within 1 position)
+    const distance = hoveredFlatIdx >= 0 ? Math.abs(currentFlatIdx - hoveredFlatIdx) : Infinity;
+    const isDirectNeighbor = distance === 1;
+    const isHoveredPosition = distance === 0;
+
+    if (isHoveredPosition) {
+      // The directly hovered character - full effect
+      return { scale: 1.25, glow: true, intensity: 1 };
+    } else if (isDirectNeighbor) {
+      // Immediate neighbors - 40% effect
+      return { scale: 1.1, glow: true, intensity: 0.4 };
+    } else if (isMatchingChar) {
+      // All matching letters - 70% effect
+      return { scale: 1.18, glow: true, intensity: 0.7 };
+    }
+
+    return { scale: 1, glow: false, intensity: 0 };
+  }, [introDone, hoveredChar, hoveredPosition, words]);
+
   if (reduceMotion || mode === "off") {
     return (
       <h1 className="text-balance text-2xl md:text-3xl font-semibold leading-tight tracking-tight text-slate-900 dark:text-white drop-shadow-sm">
@@ -582,86 +706,95 @@ function AnimatedProductTitle({
     );
   }
 
-  const currentStage = stages[stageIndex] || { text: cleaned, newCharIdx: -1 };
-  const displayChars = Array.from(currentStage.text);
-  const newCharIdx = currentStage.newCharIdx;
-
-  // Pre-compute styles to avoid recalculating in render
-  const getCharStyle = useCallback((idx: number, ch: string) => {
-    const isNew = idx === newCharIdx;
-    const lowerCh = ch.toLowerCase();
-    const shouldScale = hoverLetter && lowerCh === hoverLetter.toLowerCase();
-    
-    if (shouldScale) {
-      return { transform: "scale(1.15)", transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)" };
-    }
-    if (isNew && !introDone) {
-      return { 
-        transform: "scale(1.08) translateY(-1px)", 
-        transition: "transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)",
-      };
-    }
-    return { transform: "scale(1) translateY(0)", transition: "transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)" };
-  }, [newCharIdx, hoverLetter, introDone]);
+  const currentStage = stages[stageIndex] || { revealed: words.map((w) => w.length), activeWordIdx: -1, activeCharIdx: -1 };
+  const { revealed, activeWordIdx, activeCharIdx } = currentStage;
 
   return (
     <motion.h1
-      className="group relative text-balance text-2xl md:text-3xl font-semibold leading-tight tracking-tight text-slate-900 dark:text-white drop-shadow-sm"
+      className="text-balance text-2xl md:text-3xl font-semibold leading-tight tracking-tight text-slate-900 dark:text-white drop-shadow-sm"
       aria-label={cleaned}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
+      onPointerLeave={() => {
+        setHoveredChar(null);
+        setHoveredPosition(null);
+      }}
     >
-      {/* Main text - using CSS transitions for performance */}
-      <span className="relative inline-flex flex-wrap will-change-contents">
-        {displayChars.map((ch, idx) => {
-          const isSpace = ch === " ";
-          const style = getCharStyle(idx, ch);
-
+      {/* Each word gets a fixed-width container, characters are absolutely positioned inside */}
+      <span className="inline-flex flex-wrap gap-[0.35em]">
+        {words.map((word, wordIdx) => {
+          const revealedCount = revealed[wordIdx] || 0;
+          
           return (
             <span
-              key={`char-${idx}`}
-              className={isSpace ? "w-[0.35em]" : "inline-block cursor-default origin-bottom will-change-transform"}
-              style={style}
-              onPointerEnter={() => !isSpace && setHoverLetter(ch)}
-              onPointerLeave={() => setHoverLetter(null)}
+              key={`word-${wordIdx}`}
+              className="relative inline-block"
             >
-              {isSpace ? "\u00A0" : ch}
+              {/* Invisible placeholder for fixed width - title case */}
+              <span className="invisible" aria-hidden="true">
+                {word[0].toUpperCase() + word.slice(1).toLowerCase()}
+              </span>
+              
+              {/* Actual animated characters - absolutely positioned over placeholder */}
+              <span className="absolute inset-0 inline-flex">
+                {Array.from(word).map((char, charIdx) => {
+                  const isRevealed = charIdx < revealedCount;
+                  const isNew = wordIdx === activeWordIdx && charIdx === activeCharIdx && !introDone;
+                  const isFirstChar = charIdx === 0;
+
+                  // Title case: first letter uppercase, rest lowercase
+                  const displayChar = isFirstChar ? char.toUpperCase() : char.toLowerCase();
+
+                  // Get hover effect for this character
+                  const hoverEffect = getHoverEffect(wordIdx, charIdx, char);
+
+                  // Color cycle based on character position for variety
+                  const charPosition = wordIdx * 10 + charIdx;
+                  const hue = (charPosition * 40) % 360;
+                  const glowColor = `hsl(${hue}, 80%, 65%)`;
+
+                  // Combine intro animation with hover effects
+                  const isAnimatingIn = isNew;
+                  const hasHoverEffect = hoverEffect.intensity > 0;
+                  
+                  // Scale: intro pop, hover effect, or normal
+                  const scale = isAnimatingIn ? 1.35 : hoverEffect.scale;
+                  const yOffset = isAnimatingIn ? -3 : (hasHoverEffect ? -2 * hoverEffect.intensity : 0);
+
+                  // Glow: intro glow or hover glow
+                  const showGlow = isAnimatingIn || hoverEffect.glow;
+                  const glowIntensity = isAnimatingIn ? 1 : hoverEffect.intensity;
+
+                  return (
+                    <span
+                      key={`char-${wordIdx}-${charIdx}`}
+                      className="inline-block origin-bottom cursor-default"
+                      style={{
+                        opacity: isRevealed ? 1 : 0,
+                        transform: `scale(${scale}) translateY(${yOffset}px)`,
+                        color: showGlow ? glowColor : undefined,
+                        textShadow: showGlow 
+                          ? `0 0 ${12 * glowIntensity}px ${glowColor}, 0 0 ${24 * glowIntensity}px ${glowColor}, 0 2px 4px rgba(0,0,0,${0.3 * glowIntensity})` 
+                          : "none",
+                        transition: "opacity 0.2s ease-out, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.25s ease-out, text-shadow 0.25s ease-out",
+                      }}
+                      onPointerEnter={() => {
+                        if (introDone) {
+                          setHoveredChar(char);
+                          setHoveredPosition({ wordIdx, charIdx });
+                        }
+                      }}
+                    >
+                      {displayChar}
+                    </span>
+                  );
+                })}
+              </span>
             </span>
           );
         })}
       </span>
-
-      {/* Hover rainbow accent (only after intro done) */}
-      {introDone && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-sky-300 to-fuchsia-300 opacity-0 transition-opacity duration-300 group-hover:opacity-60"
-        >
-          {cleaned}
-        </span>
-      )}
-
-      {/* Idle shimmer overlay (pauses on hover) */}
-      {introDone && (
-        <motion.span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 text-transparent bg-clip-text bg-gradient-to-r from-white/0 via-white/30 to-white/0"
-          style={{ backgroundSize: "240% 100%" }}
-          animate={{
-            opacity: hoverLetter ? 0 : 0.08,
-            backgroundPosition: hoverLetter ? "0% 50%" : ["0% 50%", "100% 50%"],
-          }}
-          transition={{
-            opacity: { duration: 0.15 },
-            backgroundPosition: hoverLetter
-              ? { duration: 0 }
-              : { duration: 6.8, ease: "easeInOut", repeat: Infinity },
-          }}
-        >
-          {cleaned}
-        </motion.span>
-      )}
     </motion.h1>
   );
 }
@@ -707,7 +840,7 @@ function AnimatedCategoryKicker({ text }: { text: string }) {
     };
   }, [intro, reduceMotion, stages]);
 
-  const currentStage = stages[stageIndex] || { text: cleaned, newCharIdx: -1 };
+  const currentStage = stages[stageIndex] || { text: cleaned, newCharIdx: -1, isUppercase: [] };
   const displayChars = Array.from(currentStage.text);
   const newCharIdx = currentStage.newCharIdx;
 
@@ -722,20 +855,16 @@ function AnimatedCategoryKicker({ text }: { text: string }) {
         const isSpace = ch === " ";
         const isNew = idx === newCharIdx && !introDone;
         return (
-          <motion.span
+          <span
             key={`cat-${idx}`}
-            className={isSpace ? "w-[0.35em]" : "inline-block"}
-            animate={{ 
-              scale: isNew ? 1.12 : 1,
-              y: isNew ? -1 : 0,
-            }}
-            transition={{
-              scale: { type: "spring", stiffness: 600, damping: 28 },
-              y: { type: "spring", stiffness: 600, damping: 28 },
+            className={isSpace ? "w-[0.35em]" : "inline-block origin-bottom"}
+            style={{
+              transform: isNew ? "scale(1.12) translateY(-1px)" : "scale(1) translateY(0)",
+              transition: "transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1)",
             }}
           >
             {isSpace ? "\u00A0" : ch}
-          </motion.span>
+          </span>
         );
       })}
     </motion.span>
