@@ -14,23 +14,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useState, useEffect } from 'react';
 import { EmployeePermissions, editCompanyEmployeePermissionAction } from '@/actions/edit-company-employee-permission';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { ExtendedCompany, ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/page';
+import { ExtendedCompany, ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/CompanyDetailClient';
 import EditEmployeeRoleModal from './edit-employee-role-modal';
-import { Product, Review, User, UserRole } from '@prisma/client';
 
 
 interface EditEmployeePermissionsModalProps {
   company: ExtendedCompany;
   setCompany: React.Dispatch<React.SetStateAction<ExtendedCompany | null>>;
   selectedEmployee: ExtendedEmployee;
-  clientUser: User & {
-    role: UserRole;
-    referredBy: string | null;
-    isTwoFactorEnabled: boolean;
-    productsListed: Product[];
-    reviews: Review[];
-    isOAuth: boolean;
-  };
 }
 
 const LOG_PREFIX = '[frontend/components/uicustom/company/edit-employee-permission.tsx]';
@@ -66,9 +57,11 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
     }
   }, [selectedEmployee, stateChange]);
 
-  const handleOpenChange = () => {
-    setIsShowing(!isShowing);
-    setStateChange(!stateChange);
+  const handleOpenChange = (open: boolean) => {
+    setIsShowing(open);
+    setStateChange((v) => !v);
+    setError(null);
+    setSuccess(false);
   };
 
   const handleClickEditPermissions = () => {
@@ -107,10 +100,11 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
         if (response.success) {
           setCompany(response.updatedCompany);
           setSuccess(true);
-          setTimeout(() => {
+          window.setTimeout(() => {
+            setIsShowing(false);
             setSuccess(false);
             setError(null);
-          }, 5000);
+          }, 650);
         }
         if (response.error) {
           setError(response.error);

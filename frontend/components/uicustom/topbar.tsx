@@ -1,24 +1,32 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MyThemeBtn } from "./themebtn";
-import { MyUserButton } from "./auth/buttons/user-button";
 import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { motion, useReducedMotion } from "framer-motion";
 import WalletConnection from "../crypto-related/WalletAdapter"; // Your wallet UI
 import NetworkSyncBridge from "@/components/crypto-related/NetworkSyncBridge";
-import { FiMenu } from "react-icons/fi";
 import { MyDialogbarNavigator } from "@/app/(protected)/_components/dialog-bar";
+import { useTheme } from "next-themes";
+import { signIn, signOut } from "next-auth/react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { FaUser } from "react-icons/fa";
+import { toast } from "sonner";
+import { TbHexagons } from "react-icons/tb";
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
+import { MyRequestWeb3ModeSecurityAction } from "@/actions/security-action";
+import EvmWalletVerify from "@/components/crypto-related/EvmWalletVerify";
+import EvmWalletList from "@/components/crypto-related/EvmWalletList";
 
 type NavLinkProps = {
   href: string;
@@ -53,6 +61,39 @@ const MyTopBar = () => {
   const clientUser = useCurrentUser();
   const prefersReducedMotion = useReducedMotion();
 	const headerRef = useRef<HTMLElement | null>(null);
+	const { resolvedTheme, setTheme } = useTheme();
+	const [menuOpen, setMenuOpen] = useState(false);
+	const [nexusOpen, setNexusOpen] = useState(false);
+	const [web3ModeEnabled, setWeb3ModeEnabled] = useState(false);
+	const [isRequestingWeb3Mode, setIsRequestingWeb3Mode] = useState(false);
+	const [walletRefreshToken, setWalletRefreshToken] = useState(0);
+
+	useEffect(() => {
+		try {
+			const raw = window.localStorage.getItem("veggastare:web3ModeEnabled");
+			if (raw === "true") setWeb3ModeEnabled(true);
+		} catch {
+			// ignore
+		}
+	}, []);
+
+	const setWeb3Mode = (next: boolean) => {
+		setWeb3ModeEnabled(next);
+		try {
+			window.localStorage.setItem("veggastare:web3ModeEnabled", String(next));
+		} catch {
+			// ignore
+		}
+	};
+
+	const effectiveWeb3ModeEnabled = clientUser
+		? !!(clientUser as any).web3ModeEnabled
+		: web3ModeEnabled;
+
+	const toggleTheme = () => {
+		const next = resolvedTheme === "dark" ? "light" : "dark";
+		setTheme(next);
+	};
 
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -123,7 +164,7 @@ const MyTopBar = () => {
   const hideOnAuthPages = pathname.startsWith("/auth/");
   if (hideOnAuthPages) return <NetworkSyncBridge />;
 
-  const nav = [
+	const nav = [
     { href: "/", label: "Home" },
     { href: "/products", label: "Products" },
     { href: "/feed", label: "Feed" },
@@ -137,33 +178,43 @@ const MyTopBar = () => {
     { href: "/analytics", label: "Analytics" },
   ] as const;
 
+	const menuLinks = useMemo(() => {
+		// Keep the sheet clean for logged-out users: primary discovery paths first.
+		if (!clientUser) return nav;
+		return nav;
+	}, [clientUser, nav]);
+
   return (
     <>
       <NetworkSyncBridge />
+			<MyDialogbarNavigator
+				open={nexusOpen}
+				onOpenChange={setNexusOpen}
+				hideTrigger
+				onOpen={() => setMenuOpen(false)}
+			/>
 			<motion.header
 				ref={headerRef}
 				className="sticky top-0 z-[60] w-full"
 				initial={false}
 				animate={{
 					paddingTop: isScrolled ? 0 : 12,
-					paddingBottom: isScrolled ? 0 : 8,
+					paddingBottom: isScrolled ? 0 : 12,
+					paddingLeft: isScrolled ? 0 : 24,
+					paddingRight: isScrolled ? 0 : 24
 				}}
 				transition={morphTransition}
 			>
-				<motion.div
-					transition={morphTransition}
-					className={
-						"w-full border-b transition-[background-color,border-color,box-shadow] duration-200 will-change-transform " +
-						(isScrolled
-							? "border-black/10 bg-white/70 shadow-[0_10px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/60"
-							: "border-black/10 bg-white/25 backdrop-blur-md dark:border-white/10 dark:bg-slate-950/25")
-					}
-				>
-					<div
-						className={
-							"mx-auto flex h-[var(--app-header)] max-w-screen-2xl items-center justify-between px-3 sm:px-4 md:px-6"
-						}
-					>
+<motion.div
+  transition={morphTransition}
+  className={
+    "w-full border-b transition-colors duration-300 " + 
+    (isScrolled
+      ? "border-black/10 dark:border-white/10 bg-white/70 dark:bg-slate-950/60 backdrop-blur-xl"
+      : "border-transparent bg-white/0 dark:bg-slate-950/0")
+  }
+>
+					<div className="mx-auto flex h-[var(--app-header)] max-w-screen-2xl items-center justify-between px-3 sm:px-4 md:px-6">
 						<div className="flex min-w-0 items-center gap-4">
 							<Link
 								href="/"
@@ -185,66 +236,173 @@ const MyTopBar = () => {
 							</nav>
 						</div>
 
-							<div className="flex shrink-0 items-center">
-								<div className="flex items-center gap-1">
-									<WalletConnection />
-									{clientUser ? <MyDialogbarNavigator variant="topbar" /> : null}
-									<MyThemeBtn />
-									{clientUser ? (
-										<MyUserButton />
-									) : (
-										<div className="hidden md:flex items-center gap-1 pr-1">
-											<Link
-												href="/auth/login"
-												className="rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:text-slate-950 hover:bg-black/5 dark:text-slate-200 dark:hover:text-slate-50 dark:hover:bg-white/10"
-											>
-												Login
-											</Link>
-											<Link
-												href="/auth/register"
-												className="rounded-xl px-3 py-2 text-sm font-medium border border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/10"
-											>
-												Sign up
-											</Link>
-										</div>
-									)}
+						<div className="flex shrink-0 items-center">
+							<Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+								<SheetTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-[52px] w-[52px] rounded-full bg-black/5 p-0 hover:bg-black/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.10]"
+										aria-label="Open menu"
+										title="Menu"
+									>
+										{clientUser ? (
+											<Avatar className="h-[52px] w-[52px]">
+												<AvatarImage
+													src={clientUser.image || "/users/avatar.webp"}
+													alt="User"
+												/>
+												<AvatarFallback className="bg-emerald-500 text-white">
+													<FaUser className="h-5 w-5" />
+												</AvatarFallback>
+											</Avatar>
+										) : (
+											<TbHexagons className="h-6 w-6 text-slate-700 dark:text-slate-200" />
+										)}
+									</Button>
+								</SheetTrigger>
 
-								<div className="md:hidden">
-										<DropdownMenu>
-											<DropdownMenuTrigger asChild>
-												<Button
-													variant="ghost"
-													size="icon"
-													aria-label="Open navigation menu"
-												className="h-10 w-10 rounded-xl bg-transparent text-slate-700 hover:bg-black/5 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10 dark:hover:text-slate-50"
+								<SheetContent
+									side="right"
+									className="w-[92vw] max-w-[420px] bg-white/95 dark:bg-zinc-900/80 backdrop-blur-xl border border-black/10 dark:border-white/10"
+								>
+									<div className="flex h-full flex-col gap-4 p-4">
+										<SheetHeader className="space-y-1">
+											<SheetTitle className="text-lg font-semibold">
+												{clientUser ? (clientUser.name ?? "Account") : "Welcome"}
+											</SheetTitle>
+											<SheetDescription className="text-sm text-slate-600 dark:text-slate-300">
+												{clientUser?.email ?? "Sign in to sync your account and wallets."}
+											</SheetDescription>
+										</SheetHeader>
+
+										<div className="flex items-center justify-between rounded-xl border border-black/10 p-3 dark:border-white/10 bg-black/5 dark:bg-white/[0.06]">
+											<div className="min-w-0">
+												<div className="text-sm font-semibold">Mode</div>
+												<div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+													{effectiveWeb3ModeEnabled
+														? "Web3 enabled: advanced wallet controls"
+														: "Web2: simple account experience"}
+												</div>
+											</div>
+											<Switch
+												checked={effectiveWeb3ModeEnabled}
+												disabled={isRequestingWeb3Mode}
+												onCheckedChange={(checked) => {
+													if (clientUser) {
+														setIsRequestingWeb3Mode(true);
+														MyRequestWeb3ModeSecurityAction(checked)
+															.then((data) => {
+																if (data?.error) {
+																	toast.error(data.error, { position: "top-center" });
+																	return;
+																}
+																if (data?.success) {
+																	toast.success(data.success, { position: "top-center" });
+																}
+															})
+															.catch(() => {
+																toast.error("Something went wrong!", { position: "top-center" });
+															})
+															.finally(() => setIsRequestingWeb3Mode(false));
+														return;
+													}
+
+													// Logged out: keep this as a local UX preference.
+													setWeb3Mode(checked);
+												}}
+												aria-label="Toggle Web3 advanced mode"
+											/>
+										</div>
+
+										<WalletConnection mode="dialog" />
+										{clientUser && effectiveWeb3ModeEnabled ? (
+											<>
+												<EvmWalletVerify
+													enabled={effectiveWeb3ModeEnabled}
+													onVerified={() => setWalletRefreshToken((t) => t + 1)}
+												/>
+												<div className="-mt-1">
+													<EvmWalletList enabled={effectiveWeb3ModeEnabled} refreshToken={walletRefreshToken} />
+												</div>
+											</>
+										) : null}
+
+										<div className="flex flex-col gap-2">
+											{menuLinks.map((item) => (
+												<Link
+													key={item.href}
+													href={item.href}
+													onClick={() => setMenuOpen(false)}
+													className="rounded-xl border border-black/10 px-3 py-2.5 text-sm dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/[0.06] transition-colors"
 												>
-													<FiMenu className="h-5 w-5" />
-												</Button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end" className="w-56">
-												{nav.map((item) => (
-													<DropdownMenuItem key={item.href} asChild>
-														<Link href={item.href}>{item.label}</Link>
-													</DropdownMenuItem>
-												))}
-												<DropdownMenuSeparator />
-												{!clientUser ? (
-													<>
-														<DropdownMenuItem asChild>
-															<Link href="/auth/login">Login</Link>
-														</DropdownMenuItem>
-														<DropdownMenuItem asChild>
-															<Link href="/auth/register">Sign up</Link>
-														</DropdownMenuItem>
-													</>
-												) : null}
-											</DropdownMenuContent>
-										</DropdownMenu>
+													{item.label}
+												</Link>
+											))}
+										</div>
+
+										<div className="mt-auto flex flex-col gap-2">
+											{clientUser ? (
+												<>
+													<div className="rounded-xl border border-black/10 p-2 dark:border-white/10">
+														<button
+															type="button"
+															onClick={() => {
+																setMenuOpen(false);
+																// Defer opening so the Sheet can close first without
+																// the dialog interpreting the click as an outside interaction.
+																setTimeout(() => setNexusOpen(true), 0);
+															}}
+															className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm text-slate-700 hover:bg-black/5 dark:text-slate-200 dark:hover:bg-white/[0.06]"
+															aria-label="Open Nexus command palette"
+															title="Open Nexus (Ctrl/Cmd + K)"
+														>
+															<TbHexagons className="h-5 w-5" />
+															<span className="font-medium">Nexus</span>
+															<span className="ml-auto hidden text-xs opacity-60 md:inline">Ctrl K</span>
+														</button>
+													</div>
+													<Button variant="outline" onClick={() => toggleTheme()}>
+														{resolvedTheme === "dark" ? "Switch to light" : "Switch to dark"}
+													</Button>
+													<Button variant="destructive" onClick={() => signOut()}>
+														Logout
+													</Button>
+												</>
+											) : (
+												<>
+													<Button onClick={() => signIn("google", { callbackUrl: "/products" })}>
+														Continue with Google
+													</Button>
+													<Button onClick={() => signIn("github", { callbackUrl: "/products" })}>
+														Continue with GitHub
+													</Button>
+													<Link
+														href="/auth/login"
+														onClick={() => setMenuOpen(false)}
+														className="rounded-xl border border-black/10 px-3 py-2 text-sm dark:border-white/10"
+													>
+														Login
+													</Link>
+													<Link
+														href="/auth/register"
+														onClick={() => setMenuOpen(false)}
+														className="rounded-xl border border-black/10 px-3 py-2 text-sm dark:border-white/10"
+													>
+														Sign up
+													</Link>
+													<Button variant="outline" onClick={() => toggleTheme()}>
+														{resolvedTheme === "dark" ? "Switch to light" : "Switch to dark"}
+													</Button>
+												</>
+											)}
+										</div>
 									</div>
-								</div>
-							</div>
+								</SheetContent>
+							</Sheet>
 						</div>
-					</motion.div>
+					</div>
+				</motion.div>
 			</motion.header>
     </>
   );

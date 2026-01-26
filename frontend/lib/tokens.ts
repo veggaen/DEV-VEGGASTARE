@@ -5,6 +5,7 @@ import { dbPrisma } from './db';
 import { getVerificationTokenByEmail } from '@/data/verificiation-token';
 import { getPasswordResetTokenByEmail } from '@/data/password-reset-token';
 import { getTwoFactortokenByEmail } from '@/data/two-factor-token';
+import { SecurityActionType } from '@prisma/client';
 
 export const generateTwoFactorToken = async (email: string) => {
   const token = crypto.randomInt(100_000, 1_000_000).toString();
@@ -74,4 +75,34 @@ export const generateVerificationToken = async (email: string) => {
   });
 
   return verificationToken
+};
+
+export const generateSecurityActionToken = async (params: {
+  userId: string;
+  email: string;
+  action: SecurityActionType;
+}) => {
+  const token = uuidv4();
+  const tokenExpiresTimer = 15; // minutes
+  const expires = new Date(new Date().getTime() + (60 * tokenExpiresTimer) * 1000);
+
+  // Keep at most one active token per user+action.
+  await dbPrisma.securityActionToken.deleteMany({
+    where: {
+      userId: params.userId,
+      action: params.action,
+    },
+  });
+
+  const actionToken = await dbPrisma.securityActionToken.create({
+    data: {
+      userId: params.userId,
+      email: params.email,
+      token,
+      action: params.action,
+      expires,
+    },
+  });
+
+  return actionToken;
 };

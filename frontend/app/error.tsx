@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
 
 export default function Error({
   error,
@@ -21,10 +20,20 @@ export default function Error({
         Try again. If it keeps happening, refresh the page.
       </p>
       <div className="flex gap-2">
-        <Button onClick={reset}>Try again</Button>
-        <Button variant="outline" onClick={() => window.location.reload()}>
+        <button
+          type="button"
+          onClick={reset}
+          className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground ring-offset-background transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+        >
+          Try again
+        </button>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+        >
           Refresh
-        </Button>
+        </button>
       </div>
     </div>
   );

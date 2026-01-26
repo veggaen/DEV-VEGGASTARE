@@ -287,7 +287,7 @@ export default function HomeHero({
   const descriptionStart = reduceMotion ? 0.35 : buttonsStart + 1.0;
 
   const descriptionText =
-    "A clean, fast marketplace experience — with tasteful motion, shipping intelligence, and a UI that stays out of your way.";
+    "A clean, animated marketplace experience filled with tasteful motion, shipping intelligence, warehouse logistics, and a UI that stays out of your way.";
   const descriptionMsPerChar = 60;
 
   const whereGlowActive = !reduceMotion && Date.now() < whereGlowUntilMs;
@@ -331,7 +331,7 @@ export default function HomeHero({
     <div className="relative flex h-[calc(100vh-102px)] max-h-full w-full items-center justify-center overflow-hidden">
       {/* subtle animated background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-black/70 to-emerald-950/30 dark:from-black dark:via-black/60 dark:to-emerald-950/20" />
+        <div className="absolute inset-0" /> {/* bg-gradient-to-b from-black via-black/70 to-emerald-950/30 dark:from-black dark:via-black/60 dark:to-emerald-950/20 */}
         <motion.div
           className="absolute -top-24 -right-24 h-[360px] w-[360px] rounded-full bg-emerald-500/15 blur-3xl"
           animate={{ x: [0, -18, 0], y: [0, 12, 0], opacity: [0.18, 0.25, 0.18] }}

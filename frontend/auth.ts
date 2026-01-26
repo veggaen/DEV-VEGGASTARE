@@ -149,6 +149,10 @@ export const {
           if (token.isOAuth && session.user ) {
             session.user.isOAuth = token.isOAuth as boolean;
           };
+
+			if (session.user) {
+				session.user.web3ModeEnabled = token.web3ModeEnabled as boolean;
+			}
           
           //console.log(`${LOG_PREFIX} callbacks.session: `,{session, sessionToken: token})
           return session
@@ -167,6 +171,7 @@ export const {
           token.email = existingUser.email;
           token.image = existingUser.image;
           token.isOAuth = !!existingAccount;
+			token.web3ModeEnabled = existingUser.web3ModeEnabled;
           
           /* const logResponse = token.email // shortens the response, remove */
           /* console.log(`${LOG_PREFIX} callbacks.jwt.token: `,{logResponse}) */

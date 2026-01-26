@@ -5,20 +5,25 @@ import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { useActiveNetwork } from "./ActiveNetworkContext";
 import { getSolanaEndpoints } from "./solanaEndpoints";
-import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
+import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
+import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 
 export default function SolanaProviders({ children }: { children: React.ReactNode }) {
   const { active } = useActiveNetwork();
 
-  const endpoint = useMemo(() => {
-    const cluster = active.kind === "solana" ? active.cluster : WalletAdapterNetwork.Mainnet;
-    return getSolanaEndpoints(cluster).http;
-  }, [active]);
+  const cluster = useMemo(
+    () => (active.kind === "solana" ? active.cluster : WalletAdapterNetwork.Mainnet),
+    [active]
+  );
 
-  const wallets = useMemo(() => [
-    new PhantomWalletAdapter(),
-    new SolflareWalletAdapter(),
-  ], []);
+  const endpoint = useMemo(() => {
+    return getSolanaEndpoints(cluster).http;
+  }, [cluster]);
+
+  const wallets = useMemo(
+    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter({ network: cluster })],
+    [cluster]
+  );
 
   return (
     <ConnectionProvider endpoint={endpoint}>

@@ -14,6 +14,7 @@ export type ExtendedUser = DefaultSession['user'] & {
     reviews: Review[]
     isOAuth: boolean;
     employee?: Employee[];
+  	web3ModeEnabled: boolean;
 }
 
 declare module "next-auth" {
@@ -33,5 +34,6 @@ declare module "next-auth" {
       /* role?: 'ADMIN' | 'USER'
       referredBy?: string */
       id?: string
+		web3ModeEnabled?: boolean
     }
 }

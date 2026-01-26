@@ -90,6 +90,24 @@ enum ChainFamily {
   SOLANA
 }
 
+// Company legal form (Norway-inspired)
+enum CompanyOrgType {
+  ENK
+  AS
+  ANS
+  DA
+  SA
+  FORENING
+  NUF
+  OTHER
+}
+
+enum TerminationStatus {
+  REQUESTED
+  CANCELLED
+  FINALIZED
+}
+
 model User {
   id                    String                 @id @default(cuid())
   name                  String?
@@ -99,6 +117,10 @@ model User {
   password              String?
   referredBy            String?
   role                  UserRole               @default(USER)
+
+  // NEW: default Web2 UX, opt-in Web3 features
+  web3ModeEnabled       Boolean                @default(false)
+
   accounts              Account[]
   productsListed        Product[]              @relation("ProductsListed")
   reviews               Review[]
@@ -115,12 +137,42 @@ model User {
   messages              Message[]              @relation("UserMessages")
   createdConversations  Conversation[]         @relation("CreatedConversations")
   conversationViews     ConversationView[]     @relation("UserConversationViews")
+  conversationReposts   ConversationRepost[]   @relation("UserConversationReposts")
 
   // NEW: user-scoped wallets
   wallets               Wallet[]               @relation("UserWallets")
 
+  // NEW: security-sensitive action confirmations (e.g. enable/disable Web3 mode)
+  securityActionTokens  SecurityActionToken[]
+
+  // NEW: wallet-ownership verification challenges
+  walletVerificationChallenges WalletVerificationChallenge[]
+
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+
+  terminationRequestsInitiated EmployeeTermination[] @relation("TerminationInitiator")
+  terminationsAsEmployee       EmployeeTermination[] @relation("TerminatedEmployee")
+}
+
+enum SecurityActionType {
+  WEB3_MODE_ENABLE
+  WEB3_MODE_DISABLE
+}
+
+model SecurityActionToken {
+  id        String             @id @default(cuid())
+  userId    String
+  email     String
+  token     String             @unique
+  action    SecurityActionType
+  expires   DateTime
+  createdAt DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email, action])
+  @@index([userId, action])
 }
 
 model Account {
@@ -269,11 +321,19 @@ model Company {
   logo               String[]
   bannerImage        String[]
   colorScheme        String?
+
+  // Registration / legal metadata
+  orgType             CompanyOrgType?
+  orgNumber           String?             @unique
+  // App policy defaults (not legal advice): used for UX/warnings
+  employmentNoticeDays Int               @default(14)
+
   creatorId          String
   ownerId            String
   creator            User                @relation("Creator", fields: [creatorId], references: [id])
   owner              User                @relation("Owner", fields: [ownerId], references: [id])
   employees          Employee[]
+  terminations       EmployeeTermination[]
   usesShipping       Boolean             @default(false)
   warehouseLocations WarehouseLocation[] @relation("CompanyWarehouses")
   createdAt          DateTime            @default(now())
@@ -288,6 +348,29 @@ model Company {
   wallets            Wallet[]            @relation("CompanyWallets")
 }
 
+model EmployeeTermination {
+  id              String            @id @default(cuid())
+  companyId        String
+  employeeUserId   String
+  initiatedByUserId String
+
+  status          TerminationStatus @default(REQUESTED)
+  reason          String
+  noticeDays      Int
+  requestedAt     DateTime          @default(now())
+  effectiveAt     DateTime
+  cancelledAt     DateTime?
+  finalizedAt     DateTime?
+  metadata        Json?
+
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee        User              @relation("TerminatedEmployee", fields: [employeeUserId], references: [id], onDelete: Cascade)
+  initiatedBy     User              @relation("TerminationInitiator", fields: [initiatedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, employeeUserId])
+  @@index([companyId, status])
+}
+
 model Employee {
   id          String       @id @default(cuid())
   userId      String
@@ -295,6 +378,7 @@ model Employee {
   user        User         @relation(fields: [userId], references: [id])
   company     Company      @relation(fields: [companyId], references: [id])
   role        EmployeeRole
+  jobTitle    String?
   permissions Json
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -337,6 +421,9 @@ model Wallet {
   address         String
   isDefault       Boolean     @default(false)
 
+  // When linked via a signed challenge, mark verification timestamp.
+  verifiedAt      DateTime?
+
   // ownership (one of these is set)
   ownerUserId     String?
   ownerCompanyId  String?
@@ -349,6 +436,25 @@ model Wallet {
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+}
+
+model WalletVerificationChallenge {
+  id            String      @id @default(cuid())
+  userId        String
+  family        ChainFamily
+  address       String
+  chainId       Int?
+  solanaCluster String?
+  nonce         String
+  message       String      @db.Text
+  expires       DateTime
+  usedAt        DateTime?
+  createdAt     DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, family, address])
+  @@index([expires])
 }
 
 model ProductAcceptedToken {
@@ -490,6 +596,14 @@ model Conversation {
   company          Company?                @relation("CompanyConversations", fields: [companyId], references: [id])
   messages         Message[]               @relation("ConversationMessages")
 
+  // Reposts
+  // - Simple repost: join table (no added text)
+  // - Quote repost: a new Conversation that references the original via repostOfConversationId
+  reposts           ConversationRepost[]      @relation("ConversationReposts")
+  repostOfConversationId String?
+  repostOfConversation   Conversation?        @relation("ConversationQuoteReposts", fields: [repostOfConversationId], references: [id], onDelete: SetNull)
+  quoteReposts           Conversation[]       @relation("ConversationQuoteReposts")
+
   // New fields for visibility and permissions
   type             ConversationType        @default(PRIVATE_DM)
   visibility       ConversationVisibility  @default(PARTICIPANTS)
@@ -533,6 +647,19 @@ model Conversation {
 
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
+}
+
+model ConversationRepost {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation("ConversationReposts", fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation("UserConversationReposts", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
 }
 
 // Track unique views per user for conversations

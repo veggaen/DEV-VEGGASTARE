@@ -1,11 +1,15 @@
-'use server'
-
 import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 
-export async function GET(req: NextRequest, { params }: { params: { companyId: string } }) {
+type CompanyParams = { companyId?: string; companyid?: string };
+
+export async function GET(
+    req: NextRequest,
+    { params }: { params: Promise<CompanyParams> }
+) {
     try {
-        const { companyId } = params;
+        const resolvedParams = await params;
+        const companyId = resolvedParams.companyId ?? resolvedParams.companyid;
 
         if (!companyId) {
             return NextResponse.json({ message: 'Invalid request parameters' }, { status: 400 });

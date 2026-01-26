@@ -8,6 +8,14 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -17,7 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown } from 'react-icons/fi';
+import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3 } from 'react-icons/fi';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { PollDisplay } from '@/components/uicustom/chats/poll-display';
 
@@ -41,6 +49,16 @@ interface FeedItem {
   uniqueViewCount?: number;
   replyCount?: number;
   messageCount: number;
+  repostCount?: number;
+  quoteRepostCount?: number;
+  hasReposted?: boolean;
+  repostOfConversation?: {
+    id: string;
+    title: string | null;
+    createdAt: string;
+    user: { id: string; name: string | null; image?: string | null };
+  } | null;
+  repostOfLastMessage?: { content: string; createdAt: string } | null;
   hasPoll?: boolean;
   poll?: { id: string; question?: string } | null;
   lastMessage?: { content: string; createdAt: string } | null;
@@ -493,6 +511,7 @@ const FeedPage: React.FC = () => {
                   item={item}
                   onTagClick={(tag) => setTagFilter(tag)}
                   onClick={() => router.push(`/conversations/${item.id}`)}
+                  onRefresh={fetchFeed}
                 />
               ))
             )}
@@ -591,10 +610,78 @@ interface FeedCardProps {
   item: FeedItem;
   onTagClick: (tag: string) => void;
   onClick: () => void;
+  onRefresh: () => void;
 }
 
-const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick }) => {
+const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefresh }) => {
   const timeAgo = formatDistanceToNowStrict(new Date(item.createdAt), { addSuffix: true });
+
+  const currentUser = useCurrentUser();
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  const [quoteText, setQuoteText] = useState('');
+  const [isReposting, setIsReposting] = useState(false);
+
+  const isQuote = Boolean(item.repostOfConversation);
+
+  const originalPreview = useMemo(() => {
+    const raw = item.repostOfLastMessage?.content?.trim() || item.repostOfConversation?.title?.trim() || '';
+    const max = 220;
+    if (!raw) return '';
+    return raw.length > max ? `${raw.slice(0, max).trimEnd()}…` : raw;
+  }, [item.repostOfConversation, item.repostOfLastMessage]);
+
+  const handleRepost = async () => {
+    if (!currentUser) return;
+    setIsReposting(true);
+    try {
+      const url = `/api/conversations/${encodeURIComponent(item.id)}/repost`;
+      const res = await fetch(url, {
+        method: item.hasReposted ? 'DELETE' : 'POST',
+        headers: item.hasReposted ? undefined : { 'Content-Type': 'application/json' },
+        body: item.hasReposted ? undefined : JSON.stringify({ mode: 'repost' }),
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        throw new Error(t || 'Failed to repost');
+      }
+
+      onRefresh();
+    } catch (e) {
+      console.error('Repost failed:', e);
+    } finally {
+      setIsReposting(false);
+    }
+  };
+
+  const handleQuoteRepost = async () => {
+    if (!currentUser) return;
+    const text = quoteText.trim();
+    if (!text) return;
+    setIsReposting(true);
+    try {
+      const url = `/api/conversations/${encodeURIComponent(item.id)}/repost`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'quote', text }),
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        throw new Error(t || 'Failed to quote repost');
+      }
+      const data = await res.json();
+      setQuoteOpen(false);
+      setQuoteText('');
+      if (data?.conversationId) {
+        // Navigate to the new quote thread
+        window.location.href = `/conversations/${data.conversationId}`;
+      }
+    } catch (e) {
+      console.error('Quote repost failed:', e);
+    } finally {
+      setIsReposting(false);
+    }
+  };
 
   const MAX_PREVIEW_CHARS = 500;
   const rawPreviewText =
@@ -626,7 +713,68 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick }) => {
             <span className="font-semibold truncate">{item.user?.name || 'Anonymous'}</span>
             <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground">{timeAgo}</span>
+
+            <div className="ml-auto flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <FiChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuLabel>Share</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={!currentUser || isReposting}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void handleRepost();
+                    }}
+                  >
+                    <FiRepeat className="h-4 w-4 mr-2" />
+                    {item.hasReposted ? 'Undo repost' : 'Repost'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={!currentUser}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setQuoteOpen(true);
+                    }}
+                  >
+                    <FiEdit3 className="h-4 w-4 mr-2" />
+                    Quote repost
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
+
+          {/* Quote embed */}
+          {isQuote && item.repostOfConversation && (
+            <div
+              className="mt-2 rounded-xl border border-border/60 bg-background/30 p-3 text-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.location.href = `/conversations/${item.repostOfConversation?.id}`;
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-xs text-muted-foreground truncate">
+                    Quoting {item.repostOfConversation.user?.name || 'Anonymous'}
+                  </div>
+                  {originalPreview && (
+                    <div className="mt-1 text-[13px] text-foreground/85 leading-snug line-clamp-3">
+                      {originalPreview}
+                    </div>
+                  )}
+                </div>
+                <div className="shrink-0 text-xs text-muted-foreground">Open</div>
+              </div>
+            </div>
+          )}
 
           {/* Content preview */}
           {previewText && (
@@ -690,6 +838,14 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick }) => {
               <FiMessageCircle className="h-4 w-4" />
               {item.messageCount}
             </span>
+            <span className={`flex items-center gap-1 ${item.hasReposted ? 'text-emerald-500' : ''}`}>
+              <FiRepeat className="h-4 w-4" />
+              {item.repostCount || 0}
+            </span>
+            <span className="flex items-center gap-1">
+              <FiEdit3 className="h-4 w-4" />
+              {item.quoteRepostCount || 0}
+            </span>
             {item.uniqueViewCount !== undefined && item.uniqueViewCount > 0 && (
               <span className="flex items-center gap-1">
                 <FiTrendingUp className="h-4 w-4" />
@@ -699,6 +855,53 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick }) => {
           </div>
         </div>
       </div>
+
+      <Dialog open={quoteOpen} onOpenChange={setQuoteOpen}>
+        <DialogContent onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Quote repost</DialogTitle>
+            <DialogDescription>Add your comment, then repost.</DialogDescription>
+          </DialogHeader>
+
+          <Textarea
+            value={quoteText}
+            onChange={(e) => setQuoteText(e.target.value)}
+            placeholder="Add a comment…"
+            className="min-h-[120px]"
+          />
+
+          <div className="rounded-xl border border-border/60 bg-background/30 p-3 text-sm">
+            <div className="text-xs text-muted-foreground">
+              Original by {item.user?.name || 'Anonymous'}
+            </div>
+            <div className="mt-1 text-[13px] text-foreground/85 leading-snug line-clamp-4">
+              {(
+                item.lastMessage?.content?.trim() ||
+                item.description?.trim() ||
+                item.poll?.question?.trim() ||
+                item.title?.trim() ||
+                ''
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setQuoteOpen(false);
+                setQuoteText('');
+              }}
+              disabled={isReposting}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => void handleQuoteRepost()} disabled={isReposting || !quoteText.trim()}>
+              Post
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </article>
   );
 };

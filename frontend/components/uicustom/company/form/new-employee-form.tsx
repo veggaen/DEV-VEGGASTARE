@@ -143,62 +143,99 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-      <div className="relative group">
-        <div>{`${isLoading}`}</div>
-        <label htmlFor="userSearch" className="block text-sm font-medium text-gray-700 dark:text-gray-200">Search for a user</label>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-5 border border-black/10 bg-white/40 p-5 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05] rounded-lg hover:rounded-2xl"
+    >
+      <div className="relative">
+        <label htmlFor="userSearch" className="block text-xs font-medium text-slate-600 dark:text-slate-300">
+          Search user
+        </label>
         <input
           id="userSearch"
           type="text"
           ref={searchInputRef}
-          placeholder="Search for a user..."
+          placeholder="Type a name…"
           value={searchTerm}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          //onFocus={() => setShowDropdown(true)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+          className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-slate-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-slate-900 dark:text-white hover:rounded-2xl"
         />
         {showDropdown && searchTerm && (
-          <div ref={dropdownRef} className={`absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-[100px] overflow-auto`}>
-            {users.filter(user =>
-              user.name?.toLowerCase().includes(searchTerm.toLowerCase())
-            ).map((user, index) => (
-              <div
-                key={user.id}
-                onClick={() => handleUserSelect(user)}
-                className={`px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 ${highlightedIndex === index ? 'bg-blue-100 dark:bg-blue-800' : ''}`}
-              >
-                {user.name}
-              </div>
-            ))}
-            {users.length === 0 && <div className="px-4 py-2 text-gray-400 dark:text-gray-600">No users found</div>}
+          <div
+            ref={dropdownRef}
+            className="absolute z-10 mt-2 w-full overflow-auto rounded-lg border border-black/10 bg-white shadow-lg dark:border-white/10 dark:bg-slate-950 max-h-[160px]"
+          >
+            {users
+              .filter((user) => user.name?.toLowerCase().includes(searchTerm.toLowerCase()))
+              .map((user, index) => (
+                <div
+                  key={user.id}
+                  onClick={() => handleUserSelect(user)}
+                  className={
+                    "cursor-pointer px-3 py-2 text-sm text-slate-900 hover:bg-black/5 dark:text-white dark:hover:bg-white/[0.06] " +
+                    (highlightedIndex === index ? "bg-black/5 dark:bg-white/[0.06]" : "")
+                  }
+                >
+                  {user.name}
+                </div>
+              ))}
+            {users.length === 0 && (
+              <div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">No users found</div>
+            )}
           </div>
         )}
       </div>
 
-      {selectedUser && <div>
-        <h1>Selected user: {selectedUser.name}</h1>
-        <label htmlFor="roleSelect" className="block text-sm font-medium text-gray-700 dark:text-gray-200">Role</label>
-        <select
-          id="roleSelect"
-          {...register('role')}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-        >
-          {Object.values(EmployeeRole).map(role => (
-            <option key={role} value={role}>{role}</option>
-          ))}
-        </select>
-        {errors.role && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{`${errors.role.message}`}</p>}
-      </div>}
+      {selectedUser ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Selected</p>
+            <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-white">{selectedUser.name}</p>
+          </div>
 
-      {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
-      {success && <div className="text-sm text-green-600 dark:text-green-400">{success}</div>}
+          <div>
+            <label htmlFor="roleSelect" className="block text-xs font-medium text-slate-600 dark:text-slate-300">
+              Role
+            </label>
+            <select
+              id="roleSelect"
+              {...register('role')}
+              className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-slate-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-slate-900 dark:text-white hover:rounded-2xl"
+            >
+              {Object.values(EmployeeRole).map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+            {errors.role && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{`${errors.role.message}`}</p>}
+          </div>
+
+          <div className="md:col-span-2">
+            <label htmlFor="jobTitle" className="block text-xs font-medium text-slate-600 dark:text-slate-300">
+              Job title (optional)
+            </label>
+            <input
+              id="jobTitle"
+              type="text"
+              placeholder="e.g. Operations Lead"
+              {...register('jobTitle')}
+              className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-slate-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-slate-900 dark:text-white hover:rounded-2xl"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {error ? <div className="text-sm text-red-600 dark:text-red-400">{error}</div> : null}
+      {success ? <div className="text-sm text-emerald-700 dark:text-emerald-300">{success}</div> : null}
 
       <button
         type="submit"
-        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        disabled={!selectedUser || isLoading}
+        className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-[border-radius,background-color,opacity] hover:bg-slate-800 hover:rounded-2xl disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-white/90"
       >
-        Add Employee
+        {isLoading ? 'Adding…' : 'Add Employee'}
       </button>
     </form>
   );

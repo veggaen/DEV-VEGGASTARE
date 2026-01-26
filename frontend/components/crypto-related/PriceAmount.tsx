@@ -3,21 +3,81 @@
 import React, { useMemo } from "react";
 import { usePricing } from "./PricingContext";
 
-function trim(num: number, digits = 6) {
-  try {
-    const re = new RegExp(`^-?\\d+(?:\\.\\d{0,${digits}})?`);
-    return num.toString().match(re)?.[0] ?? "0";
-  } catch { return "0"; }
+function sanitizeNumberText(input: string) {
+  return String(input ?? "")
+    .replace(/\u00B7/g, ".")
+    .replace(/\u2219/g, ".")
+    .replace(/\.{2,}/g, ".")
+    .trim();
 }
 
-export default function PriceAmount({ usd }: { usd: number }) {
+function formatDecimal(value: number, maxFractionDigits: number) {
+  try {
+    if (!Number.isFinite(value)) return "0";
+    const nf = new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: maxFractionDigits,
+      minimumFractionDigits: 0,
+      useGrouping: true,
+    });
+    return sanitizeNumberText(nf.format(value));
+  } catch {
+    return sanitizeNumberText(String(value));
+  }
+}
+
+function formatUSD(value: number) {
+  try {
+    if (!Number.isFinite(value)) return "$0";
+    const nf = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2,
+    });
+    return sanitizeNumberText(nf.format(value));
+  } catch {
+    return `$${formatDecimal(value, 2)}`;
+  }
+}
+
+export default function PriceAmount({
+  usd,
+  render,
+}: {
+  usd: number;
+  render?: (parts: {
+    primaryText: string;
+    secondaryText: string;
+    nativeSymbol: string;
+    primary: number;
+    usd: number;
+  }) => React.ReactNode;
+}) {
   const { nativeSymbol, convertFromUSD } = usePricing();
   const primary = useMemo(() => convertFromUSD(usd, "NATIVE"), [usd, convertFromUSD]);
 
   if (primary == null) return <span>—</span>;
+
+  const primaryText = `${formatDecimal(primary, 6)} ${nativeSymbol}`;
+  const secondaryText = `(~ ${formatUSD(usd)})`;
+
+  if (render) {
+    return (
+      <>
+        {render({
+          primaryText,
+          secondaryText,
+          nativeSymbol,
+          primary,
+          usd,
+        })}
+      </>
+    );
+  }
+
   return (
     <span>
-      {trim(primary, 6)} {nativeSymbol} <span className="text-xs opacity-70">(~ ${trim(usd, 2)})</span>
+      {primaryText} <span className="text-xs opacity-70">{secondaryText}</span>
     </span>
   );
 }

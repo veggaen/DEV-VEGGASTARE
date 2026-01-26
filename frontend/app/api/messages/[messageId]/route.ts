@@ -16,11 +16,16 @@ const patchBodySchema = z
     message: 'At least one of content or imageUrl must be provided',
   });
 
-export async function PATCH(req: Request, { params }: { params: { messageId: string } }) {
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ messageId: string }> }
+) {
   const session = await MyLibUserAuth();
   if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
+
+  const resolvedParams = await params;
 
   const bodyResult = await parseJsonOrError(req, patchBodySchema);
   if (!bodyResult.ok) return bodyResult.response;
@@ -30,7 +35,7 @@ export async function PATCH(req: Request, { params }: { params: { messageId: str
 
   try {
     const message = await dbPrisma.message.findUnique({
-      where: { id: params.messageId },
+      where: { id: resolvedParams.messageId },
     });
 
     if (!message) {
@@ -43,7 +48,7 @@ export async function PATCH(req: Request, { params }: { params: { messageId: str
 
     // Update the message with the new content and imageUrl
     const updatedMessage = await dbPrisma.message.update({
-      where: { id: params.messageId },
+      where: { id: resolvedParams.messageId },
       data: {
         ...(content !== undefined ? { content } : {}),
         ...(imageUrl !== undefined ? { imageUrl } : {}),
@@ -68,17 +73,22 @@ export async function PATCH(req: Request, { params }: { params: { messageId: str
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { messageId: string } }) {
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ messageId: string }> }
+) {
   const session = await MyLibUserAuth();
   if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  const resolvedParams = await params;
+
   const userId = session.id;
 
   try {
     const message = await dbPrisma.message.findUnique({
-      where: { id: params.messageId },
+      where: { id: resolvedParams.messageId },
     });
 
     if (!message) {
@@ -90,7 +100,7 @@ export async function DELETE(req: Request, { params }: { params: { messageId: st
     }
 
     await dbPrisma.message.delete({
-      where: { id: params.messageId },
+      where: { id: resolvedParams.messageId },
     });
 
     // Trigger Pusher event for deleting

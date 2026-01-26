@@ -131,6 +131,7 @@ export const employeeSchema = z.object({
     userId: z.string().min(1, 'User ID is required'),
     //name: z.string().min(1, 'Name is required'),
     role: z.enum([EmployeeRole.OWNER, EmployeeRole.MANAGER, EmployeeRole.STAFF, EmployeeRole.USER]), // Assuming EmployeeRole is an enum you have defined
+    jobTitle: z.string().trim().min(1).max(80).optional(),
     permissions: employeePermissionsSchema.optional(), // permissions: z.array(z.string()).optional(), // Assuming permissions is an array of strings, adjust as necessary
 });
 // Define the schema for shipping logistic and tracking information
@@ -152,6 +153,43 @@ export const companyCreationSchema = z.object({
     logo: z.array(z.string()), // z.string().url().optional(),
     bannerImage: z.array(z.string()), // z.string().url().optional(),
     colorScheme: z.string().optional(),
+
+    // Registration / company metadata (optional)
+    orgType: z.preprocess(
+        (v) => {
+            if (v == null) return undefined;
+            if (typeof v !== 'string') return v;
+            const s = v.trim();
+            if (!s || s === 'UNSPECIFIED') return undefined;
+            return s;
+        },
+        z.enum(['ENK', 'AS', 'ANS', 'DA', 'SA', 'FORENING', 'NUF', 'OTHER']).optional()
+    ),
+    orgNumber: z
+        .preprocess(
+            (v) => {
+                if (v == null) return undefined;
+                if (typeof v !== 'string') return v;
+                const s = v.trim();
+                return s.length ? s : undefined;
+            },
+            z.string().optional()
+        )
+        .refine(
+            (v) => v == null || /^\d{9}$/.test(v),
+            'Organization number must be 9 digits (optional)'
+        ),
+    employmentNoticeDays: z
+        .preprocess(
+            (v) => {
+                if (v == null || v === '') return undefined;
+                if (typeof v === 'string') return Number(v);
+                return v;
+            },
+            z.number().int().min(0, 'Notice days must be >= 0').max(365, 'Notice days must be <= 365').optional()
+        )
+        .default(14),
+
     creatorId: z.string(),
     ownerId: z.string(),
     employees: z.array(employeeSchema).optional(), // TODO change from any soon...
@@ -200,6 +238,7 @@ export const companyCreationSchema = z.object({
 export const NewEmployeeSchema = z.object({
     userId: z.string().min(1, "User ID is required"),
     role: z.enum([EmployeeRole.OWNER, EmployeeRole.MANAGER, EmployeeRole.STAFF, EmployeeRole.USER]),
+    jobTitle: z.string().trim().min(1).max(80).optional(),
     // Optionally include permissions if your application logic requires them
     permissions: z.array(z.string()).optional(),
 });

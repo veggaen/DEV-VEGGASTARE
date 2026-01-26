@@ -134,6 +134,17 @@ export async function GET(req: Request) {
     // Fetch the conversation
     const conversation = await dbPrisma.conversation.findUnique({
       where: { id: conversationId },
+      include: {
+        repostOfConversation: {
+          select: {
+            id: true,
+            title: true,
+            createdAt: true,
+            user: { select: { id: true, name: true, image: true } },
+            messages: { take: 1, orderBy: { createdAt: 'desc' } },
+          },
+        },
+      },
     });
 
     if (!conversation) {

@@ -5,9 +5,10 @@ import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import { mainnet, base, arbitrum /* add more as needed */ } from '@reown/appkit/networks'
 
 // required by AppKit
-export const projectId = process.env.NEXT_PUBLIC_PROJECT_ID
+export const projectId =
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? process.env.NEXT_PUBLIC_PROJECT_ID
 if (!projectId) {
-  throw new Error('Project ID is not defined')
+  throw new Error('WalletConnect/Reown Project ID is not defined')
 }
 
 export const networks = [mainnet, base, arbitrum]

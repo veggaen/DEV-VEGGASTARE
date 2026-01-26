@@ -1,9 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 
-export async function GET(req: NextRequest, { params }: { params: { companyId: string; warehouseId: string } }) {
+type CompanyWarehouseParams = {
+    companyId?: string;
+    companyid?: string;
+    warehouseId?: string;
+    warehouseid?: string;
+};
+
+export async function GET(
+    req: NextRequest,
+    { params }: { params: Promise<CompanyWarehouseParams> }
+) {
     try {
-        const { companyId, warehouseId } = params;
+        const resolvedParams = await params;
+        const companyId = resolvedParams.companyId ?? resolvedParams.companyid;
+        const warehouseId = resolvedParams.warehouseId ?? resolvedParams.warehouseid;
         console.log('Received request with params:', { companyId, warehouseId });
 
         if (!companyId || !warehouseId) {

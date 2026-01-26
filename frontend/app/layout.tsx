@@ -65,5 +65,5 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </SessionProvider>
       </body>
     </html>
-  );
+  ); // is this proper and good typescript? like best practice? does each part here need a '?' or is it ok like this? and its this best practices and could there be better ways?
 }

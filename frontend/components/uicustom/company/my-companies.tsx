@@ -56,40 +56,145 @@ const MyCompanies = () => {
   if (loading) return <div>Loading companies...</div>;
   if (!companies.length) return <div>No companies found.</div>;
 
+  const ownedCompanies = user ? companies.filter((company: any) => company.ownerId === user.id) : companies;
+  const memberCompanies = user
+    ? companies.filter((company: any) => company.ownerId !== user.id)
+    : [];
+
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold dark:text-white mb-4">My Companies</h2>
-      <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-        {companies.map((company) => (
-          <div key={company.id} className="group flex flex-col hover:shadow-lg transition-shadow duration-100 rounded hover:bg-blue-500/30 p-2">
-            <div className="rounded-t-lg">
-              <AspectRatio ratio={1 / 1}>
-                <Link href={`/nexus/company/${company.id}`} passHref>
-                  <Image src={company.logo[0]} alt={`${company.name} logo`} fill={true} objectFit="cover" className="dark:brightness-75 rounded" />
-                </Link>
-              </AspectRatio>
-            </div>
-            <div className="flex flex-col justify-between h-full py-2">
-              <div className='flex-grow mb-3'>
-                <h3 className="text-lg font-bold dark:text-indigo-400 text-indigo-600 text-pretty">{company.name}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 text-pretty px-2 h-fit">{company.description ? truncateDescription(company.description) : ''}</p>
-              </div>
-              <div className="flex justify-between items-center my-2 sm:mt-4 gap-2">
-                <Link href={`/nexus/company/${company.id}`} passHref className='w-full'>
-                  <Button variant='vegaNormalBtn' className="bg-black/10 dark:bg-black/10 font-semibold w-full">View Company</Button>
-                </Link>
-                {permissions[company.id] && permissions[company.id].CAN_DELETE_COMPANY && (
-                  <DeleteCompanyBtn
-                    companyId={company.id}
-                    companyName={company.name}
-                    onCompanyDeleted={() => handleCompanyDeleted(company.id)}
-                    employeePermissions={permissions[company.id]}
-                  />
-                )}
-              </div>
-            </div>
+    <div className="w-full">
+      <div className="mx-auto w-full max-w-screen-2xl px-4 pb-10 pt-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Companies</h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+              Manage your organizations and jump into inventory.
+            </p>
           </div>
-        ))}
+
+          <Link
+            href="/nexus/company/create"
+            className="inline-flex items-center justify-center rounded-lg border border-black/10 bg-black/5 px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-black/10 dark:border-white/10 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/[0.07]"
+          >
+            Create company
+          </Link>
+        </div>
+
+      {ownedCompanies.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-3">Owned by you</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {ownedCompanies.map((company: any) => (
+              <div
+                key={company.id}
+                className="group flex h-full flex-col border border-black/10 bg-white/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-lg dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05] rounded-lg hover:rounded-2xl"
+              >
+                <div className="p-3">
+                  <AspectRatio ratio={1 / 1}>
+                    <Link href={`/nexus/company/${company.id}`} passHref>
+                      <Image
+                        src={company.logo?.[0] || "/users/avatar.webp"}
+                        alt={`${company.name} logo`}
+                        fill={true}
+                        objectFit="cover"
+                        className="dark:brightness-90 rounded-md transition-[border-radius] duration-200 group-hover:rounded-xl"
+                      />
+                    </Link>
+                  </AspectRatio>
+                </div>
+
+                <div className="flex flex-1 flex-col px-4 pb-4">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 truncate">
+                      {company.name}
+                    </h3>
+                    {company.orgType ? (
+                      <div className="mt-1">
+                        <span className="inline-flex items-center rounded-full border border-black/10 bg-black/5 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200">
+                          {company.orgType}
+                        </span>
+                      </div>
+                    ) : null}
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 line-clamp-3">
+                      {company.description ? truncateDescription(company.description) : ""}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-2">
+                    <Link href={`/nexus/company/${company.id}`} passHref className="w-full">
+                      <Button variant='vegaNormalBtn' className="bg-black/10 dark:bg-black/10 font-semibold w-full">
+                        View
+                      </Button>
+                    </Link>
+                    {permissions[company.id] && permissions[company.id].CAN_DELETE_COMPANY && (
+                      <DeleteCompanyBtn
+                        companyId={company.id}
+                        companyName={company.name}
+                        onCompanyDeleted={() => handleCompanyDeleted(company.id)}
+                        employeePermissions={permissions[company.id]}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {memberCompanies.length > 0 && (
+        <div>
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-3">You’re a member</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {memberCompanies.map((company: any) => (
+              <div
+                key={company.id}
+                className="group flex h-full flex-col border border-black/10 bg-white/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-lg dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05] rounded-lg hover:rounded-2xl"
+              >
+                <div className="p-3">
+                  <AspectRatio ratio={1 / 1}>
+                    <Link href={`/nexus/company/${company.id}`} passHref>
+                      <Image
+                        src={company.logo?.[0] || "/users/avatar.webp"}
+                        alt={`${company.name} logo`}
+                        fill={true}
+                        objectFit="cover"
+                        className="dark:brightness-90 rounded-md transition-[border-radius] duration-200 group-hover:rounded-xl"
+                      />
+                    </Link>
+                  </AspectRatio>
+                </div>
+
+                <div className="flex flex-1 flex-col px-4 pb-4">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 truncate">
+                      {company.name}
+                    </h3>
+                    {company.orgType ? (
+                      <div className="mt-1">
+                        <span className="inline-flex items-center rounded-full border border-black/10 bg-black/5 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200">
+                          {company.orgType}
+                        </span>
+                      </div>
+                    ) : null}
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 line-clamp-3">
+                      {company.description ? truncateDescription(company.description) : ""}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-2">
+                    <Link href={`/nexus/company/${company.id}`} passHref className="w-full">
+                      <Button variant='vegaNormalBtn' className="bg-black/10 dark:bg-black/10 font-semibold w-full">
+                        View
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

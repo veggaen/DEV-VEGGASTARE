@@ -151,9 +151,6 @@ const Carousel = React.forwardRef<
           {...props}
         >
           {children}
-	          <div className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/50 px-2 py-1 text-xs font-medium text-white backdrop-blur">
-	            {`${currentIndex + 1}/${totalSlides}`}
-	          </div>
         </div>
       </CarouselContext.Provider>
     )
@@ -208,7 +205,7 @@ CarouselItem.displayName = "CarouselItem"
 const CarouselPrevious = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<typeof Button>
->(({ className, variant = "outline", size = "icon", ...props }, ref) => {
+>(({ className, variant = "outline", size = "icon", ["aria-label"]: ariaLabel, ...props }, ref) => {
   const { orientation, scrollPrev, canScrollPrev } = useCarousel()
 
   return (
@@ -216,6 +213,7 @@ const CarouselPrevious = React.forwardRef<
       ref={ref}
       variant={variant}
       size={size}
+      aria-label={ariaLabel ?? "Previous slide"}
       className={cn(
         `absolute hidden group h-8 w-8 rounded-full z-10 text-white dark:text-white border-transparent hover:text-blue-500 ${!canScrollPrev ? 'hidden' : 'sm:flex'}`,
         orientation === "horizontal"
@@ -228,7 +226,6 @@ const CarouselPrevious = React.forwardRef<
       {...props}
     >
       <IoArrowBackCircleOutline className="h-4 w-4 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
-      <span className="sr-only">Previous slide</span>
     </Button>
   )
 })
@@ -237,7 +234,7 @@ CarouselPrevious.displayName = "CarouselPrevious"
 const CarouselNext = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<typeof Button>
->(({ className, variant = "outline", size = "icon", ...props }, ref) => {
+>(({ className, variant = "outline", size = "icon", ["aria-label"]: ariaLabel, ...props }, ref) => {
   const { orientation, scrollNext, canScrollNext } = useCarousel()
 
   return (
@@ -245,6 +242,7 @@ const CarouselNext = React.forwardRef<
       ref={ref}
       variant={variant}
       size={size}
+      aria-label={ariaLabel ?? "Next slide"}
       className={cn(
         `absolute hidden group h-8 w-8 rounded-full z-10 text-white dark:text-white border-transparent hover:text-blue-500 ${!canScrollNext ? 'hidden' : 'sm:flex'}`,
         orientation === "horizontal"
@@ -257,7 +255,6 @@ const CarouselNext = React.forwardRef<
       {...props}
     >
       <IoArrowForwardCircleOutline className="h-4 w-4 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
-      <span className="sr-only">Next slide</span>
     </Button>
   )
 })

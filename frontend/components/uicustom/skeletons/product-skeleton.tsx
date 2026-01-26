@@ -1,59 +1,83 @@
-import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 
 export default function ProductSkeleton() {
   return (
-    <div className='w-full xs:w-[calc(100%-1rem)] flex flex-col'>
-      <div className='lg:flex-row flex flex-col justify-start items-center xs:rounded-t-lg bg-white dark:bg-gray-800 animate-pulse'>
-        <div className='relative flex flex-col w-full h-full max-w-[800px] xs:rounded-t-lg lg:rounded-tr-none overflow-hidden'>
-          <div className="relative w-full aspect-w-1 aspect-h-1">
+    <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-4 md:px-6 py-6">
+      <section className="grid lg:grid-cols-2 gap-6 lg:gap-10">
+        {/* Gallery skeleton */}
+        <div className="lg:sticky lg:top-6">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-900/40 p-2 animate-pulse">
             <AspectRatio ratio={1 / 1}>
-              <Image src="/loading.webp" alt="Loading..." sizes="100%" fill className="object-fill rounded" />
+              <div className="w-full h-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 rounded-xl" />
             </AspectRatio>
           </div>
         </div>
-        <div className='flex flex-col w-fit p-8'>
-          <div className='uppercase tracking-wide text-sm bg-slate-200 dark:bg-slate-700 rounded w-1/2 h-4 mb-2'></div>
-          <div className='block mt-1 text-lg leading-tight font-medium bg-slate-200 dark:bg-slate-700 rounded w-3/4 h-6 mb-4'></div>
-          <div className='mt-2 bg-slate-200 dark:bg-slate-700 rounded w-full h-20 mb-4'></div>
-          <div className='mt-4 flex items-center'>
-            <div className='text-yellow-500 h-5 w-5'>
-              {/* Placeholder for Star Icon */}
+
+        {/* Details skeleton */}
+        <div className="flex flex-col gap-4">
+          {/* Hero heading skeleton */}
+          <div className="relative rounded-2xl border border-slate-200/50 dark:border-slate-800/50 bg-gradient-to-br from-slate-50/80 to-slate-100/80 dark:from-slate-900/50 dark:to-slate-800/50 p-6 overflow-hidden animate-pulse">
+            {/* Category badge */}
+            <div className="inline-flex mb-3">
+              <div className="h-6 w-40 bg-slate-200 dark:bg-slate-700 rounded-full" />
             </div>
-            <div className='ml-2 bg-slate-200 dark:bg-slate-700 rounded w-1/4 h-4'></div>
+            {/* Title */}
+            <div className="h-8 w-3/4 bg-slate-200 dark:bg-slate-700 rounded mb-4" />
+            {/* Price */}
+            <div className="h-7 w-48 bg-slate-200 dark:bg-slate-700 rounded" />
           </div>
-          <div className='flex flex-wrap gap-2 mt-4'>
-            <div className='bg-slate-200 dark:bg-slate-700 rounded w-24 h-8'></div>
-            <div className='bg-slate-200 dark:bg-slate-700 rounded w-32 h-8'></div>
-            <div className='bg-slate-200 dark:bg-slate-700 rounded w-28 h-8'></div>
-            <div className='bg-slate-200 dark:bg-slate-700 rounded w-40 h-8'></div>
+
+          {/* Rating */}
+          <div className="h-6 w-32 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+
+          {/* Action buttons */}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <div className="h-10 w-28 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+            <div className="h-10 w-36 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+            <div className="h-10 w-40 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+          </div>
+
+          {/* Shipping box */}
+          <div className="mt-4 rounded-xl border border-gray-200 dark:border-gray-800 p-4 animate-pulse">
+            <div className="h-5 w-24 bg-slate-200 dark:bg-slate-700 rounded mb-3" />
+            <div className="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded" />
+          </div>
+
+          {/* Availability boxes */}
+          <div className="grid sm:grid-cols-2 gap-3 mt-2">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-4 animate-pulse">
+              <div className="h-5 w-28 bg-slate-200 dark:bg-slate-700 rounded mb-2" />
+              <div className="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded" />
+            </div>
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-4 animate-pulse">
+              <div className="h-5 w-32 bg-slate-200 dark:bg-slate-700 rounded mb-2" />
+              <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded" />
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="mt-2 rounded-xl border border-gray-200 dark:border-gray-800 p-4 animate-pulse">
+            <div className="space-y-2">
+              <div className="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded" />
+              <div className="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded" />
+              <div className="h-4 w-3/4 bg-slate-200 dark:bg-slate-700 rounded" />
+            </div>
           </div>
         </div>
-      </div>
-      <div className='flex flex-col p-4 md:p-8 text-sm text-center sm:text-start bg-slate-100 dark:bg-gray-700 sm:rounded-b-lg'>
-        <div className='mt-6'>
-          <div className='text-lg font-semibold bg-slate-200 dark:bg-slate-700 rounded w-1/3 h-6 mb-4'></div>
-          <dl className='mt-2 grid items-center grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2 md:grid-cols-2 lg:mb-1'>
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className='flex flex-col'>
-                <dt className='text-sm font-medium bg-slate-200 dark:bg-slate-700 rounded w-1/2 h-4 mb-2'></dt>
-                <dd className='mt-1 text-sm bg-slate-200 dark:bg-slate-700 rounded w-3/4 h-4'></dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-        <div className='mt-6 border-t border-gray-200 dark:border-gray-700 p-6'>
-          <div className='text-lg font-semibold bg-slate-200 dark:bg-slate-700 rounded w-1/3 h-6 mb-4'></div>
-          <dl className='mt-2 pl-4'>
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className='py-2 grid grid-cols-1 gap-4 sm:grid-cols-2'>
-                <dt className='text-sm font-medium bg-slate-200 dark:bg-slate-700 rounded w-1/3 h-4'></dt>
-                <dd className='text-sm bg-slate-200 dark:bg-slate-700 rounded w-2/3 h-4'></dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      </div>
+      </section>
+
+      {/* Specifications skeleton */}
+      <section className="mt-8 rounded-2xl bg-slate-100/60 dark:bg-gray-800/50 border border-slate-200 dark:border-gray-800 p-6 animate-pulse">
+        <div className="h-6 w-36 bg-slate-200 dark:bg-slate-700 rounded mb-4" />
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex flex-col">
+              <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded mb-2" />
+              <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
+            </div>
+          ))}
+        </dl>
+      </section>
     </div>
   );
 }

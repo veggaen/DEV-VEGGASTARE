@@ -10,7 +10,7 @@ export type UiPreferences = {
 };
 
 const DEFAULT_PREFS: UiPreferences = {
-  productTitleAnimationMode: "letters",
+  productTitleAnimationMode: "rsvp",
   rsvpWpm: 420,
 };
 

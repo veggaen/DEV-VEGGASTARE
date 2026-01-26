@@ -96,6 +96,9 @@ export const MyCompanyCreateForm = () => {
       logo: [''],
       bannerImage: [''],
       colorScheme: '',
+      orgType: undefined,
+      orgNumber: '',
+      employmentNoticeDays: 14,
       creatorId: user?.id ?? '',
       ownerId: user?.id ?? '',
       employees: user ? [{ ...INITIAL_OWNER_EMPLOYEE(user) }] : [],
@@ -337,6 +340,93 @@ export const MyCompanyCreateForm = () => {
               <FormMessage />
             </FormItem>
           )} />
+
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 px-4 py-2">
+            <FormField
+              control={form.control}
+              name="orgType"
+              render={({ field }) => (
+                <FormItem className='w-full'>
+                  <FormLabel>Organization Type (optional)</FormLabel>
+                  <FormDescription className='px-4 py-0'>
+                    Helps tailor company settings later.
+                  </FormDescription>
+                  <Select
+                    value={(field.value as any) ?? 'UNSPECIFIED'}
+                    onValueChange={(v) => field.onChange(v === 'UNSPECIFIED' ? undefined : v)}
+                    disabled={!user || isSubmitting}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Not specified" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="UNSPECIFIED">Not specified</SelectItem>
+                      <SelectItem value="ENK">Enkeltpersonforetak (ENK)</SelectItem>
+                      <SelectItem value="AS">Aksjeselskap (AS)</SelectItem>
+                      <SelectItem value="ANS">Ansvarlig selskap (ANS)</SelectItem>
+                      <SelectItem value="DA">Delt ansvar (DA)</SelectItem>
+                      <SelectItem value="SA">Samvirkeforetak (SA)</SelectItem>
+                      <SelectItem value="FORENING">Forening / Lag</SelectItem>
+                      <SelectItem value="NUF">NUF</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="orgNumber"
+              render={({ field }) => (
+                <FormItem className='w-full'>
+                  <FormLabel>Organization Number (optional)</FormLabel>
+                  <FormDescription className='px-4 py-0'>
+                    9 digits.
+                  </FormDescription>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="123456789"
+                      disabled={!user || isSubmitting}
+                      inputMode="numeric"
+                      pattern="\d*"
+                      maxLength={9}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="employmentNoticeDays"
+            render={({ field }) => (
+              <FormItem className='w-full px-4 py-2'>
+                <FormLabel>Default Notice Days (optional)</FormLabel>
+                <FormDescription className='px-4 py-0'>
+                  Default: 14
+                </FormDescription>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="number"
+                    min={0}
+                    max={365}
+                    disabled={!user || isSubmitting}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <FormField control={form.control} name='logo' render={({ field }) => (
             <FormItem className='w-full px-4 pt-2' title='Optimal image ratio 1:1'>
               <FormLabel>Company Logo</FormLabel>

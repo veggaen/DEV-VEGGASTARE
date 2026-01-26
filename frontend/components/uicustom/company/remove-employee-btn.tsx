@@ -25,6 +25,13 @@ export const RemoveEmployeeButton: React.FC<RemoveEmployeeButtonProps> = ({
   const clientUser = useCurrentUser();
 
   const handleRemove = async () => {
+    if (isRemoving) return;
+
+    const ok = window.confirm(
+      "Remove this employee from the company?\n\nThis takes effect immediately and can't be undone."
+    );
+    if (!ok) return;
+
     console.log(`${LOG_PREFIX} ${clientUser?.name} is initiating the removal of employee with ID: ${userId} from companyID: ${companyId}`);
     setIsRemoving(true);
     const formData = { userId, companyId, clientUser };

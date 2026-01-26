@@ -11,6 +11,7 @@ const addEmployeeSchema = z.object({
   userId: z.string().trim().min(1).max(200),
   companyId: z.string().trim().min(1).max(200),
   role: z.nativeEnum(EmployeeRole),
+  jobTitle: z.string().trim().min(1).max(80).optional(),
   // legacy payload some clients send; ignored
   clientUser: z.any().optional(),
 });
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
   const bodyResult = await parseJsonOrError(req, addEmployeeSchema);
   if (!bodyResult.ok) return bodyResult.response;
 
-  const { userId, companyId, role } = bodyResult.data;
+  const { userId, companyId, role, jobTitle } = bodyResult.data;
 
   try {
     const employee = await dbPrisma.employee.findFirst({
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
         userId,
         companyId,
         role,
+        jobTitle: jobTitle || null,
         permissions: {},
       },
     });

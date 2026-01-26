@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useEffect, useMemo } from "react";
+import React, { ReactNode, useEffect, useMemo, useRef } from "react";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { reconnect } from "@wagmi/core";
@@ -40,9 +40,12 @@ function SolanaLayer({ children }: { children: ReactNode }) {
 
 export default function Web3Providers({ children }: { children: ReactNode }) {
   const queryClient = useMemo(() => new QueryClient(), []);
+  const didReconnectRef = useRef(false);
 
   // Rehydrate wagmi sessions
   useEffect(() => {
+    if (didReconnectRef.current) return;
+    didReconnectRef.current = true;
     reconnect(wagmiConfig).catch(() => {});
   }, []);
 

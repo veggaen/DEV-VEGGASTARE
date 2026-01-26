@@ -22,6 +22,14 @@ interface ConversationDetails {
   isAnonymized: boolean;
   userId: string;
   originalUserId: string | null;
+  repostOfConversationId?: string | null;
+  repostOfConversation?: {
+    id: string;
+    title: string | null;
+    createdAt: string;
+    user: { id: string; name: string | null; image?: string | null };
+    messages?: { content: string; createdAt: string }[];
+  } | null;
 }
 const ConversationPage: React.FC = () => {
   const params = useParams();
@@ -252,6 +260,30 @@ const ConversationPage: React.FC = () => {
 
       {/* Poll display - shows if conversation has a poll */}
       <PollDisplay conversationId={conversationId} />
+
+      {/* Quote repost embed */}
+      {conversation?.repostOfConversation && (
+        <button
+          type="button"
+          className="w-full text-left rounded-lg border border-border bg-white/70 dark:bg-black/30 px-4 py-3 transition hover:bg-white/90 dark:hover:bg-black/40"
+          onClick={() => {
+            const originalId = conversation.repostOfConversation?.id;
+            if (originalId) window.location.href = `/conversations/${originalId}`;
+          }}
+        >
+          <div className="text-xs text-muted-foreground">
+            Original post by {conversation.repostOfConversation.user?.name || 'Anonymous'}
+          </div>
+          <div className="mt-1 text-sm text-foreground/90 leading-relaxed line-clamp-4">
+            {(
+              conversation.repostOfConversation.messages?.[0]?.content?.trim() ||
+              conversation.repostOfConversation.title?.trim() ||
+              ''
+            )}
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">Open original</div>
+        </button>
+      )}
 
       <div className="flex-1 overflow-y-auto flex flex-col gap-2 bg-white dark:bg-black/40 rounded-lg shadow-md">
         <MessageList messages={messages} users={users} conversationId={conversationId} loading={loading} />

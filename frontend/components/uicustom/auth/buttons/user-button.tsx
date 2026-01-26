@@ -18,9 +18,16 @@ import { ExitIcon } from "@radix-ui/react-icons";
 import { TiMessages } from "react-icons/ti";
 import { AiOutlineSetting } from "react-icons/ai";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useTheme } from "next-themes";
 
 export const MyUserButton = () => {
   const user = useCurrentUser();
+  const { resolvedTheme, setTheme } = useTheme();
+
+  const toggleTheme = () => {
+    const next = resolvedTheme === "dark" ? "light" : "dark";
+    setTheme(next);
+  };
 
   if (!user) {
     return (
@@ -86,6 +93,18 @@ export const MyUserButton = () => {
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
+
+  			<DropdownMenuItem
+  				className="cursor-pointer rounded-xl px-2.5 py-2 focus:bg-black/5 dark:focus:bg-white/10"
+  				onSelect={(e) => {
+  					e.preventDefault();
+  					toggleTheme();
+  				}}
+  			>
+  				{resolvedTheme === "dark" ? "Switch to light" : "Switch to dark"}
+  			</DropdownMenuItem>
+
+  			<DropdownMenuSeparator />
 
 				<DropdownMenuItem
 					className="cursor-pointer rounded-xl px-2.5 py-2 text-red-600 focus:bg-red-500/10 focus:text-red-700 dark:focus:bg-red-500/15 dark:focus:text-red-400"

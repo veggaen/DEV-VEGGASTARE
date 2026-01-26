@@ -22,7 +22,22 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
     return { error: `Validation error: ${errorMessage}` };
   }
 
-  const { name, description, websiteUrl, logo, bannerImage, colorScheme, creatorId, ownerId, employees, usesShipping, warehouseLocations } = validateFields.data;
+  const {
+    name,
+    description,
+    websiteUrl,
+    logo,
+    bannerImage,
+    colorScheme,
+    orgType,
+    orgNumber,
+    employmentNoticeDays,
+    creatorId,
+    ownerId,
+    employees,
+    usesShipping,
+    warehouseLocations,
+  } = validateFields.data;
 
   try {
     const userExists = await dbPrisma.user.findUnique({
@@ -42,6 +57,9 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
           logo,
           bannerImage,
           colorScheme,
+          orgType: orgType ?? null,
+          orgNumber: orgNumber || null,
+          employmentNoticeDays,
           creatorId,
           ownerId,
           usesShipping,

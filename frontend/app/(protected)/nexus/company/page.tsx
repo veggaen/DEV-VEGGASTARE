@@ -1,15 +1,8 @@
-'use client'
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-import MyCompanies from "@/components/uicustom/company/my-companies";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import CompanyListClient from './CompanyListClient';
 
-const MyProtectedSettingsCompany = () => {
-    const user = useCurrentUser();
-    if (!user) return <div>User is loading...</div>;
-    return (
-        <div className='w-full'>
-          <MyCompanies />
-        </div>
-    );
+export default function MyProtectedSettingsCompany() {
+  return <CompanyListClient />;
 }
-export default MyProtectedSettingsCompany; // protected router component

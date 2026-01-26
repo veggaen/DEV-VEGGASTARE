@@ -4,6 +4,15 @@ import { useState, useEffect } from 'react';
 
 type DataType = { date: Date; users?: number; companies?: number }; // Both are optional
 
+function firstDefinedDate(...values: Array<unknown>): Date | null {
+  for (const v of values) {
+    if (!v) continue;
+    const d = new Date(v as any);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
 export const useFetchAnalytics = (endpoint: string) => {
   const [data, setData] = useState<{ label: string; data: DataType[] }[]>([]);
   const [firstDate, setFirstDate] = useState<Date | null>(null);
@@ -23,19 +32,35 @@ export const useFetchAnalytics = (endpoint: string) => {
         const result = await response.json();
 
         // Sanitize the data
-        const sanitizedData = result.data.map((item: any) => ({
+        const sanitizedData = (result.data ?? []).map((item: any) => ({
           ...item,
-          data: item.data.map((datum: any) => ({
+          data: (item.data ?? []).map((datum: any) => ({
             ...datum,
             date: datum.date ? new Date(datum.date) : new Date(),
-            users: isNaN(datum.users) ? 0 : datum.users,
-            companies: isNaN(datum.companies) ? 0 : datum.companies, // Handle companies correctly
+            users: typeof datum.users === 'number' && !isNaN(datum.users) ? datum.users : 0,
+            companies: typeof datum.companies === 'number' && !isNaN(datum.companies) ? datum.companies : 0,
           })),
         }));
 
         setData(sanitizedData);
-        setFirstDate(new Date(result.firstCompanyDate || result.firstUserDate));
-        setLastDate(new Date(result.lastCompanyDate || result.lastUserDate));
+        setFirstDate(
+          firstDefinedDate(
+            result.firstCompanyDate,
+            result.firstUserDate,
+            result.firstProductDate,
+            result.firstDate,
+            result.first
+          )
+        );
+        setLastDate(
+          firstDefinedDate(
+            result.lastCompanyDate,
+            result.lastUserDate,
+            result.lastProductDate,
+            result.lastDate,
+            result.last
+          )
+        );
         setToday(new Date(result.today));
       } catch (error) {
         console.error('Error fetching data:', error);

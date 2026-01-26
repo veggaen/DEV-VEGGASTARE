@@ -60,6 +60,10 @@ export function getConnectorBrand(connector: Connector): { label: string; icon: 
     return { label: connector.name || "Injected", icon: ICONS.injected };
   }
 
+  if (id.includes("walletconnect") || name.includes("walletconnect")) {
+    return { label: "WalletConnect", icon: ICONS.generic };
+  }
+
   // Fallback (WalletConnect later, etc.)
   return { label: connector.name || "Wallet", icon: ICONS.generic };
 }

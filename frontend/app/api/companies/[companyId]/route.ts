@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 
-export async function GET(req: NextRequest, { params }: { params: { companyId: string } }) {
+type CompanyParams = { companyId?: string; companyid?: string };
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<CompanyParams> }
+) {
   try {
-    const { companyId } = params;
+    const resolvedParams = await params;
+    const companyId = resolvedParams.companyId ?? resolvedParams.companyid;
     console.log('Fetching details for company ID:', companyId);
 
     if (!companyId) {

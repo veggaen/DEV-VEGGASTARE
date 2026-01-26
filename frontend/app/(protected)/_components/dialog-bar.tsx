@@ -28,17 +28,32 @@ type MyDialogbarNavigatorProps = {
 	 * - topbar: minimal, no boxed background
 	 */
 	variant?: "default" | "topbar";
+  /**
+   * Controlled open state (optional).
+   * If provided, the dialog open/close is controlled by the parent.
+   */
+  open?: boolean;
+  /**
+   * Controlled open state change handler.
+   */
+  onOpenChange?: (open: boolean) => void;
+  /**
+   * Render only the dialog (no trigger button). Useful when the trigger lives elsewhere.
+   */
+  hideTrigger?: boolean;
 };
 
-export const MyDialogbarNavigator = ({ onOpen, variant = "default" }: MyDialogbarNavigatorProps) => {
+export const MyDialogbarNavigator = ({ onOpen, variant = "default", open, onOpenChange, hideTrigger }: MyDialogbarNavigatorProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const setOpen = onOpenChange ?? setIsDialogOpen;
+  const actualOpen = open ?? isDialogOpen;
 
   const openDialog = useCallback(() => {
     onOpen?.();
-    setIsDialogOpen(true);
-  }, [onOpen]);
+    setOpen(true);
+  }, [onOpen, setOpen]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -85,33 +100,35 @@ export const MyDialogbarNavigator = ({ onOpen, variant = "default" }: MyDialogba
   );
 
   const handleNavigate = (href: string) => {
-    setIsDialogOpen(false);
+		setOpen(false);
     router.push(href);
   };
 
   return (
 		<div className={variant === "topbar" ? "shrink-0" : "w-full"}>
-      <button
-        type="button"
-        onClick={openDialog}
-				className={
-					variant === "topbar"
-						? "group inline-flex h-10 w-10 items-center justify-center bg-transparent text-slate-700 hover:bg-transparent hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 dark:text-slate-200 dark:hover:text-slate-50"
-						: "flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-				}
-				aria-label="Open Nexus command palette"
-				title="Open Nexus (Ctrl/Cmd + K)"
-      >
-				<TbHexagons className="h-5 w-5" />
-				{variant === "topbar" ? null : (
-					<>
-						<span>Nexus</span>
-						<span className="ml-auto hidden text-xs opacity-60 md:inline">Ctrl K</span>
-					</>
-				)}
-      </button>
+      {hideTrigger ? null : (
+        <button
+          type="button"
+          onClick={openDialog}
+          className={
+            variant === "topbar"
+              ? "group inline-flex h-10 w-10 items-center justify-center bg-transparent text-slate-700 hover:bg-transparent hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 dark:text-slate-200 dark:hover:text-slate-50"
+              : "flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+          }
+          aria-label="Open Nexus command palette"
+          title="Open Nexus (Ctrl/Cmd + K)"
+        >
+          <TbHexagons className="h-5 w-5" />
+          {variant === "topbar" ? null : (
+            <>
+              <span>Nexus</span>
+              <span className="ml-auto hidden text-xs opacity-60 md:inline">Ctrl K</span>
+            </>
+          )}
+        </button>
+      )}
 
-      <CommandDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <CommandDialog open={actualOpen} onOpenChange={setOpen}>
         <CommandInput placeholder="Search actions…" />
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>

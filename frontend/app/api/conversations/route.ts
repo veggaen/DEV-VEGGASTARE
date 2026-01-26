@@ -6,7 +6,8 @@ import { NextResponse } from 'next/server';
 import {
   ConversationType,
   ConversationVisibility,
-  ReplyPermission
+  ReplyPermission,
+  Prisma
 } from '@prisma/client';
 import { z } from 'zod';
 
@@ -256,8 +257,7 @@ export async function GET(req: Request) {
 
     // Build orderBy based on sort parameter
     // "Reach over followers" philosophy: prioritize actual engagement over vanity metrics
-    type OrderByField = { [key: string]: 'asc' | 'desc' };
-    let orderBy: OrderByField[];
+    let orderBy: Prisma.ConversationOrderByWithRelationInput[];
 
     switch (sort) {
       case 'reach':
@@ -267,6 +267,8 @@ export async function GET(req: Request) {
           { isPinned: 'desc' },
           { viewCount: 'desc' },
           { uniqueRepliers: 'desc' },
+          { reposts: { _count: 'desc' } },
+          { quoteReposts: { _count: 'desc' } },
           { lastActivityAt: 'desc' },
         ];
         break;
@@ -302,6 +304,20 @@ export async function GET(req: Request) {
           take: 1,
           orderBy: { createdAt: 'desc' },
         },
+        repostOfConversation: {
+          select: {
+            id: true,
+            title: true,
+            createdAt: true,
+            user: {
+              select: { id: true, name: true, image: true },
+            },
+            messages: {
+              take: 1,
+              orderBy: { createdAt: 'desc' },
+            },
+          },
+        },
         user: {
           select: { id: true, name: true, image: true },
         },
@@ -310,13 +326,26 @@ export async function GET(req: Request) {
           select: { id: true, question: true },
         },
         _count: {
-          select: { messages: true },
+          select: { messages: true, reposts: true, quoteReposts: true },
         },
       },
       orderBy,
       take: limit,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
+
+    // If logged in, also compute whether the current user has reposted each conversation
+    const repostedSet = new Set<string>();
+    if (userId && conversations.length > 0) {
+      const reposts = await dbPrisma.conversationRepost.findMany({
+        where: {
+          userId,
+          conversationId: { in: conversations.map((c) => c.id) },
+        },
+        select: { conversationId: true },
+      });
+      for (const r of reposts) repostedSet.add(r.conversationId);
+    }
 
     // Extract all participant IDs from all conversations
     const allParticipantIds = Array.from(
@@ -336,7 +365,11 @@ export async function GET(req: Request) {
         ...conversation,
         participantDetails, // Keep original participants array, add details separately
         lastMessage: conversation.messages[0] || null,
+        repostOfLastMessage: conversation.repostOfConversation?.messages?.[0] || null,
         messageCount: conversation._count.messages,
+        repostCount: conversation._count.reposts,
+        quoteRepostCount: conversation._count.quoteReposts,
+        hasReposted: userId ? repostedSet.has(conversation.id) : false,
         hasPoll: !!conversation.poll, // Boolean indicator for poll existence
       };
     });
