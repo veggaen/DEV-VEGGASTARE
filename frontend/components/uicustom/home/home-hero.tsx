@@ -66,11 +66,13 @@ function KineticTitle({
   className,
   startDelay = 0,
   baseSpeed = 120,
+  onHoverChange,
 }: {
   text: string;
   className?: string;
   startDelay?: number;
   baseSpeed?: number;
+  onHoverChange?: (isHovering: boolean, char: string | null, intensity: number) => void;
 }) {
   const reduceMotion = useReducedMotion();
   const words = React.useMemo(() => text.split(/\s+/).filter(Boolean), [text]);
@@ -79,6 +81,10 @@ function KineticTitle({
   const [introDone, setIntroDone] = React.useState(false);
   const [hoveredChar, setHoveredChar] = React.useState<string | null>(null);
   const [hoveredPosition, setHoveredPosition] = React.useState<{ wordIdx: number; charIdx: number } | null>(null);
+
+  // Use ref to avoid re-running effect when callback changes
+  const onHoverChangeRef = React.useRef(onHoverChange);
+  onHoverChangeRef.current = onHoverChange;
 
   const stages = React.useMemo(() => buildFixedPositionStages(words), [words]);
 
@@ -95,9 +101,6 @@ function KineticTitle({
     let cancelled = false;
     const run = async () => {
       await new Promise((r) => setTimeout(r, startDelay * 1000));
-      if (cancelled) return;
-      
-      await new Promise((r) => setTimeout(r, 300));
       if (cancelled) return;
 
       const totalStages = stages.length;
@@ -118,8 +121,9 @@ function KineticTitle({
     return () => { cancelled = true; };
   }, [reduceMotion, stages, startDelay, baseSpeed]);
 
-  const getHoverEffect = React.useCallback((wordIdx: number, charIdx: number, char: string) => {
-    if (!introDone || !hoveredChar) return { scale: 1, glow: false, intensity: 0 };
+  const getHoverEffect = React.useCallback((wordIdx: number, charIdx: number, char: string, isRevealed: boolean) => {
+    // Allow hover as soon as character is revealed, don't wait for introDone
+    if (!isRevealed || !hoveredChar) return { scale: 1, glow: false, intensity: 0 };
 
     const lowerChar = char.toLowerCase();
     const isMatchingChar = lowerChar === hoveredChar.toLowerCase();
@@ -128,20 +132,20 @@ function KineticTitle({
     for (let wi = 0; wi < wordIdx; wi++) currentFlatIdx += words[wi].length;
     currentFlatIdx += charIdx;
 
-    let hoveredFlatIdx = -1;
+    let hoveredFlatIdx = 0;
     if (hoveredPosition) {
       for (let wi = 0; wi < hoveredPosition.wordIdx; wi++) hoveredFlatIdx += words[wi].length;
-      hoveredFlatIdx += hoveredPosition.charIdx + 1;
+      hoveredFlatIdx += hoveredPosition.charIdx;
     }
 
-    const distance = hoveredFlatIdx >= 0 ? Math.abs(currentFlatIdx - hoveredFlatIdx) : Infinity;
+    const distance = hoveredPosition ? Math.abs(currentFlatIdx - hoveredFlatIdx) : Infinity;
 
-    if (distance === 0) return { scale: 1.25, glow: true, intensity: 1 };
-    if (distance === 1) return { scale: 1.1, glow: true, intensity: 0.4 };
-    if (isMatchingChar) return { scale: 1.18, glow: true, intensity: 0.7 };
+    if (distance === 0) return { scale: 1.35, glow: true, intensity: 1 };
+    if (distance === 1) return { scale: 1.15, glow: true, intensity: 0.5 };
+    if (isMatchingChar) return { scale: 1.25, glow: true, intensity: 0.8 };
 
     return { scale: 1, glow: false, intensity: 0 };
-  }, [introDone, hoveredChar, hoveredPosition, words]);
+  }, [hoveredChar, hoveredPosition, words]);
 
   if (reduceMotion) {
     return <span className={className}>{text}</span>;
@@ -152,15 +156,19 @@ function KineticTitle({
 
   return (
     <span
-      className={className}
-      onPointerLeave={() => { setHoveredChar(null); setHoveredPosition(null); }}
+      className={`${className} cursor-pointer`}
+      onPointerLeave={() => {
+        setHoveredChar(null);
+        setHoveredPosition(null);
+        onHoverChangeRef.current?.(false, null, 0);
+      }}
     >
       <span className="inline-flex flex-wrap gap-[0.35em]">
         {words.map((word, wordIdx) => {
           const revealedCount = revealed[wordIdx] || 0;
           return (
             <span key={`word-${wordIdx}`} className="relative inline-block">
-              <span className="invisible" aria-hidden="true">
+              <span className="invisible pointer-events-none" aria-hidden="true">
                 {word[0].toUpperCase() + word.slice(1).toLowerCase()}
               </span>
               <span className="absolute inset-0 inline-flex">
@@ -169,7 +177,7 @@ function KineticTitle({
                   const isNew = wordIdx === activeWordIdx && charIdx === activeCharIdx && !introDone;
                   const isFirstChar = charIdx === 0;
                   const displayChar = isFirstChar ? char.toUpperCase() : char.toLowerCase();
-                  const hoverEffect = getHoverEffect(wordIdx, charIdx, char);
+                  const hoverEffect = getHoverEffect(wordIdx, charIdx, char, isRevealed);
 
                   const charPosition = wordIdx * 10 + charIdx;
                   const hue = (charPosition * 40) % 360;
@@ -183,20 +191,22 @@ function KineticTitle({
                   return (
                     <span
                       key={`char-${wordIdx}-${charIdx}`}
-                      className="inline-block origin-bottom cursor-default"
+                      className="inline-block origin-bottom cursor-pointer"
                       style={{
                         opacity: isRevealed ? 1 : 0,
                         transform: `scale(${scale}) translateY(${yOffset}px)`,
                         color: showGlow ? glowColor : undefined,
                         textShadow: showGlow
-                          ? `0 0 ${12 * glowIntensity}px ${glowColor}, 0 0 ${24 * glowIntensity}px ${glowColor}`
+                          ? `0 0 ${14 * glowIntensity}px ${glowColor}, 0 0 ${28 * glowIntensity}px ${glowColor}, 0 0 ${42 * glowIntensity}px ${glowColor}`
                           : "none",
-                        transition: "opacity 0.2s ease-out, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.25s ease-out, text-shadow 0.25s ease-out",
+                        transition: "opacity 0.2s ease-out, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease-out, text-shadow 0.2s ease-out",
                       }}
                       onPointerEnter={() => {
-                        if (introDone) {
+                        // Allow hover as soon as character is revealed
+                        if (isRevealed) {
                           setHoveredChar(char);
                           setHoveredPosition({ wordIdx, charIdx });
+                          onHoverChangeRef.current?.(true, char, 1);
                         }
                       }}
                     >
@@ -217,31 +227,33 @@ function KineticDescription({
   text,
   className,
   startDelay = 0,
-  baseSpeed = 80,
+  startSpeed = 180,
+  endSpeed = 35,
 }: {
   text: string;
   className?: string;
   startDelay?: number;
-  baseSpeed?: number;
+  startSpeed?: number;
+  endSpeed?: number;
 }) {
   const reduceMotion = useReducedMotion();
-  const words = React.useMemo(() => text.split(/\s+/).filter(Boolean), [text]);
+  const chars = React.useMemo(() => Array.from(text), [text]);
+  const midPoint = Math.floor(chars.length / 2);
 
-  const [stageIndex, setStageIndex] = React.useState(0);
+  const [revealedLeft, setRevealedLeft] = React.useState(0);
+  const [revealedRight, setRevealedRight] = React.useState(0);
   const [introDone, setIntroDone] = React.useState(false);
-  const [hoveredChar, setHoveredChar] = React.useState<string | null>(null);
-  const [hoveredPosition, setHoveredPosition] = React.useState<{ wordIdx: number; charIdx: number } | null>(null);
-
-  const stages = React.useMemo(() => buildFixedPositionStages(words), [words]);
 
   React.useEffect(() => {
     if (reduceMotion) {
-      setStageIndex(stages.length - 1);
+      setRevealedLeft(midPoint);
+      setRevealedRight(chars.length - midPoint);
       setIntroDone(true);
       return;
     }
 
-    setStageIndex(0);
+    setRevealedLeft(0);
+    setRevealedRight(0);
     setIntroDone(false);
 
     let cancelled = false;
@@ -249,16 +261,21 @@ function KineticDescription({
       await new Promise((r) => setTimeout(r, startDelay * 1000));
       if (cancelled) return;
 
-      await new Promise((r) => setTimeout(r, 200));
-      if (cancelled) return;
+      // Grow from center outward, left and right simultaneously
+      const leftChars = midPoint;
+      const rightChars = chars.length - midPoint;
+      const maxSteps = Math.max(leftChars, rightChars);
 
-      const totalStages = stages.length;
-      for (let i = 1; i < totalStages; i++) {
+      for (let step = 1; step <= maxSteps; step++) {
         if (cancelled) return;
-        setStageIndex(i);
-        const progress = i / totalStages;
-        const easeOut = 1 - Math.pow(1 - progress, 2);
-        const delay = Math.round(baseSpeed * (0.3 + easeOut * 0.7));
+        
+        // Reveal from center: left side grows backward, right side grows forward
+        if (step <= leftChars) setRevealedLeft(step);
+        if (step <= rightChars) setRevealedRight(step);
+        
+        // Linear acceleration: start slow (startSpeed) and speed up to fast (endSpeed)
+        const progress = step / maxSteps;
+        const delay = Math.round(startSpeed - (startSpeed - endSpeed) * progress);
         await new Promise((r) => setTimeout(r, delay));
       }
 
@@ -268,101 +285,43 @@ function KineticDescription({
     run();
 
     return () => { cancelled = true; };
-  }, [reduceMotion, stages, startDelay, baseSpeed]);
-
-  const getHoverEffect = React.useCallback((wordIdx: number, charIdx: number, char: string) => {
-    if (!introDone || !hoveredChar) return { scale: 1, glow: false, intensity: 0 };
-
-    const lowerChar = char.toLowerCase();
-    const isMatchingChar = lowerChar === hoveredChar.toLowerCase();
-
-    let currentFlatIdx = 0;
-    for (let wi = 0; wi < wordIdx; wi++) currentFlatIdx += words[wi].length;
-    currentFlatIdx += charIdx;
-
-    let hoveredFlatIdx = -1;
-    if (hoveredPosition) {
-      for (let wi = 0; wi < hoveredPosition.wordIdx; wi++) hoveredFlatIdx += words[wi].length;
-      hoveredFlatIdx += hoveredPosition.charIdx + 1;
-    }
-
-    const distance = hoveredFlatIdx >= 0 ? Math.abs(currentFlatIdx - hoveredFlatIdx) : Infinity;
-
-    if (distance === 0) return { scale: 1.2, glow: true, intensity: 1 };
-    if (distance === 1) return { scale: 1.08, glow: true, intensity: 0.4 };
-    if (isMatchingChar) return { scale: 1.12, glow: true, intensity: 0.6 };
-
-    return { scale: 1, glow: false, intensity: 0 };
-  }, [introDone, hoveredChar, hoveredPosition, words]);
+  }, [reduceMotion, chars, midPoint, startDelay, startSpeed, endSpeed]);
 
   if (reduceMotion) {
     return <p className={className}>{text}</p>;
   }
 
-  const currentStage = stages[stageIndex] || { revealed: words.map((w) => w.length), activeWordIdx: -1, activeCharIdx: -1 };
-  const { revealed, activeWordIdx, activeCharIdx } = currentStage;
+  // Build the visible text: center grows outward
+  const leftPart = chars.slice(midPoint - revealedLeft, midPoint);
+  const rightPart = chars.slice(midPoint, midPoint + revealedRight);
+  const visibleText = [...leftPart, ...rightPart].join("");
 
   return (
     <motion.p
       className={className}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, ease: "easeOut", delay: startDelay }}
-      onPointerLeave={() => { setHoveredChar(null); setHoveredPosition(null); }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3, ease: "easeOut", delay: startDelay }}
     >
-      <span className="inline-flex flex-wrap justify-center gap-x-[0.3em] gap-y-1">
-        {words.map((word, wordIdx) => {
-          const revealedCount = revealed[wordIdx] || 0;
-          return (
-            <span key={`word-${wordIdx}`} className="relative inline-block">
-              <span className="invisible" aria-hidden="true">{word}</span>
-              <span className="absolute inset-0 inline-flex">
-                {Array.from(word).map((char, charIdx) => {
-                  const isRevealed = charIdx < revealedCount;
-                  const isNew = wordIdx === activeWordIdx && charIdx === activeCharIdx && !introDone;
-                  const hoverEffect = getHoverEffect(wordIdx, charIdx, char);
-
-                  const charPosition = wordIdx * 10 + charIdx;
-                  const hue = (charPosition * 25) % 360;
-                  const glowColor = `hsl(${hue}, 70%, 70%)`;
-
-                  const scale = isNew ? 1.2 : hoverEffect.scale;
-                  const yOffset = isNew ? -2 : (hoverEffect.intensity > 0 ? -1.5 * hoverEffect.intensity : 0);
-                  const showGlow = isNew || hoverEffect.glow;
-                  const glowIntensity = isNew ? 1 : hoverEffect.intensity;
-
-                  return (
-                    <span
-                      key={`char-${wordIdx}-${charIdx}`}
-                      className="inline-block origin-bottom cursor-default"
-                      style={{
-                        opacity: isRevealed ? 1 : 0,
-                        transform: `scale(${scale}) translateY(${yOffset}px)`,
-                        color: showGlow ? glowColor : undefined,
-                        textShadow: showGlow ? `0 0 ${8 * glowIntensity}px ${glowColor}, 0 0 ${16 * glowIntensity}px ${glowColor}` : "none",
-                        transition: "opacity 0.15s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease-out, text-shadow 0.2s ease-out",
-                      }}
-                      onPointerEnter={() => {
-                        if (introDone) {
-                          setHoveredChar(char);
-                          setHoveredPosition({ wordIdx, charIdx });
-                        }
-                      }}
-                    >
-                      {char}
-                    </span>
-                  );
-                })}
-              </span>
-            </span>
-          );
-        })}
+      <span className="relative inline-block text-center">
+        {/* Invisible placeholder to reserve space */}
+        <span className="invisible block pointer-events-none" aria-hidden="true">{text}</span>
+        {/* Visible text growing from center */}
+        <span 
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          style={{ 
+            opacity: introDone ? 1 : 0.95,
+            transition: "opacity 0.3s ease-out"
+          }}
+        >
+          {visibleText}
+        </span>
       </span>
     </motion.p>
   );
 }
 
-// Kinetic Headline - animates LAST with dramatic pop and color effects
+// Kinetic Headline - round-robin character expansion with dramatic pop and color effects
 function KineticHeadline({
   text,
   className,
@@ -383,6 +342,15 @@ function KineticHeadline({
   const [introDone, setIntroDone] = React.useState(false);
   const [hoveredChar, setHoveredChar] = React.useState<string | null>(null);
   const [hoveredPosition, setHoveredPosition] = React.useState<{ wordIdx: number; charIdx: number } | null>(null);
+  
+  // Track last hover for fade-out effect
+  const [lastHoverPosition, setLastHoverPosition] = React.useState<{ wordIdx: number; charIdx: number } | null>(null);
+  const [fadeOutProgress, setFadeOutProgress] = React.useState(0);
+  const fadeOutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Use ref to avoid re-running effect when callback changes
+  const onCompleteRef = React.useRef(onAnimationComplete);
+  onCompleteRef.current = onAnimationComplete;
 
   const stages = React.useMemo(() => buildFixedPositionStages(words), [words]);
 
@@ -390,7 +358,7 @@ function KineticHeadline({
     if (reduceMotion) {
       setStageIndex(stages.length - 1);
       setIntroDone(true);
-      onAnimationComplete?.();
+      onCompleteRef.current?.();
       return;
     }
 
@@ -400,9 +368,6 @@ function KineticHeadline({
     let cancelled = false;
     const run = async () => {
       await new Promise((r) => setTimeout(r, startDelay * 1000));
-      if (cancelled) return;
-
-      await new Promise((r) => setTimeout(r, 400)); // dramatic pause
       if (cancelled) return;
 
       const totalStages = stages.length;
@@ -418,7 +383,7 @@ function KineticHeadline({
       await new Promise((r) => setTimeout(r, 200));
       if (!cancelled) {
         setIntroDone(true);
-        onAnimationComplete?.();
+        onCompleteRef.current?.();
       }
     };
     run();
@@ -426,30 +391,80 @@ function KineticHeadline({
     return () => { cancelled = true; };
   }, [reduceMotion, stages, startDelay, baseSpeed]);
 
-  const getHoverEffect = React.useCallback((wordIdx: number, charIdx: number, char: string) => {
-    if (!introDone || !hoveredChar) return { scale: 1, glow: false, intensity: 0 };
-
-    const lowerChar = char.toLowerCase();
-    const isMatchingChar = lowerChar === hoveredChar.toLowerCase();
-
-    let currentFlatIdx = 0;
-    for (let wi = 0; wi < wordIdx; wi++) currentFlatIdx += words[wi].length;
-    currentFlatIdx += charIdx;
-
-    let hoveredFlatIdx = -1;
+  // Handle hover end with fade-out
+  const handlePointerLeave = React.useCallback(() => {
     if (hoveredPosition) {
-      for (let wi = 0; wi < hoveredPosition.wordIdx; wi++) hoveredFlatIdx += words[wi].length;
-      hoveredFlatIdx += hoveredPosition.charIdx + 1;
+      setLastHoverPosition(hoveredPosition);
+      setFadeOutProgress(1);
+      
+      // Clear any existing timer
+      if (fadeOutTimerRef.current) clearTimeout(fadeOutTimerRef.current);
+      
+      // Animate fade-out over 500ms
+      const steps = 10;
+      const stepTime = 500 / steps;
+      let step = 0;
+      
+      const animate = () => {
+        step++;
+        setFadeOutProgress(1 - (step / steps));
+        if (step < steps) {
+          fadeOutTimerRef.current = setTimeout(animate, stepTime);
+        } else {
+          setLastHoverPosition(null);
+          setFadeOutProgress(0);
+        }
+      };
+      fadeOutTimerRef.current = setTimeout(animate, stepTime);
+    }
+    setHoveredChar(null);
+    setHoveredPosition(null);
+  }, [hoveredPosition]);
+
+  const getHoverEffect = React.useCallback((wordIdx: number, charIdx: number, char: string, isRevealed: boolean) => {
+    // Check active hover
+    const activePos = hoveredPosition || (fadeOutProgress > 0 ? lastHoverPosition : null);
+    const effectMultiplier = hoveredPosition ? 1 : fadeOutProgress;
+    
+    // Allow hover as soon as character is revealed, don't wait for introDone
+    if (!isRevealed || !activePos) return { scale: 1, glow: false, intensity: 0, wordGlow: false };
+
+    const isInSameWord = wordIdx === activePos.wordIdx;
+    const isHoveredChar = isInSameWord && charIdx === activePos.charIdx;
+    const isNeighbor = isInSameWord && Math.abs(charIdx - activePos.charIdx) === 1;
+
+    // Hovered character gets strongest effect
+    if (isHoveredChar) {
+      return { 
+        scale: 1 + 0.35 * effectMultiplier, 
+        glow: true, 
+        intensity: 1 * effectMultiplier,
+        wordGlow: false 
+      };
+    }
+    
+    // Immediate neighbors get medium effect
+    if (isNeighbor) {
+      return { 
+        scale: 1 + 0.15 * effectMultiplier, 
+        glow: true, 
+        intensity: 0.6 * effectMultiplier,
+        wordGlow: false 
+      };
+    }
+    
+    // Rest of the word gets subtle glow
+    if (isInSameWord) {
+      return { 
+        scale: 1 + 0.05 * effectMultiplier, 
+        glow: true, 
+        intensity: 0.3 * effectMultiplier,
+        wordGlow: true 
+      };
     }
 
-    const distance = hoveredFlatIdx >= 0 ? Math.abs(currentFlatIdx - hoveredFlatIdx) : Infinity;
-
-    if (distance === 0) return { scale: 1.3, glow: true, intensity: 1 };
-    if (distance === 1) return { scale: 1.12, glow: true, intensity: 0.45 };
-    if (isMatchingChar) return { scale: 1.2, glow: true, intensity: 0.7 };
-
-    return { scale: 1, glow: false, intensity: 0 };
-  }, [introDone, hoveredChar, hoveredPosition, words]);
+    return { scale: 1, glow: false, intensity: 0, wordGlow: false };
+  }, [hoveredPosition, lastHoverPosition, fadeOutProgress]);
 
   if (reduceMotion) {
     return <span className={className}>{text}</span>;
@@ -464,7 +479,7 @@ function KineticHeadline({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3, ease: "easeOut", delay: startDelay }}
-      onPointerLeave={() => { setHoveredChar(null); setHoveredPosition(null); }}
+      onPointerLeave={handlePointerLeave}
     >
       {/* Horizontal inline layout with proper word spacing */}
       <span className="inline-flex flex-wrap items-center justify-center gap-x-[0.5em]">
@@ -473,46 +488,82 @@ function KineticHeadline({
           return (
             <span key={`word-${wordIdx}`} className="relative inline-block">
               {/* Invisible placeholder for fixed width */}
-              <span className="invisible" aria-hidden="true">{word.toUpperCase()}</span>
+              <span className="invisible pointer-events-none" aria-hidden="true">{word.toUpperCase()}</span>
               {/* Actual characters positioned absolutely */}
               <span className="absolute inset-0 inline-flex justify-center">
                 {Array.from(word).map((char, charIdx) => {
                   const isRevealed = charIdx < revealedCount;
                   const isNew = wordIdx === activeWordIdx && charIdx === activeCharIdx && !introDone;
-                  const hoverEffect = getHoverEffect(wordIdx, charIdx, char);
+                  const hoverEffect = getHoverEffect(wordIdx, charIdx, char, isRevealed);
 
                   // Emerald/cyan gradient based on position
                   const charPosition = wordIdx * 10 + charIdx;
                   const hueBase = 140 + (charPosition * 15) % 80;
                   const glowColor = `hsl(${hueBase}, 75%, 65%)`;
+                  
+                  // Idle animation: subtle color pulse based on character position (no movement)
+                  const idlePhase = (charPosition * 0.3) % (2 * Math.PI);
 
                   const scale = isNew ? 1.35 : hoverEffect.scale;
                   const yOffset = isNew ? -3 : (hoverEffect.intensity > 0 ? -2 * hoverEffect.intensity : 0);
                   const showGlow = isNew || hoverEffect.glow;
                   const glowIntensity = isNew ? 1 : hoverEffect.intensity;
+                  
+                  // Glow size based on intensity - stronger for direct hover, softer for word glow
+                  const glowSize1 = hoverEffect.wordGlow ? 6 : 10;
+                  const glowSize2 = hoverEffect.wordGlow ? 12 : 20;
 
                   return (
-                    <span
+                    <motion.span
                       key={`char-${wordIdx}-${charIdx}`}
-                      className="inline-block origin-bottom cursor-default"
+                      className="inline-block origin-bottom cursor-pointer"
                       style={{
                         opacity: isRevealed ? 1 : 0,
-                        transform: `scale(${scale}) translateY(${yOffset}px)`,
                         color: showGlow ? glowColor : undefined,
                         textShadow: showGlow 
-                          ? `0 0 ${8 * glowIntensity}px ${glowColor}, 0 0 ${16 * glowIntensity}px ${glowColor}` 
+                          ? `0 0 ${glowSize1 * glowIntensity}px ${glowColor}, 0 0 ${glowSize2 * glowIntensity}px ${glowColor}` 
                           : "none",
-                        transition: "opacity 0.15s ease-out, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease-out, text-shadow 0.2s ease-out",
+                        transform: `scale(${scale}) translateY(${yOffset}px)`,
+                        transition: "transform 0.15s ease-out, color 0.15s ease-out, text-shadow 0.15s ease-out",
                       }}
+                      animate={
+                        introDone && !showGlow
+                          ? {
+                              textShadow: [
+                                `0 0 0px ${glowColor}`,
+                                `0 0 4px ${glowColor}`,
+                                `0 0 0px ${glowColor}`,
+                              ],
+                            }
+                          : undefined
+                      }
+                      transition={
+                        introDone && !showGlow
+                          ? {
+                              duration: 3,
+                              repeat: Infinity,
+                              ease: "easeInOut",
+                              delay: idlePhase * 0.15,
+                            }
+                          : undefined
+                      }
                       onPointerEnter={() => {
-                        if (introDone) {
+                        // Allow hover as soon as character is revealed
+                        if (isRevealed) {
+                          // Clear any fade-out timer when new hover starts
+                          if (fadeOutTimerRef.current) {
+                            clearTimeout(fadeOutTimerRef.current);
+                            fadeOutTimerRef.current = null;
+                          }
+                          setFadeOutProgress(0);
+                          setLastHoverPosition(null);
                           setHoveredChar(char);
                           setHoveredPosition({ wordIdx, charIdx });
                         }
                       }}
                     >
                       {char.toUpperCase()}
-                    </span>
+                    </motion.span>
                   );
                 })}
               </span>
@@ -776,30 +827,28 @@ export default function HomeHero({
   const [titleGlowUntilMs, setTitleGlowUntilMs] = React.useState(0);
   const [titlePulseToken, setTitlePulseToken] = React.useState(0);
 
-  // NEW SEQUENCE: Title first, then description, then buttons, then headline LAST
+  // NEW SEQUENCE: Title → Description + Headline together → Buttons
   const titleTextMain = "Freedom Store";
   const titleStart = reduceMotion ? 0.08 : 0.1;
   
-  // Title animation takes about 2-3 seconds
-  const titleFinish = reduceMotion ? 0.18 : titleStart + 2.5;
-
-  // Description comes after title
-  const descriptionStart = reduceMotion ? 0.35 : titleFinish + 0.3;
+  // Description and Headline start at the SAME TIME (1.5s after title)
+  const descriptionStart = reduceMotion ? 0.35 : titleStart + 1.5;
+  const headlineStart = descriptionStart; // Same time as description
   const descriptionText =
     "A clean, animated marketplace experience filled with tasteful motion, shipping intelligence, warehouse logistics, and a UI that stays out of your way.";
   
-  // Description animation takes about 4-5 seconds for all those words
-  const descriptionFinish = reduceMotion ? 0.5 : descriptionStart + 4.5;
-
-  // Welcome box and buttons come next
-  const welcomeStart = reduceMotion ? 0.2 : descriptionFinish + 0.3;
-  const buttonsStart = reduceMotion ? 0.26 : welcomeStart + 0.4;
+  // Buttons come in early during the sequence - don't make users wait
+  const buttonsStart = reduceMotion ? 0.26 : titleStart + 1.0;
+  const welcomeStart = reduceMotion ? 0.2 : buttonsStart + 0.3;
   
-  // Headline animates LAST - the grand finale
-  const headlineStart = reduceMotion ? 0.05 : buttonsStart + 1.2;
+  // State for title hover effect (to animate TM)
+  const [titleHoverActive, setTitleHoverActive] = React.useState(false);
+  const [titleAreaHovering, setTitleAreaHovering] = React.useState(false);
 
   const whereGlowActive = !reduceMotion && Date.now() < whereGlowUntilMs;
   const titleGlowActive = !reduceMotion && Date.now() < titleGlowUntilMs;
+  // TM should reset immediately when hover ends; do not tie to the lingering title glow timer.
+  const tmActive = !reduceMotion && (titleAreaHovering || titleHoverActive);
 
   React.useEffect(() => {
     if (mountAtRef.current == null) mountAtRef.current = performance.now();
@@ -823,7 +872,7 @@ export default function HomeHero({
   const nexusDelay = buttonsStart + 0.58;
 
   // After everything lands, do a single subtle emerald pulse on headline + primary CTA.
-  const settlePulseDelay = headlineStart + 4.0;
+  const settlePulseDelay = headlineStart + 3.0;
 
   return (
     <div className="relative flex h-[calc(100vh-102px)] max-h-full w-full items-center justify-center overflow-hidden">
@@ -870,28 +919,28 @@ export default function HomeHero({
               setWhereGlowUntilMs((cur) => Math.max(cur, Date.now() + 4000));
             }}
           >
-            {/* Bigger glow field so the aura feels less "tight" */}
+            {/* Idle glow field - always subtly pulsing */}
             <motion.div
               aria-hidden
               className="pointer-events-none absolute -inset-8 rounded-[28px]"
               animate={
                 whereGlowActive
-                  ? { opacity: [0.15, 0.28, 0.18], scale: [1, 1.03, 1] }
-                  : { opacity: 0, scale: 1 }
+                  ? { opacity: [0.2, 0.35, 0.2], scale: [1, 1.05, 1] }
+                  : { opacity: [0.05, 0.12, 0.05], scale: [1, 1.02, 1] }
               }
-              transition={whereGlowActive ? { duration: 2.2, repeat: Infinity, ease: "easeInOut" } : { duration: 0.25 }}
+              transition={{ duration: whereGlowActive ? 2.2 : 4, repeat: Infinity, ease: "easeInOut" }}
               style={{
                 background:
-                  "radial-gradient(closest-side, rgba(34,197,94,0.22), rgba(34,197,94,0) 72%)",
+                  "radial-gradient(closest-side, rgba(34,197,94,0.25), rgba(34,197,94,0) 72%)",
                 mixBlendMode: "screen",
               }}
             />
 
             <KineticHeadline
               text={headline}
-              className="relative text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200/80"
+              className="relative text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200/80 cursor-pointer"
               startDelay={headlineStart}
-              baseSpeed={180}
+              baseSpeed={100}
               onAnimationComplete={() => {
                 // Trigger glow after headline animation finishes
                 setWhereGlowUntilMs(Date.now() + 10000);
@@ -903,11 +952,13 @@ export default function HomeHero({
             className="relative text-balance text-4xl font-semibold text-white drop-shadow-sm sm:text-6xl md:-translate-x-6"
             onPointerEnter={() => {
               if (reduceMotion) return;
+              setTitleAreaHovering(true);
               const extraMs = 9000;
               setTitleGlowUntilMs((cur) => Math.max(cur, Date.now() + extraMs));
             }}
             onPointerLeave={() => {
               if (reduceMotion) return;
+              setTitleAreaHovering(false);
               // Let it linger a bit after hover so it feels "alive".
               const extraMs = 6500;
               setTitleGlowUntilMs((cur) => Math.max(cur, Date.now() + extraMs));
@@ -918,45 +969,53 @@ export default function HomeHero({
                 text={titleTextMain}
                 startDelay={titleStart}
                 baseSpeed={140}
+                onHoverChange={(isHovering) => setTitleHoverActive(isHovering)}
               />
 
               {/* TM: bouncy entrance (T then M), smaller at rest; on hover it jumps higher + grows + gets a rainbow tint */}
               <motion.span
                 aria-label="Trademark"
-                className="ml-1 inline-flex whitespace-nowrap leading-none tracking-tight"
+                className="relative z-20 ml-1 inline-flex whitespace-nowrap leading-none tracking-tight"
                 style={{ top: "-0.62em", left: "0.10em", position: "relative", fontSize: "0.44em" }}
-                animate={
-                  titleGlowActive
-                    ? {
-                        y: -10,
-                        scale: 1.32,
-                        textShadow: "0 0 16px rgba(34,197,94,0.20)",
-                        filter: "drop-shadow(0 0 12px rgba(34,197,94,0.12))",
-                      }
-                    : { y: 0, scale: 1, textShadow: "0 0 0px rgba(34,197,94,0)", filter: "none" }
-                }
-                transition={{ type: "spring", stiffness: 520, damping: 18, mass: 0.7 }}
+                initial={false}
+                animate={tmActive ? { y: -11, scale: 1.38, rotate: -6 } : { y: 0, scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 520, damping: 18, mass: 0.6 }}
               >
+                {/* Soft glow layer (prevents instant "blur ball" + keeps TM on top) */}
                 <motion.span
-                  className={titleGlowActive ? "text-transparent" : "text-white"}
-                  style={
-                    titleGlowActive
-                      ? {
-                          backgroundImage:
-                            "linear-gradient(90deg, rgba(167,243,208,1), rgba(96,165,250,1), rgba(192,132,252,1), rgba(244,114,182,1), rgba(167,243,208,1))",
-                          backgroundSize: "300% 100%",
-                          backgroundClip: "text",
-                          WebkitBackgroundClip: "text",
-                        }
-                      : undefined
-                  }
-                  animate={titleGlowActive ? { backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] } : undefined}
-                  transition={titleGlowActive ? { duration: 3.2, repeat: Infinity, ease: "easeInOut" } : undefined}
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-4 -z-10 rounded-full blur-lg"
+                  initial={false}
+                  animate={tmActive ? { opacity: 0.42, scale: 1 } : { opacity: 0, scale: 0.94 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  style={{
+                    background:
+                      "radial-gradient(closest-side, rgba(96,165,250,0.42), rgba(167,139,250,0.26), rgba(96,165,250,0) 72%)",
+                    mixBlendMode: "screen",
+                  }}
+                />
+
+                <motion.span
+                  className="relative z-10 inline-flex"
+                  style={{
+                    // Keep readable in all browsers: never go transparent.
+                    color: "white",
+                    filter: tmActive ? "drop-shadow(0 0 10px rgba(167,139,250,0.28))" : "none",
+                    textShadow: tmActive
+                      ? "0 0 10px rgba(96,165,250,0.25), 0 0 18px rgba(167,139,250,0.18)"
+                      : "none",
+                  }}
+                  animate={undefined}
+                  transition={undefined}
                 >
                   <motion.span
                     className="inline-block"
                     initial={{ opacity: 0, y: -18, scale: 0.7 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    animate={{ 
+                      opacity: 1, 
+                      y: 0, 
+                      scale: tmActive ? 1.12 : 1,
+                    }}
                     transition={{ delay: browseDelay, type: "spring", stiffness: 720, damping: 16, mass: 0.65 }}
                   >
                     T
@@ -964,7 +1023,11 @@ export default function HomeHero({
                   <motion.span
                     className="inline-block"
                     initial={{ opacity: 0, y: -18, scale: 0.7 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    animate={{ 
+                      opacity: 1, 
+                      y: 0, 
+                      scale: tmActive ? 1.12 : 1,
+                    }}
                     transition={{ delay: browseDelay + 0.3, type: "spring", stiffness: 720, damping: 16, mass: 0.65 }}
                   >
                     M
@@ -975,169 +1038,196 @@ export default function HomeHero({
           </motion.div>
         </div>
 
-        {/* Description arrives LAST, but space is reserved so it doesn't push anything when it begins */}
-        <div className="w-full min-h-[3.25rem] sm:min-h-[3rem]">
+        {/* Description comes after title with slow-to-fast animation */}
+        <div className="w-full min-h-[3.25rem] sm:min-h-[3rem] mt-4">
           <KineticDescription
             text={descriptionText}
             className="mx-auto max-w-2xl text-pretty text-sm text-white/75 sm:text-base"
             startDelay={descriptionStart}
-            baseSpeed={50}
+            startSpeed={140}
+            endSpeed={35}
           />
         </div>
 
-        {/* CTAs */}}
+        {/* CTAs */}
         <motion.div
           className="flex flex-wrap items-center justify-center gap-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: buttonsStart, duration: 0.22, ease: "easeOut" }}
         >
-          {!isLoggedIn ? (
+          {/* Browse products: shown for ALL users */}
+          <motion.div
+            initial={{ opacity: 0, x: -44, y: 34 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            transition={{
+              delay: browseDelay,
+              duration: 0.65,
+              ease: "easeOut",
+            }}
+            className="relative group"
+          >
+            {/* Animated gradient border with idle pulse */}
+            <motion.div
+              className="absolute -inset-[1px] rounded-xl bg-gradient-to-r from-emerald-500 via-cyan-400 to-emerald-500 blur-[2px] group-hover:blur-[3px]"
+              animate={{
+                backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                opacity: [0.5, 0.8, 0.5],
+              }}
+              whileHover={{ opacity: 1 }}
+              transition={{
+                backgroundPosition: { duration: 3, repeat: Infinity, ease: "linear" },
+                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+              }}
+              style={{ backgroundSize: "200% 200%" }}
+            />
+            {/* Glow on hover */}
+            <motion.div
+              aria-hidden
+              className="pointer-events-none absolute -inset-6 rounded-2xl"
+              animate={{ opacity: [0, 0.08, 0] }}
+              whileHover={{ opacity: 0.25 }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                background: "radial-gradient(closest-side, rgba(34,197,94,0.25), transparent 70%)",
+              }}
+            />
+            <Link
+              href="/products"
+              className="relative flex items-center gap-2 rounded-xl bg-black/80 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 group-hover:bg-black/90 group-hover:text-emerald-300"
+            >
+              <motion.span
+                className="inline-block"
+                whileHover={{ x: -2 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              >
+                Browse products
+              </motion.span>
+              <motion.svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="opacity-0 -ml-4 group-hover:opacity-100 group-hover:ml-0 transition-all duration-300"
+              >
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+              </motion.svg>
+            </Link>
+          </motion.div>
+
+          {/* Open feed: shown for ALL users */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{
+              delay: openFeedDelay,
+              type: "spring",
+              stiffness: 400,
+              damping: 20,
+            }}
+            className="relative group"
+          >
+            {/* Subtle idle border pulse */}
+            <motion.div
+              className="absolute -inset-[1px] rounded-xl bg-gradient-to-r from-white/5 via-white/15 to-white/5 blur-[1px]"
+              animate={{ opacity: [0.2, 0.4, 0.2] }}
+              whileHover={{ opacity: 0.7 }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              style={{ backgroundSize: "200% 200%" }}
+            />
+            <Link
+              href="/feed"
+              className="relative flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white/80 backdrop-blur-sm transition-all duration-300 hover:border-white/40 hover:bg-white/10 hover:text-white group-hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="opacity-60 group-hover:opacity-100 transition-opacity"
+              >
+                <path d="M4 11a9 9 0 0 1 9 9" />
+                <path d="M4 4a16 16 0 0 1 16 16" />
+                <circle cx="5" cy="19" r="1" />
+              </svg>
+              <span>Open feed</span>
+            </Link>
+          </motion.div>
+
+          {/* Authenticate: only for non-logged-in users - stealth style */}
+          {!isLoggedIn && (
             <motion.div
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: buttonsStart + 0.05, duration: 0.35, ease: "easeOut" }}
+              className="relative group"
             >
+              {/* Subtle idle glow */}
+              <motion.div
+                className="absolute -inset-[1px] rounded-xl bg-gradient-to-r from-emerald-600/30 via-emerald-500/20 to-emerald-600/30 opacity-0 blur-[2px] group-hover:opacity-100"
+                animate={{
+                  backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
+                style={{ backgroundSize: "200% 200%" }}
+              />
               <MyLoginButton mode="modal" asChild>
-                <Button size="lg" variant="vegaEmeraldBtn" className="group">
-                  <FaUnlockAlt size={21} className="mr-2 transition-transform group-hover:scale-110" />
-                  Authenticate
-                </Button>
+                <button className="relative flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-medium text-white/60 backdrop-blur-sm transition-all duration-300 hover:border-emerald-500/30 hover:bg-emerald-950/20 hover:text-emerald-300 group-hover:shadow-[0_0_20px_rgba(34,197,94,0.1)]">
+                  <FaUnlockAlt size={14} className="opacity-50 transition-all group-hover:opacity-100 group-hover:scale-110" />
+                  <span>Authenticate</span>
+                </button>
               </MyLoginButton>
             </motion.div>
-          ) : (
-            <>
-              {/* Browse products: premium glassmorphism button */}
-              <motion.div
-                initial={{ opacity: 0, x: -44, y: 34 }}
-                animate={{ opacity: 1, x: 0, y: 0 }}
-                transition={{
-                  delay: browseDelay,
-                  duration: 0.65,
-                  ease: "easeOut",
-                }}
-                className="relative group"
-              >
-                {/* Animated gradient border */}
-                <motion.div
-                  className="absolute -inset-[1px] rounded-xl bg-gradient-to-r from-emerald-500 via-cyan-400 to-emerald-500 opacity-70 blur-[2px] group-hover:opacity-100 group-hover:blur-[3px]"
-                  animate={{
-                    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-                  }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: "linear",
-                  }}
-                  style={{ backgroundSize: "200% 200%" }}
-                />
-                {/* Glow on hover */}
-                <motion.div
-                  aria-hidden
-                  className="pointer-events-none absolute -inset-6 rounded-2xl opacity-0 group-hover:opacity-100"
-                  transition={{ duration: 0.3 }}
-                  style={{
-                    background: "radial-gradient(closest-side, rgba(34,197,94,0.25), transparent 70%)",
-                  }}
-                />
-                <Link
-                  href="/products"
-                  className="relative flex items-center gap-2 rounded-xl bg-black/80 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 group-hover:bg-black/90 group-hover:text-emerald-300"
-                >
-                  <motion.span
-                    className="inline-block"
-                    whileHover={{ x: -2 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    Browse products
-                  </motion.span>
-                  <motion.svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="opacity-0 -ml-4 group-hover:opacity-100 group-hover:ml-0 transition-all duration-300"
-                  >
-                    <path d="M5 12h14" />
-                    <path d="m12 5 7 7-7 7" />
-                  </motion.svg>
-                </Link>
-              </motion.div>
+          )}
 
-              {/* Open feed: minimal outline with subtle animation */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{
-                  delay: openFeedDelay,
-                  type: "spring",
-                  stiffness: 400,
-                  damping: 20,
-                }}
-                className="relative group"
+          {/* Nexus settings: only for logged-in users */}
+          {isLoggedIn && (
+            <motion.div
+              initial={{ opacity: 0, x: 22 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: nexusDelay, duration: 0.5, ease: "easeOut" }}
+              className="relative group"
+            >
+              <Link
+                href="/nexus"
+                className="relative flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90"
               >
-                <Link
-                  href="/feed"
-                  className="relative flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white/80 backdrop-blur-sm transition-all duration-300 hover:border-white/40 hover:bg-white/10 hover:text-white group-hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+                <motion.svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="opacity-50 group-hover:opacity-100 transition-opacity"
+                  animate={{ rotate: 0 }}
+                  whileHover={{ rotate: 90 }}
+                  transition={{ duration: 0.4, ease: "easeInOut" }}
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="opacity-60 group-hover:opacity-100 transition-opacity"
-                  >
-                    <path d="M4 11a9 9 0 0 1 9 9" />
-                    <path d="M4 4a16 16 0 0 1 16 16" />
-                    <circle cx="5" cy="19" r="1" />
-                  </svg>
-                  <span>Open feed</span>
-                </Link>
-              </motion.div>
-
-              {/* Nexus settings: ghost style with settings icon */}
-              <motion.div
-                initial={{ opacity: 0, x: 22 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: nexusDelay, duration: 0.5, ease: "easeOut" }}
-                className="relative group"
-              >
-                <Link
-                  href="/nexus"
-                  className="relative flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90"
-                >
-                  <motion.svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="opacity-50 group-hover:opacity-100 transition-opacity"
-                    animate={{ rotate: 0 }}
-                    whileHover={{ rotate: 90 }}
-                    transition={{ duration: 0.4, ease: "easeInOut" }}
-                  >
-                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </motion.svg>
-                  <span>Nexus settings</span>
-                </Link>
-              </motion.div>
-            </>
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                  <circle cx="12" cy="12" r="3" />
+                </motion.svg>
+                <span>Nexus settings</span>
+              </Link>
+            </motion.div>
           )}
         </motion.div>
       </motion.div>

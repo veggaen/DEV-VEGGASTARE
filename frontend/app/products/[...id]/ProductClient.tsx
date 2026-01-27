@@ -613,10 +613,6 @@ function AnimatedProductTitle({
 
     let cancelled = false;
     const run = async () => {
-      // Initial pause - let user absorb the first letter
-      await new Promise((r) => setTimeout(r, 300));
-      if (cancelled) return;
-
       // Ease-out speed curve: starts fast, slows toward end for polish
       const totalStages = stages.length;
       const baseDelay = 120; // Base delay
