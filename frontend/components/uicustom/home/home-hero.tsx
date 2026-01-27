@@ -880,19 +880,29 @@ export default function HomeHero({
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0" /> {/* bg-gradient-to-b from-black via-black/70 to-emerald-950/30 dark:from-black dark:via-black/60 dark:to-emerald-950/20 */}
         <motion.div
-          className="absolute -top-24 -right-24 h-[360px] w-[360px] rounded-full bg-emerald-500/15 blur-3xl"
-          animate={{ x: [0, -18, 0], y: [0, 12, 0], opacity: [0.18, 0.25, 0.18] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute right-8 top-8 h-[520px] w-[520px] rounded-full blur-3xl"
+          animate={{ x: [0, -18, 0], y: [0, 12, 0], opacity: [0.16, 0.26, 0.16], scale: [1, 1.05, 1] }}
+          transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            background:
+              "radial-gradient(closest-side, rgba(34,197,94,0.22), rgba(16,185,129,0.12), rgba(34,197,94,0) 72%)",
+            mixBlendMode: "screen",
+          }}
         />
         <motion.div
-          className="absolute -bottom-28 -left-28 h-[420px] w-[420px] rounded-full bg-sky-500/10 blur-3xl"
-          animate={{ x: [0, 22, 0], y: [0, -14, 0], opacity: [0.14, 0.22, 0.14] }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute bottom-10 left-10 h-[580px] w-[580px] rounded-full blur-3xl"
+          animate={{ x: [0, 24, 0], y: [0, -14, 0], opacity: [0.12, 0.22, 0.12], scale: [1, 1.04, 1] }}
+          transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            background:
+              "radial-gradient(closest-side, rgba(56,189,248,0.16), rgba(167,139,250,0.10), rgba(56,189,248,0) 74%)",
+            mixBlendMode: "screen",
+          }}
         />
       </div>
 
       <motion.div
-        className="relative z-10 mx-auto flex w-full max-w-4xl flex-col items-center gap-6 px-6 text-center"
+        className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-6 px-6 text-center xl:max-w-6xl"
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
@@ -949,7 +959,7 @@ export default function HomeHero({
           </motion.div>
 
           <motion.div
-            className="relative text-balance text-4xl font-semibold text-white drop-shadow-sm sm:text-6xl md:-translate-x-6"
+            className="relative text-balance text-4xl font-semibold text-white drop-shadow-sm sm:text-6xl lg:text-7xl 2xl:text-8xl"
             onPointerEnter={() => {
               if (reduceMotion) return;
               setTitleAreaHovering(true);
@@ -1039,10 +1049,10 @@ export default function HomeHero({
         </div>
 
         {/* Description comes after title with slow-to-fast animation */}
-        <div className="w-full min-h-[3.25rem] sm:min-h-[3rem] mt-4">
+        <div className="w-full min-h-[3.25rem] sm:min-h-[3rem] mt-6">
           <KineticDescription
             text={descriptionText}
-            className="mx-auto max-w-2xl text-pretty text-sm text-white/75 sm:text-base"
+            className="mx-auto max-w-3xl text-pretty text-sm text-white/75 sm:text-base"
             startDelay={descriptionStart}
             startSpeed={140}
             endSpeed={35}
@@ -1051,7 +1061,7 @@ export default function HomeHero({
 
         {/* CTAs */}
         <motion.div
-          className="flex flex-wrap items-center justify-center gap-3"
+          className="mt-6 flex flex-wrap items-center justify-center gap-3 md:mt-8"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: buttonsStart, duration: 0.22, ease: "easeOut" }}
@@ -1173,22 +1183,9 @@ export default function HomeHero({
               transition={{ delay: buttonsStart + 0.05, duration: 0.35, ease: "easeOut" }}
               className="relative group"
             >
-              {/* Subtle idle glow */}
-              <motion.div
-                className="absolute -inset-[1px] rounded-xl bg-gradient-to-r from-emerald-600/30 via-emerald-500/20 to-emerald-600/30 opacity-0 blur-[2px] group-hover:opacity-100"
-                animate={{
-                  backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-                }}
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "linear",
-                }}
-                style={{ backgroundSize: "200% 200%" }}
-              />
               <MyLoginButton mode="modal" asChild>
-                <button className="relative flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-medium text-white/60 backdrop-blur-sm transition-all duration-300 hover:border-emerald-500/30 hover:bg-emerald-950/20 hover:text-emerald-300 group-hover:shadow-[0_0_20px_rgba(34,197,94,0.1)]">
-                  <FaUnlockAlt size={14} className="opacity-50 transition-all group-hover:opacity-100 group-hover:scale-110" />
+                <button className="relative flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90">
+                  <FaUnlockAlt size={16} className="opacity-50 transition-opacity group-hover:opacity-100" />
                   <span>Authenticate</span>
                 </button>
               </MyLoginButton>
