@@ -13,8 +13,8 @@
   "dependencies": {
     "@auth/prisma-adapter": "^1.2.1",
     "@coinbase/wallet-sdk": "^4.0.4",
-    "@edgestore/react": "^0.1.6",
-    "@edgestore/server": "^0.1.6",
+    "@edgestore/react": "^0.1.7",
+    "@edgestore/server": "^0.1.7",
     "@hookform/resolvers": "^3.3.4",
     "@prisma/client": "^6.16.3",
     "@radix-ui/react-accordion": "^1.2.12",
@@ -48,6 +48,7 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.0.0-rc22",
     "framer-motion": "^11.0.5",
+    "gsap": "^3.14.2",
     "heroicons": "^2.1.1",
     "isomorphic-ws": "^5.0.0",
     "lodash": "^4.17.21",
@@ -82,7 +83,7 @@
     "viem": "^2.37.6",
     "wagmi": "^2.16.9",
     "ws": "^8.18.0",
-    "zod": "^3.22.4"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@faker-js/faker": "^8.4.1",

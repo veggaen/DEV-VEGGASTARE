@@ -39,7 +39,7 @@ export const MyLoginForm = () => {
               </div>
               <div className="flex flex-col">
                   <div className={` text-white dark:text-white py-1 text-center group w-full bg-green-500/50 dark:bg-emerald-500/50`}>
-                    <h1 className="font-bold text-xl">Freedom Store™</h1>
+                <h1 className="font-bold text-xl tracking-[0.03em]">Freedom Store™</h1>
                   </div>
                 <div className="p-4 h-full md:min-w-[300px] lg:min-w-[360px] xl:min-w-[420px] lg:min-h-[620px] bg-neutral-400 dark:bg-slate-600">
                   <div className="flex flex-col justify-between p-6 h-full bg-neutral-300 dark:bg-slate-700 w-full rounded-b-lg rounded-t">

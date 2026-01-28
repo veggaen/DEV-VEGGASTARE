@@ -118,6 +118,9 @@ model User {
   referredBy            String?
   role                  UserRole               @default(USER)
 
+  // Versioned site notice dismissal (e.g. "Under development" banner)
+  siteNoticeDismissedVersion Int               @default(0)
+
   // NEW: default Web2 UX, opt-in Web3 features
   web3ModeEnabled       Boolean                @default(false)
 

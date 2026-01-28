@@ -4,6 +4,15 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+    async redirects() {
+        return [
+            {
+                source: "/feed",
+                destination: "/pulse",
+                permanent: true,
+            },
+        ];
+    },
     webpack: (config) => {
         config.externals.push("pino-pretty", "lokijs", "encoding");
 

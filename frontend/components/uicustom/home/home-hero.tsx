@@ -5,7 +5,7 @@ import * as React from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { MyLoginButton } from "@/components/uicustom/auth/buttons/login-button";
-import { FaUnlockAlt } from "react-icons/fa";
+import { FaLock, FaUnlockAlt } from "react-icons/fa";
 import AnimatedTitle from "@/components/uicustom/animated-title";
 
 type IgniteState = {
@@ -227,8 +227,8 @@ function KineticDescription({
   text,
   className,
   startDelay = 0,
-  startSpeed = 180,
-  endSpeed = 35,
+  startSpeed = 65,
+  endSpeed = 12,
 }: {
   text: string;
   className?: string;
@@ -237,85 +237,107 @@ function KineticDescription({
   endSpeed?: number;
 }) {
   const reduceMotion = useReducedMotion();
-  const chars = React.useMemo(() => Array.from(text), [text]);
-  const midPoint = Math.floor(chars.length / 2);
-
-  const [revealedLeft, setRevealedLeft] = React.useState(0);
-  const [revealedRight, setRevealedRight] = React.useState(0);
-  const [introDone, setIntroDone] = React.useState(false);
-
-  React.useEffect(() => {
-    if (reduceMotion) {
-      setRevealedLeft(midPoint);
-      setRevealedRight(chars.length - midPoint);
-      setIntroDone(true);
-      return;
-    }
-
-    setRevealedLeft(0);
-    setRevealedRight(0);
-    setIntroDone(false);
-
-    let cancelled = false;
-    const run = async () => {
-      await new Promise((r) => setTimeout(r, startDelay * 1000));
-      if (cancelled) return;
-
-      // Grow from center outward, left and right simultaneously
-      const leftChars = midPoint;
-      const rightChars = chars.length - midPoint;
-      const maxSteps = Math.max(leftChars, rightChars);
-
-      for (let step = 1; step <= maxSteps; step++) {
-        if (cancelled) return;
-        
-        // Reveal from center: left side grows backward, right side grows forward
-        if (step <= leftChars) setRevealedLeft(step);
-        if (step <= rightChars) setRevealedRight(step);
-        
-        // Linear acceleration: start slow (startSpeed) and speed up to fast (endSpeed)
-        const progress = step / maxSteps;
-        const delay = Math.round(startSpeed - (startSpeed - endSpeed) * progress);
-        await new Promise((r) => setTimeout(r, delay));
-      }
-
-      await new Promise((r) => setTimeout(r, 100));
-      if (!cancelled) setIntroDone(true);
-    };
-    run();
-
-    return () => { cancelled = true; };
-  }, [reduceMotion, chars, midPoint, startDelay, startSpeed, endSpeed]);
-
   if (reduceMotion) {
     return <p className={className}>{text}</p>;
   }
 
-  // Build the visible text: center grows outward
-  const leftPart = chars.slice(midPoint - revealedLeft, midPoint);
-  const rightPart = chars.slice(midPoint, midPoint + revealedRight);
-  const visibleText = [...leftPart, ...rightPart].join("");
+  // Split into words to prevent mid-word line breaks
+  const words = React.useMemo(() => String(text ?? "").split(/\s+/).filter(Boolean), [text]);
+  const totalChars = React.useMemo(
+    () => words.reduce((sum, w) => sum + w.length, 0),
+    [words]
+  );
+  const [revealCount, setRevealCount] = React.useState(0);
+  const [started, setStarted] = React.useState(false);
+  const innerTimeoutRef = React.useRef<number | null>(null);
+
+  // Build reveal order from center outward (by character index across all words)
+  const revealOrder = React.useMemo(() => {
+    if (totalChars <= 0) return [] as number[];
+    const center = Math.floor((totalChars - 1) / 2);
+    const indices = Array.from({ length: totalChars }, (_, i) => i);
+    indices.sort((a, b) => {
+      const da = Math.abs(a - center);
+      const db = Math.abs(b - center);
+      if (da !== db) return da - db;
+      return a - b;
+    });
+    return indices;
+  }, [totalChars]);
+
+  const revealed = React.useMemo(() => {
+    const set = new Set<number>();
+    for (let i = 0; i < Math.min(revealCount, revealOrder.length); i += 1) {
+      set.add(revealOrder[i]);
+    }
+    return set;
+  }, [revealCount, revealOrder]);
+
+  React.useEffect(() => {
+    setRevealCount(0);
+    setStarted(false);
+    if (totalChars <= 0) return;
+
+    const startTimer = window.setTimeout(() => {
+      setStarted(true);
+      let i = 0;
+
+      const tick = () => {
+        i += 1;
+        setRevealCount(i);
+        if (i >= totalChars) return;
+        const t = totalChars <= 1 ? 1 : i / (totalChars - 1);
+        const delayMs = Math.round(startSpeed * (1 - t) + endSpeed * t);
+        innerTimeoutRef.current = window.setTimeout(tick, Math.max(8, delayMs));
+      };
+
+      // Reveal first char quickly.
+      innerTimeoutRef.current = window.setTimeout(tick, Math.max(8, startSpeed));
+    }, Math.max(0, Math.round(startDelay * 1000)));
+
+    return () => {
+      window.clearTimeout(startTimer);
+      if (innerTimeoutRef.current) window.clearTimeout(innerTimeoutRef.current);
+    };
+  }, [totalChars, startDelay, startSpeed, endSpeed]);
+
+  // Map global char index to which word & char-in-word
+  let globalIdx = 0;
 
   return (
     <motion.p
       className={className}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3, ease: "easeOut", delay: startDelay }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut", delay: startDelay }}
     >
-      <span className="relative inline-block text-center">
-        {/* Invisible placeholder to reserve space */}
-        <span className="invisible block pointer-events-none" aria-hidden="true">{text}</span>
-        {/* Visible text growing from center */}
-        <span 
-          className="pointer-events-none absolute inset-0 flex items-center justify-center"
-          style={{ 
-            opacity: introDone ? 1 : 0.95,
-            transition: "opacity 0.3s ease-out"
-          }}
-        >
-          {visibleText}
-        </span>
+      <span className="inline-flex flex-wrap justify-center w-full gap-x-[0.3em]">
+        {words.map((word, wIdx) => {
+          const startIdx = globalIdx;
+          globalIdx += word.length;
+          return (
+            <span key={wIdx} className="inline-block whitespace-nowrap">
+              {Array.from(word).map((ch, cIdx) => {
+                const charGlobalIdx = startIdx + cIdx;
+                return (
+                  <motion.span
+                    key={cIdx}
+                    className="inline-block"
+                    initial={false}
+                    animate={
+                      started && revealed.has(charGlobalIdx)
+                        ? { opacity: 1, y: 0 }
+                        : { opacity: 0, y: 2 }
+                    }
+                    transition={{ duration: 0.12, ease: "easeOut" }}
+                  >
+                    {ch}
+                  </motion.span>
+                );
+              })}
+            </span>
+          );
+        })}
       </span>
     </motion.p>
   );
@@ -844,6 +866,7 @@ export default function HomeHero({
   // State for title hover effect (to animate TM)
   const [titleHoverActive, setTitleHoverActive] = React.useState(false);
   const [titleAreaHovering, setTitleAreaHovering] = React.useState(false);
+  const [tmLetterHover, setTmLetterHover] = React.useState<"T" | "M" | null>(null);
 
   const whereGlowActive = !reduceMotion && Date.now() < whereGlowUntilMs;
   const titleGlowActive = !reduceMotion && Date.now() < titleGlowUntilMs;
@@ -959,7 +982,7 @@ export default function HomeHero({
           </motion.div>
 
           <motion.div
-            className="relative text-balance text-4xl font-semibold text-white drop-shadow-sm sm:text-6xl lg:text-7xl 2xl:text-8xl"
+            className="relative mt-1 text-balance text-4xl font-semibold tracking-[0.02em] text-white drop-shadow-sm sm:text-6xl lg:text-7xl 2xl:text-8xl"
             onPointerEnter={() => {
               if (reduceMotion) return;
               setTitleAreaHovering(true);
@@ -1019,26 +1042,52 @@ export default function HomeHero({
                   transition={undefined}
                 >
                   <motion.span
-                    className="inline-block"
+                    className="inline-block cursor-pointer"
                     initial={{ opacity: 0, y: -18, scale: 0.7 }}
                     animate={{ 
                       opacity: 1, 
                       y: 0, 
-                      scale: tmActive ? 1.12 : 1,
+                      scale: tmLetterHover === "T" ? (tmActive ? 1.34 : 1.24) : tmActive ? 1.12 : 1,
+                      rotate: tmLetterHover === "T" ? -10 : 0,
                     }}
-                    transition={{ delay: browseDelay, type: "spring", stiffness: 720, damping: 16, mass: 0.65 }}
+                    transition={{ delay: browseDelay, type: "spring", stiffness: 760, damping: 16, mass: 0.6 }}
+                    onPointerEnter={() => setTmLetterHover("T")}
+                    onPointerLeave={() => setTmLetterHover(null)}
+                    style={
+                      tmLetterHover === "T"
+                        ? {
+                            color: "#e5fff7",
+                            textShadow:
+                              "0 0 8px rgba(34,197,94,0.55), 0 0 14px rgba(56,189,248,0.45), 0 0 18px rgba(167,139,250,0.35), 0 0 26px rgba(236,72,153,0.25)",
+                            filter: "drop-shadow(0 0 12px rgba(34,197,94,0.25))",
+                          }
+                        : undefined
+                    }
                   >
                     T
                   </motion.span>
                   <motion.span
-                    className="inline-block"
+                    className="inline-block cursor-pointer"
                     initial={{ opacity: 0, y: -18, scale: 0.7 }}
                     animate={{ 
                       opacity: 1, 
                       y: 0, 
-                      scale: tmActive ? 1.12 : 1,
+                      scale: tmLetterHover === "M" ? (tmActive ? 1.34 : 1.24) : tmActive ? 1.12 : 1,
+                      rotate: tmLetterHover === "M" ? 10 : 0,
                     }}
-                    transition={{ delay: browseDelay + 0.3, type: "spring", stiffness: 720, damping: 16, mass: 0.65 }}
+                    transition={{ delay: browseDelay + 0.3, type: "spring", stiffness: 760, damping: 16, mass: 0.6 }}
+                    onPointerEnter={() => setTmLetterHover("M")}
+                    onPointerLeave={() => setTmLetterHover(null)}
+                    style={
+                      tmLetterHover === "M"
+                        ? {
+                            color: "#fff7ff",
+                            textShadow:
+                              "0 0 8px rgba(236,72,153,0.55), 0 0 14px rgba(167,139,250,0.45), 0 0 18px rgba(56,189,248,0.35), 0 0 26px rgba(250,204,21,0.22)",
+                            filter: "drop-shadow(0 0 12px rgba(236,72,153,0.22))",
+                          }
+                        : undefined
+                    }
                   >
                     M
                   </motion.span>
@@ -1052,10 +1101,10 @@ export default function HomeHero({
         <div className="w-full min-h-[3.25rem] sm:min-h-[3rem] mt-6">
           <KineticDescription
             text={descriptionText}
-            className="mx-auto max-w-3xl text-pretty text-sm text-white/75 sm:text-base"
+            className="mx-auto max-w-3xl text-pretty text-sm text-white/75 sm:text-base transition-[color,text-shadow] duration-700 ease-out hover:text-white/85 hover:[text-shadow:0_0_18px_rgba(56,189,248,0.16)]"
             startDelay={descriptionStart}
-            startSpeed={140}
-            endSpeed={35}
+            startSpeed={45}
+            endSpeed={12}
           />
         </div>
 
@@ -1131,7 +1180,7 @@ export default function HomeHero({
             </Link>
           </motion.div>
 
-          {/* Open feed: shown for ALL users */}
+          {/* Open Pulse: shown for ALL users */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -1152,26 +1201,44 @@ export default function HomeHero({
               style={{ backgroundSize: "200% 200%" }}
             />
             <Link
-              href="/feed"
+              href="/pulse"
               className="relative flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white/80 backdrop-blur-sm transition-all duration-300 hover:border-white/40 hover:bg-white/10 hover:text-white group-hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="opacity-60 group-hover:opacity-100 transition-opacity"
-              >
-                <path d="M4 11a9 9 0 0 1 9 9" />
-                <path d="M4 4a16 16 0 0 1 16 16" />
-                <circle cx="5" cy="19" r="1" />
-              </svg>
-              <span>Open feed</span>
+              <span className="relative h-4 w-4">
+                <span className="absolute inset-0 opacity-60 transition-all duration-300 group-hover:opacity-0 group-hover:-rotate-12">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 11a9 9 0 0 1 9 9" />
+                    <path d="M4 4a16 16 0 0 1 16 16" />
+                    <circle cx="5" cy="19" r="1" />
+                  </svg>
+                </span>
+                <span className="absolute inset-0 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:rotate-12">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M13 2 3 14h7l-1 8 12-14h-7l1-6z" />
+                  </svg>
+                </span>
+              </span>
+              <span>Open Pulse</span>
             </Link>
           </motion.div>
 
@@ -1185,7 +1252,14 @@ export default function HomeHero({
             >
               <MyLoginButton mode="modal" asChild>
                 <button className="relative flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90">
-                  <FaUnlockAlt size={16} className="opacity-50 transition-opacity group-hover:opacity-100" />
+                  <span className="relative h-4 w-4">
+                    <span className="absolute inset-0 transition-all duration-300 group-hover:opacity-0 group-hover:-rotate-12">
+                      <FaLock size={16} className="opacity-50 group-hover:opacity-100" />
+                    </span>
+                    <span className="absolute inset-0 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:rotate-12">
+                      <FaUnlockAlt size={16} className="opacity-50 group-hover:opacity-100" />
+                    </span>
+                  </span>
                   <span>Authenticate</span>
                 </button>
               </MyLoginButton>

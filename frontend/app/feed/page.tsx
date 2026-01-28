@@ -262,7 +262,7 @@ const FeedPage: React.FC = () => {
         <div className="min-w-0">
           {/* Compose Box */}
           {currentUser && (
-            <div className="rounded-2xl border border-border/60 bg-card/40 backdrop-blur-sm sticky top-3 z-10">
+            <div className="rounded-2xl border border-border/60 bg-card/40 backdrop-blur-sm sticky top-[calc(var(--app-header-offset,0px)+12px)] z-10">
               <div className="p-4 space-y-3">
                 {/* User avatar + textarea */}
                 <div className="flex gap-3">
@@ -520,9 +520,9 @@ const FeedPage: React.FC = () => {
 
         {/* Explore sidebar */}
         <aside className="hidden lg:block">
-          <div className="sticky top-3 space-y-4">
+          <div className="sticky top-[calc(var(--app-header-offset,0px)+12px)] space-y-4">
             {!currentUser && (
-              <div className="rounded-2xl border border-border/60 bg-card/40 p-4">
+              <div className="rounded-2xl border border-border/60 bg-transparent p-4 transition-colors hover:bg-card/30">
                 <div className="font-semibold">Welcome</div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Browse public posts, polls, and updates. Sign in to post and join the conversation.
@@ -534,7 +534,7 @@ const FeedPage: React.FC = () => {
               </div>
             )}
 
-            <div className="rounded-2xl border border-border/60 bg-card/40 p-4">
+            <div className="rounded-2xl border border-border/60 bg-transparent p-4 transition-colors hover:bg-card/30">
               <div className="flex items-center justify-between">
                 <div className="font-semibold">Trending tags</div>
                 {tagFilter && (
@@ -562,7 +562,7 @@ const FeedPage: React.FC = () => {
               )}
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-card/40 p-4">
+            <div className="rounded-2xl border border-border/60 bg-transparent p-4 transition-colors hover:bg-card/30">
               <div className="font-semibold">Top posts</div>
               <div className="mt-3 space-y-2">
                 {topPosts.length === 0 ? (

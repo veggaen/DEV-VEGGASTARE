@@ -83,7 +83,7 @@ export const MyDialogbarNavigator = ({ onOpen, variant = "default", open, onOpen
       {
         group: "Community",
         items: [
-          { href: "/feed", label: "Feed", icon: <FiRss className="h-4 w-4" /> },
+          { href: "/pulse", label: "Pulse", icon: <FiRss className="h-4 w-4" /> },
           { href: "/conversations", label: "Inbox", icon: <TiMessages className="h-4 w-4" /> },
         ],
       },

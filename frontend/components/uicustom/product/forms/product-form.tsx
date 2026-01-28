@@ -15,6 +15,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { UserRole, WarehouseLocation } from '@prisma/client';
 import { RxCrossCircled } from "react-icons/rx";
 import { FaFileUpload } from "react-icons/fa";
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import Image from 'next/image';
 import { useDropzone } from 'react-dropzone';
 import { useEdgeStore } from '@/lib/edgestore';
@@ -53,6 +54,8 @@ export const MyProductCreationForm = () => {
   const [uId, setUId] = useState<string | undefined>(clientUser?.id); // role admin to modify input value
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+	const [isUploadingImages, setIsUploadingImages] = useState(false);
+	const [uploadProgress, setUploadProgress] = useState<number[]>([]);
   const [isPhysicalProduct, setIsPhysicalProduct] = useState<boolean>(false);
   const [isCompanyProduct, setIsCompanyProduct] = useState<boolean>(false);
   const [specifications, setSpecifications] = useState<Specification[]>([]);
@@ -72,7 +75,6 @@ export const MyProductCreationForm = () => {
   const companiesFetched = useRef(false);
 
   // UI States
-  const [counter, setCounter] = useState(0);
   const [error, setError] = useState<string | undefined>('');
   const [success, setSuccess] = useState<string | undefined>('');
   const [isEditing, setIsEditing] = useState(false);
@@ -130,11 +132,30 @@ export const MyProductCreationForm = () => {
   }, [postalCodeInput]);
 
 
+  const MAX_IMAGES = 8;
+
+  // Cleanup object URLs
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {
+          // ignore
+        }
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const onDrop = (acceptedFiles: File[]) => {
-    setImages([...images, ...acceptedFiles]);
-    const newPreviews = acceptedFiles.map(file => URL.createObjectURL(file));
-    setImagePreviews([...imagePreviews, ...newPreviews]);
-    setCounter(counter + 1);
+    const remaining = Math.max(0, MAX_IMAGES - images.length);
+    const nextFiles = acceptedFiles.slice(0, remaining);
+    if (nextFiles.length === 0) return;
+
+    setImages((prev) => [...prev, ...nextFiles]);
+    const newPreviews = nextFiles.map((file) => URL.createObjectURL(file));
+    setImagePreviews((prev) => [...prev, ...newPreviews]);
   };
 
   const { getRootProps, getInputProps } = useDropzone({
@@ -144,26 +165,73 @@ export const MyProductCreationForm = () => {
   });
 
   const imageHandler = async () => {
-    let uploadedUrls = [];
-    for (let image of images) {
+    if (!images || images.length === 0) return [];
+		setIsUploadingImages(true);
+		setUploadProgress(images.map(() => 0));
+
+    const uploadedUrls: string[] = [];
+    for (let i = 0; i < images.length; i++) {
+      const image = images[i];
       try {
-        const uploadResult = await edgestore.myPublicImages.upload({ file: image });
+        const uploadResult = await edgestore.myPublicImages.upload({
+					file: image,
+					onProgressChange: (p: number) => {
+						setUploadProgress((prev) => {
+							const next = prev.slice();
+							next[i] = p;
+							return next;
+						});
+					},
+				});
         uploadedUrls.push(uploadResult.url);
       } catch (error) {
         console.error('Upload error', error);
+				setIsUploadingImages(false);
+        throw error;
       }
     }
+		setIsUploadingImages(false);
     return uploadedUrls;
   };
 
   const removeImage = (e: any, index: number) => {
     e.preventDefault();
     e.stopPropagation();
-    const newImages = images.filter((_, i) => i !== index);
-    setImages(newImages);
-    setCounter(counter - 1);
-    const newImagePreviews = imagePreviews.filter((_, i) => i !== index);
-    setImagePreviews(newImagePreviews);
+    const url = imagePreviews[index];
+    if (url) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // ignore
+      }
+    }
+    setImages((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setUploadProgress((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const moveImage = (from: number, to: number) => {
+    setImages((prev) => {
+      if (to < 0 || to >= prev.length) return prev;
+      const next = prev.slice();
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return next;
+    });
+    setImagePreviews((prev) => {
+      if (to < 0 || to >= prev.length) return prev;
+      const next = prev.slice();
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return next;
+    });
+    setUploadProgress((prev) => {
+      if (to < 0 || to >= prev.length) return prev;
+      const next = prev.slice();
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return next;
+    });
   };
 
   const handleSpecificationChange = (
@@ -280,16 +348,33 @@ export const MyProductCreationForm = () => {
   const handleCancelEdit = () => {
     form.reset();
     setIsEditing(false);
-    setCounter(0);
+    imagePreviews.forEach((url) => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // ignore
+      }
+    });
     setImagePreviews([]);
+    setImages([]);
+    setUploadProgress([]);
+    setIsUploadingImages(false);
     handleReset();
   };
 
   const handleReset = () => {
-    setCounter(0);
+		imagePreviews.forEach((url) => {
+			try {
+				URL.revokeObjectURL(url);
+			} catch {
+				// ignore
+			}
+		});
     setError('');
     setImages([]);
     setImagePreviews([]);
+		setUploadProgress([]);
+		setIsUploadingImages(false);
     setSpecifications([]);
     setIsPhysicalProduct(false);
     setIsCompanyProduct(false);
@@ -375,318 +460,448 @@ export const MyProductCreationForm = () => {
   };
 
   const customStyles = {
+    section: 'space-y-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:p-5',
+    sectionTitle: 'text-sm font-medium text-white/90 mb-3',
     item: `group flex flex-col w-full items-start`,
-    itemHoverEffect: `group flex flex-col w-full items-start hover:bg-black/30 p-2 rounded`,
+    itemHoverEffect: `group flex flex-col w-full items-start`,
     itemRole: `${clientUser?.role === UserRole.ADMIN ? 'group items-start hidden flex-col' : 'hidden'}`,
-    label: `text-sm font-medium text-black/80 dark:text-white/80 group-focus-within:text-black dark:group-focus-within:text-white group-focus-within:scale-110 transition transform duration-300 ease-in-out`,
-    input: `w-full border disabled:bg-white/60 bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out`,
-    inputCheckbox: `border disabled:bg-white/60 bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out`
+    label: `text-sm font-medium text-white/80 group-focus-within:text-white transition-colors duration-200`,
+    labelHint: 'text-xs text-white/50 mt-0.5 font-normal',
+    input: `w-full bg-white/[0.06] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-white placeholder:text-white/40 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50 transition-all duration-200`,
+    inputCheckbox: `rounded border-white/30 bg-white/[0.06] text-emerald-500 focus:ring-emerald-500/40 focus:ring-offset-0`,
+    toggle: `hover:cursor-pointer flex gap-3 items-center py-3 px-4 w-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 rounded-lg transition-all duration-200`,
   };
 
   return (
     <div className='w-full h-full'>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className='flex justify-center w-full'>
-          <div className='flex flex-col justify-center items-start lg:flex-row w-full h-full bg-neutral-300 dark:bg-slate-700 max-w-[1440px] rounded-xl overflow-hidden shadow-lg'>
-            <div className='gap-y-2 flex flex-col justify-start items-start w-full h-full py-2 pb-4 px-4 lg:w-4/6'>
-              <FormField control={form.control} name='title' render={({ field }) => (
-                <FormItem className={`${customStyles.itemHoverEffect}`}>
-                  <FormLabel className={`${customStyles.label} text-md`}>What should the product title for this product be?</FormLabel>
-                  <FormControl>
-                    <Input {...field} disabled={isPending} placeholder='Choose a title' type='text' className={`${customStyles.input}`} spellCheck='false' />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-              />
-              <FormField control={form.control} name='category' render={({ field }) => (
-                <FormItem className={`${customStyles.itemHoverEffect}`}>
-                  <FormLabel className={`${customStyles.label} text-md`}>What category can we use for this product?</FormLabel>
-                  <FormControl>
-                    <Input {...field} disabled={isPending} placeholder='Choose a category' type='text' className={`${customStyles.input}`} spellCheck='false' />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-              />
-              <FormField control={form.control} name='description' render={({ field }) => (
-                <FormItem className={`${customStyles.itemHoverEffect}`}>
-                  <FormLabel className={`${customStyles.label} text-md`}>How would you best describe this product?</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} disabled={isPending} placeholder='This product is great because I made it myself' className={`${customStyles.input} h-40 text-wrap no-underline`} spellCheck='false' />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-              />
-              <FormField control={form.control} name='price' render={({ field }) => (
-                <FormItem className={`${customStyles.itemHoverEffect}`}>
-                  <FormLabel className={`${customStyles.label} text-md`}>What should be the price of a single unit of this product?</FormLabel>
-                  <FormControl>
-                    <div className={'relative w-full items-end'}>
-                      <div className={`pointer-events-none absolute inset-y-0 right-2 flex items-center pl-3`}>
-                        <span className='sm:text-sm z-10 group-focus-within:scale-110 transition transform duration-300 ease-in-out'>$</span>
-                      </div>
-                      <Input
-                        {...field}
-                        disabled={isPending}
-                        placeholder='Set a price'
-                        type='text'
-                        step='1'
-                        className={`${customStyles.input} text-end appearance-none pr-6`}
-                        spellCheck='false'
-                        onChange={e => {
-                          const value = e.target.value;
-                          form.setValue('price', value ? parseFloat(value) : 0, { shouldValidate: true });
-                        }}
-                      />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-              />
-              <FormField control={form.control} name='userId' render={({ field }) => (
-                <FormItem className={`${customStyles.itemRole}`}>
-                  <FormLabel className={`${customStyles.label}`}>Whats the UserID of the actor that is creating this product?</FormLabel>
-                  <FormControl>
-                    <Input {...field} disabled={clientUser?.role === UserRole.ADMIN ? isPending : true} value={clientUser?.role === UserRole.ADMIN ? uId : clientUser?.id} onChange={e => setUId(e.target.value)} placeholder='Your Id' type='text' className={`${customStyles.input}`} spellCheck='false' />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-              />
-              <div className={`hover:bg-black/30 p-2 rounded flex flex-col gap-4 justify-center items-start w-full`}>
-                <FormLabel htmlFor='checkbox-isCompanyProduct' className={`${customStyles.label} text-md`}>
-                  Should this product be posted on behalf of a Company?
-                </FormLabel>
-                <label
-                  htmlFor='checkbox-isCompanyProduct'
-                  className='hover:cursor-pointer group flex gap-4 justify-start items-center py-2 px-4 w-full border disabled:bg-white/60 bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/50 dark:hover:bg-black/40 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out'
-                  title={
-                    isCompanyProduct
-                      ? "Yes, post this on-behalf of selected company."
-                      : "No, post this as an individual owned product."
-                  }
-                >
-                  <div className={'flex gap-4 justify-start items-center'}>
+          <div className='grid grid-cols-1 lg:grid-cols-[1fr,auto] gap-6 w-full max-w-[1200px]'>
+            {/* Main form fields */}
+            <div className='space-y-6'>
+              {/* Basic info section */}
+              <div className={customStyles.section}>
+                <h3 className={customStyles.sectionTitle}>Basic Information</h3>
+                
+                <FormField control={form.control} name='title' render={({ field }) => (
+                  <FormItem className={customStyles.item}>
+                    <FormLabel className={customStyles.label}>
+                      Product title
+                      <span className={customStyles.labelHint}> — Make it catchy and descriptive</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input {...field} disabled={isPending} placeholder='e.g., Handcrafted Leather Wallet' type='text' className={customStyles.input} spellCheck='false' />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name='category' render={({ field }) => (
+                  <FormItem className={customStyles.item}>
+                    <FormLabel className={customStyles.label}>
+                      Category
+                      <span className={customStyles.labelHint}> — Help buyers find your listing</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input {...field} disabled={isPending} placeholder='e.g., Accessories, Electronics, Art' type='text' className={customStyles.input} spellCheck='false' />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name='description' render={({ field }) => (
+                  <FormItem className={customStyles.item}>
+                    <FormLabel className={customStyles.label}>
+                      Description
+                      <span className={customStyles.labelHint}> — Tell buyers what makes this special</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea {...field} disabled={isPending} placeholder='Describe your product in detail. Include materials, dimensions, condition, and any unique features...' className={`${customStyles.input} min-h-[120px] resize-y`} spellCheck='false' />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
+              {/* Pricing & Inventory */}
+              <div className={customStyles.section}>
+                <h3 className={customStyles.sectionTitle}>Pricing & Inventory</h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField control={form.control} name='price' render={({ field }) => (
+                    <FormItem className={customStyles.item}>
+                      <FormLabel className={customStyles.label}>Price (USD)</FormLabel>
+                      <FormControl>
+                        <div className='relative'>
+                          <span className='absolute left-3 top-1/2 -translate-y-1/2 text-white/50 text-sm'>$</span>
+                          <Input
+                            {...field}
+                            disabled={isPending}
+                            placeholder='0.00'
+                            type='text'
+                            className={`${customStyles.input} pl-7`}
+                            spellCheck='false'
+                            onChange={e => {
+                              const value = e.target.value;
+                              form.setValue('price', value ? parseFloat(value) : 0, { shouldValidate: true });
+                            }}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name='quantity' render={({ field }) => (
+                    <FormItem className={customStyles.item}>
+                      <FormLabel className={customStyles.label}>Quantity available</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          disabled={isPending}
+                          placeholder='1'
+                          type='number'
+                          min='1'
+                          className={customStyles.input}
+                          onChange={(e) => form.setValue('quantity', Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+              </div>
+
+              {/* Product type toggles */}
+              <div className={customStyles.section}>
+                <h3 className={customStyles.sectionTitle}>Product Options</h3>
+                
+                {/* Company product toggle */}
+                <div className="space-y-3">
+                  <label htmlFor='checkbox-isCompanyProduct' className={customStyles.toggle}>
                     <input
-                      className={`${customStyles.inputCheckbox} group-hover:bg-slate-200`}
+                      className={customStyles.inputCheckbox}
                       type="checkbox"
-                      id={`checkbox-isCompanyProduct`}
+                      id='checkbox-isCompanyProduct'
                       checked={isCompanyProduct}
                       onChange={() => handleCompanyProduct()}
                     />
-                    <p className={``}>
-                      {isCompanyProduct === true ? 'Yes' : 'No'}
-                    </p>
-                  </div>
-                </label>
-                {isCompanyProduct === true &&
-                  <UserCompanyPermission permissionTag="CAN_POST_PRODUCT_POSITION_PERMISSION" onCompanySelect={handleCompanySelect} />
-                }
-              </div>
-              <div className={`hover:bg-black/30 p-2 rounded flex flex-col gap-4 justify-center items-start w-full`}>
-                <FormLabel htmlFor='checkbox-isPhysicalProduct' className={`${customStyles.label} text-md`}>
-                  Is the product a real world asset and requires shipping?
-                </FormLabel>
-                <label
-                  htmlFor='checkbox-isPhysicalProduct'
-                  className='hover:cursor-pointer group flex gap-4 justify-start items-center py-2 px-4 w-full border disabled:bg-white/60 bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/50 dark:hover:bg-black/40 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out'
-                  title={
-                    isPhysicalProduct
-                      ? "Yes, this is a tangible product. Please provide detailed specifications including weight and dimensions, as these are necessary for accurate shipping calculations."
-                      : "No, this is a digital product. No shipping details are required. However, you may still provide relevant specifications that describe your product to potential buyers."
-                  }
-                >
-                  <div className={'flex gap-4 justify-start items-center'}>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-white/90">List as company product</div>
+                      <div className="text-xs text-white/50 mt-0.5">Post on behalf of your business</div>
+                    </div>
+                  </label>
+                  
+                  {isCompanyProduct && (
+                    <div className="pl-4 border-l-2 border-emerald-500/30">
+                      <UserCompanyPermission permissionTag="CAN_POST_PRODUCT_POSITION_PERMISSION" onCompanySelect={handleCompanySelect} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Physical product toggle */}
+                <div className="space-y-3 mt-4">
+                  <label htmlFor='checkbox-isPhysicalProduct' className={customStyles.toggle}>
                     <input
-                      className={`${customStyles.inputCheckbox} group-hover:bg-slate-200`}
+                      className={customStyles.inputCheckbox}
                       type="checkbox"
-                      id={`checkbox-isPhysicalProduct`}
+                      id='checkbox-isPhysicalProduct'
                       checked={isPhysicalProduct}
                       onChange={() => handlePhysicalProduct()}
                     />
-                    <p className={``}>
-                      {isPhysicalProduct === true ? 'Yes' : 'No'}
-                    </p>
-                  </div>
-                </label>
-                {isPhysicalProduct === true && (
-                  <div className='w-full'>
-                    {warehouseLocations.length > 0 && (
-                      <div className=''>
-                        <FormLabel className={`${customStyles.label}`}>Select one or multiple warehouses from company registred locations</FormLabel>
-                        <div className='flex flex-wrap gap-2'>
-                          {warehouseLocations.map((location, index) => (
-                            <div key={index} className={`border disabled:bg-white/60 bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:text-black transition transform duration-300 ease-in-out group flex justify-start items-center`} onClick={() => handleSelectWarehouseLocation(location.postalCode)}>
-                              <div className='flex gap-2 justify-start items-center py-2 px-4'>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-white/90">Physical product</div>
+                      <div className="text-xs text-white/50 mt-0.5">Requires shipping — add dimensions & origin</div>
+                    </div>
+                  </label>
+
+                  {isPhysicalProduct && (
+                    <div className="pl-4 border-l-2 border-emerald-500/30 space-y-4">
+                      {/* Warehouse locations */}
+                      {warehouseLocations.length > 0 && (
+                        <div className="space-y-2">
+                          <div className={customStyles.label}>Ship from warehouse</div>
+                          <div className='flex flex-wrap gap-2'>
+                            {warehouseLocations.map((location, index) => (
+                              <label
+                                key={index}
+                                className={`${customStyles.toggle} !py-2 !px-3 !w-auto cursor-pointer ${
+                                  postalCodes.includes(location.postalCode) ? 'border-emerald-500/50 bg-emerald-500/10' : ''
+                                }`}
+                              >
                                 <input
                                   type='checkbox'
                                   value={location.postalCode}
                                   checked={postalCodes.includes(location.postalCode)}
                                   onChange={() => handleSelectWarehouseLocation(location.postalCode)}
-                                  className={`${customStyles.inputCheckbox} h-[15px] w-[15px] group-hover:bg-slate-200`}
-                                  onClick={(e) => e.stopPropagation()} // Prevent the parent click event from firing
+                                  className={customStyles.inputCheckbox}
                                 />
-                                <label className=''>{`${location.postalCode} - ${location.city}`}</label>
-                              </div>
-                            </div>
-                          ))}
+                                <span className="text-sm text-white/80">{location.postalCode} - {location.city}</span>
+                              </label>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {isCompanyProduct === false && 
-                    <FormField control={form.control} name='shipFromPostalId' render={({ field }) => (
-                      <FormItem className={`${customStyles.item}`}>
-                        <FormLabel className={`${customStyles.label}`}>Enter warehouse postal code</FormLabel>
-                        <FormControl>
-                          <Input {...field} id='postalCode'
-                            disabled={isPending}
-                            placeholder='postal ID'
-                            type='text'
-                            value={postalCodeInput}
-                            onChange={(e) => {
-                              const newPostalCode = e.target.value;
-                              setPostalCodeInput(newPostalCode);
-                              fetchPostalCodeDetails(newPostalCode);
-                            }}
-                            className={`${customStyles.input} postal-code-input`}
-                            spellCheck='false'
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
                       )}
-                    />
-                    }
-                    {warehouseLocationError && (
-                      <p className="text-red-600 dark:text-red-400">{warehouseLocationError}</p>
-                    )}
-                    {suggestions.length > 0 && (
-                      <>
-                        <select
-                          onChange={handleSelectChange}
-                          className={`${customStyles.input}`}
-                        >
-                          {suggestions
-                            .filter((suggestion) => suggestion.postal_code.startsWith(postalCodeInput) || suggestion.city.toLowerCase().includes(postalCodeInput.toLowerCase()))
-                            .map((filteredSuggestion, index) => (
-                              <option key={index} value={filteredSuggestion.postal_code}>
-                                {filteredSuggestion.postal_code} - {filteredSuggestion.city}
-                              </option>
-                            ))}
-                        </select>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-              <FormField control={form.control} name='specifications' render={({ field }) => (
-              <FormItem className={`${customStyles.itemHoverEffect}`}>
-                <FormLabel className={`${customStyles.label}`}>Specifications</FormLabel>
-                <FormControl>
-                  <div>
-                    <div
-                      className={`hover:cursor-pointer py-2 px-4 my-2 w-fit bg-slate-50 hover:bg-slate-200 dark:disabled:bg-black/50 dark:bg-black/60 dark:hover:bg-black/50 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded`}
-                      onClick={addSpecification}
-                      title="Adds a specification to the product."
-                    >
-                      Add Specification
-                    </div>
-                    {specifications.map((spec, index) => (
-                      <div key={index}>
-                        <div className={`flex gap-2 items-center`}>
-                          <select
-                            name="specification"
-                            value={spec.key}
-                            onChange={(e) => handleSpecificationChange(index, 'key', e.target.value)}
-                            title="Select the specification type"
-                            className="border p-2 bg-white dark:disabled:bg-black/50 dark:bg-black/70 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded"
-                          >
-                            {examplePlaceholders.map((placeholder, i) => (
-                              <option key={i} value={placeholder}>{placeholder}</option>
-                            ))}
-                          </select>
-                          <Input
-                            value={spec.value}
-                            onChange={(e) => handleSpecificationChange(index, 'value', e.target.value)}
-                            placeholder="Value"
-                            type={spec.type}
-                            spellCheck='false'
-                            title={
-                              spec.key === 'Weight' ? "Enter weight in grams" :
-                              ['Height', 'Length', 'Width'].includes(spec.key) ? "Enter measurements in centimeters" :
-                              ""
-                            }
-                          />
-                          <div className={`hover:cursor-pointer py-2 px-4 rounded bg-black/30 m-2`} onClick={(event) => removeSpecification(index)}>Remove</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-            />
-            <FormField control={form.control} name='quantity' render={({ field }) => (
-              <FormItem className={`${customStyles.itemHoverEffect}`}>
-                <FormLabel className={`${customStyles.label}`}>Quantity</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    disabled={isPending}
-                    placeholder='Set quantity'
-                    type='number'
-                    className={`${customStyles.input}`}
-                    spellCheck='false'
-                    onChange={(e) => form.setValue('quantity', Number(e.target.value))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-            />
-            </div>
 
-            <div className='w-full h-full'>
-              <div className="w-full h-full py-2 pt-4 px-4 flex flex-col items-start">
-                <FormField control={form.control} name='image' render={({ field }) => (
+                      {/* Manual postal code - shown when not company or no warehouses */}
+                      {(isCompanyProduct === false || warehouseLocations.length === 0) && (
+                        <div className="space-y-2">
+                          <div className={customStyles.label}>
+                            Ship from location
+                            <span className={customStyles.labelHint}> — Optional: enter postal code</span>
+                          </div>
+                          <FormField control={form.control} name='shipFromPostalId' render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  disabled={isPending}
+                                  placeholder='Enter postal code (optional)'
+                                  type='text'
+                                  value={postalCodeInput}
+                                  onChange={(e) => {
+                                    const newPostalCode = e.target.value;
+                                    setPostalCodeInput(newPostalCode);
+                                    fetchPostalCodeDetails(newPostalCode);
+                                  }}
+                                  className={customStyles.input}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          
+                          {suggestions.length > 0 && (
+                            <select
+                              onChange={handleSelectChange}
+                              className={customStyles.input}
+                            >
+                              {suggestions
+                                .filter((suggestion) => suggestion.postal_code.startsWith(postalCodeInput) || suggestion.city.toLowerCase().includes(postalCodeInput.toLowerCase()))
+                                .map((filteredSuggestion, index) => (
+                                  <option key={index} value={filteredSuggestion.postal_code}>
+                                    {filteredSuggestion.postal_code} - {filteredSuggestion.city}
+                                  </option>
+                                ))}
+                            </select>
+                          )}
+                        </div>
+                      )}
+
+                      {warehouseLocationError && (
+                        <p className="text-amber-400/80 text-sm">{warehouseLocationError}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Specifications */}
+              <div className={customStyles.section}>
+                <h3 className={customStyles.sectionTitle}>
+                  Specifications
+                  <span className="font-normal text-white/50 ml-2">— Optional details</span>
+                </h3>
+                
+                <FormField control={form.control} name='specifications' render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input {...field} disabled={isPending} name='image' spellCheck='false' {...getInputProps()} />
+                      <div className="space-y-3">
+                        {specifications.map((spec, index) => (
+                          <div key={index} className="flex gap-2 items-start">
+                            <select
+                              value={spec.key}
+                              onChange={(e) => handleSpecificationChange(index, 'key', e.target.value)}
+                              className={`${customStyles.input} w-32 sm:w-40 flex-shrink-0`}
+                            >
+                              {examplePlaceholders.map((placeholder, i) => (
+                                <option key={i} value={placeholder}>{placeholder}</option>
+                              ))}
+                            </select>
+                            <Input
+                              value={spec.value}
+                              onChange={(e) => handleSpecificationChange(index, 'value', e.target.value)}
+                              placeholder={
+                                spec.key === 'Weight' ? 'grams' :
+                                ['Height', 'Length', 'Width'].includes(spec.key) ? 'cm' : 'Value'
+                              }
+                              type={spec.type}
+                              className={customStyles.input}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeSpecification(index)}
+                              className="flex-shrink-0 p-2.5 rounded-lg text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              aria-label="Remove specification"
+                            >
+                              <RxCrossCircled className="h-5 w-5" />
+                            </button>
+                          </div>
+                        ))}
+                        
+                        <button
+                          type="button"
+                          onClick={addSpecification}
+                          className="inline-flex items-center gap-2 text-sm text-emerald-400/80 hover:text-emerald-400 transition-colors"
+                        >
+                          <span className="text-lg">+</span>
+                          Add specification
+                        </button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-                <div {...getRootProps()} className={`disabled:bg-white/60 bg-white dark:disabled:bg-black/50 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded focus:outline-none transition dropzone flex flex-col h-full w-full justify-center items-center border border-dashed ${imagePreviews ? ' border-gray-600/60 dark:border-gray-600/60' : 'border-gray-400 dark:border-gray-400'} rounded-md cursor-pointer`}>
-                  {imagePreviews.length < 1 && (
-                    <div className="text-center flex flex-col min-h-48 justify-center items-center h-[420px] max-h-[420px]">
-                      <FaFileUpload className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200" />
-                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-200">
-                        Drag n drop an IMAGE here, or click to select an IMAGE
-                      </p>
+              </div>
+
+              {/* Admin-only user ID field */}
+              <FormField control={form.control} name='userId' render={({ field }) => (
+                <FormItem className={customStyles.itemRole}>
+                  <FormLabel className={customStyles.label}>User ID (Admin)</FormLabel>
+                  <FormControl>
+                    <Input {...field} disabled={clientUser?.role === UserRole.ADMIN ? isPending : true} value={clientUser?.role === UserRole.ADMIN ? uId : clientUser?.id} onChange={e => setUId(e.target.value)} placeholder='User ID' type='text' className={customStyles.input} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            {/* Right column - Images & Submit */}
+            <div className="lg:w-[340px] xl:w-[380px] space-y-6">
+              <div className={customStyles.section}>
+                <FormField control={form.control} name='image' render={({ field }) => (
+                  <FormItem className="hidden">
+                    <FormControl>
+                      <Input {...field} disabled={isPending} name='image' spellCheck='false' />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <div className="flex items-end justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <h3 className={customStyles.sectionTitle + ' !mb-0'}>Product Images</h3>
+                    <div className="text-xs text-white/50">
+                      Upload up to {MAX_IMAGES} images. Drag to reorder.
                     </div>
-                  )}
-                  <div className={`grid ${counter == 2 ? 'grid-cols-2' : counter == 3 ? 'grid-cols-3' : counter >= 4 ? 'grid-cols-4' : 'grid-cols-1'}`}>
-                    {imagePreviews.map((preview, index) => (
-                      <div key={index} className="relative m-1">
-                        <Image src={preview} alt={`preview-${index}`} height={600} width={450} className="h-full w-full rounded-md object-cover" />
-                        <div onClick={(e) => removeImage(e, index)} className="absolute top-1 right-1 hover:scale-110 transform duration-300 bg-gray-800/30 hover:bg-red-600/40 text-white p-1 rounded-full">
-                          <RxCrossCircled className="h-4 w-4" />
-                        </div>
-                      </div>
-                    ))}
+                  </div>
+                  <div className="text-sm font-medium text-white/60 tabular-nums">
+                    {imagePreviews.length}/{MAX_IMAGES}
                   </div>
                 </div>
-                <div className='w-full py-2'>
-                  <MyFormError message={error} />
-                  <MyFormSuccess message={success} />
-                  <Button type='submit' disabled={isPending} className='w-full' variant='vegaEmeraldBtn'>
-                    Create
-                  </Button>
+
+                <div
+                  {...getRootProps()}
+                  className={
+                    "relative w-full rounded-xl border-2 border-dashed border-white/10 bg-white/[0.02] p-4 " +
+                    "transition-all duration-200 hover:bg-white/[0.04] hover:border-white/20 cursor-pointer"
+                  }
+                >
+                  <input {...getInputProps()} />
+
+                  {imagePreviews.length === 0 ? (
+                    <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 text-center">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
+                        <FaFileUpload className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-white/80">Drop images here</div>
+                        <div className="text-xs text-white/50 mt-1">or tap to browse</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {imagePreviews.map((preview, index) => (
+                        <div
+                          key={preview}
+                          className="group/tile relative aspect-square overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]"
+                        >
+                          <Image
+                            src={preview}
+                            alt={`preview-${index}`}
+                            fill
+                            sizes="(max-width: 640px) 50vw, 180px"
+                            className="object-cover"
+                          />
+
+                          {/* Overlay controls */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-black/0 opacity-0 group-hover/tile:opacity-100 transition-opacity duration-200" />
+                          <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between gap-1.5 opacity-0 group-hover/tile:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-black/50 text-white/80 backdrop-blur hover:bg-black/70 disabled:opacity-30"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); moveImage(index, index - 1); }}
+                                disabled={index === 0}
+                              >
+                                <FiChevronLeft className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-black/50 text-white/80 backdrop-blur hover:bg-black/70 disabled:opacity-30"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); moveImage(index, index + 1); }}
+                                disabled={index === imagePreviews.length - 1}
+                              >
+                                <FiChevronRight className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-red-500/70 text-white backdrop-blur hover:bg-red-500"
+                              onClick={(e) => removeImage(e, index)}
+                            >
+                              <RxCrossCircled className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          {/* Upload progress */}
+                          {(isUploadingImages || isPending) && images.length > 0 && (
+                            <div className="absolute top-1.5 left-1.5 right-1.5">
+                              <div className="h-1 w-full overflow-hidden rounded-full bg-black/30">
+                                <div
+                                  className="h-full bg-gradient-to-r from-emerald-400 to-sky-400 transition-[width] duration-100"
+                                  style={{ width: `${Math.max(0, Math.min(100, uploadProgress[index] ?? 0))}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* First image badge */}
+                          {index === 0 && (
+                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/80 text-white">
+                              Cover
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              </div>
+
+              {/* Submit section */}
+              <div className="space-y-4">
+                <MyFormError message={error} />
+                <MyFormSuccess message={success} />
+                
+                <Button
+                  type='submit'
+                  disabled={isPending || isUploadingImages}
+                  className='w-full h-12 text-base font-medium bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/25 transition-all duration-200'
+                >
+                  {isPending || isUploadingImages ? 'Creating...' : 'Create Listing'}
+                </Button>
+
+                {isEditing && (
+                  <Button
+                    type='button'
+                    variant='outline'
+                    onClick={handleCancelEdit}
+                    className='w-full border-white/10 text-white/70 hover:text-white hover:bg-white/[0.06]'
+                  >
+                    Cancel
+                  </Button>
+                )}
               </div>
             </div>
           </div>

@@ -19,7 +19,7 @@ export const MyMenuSide = () => {
     () => [
       { href: "/dashboard", label: "Dashboard", icon: FiGrid },
       { href: "/products", label: "Products", icon: FiPackage },
-      { href: "/feed", label: "Feed", icon: FiRss },
+      { href: "/pulse", label: "Pulse", icon: FiRss },
       { href: "/conversations", label: "Conversations", icon: FiMessageSquare },
       { href: "/cart", label: "Cart", icon: FiShoppingCart },
       { href: "/nexus", label: "Settings", icon: FiSettings },
@@ -76,7 +76,15 @@ export const MyMenuSide = () => {
                     }`}
                     title={isSidebarCollapsed ? item.label : undefined}
                   >
-                    <Icon className={`h-4 w-4 shrink-0 ${active ? "text-sky-600 dark:text-sky-400" : "text-slate-600 dark:text-slate-300"}`} />
+                    <Icon
+                      className={
+                        `h-4 w-4 shrink-0 transition-transform duration-200 ` +
+                        (active
+                          ? "text-sky-600 dark:text-sky-400"
+                          : "text-slate-600 dark:text-slate-300") +
+                        (item.href === "/pulse" ? " group-hover:-rotate-6 group-hover:scale-110" : "")
+                      }
+                    />
                     <span className={`${isSidebarCollapsed ? "hidden" : ""}`}>{item.label}</span>
                   </Link>
                 </li>

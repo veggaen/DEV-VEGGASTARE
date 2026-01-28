@@ -148,6 +148,9 @@ const Carousel = React.forwardRef<
           className={cn("relative", className)}
           role="region"
           aria-roledescription="carousel"
+          data-embla-carousel="true"
+          data-can-scroll-prev={canScrollPrev}
+          data-can-scroll-next={canScrollNext}
           {...props}
         >
           {children}

@@ -1,17 +1,8 @@
 import "./globals.css";
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
-import { EdgeStoreProvider } from "../lib/edgestore";
-import { ThemeProvider } from "@/components/providers/themeprovider";
-import { UiPreferencesProvider } from "@/components/providers/ui-preferences";
-import { SessionProvider } from "next-auth/react";
 import { auth } from "@/auth";
-import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Toaster } from "@/components/ui/sonner"
-import MyTopBar from "@/components/uicustom/topbar";
-
-/** NEW: one client wrapper that contains ActiveNetwork + wagmi + react-query + Solana + WalletContext + Pricing */
-import Web3Providers from "@/components/crypto-related/Web3Providers";
+import AppProviders from "@/components/providers/app-providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -47,22 +38,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} myanimation transition-colors h-full`} suppressHydrationWarning={true}>
-        <SessionProvider session={session} refetchOnWindowFocus={true}>
-          <EdgeStoreProvider>
-            <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-              <UiPreferencesProvider>
-                <Web3Providers>
-
-                  <MyTopBar />
-                  {children}
-                  <Toaster />
-                </Web3Providers>
-              </UiPreferencesProvider>
-              <SpeedInsights />
-            </ThemeProvider>
-          </EdgeStoreProvider>
-        </SessionProvider>
+      <body
+        className={`${inter.className} myanimation transition-colors min-h-[100dvh] flex flex-col`}
+        suppressHydrationWarning={true}
+      >
+      <AppProviders session={session}>{children}</AppProviders>
       </body>
     </html>
   ); // is this proper and good typescript? like best practice? does each part here need a '?' or is it ok like this? and its this best practices and could there be better ways?

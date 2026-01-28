@@ -18,8 +18,20 @@ const LEGACY_PLACEMENT_KEY = "veggastare.products.sidebarPlacement";
 // Define the context props interface
 interface SidebarContextProps {
   isSidebarOpen: boolean;
+	openSidebar: () => void;
+	closeSidebar: () => void;
   toggleSidebar: () => void;
-  scrollContainerRef: RefObject<HTMLDivElement>;
+	/** Mobile-only: current swipe-to-open progress in px (0..sidebarWidthPx). */
+	sidebarSwipePx: number;
+	/** Mobile-only: true while user is actively swiping the sidebar open. */
+	isSidebarSwiping: boolean;
+	/** Mobile-only: cancel any in-progress swipe (resets sidebarSwipePx). */
+	cancelSidebarSwipe: () => void;
+	/** Mobile-only: whether the /products controls/search bar should be visible. */
+	productsControlsVisible: boolean;
+	/** Mobile-only: whether the global TopBar should be visible. */
+	topBarVisible: boolean;
+	scrollContainerRef: RefObject<HTMLDivElement | null>;
 	/** True when the products scroll container is past the initial threshold. */
 	isContentScrolled: boolean;
 	sidebarDock: SidebarDock;
@@ -32,6 +44,12 @@ interface SidebarContextProps {
 	productsFrameBounds: { left: number; right: number } | null;
 	/** Scroll progress as a value from 0 to 1 */
 	scrollProgress: number;
+	/** Whether to show the site footer (false during infinite scroll loading) */
+	showFooter: boolean;
+	setShowFooter: (show: boolean) => void;
+	/** Pagination size for /products */
+	perPage: number;
+	setPerPage: (n: number) => void;
 }
 
 // Create the context
@@ -46,10 +64,360 @@ export const useSidebar = () => {
   return context;
 };
 
+// Optional hook that doesn't throw - returns null if outside ProductProvider
+export const useSidebarOptional = () => {
+  return useContext(SidebarContext) ?? null;
+};
+
 // Define the ProductProvider component
 const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+	const [sidebarSwipePx, setSidebarSwipePx] = useState(0);
+	const [isSidebarSwiping, setIsSidebarSwiping] = useState(false);
+	const [productsControlsVisible, setProductsControlsVisible] = useState(true);
+	const [topBarVisible, setTopBarVisible] = useState(true);
+	const productsControlsVisibleRef = useRef(true);
+	const topBarVisibleRef = useRef(true);
+	const sidebarOpenRef = useRef(false);
+	const menuOpenRef = useRef(false);
+
+	useEffect(() => {
+		sidebarOpenRef.current = isSidebarOpen;
+	}, [isSidebarOpen]);
+	useEffect(() => {
+		productsControlsVisibleRef.current = productsControlsVisible;
+	}, [productsControlsVisible]);
+	useEffect(() => {
+		topBarVisibleRef.current = topBarVisible;
+	}, [topBarVisible]);
+	useEffect(() => {
+		const onMenuState = (e: Event) => {
+			const ce = e as CustomEvent<{ open?: boolean }>;
+			const open = Boolean(ce?.detail?.open);
+			menuOpenRef.current = open;
+			if (open) {
+				// Enforce mutual exclusivity: if menu opens, close filters sidebar.
+				setIsSidebarOpen(false);
+				setIsSidebarSwiping(false);
+				setSidebarSwipePx(0);
+			}
+		};
+		window.addEventListener("veggat:menu-open-state", onMenuState as any);
+		return () => window.removeEventListener("veggat:menu-open-state", onMenuState as any);
+	}, []);
+  const cancelSidebarSwipe = useCallback(() => {
+		setIsSidebarSwiping(false);
+		setSidebarSwipePx(0);
+	}, []);
+	const openSidebar = useCallback(() => {
+		setIsSidebarOpen(true);
+		try {
+			window.dispatchEvent(new Event("veggat:close-menu"));
+		} catch {
+			// ignore
+		}
+	}, []);
+	const closeSidebar = useCallback(() => {
+		setIsSidebarOpen(false);
+		setIsSidebarSwiping(false);
+		setSidebarSwipePx(0);
+	}, []);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+	// Swipe-to-open on mobile: kept lightweight (passive touch listeners), and only
+	// triggers when the gesture starts near the screen edges.
+	useEffect(() => {
+		const el = scrollContainerRef.current;
+		if (!el) return;
+		if (typeof window === "undefined") return;
+		// NOTE: removed static media query check - let isMobile() handle it dynamically
+		// so touch events work when switching to mobile emulation in devtools
+
+		let startX = 0;
+		let startY = 0;
+		let startT = 0;
+		let startOnLeftEdge = false;
+		let startOnRightEdge = false;
+		let startInCarousel = false;
+		let startCarouselCanScrollPrev = false;
+		let startCarouselCanScrollNext = false;
+		let isSwipingSidebar = false;
+		let lastScrollTop = el.scrollTop || 0;
+		let upAccum = 0;
+		const isMobile = () => (window.matchMedia ? !window.matchMedia("(min-width: 768px)").matches : true);
+		const setChrome = (nextControls: boolean, nextTopbar: boolean) => {
+			if (productsControlsVisibleRef.current !== nextControls) setProductsControlsVisible(nextControls);
+			if (topBarVisibleRef.current !== nextTopbar) setTopBarVisible(nextTopbar);
+			try {
+				el.setAttribute("data-products-controls-visible", String(nextControls));
+				el.setAttribute("data-products-topbar-visible", String(nextTopbar));
+				window.dispatchEvent(
+					new CustomEvent("veggat:products-chrome", {
+						detail: { controlsVisible: nextControls, topbarVisible: nextTopbar },
+					})
+				);
+			} catch {
+				// ignore
+			}
+		};
+		// Ensure correct initial state
+		if (!isMobile()) setChrome(true, true);
+
+		// If the user switches between mobile emulation and desktop, force chrome visible on desktop.
+		// Otherwise the topbar can remain hidden until the next scroll event.
+		const mq = window.matchMedia?.("(min-width: 768px)");
+		const onMq = () => {
+			if (mq?.matches) setChrome(true, true);
+		};
+		onMq();
+		mq?.addEventListener?.("change", onMq);
+
+		// Bigger edge area + optional full-screen "pane" swipes (Android/iOS home-screen feel)
+		// NOTE: Carousel requires MORE deliberate horizontal swipes to avoid accidental sidebar/menu triggers
+		const EDGE_PX = 64;
+		const MIN_DX = 60; // Easier to trigger on non-carousel areas
+		const MIN_DX_CAROUSEL = 140; // Much harder on carousel (especially at edges)
+		const PANE_MIN_DX = 120; // Pane swipe on non-carousel content
+		const PANE_RATIO = 1.4; // Less strict horizontal requirement on text areas
+		const MAX_DY = 80; // More lenient vertical tolerance on text/description areas
+		const MAX_DY_CAROUSEL = 32; // Very strict on carousel - must be nearly horizontal
+		const MAX_DT = 600;
+		const MIN_PROGRESS_PX = 10;
+		const sidebarWidthPx = () => Math.min(Math.round(window.innerWidth * 0.92), 420);
+
+		const isInteractiveTarget = (target: EventTarget | null) => {
+			const node = target as HTMLElement | null;
+			if (!node) return false;
+			return Boolean(
+				node.closest(
+					"button,a,input,textarea,select,[role='button'],[role='link'],[data-sidebar-filters='true'],[data-slider-thumb],[data-price-slider]"
+				)
+			);
+		};
+
+		const toBool = (raw: string | null) => raw === "true" || raw === "1";
+
+		const onTouchStart = (e: TouchEvent) => {
+			// Only process on mobile
+			if (!isMobile()) return;
+			if (e.touches.length !== 1) return;
+			if (isInteractiveTarget(e.target)) return;
+			// If sidebar is already open, we don't do progressive swipe-open.
+			if (sidebarOpenRef.current) return;
+			// If menu is open, don't open sidebar.
+			if (menuOpenRef.current) return;
+			const t = e.touches[0];
+			startX = t.clientX;
+			startY = t.clientY;
+			startT = Date.now();
+			startOnLeftEdge = startX <= EDGE_PX;
+			startOnRightEdge = startX >= (window.innerWidth - EDGE_PX);
+
+			const target = e.target as HTMLElement | null;
+			const carouselRoot = target?.closest?.("[data-embla-carousel='true']") as HTMLElement | null;
+			startInCarousel = Boolean(carouselRoot);
+			startCarouselCanScrollPrev = carouselRoot ? toBool(carouselRoot.getAttribute("data-can-scroll-prev")) : false;
+			startCarouselCanScrollNext = carouselRoot ? toBool(carouselRoot.getAttribute("data-can-scroll-next")) : false;
+			isSwipingSidebar = false;
+			setIsSidebarSwiping(false);
+			setSidebarSwipePx(0);
+		};
+
+		const onTouchMove = (e: TouchEvent) => {
+			if (!startT) return;
+			if (e.touches.length !== 1) return;
+			if (isInteractiveTarget(e.target)) return;
+			if (sidebarOpenRef.current) return;
+			if (menuOpenRef.current) return;
+
+			const t = e.touches[0];
+			const dx = t.clientX - startX;
+			const dy = t.clientY - startY;
+
+			// Only handle mostly-horizontal gestures.
+			if (Math.abs(dx) <= Math.abs(dy)) return;
+
+			// Determine whether this gesture is allowed to drive the sidebar.
+			// Progressive open when:
+			// - Starting on left edge (classic edge swipe) OR
+			// - Starting on a carousel AND the carousel can't scroll further in that direction OR
+			// - A strong whole-screen right-swipe ("pane" swipe)
+			const canDriveFromCarousel =
+				(startInCarousel && dx > 0 && !startCarouselCanScrollPrev) ||
+				(startInCarousel && dx < 0 && !startCarouselCanScrollNext);
+
+			// More lenient on non-carousel content (title/description/price areas)
+			const isPaneSwipeRight =
+				!startInCarousel &&
+				dx > 0 &&
+				Math.abs(dx) > 24 &&
+				Math.abs(dx) > Math.abs(dy) * PANE_RATIO;
+
+			const wantsOpenSidebarFromLeft = (startOnLeftEdge || canDriveFromCarousel || isPaneSwipeRight) && dx > 0;
+
+			// For now, we only support progressive reveal for opening the filters sidebar
+			// (left->right). Menu opening remains on-touchend.
+			if (!wantsOpenSidebarFromLeft) return;
+
+			const maxDy = startInCarousel ? MAX_DY_CAROUSEL : MAX_DY;
+			if (Math.abs(dy) > maxDy) return;
+
+			const progress = Math.max(0, Math.min(sidebarWidthPx(), dx));
+			if (!isSwipingSidebar && progress < MIN_PROGRESS_PX) return;
+
+			isSwipingSidebar = true;
+			setIsSidebarSwiping(true);
+			setSidebarSwipePx(progress);
+			e.preventDefault();
+			e.stopPropagation();
+		};
+
+		const onTouchEnd = (e: TouchEvent) => {
+			if (!startT) return;
+			const dt = Date.now() - startT;
+			startT = 0;
+			if (dt > MAX_DT) {
+				setIsSidebarSwiping(false);
+				setSidebarSwipePx(0);
+				return;
+			}
+			const t = e.changedTouches[0];
+			if (!t) return;
+			const dx = t.clientX - startX;
+			const dy = t.clientY - startY;
+			const maxDy = startInCarousel ? MAX_DY_CAROUSEL : MAX_DY;
+			const minDx = startInCarousel ? MIN_DX_CAROUSEL : MIN_DX;
+			// Edge swipes have a lower threshold for minDx since they're intentional
+			const edgeMinDx = 50; // Much easier threshold for edge swipes
+			
+			if (Math.abs(dy) > maxDy) {
+				setIsSidebarSwiping(false);
+				setSidebarSwipePx(0);
+				return;
+			}
+
+			// If we were actively swiping the sidebar, decide open/close based on progress.
+			if (isSwipingSidebar) {
+				const width = sidebarWidthPx();
+				const progress = Math.max(0, Math.min(width, dx));
+				const velocity = width > 0 && dt > 0 ? progress / dt : 0; // px/ms
+				const shouldOpen = progress > width * 0.33 || velocity > 0.9;
+				setIsSidebarSwiping(false);
+				setSidebarSwipePx(0);
+				if (shouldOpen) openSidebar();
+				return;
+			}
+
+			// Edge swipes: prioritize these before pane/carousel checks
+			// Edge swipes only need to pass edgeMinDx threshold (intentional gestures)
+			if (startOnLeftEdge && dx > edgeMinDx && Math.abs(dx) > Math.abs(dy)) {
+				if (menuOpenRef.current) return;
+				openSidebar();
+				return;
+			}
+			if (startOnRightEdge && dx < -edgeMinDx && Math.abs(dx) > Math.abs(dy)) {
+				if (sidebarOpenRef.current) return;
+				window.dispatchEvent(new Event("veggat:open-menu"));
+				return;
+			}
+
+			// Whole-screen "pane" swipes: very horizontal + large dx.
+			// (Avoids accidental triggers while vertically scrolling.)
+			const isPaneSwipe =
+				Math.abs(dx) >= PANE_MIN_DX &&
+				Math.abs(dx) > Math.abs(dy) * PANE_RATIO &&
+				Math.abs(dy) <= MAX_DY;
+
+			if (!isPaneSwipe && Math.abs(dx) < minDx) return;
+
+			// Whole-screen pane navigation (not on carousels unless edge-gated)
+			if (isPaneSwipe && !startInCarousel) {
+				if (dx > 0) {
+					if (menuOpenRef.current) return;
+					openSidebar();
+					return;
+				}
+				if (dx < 0) {
+					if (sidebarOpenRef.current) return;
+					window.dispatchEvent(new Event("veggat:open-menu"));
+					return;
+				}
+			}
+
+			// Carousel-aware swipe: only trigger if the carousel cannot scroll further
+			// in that swipe direction. This lets horizontal swipes normally paginate the carousel.
+			if (startInCarousel && dx > 0 && !startCarouselCanScrollPrev) {
+				if (menuOpenRef.current) return;
+				openSidebar();
+				return;
+			}
+			if (startInCarousel && dx < 0 && !startCarouselCanScrollNext) {
+				if (sidebarOpenRef.current) return;
+				window.dispatchEvent(new Event("veggat:open-menu"));
+			}
+		};
+
+		const onChromeScroll = () => {
+			if (!isMobile()) {
+				setChrome(true, true);
+				lastScrollTop = el.scrollTop || 0;
+				upAccum = 0;
+				return;
+			}
+			// Don't auto-hide UI while a sheet is open.
+			if (menuOpenRef.current || sidebarOpenRef.current || isSidebarSwiping) return;
+
+			const top = el.scrollTop || 0;
+			const delta = top - lastScrollTop;
+			lastScrollTop = top;
+
+			// At the very top, show everything.
+			if (top <= 2) {
+				upAccum = 0;
+				setChrome(true, true);
+				return;
+			}
+
+			const DOWN_EPS = 2;
+			const UP_EPS = 2;
+			const HIDE_AFTER_PX = 10;
+			const REVEAL_CONTROLS_UP_PX = 10;
+			const REVEAL_TOPBAR_UP_PX = 44;
+
+			if (delta > DOWN_EPS) {
+				upAccum = 0;
+				if (top >= HIDE_AFTER_PX) setChrome(false, false);
+				return;
+			}
+
+			if (delta < -UP_EPS) {
+				upAccum += -delta;
+				if (!productsControlsVisibleRef.current && upAccum >= REVEAL_CONTROLS_UP_PX) {
+					setChrome(true, false);
+				}
+				if (!topBarVisibleRef.current && upAccum >= REVEAL_TOPBAR_UP_PX) {
+					setChrome(true, true);
+				}
+			}
+		};
+
+		el.addEventListener("touchstart", onTouchStart, { passive: true });
+		el.addEventListener("touchmove", onTouchMove, { passive: false });
+		el.addEventListener("touchend", onTouchEnd, { passive: true });
+		el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+		el.addEventListener("scroll", onChromeScroll, { passive: true });
+		return () => {
+			mq?.removeEventListener?.("change", onMq);
+			el.removeEventListener("touchstart", onTouchStart as any);
+			el.removeEventListener("touchmove", onTouchMove as any);
+			el.removeEventListener("touchend", onTouchEnd as any);
+			el.removeEventListener("touchcancel", onTouchEnd as any);
+			el.removeEventListener("scroll", onChromeScroll as any);
+		};
+	}, [openSidebar]);
+	// Footer visibility - hidden during infinite scroll loading on /products
+	const [showFooter, setShowFooter] = useState(false);
+	// Pagination size - used by products page + sidebar
+	const [perPage, setPerPage] = useState(30);
 		const [isContentScrolled, setIsContentScrolled] = useState(false);
 		// "Compact / full" mode for /products. Entered on first scroll gesture even if we prevent
 		// the actual scroll movement, to avoid the initial scroll feeling "boosted".
@@ -331,7 +699,14 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 	  <SidebarContext.Provider
 			value={{
 				isSidebarOpen,
+				openSidebar,
+				closeSidebar,
 				toggleSidebar,
+				sidebarSwipePx,
+				isSidebarSwiping,
+				cancelSidebarSwipe,
+				productsControlsVisible,
+				topBarVisible,
 				scrollContainerRef,
 				isContentScrolled,
 					sidebarDock,
@@ -339,6 +714,10 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 					registerProductsFrame,
 					productsFrameBounds,
 					scrollProgress,
+					showFooter,
+					setShowFooter,
+					perPage,
+					setPerPage,
 			}}
 		>
 		    <div className="productProvider relative flex w-full h-full min-h-0">

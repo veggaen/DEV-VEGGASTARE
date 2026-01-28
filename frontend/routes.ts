@@ -8,7 +8,10 @@
 export const publicRoutes = [
   "/",
   "/products", // ✅ NEW — allow listing
-  "/feed", // ✅ Public feed page (anyone can view, only logged-in can post)
+  "/pulse", // ✅ Public Pulse page (anyone can view, only logged-in can post)
+  "/info",
+  "/privacy", // ✅ Privacy page is public
+  "/contact",
   "/auth/new-verification",
   "/api/bring-shipping",
   "/api/bring-shipping-suggest-postcode",

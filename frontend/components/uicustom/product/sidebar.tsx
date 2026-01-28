@@ -1,11 +1,15 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FiX, FiSearch, FiRotateCcw, FiChevronDown, FiChevronUp, FiDollarSign, FiGrid, FiUsers, FiShield } from 'react-icons/fi';
+import Link from 'next/link';
+import { FiX, FiSearch, FiRotateCcw, FiChevronDown, FiChevronUp, FiDollarSign, FiGrid, FiUsers, FiShield, FiSliders } from 'react-icons/fi';
+import { MdAdd } from 'react-icons/md';
 import { useSidebar } from '@/components/providers/product-layoutProvider';
 import { useCategories, type CategoryWithCount } from '@/components/providers/categoriesContext';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PriceSlider } from '@/components/ui/price-slider';
 import { cn } from '@/lib/utils';
 import { UseCurrentRole } from '@/hooks/use-current-role';
 import { UserRole } from '@prisma/client';
@@ -151,9 +155,9 @@ const CategoryItem = ({ category, isSelected, onToggle, disabled }: CategoryItem
 );
 
 export const MySidebarProductsMenu = () => {
-  const { isSidebarOpen, toggleSidebar, isContentScrolled, sidebarDock, setSidebarDock, productsFrameBounds } = useSidebar();
+  const { isSidebarOpen, toggleSidebar, closeSidebar, sidebarSwipePx, isSidebarSwiping, cancelSidebarSwipe, isContentScrolled, sidebarDock, setSidebarDock, productsFrameBounds, perPage, setPerPage } = useSidebar();
   const isDocked = isContentScrolled;
-  const isRight = sidebarDock === 'edge-right' || sidebarDock === 'frame-right';
+	const isRightDock = sidebarDock === 'edge-right' || sidebarDock === 'frame-right';
   const isEdgeDock = sidebarDock === 'edge-left' || sidebarDock === 'edge-right';
   const isFrameDock = sidebarDock === 'frame-left' || sidebarDock === 'frame-right';
   const userRole = UseCurrentRole();
@@ -166,6 +170,104 @@ export const MySidebarProductsMenu = () => {
     const onResize = () => setViewportW(window.innerWidth);
     window.addEventListener('resize', onResize, { passive: true });
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+	const isMobile = viewportW > 0 && viewportW < 768;
+	// Force left-side slide-over on mobile to match gesture expectations (left->right opens filters).
+	const isRight = !isMobile && isRightDock;
+
+  const closeSwipeRef = useRef<{ x: number; y: number; t: number; onSlider: boolean } | null>(null);
+  const onMobileSidebarTouchStart: React.TouchEventHandler<HTMLElement> = (e) => {
+    if (!isMobile) return;
+    if (!isSidebarOpen) return;
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    // Check if touch started on a slider component
+    const target = e.target as HTMLElement;
+    const onSlider = Boolean(target.closest('[data-price-slider], [data-slider-thumb]'));
+    closeSwipeRef.current = { x: t.clientX, y: t.clientY, t: Date.now(), onSlider };
+  };
+  const onMobileSidebarTouchEnd: React.TouchEventHandler<HTMLElement> = (e) => {
+    if (!isMobile) return;
+    if (!isSidebarOpen) return;
+    const s = closeSwipeRef.current;
+    closeSwipeRef.current = null;
+    if (!s) return;
+    // Don't close if touch started on a slider - user is adjusting price filter
+    if (s.onSlider) return;
+    const t = e.changedTouches?.[0];
+    if (!t) return;
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    const dt = Date.now() - s.t;
+    // Swipe left to close (fast + mostly horizontal)
+    if (dt <= 650 && dx < -70 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      cancelSidebarSwipe();
+      closeSidebar();
+    }
+  };
+
+  const [footerLiftPx, setFooterLiftPx] = useState(0);
+  const [cookieLiftPx, setCookieLiftPx] = useState(0);
+
+  // When the page footer/cookie banner enters the viewport, shrink the fixed sidebar so
+  // bottom actions (e.g. Reset all filters) stay reachable.
+  useEffect(() => {
+    let raf = 0;
+    const compute = () => {
+      raf = 0;
+
+      try {
+        const raw = getComputedStyle(document.documentElement)
+          .getPropertyValue('--cookie-banner-offset')
+          .trim();
+        const n = raw ? Number(raw.replace('px', '')) : 0;
+        setCookieLiftPx(Number.isFinite(n) ? Math.max(0, n) : 0);
+      } catch {
+        setCookieLiftPx(0);
+      }
+
+      const footer = document.querySelector('footer');
+      if (!footer) {
+        setFooterLiftPx(0);
+        return;
+      }
+
+      // If the footer is hidden (e.g. on mobile via `display:none`), it should not
+      // affect sidebar height. `getBoundingClientRect()` returns zeros in that case
+      // which previously looked like a full overlap.
+      const footerStyle = getComputedStyle(footer);
+      if (footerStyle.display === 'none' || footerStyle.visibility === 'hidden') {
+        setFooterLiftPx(0);
+        return;
+      }
+
+      const rect = footer.getBoundingClientRect();
+      if (rect.height <= 1) {
+        setFooterLiftPx(0);
+        return;
+      }
+      const vh = window.innerHeight || 0;
+      const overlap = Math.max(0, vh - rect.top);
+      const bounded = Math.min(overlap, 320);
+      setFooterLiftPx((prev) => (Math.abs(prev - bounded) < 1 ? prev : bounded));
+    };
+
+    const onScrollOrResize = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(compute);
+    };
+
+    compute();
+    window.addEventListener('scroll', onScrollOrResize, { passive: true });
+    window.addEventListener('resize', onScrollOrResize);
+    window.addEventListener('veggat:cookie-banner-offset', onScrollOrResize as any);
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', onScrollOrResize);
+      window.removeEventListener('resize', onScrollOrResize);
+      window.removeEventListener('veggat:cookie-banner-offset', onScrollOrResize as any);
+    };
   }, []);
 
   const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
@@ -226,6 +328,7 @@ export const MySidebarProductsMenu = () => {
 
   // ─── Section Open State ────────────────────────────────────────────────────
   const [isPriceOpen, setIsPriceOpen] = useState(true);
+  const [isViewOptionsOpen, setIsViewOptionsOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
   const [isSellersOpen, setIsSellersOpen] = useState(true);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
@@ -318,8 +421,8 @@ export const MySidebarProductsMenu = () => {
           className={cn(
             "flex items-center justify-between gap-2 px-4 border-b border-black/5 dark:border-white/10",
             variant === 'desktop' && isDocked && isEdgeDock
-              ? "h-[var(--products-controls-height)] py-0"
-              : "h-[69px] py-4",
+              ? "h-[68px] py-0" // var(--products-controls-height) + 1px used to use --products-controls-height but idk how to so I added the value manually for now
+              : "max-h-[68px] py-4",
             enableDrag && "cursor-grab active:cursor-grabbing select-none touch-none"
           )}
           onPointerDown={onHeaderPointerDown}
@@ -328,61 +431,109 @@ export const MySidebarProductsMenu = () => {
           onPointerCancel={finishDrag}
           aria-label={enableDrag ? "Filters (drag to reposition)" : "Filters"}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filters</span>
-            {activeFilterCount > 0 && (
-              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500 px-1.5 text-xs font-medium text-white">
-                {activeFilterCount}
-              </span>
-            )}
+        {variant === 'mobile' ? (
+          <div className="grid w-full grid-cols-[1fr,auto,1fr] items-center">
+            <div />
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500 px-1.5 text-xs font-medium text-white">
+                  {activeFilterCount}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center justify-end">
+              {showClose && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleSidebar}
+                  aria-label="Close filters"
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <FiX className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
           </div>
-          {showClose && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleSidebar}
-              aria-label="Close filters"
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <FiX className="h-5 w-5" />
-            </Button>
-          )}
-        </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500 px-1.5 text-xs font-medium text-white">
+                  {activeFilterCount}
+                </span>
+              )}
+            </div>
+            {showClose && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleSidebar}
+                aria-label="Close filters"
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <FiX className="h-5 w-5" />
+              </Button>
+            )}
+          </>
+        )}
+      </div>
 
         {/* ─── Scrollable Body ─── */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3 flex flex-col gap-1">
+
           {/* Price Filter */}
           <FilterSection
             title="Price"
-            icon={<FiDollarSign className="h-4 w-4" />}
+            icon={<FiSliders className="h-4 w-4" />}
             isOpen={isPriceOpen}
             onToggle={() => setIsPriceOpen((p) => !p)}
             showReset={!!hasPriceChanges}
             onReset={resetPriceFilters}
           >
-            <div className="flex items-center gap-2">
-              <div className="flex-1 relative">
-                <label className="sr-only">Minimum price</label>
-                <input
-                  type="number"
-                  placeholder="Min"
-                  value={minPrice ?? ''}
-                  onChange={(e) => setMinPrice(e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full h-9 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-sky-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
+            {/* Fancy animated price slider */}
+            <PriceSlider
+              minValue={minPrice}
+              maxValue={maxPrice}
+              rangeMin={0}
+              rangeMax={initialPriceRange?.max ?? 10000}
+              step={10}
+              onMinChange={setMinPrice}
+              onMaxChange={setMaxPrice}
+              formatValue={(v) => `$${v.toLocaleString()}`}
+            />
+            
+            {/* Fallback manual inputs for precise entry */}
+            <details className="mt-3 group">
+              <summary className="text-xs text-slate-500 dark:text-slate-400 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors select-none">
+                Enter exact values
+              </summary>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="flex-1 relative">
+                  <label className="sr-only">Minimum price</label>
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={minPrice ?? ''}
+                    onChange={(e) => setMinPrice(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full h-9 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-sky-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+                <span className="text-slate-400 text-sm font-medium select-none">–</span>
+                <div className="flex-1 relative">
+                  <label className="sr-only">Maximum price</label>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={maxPrice ?? ''}
+                    onChange={(e) => setMaxPrice(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full h-9 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-sky-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
               </div>
-              <span className="text-slate-400 text-sm font-medium select-none">–</span>
-              <div className="flex-1 relative">
-                <label className="sr-only">Maximum price</label>
-                <input
-                  type="number"
-                  placeholder="Max"
-                  value={maxPrice ?? ''}
-                  onChange={(e) => setMaxPrice(e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full h-9 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-sky-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
-              </div>
-            </div>
+            </details>
           </FilterSection>
 
           {/* Categories Filter */}
@@ -520,6 +671,39 @@ export const MySidebarProductsMenu = () => {
               </div>
             </FilterSection>
           )}
+
+          {/* View options (kept at the bottom; collapsed by default) */}
+          <FilterSection
+            title="View Options"
+            icon={<FiGrid className="h-4 w-4" />}
+            isOpen={isViewOptionsOpen}
+            onToggle={() => setIsViewOptionsOpen((p) => !p)}
+          >
+            <div className="grid gap-2">
+              <Button asChild className="w-full justify-start" variant="outline">
+                <Link href="/products/create" aria-label="Create a new product listing" className="flex items-center gap-2">
+                  <MdAdd className="h-5 w-5" />
+                  <span className="font-medium">Create listing</span>
+                  <span className="ml-auto text-xs text-slate-500 dark:text-slate-400">Sell</span>
+                </Link>
+              </Button>
+
+              <div className="grid gap-1.5 sm:grid-cols-[auto,1fr] sm:items-center sm:gap-2">
+                <div className="text-xs text-slate-600 dark:text-slate-300">Items / page</div>
+                <Select value={perPage.toString()} onValueChange={(v) => setPerPage(Number(v))}>
+                  <SelectTrigger className="h-10 w-full sm:w-[170px] rounded-lg border-black/10 bg-white/60 text-slate-800 shadow-sm shadow-black/[0.03] hover:bg-white/75 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-100 dark:hover:bg-white/[0.10]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg border-black/10 bg-white/95 text-slate-950 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-50">
+                    <SelectItem value="10" className="whitespace-nowrap">10 per page</SelectItem>
+                    <SelectItem value="20" className="whitespace-nowrap">20 per page</SelectItem>
+                    <SelectItem value="30" className="whitespace-nowrap">30 per page</SelectItem>
+                    <SelectItem value="50" className="whitespace-nowrap">50 per page</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </FilterSection>
         </div>
 
         {/* ─── Footer with Reset All ─── */}
@@ -557,6 +741,9 @@ export const MySidebarProductsMenu = () => {
 				const desktopHeight = isDocked && isFrameDock
 					? `calc(100dvh - ${headerTopVar} - var(--products-controls-offset))`
 					: `calc(100dvh - ${headerTopVar} - ${floatingTopOffset}px)`;
+        const bottomInsetPx = footerLiftPx + cookieLiftPx;
+        const desktopHeightWithInset =
+          bottomInsetPx > 0 ? `calc(${desktopHeight} - ${bottomInsetPx}px)` : desktopHeight;
 
   return (
     <>
@@ -572,7 +759,7 @@ export const MySidebarProductsMenu = () => {
           left: effectiveLeft,
           width: SIDEBAR_WIDTH,
           top: `calc(${desktopTop} + ${floatingTopOffset}px)`,
-          height: desktopHeight
+			height: desktopHeightWithInset
         }}
       >
 					<div
@@ -605,22 +792,45 @@ export const MySidebarProductsMenu = () => {
 					</div>
 				</aside>
 
-      {/* Overlay for small screens */}
-      {isSidebarOpen && (
+      {/* Overlay for small screens - z-[95] below sidebar (z-[100]) but above everything else */}
+      {(isSidebarOpen || (isSidebarSwiping && sidebarSwipePx > 0)) && (
         <div
-          onClick={toggleSidebar}
-          className="fixed inset-x-0 bottom-0 top-[calc(var(--app-header-offset)+var(--products-controls-offset))] bg-black/40 backdrop-blur-sm z-30 md:hidden"
+          onClick={() => {
+            cancelSidebarSwipe();
+            closeSidebar();
+          }}
+          className="fixed inset-0 bg-black/50 z-[95] md:hidden"
+          style={{
+            opacity: isSidebarOpen ? 1 : Math.min(1, Math.max(0.08, sidebarSwipePx / 280)) * 0.9,
+            transition: isSidebarSwiping ? "none" : "opacity 200ms ease-out",
+          }}
         />
       )}
 
-      {/* Mobile sidebar (slide-over) */}
+      {/* Mobile sidebar (slide-over) - solid bg, highest z-layer */}
       <aside
         data-sidebar-filters="true"
         className={cn(
-          "fixed top-[calc(var(--app-header-offset)+var(--products-controls-offset))] h-[calc(100dvh-var(--app-header-offset)-var(--products-controls-offset))] max-w-[340px] w-full bg-white/70 dark:bg-slate-950/60 shadow-xl backdrop-blur-xl z-40 transform transition-transform duration-300 ease-out will-change-transform md:hidden",
-          isRight ? "right-0 border-l border-black/10 dark:border-white/10" : "left-0 border-r border-black/10 dark:border-white/10",
-          isSidebarOpen ? "translate-x-0" : isRight ? "translate-x-full" : "-translate-x-full"
+        "fixed w-[92vw] max-w-[420px] bg-white dark:bg-slate-950 shadow-2xl z-[100] transform will-change-transform md:hidden",
+        		isSidebarSwiping ? "transition-none" : "transition-transform duration-300 ease-out",
+          isRight ? "right-0 border-l border-slate-200 dark:border-slate-800" : "left-0 border-r border-slate-200 dark:border-slate-800",
+        // During active swipe, we drive transform inline for smooth follow.
+        !(isSidebarSwiping && sidebarSwipePx > 0 && !isSidebarOpen)
+          ? (isSidebarOpen ? "translate-x-0" : isRight ? "translate-x-full" : "-translate-x-full")
+          : ""
         )}
+    onTouchStart={onMobileSidebarTouchStart}
+    onTouchEnd={onMobileSidebarTouchEnd}
+    style={{
+			top: 0,
+			height: '100dvh',
+      transform:
+        isSidebarSwiping && sidebarSwipePx > 0 && !isSidebarOpen
+          ? (isRight
+            ? `translateX(calc(100% - ${sidebarSwipePx}px))`
+            : `translateX(calc(-100% + ${sidebarSwipePx}px))`)
+          : undefined,
+    }}
       >
         {renderSidebarPanel('mobile')}
       </aside>

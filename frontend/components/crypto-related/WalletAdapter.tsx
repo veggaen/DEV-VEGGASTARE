@@ -19,8 +19,14 @@ type WalletConnectionProps = {
 
 function trim(text: string, full = false) {
   if (full || !text) return text;
-  if (text.length <= 12) return text;
-  return `${text.slice(0, 6)}...${text.slice(-4)}`;
+  if (text.length <= 16) return text;
+  // Desktop: show more characters (8...6)
+  return `${text.slice(0, 8)}…${text.slice(-6)}`;
+}
+
+function trimMobile(text: string) {
+  if (!text || text.length <= 10) return text;
+  return `${text.slice(0, 6)}…${text.slice(-4)}`;
 }
 
 export default function WalletConnection({ variant = "default", mode = "auto" }: WalletConnectionProps) {
@@ -97,26 +103,58 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
             <DropdownMenuTrigger asChild>
               <Button
 								variant="outline"
-								className="h-10 rounded-xl border border-black/10 bg-white/60 px-3 text-sm font-medium text-slate-900 hover:bg-white/80 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-100 dark:hover:bg-white/[0.10] flex items-center gap-2"
+								className="h-10 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 text-sm font-medium text-slate-900 hover:bg-emerald-500/20 dark:border-emerald-400/30 dark:bg-emerald-500/10 dark:text-slate-100 dark:hover:bg-emerald-500/20 flex items-center gap-2"
                 title={address || "Not connected"}
               >
-								<span className="truncate max-w-[140px] sm:max-w-[180px]">{address ? trim(address) : "Not connected"}</span>
-                <IoChevronDownCircleOutline className="h-4 w-4" />
+								{/* Wallet icon based on brand */}
+								{evmConnected && evm.brand === "MetaMask" && (
+									<Image src="/metamask/metamask.webp" alt="MetaMask" width={18} height={18} className="rounded shrink-0" />
+								)}
+								{evmConnected && evm.brand === "Coinbase Wallet" && (
+									<Image src="/wallets/coinbase.webp" alt="Coinbase" width={18} height={18} className="rounded shrink-0" />
+								)}
+								{evmConnected && !evm.brand && (
+									<div className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+								)}
+								{/* Address - longer on desktop */}
+								<span className="sm:hidden font-mono text-xs">{address ? trimMobile(address) : "Connected"}</span>
+								<span className="hidden sm:inline font-mono text-xs">{address ? trim(address) : "Connected"}</span>
+                <IoChevronDownCircleOutline className="h-4 w-4 shrink-0" />
               </Button>
             </DropdownMenuTrigger>
-						<DropdownMenuContent className="w-[360px] bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border border-black/10 dark:border-white/10 rounded-2xl shadow-2xl p-3">
+						<DropdownMenuContent className="w-[400px] bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border border-black/10 dark:border-white/10 rounded-2xl shadow-2xl p-4">
+							{/* Connected Status Header */}
+							<div className="flex items-center gap-2 mb-4 pb-3 border-b border-black/10 dark:border-white/10">
+								<div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+								<span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Wallet Connected</span>
+							</div>
+
               {/* EVM row */}
-							<div className="mb-3 p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.06]">
-								<div className="text-xs text-slate-500 dark:text-slate-400 mb-1">EVM</div>
-								<div className="text-sm text-slate-900 dark:text-slate-100">
+							<div className="mb-3 p-4 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.06]">
+								<div className="flex items-center gap-2 mb-2">
+									{evm.brand === "MetaMask" && (
+										<Image src="/metamask/metamask.webp" alt="MetaMask" width={20} height={20} className="rounded" />
+									)}
+									{evm.brand === "Coinbase Wallet" && (
+										<Image src="/wallets/coinbase.webp" alt="Coinbase" width={20} height={20} className="rounded" />
+									)}
+									<span className="text-xs font-semibold text-slate-700 dark:text-slate-300">EVM {evm.brand ? `(${evm.brand})` : ""}</span>
+									{evmConnected && (
+										<span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+											<span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+											Connected
+										</span>
+									)}
+								</div>
+								<div className="text-sm font-mono text-slate-900 dark:text-slate-100 break-all">
                   {evmConnected ? evm.address : "Not connected"}
                 </div>
-                <div className="mt-2 flex gap-2">
+                <div className="mt-3 flex gap-2">
                   {evmConnected ? (
                     <Button
                       size="sm"
                       variant="outline"
-											className="text-red-600 hover:text-red-700"
+											className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                       onClick={disconnectEvm}
                       disabled={busy.evm}
                       title="Disconnect EVM"
@@ -134,17 +172,25 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
               </div>
 
               {/* Solana row */}
-							<div className="p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.06]">
-								<div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Solana</div>
-								<div className="text-sm text-slate-900 dark:text-slate-100">
+							<div className="p-4 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.06]">
+								<div className="flex items-center gap-2 mb-2">
+									<span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Solana</span>
+									{publicKey && (
+										<span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+											<span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+											Connected
+										</span>
+									)}
+								</div>
+								<div className="text-sm font-mono text-slate-900 dark:text-slate-100 break-all">
                   {publicKey ? publicKey.toBase58() : "Not connected"}
                 </div>
-                <div className="mt-2 flex gap-2">
+                <div className="mt-3 flex gap-2">
                   {publicKey ? (
                     <Button
                       size="sm"
                       variant="outline"
-											className="text-red-600 hover:text-red-700"
+											className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                       onClick={disconnectSolana}
                       disabled={busy.sol}
                       title="Disconnect Solana"

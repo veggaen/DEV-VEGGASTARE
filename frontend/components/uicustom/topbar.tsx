@@ -39,7 +39,7 @@ const NavLink = ({ href, children, isActive }: NavLinkProps) => (
 		href={href}
 		aria-current={isActive ? "page" : undefined}
 		className={
-			"relative px-2 py-1 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-emerald-400/70 " +
+			"group relative px-2 py-1 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-emerald-400/70 " +
 			(isActive
 				? "text-slate-950 dark:text-slate-50"
 				: "text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-slate-50") +
@@ -63,10 +63,37 @@ const MyTopBar = () => {
 	const headerRef = useRef<HTMLElement | null>(null);
 	const { resolvedTheme, setTheme } = useTheme();
 	const [menuOpen, setMenuOpen] = useState(false);
+	const [isMobile, setIsMobile] = useState(false);
+	const [productsTopbarVisible, setProductsTopbarVisible] = useState(true);
+	const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState<number>(72);
 	const [nexusOpen, setNexusOpen] = useState(false);
 	const [web3ModeEnabled, setWeb3ModeEnabled] = useState(false);
 	const [isRequestingWeb3Mode, setIsRequestingWeb3Mode] = useState(false);
 	const [walletRefreshToken, setWalletRefreshToken] = useState(0);
+	const collapseForProducts = pathname.startsWith("/products") && isMobile && !productsTopbarVisible;
+	const menuSwipeRef = useRef<{ x: number; y: number; t: number } | null>(null);
+	const onMenuTouchStart = (e: React.TouchEvent) => {
+		if (!isMobile) return;
+		if (!menuOpen) return;
+		if (e.touches.length !== 1) return;
+		const t = e.touches[0];
+		menuSwipeRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+	};
+	const onMenuTouchEnd = (e: React.TouchEvent) => {
+		if (!isMobile) return;
+		if (!menuOpen) return;
+		const s = menuSwipeRef.current;
+		menuSwipeRef.current = null;
+		if (!s) return;
+		const t = e.changedTouches?.[0];
+		if (!t) return;
+		const dx = t.clientX - s.x;
+		const dy = t.clientY - s.y;
+		const dt = Date.now() - s.t;
+		if (dt <= 650 && dx > 70 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+			setMenuOpen(false);
+		}
+	};
 
 	useEffect(() => {
 		try {
@@ -105,32 +132,36 @@ const MyTopBar = () => {
     const getScrollTop = () => (scrollEl ? scrollEl.scrollTop : window.scrollY);
 
 
-			// Add a bit of hysteresis to avoid flicker/jitter around the threshold.
-			// On /products we want the header to dock almost immediately so the products
-			// sticky controls bar visually “glues” to it on the first scroll notch.
-			const isProducts = pathname.startsWith("/products");
-			// Mouse wheels can produce a first scrollTop of exactly 1px (or even fractional),
-			// so treat any non-zero scroll as "scrolled" on /products.
-			const enter = isProducts ? 0 : 12;
-			const exit = isProducts ? 0 : 4;
-				const onScroll = () => {
-					const top = getScrollTop();
-					const compact =
-						isProducts &&
-						!!scrollEl &&
-						scrollEl.getAttribute("data-products-compact") === "true";
-					setIsScrolled((prev) => (compact ? true : prev ? top > exit : top > enter));
-				};
+		// Hysteresis + rAF throttling to prevent near-top "bounce".
+		// (Some devices/wheels can oscillate between 0px and 1px scrollTop.)
+		const isProducts = pathname.startsWith("/products");
+		const enter = isProducts ? 6 : 12;
+		const exit = isProducts ? 2 : 4;
+		let raf = 0;
+		const update = () => {
+			raf = 0;
+			const top = getScrollTop();
+			const compact =
+				isProducts &&
+				!!scrollEl &&
+				scrollEl.getAttribute("data-products-compact") === "true";
+			setIsScrolled((prev) => (compact ? true : prev ? top > exit : top > enter));
+		};
+		const onScroll = () => {
+			if (raf) return;
+			raf = window.requestAnimationFrame(update);
+		};
 
-    onScroll();
+		update();
 
-    window.addEventListener("scroll", onScroll, { passive: true });
-    scrollEl?.addEventListener("scroll", onScroll, { passive: true });
+		window.addEventListener("scroll", onScroll, { passive: true });
+		scrollEl?.addEventListener("scroll", onScroll, { passive: true });
 
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      scrollEl?.removeEventListener("scroll", onScroll);
-    };
+		return () => {
+			if (raf) window.cancelAnimationFrame(raf);
+			window.removeEventListener("scroll", onScroll);
+			scrollEl?.removeEventListener("scroll", onScroll);
+		};
   }, [pathname]);
 
 	// Keep a CSS variable in sync with the actual rendered header height.
@@ -139,10 +170,18 @@ const MyTopBar = () => {
 	useLayoutEffect(() => {
 		const headerEl = headerRef.current;
 		if (!headerEl) return;
+		// Desktop should NEVER collapse the topbar; only mobile on /products can collapse
+		const collapseForProducts = pathname.startsWith("/products") && isMobile && !productsTopbarVisible;
 
 		const update = () => {
+			// Desktop always shows header offset
+			if (collapseForProducts && isMobile) {
+				document.documentElement.style.setProperty("--app-header-offset", "0px");
+				return;
+			}
 			const h = headerEl.getBoundingClientRect().height;
 			if (Number.isFinite(h) && h > 0) {
+				setMeasuredHeaderHeight(Math.round(h));
 				document.documentElement.style.setProperty(
 					"--app-header-offset",
 					`${h}px`
@@ -154,7 +193,7 @@ const MyTopBar = () => {
 		const ro = new ResizeObserver(() => update());
 		ro.observe(headerEl);
 		return () => ro.disconnect();
-	}, [pathname, isScrolled]);
+	}, [pathname, isScrolled, isMobile, productsTopbarVisible]);
 
   const morphTransition = prefersReducedMotion
     ? { duration: 0 }
@@ -164,25 +203,80 @@ const MyTopBar = () => {
   const hideOnAuthPages = pathname.startsWith("/auth/");
   if (hideOnAuthPages) return <NetworkSyncBridge />;
 
-	const nav = [
-    { href: "/", label: "Home" },
-    { href: "/products", label: "Products" },
-    { href: "/feed", label: "Feed" },
-    ...(clientUser
-      ? [
-          { href: "/conversations", label: "Conversations" },
-          { href: "/dashboard", label: "Dashboard" },
-          { href: "/nexus", label: "Settings" },
-        ]
-      : []),
-    { href: "/analytics", label: "Analytics" },
-  ] as const;
+	const nav: Array<{ href: string; label: string }> = [
+		{ href: "/", label: "Home" },
+		{ href: "/products", label: "Products" },
+		{ href: "/pulse", label: "Pulse" },
+		...(clientUser
+			? [
+					{ href: "/conversations", label: "Conversations" },
+					{ href: "/dashboard", label: "Dashboard" },
+					{ href: "/nexus", label: "Settings" },
+				]
+			: []),
+		{ href: "/analytics", label: "Analytics" },
+	];
 
 	const menuLinks = useMemo(() => {
 		// Keep the sheet clean for logged-out users: primary discovery paths first.
-		if (!clientUser) return nav;
-		return nav;
-	}, [clientUser, nav]);
+		const base = nav;
+		return [
+			...base,
+			{ href: "/info", label: "Info / Contact" },
+			{ href: "/privacy", label: "Privacy & cookies" },
+		];
+	}, [nav]);
+
+	const openCookieSettings = () => {
+		try {
+			window.dispatchEvent(new Event("veggat:cookie-consent-open"));
+		} catch {
+			// ignore
+		}
+	};
+
+	useEffect(() => {
+		const onOpenMenu = () => setMenuOpen(true);
+		window.addEventListener("veggat:open-menu", onOpenMenu as any);
+		return () => window.removeEventListener("veggat:open-menu", onOpenMenu as any);
+	}, []);
+
+	useEffect(() => {
+		try {
+			window.dispatchEvent(
+				new CustomEvent("veggat:menu-open-state", {
+					detail: { open: menuOpen },
+				})
+			);
+		} catch {
+			// ignore
+		}
+	}, [menuOpen]);
+
+	useEffect(() => {
+		const onCloseMenu = () => setMenuOpen(false);
+		window.addEventListener("veggat:close-menu", onCloseMenu as any);
+		return () => window.removeEventListener("veggat:close-menu", onCloseMenu as any);
+	}, []);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const mq = window.matchMedia?.("(min-width: 768px)");
+		const update = () => setIsMobile(!(mq?.matches ?? false));
+		update();
+		mq?.addEventListener?.("change", update);
+		return () => mq?.removeEventListener?.("change", update);
+	}, []);
+
+	useEffect(() => {
+		const onChrome = (e: Event) => {
+			if (!pathname.startsWith("/products")) return;
+			const ce = e as CustomEvent<{ topbarVisible?: boolean }>;
+			setProductsTopbarVisible(Boolean(ce?.detail?.topbarVisible ?? true));
+		};
+		window.addEventListener("veggat:products-chrome", onChrome as any);
+		return () => window.removeEventListener("veggat:products-chrome", onChrome as any);
+	}, [pathname]);
 
   return (
     <>
@@ -195,25 +289,74 @@ const MyTopBar = () => {
 			/>
 			<motion.header
 				ref={headerRef}
-				className="sticky top-0 z-[60] w-full"
-				initial={false}
-				animate={{
-					paddingTop: isScrolled ? 0 : 12,
-					paddingBottom: isScrolled ? 0 : 12,
-					paddingLeft: isScrolled ? 0 : 24,
-					paddingRight: isScrolled ? 0 : 24
+				className="sticky top-0 z-[60] w-full overflow-hidden transition-[max-height] duration-200 ease-out"
+				style={{
+					maxHeight: collapseForProducts ? 0 : measuredHeaderHeight,
+					pointerEvents: collapseForProducts ? "none" : "auto",
 				}}
-				transition={morphTransition}
+				initial={false}
+				animate={
+					prefersReducedMotion
+						? {}
+						: collapseForProducts
+							? { opacity: 0, y: -10 }
+							: { opacity: 1, y: 0 }
+				}
+				transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.18, ease: "easeOut" }}
 			>
-<motion.div
-  transition={morphTransition}
-  className={
-    "w-full border-b transition-colors duration-300 " + 
-    (isScrolled
-      ? "border-black/10 dark:border-white/10 bg-white/70 dark:bg-slate-950/60 backdrop-blur-xl"
-      : "border-transparent bg-white/0 dark:bg-slate-950/0")
-  }
->
+				<motion.div
+					initial={false}
+					animate={
+						prefersReducedMotion
+							? {}
+							: {
+								paddingLeft: isScrolled ? 0 : 12,
+								paddingRight: isScrolled ? 0 : 12,
+								borderRadius: isScrolled ? 0 : 24,
+							}
+					}
+					transition={morphTransition}
+					style={{ transformOrigin: "50% 0%", willChange: "padding, border-radius" }}
+					className="relative w-full overflow-hidden"
+				>
+					{/* Center-out background reveal (prevents the sudden square flash) */}
+					<motion.div
+						aria-hidden
+						className="pointer-events-none absolute inset-0"
+						initial={false}
+						animate={
+							prefersReducedMotion
+								? { opacity: isScrolled ? 1 : 0 }
+								: isScrolled
+									? { opacity: 1, clipPath: "inset(0% 0% 0% 0%)" }
+									: { opacity: 0, clipPath: "inset(50% 50% 50% 50%)" }
+						}
+						transition={{ duration: 0.22, ease: "easeOut" }}
+						style={{ willChange: "clip-path, opacity" }}
+					>
+						<div className="absolute inset-0 bg-white/75 dark:bg-slate-950/65 backdrop-blur-xl" />
+					</motion.div>
+
+					{/* Bottom line reveals after the fill finishes */}
+					<motion.div
+						aria-hidden
+						className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-black/10 dark:bg-white/10"
+						initial={false}
+						animate={
+							prefersReducedMotion
+								? { opacity: isScrolled ? 1 : 0 }
+								: isScrolled
+									? { opacity: 1, clipPath: "inset(0% 0% 0% 0%)" }
+									: { opacity: 0, clipPath: "inset(0% 50% 0% 50%)" }
+						}
+						transition={
+							prefersReducedMotion
+								? { duration: 0 }
+								: isScrolled
+									? { duration: 0.18, ease: "easeOut", delay: 0.18 }
+									: { duration: 0.12, ease: "easeOut", delay: 0 }
+						}
+					/>
 					<div className="mx-auto flex h-[var(--app-header)] max-w-screen-2xl items-center justify-between px-3 sm:px-4 md:px-6">
 						<div className="flex min-w-0 items-center gap-4">
 							<Link
@@ -230,7 +373,25 @@ const MyTopBar = () => {
 										href={item.href}
 										isActive={isActivePath(pathname, item.href)}
 									>
-										{item.label}
+										{item.href === "/pulse" ? (
+											<span className="inline-flex items-center gap-2">
+												<span className="relative h-3 w-3">
+													<motion.span
+														className="absolute inset-0 rounded-full bg-emerald-400/80"
+														animate={{ scale: [1, 1.35, 1], opacity: [0.65, 1, 0.65] }}
+														transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+													/>
+													<motion.span
+														className="absolute -inset-2 rounded-full border border-emerald-400/35 opacity-0 group-hover:opacity-100"
+														animate={{ scale: [0.9, 1.1, 0.9], opacity: [0, 0.55, 0] }}
+														transition={{ duration: 1.2, repeat: Infinity, ease: "easeOut" }}
+													/>
+												</span>
+												<span>{item.label}</span>
+											</span>
+										) : (
+											item.label
+										)}
 									</NavLink>
 								))}
 							</nav>
@@ -242,7 +403,7 @@ const MyTopBar = () => {
 									<Button
 										variant="ghost"
 										size="icon"
-										className="h-[52px] w-[52px] rounded-full bg-black/5 p-0 hover:bg-black/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.10]"
+										className="group h-[52px] w-[52px] rounded-full bg-black/5 p-0 hover:bg-black/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.10]"
 										aria-label="Open menu"
 										title="Menu"
 									>
@@ -257,7 +418,14 @@ const MyTopBar = () => {
 												</AvatarFallback>
 											</Avatar>
 										) : (
-											<TbHexagons className="h-6 w-6 text-slate-700 dark:text-slate-200" />
+											<motion.span
+												className="inline-flex"
+												whileHover={prefersReducedMotion ? undefined : { rotate: 10, scale: 1.08 }}
+												whileTap={prefersReducedMotion ? undefined : { scale: 0.96 }}
+												transition={{ type: "spring", stiffness: 520, damping: 26, mass: 0.6 }}
+											>
+												<TbHexagons className="h-6 w-6 text-slate-700 transition-colors group-hover:text-emerald-400 dark:text-slate-200 dark:group-hover:text-emerald-300" />
+											</motion.span>
 										)}
 									</Button>
 								</SheetTrigger>
@@ -265,6 +433,8 @@ const MyTopBar = () => {
 								<SheetContent
 									side="right"
 									className="w-[92vw] max-w-[420px] bg-white/95 dark:bg-zinc-900/80 backdrop-blur-xl border border-black/10 dark:border-white/10"
+										onTouchStart={onMenuTouchStart}
+										onTouchEnd={onMenuTouchEnd}
 								>
 									<div className="flex h-full flex-col gap-4 p-4">
 										<SheetHeader className="space-y-1">
@@ -342,6 +512,16 @@ const MyTopBar = () => {
 										</div>
 
 										<div className="mt-auto flex flex-col gap-2">
+											<Button
+												variant="outline"
+												onClick={() => {
+													setMenuOpen(false);
+													// Ensure banner animates after the sheet closes.
+													setTimeout(() => openCookieSettings(), 0);
+												}}
+											>
+												Cookie settings
+											</Button>
 											{clientUser ? (
 												<>
 													<div className="rounded-xl border border-black/10 p-2 dark:border-white/10">
@@ -402,7 +582,7 @@ const MyTopBar = () => {
 							</Sheet>
 						</div>
 					</div>
-				</motion.div>
+					</motion.div>
 			</motion.header>
     </>
   );
