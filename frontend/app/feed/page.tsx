@@ -258,11 +258,56 @@ const FeedPage: React.FC = () => {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-3 sm:px-6 lg:px-8">
+      {/* ─── Pulse Sub-navbar ─── */}
+      <div className="sticky top-[var(--app-header-offset,0px)] z-20 -mx-3 sm:-mx-6 lg:-mx-8 mb-4">
+        <div className="bg-background/80 backdrop-blur-md border-b border-border/40 px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3 py-2">
+            <span className="text-sm font-semibold text-foreground/80 shrink-0">Pulse</span>
+            <div className="h-4 w-px bg-border/60" />
+            <div className="flex items-center gap-1">
+              <Button
+                variant={filter === 'all' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setFilter('all')}
+                className="h-8"
+              >
+                All
+              </Button>
+              <Button
+                variant={filter === 'polls' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setFilter('polls')}
+                className="h-8"
+              >
+                <FiBarChart2 className="h-4 w-4 mr-1" /> Polls
+              </Button>
+              <Button
+                variant={filter === 'trending' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setFilter('trending')}
+                className="h-8"
+              >
+                <FiTrendingUp className="h-4 w-4 mr-1" /> Trending
+              </Button>
+            </div>
+
+            {tagFilter && (
+              <Badge variant="outline" className="ml-auto flex items-center gap-1">
+                #{tagFilter}
+                <button onClick={() => setTagFilter(null)}>
+                  <FiX className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6">
         <div className="min-w-0">
           {/* Compose Box */}
           {currentUser && (
-            <div className="rounded-2xl border border-border/60 bg-card/40 backdrop-blur-sm sticky top-[calc(var(--app-header-offset,0px)+12px)] z-10">
+            <div className="rounded-2xl border border-border/60 bg-card/40 backdrop-blur-sm sticky top-[calc(var(--app-header-offset,0px)+56px)] z-10">
               <div className="p-4 space-y-3">
                 {/* User avatar + textarea */}
                 <div className="flex gap-3">
@@ -460,40 +505,6 @@ const FeedPage: React.FC = () => {
             </div>
           )}
 
-          {/* Filters */}
-          <div className="mt-4 flex items-center gap-2">
-            <Button
-              variant={filter === 'all' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setFilter('all')}
-            >
-              All
-            </Button>
-            <Button
-              variant={filter === 'polls' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setFilter('polls')}
-            >
-              <FiBarChart2 className="h-4 w-4 mr-1" /> Polls
-            </Button>
-            <Button
-              variant={filter === 'trending' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setFilter('trending')}
-            >
-              <FiTrendingUp className="h-4 w-4 mr-1" /> Trending
-            </Button>
-
-            {tagFilter && (
-              <Badge variant="outline" className="ml-auto flex items-center gap-1">
-                #{tagFilter}
-                <button onClick={() => setTagFilter(null)}>
-                  <FiX className="h-3 w-3" />
-                </button>
-              </Badge>
-            )}
-          </div>
-
           {/* Feed */}
           <div className="mt-4 space-y-3">
             {loading ? (
@@ -520,7 +531,7 @@ const FeedPage: React.FC = () => {
 
         {/* Explore sidebar */}
         <aside className="hidden lg:block">
-          <div className="sticky top-[calc(var(--app-header-offset,0px)+12px)] space-y-4">
+          <div className="sticky top-[calc(var(--app-header-offset,0px)+56px)] space-y-4">
             {!currentUser && (
               <div className="rounded-2xl border border-border/60 bg-transparent p-4 transition-colors hover:bg-card/30">
                 <div className="font-semibold">Welcome</div>
@@ -563,7 +574,7 @@ const FeedPage: React.FC = () => {
             </div>
 
             <div className="rounded-2xl border border-border/60 bg-transparent p-4 transition-colors hover:bg-card/30">
-              <div className="font-semibold">Top posts</div>
+              <div className="font-semibold">Top pulses</div>
               <div className="mt-3 space-y-2">
                 {topPosts.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nothing yet.</p>
@@ -809,7 +820,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
           {/* Poll preview */}
           {item.hasPoll && (
             <div
-              className="mt-3 rounded-xl border border-border/60 bg-card/40 p-3 shadow-sm transition-transform duration-200 group-hover:translate-y-[-1px]"
+              className="mt-3"
               onClick={(e) => e.stopPropagation()}
             >
               <PollDisplay conversationId={item.id} />

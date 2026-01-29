@@ -76,7 +76,7 @@ export const PollDisplay: React.FC<PollDisplayProps> = ({ conversationId }) => {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-slate-900 border border-border rounded-lg p-4 animate-pulse">
+      <div className="rounded-xl border border-border/50 p-4 animate-pulse">
         <div className="h-4 bg-muted rounded w-3/4 mb-4"></div>
         <div className="space-y-2">
           <div className="h-10 bg-muted rounded"></div>
@@ -91,7 +91,7 @@ export const PollDisplay: React.FC<PollDisplayProps> = ({ conversationId }) => {
   const hasVoted = poll.userVotedOptionIds.length > 0;
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-border rounded-lg p-4 space-y-4">
+    <div className="rounded-xl border border-border/50 p-4 space-y-4">
       {/* Poll Header */}
       <div className="flex items-start justify-between gap-3">
         <h3 className="font-semibold text-lg">{poll.question}</h3>
@@ -130,16 +130,16 @@ export const PollDisplay: React.FC<PollDisplayProps> = ({ conversationId }) => {
               key={option.id}
               onClick={() => canVote && handleVote(option.id)}
               disabled={!canVote || voting !== null}
-              className={`w-full relative overflow-hidden rounded-lg border transition-all ${
+              className={`w-full relative overflow-hidden rounded-lg transition-all ${
                 isSelected 
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' 
-                  : 'border-border hover:border-muted-foreground/50'
+                  ? 'bg-blue-500/15 dark:bg-blue-500/20' 
+                  : 'bg-muted/40 hover:bg-muted/60'
               } ${!canVote ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               {/* Progress background */}
               {hasVoted && (
                 <div 
-                  className={`absolute inset-0 ${isSelected ? 'bg-blue-500/20' : 'bg-muted/50'}`}
+                  className={`absolute inset-0 ${isSelected ? 'bg-blue-500/25' : 'bg-muted/60'}`}
                   style={{ width: `${option.percentage}%` }}
                 />
               )}
@@ -161,7 +161,7 @@ export const PollDisplay: React.FC<PollDisplayProps> = ({ conversationId }) => {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border">
+      <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/40">
         <div className="flex items-center gap-1">
           <FiUsers className="h-3 w-3" />
           {poll.totalVotes} vote{poll.totalVotes !== 1 ? 's' : ''}
