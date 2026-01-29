@@ -9,13 +9,13 @@ export default function MyProductCreationPage() {
 
   return (
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
-      {/* Animated background effects */}
-      <div className="pointer-events-none fixed inset-0">
+      {/* Animated background effects with noise overlay to prevent gradient banding */}
+      <div className="pointer-events-none fixed inset-0 noise-overlay">
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/15 to-black/5" />
         
         {/* Primary emerald/sky glow - top right */}
         <motion.div
-          className="absolute -right-20 top-20 h-[600px] w-[600px] rounded-full blur-3xl"
+          className="absolute -right-20 top-20 h-[600px] w-[600px] rounded-full"
           animate={
             reduceMotion
               ? undefined
@@ -24,14 +24,15 @@ export default function MyProductCreationPage() {
           transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
           style={{
             background:
-              'radial-gradient(closest-side, rgba(34,197,94,0.25), rgba(56,189,248,0.15), rgba(34,197,94,0) 72%)',
+              'radial-gradient(closest-side, rgba(34,197,94,0.27) 0%, rgba(34,197,94,0.18) 30%, rgba(56,189,248,0.12) 55%, rgba(34,197,94,0.03) 80%, rgba(34,197,94,0) 100%)',
             mixBlendMode: 'screen',
+            filter: 'blur(60px)',
           }}
         />
         
         {/* Secondary violet/pink glow - bottom left */}
         <motion.div
-          className="absolute -left-20 bottom-10 h-[650px] w-[650px] rounded-full blur-3xl"
+          className="absolute -left-20 bottom-10 h-[650px] w-[650px] rounded-full"
           animate={
             reduceMotion
               ? undefined
@@ -40,14 +41,15 @@ export default function MyProductCreationPage() {
           transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
           style={{
             background:
-              'radial-gradient(closest-side, rgba(167,139,250,0.18), rgba(236,72,153,0.12), rgba(56,189,248,0) 74%)',
+              'radial-gradient(closest-side, rgba(167,139,250,0.20) 0%, rgba(167,139,250,0.12) 30%, rgba(236,72,153,0.08) 55%, rgba(56,189,248,0.02) 80%, rgba(56,189,248,0) 100%)',
             mixBlendMode: 'screen',
+            filter: 'blur(60px)',
           }}
         />
 
         {/* Subtle center glow */}
         <motion.div
-          className="absolute left-1/2 top-1/3 h-[400px] w-[400px] -translate-x-1/2 rounded-full blur-3xl"
+          className="absolute left-1/2 top-1/3 h-[400px] w-[400px] -translate-x-1/2 rounded-full"
           animate={
             reduceMotion
               ? undefined
@@ -56,8 +58,9 @@ export default function MyProductCreationPage() {
           transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
           style={{
             background:
-              'radial-gradient(closest-side, rgba(56,189,248,0.15), rgba(167,139,250,0.08), transparent 70%)',
+              'radial-gradient(closest-side, rgba(56,189,248,0.17) 0%, rgba(56,189,248,0.10) 35%, rgba(167,139,250,0.05) 60%, transparent 85%)',
             mixBlendMode: 'screen',
+            filter: 'blur(50px)',
           }}
         />
       </div>

@@ -420,11 +420,17 @@ export const MySidebarProductsMenu = () => {
         <div
           className={cn(
             "flex items-center justify-between gap-2 px-4 border-b border-black/5 dark:border-white/10",
-            variant === 'desktop' && isDocked && isEdgeDock
-              ? "h-[68px] py-0" // var(--products-controls-height) + 1px used to use --products-controls-height but idk how to so I added the value manually for now
-              : "max-h-[68px] py-4",
             enableDrag && "cursor-grab active:cursor-grabbing select-none touch-none"
           )}
+          style={{
+            // Use CSS variable for alignment with topbar, fallback to 68px
+            height: variant === 'desktop' && isDocked && isEdgeDock
+              ? 'calc(var(--products-controls-height, 68px))'
+              : '68px',
+            maxHeight: '68px',
+            paddingTop: variant === 'desktop' && isDocked && isEdgeDock ? 0 : undefined,
+            paddingBottom: variant === 'desktop' && isDocked && isEdgeDock ? 0 : undefined,
+          }}
           onPointerDown={onHeaderPointerDown}
           onPointerMove={onHeaderPointerMove}
           onPointerUp={finishDrag}

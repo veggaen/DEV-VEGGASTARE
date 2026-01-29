@@ -310,32 +310,41 @@ function KineticDescription({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22, ease: "easeOut", delay: startDelay }}
+      // Use will-change to hint GPU compositing and prevent layout thrashing
+      style={{ willChange: 'opacity, transform' }}
     >
-      <span className="inline-flex flex-wrap justify-center w-full gap-x-[0.3em]">
+      {/* Use standard inline text flow instead of flex to prevent word-by-word wrapping issues */}
+      <span className="inline leading-relaxed">
         {words.map((word, wIdx) => {
           const startIdx = globalIdx;
           globalIdx += word.length;
           return (
-            <span key={wIdx} className="inline-block whitespace-nowrap">
-              {Array.from(word).map((ch, cIdx) => {
-                const charGlobalIdx = startIdx + cIdx;
-                return (
-                  <motion.span
-                    key={cIdx}
-                    className="inline-block"
-                    initial={false}
-                    animate={
-                      started && revealed.has(charGlobalIdx)
-                        ? { opacity: 1, y: 0 }
-                        : { opacity: 0, y: 2 }
-                    }
-                    transition={{ duration: 0.12, ease: "easeOut" }}
-                  >
-                    {ch}
-                  </motion.span>
-                );
-              })}
-            </span>
+            <React.Fragment key={wIdx}>
+              {/* Each word as inline-block prevents mid-word breaks */}
+              <span className="inline-block whitespace-nowrap" style={{ willChange: 'contents' }}>
+                {Array.from(word).map((ch, cIdx) => {
+                  const charGlobalIdx = startIdx + cIdx;
+                  return (
+                    <motion.span
+                      key={cIdx}
+                      className="inline-block"
+                      initial={false}
+                      animate={
+                        started && revealed.has(charGlobalIdx)
+                          ? { opacity: 1, y: 0 }
+                          : { opacity: 0, y: 2 }
+                      }
+                      transition={{ duration: 0.12, ease: "easeOut" }}
+                      style={{ willChange: 'opacity, transform' }}
+                    >
+                      {ch}
+                    </motion.span>
+                  );
+                })}
+              </span>
+              {/* Add space after each word except the last */}
+              {wIdx < words.length - 1 && <span className="inline-block w-[0.3em]">&nbsp;</span>}
+            </React.Fragment>
           );
         })}
       </span>
@@ -899,27 +908,32 @@ export default function HomeHero({
 
   return (
     <div className="relative flex h-[calc(100vh-102px)] max-h-full w-full items-center justify-center overflow-hidden">
-      {/* subtle animated background */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0" /> {/* bg-gradient-to-b from-black via-black/70 to-emerald-950/30 dark:from-black dark:via-black/60 dark:to-emerald-950/20 */}
+      {/* subtle animated background with noise overlay to prevent gradient banding */}
+      <div className="pointer-events-none absolute inset-0 noise-overlay">
+        <div className="absolute inset-0" />
+        {/* Orb 1 - uses more color stops for smoother gradients on different monitors */}
         <motion.div
-          className="absolute right-8 top-8 h-[520px] w-[520px] rounded-full blur-3xl"
+          className="absolute right-8 top-8 h-[520px] w-[520px] rounded-full"
           animate={{ x: [0, -18, 0], y: [0, 12, 0], opacity: [0.16, 0.26, 0.16], scale: [1, 1.05, 1] }}
           transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
           style={{
+            // Multi-stop gradient for smoother color transitions across different color profiles
             background:
-              "radial-gradient(closest-side, rgba(34,197,94,0.22), rgba(16,185,129,0.12), rgba(34,197,94,0) 72%)",
+              "radial-gradient(closest-side, rgba(34,197,94,0.24) 0%, rgba(34,197,94,0.18) 25%, rgba(16,185,129,0.12) 50%, rgba(34,197,94,0.04) 75%, rgba(34,197,94,0) 100%)",
             mixBlendMode: "screen",
+            filter: "blur(60px)", // CSS blur instead of Tailwind for better cross-browser consistency
           }}
         />
+        {/* Orb 2 */}
         <motion.div
-          className="absolute bottom-10 left-10 h-[580px] w-[580px] rounded-full blur-3xl"
+          className="absolute bottom-10 left-10 h-[580px] w-[580px] rounded-full"
           animate={{ x: [0, 24, 0], y: [0, -14, 0], opacity: [0.12, 0.22, 0.12], scale: [1, 1.04, 1] }}
           transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
           style={{
             background:
-              "radial-gradient(closest-side, rgba(56,189,248,0.16), rgba(167,139,250,0.10), rgba(56,189,248,0) 74%)",
+              "radial-gradient(closest-side, rgba(56,189,248,0.18) 0%, rgba(56,189,248,0.12) 30%, rgba(167,139,250,0.08) 55%, rgba(56,189,248,0.02) 80%, rgba(56,189,248,0) 100%)",
             mixBlendMode: "screen",
+            filter: "blur(60px)",
           }}
         />
       </div>
