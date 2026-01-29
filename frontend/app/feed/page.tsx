@@ -259,8 +259,8 @@ const FeedPage: React.FC = () => {
   return (
     <div className="mx-auto w-full max-w-6xl px-3 sm:px-6 lg:px-8">
       {/* ─── Pulse Sub-navbar ─── */}
-      <div className="sticky top-[var(--app-header-offset,0px)] z-20 -mx-3 sm:-mx-6 lg:-mx-8 mb-4">
-        <div className="bg-background/80 backdrop-blur-md border-b border-border/40 px-3 sm:px-6 lg:px-8">
+      <div className="sticky top-[var(--app-header-offset,0px)] z-20 -mx-3 sm:-mx-6 lg:-mx-8">
+        <div className="px-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 py-2">
             <span className="text-sm font-semibold text-foreground/80 shrink-0">Pulse</span>
             <div className="h-4 w-px bg-border/60" />
@@ -506,7 +506,7 @@ const FeedPage: React.FC = () => {
           )}
 
           {/* Feed */}
-          <div className="mt-4 space-y-3">
+          <div className="space-y-3">
             {loading ? (
               <div className="flex justify-center py-12">
                 <Spinner />

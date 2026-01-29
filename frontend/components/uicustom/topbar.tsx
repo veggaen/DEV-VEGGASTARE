@@ -199,10 +199,6 @@ const MyTopBar = () => {
     ? { duration: 0 }
 		: { type: "tween", duration: 0.18, ease: "easeOut" };
 
-  // Avoid rendering the full navigation on auth screens.
-  const hideOnAuthPages = pathname.startsWith("/auth/");
-  if (hideOnAuthPages) return <NetworkSyncBridge />;
-
 	const nav: Array<{ href: string; label: string }> = [
 		{ href: "/", label: "Home" },
 		{ href: "/products", label: "Products" },
@@ -277,6 +273,10 @@ const MyTopBar = () => {
 		window.addEventListener("veggat:products-chrome", onChrome as any);
 		return () => window.removeEventListener("veggat:products-chrome", onChrome as any);
 	}, [pathname]);
+
+  // Avoid rendering the full navigation on auth screens.
+  const hideOnAuthPages = pathname.startsWith("/auth/");
+  if (hideOnAuthPages) return <NetworkSyncBridge />;
 
   return (
     <>
