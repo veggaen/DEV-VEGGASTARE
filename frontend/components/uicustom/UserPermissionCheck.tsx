@@ -3,7 +3,14 @@
 import { useCurrentUserEmployeeCheckPermission } from '@/hooks/use-current-user-employee-permissions';
 import { useState } from 'react';
 
-export default function UserPermissionCheck({ clientUser, companyId, permissionTag, result }) {
+interface UserPermissionCheckProps {
+  clientUser: { id: string };
+  companyId: string;
+  permissionTag: string;
+  result?: unknown;
+}
+
+export default function UserPermissionCheck({ clientUser, companyId, permissionTag, result }: UserPermissionCheckProps) {
     const { permissions, isPermissionAvailable, isLoading, error } = useCurrentUserEmployeeCheckPermission(clientUser, companyId, permissionTag);
   
     if (isLoading) return <div>Loading...</div>;

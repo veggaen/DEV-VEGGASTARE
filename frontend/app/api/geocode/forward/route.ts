@@ -49,12 +49,13 @@ export async function GET(req: NextRequest) {
     req,
     z.object({
       postalCode: z.string().trim().min(1).max(20),
-      countryCode: z.string().trim().min(2).max(2).optional().default('NO'),
+      countryCode: z.string().trim().min(2).max(2).default('NO'),
     })
   );
   if (!queryResult.ok) return queryResult.response;
 
-  const { postalCode, countryCode } = queryResult.data;
+  const { postalCode } = queryResult.data;
+  const countryCode = queryResult.data.countryCode ?? 'NO';
 
   try {
     const googleKey = process.env.AUTH_GOOGLE_API_KEY;

@@ -14,7 +14,7 @@ interface LoginButtonProps {
 const LOG_PREFIX = '[frontend/components/uicustom/auth/buttons/login-button.tsx]'
 export const MyLoginButton = ({
     children,
-    mode =  'modal' || 'redirect',
+    mode = 'modal',
     asChild,
     classNamedProps
   }: LoginButtonProps) => {

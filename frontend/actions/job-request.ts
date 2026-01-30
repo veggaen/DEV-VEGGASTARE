@@ -1,10 +1,14 @@
+'use server';
+
 import { dbPrisma } from '@/lib/db'; // Adjust the import according to your project structure
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { JobRequest } from '@prisma/client';
 
 interface JobRequestData {
   descriptions: string[];
   images: string[]; // Assuming images are uploaded and URLs are stored
-  links: string;
-  docs: string | null; // Assuming docs are uploaded and URLs are stored
+  links: string[];
+  docs: string[];
   price: string;
   negotiable: boolean;
   paymentMethod: string;
@@ -16,21 +20,31 @@ interface JobRequestData {
 
 const LOG_PREFIX = '[frontend/actions/job-request.ts]'
 
-export async function createJobRequest(data: JobRequestData) {
+type CreateJobRequestResult = { success: true; jobRequest: JobRequest };
+
+export async function createJobRequest(data: JobRequestData): Promise<CreateJobRequestResult> {
+    // Authentication required
+    const session = await MyLibUserAuth();
+    if (!session?.id || !session?.email) {
+      throw new Error('Unauthorized - Please log in to create a job request');
+    }
+
     console.log('createJobRequest:', data);
   try {
     const jobRequest = await dbPrisma.jobRequest.create({
       data: {
         descriptions: data.descriptions,
-        images: data.images.join(','), // Store images as a comma-separated string
-        links: data.links,
-        docs: data.docs,
+        images: data.images, // Keep as array
+        links: data.links,   // Keep as array
+        docs: data.docs,     // Keep as array
         price: parseFloat(data.price), // Convert price to number
         negotiable: data.negotiable,
         paymentMethod: data.paymentMethod,
         delivery: data.delivery,
         additionalNotes: data.additionalNotes,
-        companyIds: data.sendToAll ? undefined : data.companyIds, // Handle logic for sending to all companies
+        companyIds: data.sendToAll ? [] : (data.companyIds ?? []),
+        userId: session.id,
+        email: session.email,
       },
     });
 

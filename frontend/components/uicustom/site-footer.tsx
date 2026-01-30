@@ -12,6 +12,9 @@ export default function SiteFooter() {
 
   const [hideOnInfoAtTop, setHideOnInfoAtTop] = React.useState(false);
 
+  // Hide footer on full-screen chat pages
+  const isConversationDetail = pathname?.startsWith("/conversations/") && pathname !== "/conversations/new";
+  
   React.useEffect(() => {
     const isInfo = pathname === "/info" || pathname.startsWith("/info/");
     if (!isInfo) {
@@ -40,14 +43,14 @@ export default function SiteFooter() {
   
   // On /products, hide footer until all products are loaded (hasMore === false)
   const shouldHide =
-    (sidebarContext !== null && !sidebarContext.showFooter) || hideOnInfoAtTop;
+    (sidebarContext !== null && !sidebarContext.showFooter) || hideOnInfoAtTop || isConversationDetail;
 
   if (shouldHide) {
     return null;
   }
 
   return (
-    <footer className="hidden md:block relative z-10 border-t border-white/10 bg-black/40 backdrop-blur-xl">
+    <footer className="hidden md:block mt-auto shrink-0 z-10 border-t border-white/10 bg-black/40 backdrop-blur-xl">
       <div className="mx-auto flex max-w-screen-2xl flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-white/60">
           <span className="font-medium text-white/80">VeggaStare</span>

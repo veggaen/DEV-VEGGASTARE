@@ -3,22 +3,19 @@ import { z } from "zod";
 
 import { dbPrisma } from "@/lib/db";
 import { MyLibUserAuth } from "@/lib/user-auth";
+import { CompanyOrgType } from "@prisma/client";
 
 type CompanyParams = { companyId?: string; companyid?: string };
+
+// Define valid org types as a const array to use with Zod
+const validOrgTypes = ["ENK", "AS", "ANS", "DA", "SA", "FORENING", "NUF", "OTHER"] as const;
 
 const bodySchema = z
   .object({
     orgType: z
-      .string()
-      .trim()
+      .enum(validOrgTypes)
       .optional()
-      .transform((v) => (v && v.length ? v : undefined))
-      .refine(
-        (v) =>
-          v == null ||
-          ["ENK", "AS", "ANS", "DA", "SA", "FORENING", "NUF", "OTHER"].includes(v),
-        { message: "Invalid orgType" }
-      ),
+      .nullable(),
     orgNumber: z
       .string()
       .trim()

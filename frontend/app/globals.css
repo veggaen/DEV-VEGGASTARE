@@ -33,6 +33,22 @@
 .productProvider [data-app-scroll-container="true"]::-webkit-scrollbar {
 	display: none; /* Chrome, Safari, Opera */
 }
+
+/* Fade mask for content scrolling behind sticky elements */
+.fade-mask-bottom {
+	-webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+	mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+}
+
+.fade-mask-top {
+	-webkit-mask-image: linear-gradient(to top, black 80%, transparent 100%);
+	mask-image: linear-gradient(to top, black 80%, transparent 100%);
+}
+
+/* Smooth scroll behavior for feed */
+.scroll-smooth-feed {
+	scroll-behavior: smooth;
+}
  
 @layer base {
   :root {

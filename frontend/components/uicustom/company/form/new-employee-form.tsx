@@ -7,7 +7,7 @@ import { EmployeeRole, User, UserRole } from '@prisma/client';
 import { employeeSchema } from '@/schemas';
 import { MyAddEmployeeAction } from '@/actions/create-company-employee';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/page';
+import { ExtendedEmployee } from '@/app/companies/[id]/settings/CompanySettingsClient';
 
 
 interface MyNewEmployeeFormProps {
@@ -119,7 +119,7 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
       setIsLoading(true);
       MyAddEmployeeAction(formData)
         .then((data) => {
-          if (data.error) {
+          if ('error' in data) {
             setError(data.error)
           }
           if (data.success) {

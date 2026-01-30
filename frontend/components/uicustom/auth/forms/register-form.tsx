@@ -1,8 +1,9 @@
 'use client';
 
 import * as z from 'zod';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { CardWrapper } from '../card-wrapper';
@@ -19,16 +20,56 @@ import { FaFileUpload } from "react-icons/fa";
 import { useEdgeStore } from '@/lib/edgestore';
 import { uploadImageToEdgeStore } from '@/lib/edgestore-hook';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { toast } from 'sonner';
 
 const MyLogPrefix = '[frontend/components/uicustom/auth/forms/register-form.tsx]';
+const VERIFICATION_STORAGE_KEY = 'veggat_email_verified';
 
 export const MyRegisterform = () => {
+    const router = useRouter();
     const [error, setError] = useState<string | undefined>('');
     const [success, setSuccess] = useState<string | undefined>('');
     const [isPending, startTransition] = useTransition();
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [awaitingVerification, setAwaitingVerification] = useState(false);
     const { edgestore } = useEdgeStore();
+
+    // Listen for cross-tab verification events
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === VERIFICATION_STORAGE_KEY && e.newValue) {
+                try {
+                    const data = JSON.parse(e.newValue);
+                    // Only respond to recent verification events (within last 30 seconds)
+                    if (data.verified && Date.now() - data.timestamp < 30000) {
+                        console.log(`${MyLogPrefix} Detected email verification in another tab`);
+                        
+                        if (data.autoLoginFailed) {
+                            // Verification succeeded but auto-login failed - redirect to login
+                            toast.success('Email verified! Please login to continue.', { position: 'top-center' });
+                            setTimeout(() => router.push('/auth/login'), 1500);
+                        } else if (data.redirectUrl) {
+                            // Full success - user is logged in, redirect to dashboard
+                            toast.success('Email verified and logged in!', { position: 'top-center' });
+                            setTimeout(() => {
+                                // Force a full page reload to pick up the new session
+                                window.location.href = data.redirectUrl;
+                            }, 1000);
+                        }
+                        
+                        // Clear the storage key after processing
+                        localStorage.removeItem(VERIFICATION_STORAGE_KEY);
+                    }
+                } catch (err) {
+                    console.error(`${MyLogPrefix} Error parsing verification event:`, err);
+                }
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, [router]);
 
     const form = useForm<z.infer<typeof MyAuthRegisterSchema>>({
         resolver: zodResolver(MyAuthRegisterSchema),
@@ -57,7 +98,7 @@ export const MyRegisterform = () => {
             const imageUrl = await uploadImageToEdgeStore(file, edgestore);
             return imageUrl;
         } catch (error) {
-            console.error('Error uploading image:', error.message);
+            console.error('Error uploading image:', error instanceof Error ? error.message : error);
             throw error; // Let this error propagate to the onSubmit or wherever it is used
         }
     };
@@ -76,6 +117,7 @@ export const MyRegisterform = () => {
     const onSubmit = async (values: z.infer<typeof MyAuthRegisterSchema>) => {
         setError('');
         setSuccess('');
+        setAwaitingVerification(false);
         let uploadedImageUrl = '';
 
         startTransition(async () => {
@@ -92,11 +134,12 @@ export const MyRegisterform = () => {
 
                 const data = await MyRegisterAction(values);
                 
-                if (data.error) {
+                if ('error' in data) {
                     setError(data.error);
                 }
-                if (data.success) {
+                if ('success' in data) {
                     setSuccess(data.success);
+                    setAwaitingVerification(true);
                     // Optional: Redirect user or perform other actions on success
                     if (uploadedImageUrl) {
                         console.log('Confirm Image')
@@ -193,10 +236,22 @@ export const MyRegisterform = () => {
                         )} />
                     </div>
                     <MyFormError message={error} />
-                    <MyFormSuccess message={success} />
-                    <Button type='submit' disabled={isPending} className='w-full' variant='vegaEmeraldBtn'>
-                        Register
-                    </Button>
+                    {!awaitingVerification && <MyFormSuccess message={success} />}
+                    {awaitingVerification ? (
+                        <div className="space-y-3">
+                            <div className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 p-3 rounded-lg text-sm text-center">
+                                <p className="font-medium">📧 Check your email to verify!</p>
+                                <p className="text-xs mt-1 opacity-80">This page auto-redirects when verified</p>
+                            </div>
+                            <Button disabled className='w-full' variant='outline'>
+                                <span className="animate-pulse">Waiting for verification...</span>
+                            </Button>
+                        </div>
+                    ) : (
+                        <Button type='submit' disabled={isPending} className='w-full' variant='vegaEmeraldBtn'>
+                            Register
+                        </Button>
+                    )}
                 </form>
             </Form>
         </CardWrapper>

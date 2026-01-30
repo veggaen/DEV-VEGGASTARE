@@ -20,24 +20,24 @@ export async function GET(
     const company = await dbPrisma.company.findUnique({
       where: { id: companyId },
       include: {
-        creator: true,
-        owner: true,
-        employees: {
+        User_Company_creatorIdToUser: true,
+        User_Company_ownerIdToUser: true,
+        Employee: {
           include: {
-            user: true,
+            User: true,
           },
         },
-        warehouseLocations: {
+        WarehouseLocation: {
           include: {
-            inventory: {
+            Inventory: {
               include: {
-                product: true,
+                Product: true,
               },
             },
           },
         },
         // ✅ NEW: include wallets so checkout can find a default receiver
-        wallets: {
+        Wallet: {
           orderBy: { isDefault: 'desc' },
         },
       },

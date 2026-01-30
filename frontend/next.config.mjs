@@ -26,7 +26,9 @@ const nextConfig = {
         return config;
     },
     typescript: {
-        ignoreBuildErrors: true,
+        // SECURITY: Enable TypeScript checking in production builds
+        // If you have TS errors, fix them before deploying
+        ignoreBuildErrors: false,
     },
     images: {
         remotePatterns: [

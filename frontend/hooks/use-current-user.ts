@@ -1,20 +1,10 @@
-import { Employee, Product, Review, User, UserRole } from "@prisma/client";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-
-type ExtendedUser = User & {
-  role: UserRole;
-  referredBy?: String;
-  isTwoFactorEnabled?: boolean;
-  productsListed?: Product[];
-  reviews?: Review[];
-  isOAuth?: boolean;
-  employee?: Employee[];
-};
+import { ExtendedUser } from "@/next-auth";
 
 const LOG_PREFIX = '[use-current-user.ts]'
 
-export const useCurrentUser = () => {
+export const useCurrentUser = (): ExtendedUser | null => {
   const { data: session, status } = useSession();
   const [user, setUser] = useState(session?.user || null);
 

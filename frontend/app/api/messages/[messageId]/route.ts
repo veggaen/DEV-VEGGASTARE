@@ -50,8 +50,8 @@ export async function PATCH(
     const updatedMessage = await dbPrisma.message.update({
       where: { id: resolvedParams.messageId },
       data: {
-        ...(content !== undefined ? { content } : {}),
-        ...(imageUrl !== undefined ? { imageUrl } : {}),
+        ...(content !== undefined && content !== null ? { content } : {}),
+        ...(imageUrl !== undefined ? { imageUrl: imageUrl ?? undefined } : {}),
         editedAt: new Date(),
       },
     });

@@ -25,10 +25,10 @@ export const getProductById = async (id: string) => {
       const product = await dbPrisma.product.findUnique({
         where: { id },
         include: {
-          inventory: true,
-          company: {
+          Inventory: true,
+          Company: {
             include: {
-              warehouseLocations: true,
+              WarehouseLocation: true,
             },
           },
         },
@@ -62,13 +62,13 @@ export const getProductsMany = async (page: number = 1, perPage: number = 30) =>
             skip,
             take: perPage,
             include: {
-                user: {
+                User: {
                     select: {
                         id: true,
                         name: true,
                     },
                 },
-                company: {
+                Company: {
                     select: {
                         id: true,
                         name: true,

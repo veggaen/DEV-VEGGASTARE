@@ -28,7 +28,7 @@ type ConnectedState = {
 };
 
 type WalletContextValue = ConnectedState & {
-  evmConnectors: Connector[];
+  evmConnectors: readonly Connector[];
   connectEvm: (connector: Connector) => Promise<void>;
   disconnectEvm: () => Promise<void>;
   setEvmBrandHint: (brand: EvmBrand) => void;

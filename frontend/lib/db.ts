@@ -51,19 +51,25 @@ const tunedDatabaseUrl = buildPrismaUrlWithPoolTuning(process.env.DATABASE_URL)
 const shouldLogQueries = isTruthy(process.env.PRISMA_LOG_QUERIES)
 
 function createPrismaClient(): PrismaClient {
-    const prisma = new PrismaClient({
-        datasources: tunedDatabaseUrl ? { db: { url: tunedDatabaseUrl } } : undefined,
-        log: shouldLogQueries ? [{ emit: 'event', level: 'query' }] : undefined,
-    })
-
     if (shouldLogQueries) {
-        prisma.$on('query', (event: Prisma.QueryEvent) => {
+        // When query logging is enabled, we need to create a client that can emit events
+        const prisma = new PrismaClient({
+            datasources: tunedDatabaseUrl ? { db: { url: tunedDatabaseUrl } } : undefined,
+            log: [{ emit: 'event', level: 'query' }],
+        })
+
+        // Use type assertion since Prisma's types don't always match at build time
+        ;(prisma as any).$on('query', (event: Prisma.QueryEvent) => {
             // Avoid logging params; keep logs lightweight
             console.log('[prisma]', `${event.duration}ms`, event.query)
         })
+
+        return prisma
     }
 
-    return prisma
+    return new PrismaClient({
+        datasources: tunedDatabaseUrl ? { db: { url: tunedDatabaseUrl } } : undefined,
+    })
 }
 
 export const dbPrisma = globalThis.prisma ?? createPrismaClient()

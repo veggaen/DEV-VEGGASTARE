@@ -8,14 +8,17 @@ const patchBodySchema = z.object({
   changeType: z.enum(['increment', 'decrement']),
 });
 
-export async function PATCH(request: NextRequest, { params }: { params: { userId: string, itemId: string } }) {
+// Next.js 16+ params type
+type RouteContext = { params: Promise<{ userId: string; itemId: string }> };
+
+export async function PATCH(request: NextRequest, context: RouteContext) {
   const user = await MyLibUserAuth(); // Authenticate the user
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { userId, itemId } = params;
+  const { userId, itemId } = await context.params;
 
   if (user.id !== userId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -41,7 +44,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { userId
     const updatedCartItem = await dbPrisma.cartItem.update({
       where: { id: item.id },
       data: { quantity: newQuantity },
-      include: { product: true },
+      include: { Product: true },
     });
 
     return NextResponse.json(updatedCartItem);
@@ -51,14 +54,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { userId
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { userId: string, itemId: string } }) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   const user = await MyLibUserAuth(); // Authenticate the user
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { userId, itemId } = params;
+  const { userId, itemId } = await context.params;
 
   if (user.id !== userId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

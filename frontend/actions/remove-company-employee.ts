@@ -1,5 +1,10 @@
+type RemoveEmployeeResult =
+  | { success: false; message: string }
+  | { success: false; error: string }
+  | { success: true; message: string };
+
 const LOG_PREFIX = '[frontend/actions/remove-company-employee.ts]'
-export const MyRemoveEmployeeAction = async (formData: any) => {
+export const MyRemoveEmployeeAction = async (formData: any): Promise<RemoveEmployeeResult> => {
     const { userId, companyId, clientUser } = formData;
     console.log(`${LOG_PREFIX} ${clientUser.name} is initiating request to remove employee [User ID: ${userId}, Company ID: ${companyId}]`);
 

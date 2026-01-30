@@ -3,14 +3,17 @@
 import * as z from 'zod';
 import { dbPrisma } from '@/lib/db';
 import { companyCreationSchema } from '@/schemas';
-import { EmployeeRole, Prisma } from '@prisma/client';
+import { EmployeeRole, Prisma, Product } from '@prisma/client';
 
-const MyGetCompanyAction = async () => {
+type GetCompanyResult = Product[];
+type CreateCompanyResult = { error: string } | { success: string; companyId: string };
+
+const MyGetCompanyAction = async (): Promise<GetCompanyResult> => {
   const response = await dbPrisma.product.findMany();
   return response;
 };
 
-const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchema>) => {
+const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchema>): Promise<CreateCompanyResult> => {
   console.log('MyCreateCompanyAction() Creating company with values:', values);
   
   const validateFields = companyCreationSchema.safeParse(values);

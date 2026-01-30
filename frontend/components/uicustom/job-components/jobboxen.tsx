@@ -5,6 +5,22 @@ import { usePathname } from 'next/navigation'
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { User } from '@prisma/client';
 
+// Security: Validate and sanitize user-provided URLs
+function isSafeUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim().toLowerCase();
+  // Only allow http/https URLs - block javascript:, data:, vbscript:, etc.
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+    return false;
+  }
+  try {
+    new URL(url); // Validate URL format
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 interface JobBoxProps {
   jobRequest: {
     id: string;
@@ -55,11 +71,11 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
       <div className="w-full xl:relative flex justify-center flex-col xl:flex-row-reverse">
         <div className='flex justify-center items-center xl:h-[72px] mb-2 md:mb-0'>
           {jobRequest.title && 
-            <Link href={`/nexus/company/job-box/${jobRequest.id}`} passHref>
+            <Link href={`/companies/job-box/${jobRequest.id}`} passHref>
               <h1 className='text-2xl font-bold text-indigo-300 underline decoration-indigo-300/50 overflow-hidden'>{jobRequest.title}</h1>
             </Link>
           }
-          {!jobRequest.title && <Link href={`/nexus/company/job-box/${jobRequest.id}`} passHref>
+          {!jobRequest.title && <Link href={`/companies/job-box/${jobRequest.id}`} passHref>
             <div className="text-xl font-bold text-indigo-300 underline decoration-indigo-300/50">{jobRequest.id}</div>
           </Link>}
         </div>
@@ -112,11 +128,11 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
         </div>
       ))}
 
-      {jobRequest.links.length > 0 && jobRequest.links.some(link => link.trim() !== '') && (
+      {jobRequest.links.length > 0 && jobRequest.links.some(link => link.trim() !== '' && isSafeUrl(link)) && (
         <div className="mb-4">
           <p className="text-lg font-semibold">Links:</p>
           {jobRequest.links.map((link, index) => (
-            link.trim() !== '' && (
+            link.trim() !== '' && isSafeUrl(link) && (
               <a
                 key={index}
                 href={link}
@@ -131,12 +147,12 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
         </div>
       )}
 
-      {jobRequest.docs.length > 0 && jobRequest.docs.some(doc => doc.trim() !== '') && (
+      {jobRequest.docs.length > 0 && jobRequest.docs.some(doc => doc.trim() !== '' && isSafeUrl(doc)) && (
         <div className="mb-4">
           <p className="text-lg font-semibold">Documents:</p>
           <p>
             {jobRequest.docs.map((doc, index) => (
-              doc.trim() !== '' && (
+              doc.trim() !== '' && isSafeUrl(doc) && (
                 <a className="text-blue-500 hover:text-sky-500 hover:underline" key={index} href={doc} target="_blank" rel="noopener noreferrer">Document {index + 1}</a>
               )
             ))}

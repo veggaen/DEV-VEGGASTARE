@@ -89,7 +89,7 @@ const ProductCard = React.memo(
 						<p className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
 							<span className="opacity-80">Seller:</span>
 							{product.company ? (
-								<Link href={`/company/${product.company.id}`} className="group/seller inline-flex items-center" aria-label={`View company ${product.company.name}`}>
+								<Link href={`/companies/${product.company.id}`} className="group/seller inline-flex items-center" aria-label={`View company ${product.company.name}`}>
 									<motion.span
 										whileHover={reduceMotion ? undefined : { y: -1, scale: 1.03 }}
 										whileTap={reduceMotion ? undefined : { scale: 0.98 }}

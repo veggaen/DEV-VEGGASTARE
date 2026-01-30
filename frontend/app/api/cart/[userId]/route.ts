@@ -18,14 +18,17 @@ const removeItemSchema = z.object({
   itemId: z.string().trim().min(1).max(200),
 });
 
-export async function GET(request: NextRequest, { params }: { params: { userId: string } }) {
+// Next.js 16+ params type
+type RouteContext = { params: Promise<{ userId: string }> };
+
+export async function GET(request: NextRequest, context: RouteContext) {
   const user = await MyLibUserAuth();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { userId } = params;
+  const { userId } = await context.params;
 
   if (user.id !== userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -34,7 +37,7 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
   try {
     const cart = await dbPrisma.cart.findUnique({
       where: { userId },
-      include: { items: { include: { product: true } } },
+      include: { CartItem: { include: { Product: true } } },
     });
 
     if (!cart) {
@@ -48,14 +51,14 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { userId: string } }) {
+export async function POST(request: NextRequest, context: RouteContext) {
   const user = await MyLibUserAuth();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { userId } = params;
+  const { userId } = await context.params;
 
   if (user.id !== userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -65,7 +68,7 @@ export async function POST(request: NextRequest, { params }: { params: { userId:
   if (!bodyResult.ok) return bodyResult.response;
 
   const { productId } = bodyResult.data;
-  let quantity = bodyResult.data.quantity;
+  const quantity = bodyResult.data.quantity ?? 1;
 
   try {
     let cart = await dbPrisma.cart.findUnique({ where: { userId } });
@@ -90,7 +93,7 @@ export async function POST(request: NextRequest, { params }: { params: { userId:
 
     const updated = await dbPrisma.cart.findUnique({
       where: { id: cart.id },
-      include: { items: { include: { product: true } } },
+      include: { CartItem: { include: { Product: true } } },
     });
 
     return NextResponse.json(updated, { status: 200 });
@@ -100,14 +103,14 @@ export async function POST(request: NextRequest, { params }: { params: { userId:
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { userId: string } }) {
+export async function PATCH(request: NextRequest, context: RouteContext) {
   const user = await MyLibUserAuth();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { userId } = params;
+  const { userId } = await context.params;
 
   if (user.id !== userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -134,7 +137,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { userId
     const updatedCartItem = await dbPrisma.cartItem.update({
       where: { id: itemId },
       data: { quantity: newQuantity },
-      include: { product: true },
+      include: { Product: true },
     });
 
     return NextResponse.json(updatedCartItem);
@@ -144,14 +147,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { userId
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { userId: string } }) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   const user = await MyLibUserAuth();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { userId } = params;
+  const { userId } = await context.params;
 
   if (user.id !== userId) {
     console.log("userId:", userId);

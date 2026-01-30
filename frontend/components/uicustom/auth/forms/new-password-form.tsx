@@ -40,11 +40,11 @@ export const MyNewPasswordForm = () => {
       MyNewPasswordAction(values, token)
       .then ((data) =>{
         if (!isMounted) return;
-        if (data?.success) {
+        if ('success' in data) {
           setSuccess(data.success)
           console.log(`${MyLogPrefix} onSubmit 2/2 (success)`, data)
         }
-        if (data?.error){
+        if ('error' in data){
           if (!isMounted) return;
           setError(data.error)
           console.log(`${MyLogPrefix} onSubmit 2/2 (data.error)`, data)

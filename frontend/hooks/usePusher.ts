@@ -6,7 +6,7 @@ const LOG_PREFIX = '[frontend/hooks/usePusher.js]';
 const P_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY;
 const P_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
 
-let pusherClient;
+let pusherClient: PusherClient | undefined;
 
 if (!pusherClient) {
   pusherClient = new PusherClient(P_KEY!, {
@@ -15,8 +15,9 @@ if (!pusherClient) {
   });
 }
 
-const usePusher = (channelName: string, eventName: string, callback: (data: any) => void) => {
+const usePusher = <T = unknown>(channelName: string, eventName: string, callback: (data: T) => void): void => {
   useEffect(() => {
+    if (!pusherClient) return;
     console.log(`${LOG_PREFIX} Subscribing to channel ${channelName} and event ${eventName}`);
     const channel = pusherClient.subscribe(channelName);
     channel.bind(eventName, callback);

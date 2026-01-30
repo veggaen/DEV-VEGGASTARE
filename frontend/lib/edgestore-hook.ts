@@ -24,7 +24,7 @@ export async function uploadImageToEdgeStore(image: File, edgestore: any) {
       options: {
         temporary: true
       },
-      onProgressChange: (progress) => {
+      onProgressChange: (progress: number) => {
         console.log('Upload Progress:', progress);
       },
     });

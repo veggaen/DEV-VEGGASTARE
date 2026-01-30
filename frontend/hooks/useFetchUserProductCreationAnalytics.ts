@@ -4,7 +4,13 @@ import { useState, useEffect } from 'react';
 
 type UserProductCreationDatum = { label: string; count: number }; // Specific type for this chart
 
-export const useFetchUserProductCreationAnalytics = (endpoint: string) => {
+interface UseFetchUserProductCreationResult {
+  data: UserProductCreationDatum[];
+  loading: boolean;
+  error: string | null;
+}
+
+export const useFetchUserProductCreationAnalytics = (endpoint: string): UseFetchUserProductCreationResult => {
   const [data, setData] = useState<UserProductCreationDatum[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

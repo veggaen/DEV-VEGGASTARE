@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { EmployeeRole } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogTrigger, DialogHeader, DialogContent, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ExtendedCompany, ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/page';
+import { ExtendedCompany, ExtendedEmployee } from '@/app/companies/[id]/settings/CompanySettingsClient';
 import { editEmployeeRoleAction } from '@/actions/edit-employee-role';
 
 interface EditEmployeeRoleModalProps {
@@ -48,7 +48,7 @@ const EditEmployeeRoleModal: React.FC<EditEmployeeRoleModalProps> = ({ selectedE
           setError(null);
         }, 5000);
       } else {
-        setError(response.message);
+        setError(response.message ?? 'Unknown error');
         setSuccess(false);
       }
     } catch (error) {

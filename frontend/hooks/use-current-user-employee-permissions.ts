@@ -5,7 +5,14 @@ import { Prisma } from '@prisma/client';
 type JsonValue = Prisma.JsonValue;
 type JsonObject = Prisma.JsonObject;
 
-export function useCurrentUserEmployeeCheckPermission(clientUser: any, companyId: string, permissionTag: string) {
+interface UsePermissionResult {
+  permissions: JsonObject | null;
+  isPermissionAvailable: boolean;
+  isLoading: boolean;
+  error: string;
+}
+
+export function useCurrentUserEmployeeCheckPermission(clientUser: any, companyId: string, permissionTag: string): UsePermissionResult {
     const [permissions, setPermissions] = useState<JsonObject | null>(null);
     const [isPermissionAvailable, setIsPermissionAvailable] = useState(false);
     const [isLoading, setIsLoading] = useState(true);

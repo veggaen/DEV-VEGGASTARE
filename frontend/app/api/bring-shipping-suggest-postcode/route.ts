@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
   if (!queryResult.ok) return queryResult.response;
 
   const query = queryResult.data.postalCode;
-  const page = String(queryResult.data.page);
-  const countryCode = queryResult.data.countryCode.toLowerCase();
+  const page = String(queryResult.data.page ?? 1);
+  const countryCode = (queryResult.data.countryCode ?? 'no').toLowerCase();
 
   try {
     const coreBaseUrl = getIntegrationCoreBaseUrl();

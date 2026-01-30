@@ -42,13 +42,13 @@ function buildWagmiConfig() {
       [pulsechain.id]: http("https://rpc.pulsechain.com"),
     },
     connectors: [
-      metaMask({ shimDisconnect: true }),
+      metaMask(),
       coinbaseWallet({
         appName: "Veggastare",
         appLogoUrl: "/wallets/coinbase.webp",
         preference: { options: "eoaOnly" },
       }),
-      injected({ shimDisconnect: true }),
+      injected(),
       ...(walletConnectProjectId
         ? [
             walletConnect({

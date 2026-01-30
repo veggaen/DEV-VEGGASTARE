@@ -13,11 +13,11 @@ const MyPageAdmin = () => {
   const onServerActionClick = () => {
     admin()
       .then((data) => {
-        if (data.error) {
+        if ('error' in data) {
             toast.error(data.error)
         }
-        if (data.success) {
-          toast.success(data?.success);
+        if ('success' in data) {
+          toast.success(data.success);
         }
 
       })

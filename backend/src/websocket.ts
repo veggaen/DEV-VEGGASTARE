@@ -9,7 +9,7 @@ let io: SocketIOServer;
 const LOG_PREFIX = '[backend/src/websocket.ts]';
 const isDev = process.env.NODE_ENV !== 'production';
 
-export const initWebSocketServer = (server: HttpServer) => {
+export const initWebSocketServer = (server: HttpServer): void => {
   io = new SocketIOServer(server, {
     cors: {
       origin: '*',
@@ -45,7 +45,7 @@ export const initWebSocketServer = (server: HttpServer) => {
   console.log(LOG_PREFIX, '[Socket.IO] WebSocket Server initialized');
 };
 
-export const broadcastWarehousesUpdate = async () => {
+export const broadcastWarehousesUpdate = async (): Promise<void> => {
   try {
     if (!isDbConfigured) {
       console.warn(LOG_PREFIX, '[Socket.IO] DB not configured; skipping warehouse broadcast.');

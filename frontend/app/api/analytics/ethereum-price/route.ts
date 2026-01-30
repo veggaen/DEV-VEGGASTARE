@@ -13,9 +13,9 @@ export async function GET(request: Request) {
   );
   if (!queryResult.ok) return queryResult.response;
 
-  const vs_currency = queryResult.data.vs_currency;
-  const days = queryResult.data.days;
-  const interval = queryResult.data.interval;
+  const vs_currency = queryResult.data.vs_currency ?? 'usd';
+  const days = queryResult.data.days ?? 365;
+  const interval = queryResult.data.interval ?? 'daily';
 
   // Handle the 'days=max' condition for the CoinGecko API free tier limitation
   const adjustedDays = days === 'max' ? '365' : String(days);

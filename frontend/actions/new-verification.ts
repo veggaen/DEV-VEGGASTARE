@@ -3,8 +3,14 @@
 import { dbPrisma } from "@/lib/db"
 import { getUserByEmail } from "@/data/user"
 import { getVerificationTokenByToken } from "@/data/verificiation-token"
+import { generateEmailLoginToken } from "@/lib/tokens"
 
-export const MyNewVerificationAction = async (token: string) => {
+type VerificationResult =
+  | { error: string }
+  | { success: string }
+  | { success: string; loginToken: string; email: string };
+
+export const MyNewVerificationAction = async (token: string): Promise<VerificationResult> => {
   const existingToken = await getVerificationTokenByToken(token);
   if (!existingToken){
     return { error: "Token does not exist!" };
@@ -32,6 +38,15 @@ export const MyNewVerificationAction = async (token: string) => {
     await dbPrisma.verificationToken.delete({
       where: { id: existingToken.id },
     });
+
+    // Generate a one-time login token for auto-login
+    const loginToken = await generateEmailLoginToken(existingToken.email);
+    
+    return { 
+      success: "Email verified!", 
+      loginToken: loginToken.token,
+      email: existingToken.email
+    };
   }
   
   return { success: "Email verified!"}

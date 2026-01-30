@@ -2,7 +2,7 @@
 import { cookieStorage, createStorage } from '@wagmi/core'
 import { http } from 'wagmi'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
-import { mainnet, base, arbitrum /* add more as needed */ } from '@reown/appkit/networks'
+import { mainnet, base, arbitrum } from 'wagmi/chains'
 
 // required by AppKit
 export const projectId =
@@ -11,12 +11,12 @@ if (!projectId) {
   throw new Error('WalletConnect/Reown Project ID is not defined')
 }
 
-export const networks = [mainnet, base, arbitrum]
+export const networks = [mainnet, base, arbitrum] as const;
 
 // Create Wagmi Adapter (Config)
 export const wagmiAdapter = new WagmiAdapter({
   projectId,
-  networks,
+  networks: networks as any, // Type assertion for appkit compatibility
   ssr: true, // delays store hydration to avoid mismatch
   storage: createStorage({ storage: cookieStorage }),
   transports: {

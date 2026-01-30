@@ -1,5 +1,8 @@
 'use server';
 import * as z from 'zod'
+import bcrypt from 'bcryptjs';
+
+import crypto from 'crypto';
 
 import { signIn } from '@/auth';
 import { AuthError } from 'next-auth';
@@ -12,7 +15,13 @@ import { generateVerificationToken, generateTwoFactorToken } from '@/lib/tokens'
 import { dbPrisma } from '@/lib/db';
 import { getTwoFactorConfirmationByUserId } from '@/data/two-factor-confirmation';
 
-export const MyLoginAction = async (values: z.infer<typeof MyAuthLoginSchema>, callbackUrl?: string | null,) => {
+type LoginResult =
+  | { error: string }
+  | { success: string }
+  | { success: string; redirectUrl: string }
+  | { twoFactor: true };
+
+export const MyLoginAction = async (values: z.infer<typeof MyAuthLoginSchema>, callbackUrl?: string | null): Promise<LoginResult> => {
     console.log('MyLoginAction', values);
     const validateFields = MyAuthLoginSchema.safeParse(values);
 
@@ -24,12 +33,21 @@ export const MyLoginAction = async (values: z.infer<typeof MyAuthLoginSchema>, c
 
     const existingUser = await getUserByEmail(email);
 
-    if (!existingUser || !existingUser.email || !existingUser.password) {
-      return { error: "Email does not exist!" }
+    // SECURITY: Always run bcrypt.compare to prevent timing attacks
+    // For non-existent users, compare against a dummy hash to ensure
+    // consistent response times (prevents username/email enumeration)
+    const dummyHash = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
+    const passwordToCompare = existingUser?.password || dummyHash;
+    
+    const passwordMatch = await bcrypt.compare(password, passwordToCompare);
+    
+    // Use generic error message for both "user not found" and "wrong password"
+    // to prevent email enumeration attacks
+    if (!existingUser || !existingUser.email || !existingUser.password || !passwordMatch) {
+      return { error: 'Invalid credentials' };
     }
 
     if (!existingUser.emailVerified){
-        // Can 'login' to user without correct password at this moment. but does not login, it just stops here and sends a confirmation email. TODO: check password match before this check
       const verificationToken = await generateVerificationToken(existingUser.email);
       await sendVerificationEmail(verificationToken.email, verificationToken.token);
       return {success: 'Confirmation email sent!'}
@@ -43,7 +61,12 @@ export const MyLoginAction = async (values: z.infer<typeof MyAuthLoginSchema>, c
           return { error: 'Invalid code!'}
         };
 
-        if ( twoFactorToken.token !== code ){
+        // SECURITY: Use constant-time comparison to prevent timing attacks on 2FA codes
+        const codeBuffer = Buffer.from(code.padEnd(10, '0'));
+        const tokenBuffer = Buffer.from(twoFactorToken.token.padEnd(10, '0'));
+        const isValidCode = crypto.timingSafeEqual(codeBuffer, tokenBuffer);
+
+        if (!isValidCode) {
           return { error: 'Invalid code!'}
         };
 

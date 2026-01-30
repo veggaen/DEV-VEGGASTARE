@@ -27,8 +27,8 @@ export async function DELETE(req: NextRequest) {
     const company = await dbPrisma.company.findUnique({
       where: { id: companyId },
       include: {
-        employees: true,
-        warehouseLocations: true,
+        Employee: true,
+        WarehouseLocation: true,
       },
     });
 
@@ -36,7 +36,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    const userEmployee = company.employees.find(employee => employee.userId === userId);
+    const userEmployee = company.Employee.find(employee => employee.userId === userId);
 
     if (!userEmployee) {
       return NextResponse.json({ error: 'User is not an employee of this company' }, { status: 403 });

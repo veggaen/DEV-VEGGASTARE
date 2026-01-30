@@ -5,9 +5,9 @@ import { dbPrisma } from './db';
 import { getVerificationTokenByEmail } from '@/data/verificiation-token';
 import { getPasswordResetTokenByEmail } from '@/data/password-reset-token';
 import { getTwoFactortokenByEmail } from '@/data/two-factor-token';
-import { SecurityActionType } from '@prisma/client';
+import { SecurityActionType, TwoFactorToken, PasswordResetToken, VerificationToken, EmailLoginToken, SecurityActionToken } from '@prisma/client';
 
-export const generateTwoFactorToken = async (email: string) => {
+export const generateTwoFactorToken = async (email: string): Promise<TwoFactorToken> => {
   const token = crypto.randomInt(100_000, 1_000_000).toString();
   const tokenExpiresTimer = 5; // minutes
   // TODO: later change to 5 min...
@@ -31,7 +31,7 @@ export const generateTwoFactorToken = async (email: string) => {
   return twoFactorToken;
 }
 
-export const generatePasswordResetToken = async (email: string) => {
+export const generatePasswordResetToken = async (email: string): Promise<PasswordResetToken> => {
   const token = uuidv4();
   const tokenExpiresTimer = 60; // minutes
   const expires = new Date(new Date().getTime() + (60 * tokenExpiresTimer) * 1000)  
@@ -54,7 +54,7 @@ export const generatePasswordResetToken = async (email: string) => {
   return passwordResetToken;
 };
 
-export const generateVerificationToken = async (email: string) => {
+export const generateVerificationToken = async (email: string): Promise<VerificationToken> => {
   const token = uuidv4();
   const tokenExpiresTimer = 60; // minutes
   const expires = new Date(new Date().getTime() + (60 * tokenExpiresTimer ) * 1000 );
@@ -77,11 +77,45 @@ export const generateVerificationToken = async (email: string) => {
   return verificationToken
 };
 
+// Generate a one-time login token for magic-link auto-login after email verification
+export const generateEmailLoginToken = async (email: string): Promise<EmailLoginToken> => {
+  const token = uuidv4();
+  const tokenExpiresTimer = 5; // 5 minutes - short-lived for security
+  const expires = new Date(new Date().getTime() + (60 * tokenExpiresTimer) * 1000);
+
+  // Delete any existing login token for this email
+  await dbPrisma.emailLoginToken.deleteMany({
+    where: { email }
+  });
+
+  const emailLoginToken = await dbPrisma.emailLoginToken.create({
+    data: {
+      email,
+      token,
+      expires
+    }
+  });
+
+  return emailLoginToken;
+};
+
+// Get email login token by token
+export const getEmailLoginTokenByToken = async (token: string): Promise<EmailLoginToken | null> => {
+  try {
+    const loginToken = await dbPrisma.emailLoginToken.findUnique({
+      where: { token }
+    });
+    return loginToken;
+  } catch {
+    return null;
+  }
+};
+
 export const generateSecurityActionToken = async (params: {
   userId: string;
   email: string;
   action: SecurityActionType;
-}) => {
+}): Promise<SecurityActionToken> => {
   const token = uuidv4();
   const tokenExpiresTimer = 15; // minutes
   const expires = new Date(new Date().getTime() + (60 * tokenExpiresTimer) * 1000);

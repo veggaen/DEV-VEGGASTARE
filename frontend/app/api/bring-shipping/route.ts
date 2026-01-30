@@ -82,7 +82,6 @@ export async function POST(req: NextRequest) {
             })
             .passthrough(),
         ])
-        .passthrough()
     );
     if (!bodyResult.ok) return bodyResult.response;
 

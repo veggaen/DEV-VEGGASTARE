@@ -2,8 +2,11 @@
 
 import { dbPrisma } from '@/lib/db';
 import { ExtendedUser } from '@/next-auth';
+import { Prisma } from '@prisma/client';
 
-export async function fetchUserEmployeePermissions(clientUser: any, companyId: string) {
+type PermissionsResult = Prisma.JsonValue | Response;
+
+export async function fetchUserEmployeePermissions(clientUser: any, companyId: string): Promise<PermissionsResult> {
     try {
       console.log('fetchUserEmployeePermissions() Fetching user permissions for user employee:', clientUser.id, 'for companyId: ', companyId);
       // validate client user

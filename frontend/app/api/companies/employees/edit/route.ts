@@ -1,27 +1,77 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { parseJsonOrError } from '@/lib/api-validate';
+import { z } from 'zod';
 
-export async function PATCH(req: NextApiRequest, res: NextApiResponse) {
+// Strict schema for employee permissions update
+const updateEmployeePermissionsSchema = z.object({
+  employee: z.object({
+    id: z.string().min(1).max(200),
+  }),
+  permissions: z.object({
+    CAN_ADD_EMPLOYEE: z.boolean(),
+    CAN_REMOVE_EMPLOYEE: z.boolean(),
+    CAN_EDIT_EMPLOYEE_ROLE: z.boolean(),
+    CAN_EDIT_PERMISSION: z.boolean(),
+    CAN_DELETE_COMPANY: z.boolean(),
+    CAN_POST_PRODUCT_POSITION_PERMISSION: z.boolean(),
+    CAN_EDIT_PRODUCT_POSITION_PERMISSION: z.boolean(),
+  }),
+});
+
+export async function PATCH(req: NextRequest) {
     try {
-      const { employee, permissions } = req.body;
-  
-      if (!employee || !permissions) {
-        return res.status(400).json({ error: 'Missing employeeId or permissions in request body' });
+      // Authentication check
+      const session = await MyLibUserAuth();
+      if (!session?.id) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
+
+      // Validate request body with Zod
+      const bodyResult = await parseJsonOrError(req, updateEmployeePermissionsSchema);
+      if (!bodyResult.ok) return bodyResult.response;
+      
+      const { employee, permissions } = bodyResult.data;
   
+      // Verify the employee exists and the user has permission to edit
+      const existingEmployee = await dbPrisma.employee.findUnique({
+        where: { id: employee.id },
+        include: { Company: true },
+      });
+
+      if (!existingEmployee) {
+        return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+      }
+
+      // Authorization: Check if user is admin/owner or has permission to edit employees in this company
+      const userEmployee = await dbPrisma.employee.findFirst({
+        where: {
+          userId: session.id,
+          companyId: existingEmployee.companyId,
+        },
+      });
+
+      const isAdmin = session.role === 'ADMIN' || session.role === 'OWNER';
+      const canEdit = isAdmin || (userEmployee?.permissions as any)?.CAN_EDIT_PERMISSION;
+
+      if (!canEdit) {
+        return NextResponse.json({ error: 'Forbidden - You cannot edit permissions for this employee' }, { status: 403 });
+      }
+
       console.log(`Updating employee permissions. Employee ID: ${employee.id}, Permissions:`, permissions);
   
       // Update employee permissions in the database
       await dbPrisma.employee.update({
         where: { id: employee.id },
         data: {
-          permissions: permissions, // Assuming permissions is already in the correct format
+          permissions: permissions,
         },
       });
   
-      return res.status(200).json({ message: 'Employee permissions updated successfully' });
+      return NextResponse.json({ message: 'Employee permissions updated successfully' }, { status: 200 });
     } catch (error) {
       console.error('Error updating employee permissions:', error);
-      return res.status(500).json({ error: 'Internal Server Error' });
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
   }

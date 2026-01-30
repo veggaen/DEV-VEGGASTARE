@@ -68,8 +68,8 @@ export async function POST(req: Request) {
 
     const message = await dbPrisma.message.create({
       data: {
-        content,
-        imageUrl,
+        content: content ?? '',
+        imageUrl: imageUrl ?? undefined,
         senderId: userId,
         conversationId,
       },
@@ -135,13 +135,13 @@ export async function GET(req: Request) {
     const conversation = await dbPrisma.conversation.findUnique({
       where: { id: conversationId },
       include: {
-        repostOfConversation: {
+        Conversation: {
           select: {
             id: true,
             title: true,
             createdAt: true,
-            user: { select: { id: true, name: true, image: true } },
-            messages: { take: 1, orderBy: { createdAt: 'desc' } },
+            User: { select: { id: true, name: true, image: true } },
+            Message: { take: 1, orderBy: { createdAt: 'desc' } },
           },
         },
       },

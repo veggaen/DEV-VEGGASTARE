@@ -20,7 +20,7 @@ type WalletContextValue = ConnectedState & {
   setEvmBrandHint: (brand: EvmBrand) => void;
   connectSolana: (walletName: WalletName) => Promise<void>;
   disconnectSolana: () => Promise<void>;
-  setSolBrandHint: (label: string) => void;
+  setSolBrandHint: (label: string | null) => void;
 };
 
 const WalletsCtx = createContext<WalletContextValue | null>(null);
@@ -59,7 +59,7 @@ export default function WalletContextProvider({ children }: { children: React.Re
     } catch {}
   }, []);
 
-  const setSolBrandHint = useCallback((label: string) => {
+  const setSolBrandHint = useCallback((label: string | null) => {
     setSolBrand(label);
     try {
       if (label) localStorage.setItem("sol.brand", label);

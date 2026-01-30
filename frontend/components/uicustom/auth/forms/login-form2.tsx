@@ -43,19 +43,19 @@ export const MyLoginForm2 = () => {
     startTransition(() => {
       MyLoginAction(values)
       .then ((data) =>{
-        if (data?.error){
+        if ('error' in data){
           form.reset();
           setError(data.error)
           console.log(`${LOG_PREFIX} onSubmit 2/2 (data.error)`, data)
         }
-        if (data?.success) {
+        if ('success' in data) {
           console.log(`${LOG_PREFIX} onSubmit 2/2 (success)`, data)
           signIn('credentials', { redirectTo: callbackUrl ? callbackUrl : "/products" })
           setSuccess(data.success)
           form.reset();
         }
 
-        if (data?.twoFactor) {
+        if ('twoFactor' in data) {
           setShowTwoFactor(true);
           console.log(`${LOG_PREFIX} onSubmit 2/2 (twoFactor)`, data)
         }

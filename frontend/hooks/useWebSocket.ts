@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 
 const LOG_PREFIX = '[frontend/hooks/useWebSocket.ts]';
 
-export const useWebSocket = (onMessage: (data: any) => void) => {
+export const useWebSocket = <T = unknown>(onMessage: (data: T) => void): void => {
   useEffect(() => {
     const wsUrl = process.env.NODE_ENV === 'production'
       ? 'https://dev-veggastare.vercel.app'

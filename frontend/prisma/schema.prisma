@@ -1,18 +1,664 @@
-// datasource & generator
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
 }
 
-enum UserRole {
-  OWNER
-  ADMIN
-  USER
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  User      User       @relation(fields: [userId], references: [id])
+  CartItem  CartItem[]
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Cart      Cart     @relation(fields: [cartId], references: [id])
+  Product   Product  @relation(fields: [productId], references: [id])
+
+  @@unique([productId, cartId])
+}
+
+model Company {
+  id                           String                @id @default(cuid())
+  name                         String
+  description                  String?
+  websiteUrl                   String?
+  logo                         String[]
+  bannerImage                  String[]
+  colorScheme                  String?
+  creatorId                    String
+  ownerId                      String
+  usesShipping                 Boolean               @default(false)
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime              @updatedAt
+  employmentNoticeDays         Int                   @default(14)
+  orgNumber                    String?               @unique
+  orgType                      CompanyOrgType?
+  User_Company_creatorIdToUser User                  @relation("Company_creatorIdToUser", fields: [creatorId], references: [id])
+  User_Company_ownerIdToUser   User                  @relation("Company_ownerIdToUser", fields: [ownerId], references: [id])
+  Conversation                 Conversation[]
+  Employee                     Employee[]
+  EmployeeTermination          EmployeeTermination[]
+  MonthlyReport                MonthlyReport[]
+  Package                      Package[]
+  Product                      Product[]
+  Sale                         Sale[]
+  Wallet                       Wallet[]
+  WarehouseLocation            WarehouseLocation[]
+}
+
+model Conversation {
+  id                     String                 @id @default(cuid())
+  companyId              String?
+  title                  String?
+  userId                 String
+  participants           String[]
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  allowedRoles           String[]               @default([])
+  customViewers          String[]               @default([])
+  description            String?
+  isLocked               Boolean                @default(false)
+  isPinned               Boolean                @default(false)
+  replyPermission        ReplyPermission        @default(PARTICIPANTS)
+  tags                   String[]               @default([])
+  type                   ConversationType       @default(PRIVATE_DM)
+  visibility             ConversationVisibility @default(PARTICIPANTS)
+  lastActivityAt         DateTime               @default(now())
+  replyCount             Int                    @default(0)
+  uniqueRepliers         Int                    @default(0)
+  viewCount              Int                    @default(0)
+  deletionRequestedAt    DateTime?
+  deletionScheduledFor   DateTime?
+  deletionVisibility     DeletionVisibility     @default(PRIVATE)
+  isAnonymized           Boolean                @default(false)
+  originalUserId         String?
+  suspiciousActivity     Boolean                @default(false)
+  suspiciousReason       String?
+  uniqueViewCount        Int                    @default(0)
+  repostOfConversationId String?
+  // Enhanced reach metrics
+  uniqueIpCount          Int                    @default(0) // Unique IPs that viewed
+  loggedInViewCount      Int                    @default(0) // Views from logged-in users
+  anonymousViewCount     Int                    @default(0) // Views from anonymous users
+  reachScore             Float                  @default(0) // Weighted reach score
+  // Pulse metrics
+  positivePulseCount     Int                    @default(0) // Total positive pulses (likes)
+  negativePulseCount     Int                    @default(0) // Total negative pulses (dislikes) - hidden by default
+  repulseCount           Int                    @default(0) // Total repulses (reposts)
+  Company                Company?               @relation(fields: [companyId], references: [id])
+  Conversation           Conversation?          @relation("ConversationToConversation", fields: [repostOfConversationId], references: [id])
+  other_Conversation     Conversation[]         @relation("ConversationToConversation")
+  User                   User                   @relation(fields: [userId], references: [id])
+  ConversationRepost     ConversationRepost[]
+  ConversationView       ConversationView[]
+  Message                Message[]
+  Poll                   Poll?
+  Pulse                  Pulse[]
+}
+
+model ConversationRepost {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  createdAt      DateTime     @default(now())
+  Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  User           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+}
+
+model ConversationView {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String?      // Nullable for anonymous views
+  viewCount      Int          @default(1)
+  firstViewedAt  DateTime     @default(now())
+  lastViewedAt   DateTime     @default(now())
+  ipHash         String?      // Hashed IP for privacy but allows uniqueness check
+  userAgent      String?      // Browser/device fingerprint
+  isLoggedIn     Boolean      @default(false)
+  viewStrength   Float        @default(1.0) // Calculated strength of this view relationship
+  Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  User           User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@index([ipHash])
+}
+
+// Detailed view event log for analytics
+model ViewEvent {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String?
+  ipHash         String
+  userAgent      String?
+  viewType       ViewType     @default(FIRST_VIEW)
+  strength       Float        @default(1.0) // Weight of this specific view
+  referrer       String?      // Where did they come from
+  sessionId      String?      // Track session for bounce rate etc
+  viewedAt       DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([userId])
+  @@index([ipHash])
+  @@index([viewedAt])
+}
+
+enum ViewType {
+  FIRST_VIEW           // First time user sees this content
+  REPEAT_VIEW          // Same user viewing again
+  ANONYMOUS_VIEW       // Not logged in
+  SAME_IP_NEW_USER     // Different account but same IP
+  UNIQUE_IP_NEW_USER   // Completely unique viewer
+  BOT_VIEW             // Detected as bot
+}
+
+model EmailLoginToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model Employee {
+  id          String       @id @default(cuid())
+  userId      String
+  companyId   String
+  role        EmployeeRole
+  permissions Json
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  jobTitle    String?
+  Company     Company      @relation(fields: [companyId], references: [id])
+  User        User         @relation(fields: [userId], references: [id])
+}
+
+model EmployeeTermination {
+  id                                               String            @id @default(cuid())
+  companyId                                        String
+  employeeUserId                                   String
+  initiatedByUserId                                String
+  status                                           TerminationStatus @default(REQUESTED)
+  reason                                           String
+  noticeDays                                       Int
+  requestedAt                                      DateTime          @default(now())
+  effectiveAt                                      DateTime
+  cancelledAt                                      DateTime?
+  finalizedAt                                      DateTime?
+  metadata                                         Json?
+  Company                                          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  User_EmployeeTermination_employeeUserIdToUser    User              @relation("EmployeeTermination_employeeUserIdToUser", fields: [employeeUserId], references: [id], onDelete: Cascade)
+  User_EmployeeTermination_initiatedByUserIdToUser User              @relation("EmployeeTermination_initiatedByUserIdToUser", fields: [initiatedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, employeeUserId])
+  @@index([companyId, status])
+}
+
+model Inventory {
+  id                String            @id @default(cuid())
+  quantity          Int
+  stock             Int               @default(0)
+  warehouseId       String
+  productId         String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  version           Int               @default(0)
+  Product           Product           @relation(fields: [productId], references: [id])
+  WarehouseLocation WarehouseLocation @relation(fields: [warehouseId], references: [id])
+
+  @@unique([id, version])
+}
+
+model JobRequest {
+  id              String   @id @default(cuid())
+  price           Float?
+  negotiable      Boolean?
+  paymentMethod   String?
+  delivery        String?
+  additionalNotes String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+  userId          String
+  companyIds      String[] @default([])
+  descriptions    String[]
+  images          String[]
+  links           String[]
+  docs            String[]
+  title           String?
+  email           String
+  User            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  content        String
+  senderId       String
+  conversationId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  imageUrl       String?
+  editedAt       DateTime?
+  mentions       String[]     @default([])
+  parentId       String?
+  Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  User           User         @relation(fields: [senderId], references: [id])
+}
+
+model MonthlyReport {
+  id             String   @id @default(cuid())
+  companyId      String
+  year           Int
+  month          Int
+  totalSales     Float
+  totalProfit    Float
+  productSummary Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  Company        Company  @relation(fields: [companyId], references: [id])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  userId        String
+  totalAmount   Float
+  status        OrderStatus @default(PENDING)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  transactionId String?
+  commentOrder  String?
+  User          User        @relation(fields: [userId], references: [id])
+  Payment       Payment?
+}
+
+model Package {
+  id                String        @id @default(cuid())
+  trackingNumber    String
+  companyId         String
+  userId            String
+  status            PackageStatus
+  estimatedDelivery DateTime?
+  history           Json
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  Company           Company       @relation(fields: [companyId], references: [id])
+  User              User          @relation(fields: [userId], references: [id])
+}
+
+model PasswordResetToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String        @unique
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  commentPay    String?
+  Order         Order         @relation(fields: [orderId], references: [id])
+}
+
+model Poll {
+  id             String       @id @default(cuid())
+  question       String
+  conversationId String       @unique
+  creatorId      String
+  allowMultiple  Boolean      @default(false)
+  isAnonymous    Boolean      @default(false)
+  expiresAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  PollOption     PollOption[]
+}
+
+model PollOption {
+  id        String     @id @default(cuid())
+  pollId    String
+  text      String
+  order     Int        @default(0)
+  createdAt DateTime   @default(now())
+  Poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  PollVote  PollVote[]
+}
+
+model PollVote {
+  id         String     @id @default(cuid())
+  optionId   String
+  userId     String
+  createdAt  DateTime   @default(now())
+  PollOption PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, userId])
+}
+
+model Product {
+  id                   String                 @id @default(cuid())
+  title                String
+  description          String
+  category             String
+  price                Float
+  stock                Int
+  shipFromPostalId     String
+  image                String[]
+  specifications       Json?
+  userId               String
+  companyId            String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  receiverWalletId     String?
+  CartItem             CartItem[]
+  Inventory            Inventory[]
+  Company              Company?               @relation(fields: [companyId], references: [id])
+  Wallet               Wallet?                @relation(fields: [receiverWalletId], references: [id])
+  User                 User                   @relation(fields: [userId], references: [id])
+  ProductAcceptedToken ProductAcceptedToken[]
+  Review               Review[]
+  ShippingDetails      ShippingDetails[]
+}
+
+model ProductAcceptedToken {
+  id           String      @id @default(cuid())
+  productId    String
+  family       ChainFamily
+  tokenAddress String?
+  tokenMint    String?
+  symbol       String
+  decimals     Int
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  Product      Product     @relation(fields: [productId], references: [id])
+
+  @@unique([productId, family, symbol])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  authorName String?
+  rating     Float
+  comment    String
+  productId  String
+  userId     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  Product    Product  @relation(fields: [productId], references: [id])
+  User       User     @relation(fields: [userId], references: [id])
+}
+
+model Sale {
+  id           String   @id @default(cuid())
+  companyId    String
+  date         DateTime
+  totalAmount  Float
+  profit       Float
+  productsSold Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  Company      Company  @relation(fields: [companyId], references: [id])
+}
+
+model SecurityActionToken {
+  id        String             @id @default(cuid())
+  userId    String
+  email     String
+  token     String             @unique
+  action    SecurityActionType
+  expires   DateTime
+  createdAt DateTime           @default(now())
+  User      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email, action])
+  @@index([userId, action])
+}
+
+model ShippingDetails {
+  id        String   @id @default(cuid())
+  method    String
+  price     Float
+  regions   String[]
+  productId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Product   Product  @relation(fields: [productId], references: [id])
+}
+
+model SpecificationsDetails {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TwoFactorConfirmation {
+  id     String @id @default(cuid())
+  userId String @unique
+  User   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TwoFactorToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model User {
+  id                                                              String                        @id @default(cuid())
+  name                                                            String?
+  email                                                           String?                       @unique
+  emailVerified                                                   DateTime?
+  image                                                           String?
+  banner                                                          String?
+  bio                                                             String?
+  password                                                        String?
+  referredBy                                                      String?
+  role                                                            UserRole                      @default(USER)
+  isTwoFactorEnabled                                              Boolean                       @default(false)
+  createdAt                                                       DateTime                      @default(now())
+  updatedAt                                                       DateTime                      @updatedAt
+  web3ModeEnabled                                                 Boolean                       @default(false)
+  siteNoticeDismissedVersion                                      Int                           @default(0)
+  
+  // ─── Verification Tier System ───
+  // These fields determine the user's verification tier for view strength calculations
+  verificationTier                                                UserVerificationTier          @default(ANONYMOUS)
+  verificationScore                                               Int                           @default(0) // Calculated score from all verifications
+  
+  // OAuth/Social verifications (tracked in Account but summarized here for quick access)
+  hasGoogleAuth                                                   Boolean                       @default(false)
+  hasDiscordAuth                                                  Boolean                       @default(false)
+  hasGithubAuth                                                   Boolean                       @default(false)
+  
+  // Web3 verifications
+  hasVerifiedWallet                                               Boolean                       @default(false) // Any wallet with signature verification
+  hasWeb3Payment                                                  Boolean                       @default(false) // Made a blockchain transaction
+  
+  // Web2 payment verifications
+  hasWeb2Payment                                                  Boolean                       @default(false) // Verified card/PayPal etc
+  
+  // Phone verification
+  phoneNumber                                                     String?                       @unique
+  phoneVerified                                                   DateTime?
+  phoneCountryCode                                                String?                       // e.g., "NO", "US"
+  
+  Account                                                         Account[]
+  Cart                                                            Cart?
+  Company_Company_creatorIdToUser                                 Company[]                     @relation("Company_creatorIdToUser")
+  Company_Company_ownerIdToUser                                   Company[]                     @relation("Company_ownerIdToUser")
+  Conversation                                                    Conversation[]
+  ConversationRepost                                              ConversationRepost[]
+  ConversationView                                                ConversationView[]
+  Employee                                                        Employee[]
+  EmployeeTermination_EmployeeTermination_employeeUserIdToUser    EmployeeTermination[]         @relation("EmployeeTermination_employeeUserIdToUser")
+  EmployeeTermination_EmployeeTermination_initiatedByUserIdToUser EmployeeTermination[]         @relation("EmployeeTermination_initiatedByUserIdToUser")
+  JobRequest                                                      JobRequest[]
+  Message                                                         Message[]
+  Order                                                           Order[]
+  Package                                                         Package[]
+  PhoneVerification                                               PhoneVerification[]
+  Product                                                         Product[]
+  Review                                                          Review[]
+  SecurityActionToken                                             SecurityActionToken[]
+  TwoFactorConfirmation                                           TwoFactorConfirmation?
+  Wallet                                                          Wallet[]
+  WalletVerificationChallenge                                     WalletVerificationChallenge[]
+  WarehouseLocation                                               WarehouseLocation[]
+  
+  // Social relationships
+  followers                                                       Follow[]                      @relation("UserFollowers")
+  following                                                       Follow[]                      @relation("UserFollowing")
+  sentFriendRequests                                              FriendRequest[]               @relation("SentFriendRequests")
+  receivedFriendRequests                                          FriendRequest[]               @relation("ReceivedFriendRequests")
+  friendshipsA                                                    Friendship[]                  @relation("FriendshipsA")
+  friendshipsB                                                    Friendship[]                  @relation("FriendshipsB")
+  
+  // Pulse system
+  pulses                                                          Pulse[]
+  privacySettings                                                 UserPrivacySettings?
+}
+
+model VerificationToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model Wallet {
+  id             String      @id @default(cuid())
+  label          String
+  family         ChainFamily
+  chainId        Int?
+  solanaCluster  String?
+  address        String
+  isDefault      Boolean     @default(false)
+  ownerUserId    String?
+  ownerCompanyId String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  verifiedAt     DateTime?
+  Product        Product[]
+  Company        Company?    @relation(fields: [ownerCompanyId], references: [id])
+  User           User?       @relation(fields: [ownerUserId], references: [id])
+}
+
+model WalletVerificationChallenge {
+  id            String      @id @default(cuid())
+  userId        String
+  family        ChainFamily
+  address       String
+  chainId       Int?
+  solanaCluster String?
+  nonce         String
+  message       String
+  expires       DateTime
+  usedAt        DateTime?
+  createdAt     DateTime    @default(now())
+  User          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expires])
+  @@index([userId, family, address])
+}
+
+model WarehouseLocation {
+  id         String      @id @default(cuid())
+  userId     String?
+  companyId  String?
+  postalCode String
+  address    String
+  city       String
+  country    String
+  latitude   Float?
+  longitude  Float?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  Inventory  Inventory[]
+  Company    Company?    @relation(fields: [companyId], references: [id])
+  User       User?       @relation(fields: [userId], references: [id])
+
+  @@unique([companyId, postalCode])
+}
+
+enum ChainFamily {
+  EVM
+  SOLANA
+}
+
+enum CompanyOrgType {
+  ENK
+  AS
+  ANS
+  DA
+  SA
+  FORENING
+  NUF
+  OTHER
+}
+
+enum ConversationType {
+  PUBLIC_THREAD
+  PRIVATE_DM
+  GROUP
+  RESTRICTED
+}
+
+enum ConversationVisibility {
+  PUBLIC
+  PARTICIPANTS
+  ROLE_BASED
+  CUSTOM
+}
+
+enum DeletionVisibility {
+  PUBLIC
+  PRIVATE
 }
 
 enum EmployeeRole {
@@ -22,49 +668,18 @@ enum EmployeeRole {
   USER
 }
 
-enum PackageStatus {
-  PENDING
-  IN_TRANSIT
-  DELIVERED
-  EXCEPTION
-}
-
-// Conversation type determines the nature of the conversation
-enum ConversationType {
-  PUBLIC_THREAD    // Open forum-style thread, anyone can view
-  PRIVATE_DM       // Direct message between 2 users
-  GROUP            // Private group chat with invited participants
-  RESTRICTED       // Visible to specific roles or custom list
-}
-
-// Who can see/read the conversation
-enum ConversationVisibility {
-  PUBLIC           // Anyone can read
-  PARTICIPANTS     // Only participants can read
-  ROLE_BASED       // Only users with specific roles can read
-  CUSTOM           // Custom list of allowed viewers
-}
-
-// Who can reply/post messages
-enum ReplyPermission {
-  EVERYONE         // Anyone who can view can reply
-  PARTICIPANTS     // Only participants can reply
-  MENTIONED        // Only mentioned users can reply
-  MODS_ONLY        // Only moderators/admins can reply
-  CREATOR_ONLY     // Only the creator can post (announcement mode)
-}
-
-// Deletion visibility - how the pending deletion is shown
-enum DeletionVisibility {
-  PUBLIC           // Shows "This thread is being deleted in X days"
-  PRIVATE          // Silent deletion, no public notice
-}
-
 enum OrderStatus {
   PENDING
   COMPLETED
   FAILED
   CANCELLED
+}
+
+enum PackageStatus {
+  PENDING
+  IN_TRANSIT
+  DELIVERED
+  EXCEPTION
 }
 
 enum PaymentMethod {
@@ -84,22 +699,17 @@ enum PaymentStatus {
   FAILED
 }
 
-// NEW: which chain family a wallet/token belongs to
-enum ChainFamily {
-  EVM
-  SOLANA
+enum ReplyPermission {
+  EVERYONE
+  PARTICIPANTS
+  MENTIONED
+  MODS_ONLY
+  CREATOR_ONLY
 }
 
-// Company legal form (Norway-inspired)
-enum CompanyOrgType {
-  ENK
-  AS
-  ANS
-  DA
-  SA
-  FORENING
-  NUF
-  OTHER
+enum SecurityActionType {
+  WEB3_MODE_ENABLE
+  WEB3_MODE_DISABLE
 }
 
 enum TerminationStatus {
@@ -108,642 +718,156 @@ enum TerminationStatus {
   FINALIZED
 }
 
-model User {
-  id                    String                 @id @default(cuid())
-  name                  String?
-  email                 String?                @unique
-  emailVerified         DateTime?
-  image                 String?
-  password              String?
-  referredBy            String?
-  role                  UserRole               @default(USER)
-
-  // Versioned site notice dismissal (e.g. "Under development" banner)
-  siteNoticeDismissedVersion Int               @default(0)
-
-  // NEW: default Web2 UX, opt-in Web3 features
-  web3ModeEnabled       Boolean                @default(false)
-
-  accounts              Account[]
-  productsListed        Product[]              @relation("ProductsListed")
-  reviews               Review[]
-  isTwoFactorEnabled    Boolean                @default(false)
-  twoFactorConfirmation TwoFactorConfirmation?
-  createdCompanies      Company[]              @relation("Creator")
-  ownedCompanies        Company[]              @relation("Owner")
-  Employee              Employee[]
-  Package               Package[]
-  warehouseLocations    WarehouseLocation[]    @relation("UserWarehouses")
-  carts                 Cart[]
-  orders                Order[]
-  jobRequests           JobRequest[]
-  messages              Message[]              @relation("UserMessages")
-  createdConversations  Conversation[]         @relation("CreatedConversations")
-  conversationViews     ConversationView[]     @relation("UserConversationViews")
-  conversationReposts   ConversationRepost[]   @relation("UserConversationReposts")
-
-  // NEW: user-scoped wallets
-  wallets               Wallet[]               @relation("UserWallets")
-
-  // NEW: security-sensitive action confirmations (e.g. enable/disable Web3 mode)
-  securityActionTokens  SecurityActionToken[]
-
-  // NEW: wallet-ownership verification challenges
-  walletVerificationChallenges WalletVerificationChallenge[]
-
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-
-  terminationRequestsInitiated EmployeeTermination[] @relation("TerminationInitiator")
-  terminationsAsEmployee       EmployeeTermination[] @relation("TerminatedEmployee")
+enum UserRole {
+  OWNER
+  ADMIN
+  USER
 }
 
-enum SecurityActionType {
-  WEB3_MODE_ENABLE
-  WEB3_MODE_DISABLE
+// ─── Social Features ─────────────────────────────────────────────────────────
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  
+  follower    User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+  
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
 }
 
-model SecurityActionToken {
-  id        String             @id @default(cuid())
-  userId    String
-  email     String
-  token     String             @unique
-  action    SecurityActionType
-  expires   DateTime
-  createdAt DateTime           @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([email, action])
-  @@index([userId, action])
+model FriendRequest {
+  id         String              @id @default(cuid())
+  senderId   String
+  receiverId String
+  status     FriendRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  
+  sender     User                @relation("SentFriendRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User                @relation("ReceivedFriendRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  @@unique([senderId, receiverId])
+  @@index([receiverId, status])
 }
 
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model VerificationToken {
-  id      String   @id @default(cuid())
-  email   String
-  token   String   @unique
-  expires DateTime
-
-  @@unique([email, token])
-}
-
-model PasswordResetToken {
-  id      String   @id @default(cuid())
-  email   String
-  token   String   @unique
-  expires DateTime
-
-  @@unique([email, token])
-}
-
-model TwoFactorToken {
-  id      String   @id @default(cuid())
-  email   String
-  token   String   @unique
-  expires DateTime
-
-  @@unique([email, token])
-}
-
-model TwoFactorConfirmation {
-  id String @id @default(cuid())
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId])
-}
-
-// ───────────────────────────────────────────────────────────────────────────────
-// PRODUCTS RELATED
-// ───────────────────────────────────────────────────────────────────────────────
-
-model Product {
-  id               String            @id @default(cuid())
-  title            String
-  description      String
-  category         String
-  price            Float
-  stock            Int
-  shipFromPostalId String
-  image            String[]
-  specifications   Json?
-  userId           String
-  user             User              @relation("ProductsListed", fields: [userId], references: [id])
-  companyId        String?
-  company          Company?          @relation("CompanyProducts", fields: [companyId], references: [id])
-  inventory        Inventory[]
-  shippingDetails  ShippingDetails[]
-  reviews          Review[]
-  cartItems        CartItem[]
-
-  // NEW: where payments for this product should be received
-  receiverWalletId String?
-  receiverWallet   Wallet?           @relation("ProductReceiverWallet", fields: [receiverWalletId], references: [id])
-
-  // NEW: optional token allowlist for this product
-  acceptedTokens   ProductAcceptedToken[]
-
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-}
-
-model Inventory {
-  id          String            @id @default(cuid())
-  quantity    Int
-  stock       Int               @default(0)
-  warehouseId String
-  productId   String
-  warehouse   WarehouseLocation @relation(fields: [warehouseId], references: [id])
-  product     Product           @relation(fields: [productId], references: [id])
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  version     Int               @default(0)
-
-  @@unique([id, version])
-}
-
-model SpecificationsDetails {
+model Friendship {
   id        String   @id @default(cuid())
+  userAId   String
+  userBId   String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  
+  userA     User     @relation("FriendshipsA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User     @relation("FriendshipsB", fields: [userBId], references: [id], onDelete: Cascade)
+  
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
 }
 
-model ShippingDetails {
-  id        String   @id @default(cuid())
-  method    String
-  price     Float
-  regions   String[]
-  productId String
-  product   Product? @relation(fields: [productId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
 }
 
-model Review {
-  id         String   @id @default(cuid())
-  authorName String?
-  rating     Float
-  comment    String
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id])
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-}
+// ─── Pulse System (Like/Dislike) ─────────────────────────────────────────────
 
-// ───────────────────────────────────────────────────────────────────────────────
-// Company Related
-// ───────────────────────────────────────────────────────────────────────────────
-
-model Company {
-  id                 String              @id @default(cuid())
-  name               String
-  description        String?
-  websiteUrl         String?
-  logo               String[]
-  bannerImage        String[]
-  colorScheme        String?
-
-  // Registration / legal metadata
-  orgType             CompanyOrgType?
-  orgNumber           String?             @unique
-  // App policy defaults (not legal advice): used for UX/warnings
-  employmentNoticeDays Int               @default(14)
-
-  creatorId          String
-  ownerId            String
-  creator            User                @relation("Creator", fields: [creatorId], references: [id])
-  owner              User                @relation("Owner", fields: [ownerId], references: [id])
-  employees          Employee[]
-  terminations       EmployeeTermination[]
-  usesShipping       Boolean             @default(false)
-  warehouseLocations WarehouseLocation[] @relation("CompanyWarehouses")
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  Sale               Sale[]
-  MonthlyReport      MonthlyReport[]
-  Package            Package[]
-  Product            Product[]           @relation("CompanyProducts")
-  conversations      Conversation[]      @relation("CompanyConversations")
-
-  // NEW: company-scoped wallets
-  wallets            Wallet[]            @relation("CompanyWallets")
-}
-
-model EmployeeTermination {
-  id              String            @id @default(cuid())
-  companyId        String
-  employeeUserId   String
-  initiatedByUserId String
-
-  status          TerminationStatus @default(REQUESTED)
-  reason          String
-  noticeDays      Int
-  requestedAt     DateTime          @default(now())
-  effectiveAt     DateTime
-  cancelledAt     DateTime?
-  finalizedAt     DateTime?
-  metadata        Json?
-
-  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employee        User              @relation("TerminatedEmployee", fields: [employeeUserId], references: [id], onDelete: Cascade)
-  initiatedBy     User              @relation("TerminationInitiator", fields: [initiatedByUserId], references: [id], onDelete: Cascade)
-
-  @@index([companyId, employeeUserId])
-  @@index([companyId, status])
-}
-
-model Employee {
-  id          String       @id @default(cuid())
-  userId      String
-  companyId   String
-  user        User         @relation(fields: [userId], references: [id])
-  company     Company      @relation(fields: [companyId], references: [id])
-  role        EmployeeRole
-  jobTitle    String?
-  permissions Json
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-}
-
-// Where stock is located
-model WarehouseLocation {
-  id         String      @id @default(cuid())
-  userId     String?
-  companyId  String?
-  postalCode String
-  address    String
-  city       String
-  country    String
-  latitude   Float?
-  longitude  Float?
-  inventory  Inventory[]
-
-  user    User?    @relation("UserWarehouses", fields: [userId], references: [id])
-  company Company? @relation("CompanyWarehouses", fields: [companyId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([companyId, postalCode])
-}
-
-// ───────────────────────────────────────────────────────────────────────────────
-// NEW: Wallets and accepted tokens
-// ───────────────────────────────────────────────────────────────────────────────
-
-model Wallet {
-  id              String      @id @default(cuid())
-  label           String
-  family          ChainFamily
-  // EVM specifics
-  chainId         Int?
-  // Solana specifics
-  solanaCluster   String?
-  address         String
-  isDefault       Boolean     @default(false)
-
-  // When linked via a signed challenge, mark verification timestamp.
-  verifiedAt      DateTime?
-
-  // ownership (one of these is set)
-  ownerUserId     String?
-  ownerCompanyId  String?
-
-  user            User?       @relation("UserWallets", fields: [ownerUserId], references: [id])
-  company         Company?    @relation("CompanyWallets", fields: [ownerCompanyId], references: [id])
-
-  // products that pay to this wallet
-  products        Product[]   @relation("ProductReceiverWallet")
-
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-}
-
-model WalletVerificationChallenge {
-  id            String      @id @default(cuid())
-  userId        String
-  family        ChainFamily
-  address       String
-  chainId       Int?
-  solanaCluster String?
-  nonce         String
-  message       String      @db.Text
-  expires       DateTime
-  usedAt        DateTime?
-  createdAt     DateTime    @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, family, address])
-  @@index([expires])
-}
-
-model ProductAcceptedToken {
-  id           String      @id @default(cuid())
-  productId    String
-  product      Product     @relation(fields: [productId], references: [id])
-
-  family       ChainFamily
-  tokenAddress String?     // EVM/PRC20
-  tokenMint    String?     // SPL
-  symbol       String
-  decimals     Int
-
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  @@unique([productId, family, symbol])
-}
-
-// ───────────────────────────────────────────────────────────────────────────────
-// Analytics / Shipping / Cart / Orders / Chat
-// ───────────────────────────────────────────────────────────────────────────────
-
-model Sale {
-  id           String   @id @default(cuid())
-  companyId    String
-  company      Company  @relation(fields: [companyId], references: [id])
-  date         DateTime
-  totalAmount  Float
-  profit       Float
-  productsSold Json
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-model MonthlyReport {
-  id             String   @id @default(cuid())
-  companyId      String
-  company        Company  @relation(fields: [companyId], references: [id])
-  year           Int
-  month          Int
-  totalSales     Float
-  totalProfit    Float
-  productSummary Json
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-
-model Package {
-  id                String        @id @default(cuid())
-  trackingNumber    String
-  companyId         String
-  company           Company       @relation(fields: [companyId], references: [id])
-  userId            String
-  user              User          @relation(fields: [userId], references: [id])
-  status            PackageStatus
-  estimatedDelivery DateTime?
-  history           Json
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-}
-
-model Cart {
-  id        String     @id @default(cuid())
-  userId    String     @unique
-  user      User       @relation(fields: [userId], references: [id])
-  items     CartItem[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-}
-
-model CartItem {
-  id        String   @id @default(cuid())
-  cartId    String
-  cart      Cart     @relation(fields: [cartId], references: [id])
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  quantity  Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([productId, cartId])
-}
-
-model Order {
-  id              String      @id @default(cuid())
-  userId          String
-  user            User        @relation(fields: [userId], references: [id])
-  totalAmount     Float
-  status          OrderStatus @default(PENDING)
-  commentOrder    String?
-  payment         Payment?
-  transactionId   String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-}
-
-model Payment {
-  id              String        @id @default(cuid())
-  orderId         String        @unique
-  order           Order         @relation(fields: [orderId], references: [id])
-  method          PaymentMethod
-  status          PaymentStatus @default(PENDING)
-  commentPay      String?
-  transactionId   String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-}
-
-model JobRequest {
-  id              String   @id @default(cuid())
-  title           String?
-  descriptions    String[]
-  images          String[]
-  links           String[]
-  docs            String[]
-  price           Float?
-  negotiable      Boolean?
-  paymentMethod   String?
-  delivery        String?
-  additionalNotes String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @default(now())
-  email           String
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyIds      String[] @default([])
-}
-
-// Messaging Models
-model Conversation {
-  id               String                  @id @default(cuid())
-  title            String?
-  description      String?                 // Optional description for public threads
-  userId           String                  // Creator
-  user             User                    @relation("CreatedConversations", fields: [userId], references: [id])
-  participants     String[]                // Array of user IDs (kept for backwards compatibility)
-  companyId        String?
-  company          Company?                @relation("CompanyConversations", fields: [companyId], references: [id])
-  messages         Message[]               @relation("ConversationMessages")
-
-  // Reposts
-  // - Simple repost: join table (no added text)
-  // - Quote repost: a new Conversation that references the original via repostOfConversationId
-  reposts           ConversationRepost[]      @relation("ConversationReposts")
-  repostOfConversationId String?
-  repostOfConversation   Conversation?        @relation("ConversationQuoteReposts", fields: [repostOfConversationId], references: [id], onDelete: SetNull)
-  quoteReposts           Conversation[]       @relation("ConversationQuoteReposts")
-
-  // New fields for visibility and permissions
-  type             ConversationType        @default(PRIVATE_DM)
-  visibility       ConversationVisibility  @default(PARTICIPANTS)
-  replyPermission  ReplyPermission         @default(PARTICIPANTS)
-
-  // Optional: allowed roles for ROLE_BASED visibility (stored as JSON array of role strings)
-  allowedRoles     String[]                @default([])
-
-  // Optional: custom viewer list for CUSTOM visibility (user IDs)
-  customViewers    String[]                @default([])
-
-  // Moderation
-  isPinned         Boolean                 @default(false)
-  isLocked         Boolean                 @default(false)  // No new replies allowed
-
-  // Topics/Tags for forum browsing
-  tags             String[]                @default([])
-
-  // Engagement metrics (for "reach over followers" sorting)
-  // These track actual engagement, not vanity metrics
-  viewCount        Int                     @default(0)      // Total page loads/views
-  uniqueViewCount  Int                     @default(0)      // Unique users who viewed
-  replyCount       Int                     @default(0)      // Total replies (cached for performance)
-  uniqueRepliers   Int                     @default(0)      // Unique users who replied
-  lastActivityAt   DateTime                @default(now())  // Last message or interaction
-  views            ConversationView[]      @relation("ConversationViews")
-
-  // Deletion system (tiered based on reach)
-  deletionRequestedAt  DateTime?                            // When creator requested deletion
-  deletionScheduledFor DateTime?                            // When it will actually be deleted
-  deletionVisibility   DeletionVisibility  @default(PRIVATE) // Public notice or silent deletion
-  isAnonymized         Boolean             @default(false)  // Creator anonymized immediately on delete request
-  originalUserId       String?                              // Store original creator ID when anonymized
-
-  // Suspicious activity detection (for viral velocity checks)
-  suspiciousActivity   Boolean             @default(false)  // Flagged for admin review
-  suspiciousReason     String?                              // Why it was flagged
-
-  // Poll attached to conversation (optional)
-  poll             Poll?                   @relation("ConversationPoll")
-
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
-}
-
-model ConversationRepost {
+model Pulse {
   id             String       @id @default(cuid())
   conversationId String
-  conversation   Conversation @relation("ConversationReposts", fields: [conversationId], references: [id], onDelete: Cascade)
   userId         String
-  user           User         @relation("UserConversationReposts", fields: [userId], references: [id], onDelete: Cascade)
+  type           PulseType    // POSITIVE or NEGATIVE
   createdAt      DateTime     @default(now())
-
+  updatedAt      DateTime     @updatedAt
+  
+  Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  User           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   @@unique([conversationId, userId])
   @@index([conversationId])
   @@index([userId])
+  @@index([type])
 }
 
-// Track unique views per user for conversations
-model ConversationView {
-  id             String        @id @default(cuid())
-  conversationId String
-  conversation   Conversation  @relation("ConversationViews", fields: [conversationId], references: [id], onDelete: Cascade)
-  userId         String        // Who viewed (null for anonymous - but we only track logged-in users)
-  user           User          @relation("UserConversationViews", fields: [userId], references: [id], onDelete: Cascade)
-  viewCount      Int           @default(1)  // How many times this user viewed
-  firstViewedAt  DateTime      @default(now())
-  lastViewedAt   DateTime      @default(now())
+enum PulseType {
+  POSITIVE   // Like / upvote
+  NEGATIVE   // Dislike / downvote (hidden by default)
+}
 
-  @@unique([conversationId, userId])  // One record per user per conversation
-  @@index([conversationId])
+// ─── User Verification Tier System ───────────────────────────────────────────
+// Determines the strength/weight of a user's views for reach calculation
+
+enum UserVerificationTier {
+  ANONYMOUS          // Not logged in (views have lowest weight)
+  WALLET_ONLY        // Connected web3 wallet but no other verification
+  WEB2_BASIC         // Signed up with email, no payment yet
+  WEB3_BASIC         // Web3 wallet + signed message, no payment
+  SOCIAL_BASIC       // Discord/GitHub OAuth only
+  SOCIAL_VERIFIED    // Google OAuth (higher trust - real identity)
+  WEB2_PAYMENT       // Verified web2 payment method (card/PayPal)
+  WEB3_VERIFIED      // Google + Verified wallet with signature
+  WEB3_PAYMENT       // Crypto purchase completed
+  PAYMENT_VERIFIED   // Both Web2 AND Web3 payment verified
+  PHONE_VERIFIED     // Phone number verified via SMS/call
+  FULLY_VERIFIED     // Google + Web3 + Payment + Phone (highest trust)
+}
+
+// Phone verification records - supports multiple providers
+model PhoneVerification {
+  id              String                    @id @default(cuid())
+  userId          String
+  phoneNumber     String                    // E.164 format: +4712345678
+  countryCode     String                    // ISO 3166-1 alpha-2: NO, US, etc.
+  provider        PhoneVerificationProvider @default(SVEVE)
+  code            String?                   // OTP code (hashed)
+  attempts        Int                       @default(0)
+  status          PhoneVerificationStatus   @default(PENDING)
+  expiresAt       DateTime
+  verifiedAt      DateTime?
+  lastSentAt      DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  
+  User            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   @@index([userId])
+  @@index([phoneNumber])
+  @@index([status])
 }
 
-// Poll for conversations - allows voting within a thread
-model Poll {
-  id               String        @id @default(cuid())
-  question         String        // The poll question
-  conversationId   String        @unique
-  conversation     Conversation  @relation("ConversationPoll", fields: [conversationId], references: [id], onDelete: Cascade)
-  creatorId        String        // Who created the poll
-
-  // Poll configuration
-  allowMultiple    Boolean       @default(false)  // Can vote for multiple options
-  isAnonymous      Boolean       @default(false)  // Hide who voted for what
-  expiresAt        DateTime?                      // When voting closes (null = never)
-
-  // Poll options and votes (stored as relations)
-  options          PollOption[]  @relation("PollOptions")
-
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+enum PhoneVerificationProvider {
+  SVEVE              // Norwegian SMS provider (sveve.no)
+  LINK_MOBILITY      // Norwegian/Nordic provider (linkmobility.com)
+  TWILIO             // International fallback
+  VONAGE             // International fallback (formerly Nexmo)
+  VIPPS              // Norwegian Vipps login (future)
+  BANKID             // Norwegian BankID (future - highest trust)
 }
 
-// Poll option - each choice in a poll
-model PollOption {
-  id        String      @id @default(cuid())
-  pollId    String
-  poll      Poll        @relation("PollOptions", fields: [pollId], references: [id], onDelete: Cascade)
-  text      String      // The option text
-  order     Int         @default(0)  // Display order
-
-  // Votes for this option
-  votes     PollVote[]  @relation("OptionVotes")
-
-  createdAt DateTime    @default(now())
+enum PhoneVerificationStatus {
+  PENDING            // Code sent, awaiting verification
+  VERIFIED           // Successfully verified
+  EXPIRED            // Code expired
+  BLOCKED            // Too many attempts
 }
 
-// Poll vote - tracks who voted for what
-model PollVote {
-  id        String      @id @default(cuid())
-  optionId  String
-  option    PollOption  @relation("OptionVotes", fields: [optionId], references: [id], onDelete: Cascade)
-  userId    String
+// ─── User Privacy Settings ───────────────────────────────────────────────────
 
-  createdAt DateTime    @default(now())
-
-  // Ensure one vote per user per option
-  @@unique([optionId, userId])
-}
-
-model Message {
-  id             String        @id @default(cuid())
-  content        String
-  senderId       String
-  sender         User          @relation("UserMessages", fields: [senderId], references: [id])
-  conversationId String
-  conversation   Conversation  @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
-  imageUrl       String?
-
-  // Mentions: array of user IDs mentioned in this message
-  mentions       String[]      @default([])
-
-  // Optional: parent message ID for threaded replies
-  parentId       String?
-
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  editedAt       DateTime?
+model UserPrivacySettings {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  showPulsesGiven        Boolean  @default(true)  // Show what user has pulsed
+  showPulsesReceived     Boolean  @default(true)  // Show pulse count on user's content
+  showNegativePulses     Boolean  @default(false) // Show negative pulse counts (hidden by default)
+  showRepulses           Boolean  @default(true)  // Show repulse activity
+  allowNegativePulses    Boolean  @default(true)  // Allow others to negative pulse your content
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  
+  User                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

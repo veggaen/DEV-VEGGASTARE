@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       // Fetch companies where the user has the specific permission
       const companiesWithPermission = await dbPrisma.company.findMany({
         where: {
-          employees: {
+          Employee: {
             some: {
               userId: userId,
               permissions: {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
           },
         },
         include: {
-          employees: {
+          Employee: {
             where: {
               userId: userId,
               permissions: {

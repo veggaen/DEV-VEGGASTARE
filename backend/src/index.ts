@@ -1,20 +1,28 @@
+import dotenv from 'dotenv';
+dotenv.config(); // Load env vars FIRST before any other imports that use them
+
 import Hapi from '@hapi/hapi';
+import { z } from 'zod';
 import { initWebSocketServer } from './websocket';
 import registerRoutes from './routes';
-import dotenv from 'dotenv';
 import http from 'http';
 import { isPusherConfigured, triggerEvent } from './pusher';
 import { dbbPrisma } from './db';
 import { isDbConfigured } from './db';
-
-dotenv.config();
 const LOG_PREFIX = '[backend/src/index.ts]';
 const shouldLogRequests =
   process.env.LOG_REQUESTS === '1' ||
   process.env.LOG_HTTP === '1' ||
   process.env.BACKEND_LOG_REQUESTS === '1';
 
-const init = async () => {
+// Zod schema for pusher trigger
+const pusherTriggerSchema = z.object({
+  channel: z.string().min(1, 'channel is required'),
+  event: z.string().min(1, 'event is required'),
+  data: z.unknown(),
+});
+
+const init = async (): Promise<void> => {
   const server = Hapi.server({
     port: process.env.PORT || 3001,
     host: '0.0.0.0',
@@ -77,7 +85,13 @@ const init = async () => {
           .response({ error: 'Pusher is not configured on this server.' })
           .code(503);
       }
-      const { channel, event, data } = request.payload as any;
+      const parsed = pusherTriggerSchema.safeParse(request.payload);
+      if (!parsed.success) {
+        return h
+          .response({ error: 'Invalid payload', details: parsed.error.flatten() })
+          .code(400);
+      }
+      const { channel, event, data } = parsed.data;
       triggerEvent(channel, event, data);
       return h.response({ status: 'success' }).code(200);
     },

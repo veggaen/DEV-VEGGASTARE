@@ -158,14 +158,43 @@ const CompanyDetails = () => {
         if (loadError) return <div className="text-center py-4">{loadError}</div>;
         if (!company) return <div className="text-center py-4">Company not found.</div>;
 
+        // Check if user is member/owner of company
+        const isOwner = company.ownerId === clientUser?.id;
+        const isCreator = company.creatorId === clientUser?.id;
+        const currentEmployee = company.employees.find(employee => employee.userId === clientUser?.id);
+        const isMember = !!currentEmployee;
+        const isAdminUser = (clientUser as any)?.role === 'ADMIN' || (clientUser as any)?.role === 'OWNER';
+        const hasInternalAccess = isOwner || isCreator || isMember || isAdminUser;
+
+        // Redirect non-members to public page
+        if (!hasInternalAccess) {
+            return (
+                <div className="w-full bg-slate-50 dark:bg-slate-950">
+                    <div className="mx-auto w-full max-w-screen-2xl px-4 py-12 text-center">
+                        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white mb-4">Access Restricted</h1>
+                        <p className="text-slate-600 dark:text-slate-300 mb-6">
+                            You don&apos;t have permission to access company settings.
+                        </p>
+                        <Link
+                            href={`/nexus/company/${company.id}`}
+                            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                        >
+                            View Company Profile
+                        </Link>
+                    </div>
+                </div>
+            );
+        }
+
         const showRegistrationPrompt =
-            !company.orgType ||
-            !((company as any).orgNumber as string | null | undefined) ||
-            !((company as any).employmentNoticeDays as number | null | undefined);
+            hasInternalAccess && (
+                !company.orgType ||
+                !((company as any).orgNumber as string | null | undefined) ||
+                !((company as any).employmentNoticeDays as number | null | undefined)
+            );
         const canUpdateRegistration =
                 company.ownerId === clientUser?.id ||
-                (clientUser as any)?.role === 'ADMIN' ||
-                (clientUser as any)?.role === 'OWNER';
+                isAdminUser;
 
         const saveRegistration = async () => {
                 if (!canUpdateRegistration) return;
@@ -240,7 +269,7 @@ const CompanyDetails = () => {
                 return rolePriority[a.role] - rolePriority[b.role];
         });
 
-        const currentUserPermissions = company.employees.find(employee => employee.userId === clientUser?.id)?.permissions;
+        const currentUserPermissions = currentEmployee?.permissions;
 
         const formatDate = (date: Date) => {
                 return formatDistanceToNow(new Date(date), { addSuffix: true });
@@ -279,7 +308,17 @@ const CompanyDetails = () => {
                                     </div>
                                     <div className="pb-1">
                                         <h1 className="text-xl font-semibold tracking-tight text-white md:text-3xl">{company.name}</h1>
-                                        <p className="mt-1 text-sm text-white/80">Nexus • Company overview</p>
+                                        <div className="mt-1 flex items-center gap-3 text-sm text-white/80">
+                                            <span>Company Settings</span>
+                                            <span className="opacity-50">•</span>
+                                            <Link href={`/nexus/company/${company.id}`} className="hover:text-white hover:underline underline-offset-2">
+                                                Public profile
+                                            </Link>
+                                            <span className="opacity-50">•</span>
+                                            <Link href={`/nexus/company/${company.id}/hub`} className="hover:text-white hover:underline underline-offset-2">
+                                                Hub
+                                            </Link>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -395,36 +434,52 @@ const CompanyDetails = () => {
                                 </div>
                             ) : null}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                                {hasInternalAccess && (
+                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
+                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Company ID:</p>
+                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.id || 'N/A'}</p>
+                                    </div>
+                                )}
                                 <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Company ID:</p>
-                                    <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.id || 'N/A'}</p>
-                                </div>
-                                <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Company Creator:</p>
+                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Founded by:</p>
                                     <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.creator.name || 'N/A'}</p>
                                 </div>
+                                {hasInternalAccess && (
+                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
+                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Company Owner:</p>
+                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.owner.name || 'N/A'}</p>
+                                    </div>
+                                )}
+                                {hasInternalAccess && (
+                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
+                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Color Scheme:</p>
+                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.colorScheme || 'N/A'}</p>
+                                    </div>
+                                )}
+                                {hasInternalAccess && (
+                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
+                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Uses Shipping:</p>
+                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.usesShipping ? 'Yes' : 'No'}</p>
+                                    </div>
+                                )}
                                 <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Company Owner:</p>
-                                    <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.owner.name || 'N/A'}</p>
-                                </div>
-                                <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Color Scheme:</p>
-                                    <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.colorScheme || 'N/A'}</p>
-                                </div>
-                                <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Uses Shipping:</p>
-                                    <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.usesShipping ? 'Yes' : 'No'}</p>
-                                </div>
-                                <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Created At:</p>
+                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Founded:</p>
                                     <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{formatDate(company.createdAt)}</p>
                                 </div>
-                                <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Last Updated:</p>
-                                    <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{formatDate(company.updatedAt)}</p>
-                                </div>
+                                {hasInternalAccess && (
+                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
+                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Last Updated:</p>
+                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{formatDate(company.updatedAt)}</p>
+                                    </div>
+                                )}
+                                {!hasInternalAccess && company.employees && (
+                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
+                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Team Size:</p>
+                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.employees.length} {company.employees.length === 1 ? 'member' : 'members'}</p>
+                                    </div>
+                                )}
                             </div>
-                            {company.usesShipping && company.warehouseLocations && company.warehouseLocations.length > 0 && (
+                            {hasInternalAccess && company.usesShipping && company.warehouseLocations && company.warehouseLocations.length > 0 && (
                                 <div className="border-t border-gray-200 dark:border-gray-700 mt-2">
                             <div className='flex justify-start items-center w-full h-10'>
                                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Warehouse Locations:</h2>
@@ -456,7 +511,7 @@ const CompanyDetails = () => {
                                     </ul>
                                 </div>
                             )}
-                            {company.employees && company.employees.length > 0 && (
+                            {hasInternalAccess && company.employees && company.employees.length > 0 && (
                                 <div className="border-t border-gray-200 dark:border-gray-700 mt-2">
                                     <div className='flex justify-start items-center w-full h-10'>
                                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Employees:</h2>
@@ -561,15 +616,17 @@ const CompanyDetails = () => {
                                     </div>
                                 </div>
                             )}
-                            <div className="border-t border-gray-200 dark:border-gray-700">
-                                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Add a New Employee</h1>
-                                <MyNewEmployeeForm
-                                    companyId={company.id}
-                                    handleNewEmployee={handleNewEmployee}
-                                    change={change}
-                                    setChange={setChange}
-                                />
-                            </div>
+                            {hasInternalAccess && (
+                                <div className="border-t border-gray-200 dark:border-gray-700">
+                                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Add a New Employee</h1>
+                                    <MyNewEmployeeForm
+                                        companyId={company.id}
+                                        handleNewEmployee={handleNewEmployee}
+                                        change={change}
+                                        setChange={setChange}
+                                    />
+                                </div>
+                            )}
                             <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
                                 <Link 
                                     href="/nexus/company" 

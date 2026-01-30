@@ -329,10 +329,10 @@ export const MyProductCreationForm = () => {
     startTransition(() => {
       MyCreateProductAction(values, postalCodes)
         .then((data) => {
-          if (data.error) {
+          if ('error' in data) {
             setError(data.error);
           }
-          if (data.success) {
+          if ('success' in data) {
             setSuccess(data.success);
             handleReset();
           }

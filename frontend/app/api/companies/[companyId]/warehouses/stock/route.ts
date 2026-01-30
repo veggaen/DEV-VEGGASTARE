@@ -18,7 +18,7 @@ export async function GET(
         const warehouses = await dbPrisma.warehouseLocation.findMany({
             where: { companyId: companyId },
             include: {
-                inventory: true,
+                Inventory: true,
             },
         });
 
@@ -27,8 +27,8 @@ export async function GET(
             address: warehouse.address,
             city: warehouse.city,
             country: warehouse.country,
-            initialStock: warehouse.inventory.reduce((acc, item) => acc + item.quantity, 0),
-            currentStock: warehouse.inventory.reduce((acc, item) => acc + item.stock, 0),
+            initialStock: warehouse.Inventory.reduce((acc, item) => acc + item.quantity, 0),
+            currentStock: warehouse.Inventory.reduce((acc, item) => acc + item.stock, 0),
         }));
 
         return NextResponse.json({ warehouses: warehouseData }, { status: 200 });

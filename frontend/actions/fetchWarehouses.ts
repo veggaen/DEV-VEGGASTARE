@@ -1,15 +1,20 @@
 'use server';
 
 import { dbPrisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 
-export async function fetchWarehouses() {
+type WarehouseWithInventory = Prisma.WarehouseLocationGetPayload<{
+  include: { Inventory: { include: { Product: true } } };
+}>;
+
+export async function fetchWarehouses(): Promise<WarehouseWithInventory[]> {
   try {
     console.log('[frontend/actions/fetchWarehouses.ts] Fetching all warehouses');
     const warehouses = await dbPrisma.warehouseLocation.findMany({
       include: {
-        inventory: {
+        Inventory: {
           include: {
-            product: true,
+            Product: true,
           },
         },
       },

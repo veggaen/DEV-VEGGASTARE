@@ -18,16 +18,19 @@ interface InventoryItem {
   id: string;
   stock: number;
   version: number;
-  product: Product;
+  Product: Product;
 }
 
 interface ExtendedWarehouse extends WarehouseLocation {
-  inventory: InventoryItem[];
+  Inventory: InventoryItem[];
 }
 
-const WarehouseDetails = ({ params }: { params: { id: string } }) => {
+const WarehouseDetails = () => {
   const { id } = useParams();
   const warehouseId = Array.isArray(id) ? id[0] : id;
+  if (!warehouseId) {
+    return <div>Warehouse ID is required</div>;
+  }
   const clientUser = useCurrentUser();
   const [warehouse, setWarehouse] = useState<ExtendedWarehouse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,7 +74,7 @@ const WarehouseDetails = ({ params }: { params: { id: string } }) => {
         if (!prevWarehouse) return prevWarehouse;
         return {
           ...prevWarehouse,
-          inventory: prevWarehouse.inventory.map((item) =>
+          Inventory: prevWarehouse.Inventory.map((item) =>
             item.id === data.payload.inventoryId ? { ...item, stock: data.payload.stock, version: data.payload.version } : item
           ),
         };
@@ -187,10 +190,10 @@ const WarehouseDetails = ({ params }: { params: { id: string } }) => {
             </div>
             <div className="warehousedropdown block">
               <ul>
-                {warehouse.inventory.map((item) => (
+                {warehouse.Inventory.map((item) => (
                   <li key={item.id} className="flex justify-between items-center mb-2">
                     <div>
-                      <strong>{item.product.title}</strong> - Stock: {item.stock}
+                      <strong>{item.Product.title}</strong> - Stock: {item.stock}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" onClick={() => handleStockUpdate(item.id, 'add')}>+</Button>

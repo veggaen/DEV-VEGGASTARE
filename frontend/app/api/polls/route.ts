@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     // Check if conversation exists and user can create a poll
     const conversation = await dbPrisma.conversation.findUnique({
       where: { id: conversationId },
-      include: { poll: true },
+      include: { Poll: true },
     });
 
     if (!conversation) {
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if a poll already exists
-    if (conversation.poll) {
+    if (conversation.Poll) {
       return NextResponse.json({ message: 'This conversation already has a poll' }, { status: 400 });
     }
 
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         allowMultiple,
         isAnonymous,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
-        options: {
+        PollOption: {
           create: options.map((text: string, index: number) => ({
             text: text.trim(),
             order: index,
@@ -71,9 +71,9 @@ export async function POST(req: NextRequest) {
         },
       },
       include: {
-        options: {
+        PollOption: {
           include: {
-            votes: true,
+            PollVote: true,
           },
           orderBy: { order: 'asc' },
         },
@@ -102,10 +102,10 @@ export async function GET(req: NextRequest) {
     const poll = await dbPrisma.poll.findUnique({
       where: { conversationId },
       include: {
-        options: {
+        PollOption: {
           include: {
-            votes: true,
-            _count: { select: { votes: true } },
+            PollVote: true,
+            _count: { select: { PollVote: true } },
           },
           orderBy: { order: 'asc' },
         },
@@ -122,7 +122,7 @@ export async function GET(req: NextRequest) {
       ? await dbPrisma.pollVote.findMany({
           where: {
             userId: currentUser.id,
-            option: { pollId: poll.id },
+            PollOption: { pollId: poll.id },
           },
           select: { optionId: true },
         })
@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
     const userVotedOptionIds = userVotes.map((v) => v.optionId);
 
     // Calculate total votes
-    const totalVotes = poll.options.reduce((sum, opt) => sum + opt._count.votes, 0);
+    const totalVotes = poll.PollOption.reduce((sum, opt) => sum + opt._count.PollVote, 0);
 
     // Format response
     const formattedPoll = {
@@ -139,15 +139,15 @@ export async function GET(req: NextRequest) {
       totalVotes,
       userVotedOptionIds,
       isExpired: poll.expiresAt ? new Date(poll.expiresAt) < new Date() : false,
-      options: poll.options.map((opt) => ({
+      options: poll.PollOption.map((opt) => ({
         id: opt.id,
         text: opt.text,
         order: opt.order,
-        voteCount: opt._count.votes,
-        percentage: totalVotes > 0 ? Math.round((opt._count.votes / totalVotes) * 100) : 0,
+        voteCount: opt._count.PollVote,
+        percentage: totalVotes > 0 ? Math.round((opt._count.PollVote / totalVotes) * 100) : 0,
         hasVoted: userVotedOptionIds.includes(opt.id),
         // Only include voter IDs if not anonymous
-        voters: poll.isAnonymous ? [] : opt.votes.map((v) => v.userId),
+        voters: poll.isAnonymous ? [] : opt.PollVote.map((v) => v.userId),
       })),
     };
 

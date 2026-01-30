@@ -15,8 +15,7 @@ export const publicRoutes = [
   "/auth/new-verification",
   "/api/bring-shipping",
   "/api/bring-shipping-suggest-postcode",
-  "/api/companies/employees/add",
-  "/api/companies/employees/remove",
+  // Note: Employee routes removed - they have internal auth checks
   "/api/edgestore/request-upload",
   "/api/edgestore/confirm-upload"
 ];

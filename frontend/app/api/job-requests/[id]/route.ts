@@ -4,7 +4,10 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 
 const LOG_PREFIX = '[frontend/app/api/job-requests/[id]/route.ts]';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+// Next.js 16+ params type
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(req: NextRequest, context: RouteContext) {
   try {
     const session = await MyLibUserAuth();
     const userId = session?.id;
@@ -13,14 +16,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await context.params;
     console.log(LOG_PREFIX, 'Job request for ID: ', id);
 
     // Fetch the job request along with the user who created it
     const jobRequest = await dbPrisma.jobRequest.findUnique({
       where: { id },
       include: {
-        user: true, // Include the user who created the job request
+        User: true, // Include the user who created the job request
       },
     });
 
@@ -35,7 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         OR: [
           { ownerId: userId },
           {
-            employees: {
+            Employee: {
               some: { userId },
             },
           },

@@ -64,6 +64,7 @@ export async function GET(req: Request) {
         email: true,
         image: true,
         role: true,
+        bio: true,
       },
       take: limit,
       orderBy: [
@@ -72,6 +73,28 @@ export async function GET(req: Request) {
       ],
     });
     
+    // Fetch follower counts for all results
+    const userIds = users.map(u => u.id);
+    const followerCounts = await dbPrisma.follow.groupBy({
+      by: ['followingId'],
+      where: { followingId: { in: userIds } },
+      _count: { followingId: true },
+    });
+    
+    const countMap = new Map(
+      followerCounts.map(f => [f.followingId, f._count.followingId])
+    );
+
+    // Check which users the current user is following
+    const followingStatus = await dbPrisma.follow.findMany({
+      where: {
+        followerId: currentUser.id,
+        followingId: { in: userIds },
+      },
+      select: { followingId: true },
+    });
+    const followingSet = new Set(followingStatus.map(f => f.followingId));
+    
     // Process results
     const processedUsers = users.map(user => ({
       id: user.id,
@@ -79,6 +102,9 @@ export async function GET(req: Request) {
       email: user.email || '',
       image: user.image || '/users/avatar.webp',
       role: user.role,
+      bio: user.bio || null,
+      followerCount: countMap.get(user.id) || 0,
+      isFollowing: followingSet.has(user.id),
     }));
     
     return NextResponse.json({

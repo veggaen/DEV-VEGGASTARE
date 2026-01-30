@@ -31,13 +31,12 @@ const createConversationSchema = z.object({
 });
 
 const listConversationsQuerySchema = z.object({
-  filter: z.enum(['mine', 'public', 'all']).optional().default('mine'),
-  sort: z.enum(['recent', 'reach', 'active', 'replies']).optional().default('recent'),
-  limit: z
-    .preprocess((v) => (typeof v === 'string' ? Number.parseInt(v, 10) : v), z.number().int().min(1).max(100))
-    .optional()
-    .default(50),
+  filter: z.enum(['mine', 'public', 'all', 'created', 'participated', 'private']).optional().default('mine'),
+  sort: z.enum(['recent', 'reach', 'active', 'replies', 'popular', 'discussed']).optional().default('recent'),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   cursor: z.string().min(1).optional(),
+  // Filter by specific user - for profile pages
+  creatorId: z.string().min(1).optional(),
 });
 
 export async function POST(req: Request) {
@@ -75,7 +74,7 @@ export async function POST(req: Request) {
     // Process participants - can be user IDs or emails
     let participantIds: string[] = [];
 
-    if (participants.length > 0) {
+    if (participants && participants.length > 0) {
       const participantData = await Promise.all(
         participants.map(async (participant: string) => {
           // Check if participant is an email or a user ID
@@ -137,11 +136,12 @@ export async function POST(req: Request) {
           finalTitle = names.slice(0, 3).join(', ') + (names.length > 3 ? ` +${names.length - 3}` : '');
         }
       } else {
-        finalTitle = `New ${type.replace('_', ' ').toLowerCase()}`;
+        finalTitle = `New ${(type ?? 'conversation').replace('_', ' ').toLowerCase()}`;
       }
     }
 
-    console.log(LOG_PREFIX, `Creating ${type} conversation: "${finalTitle}" with ${allParticipants.length} participants`);
+    const conversationType = type ?? 'PRIVATE_DM';
+    console.log(LOG_PREFIX, `Creating ${conversationType} conversation: "${finalTitle}" with ${allParticipants.length} participants`);
 
     const conversation = await dbPrisma.conversation.create({
       data: {
@@ -202,7 +202,7 @@ export async function GET(req: Request) {
   const queryResult = parseQueryOrError(req, listConversationsQuerySchema);
   if (!queryResult.ok) return queryResult.response;
 
-  const { filter, sort, limit, cursor } = queryResult.data;
+  const { filter, sort, limit, cursor, creatorId } = queryResult.data;
 
   // For public feed, authentication is optional
   const userId = session?.id;
@@ -211,7 +211,49 @@ export async function GET(req: Request) {
   try {
     let whereClause: Record<string, unknown>;
 
-    if (filter === 'public') {
+    // If creatorId is specified, filter by that user's created posts
+    if (creatorId) {
+      if (filter === 'created') {
+        // Only posts created by this user (for profile "Posts" tab)
+        whereClause = {
+          userId: creatorId,
+          visibility: 'PUBLIC', // Only show public posts on profile
+        };
+      } else if (filter === 'participated') {
+        // Posts this user has interacted with (commented, pulsed/liked) - for "Activity" tab
+        // Get conversations where user has sent messages OR given a pulse (excluding their own posts)
+        whereClause = {
+          visibility: 'PUBLIC',
+          OR: [
+            // User sent messages/comments on the post
+            {
+              Message: {
+                some: {
+                  senderId: creatorId,
+                },
+              },
+            },
+            // User gave a pulse (like/dislike) to the post
+            {
+              Pulse: {
+                some: {
+                  userId: creatorId,
+                },
+              },
+            },
+          ],
+          NOT: {
+            userId: creatorId, // Exclude their own posts
+          },
+        };
+      } else {
+        // Default: show user's public posts
+        whereClause = {
+          userId: creatorId,
+          visibility: 'PUBLIC',
+        };
+      }
+    } else if (filter === 'public') {
       // Public conversations - anyone can see
       whereClause = { visibility: 'PUBLIC' };
     } else if (filter === 'mine' && userId) {
@@ -220,6 +262,22 @@ export async function GET(req: Request) {
         OR: [
           { userId },
           { participants: { has: userId } },
+        ],
+      };
+    } else if (filter === 'private' && userId) {
+      // User's private conversations only (DMs, Groups, Restricted - excludes PUBLIC_THREAD)
+      // This is for the /conversations page - private messages only
+      whereClause = {
+        AND: [
+          {
+            OR: [
+              { userId },
+              { participants: { has: userId } },
+            ],
+          },
+          {
+            type: { not: 'PUBLIC_THREAD' },
+          },
         ],
       };
     } else if (filter === 'all' && userId) {
@@ -267,8 +325,24 @@ export async function GET(req: Request) {
           { isPinned: 'desc' },
           { viewCount: 'desc' },
           { uniqueRepliers: 'desc' },
-          { reposts: { _count: 'desc' } },
-          { quoteReposts: { _count: 'desc' } },
+          { ConversationRepost: { _count: 'desc' } },
+          { lastActivityAt: 'desc' },
+        ];
+        break;
+      case 'popular':
+        // Most positive pulses (likes)
+        orderBy = [
+          { isPinned: 'desc' },
+          { positivePulseCount: 'desc' },
+          { viewCount: 'desc' },
+          { lastActivityAt: 'desc' },
+        ];
+        break;
+      case 'discussed':
+        // Most messages/comments
+        orderBy = [
+          { isPinned: 'desc' },
+          { Message: { _count: 'desc' } },
           { lastActivityAt: 'desc' },
         ];
         break;
@@ -300,33 +374,33 @@ export async function GET(req: Request) {
     const conversations = await dbPrisma.conversation.findMany({
       where: whereClause,
       include: {
-        messages: {
+        Message: {
           take: 1,
           orderBy: { createdAt: 'desc' },
         },
-        repostOfConversation: {
+        Conversation: {
           select: {
             id: true,
             title: true,
             createdAt: true,
-            user: {
+            User: {
               select: { id: true, name: true, image: true },
             },
-            messages: {
+            Message: {
               take: 1,
               orderBy: { createdAt: 'desc' },
             },
           },
         },
-        user: {
+        User: {
           select: { id: true, name: true, image: true },
         },
-        poll: {
+        Poll: {
           // Feed needs the question to show a longer preview than the truncated title.
           select: { id: true, question: true },
         },
         _count: {
-          select: { messages: true, reposts: true, quoteReposts: true },
+          select: { Message: true, ConversationRepost: true },
         },
       },
       orderBy,
@@ -347,6 +421,19 @@ export async function GET(req: Request) {
       for (const r of reposts) repostedSet.add(r.conversationId);
     }
 
+    // Get user's pulses on these conversations
+    const userPulseMap = new Map<string, 'POSITIVE' | 'NEGATIVE'>();
+    if (userId && conversations.length > 0) {
+      const pulses = await dbPrisma.pulse.findMany({
+        where: {
+          userId,
+          conversationId: { in: conversations.map((c) => c.id) },
+        },
+        select: { conversationId: true, type: true },
+      });
+      for (const p of pulses) userPulseMap.set(p.conversationId, p.type);
+    }
+
     // Extract all participant IDs from all conversations
     const allParticipantIds = Array.from(
       new Set(conversations.flatMap((conversation) => conversation.participants as string[]))
@@ -364,13 +451,20 @@ export async function GET(req: Request) {
       return {
         ...conversation,
         participantDetails, // Keep original participants array, add details separately
-        lastMessage: conversation.messages[0] || null,
-        repostOfLastMessage: conversation.repostOfConversation?.messages?.[0] || null,
-        messageCount: conversation._count.messages,
-        repostCount: conversation._count.reposts,
-        quoteRepostCount: conversation._count.quoteReposts,
+        lastMessage: conversation.Message?.[0] || null,
+        repostOfLastMessage: conversation.Conversation?.Message?.[0] || null,
+        messageCount: conversation._count.Message,
+        repostCount: conversation._count.ConversationRepost,
         hasReposted: userId ? repostedSet.has(conversation.id) : false,
-        hasPoll: !!conversation.poll, // Boolean indicator for poll existence
+        hasPoll: !!conversation.Poll, // Boolean indicator for poll existence
+        // Pulse data
+        positivePulseCount: conversation.positivePulseCount || 0,
+        negativePulseCount: conversation.negativePulseCount || 0,
+        userPulse: userId ? userPulseMap.get(conversation.id) || null : null,
+        // Normalize field names for frontend
+        user: conversation.User,
+        poll: conversation.Poll,
+        messages: conversation.Message,
       };
     });
 

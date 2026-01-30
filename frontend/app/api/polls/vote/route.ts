@@ -28,8 +28,8 @@ export async function POST(req: NextRequest) {
     const option = await dbPrisma.pollOption.findUnique({
       where: { id: optionId },
       include: {
-        poll: true,
-        votes: { where: { userId: currentUser.id } },
+        Poll: true,
+        PollVote: { where: { userId: currentUser.id } },
       },
     });
 
@@ -38,11 +38,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if poll has expired
-    if (option.poll.expiresAt && new Date(option.poll.expiresAt) < new Date()) {
+    if (option.Poll.expiresAt && new Date(option.Poll.expiresAt) < new Date()) {
       return NextResponse.json({ message: 'This poll has expired' }, { status: 400 });
     }
 
-    const hasVoted = option.votes.length > 0;
+    const hasVoted = option.PollVote.length > 0;
 
     if (hasVoted) {
       // Remove the vote (toggle off)
@@ -59,11 +59,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ voted: false, message: 'Vote removed' }, { status: 200 });
     } else {
       // If not allowMultiple, remove any existing votes on other options first
-      if (!option.poll.allowMultiple) {
+      if (!option.Poll.allowMultiple) {
         await dbPrisma.pollVote.deleteMany({
           where: {
             userId: currentUser.id,
-            option: { pollId: option.poll.id },
+            PollOption: { pollId: option.Poll.id },
           },
         });
       }

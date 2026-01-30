@@ -4,6 +4,15 @@ import { useState, useEffect } from 'react';
 
 type DataType = { date: Date; users?: number; companies?: number }; // Both are optional
 
+interface UseFetchAnalyticsResult {
+  data: { label: string; data: DataType[] }[];
+  firstDate: Date | null;
+  lastDate: Date | null;
+  today: Date;
+  loading: boolean;
+  error: string | null;
+}
+
 function firstDefinedDate(...values: Array<unknown>): Date | null {
   for (const v of values) {
     if (!v) continue;
@@ -13,7 +22,7 @@ function firstDefinedDate(...values: Array<unknown>): Date | null {
   return null;
 }
 
-export const useFetchAnalytics = (endpoint: string) => {
+export const useFetchAnalytics = (endpoint: string): UseFetchAnalyticsResult => {
   const [data, setData] = useState<{ label: string; data: DataType[] }[]>([]);
   const [firstDate, setFirstDate] = useState<Date | null>(null);
   const [lastDate, setLastDate] = useState<Date | null>(null);

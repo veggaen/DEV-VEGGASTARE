@@ -5,7 +5,9 @@ import { MyProductCreateSchema } from "@/schemas";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreateSchema>, postalCodes: string[]) => {
+type CreateProductResult = { error: string } | { success: string };
+
+export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreateSchema>, postalCodes: string[]): Promise<CreateProductResult> => {
   try {
     console.log('Server is Creating a product with data: ', data);
     const validatedData = MyProductCreateSchema.parse(data);

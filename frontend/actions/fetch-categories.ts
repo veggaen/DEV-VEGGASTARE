@@ -1,4 +1,4 @@
-export const fetchAllCategories = async () => {
+export const fetchAllCategories = async (): Promise<string[]> => {
   const res = await fetch('/api/categories');
   if (!res.ok) {
     throw new Error('Failed to fetch categories');
@@ -7,7 +7,7 @@ export const fetchAllCategories = async () => {
   return categories;
 };
 
-export const fetchPriceRange = async () => {
+export const fetchPriceRange = async (): Promise<{ min: number; max: number }> => {
   const res = await fetch('/api/price-range');
   if (!res.ok) {
     throw new Error('Failed to fetch price range');
@@ -16,7 +16,7 @@ export const fetchPriceRange = async () => {
   return priceRange;
 };
 
-export const fetchAllTitles = async () => {
+export const fetchAllTitles = async (): Promise<string[]> => {
   const res = await fetch('/api/titles');
   if (!res.ok) {
     throw new Error('Failed to fetch titles');
@@ -25,7 +25,7 @@ export const fetchAllTitles = async () => {
   return titles;
 };
 
-export const fetchAllSellers = async () => {
+export const fetchAllSellers = async (): Promise<{ id: string; name: string }[]> => {
   const res = await fetch('/api/products/sellers');
   if (!res.ok) {
     throw new Error('Failed to fetch sellers');

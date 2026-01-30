@@ -1,277 +1,187 @@
-'use client'
+'use client';
 
-import * as z from 'zod';
-import { Form, FormField, FormControl, FormItem, FormLabel, FormDescription, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Input } from '@/components/ui/input';
-
-import { useRef, useState, useTransition, useEffect } from "react";
-import { useSession } from "next-auth/react";
-import { useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { MyAuthSettingsSchema } from '@/schemas';
-import { settings } from "@/actions/settings";
+import Link from 'next/link';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { MyFormError } from '@/components/uicustom/forms/form-error';
-import { MyFormSuccess } from '@/components/uicustom/forms/form-sucess';
-import { UserRole } from '@prisma/client';
-import { useUiPreferences } from '@/components/providers/ui-preferences';
+import { CiInboxIn } from "react-icons/ci";
+import { SiGooglebigquery } from "react-icons/si";
+import { 
+  FiUser, FiSettings, FiMessageCircle, FiRss, FiBriefcase,
+  FiChevronRight, FiGrid
+} from 'react-icons/fi';
+import { MdBusiness } from 'react-icons/md';
 
-const LOG_PREFIX = '[frontend/app/(protected)/nexus/page.tsx]'
-const MyProtectedSettings = () => {
+export default function NexusPage() {
+  const reduceMotion = useReducedMotion();
   const user = useCurrentUser();
-  const { prefs, setPrefs, resetPrefs } = useUiPreferences();
-  const formRef = useRef<HTMLFormElement>(null);
-  const { update } = useSession();
 
-  const [error, setError] = useState<string | undefined>()
-  const [success, setSuccess] = useState<string | undefined>()
-  const [isPending, startTransition] = useTransition();
-  const [isEditing, setIsEditing] = useState(false);
-  const [image, setImage] = useState<any>(undefined);
-  const [imagePreview, setImagePreview] = useState<any>(undefined);
-  
-  const form = useForm<z.infer<typeof MyAuthSettingsSchema>>({
-    resolver: zodResolver(MyAuthSettingsSchema),
-    defaultValues: {
-      name: user?.name || undefined,
-      email: user?.email || undefined,
-      password: undefined,
-      newPassword: undefined,
-      role: user?.role || undefined,
-      isTwoFactorEnabled: user?.isTwoFactorEnabled || undefined,
-    }
-  });
+  const quickLinks = [
+    {
+      section: 'Account',
+      items: [
+        { 
+          href: '/profile', 
+          label: 'My Profile', 
+          description: 'View and customize your public profile',
+          icon: FiUser,
+          color: 'indigo'
+        },
+        { 
+          href: '/settings', 
+          label: 'Settings', 
+          description: 'Account, security, and preferences',
+          icon: FiSettings,
+          color: 'slate'
+        },
+      ]
+    },
+    {
+      section: 'Community',
+      items: [
+        { 
+          href: '/pulse', 
+          label: 'Pulse', 
+          description: 'Public feed and discussions',
+          icon: FiRss,
+          color: 'pink'
+        },
+        { 
+          href: '/conversations', 
+          label: 'Messages', 
+          description: 'Your private conversations',
+          icon: FiMessageCircle,
+          color: 'blue'
+        },
+      ]
+    },
+    {
+      section: 'Job Board',
+      items: [
+        { 
+          href: '/jobs', 
+          label: 'Browse Requests', 
+          description: 'Find work opportunities',
+          icon: CiInboxIn,
+          color: 'indigo'
+        },
+        { 
+          href: '/jobs/post', 
+          label: 'Post a Request', 
+          description: 'Get quotes from companies',
+          icon: SiGooglebigquery,
+          color: 'emerald'
+        },
+      ]
+    },
+    {
+      section: 'Business',
+      items: [
+        { 
+          href: '/companies', 
+          label: 'Companies', 
+          description: 'Manage your companies',
+          icon: MdBusiness,
+          color: 'amber'
+        },
+        { 
+          href: '/products', 
+          label: 'Marketplace', 
+          description: 'Browse and list products',
+          icon: FiGrid,
+          color: 'cyan'
+        },
+      ]
+    },
+  ];
 
-  // Watch the newPassword field
-  const newPassword = useWatch({
-    control: form.control,
-    name: "newPassword", // specify the name of the field you want to watch
-  });
-
-  // Function to clear the password field
-  const clearPasswordField = () => {
-    form.setValue("password", ""); // Clear the password field
+  const colorClasses: Record<string, string> = {
+    indigo: 'text-indigo-500 group-hover:bg-indigo-500/10',
+    slate: 'text-slate-500 group-hover:bg-slate-500/10',
+    pink: 'text-pink-500 group-hover:bg-pink-500/10',
+    blue: 'text-blue-500 group-hover:bg-blue-500/10',
+    emerald: 'text-emerald-500 group-hover:bg-emerald-500/10',
+    amber: 'text-amber-500 group-hover:bg-amber-500/10',
+    cyan: 'text-cyan-500 group-hover:bg-cyan-500/10',
   };
 
-  const onSubmit = (values: z.infer<typeof MyAuthSettingsSchema>) => {
-    startTransition( () => { settings(values).then((data) => {
-      if (data.error){
-        setError(data.error);
-      }
-      if (data.success){
-        update();
-        setSuccess(data.success);
-        setIsEditing(false)
-      }
-    })
-  });
-  };
-
-  const handleStartEdit = () => {
-    console.log('clicked edit')
-    setIsEditing(!isEditing);
-    resetErrors()
-  };
-  const handleCancelEdit = () => {
-    form.reset();
-    setIsEditing(false);
-    // setShowInput(false);
-    setImagePreview(null);
-    resetErrors();
-  };
-
-  const resetErrors = () => {
-    if (error !== '' || success !== ''){
-      // Clear any existing error messages when starting to edit
-      setError('');
-      setSuccess('');
-    }
+  if (!user) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="animate-pulse text-white/60">Loading...</div>
+      </div>
+    );
   }
 
-  return(
-    <div className={`flex flex-col justify-center items-center gap-4 bg-white/10 dark:bg-secondary/10 p-4 rounded-lg`}>
-      {user && <Card className="w-full max-w-[600px] bg-white dark:bg-zinc-900/20 border-black/10" >
-        <CardHeader>
-          <p className="text-xl font-semibold text-center">User Settings</p>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form
-              className='space-y-6 flex flex-col justify-center items-center'
-              onSubmit={form.handleSubmit(onSubmit)}
-              ref={formRef}
-              
-            >
-              <div className='space-y-4 w-full'>
-                <FormField control={form.control} name="name" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          disabled={isPending || !isEditing}
-                          placeholder={`${user?.name ? user.name : 'Choose a name' }`}
-                          className='bg-slate-100 dark:bg-slate-950/50 border-black/60 focus:border-sky-400/60 dark:border-white/60 dark:focus:border-sky-600/60 no-underline'
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {!user?.isOAuth && 
-                <>
-                  <FormField control={form.control} name="email" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            disabled={isPending || !isEditing}
-                            placeholder="Example@mail.com"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {newPassword && <FormField control={form.control} name="password" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            disabled={isPending || !isEditing}
-                            placeholder="******"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />}
-                  <FormField control={form.control} name="newPassword" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Password</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            disabled={isPending || !isEditing}
-                            placeholder="******"
-                            onChange={(e) => {
-                              field.onChange(e); // Call the original onChange
-                              if (e.target.value === "") clearPasswordField();
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
-                }
-                {user && user.role === UserRole.ADMIN ? <FormField control={form.control} name="role" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Role</FormLabel>
-                      <Select
-                        disabled={isPending || !isEditing || user?.role !== UserRole.ADMIN} 
-                        onValueChange={field.onChange}
-                        value={isEditing? field.value : user?.role}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger className='disabled:pointer-events-none bg-slate-100 dark:bg-slate-950/50 border-black/60 focus:border-sky-400/60 dark:border-white/60 dark:focus:border-sky-600/60 no-underline'>
-                            <SelectValue placeholder='Select a role' />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent className='bg-slate-100 dark:bg-slate-900 dark:border-white/60' >
-                          <SelectItem value={UserRole.ADMIN}>
-                            Admin
-                          </SelectItem>
-                          <SelectItem value={UserRole.USER}>
-                            User
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                /> : <FormMessage />}
-                {!user?.isOAuth && <FormField control={form.control} name="isTwoFactorEnabled" render={({ field }) => (
-                    <FormItem className='flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm'>
-                      <div className='space-y-0.5'>
-                        <FormLabel>Two Factor Authentication</FormLabel>
-                        <FormDescription>Enable Two Factor Authentication</FormDescription>
+  return (
+    <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
+      {/* Background */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/5" />
+        <motion.div
+          className="absolute -right-20 top-32 h-[480px] w-[480px] rounded-full blur-3xl"
+          animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.06, 0.12, 0.06] }}
+          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            background: "radial-gradient(closest-side, rgba(99,102,241,0.1), rgba(168,85,247,0.06), transparent 70%)",
+            mixBlendMode: "screen",
+          }}
+        />
+      </div>
+
+      <div className="relative mx-auto w-full max-w-4xl px-6 py-10 lg:py-12">
+        <motion.div
+          initial={reduceMotion ? undefined : { opacity: 0, y: 14 }}
+          animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+        >
+          {/* Header */}
+          <header className="mb-10">
+            <h1 className="text-3xl font-semibold text-white sm:text-4xl mb-2">Nexus</h1>
+            <p className="text-white/60 text-sm">Your command center. Quick access to everything.</p>
+          </header>
+
+          {/* Quick Links Grid */}
+          <div className="space-y-8">
+            {quickLinks.map((section, sectionIndex) => (
+              <motion.div
+                key={section.section}
+                initial={reduceMotion ? undefined : { opacity: 0, y: 12 }}
+                animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: sectionIndex * 0.05 }}
+              >
+                <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3">
+                  {section.section}
+                </h2>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {section.items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="group flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-all hover:bg-white/[0.05] hover:border-white/20"
+                    >
+                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center transition-colors ${colorClasses[item.color]}`}>
+                        <item.icon className="h-5 w-5" />
                       </div>
-                      <FormControl>
-                        <Switch
-                          className={``}
-                          disabled={isPending || !isEditing}
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />}
-              </div>
-              <div className={`w-full`}>
-                {isEditing ? (
-                  <div className={`space-y-2`}>
-                    <button onClick={form.handleSubmit(onSubmit)} disabled={isPending} type='submit' className={`w-full bg-white/50 dark:bg-black/50 text-black dark:text-white py-1 text-center transition duration-300 hover:scale-95 rounded group hover:bg-emerald-300/50 dark:hover:bg-emerald-600/50 ${!isEditing ? 'w-fit bg-emerald-500/50 dark:bg-emerald-500/50' : 'w-fit'}`}>
-                      {isPending ? 'Loading...' : 'Save'}
-                    </button>
-                    <div onClick={handleCancelEdit} className={`w-full bg-white/50 dark:bg-black/50 text-black dark:text-white py-2 text-center transition duration-300 hover:scale-95 rounded group hover:bg-red-300/50 dark:hover:bg-red-600/50 ${!isEditing ? 'w-fit bg-emerald-500/50 dark:bg-emerald-500/50' : 'w-fit'}`}>
-                      <div className="w-full px-2 text-sm group-hover:font-semibold group-hover:cursor-pointer">{`${isEditing ? `Cancel Edit` : `Enable edit`}`}</div>
-                    </div>
-                  </div>
-                  ) : (
-                  <div onClick={handleStartEdit} className={`w-full bg-black/50 dark:bg-black/50 text-white dark:text-white py-2 text-center transition duration-300 hover:scale-95 rounded group hover:bg-emerald-500 dark:hover:bg-emerald-600 ${!isEditing ? 'w-fit bg-emerald-400/50 dark:bg-emerald-500/50' : 'w-fit'}`}>
-                    <div className="w-full px-2 text-sm group-hover:font-semibold group-hover:cursor-pointer">Enable edit</div>
-                  </div>
-                  )
-                }
-              </div>
-              <MyFormError message={error} />
-              <MyFormSuccess message={success} />
-            </form>
-          </Form>
-        </CardContent>
-      </Card>}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-white group-hover:text-white">{item.label}</div>
+                        <div className="text-xs text-white/40">{item.description}</div>
+                      </div>
+                      <FiChevronRight className="h-4 w-4 text-white/30 group-hover:text-white/60 transition-colors" />
+                    </Link>
+                  ))}
+                </div>
+              </motion.div>
+            ))}
+          </div>
 
-      {user && (
-        <Card className="w-full max-w-[600px] bg-white dark:bg-zinc-900/20 border-black/10">
-          <CardHeader>
-            <p className="text-xl font-semibold text-center">Experience</p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-              <div className="space-y-0.5">
-                <p className="text-sm font-medium">Extra fancy product title (RSVP)</p>
-                <p className="text-xs text-muted-foreground">
-                  Optional rapid word reveal on product pages. Respects reduced-motion.
-                </p>
-              </div>
-              <Switch
-                checked={prefs.productTitleAnimationMode === 'rsvp'}
-                onCheckedChange={(checked) =>
-                  setPrefs({ productTitleAnimationMode: checked ? 'rsvp' : 'letters' })
-                }
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">Reset UI preferences</p>
-              <Button type="button" variant="secondary" onClick={resetPrefs}>
-                Reset
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          {/* Keyboard shortcut hint */}
+          <div className="mt-10 text-center">
+            <p className="text-xs text-white/30">
+              Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/50 font-mono text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/50 font-mono text-[10px]">K</kbd> to open command palette anywhere
+            </p>
+          </div>
+        </motion.div>
+      </div>
     </div>
-  )
+  );
 }
-export default MyProtectedSettings; // this needs to be default because its in a (protected) route and is a page.tsx

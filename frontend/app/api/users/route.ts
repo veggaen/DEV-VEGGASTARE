@@ -1,10 +1,18 @@
-// frontend/app/api/companies/create/route.ts
+// frontend/app/api/users/route.ts
 
 import { dbPrisma } from '@/lib/db';
-import type { NextRequest, NextResponse } from 'next/server';
-
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { NextResponse } from 'next/server';
 
 export async function GET() {
+    // Authentication check - only admins can list all users
+    const session = await MyLibUserAuth();
+    if (!session?.id) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (session.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+    }
 
     try {
         console.log('GET USERS')

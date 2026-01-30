@@ -19,12 +19,13 @@
     "pusher": "^5.2.0",
     "pusher-js": "^8.4.0-rc2",
     "socket.io": "^4.7.5",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@railway/cli": "^3.11.0",
     "@types/node": "^20.14.12",
     "@types/ws": "^8.5.11",
-    "@railway/cli": "^3.11.0",
     "nodemon": "^3.1.4",
     "prisma": "^5.17.0",
     "ts-node": "^10.9.2",

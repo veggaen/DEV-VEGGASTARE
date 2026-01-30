@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useState, useEffect } from 'react';
 import { EmployeePermissions, editCompanyEmployeePermissionAction } from '@/actions/edit-company-employee-permission';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { ExtendedCompany, ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/CompanyDetailClient';
+import { ExtendedCompany, ExtendedEmployee } from '@/app/companies/[id]/settings/CompanySettingsClient';
 import EditEmployeeRoleModal from './edit-employee-role-modal';
 
 

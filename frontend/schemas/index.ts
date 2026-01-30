@@ -60,6 +60,16 @@ export const MyAuthLoginSchema = z.object({
     code: z.optional(z.string()),
 })
 
+// Schema for magic-link login via email verification token
+export const MyEmailLoginTokenSchema = z.object({
+    email: z.string().email({
+        message: 'Email is required'
+    }),
+    loginToken: z.string().min(1, {
+        message: 'Login token is required'
+    }),
+})
+
 export const MyAuthRegisterSchema = z.object({
     email: z.string().email({
         message: 'Email is required'

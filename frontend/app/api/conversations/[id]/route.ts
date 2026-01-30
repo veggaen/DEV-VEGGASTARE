@@ -97,11 +97,11 @@ export async function DELETE(
   const { visibility: visibilityParam, force: forceDelete, cancel: cancelDeletion } = queryResult.data;
 
   const session = await MyLibUserAuth();
-  if (!session) {
+  if (!session || !session.id) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const userId = session.id;
+  const userId: string = session.id;
   const userRole = session.role;
   const isAdmin = userRole === 'ADMIN' || userRole === 'OWNER';
 
@@ -254,7 +254,7 @@ export async function GET(
     const conversation = await dbPrisma.conversation.findUnique({
       where: { id: conversationId },
       include: {
-        user: {
+        User: {
           select: { id: true, name: true, email: true, image: true },
         },
       },
@@ -358,7 +358,7 @@ export async function PATCH(
       where: { id: conversationId },
       data: updateData,
       include: {
-        user: {
+        User: {
           select: { id: true, name: true, email: true, image: true },
         },
       },

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -25,9 +25,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3 } from 'react-icons/fi';
+import { useViewTracking } from '@/hooks/useViewTracking';
+import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff } from 'react-icons/fi';
+import { PulsePositive, PulseFlat } from '@/components/uicustom/icons/PulseIcons';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { PollDisplay } from '@/components/uicustom/chats/poll-display';
+import { DiscoverPeople } from '@/components/uicustom/social/DiscoverPeople';
+import { PulseDetailModal } from '@/components/uicustom/pulse/PulseDetailModal';
+import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 
 interface User {
   id: string;
@@ -52,6 +57,9 @@ interface FeedItem {
   repostCount?: number;
   quoteRepostCount?: number;
   hasReposted?: boolean;
+  positivePulseCount?: number;
+  negativePulseCount?: number;
+  userPulse?: 'POSITIVE' | 'NEGATIVE' | null;
   repostOfConversation?: {
     id: string;
     title: string | null;
@@ -84,8 +92,18 @@ const REPLY_OPTIONS: { value: ReplyPermission; label: string; description: strin
   { value: 'CREATOR_ONLY', label: 'No Comments', description: 'Only you can post (announcement)' },
 ];
 
+// Sort options for feed
+type SortType = 'reach' | 'recent' | 'popular' | 'discussed';
+const SORT_OPTIONS: { value: SortType; label: string; description: string }[] = [
+  { value: 'reach', label: 'Top Reach', description: 'Most viewed & engaged' },
+  { value: 'recent', label: 'Latest', description: 'Newest first' },
+  { value: 'popular', label: 'Most Pulsed', description: 'Most positive pulses' },
+  { value: 'discussed', label: 'Most Discussed', description: 'Most comments' },
+];
+
 const FeedPage: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const currentUser = useCurrentUser();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -93,7 +111,35 @@ const FeedPage: React.FC = () => {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
+  const [sortBy, setSortBy] = useState<SortType>('reach');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+
+  // Modal state - read from URL for shareable links
+  const [selectedPulseId, setSelectedPulseId] = useState<string | null>(null);
+
+  // Sync modal state with URL
+  useEffect(() => {
+    const pulseParam = searchParams.get('pulse');
+    setSelectedPulseId(pulseParam);
+  }, [searchParams]);
+
+  // Open pulse modal
+  const openPulse = (pulseId: string) => {
+    setSelectedPulseId(pulseId);
+    // Update URL without navigation for shareable links
+    const url = new URL(window.location.href);
+    url.searchParams.set('pulse', pulseId);
+    window.history.pushState({}, '', url.toString());
+  };
+
+  // Close pulse modal
+  const closePulse = () => {
+    setSelectedPulseId(null);
+    // Remove pulse param from URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete('pulse');
+    window.history.pushState({}, '', url.toString());
+  };
 
   // Compose state
   const [composeText, setComposeText] = useState('');
@@ -113,7 +159,7 @@ const FeedPage: React.FC = () => {
   const fetchFeed = useCallback(async () => {
     setLoading(true);
     try {
-      let url = '/api/conversations?filter=public&sort=reach&limit=50';
+      let url = `/api/conversations?filter=public&sort=${sortBy}&limit=50`;
       if (tagFilter) {
         url += `&tag=${encodeURIComponent(tagFilter)}`;
       }
@@ -126,13 +172,20 @@ const FeedPage: React.FC = () => {
         feedItems = feedItems.filter(item => item.hasPoll);
       }
       
+      // Client-side sorting for consistency
+      if (sortBy === 'popular') {
+        feedItems = [...feedItems].sort((a, b) => (b.positivePulseCount || 0) - (a.positivePulseCount || 0));
+      } else if (sortBy === 'discussed') {
+        feedItems = [...feedItems].sort((a, b) => (b.messageCount || 0) - (a.messageCount || 0));
+      }
+      
       setItems(feedItems);
     } catch (error) {
       console.error('Failed to fetch feed:', error);
     } finally {
       setLoading(false);
     }
-  }, [filter, tagFilter]);
+  }, [filter, sortBy, tagFilter]);
 
   useEffect(() => {
     fetchFeed();
@@ -259,55 +312,82 @@ const FeedPage: React.FC = () => {
   return (
     <div className="mx-auto w-full max-w-6xl px-3 sm:px-6 lg:px-8">
       {/* ─── Pulse Sub-navbar ─── */}
-      <div className="sticky top-[var(--app-header-offset,0px)] z-20 -mx-3 sm:-mx-6 lg:-mx-8">
-        <div className="px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 py-2">
-            <span className="text-sm font-semibold text-foreground/80 shrink-0">Pulse</span>
-            <div className="h-4 w-px bg-border/60" />
-            <div className="flex items-center gap-1">
-              <Button
-                variant={filter === 'all' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setFilter('all')}
-                className="h-8"
-              >
-                All
-              </Button>
-              <Button
-                variant={filter === 'polls' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setFilter('polls')}
-                className="h-8"
-              >
-                <FiBarChart2 className="h-4 w-4 mr-1" /> Polls
-              </Button>
-              <Button
-                variant={filter === 'trending' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setFilter('trending')}
-                className="h-8"
-              >
-                <FiTrendingUp className="h-4 w-4 mr-1" /> Trending
-              </Button>
-            </div>
-
-            {tagFilter && (
-              <Badge variant="outline" className="ml-auto flex items-center gap-1">
-                #{tagFilter}
-                <button onClick={() => setTagFilter(null)}>
-                  <FiX className="h-3 w-3" />
-                </button>
-              </Badge>
-            )}
+      <div className="border-b border-border/50 mb-5">
+        <div className="flex items-center gap-3 h-11">
+          <span className="text-sm font-semibold text-foreground/80 shrink-0">Pulse</span>
+          <div className="h-4 w-px bg-border/60" />
+          <div className="flex items-center gap-1">
+            <Button
+              variant={filter === 'all' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setFilter('all')}
+              className="h-8"
+            >
+              All
+            </Button>
+            <Button
+              variant={filter === 'polls' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setFilter('polls')}
+              className="h-8"
+            >
+              <FiBarChart2 className="h-4 w-4 mr-1" /> Polls
+            </Button>
+            <Button
+              variant={filter === 'trending' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setFilter('trending')}
+              className="h-8"
+            >
+              <FiTrendingUp className="h-4 w-4 mr-1" /> Trending
+            </Button>
           </div>
+
+          <div className="h-4 w-px bg-border/60" />
+          
+          {/* Sort dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 gap-1">
+                {SORT_OPTIONS.find(s => s.value === sortBy)?.label || 'Sort'}
+                <FiChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {SORT_OPTIONS.map((option) => (
+                <DropdownMenuItem
+                  key={option.value}
+                  onClick={() => setSortBy(option.value)}
+                  className={sortBy === option.value ? 'bg-accent' : ''}
+                >
+                  <div>
+                    <div className="font-medium">{option.label}</div>
+                    <div className="text-xs text-muted-foreground">{option.description}</div>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {tagFilter && (
+            <Badge variant="outline" className="ml-auto flex items-center gap-1">
+              #{tagFilter}
+              <button onClick={() => setTagFilter(null)}>
+                <FiX className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
         </div>
       </div>
 
+      {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6">
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-4">
           {/* Compose Box */}
           {currentUser && (
-            <div className="rounded-2xl border border-border/60 bg-card/40 backdrop-blur-sm sticky top-[calc(var(--app-header-offset,0px)+56px)] z-10">
+            <div className="rounded-2xl border border-border/60 bg-card">
               <div className="p-4 space-y-3">
                 {/* User avatar + textarea */}
                 <div className="flex gap-3">
@@ -521,17 +601,24 @@ const FeedPage: React.FC = () => {
                   key={item.id}
                   item={item}
                   onTagClick={(tag) => setTagFilter(tag)}
-                  onClick={() => router.push(`/conversations/${item.id}`)}
+                  onClick={() => openPulse(item.id)}
                   onRefresh={fetchFeed}
                 />
               ))
             )}
           </div>
+
+          {/* Pulse Detail Modal */}
+          <PulseDetailModal
+            pulseId={selectedPulseId}
+            onClose={closePulse}
+            onTagClick={(tag) => setTagFilter(tag)}
+          />
         </div>
 
         {/* Explore sidebar */}
         <aside className="hidden lg:block">
-          <div className="sticky top-[calc(var(--app-header-offset,0px)+56px)] space-y-4">
+          <div className="sticky top-[calc(var(--app-header-offset,0px)+16px)] space-y-4">
             {!currentUser && (
               <div className="rounded-2xl border border-border/60 bg-transparent p-4 transition-colors hover:bg-card/30">
                 <div className="font-semibold">Welcome</div>
@@ -591,7 +678,7 @@ const FeedPage: React.FC = () => {
                       <button
                         key={post.id}
                         type="button"
-                        onClick={() => router.push(`/conversations/${post.id}`)}
+                        onClick={() => openPulse(post.id)}
                         className="w-full rounded-xl border border-border/50 bg-background/20 px-3 py-2 text-left transition hover:bg-background/40"
                       >
                         <div className="flex items-center justify-between gap-3">
@@ -609,6 +696,9 @@ const FeedPage: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* Discover People - Find and follow users */}
+            {currentUser && <DiscoverPeople />}
           </div>
         </aside>
       </div>
@@ -631,6 +721,23 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteText, setQuoteText] = useState('');
   const [isReposting, setIsReposting] = useState(false);
+  const [isPulsing, setIsPulsing] = useState(false);
+  const [localPulse, setLocalPulse] = useState<'POSITIVE' | 'NEGATIVE' | null>(item.userPulse || null);
+  const [localPositiveCount, setLocalPositiveCount] = useState(item.positivePulseCount || 0);
+  const [localViewCount, setLocalViewCount] = useState(item.viewCount || 0);
+
+  // View tracking - tracks when this post becomes visible in viewport
+  const { ref: viewTrackingRef, hasTracked } = useViewTracking(item.id, {
+    threshold: 0.5, // 50% of card must be visible
+    minViewTime: 1500, // Must be visible for 1.5 seconds
+    debounceMs: 10000, // Don't re-track within 10 seconds
+    onViewTracked: (result) => {
+      if (result.success && result.isFirstView) {
+        // Increment local view count on first view
+        setLocalViewCount(c => c + 1);
+      }
+    },
+  });
 
   const isQuote = Boolean(item.repostOfConversation);
 
@@ -641,7 +748,56 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     return raw.length > max ? `${raw.slice(0, max).trimEnd()}…` : raw;
   }, [item.repostOfConversation, item.repostOfLastMessage]);
 
-  const handleRepost = async () => {
+  // Handle pulse (like/dislike)
+  const handlePulse = async (type: 'POSITIVE' | 'NEGATIVE') => {
+    if (!currentUser || isPulsing) return;
+    setIsPulsing(true);
+    
+    // Optimistic update
+    const wasActive = localPulse === type;
+    const previousPulse = localPulse;
+    const previousCount = localPositiveCount;
+    
+    if (wasActive) {
+      setLocalPulse(null);
+      if (type === 'POSITIVE') setLocalPositiveCount(c => Math.max(0, c - 1));
+    } else {
+      if (type === 'POSITIVE' && localPulse === 'NEGATIVE') {
+        setLocalPositiveCount(c => c + 1);
+      } else if (type === 'NEGATIVE' && localPulse === 'POSITIVE') {
+        setLocalPositiveCount(c => Math.max(0, c - 1));
+      } else if (type === 'POSITIVE') {
+        setLocalPositiveCount(c => c + 1);
+      }
+      setLocalPulse(type);
+    }
+    
+    try {
+      const url = `/api/conversations/${encodeURIComponent(item.id)}/pulse`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
+      });
+      if (!res.ok) {
+        // Revert on error
+        setLocalPulse(previousPulse);
+        setLocalPositiveCount(previousCount);
+        const t = await res.text().catch(() => '');
+        throw new Error(t || 'Failed to pulse');
+      }
+      const data = await res.json();
+      setLocalPulse(data.currentPulse);
+      setLocalPositiveCount(data.positivePulseCount || 0);
+    } catch (e) {
+      console.error('Pulse failed:', e);
+    } finally {
+      setIsPulsing(false);
+    }
+  };
+
+  // Handle repulse (formerly repost)
+  const handleRepulse = async () => {
     if (!currentUser) return;
     setIsReposting(true);
     try {
@@ -653,18 +809,18 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
       });
       if (!res.ok) {
         const t = await res.text().catch(() => '');
-        throw new Error(t || 'Failed to repost');
+        throw new Error(t || 'Failed to repulse');
       }
 
       onRefresh();
     } catch (e) {
-      console.error('Repost failed:', e);
+      console.error('Repulse failed:', e);
     } finally {
       setIsReposting(false);
     }
   };
 
-  const handleQuoteRepost = async () => {
+  const handleQuoteRepulse = async () => {
     if (!currentUser) return;
     const text = quoteText.trim();
     if (!text) return;
@@ -678,7 +834,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
       });
       if (!res.ok) {
         const t = await res.text().catch(() => '');
-        throw new Error(t || 'Failed to quote repost');
+        throw new Error(t || 'Failed to quote repulse');
       }
       const data = await res.json();
       setQuoteOpen(false);
@@ -709,19 +865,40 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
   return (
     <article
+      ref={viewTrackingRef}
       className="group relative cursor-pointer rounded-2xl border border-border/60 bg-card/30 p-4 sm:p-5 shadow-sm transition hover:bg-card/50 hover:shadow-md"
       onClick={onClick}
     >
-      <div className="flex gap-3">
-        <Avatar className="h-10 w-10 shrink-0">
-          <AvatarImage src={item.user?.image || undefined} />
-          <AvatarFallback>{item.user?.name?.[0] || '?'}</AvatarFallback>
-        </Avatar>
+      <div className="flex gap-3 items-start">
+        {/* User Avatar with HoverCard */}
+        <UserHoverCard
+          userId={item.userId}
+          userName={item.user?.name}
+          userImage={item.user?.image}
+          side="right"
+          align="start"
+        >
+          <Avatar className="h-10 w-10 shrink-0 ring-2 ring-transparent hover:ring-primary/30 transition-all">
+            <AvatarImage src={item.user?.image || undefined} />
+            <AvatarFallback>{item.user?.name?.[0] || '?'}</AvatarFallback>
+          </Avatar>
+        </UserHoverCard>
 
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-center gap-2 text-sm">
-            <span className="font-semibold truncate">{item.user?.name || 'Anonymous'}</span>
+            {/* User Name with HoverCard */}
+            <UserHoverCard
+              userId={item.userId}
+              userName={item.user?.name}
+              userImage={item.user?.image}
+              side="bottom"
+              align="start"
+            >
+              <span className="font-semibold truncate hover:underline">
+                {item.user?.name || 'Anonymous'}
+              </span>
+            </UserHoverCard>
             <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground">{timeAgo}</span>
 
@@ -732,18 +909,18 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                     <FiChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuContent align="end" className="w-52">
                   <DropdownMenuLabel>Share</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     disabled={!currentUser || isReposting}
                     onClick={(e) => {
                       e.preventDefault();
-                      void handleRepost();
+                      void handleRepulse();
                     }}
                   >
                     <FiRepeat className="h-4 w-4 mr-2" />
-                    {item.hasReposted ? 'Undo repost' : 'Repost'}
+                    {item.hasReposted ? 'Undo repulse' : 'Repulse'}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={!currentUser}
@@ -753,7 +930,33 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                     }}
                   >
                     <FiEdit3 className="h-4 w-4 mr-2" />
-                    Quote repost
+                    Quote repulse
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Feedback</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    disabled={!currentUser || isPulsing}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void handlePulse('NEGATIVE');
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <FiEyeOff className="h-4 w-4 mr-2" />
+                    Not interested
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={!currentUser}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      // TODO: Implement mute user functionality
+                      console.log('User muted from your feed');
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <PulseFlat className="h-4 w-4 mr-2" />
+                    Don&apos;t show from this user
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -773,7 +976,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-xs text-muted-foreground truncate">
+                  <div className="text-xs text-muted-foreground">
                     Quoting {item.repostOfConversation.user?.name || 'Anonymous'}
                   </div>
                   {originalPreview && (
@@ -792,7 +995,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
             <div className="mt-2 space-y-1">
               {/* Keep title as a subtle label if it differs from the preview source */}
               {item.title && item.title.trim() && item.title.trim() !== rawPreviewText && (
-                <h3 className="text-[13px] text-muted-foreground leading-snug">
+                <h3 className="text-sm text-foreground/80 font-medium leading-snug">
                   {item.title}
                 </h3>
               )}
@@ -843,24 +1046,38 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
             </div>
           )}
 
-          {/* Stats */}
-          <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+          {/* Stats & Actions */}
+          <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+            {/* Pulse button (positive) - uses pulse wave icon */}
+            <button
+              type="button"
+              disabled={!currentUser || isPulsing}
+              onClick={() => void handlePulse('POSITIVE')}
+              className={`flex items-center gap-1.5 transition-all hover:text-emerald-500 group ${
+                localPulse === 'POSITIVE' ? 'text-emerald-500' : ''
+              }`}
+              title="Pulse this"
+            >
+              <PulsePositive 
+                size={18} 
+                filled={localPulse === 'POSITIVE'}
+                className={`transition-transform ${localPulse === 'POSITIVE' ? 'scale-110' : 'group-hover:scale-105'}`}
+              />
+              {localPositiveCount > 0 && <span className="tabular-nums">{localPositiveCount}</span>}
+            </button>
+            
             <span className="flex items-center gap-1">
               <FiMessageCircle className="h-4 w-4" />
               {item.messageCount}
             </span>
-            <span className={`flex items-center gap-1 ${item.hasReposted ? 'text-emerald-500' : ''}`}>
+            <span className={`flex items-center gap-1 ${item.hasReposted ? 'text-cyan-500' : ''}`}>
               <FiRepeat className="h-4 w-4" />
               {item.repostCount || 0}
             </span>
-            <span className="flex items-center gap-1">
-              <FiEdit3 className="h-4 w-4" />
-              {item.quoteRepostCount || 0}
-            </span>
-            {item.uniqueViewCount !== undefined && item.uniqueViewCount > 0 && (
-              <span className="flex items-center gap-1">
+            {(localViewCount > 0 || (item.uniqueViewCount !== undefined && item.uniqueViewCount > 0)) && (
+              <span className="flex items-center gap-1" title={hasTracked ? 'View tracked' : 'Views'}>
                 <FiTrendingUp className="h-4 w-4" />
-                {item.uniqueViewCount}
+                {Math.max(localViewCount, item.uniqueViewCount || 0)}
               </span>
             )}
           </div>
@@ -870,8 +1087,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
       <Dialog open={quoteOpen} onOpenChange={setQuoteOpen}>
         <DialogContent onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
-            <DialogTitle>Quote repost</DialogTitle>
-            <DialogDescription>Add your comment, then repost.</DialogDescription>
+            <DialogTitle>Quote repulse</DialogTitle>
+            <DialogDescription>Add your comment, then repulse.</DialogDescription>
           </DialogHeader>
 
           <Textarea
@@ -907,7 +1124,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
             >
               Cancel
             </Button>
-            <Button onClick={() => void handleQuoteRepost()} disabled={isReposting || !quoteText.trim()}>
+            <Button onClick={() => void handleQuoteRepulse()} disabled={isReposting || !quoteText.trim()}>
               Post
             </Button>
           </DialogFooter>
@@ -917,5 +1134,14 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   );
 };
 
-export default FeedPage;
+// Wrap with Suspense for useSearchParams
+function FeedPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-12"><Spinner /></div>}>
+      <FeedPage />
+    </Suspense>
+  );
+}
+
+export default FeedPageWrapper;
 

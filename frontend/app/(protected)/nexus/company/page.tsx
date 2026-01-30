@@ -1,8 +1,5 @@
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
-import CompanyListClient from './CompanyListClient';
+import { redirect } from "next/navigation";
 
 export default function MyProtectedSettingsCompany() {
-  return <CompanyListClient />;
+  redirect("/companies");
 }

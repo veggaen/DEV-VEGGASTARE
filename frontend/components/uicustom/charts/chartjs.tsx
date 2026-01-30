@@ -16,7 +16,8 @@ import {
 // Register once on the client.
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler);
 
-export const defaultChartOptions: ChartOptions<'line'> = {
+// Base chart options that work for both line and bar charts
+const baseChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
@@ -40,4 +41,7 @@ export const defaultChartOptions: ChartOptions<'line'> = {
       beginAtZero: true,
     },
   },
-};
+} as const;
+
+export const defaultChartOptions: ChartOptions<'line'> = baseChartOptions;
+export const defaultBarChartOptions: ChartOptions<'bar'> = baseChartOptions;

@@ -1,8 +1,11 @@
 import { dbPrisma } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest, { params }: { params: { userId: string } }) {
-    const { userId } = params
+// Next.js 16+ params type
+type RouteContext = { params: Promise<{ userId: string }> };
+
+export async function GET(request: NextRequest, context: RouteContext) {
+    const { userId } = await context.params;
   
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
@@ -14,7 +17,7 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
           userId,
         },
         include: {
-          payment: true,
+          Payment: true,
         },
       });
   

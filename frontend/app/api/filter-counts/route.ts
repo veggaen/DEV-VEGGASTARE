@@ -1,11 +1,21 @@
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { parseQueryOrError } from '@/lib/api-validate';
 import { z } from 'zod';
 
 export interface FilterCountsResponse {
   categories: { category: string; count: number }[];
   sellers: { id: string; name: string; type: 'user' | 'company'; count: number }[];
+}
+
+// Helper to parse comma-separated strings to arrays
+function parseCommaSeparated(value: string | null, maxItems: number): string[] {
+  if (!value) return [];
+  const items = value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, maxItems);
+  return items;
 }
 
 /**
@@ -18,47 +28,20 @@ export interface FilterCountsResponse {
  */
 export async function GET(request: Request) {
   try {
-    const queryResult = parseQueryOrError(
-      request,
-      z
-        .object({
-          selectedCategories: z
-            .preprocess(
-              (v) =>
-                typeof v === 'string'
-                  ? v
-                      .split(',')
-                      .map((s) => s.trim())
-                      .filter(Boolean)
-                  : [],
-              z.array(z.string().min(1).max(100)).max(50)
-            )
-            .optional()
-            .default([]),
-          selectedSellers: z
-            .preprocess(
-              (v) =>
-                typeof v === 'string'
-                  ? v
-                      .split(',')
-                      .map((s) => s.trim())
-                      .filter(Boolean)
-                  : [],
-              z.array(z.string().min(1).max(200)).max(200)
-            )
-            .optional()
-            .default([]),
-          minPrice: z.coerce.number().min(0).optional().default(0),
-          maxPrice: z
-            .preprocess((v) => (v === undefined ? undefined : Number(v)), z.number().min(0))
-            .optional()
-            .default(Number.POSITIVE_INFINITY),
-          searchTerm: z.string().trim().max(200).optional().default(''),
-        })
-        .refine((v) => v.maxPrice >= v.minPrice, { message: 'maxPrice must be >= minPrice' })
-    );
-    if (!queryResult.ok) return queryResult.response;
-    const { selectedCategories, selectedSellers, minPrice, maxPrice, searchTerm } = queryResult.data;
+    const { searchParams } = new URL(request.url);
+    
+    // Parse and validate query parameters
+    const selectedCategories = parseCommaSeparated(searchParams.get('selectedCategories'), 50);
+    const selectedSellers = parseCommaSeparated(searchParams.get('selectedSellers'), 200);
+    const minPrice = Math.max(0, Number(searchParams.get('minPrice')) || 0);
+    const maxPriceRaw = searchParams.get('maxPrice');
+    const maxPrice = maxPriceRaw ? Math.max(0, Number(maxPriceRaw)) : Number.POSITIVE_INFINITY;
+    const searchTerm = (searchParams.get('searchTerm') || '').trim().slice(0, 200);
+    
+    // Runtime validation for price range
+    if (maxPrice < minPrice) {
+      return NextResponse.json({ message: 'maxPrice must be >= minPrice' }, { status: 400 });
+    }
 
     // Build base where clause (excluding the dimension we're counting)
     const baseWhere: any = {
@@ -134,19 +117,19 @@ export async function GET(request: Request) {
       select: {
         userId: true,
         companyId: true,
-        user: { select: { id: true, name: true } },
-        company: { select: { id: true, name: true } },
+        User: { select: { id: true, name: true } },
+        Company: { select: { id: true, name: true } },
       },
     });
 
     // Build unique sellers map
     const sellersMap = new Map<string, { id: string; name: string; type: 'user' | 'company' }>();
     for (const p of allSellersRaw) {
-      if (p.user && !sellersMap.has(p.user.id)) {
-        sellersMap.set(p.user.id, { id: p.user.id, name: p.user.name ?? 'Unknown', type: 'user' });
+      if (p.User && !sellersMap.has(p.User.id)) {
+        sellersMap.set(p.User.id, { id: p.User.id, name: p.User.name ?? 'Unknown', type: 'user' });
       }
-      if (p.company && !sellersMap.has(p.company.id)) {
-        sellersMap.set(p.company.id, { id: p.company.id, name: p.company.name, type: 'company' });
+      if (p.Company && !sellersMap.has(p.Company.id)) {
+        sellersMap.set(p.Company.id, { id: p.Company.id, name: p.Company.name, type: 'company' });
       }
     }
 

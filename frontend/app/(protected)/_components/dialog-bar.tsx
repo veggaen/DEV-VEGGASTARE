@@ -14,10 +14,10 @@ import {
 } from "@/components/ui/command";
 import { AiOutlineSetting } from "react-icons/ai";
 import { MdAddCircleOutline, MdBusiness } from "react-icons/md";
-import { CiCircleCheck } from "react-icons/ci";
+import { CiCircleCheck, CiInboxIn } from "react-icons/ci";
 import { TiMessages } from "react-icons/ti";
 import { FaStore } from "react-icons/fa";
-import { FiRss } from "react-icons/fi";
+import { FiRss, FiSend, FiUser } from "react-icons/fi";
 
 type MyDialogbarNavigatorProps = {
   /** Optional hook for parents (e.g. user dropdown) to close themselves before opening the dialog */
@@ -81,19 +81,29 @@ export const MyDialogbarNavigator = ({ onOpen, variant = "default", open, onOpen
         ],
       },
       {
+        group: "Job Board",
+        items: [
+          { href: "/jobs", label: "Browse Requests", icon: <CiInboxIn className="h-4 w-4" /> },
+          { href: "/jobs/post", label: "Post a Request", icon: <FiSend className="h-4 w-4" /> },
+        ],
+      },
+      {
         group: "Community",
         items: [
           { href: "/pulse", label: "Pulse", icon: <FiRss className="h-4 w-4" /> },
-          { href: "/conversations", label: "Inbox", icon: <TiMessages className="h-4 w-4" /> },
+          { href: "/conversations", label: "Messages", icon: <TiMessages className="h-4 w-4" /> },
         ],
       },
       {
         group: "Company",
-        items: [{ href: "/nexus/company", label: "Company", icon: <MdBusiness className="h-4 w-4" /> }],
+        items: [{ href: "/companies", label: "Company", icon: <MdBusiness className="h-4 w-4" /> }],
       },
       {
-        group: "Settings",
-        items: [{ href: "/nexus", label: "Settings", icon: <AiOutlineSetting className="h-4 w-4" /> }],
+        group: "Account",
+        items: [
+          { href: "/profile", label: "My Profile", icon: <FiUser className="h-4 w-4" /> },
+          { href: "/settings", label: "Settings", icon: <AiOutlineSetting className="h-4 w-4" /> },
+        ],
       },
     ],
     []

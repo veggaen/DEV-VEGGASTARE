@@ -1,5 +1,9 @@
 
-export const MyAddEmployeeAction = async (data: any) => {
+type AddEmployeeResult =
+  | { success: false; error: string }
+  | { success: true; message: string; data: unknown };
+
+export const MyAddEmployeeAction = async (data: any): Promise<AddEmployeeResult> => {
     console.log('MyAddEmployeeAction()',data.clientUser.name,'is Attempting to add new employee with data:', data);  
     const url = `/api/companies/employees/add`;
     console.log('URL', url);

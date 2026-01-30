@@ -1,6 +1,6 @@
 'use server';
 
-import { ExtendedEmployee } from '@/app/(protected)/nexus/company/[companyId]/page';
+import { ExtendedEmployee } from '@/app/companies/[id]/settings/CompanySettingsClient';
 import { dbPrisma } from '@/lib/db';
 import { ExtendedUser } from '@/next-auth';
 import { Prisma, Employee } from '@prisma/client';
@@ -56,7 +56,7 @@ export async function editCompanyEmployeePermissionAction(
         companyId: company.id,
       },
         include: {
-          user: true,
+          User: true,
         },
       });
       if (!clientUserEmployeeData){
@@ -81,14 +81,14 @@ export async function editCompanyEmployeePermissionAction(
       const newCompany = await dbPrisma.company.findUnique({
           where: { id: company.id },
           include: {
-              creator: true,
-              owner: true,
-              employees: {
+              User_Company_creatorIdToUser: true,
+              User_Company_ownerIdToUser: true,
+              Employee: {
                   include: {
-                      user: true,
+                      User: true,
                   },
               },
-              warehouseLocations: true,
+              WarehouseLocation: true,
           },
       });
 

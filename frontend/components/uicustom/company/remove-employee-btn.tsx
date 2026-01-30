@@ -42,8 +42,9 @@ export const RemoveEmployeeButton: React.FC<RemoveEmployeeButtonProps> = ({
           // `Employee successfully removed. [User ID: ${userId}]`
           onSuccess(userId);
         } else {
-          console.error(LOG_PREFIX, response.error);
-          onError(`${response.message}`);
+          const errorMsg = 'error' in response ? response.error : response.message;
+          console.error(LOG_PREFIX, errorMsg);
+          onError(errorMsg);
         }
       })
       .catch((error) => {

@@ -1,9 +1,23 @@
 'use server';
 
 import { dbPrisma } from '@/lib/db';
-import { Product, User, Company } from '@prisma/client';
+import { User, Company } from '@prisma/client';
 
-interface ExtendedProduct extends Product {
+// Define the exact shape returned by the query instead of extending Product
+interface ExtendedProduct {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  price: number;
+  stock: number;
+  shipFromPostalId: string;
+  image: string[];
+  specifications: unknown;
+  userId: string;
+  companyId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
   user?: Pick<User, 'id' | 'name'>;
   company?: Pick<Company, 'id' | 'name'> | null;
 }
@@ -91,13 +105,13 @@ export const fetchProductsWithDetails = async ({
         specifications: true,
         userId: true,
         companyId: true,
-        user: {
+        User: {
           select: {
             id: true,
             name: true,
           },
         },
-        company: {
+        Company: {
           select: {
             id: true,
             name: true,

@@ -9,7 +9,9 @@ import { getUserByEmail } from '@/data/user';
 import { generateVerificationToken } from '@/lib/tokens';
 import { sendVerificationEmail } from '@/lib/mail';
 
-export const MyRegisterAction = async (values: z.infer<typeof MyAuthRegisterSchema>) => {
+type RegisterResult = { error: string } | { success: string };
+
+export const MyRegisterAction = async (values: z.infer<typeof MyAuthRegisterSchema>): Promise<RegisterResult> => {
   console.log('MyRegisterAction', values);
   const validateFields = MyAuthRegisterSchema.safeParse(values);
 

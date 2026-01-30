@@ -31,12 +31,12 @@ export default function AppProviders({
           <UiPreferencesProvider>
             <Web3Providers>
               <MyTopBar />
-              <div className="flex min-h-0 flex-1 flex-col">
-                <main className="flex min-h-0 flex-1 flex-col pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]">
+              <div className="flex flex-1 flex-col min-h-0 overflow-auto">
+                <main className="flex flex-1 flex-col pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]">
                   {children}
                 </main>
-                <SiteFooter />
               </div>
+              <SiteFooter />
 
               <CookieBanner />
               <DevBanner />

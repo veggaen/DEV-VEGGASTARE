@@ -54,7 +54,7 @@ export async function POST(req: Request) {
           id: true,
           stock: true,
           version: true,
-          product: {
+          Product: {
             select: {
               id: true,
               title: true,
@@ -74,8 +74,8 @@ export async function POST(req: Request) {
       stock: updatedInventory.stock,
       version: updatedInventory.version,
       product: {
-        id: updatedInventory.product.id,
-        title: updatedInventory.product.title,
+        id: updatedInventory.Product.id,
+        title: updatedInventory.Product.title,
       },
     });
 

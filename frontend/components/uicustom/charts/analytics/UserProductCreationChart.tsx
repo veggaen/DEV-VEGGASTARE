@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Bar } from 'react-chartjs-2';
-import { defaultChartOptions } from '@/components/uicustom/charts/chartjs';
+import { defaultBarChartOptions } from '@/components/uicustom/charts/chartjs';
 import { useFetchUserProductCreationAnalytics } from '@/hooks/useFetchUserProductCreationAnalytics'; // Use the new custom hook
 
 type UserProductCreationDatum = { label: string; count: number };
@@ -54,9 +54,9 @@ const UserProductCreationChart = () => {
                   <Bar
                     data={chartData}
                     options={{
-                      ...defaultChartOptions,
+                      ...defaultBarChartOptions,
                       plugins: {
-                        ...defaultChartOptions.plugins,
+                        ...defaultBarChartOptions.plugins,
                         legend: { display: false },
                       },
                     }}

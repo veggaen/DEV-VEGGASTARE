@@ -25,7 +25,7 @@ if (isPusherConfigured) {
   console.warn(LOG_PREFIX, 'Pusher not configured; skipping real-time Pusher broadcasts.');
 }
 
-export const triggerEvent = (channel: string, event: string, data: any) => {
+export const triggerEvent = (channel: string, event: string, data: unknown): void => {
     if (!pusherServer) {
       return;
     }

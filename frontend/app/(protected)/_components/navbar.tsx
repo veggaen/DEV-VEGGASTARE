@@ -60,14 +60,14 @@ export const MyNavbarProtected = () => {
               <span className="text-xxs mt-1 group-hover:font-semibold">Settings</span>
             </Link>
           </Button>
-          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus/company' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
-            <Link href='/nexus/company' className='flex flex-col items-center'>
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/companies' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
+            <Link href='/companies' className='flex flex-col items-center'>
               <MdBusiness className="text-2xl" />
               <span className="text-xxs mt-1 group-hover:font-semibold">Company</span>
             </Link>
           </Button>
-          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus/company/create' ? 'bg-black/20 dark:bg-zinc-700' : ''}`} >
-            <Link href='/nexus/company/create' className='flex flex-col items-center'>
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/companies/create' ? 'bg-black/20 dark:bg-zinc-700' : ''}`} >
+            <Link href='/companies/create' className='flex flex-col items-center'>
               <MdBusiness className="text-2xl hidden group-hover:flex" />
               <MdAddCircleOutline className="text-2xl group-hover:hidden" />
               <span className="text-xxs mt-1 group-hover:font-semibold">Create</span>

@@ -1,9 +1,13 @@
 import { dbbPrisma } from "./db";
 import { triggerEvent } from "./pusher";
+import { WarehouseLocation } from "@prisma/client";
 
+type UpdateResult = 
+  | { status: 200; data: WarehouseLocation }
+  | { status: 500; message: string };
 
 const LOG_PREFIX = '[backend/src/updateWarehouseInventory.ts]'
-export async function updateWarehouseInventory(warehouseId: string, inventoryId: string, stock: number) {
+export async function updateWarehouseInventory(warehouseId: string, inventoryId: string, stock: number): Promise<UpdateResult> {
   try {
 
     const updatedWarehouse = await dbbPrisma.warehouseLocation.update({

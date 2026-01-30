@@ -17,11 +17,11 @@ interface InventoryItem {
   id: string;
   stock: number;
   version: number;
-  product: Product;
+  Product: Product;
 }
 
 interface extendedWarehouse extends WarehouseLocation {
-  inventory: InventoryItem[];
+  Inventory: InventoryItem[];
 }
 
 const WarehouseOverview = () => {
@@ -80,7 +80,7 @@ const WarehouseOverview = () => {
             if (warehouse.id === data.payload.warehouseId) {
               return {
                 ...warehouse,
-                inventory: warehouse.inventory.map((item) =>
+                Inventory: warehouse.Inventory.map((item) =>
                   item.id === data.payload.inventoryId ? { ...item, stock: data.payload.stock, version: data.payload.version } : item
                 ),
               };
@@ -213,10 +213,10 @@ const WarehouseOverview = () => {
               {showDropdown === warehouse.id && (
                 <div className="warehousedropdown block">
                   <ul>
-                    {warehouse.inventory.map((item) => (
+                    {warehouse.Inventory.map((item) => (
                       <li key={item.id} className="flex justify-between items-center mb-2">
                         <div>
-                          <strong>{item.product.title}</strong> - Stock: {item.stock}
+                          <strong>{item.Product.title}</strong> - Stock: {item.stock}
                         </div>
                         <div className="flex items-center gap-2">
                           <Button variant="outline" onClick={() => handleStockUpdate(warehouse.id, item.id, 'add')}>+</Button>

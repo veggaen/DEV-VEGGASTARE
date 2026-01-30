@@ -1,9 +1,16 @@
 'use server'; // Ensures this runs on the server side
 
 import { dbPrisma } from '@/lib/db'; // Import your Prisma instance
+import { MyLibUserAuth } from '@/lib/user-auth';
 
 // Function to fetch company analytics data
 export const fetchCompanyAnalytics = async () => {
+  // Admin-only authorization
+  const session = await MyLibUserAuth();
+  if (!session?.id || session.role !== 'ADMIN') {
+    throw new Error('Unauthorized - Admin access required');
+  }
+
   const companies = await dbPrisma.company.findMany({
     select: {
       createdAt: true,

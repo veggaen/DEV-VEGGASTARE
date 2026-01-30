@@ -21,7 +21,11 @@ export function zodErrorResponse(error: ZodError, status = 400) {
   );
 }
 
-export async function parseJsonOrError<T>(req: Request, schema: ZodSchema<T>) {
+type ParseResult<T> =
+  | { ok: false; response: NextResponse }
+  | { ok: true; data: T };
+
+export async function parseJsonOrError<T>(req: Request, schema: ZodSchema<T>): Promise<ParseResult<T>> {
   let json: unknown;
   try {
     json = await req.json();
@@ -40,7 +44,7 @@ export async function parseJsonOrError<T>(req: Request, schema: ZodSchema<T>) {
   return { ok: true as const, data: parsed.data };
 }
 
-export function parseQueryOrError<T>(req: Request, schema: ZodSchema<T>) {
+export function parseQueryOrError<T>(req: Request, schema: ZodSchema<T>): ParseResult<T> {
   const { searchParams } = new URL(req.url);
   const queryObject = Object.fromEntries(searchParams.entries());
   const parsed = schema.safeParse(queryObject);

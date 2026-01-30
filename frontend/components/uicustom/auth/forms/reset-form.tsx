@@ -34,11 +34,11 @@ export const MyResetForm = () => {
     startTransition(() => {
       MyResetAction(values)
       .then ((data) =>{
-        if (data?.success) {
+        if ('success' in data) {
           setSuccess(data.success)
           console.log(`${MyLogPrefix} onSubmit 2/2 (success)`, data)
         }
-        if (data?.error){
+        if ('error' in data){
           setError(data.error)
           console.log(`${MyLogPrefix} onSubmit 2/2 (data.error)`, data)
         }

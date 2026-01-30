@@ -26,9 +26,9 @@ export async function GET(
         const warehouse = await dbPrisma.warehouseLocation.findUnique({
             where: { id: warehouseId },
             include: {
-                inventory: {
+                Inventory: {
                     include: {
-                        product: true,
+                        Product: true,
                     },
                 },
             },

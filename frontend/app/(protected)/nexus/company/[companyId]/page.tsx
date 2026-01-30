@@ -1,8 +1,10 @@
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+import { redirect } from "next/navigation";
 
-import CompanyDetailClient from './CompanyDetailClient';
-
-export default function CompanyDetailsPage() {
-  return <CompanyDetailClient />;
+export default async function CompanyPublicPage({
+  params,
+}: {
+  params: Promise<{ companyId: string }>;
+}) {
+  const { companyId } = await params;
+  redirect(`/companies/${companyId}`);
 }

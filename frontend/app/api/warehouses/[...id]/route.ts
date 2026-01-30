@@ -19,9 +19,9 @@ export async function GET(req: NextRequest) {
     const warehouse = await dbPrisma.warehouseLocation.findUnique({
       where: { id: id },
       include: {
-        inventory: {
+        Inventory: {
           include: {
-            product: true,
+            Product: true,
           },
         },
       },
@@ -34,8 +34,8 @@ export async function GET(req: NextRequest) {
 
     const warehouseDetails = {
       warehouse,
-      products: warehouse.inventory.map(inv => ({
-        product: inv.product,
+      products: warehouse.Inventory.map(inv => ({
+        product: inv.Product,
         stock: inv.stock,
       })),
     };

@@ -36,7 +36,7 @@ export async function POST(req: Request) {
         status: 'COMPLETED',
         transactionId: transactionId ?? null,
         commentOrder: commentOrder?.trim() || '',
-        payment: {
+        Payment: {
           create: {
             commentPay: commentPay?.trim() || '',
             method: method ?? PaymentMethod.COINBASEWALLET,

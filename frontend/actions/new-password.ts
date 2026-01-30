@@ -7,7 +7,9 @@ import { getPasswordResetTokenByToken } from '@/data/password-reset-token';
 import { getUserByEmail } from '@/data/user';
 import { dbPrisma } from '@/lib/db';
 
-export const MyNewPasswordAction = async (values: z.infer<typeof MyAuthNewPasswordSchema> , token?: string | null ) => {
+type NewPasswordResult = { error: string } | { success: string };
+
+export const MyNewPasswordAction = async (values: z.infer<typeof MyAuthNewPasswordSchema> , token?: string | null ): Promise<NewPasswordResult> => {
     if (!token){ return { error: "Missing token!" } }  
 
     const validatedFields = MyAuthNewPasswordSchema.safeParse(values);

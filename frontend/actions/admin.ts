@@ -3,7 +3,9 @@
 import { MyLibRoleAuth } from "@/lib/user-auth"
 import { UserRole } from "@prisma/client";
 
-export const admin = async () => {
+type AdminResult = { success: string } | { error: string };
+
+export const admin = async (): Promise<AdminResult> => {
   const role = await MyLibRoleAuth();
 
   if (role === UserRole.ADMIN) {

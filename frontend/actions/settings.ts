@@ -11,7 +11,9 @@ import { generateVerificationToken } from '@/lib/tokens'
 import { sendVerificationEmail } from '@/lib/mail'
 import { UserRole } from '@prisma/client'
 
-export const settings = async (values: z.infer<typeof MyAuthSettingsSchema>) => {
+type SettingsResult = { error: string } | { success: string };
+
+export const settings = async (values: z.infer<typeof MyAuthSettingsSchema>): Promise<SettingsResult> => {
     const user = await MyLibUserAuth() // Authenticate the user
     
     // Check if the user is authenticated

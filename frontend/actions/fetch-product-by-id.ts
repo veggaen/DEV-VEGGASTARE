@@ -21,12 +21,12 @@ export const fetchProductById = cache(async (id: string): Promise<Product | null
     const productData = await dbPrisma.product.findUnique({
       where: { id },
       include: {
-        company: {
+        Company: {
           include: {
-            warehouseLocations: true,
+            WarehouseLocation: true,
           },
         },
-        inventory: true,
+        Inventory: true,
       },
     });
 

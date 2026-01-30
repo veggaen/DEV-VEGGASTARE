@@ -26,15 +26,16 @@ export async function GET(req: NextRequest) {
       where: {
         OR: [
           { ownerId: userId },
+          { creatorId: userId },
           {
-            employees: {
+            Employee: {
               some: { userId },
             },
           },
         ],
       },
       include: {
-        employees: true,
+        Employee: true,
       },
     });
 

@@ -2,8 +2,10 @@
 
 import { signOut } from "@/auth";
 
+type LogoutResult = { success: string } | { error: string };
+
 const LOG_PREFIX = '[frontend/actions/logout.ts]'
-export const LogoutMyAction = async () => {
+export const LogoutMyAction = async (): Promise<LogoutResult> => {
     try {
         console.log(`${LOG_PREFIX} Initiating sign out...`);
 

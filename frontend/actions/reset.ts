@@ -6,7 +6,9 @@ import { getUserByEmail } from "@/data/user"
 import { sendPasswordResetEmail } from "@/lib/mail"
 import { generatePasswordResetToken } from "@/lib/tokens"
 
-export const MyResetAction = async (values: z.infer<typeof MyAuthResetSchema>) => {
+type ResetResult = { error: string } | { success: string };
+
+export const MyResetAction = async (values: z.infer<typeof MyAuthResetSchema>): Promise<ResetResult> => {
   const validatedFields = MyAuthResetSchema.safeParse(values);
 
   if (!validatedFields.success){

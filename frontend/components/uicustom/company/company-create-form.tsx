@@ -48,7 +48,7 @@ const DEFAULT_PERMISSIONS = {
   CAN_EDIT_EMPLOYEE_ROLE: true,
 };
 
-const INITIAL_OWNER_EMPLOYEE = (user: User) => ({
+const INITIAL_OWNER_EMPLOYEE = (user: { id: string; email?: string | null; image?: string | null }) => ({
   userId: user.id,
   email: user.email || '',
   image: user.image || '',
@@ -82,7 +82,9 @@ export const MyCompanyCreateForm = () => {
   const [bannerPreview, setBannerPreview] = useState<string[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-  const [employeeList, setEmployeeList] = useState<UIEmployee[]>(user ? [INITIAL_OWNER_EMPLOYEE(user)] : []);
+  const [employeeList, setEmployeeList] = useState<UIEmployee[]>(
+    user?.id ? [INITIAL_OWNER_EMPLOYEE({ id: user.id, email: user.email, image: user.image })] : []
+  );
   const [error, setError] = useState<string | undefined>('');
   const [error2, setError2] = useState<string | undefined>('');
   const [success, setSuccess] = useState<string | undefined>('');
@@ -101,7 +103,7 @@ export const MyCompanyCreateForm = () => {
       employmentNoticeDays: 14,
       creatorId: user?.id ?? '',
       ownerId: user?.id ?? '',
-      employees: user ? [{ ...INITIAL_OWNER_EMPLOYEE(user) }] : [],
+      employees: user?.id ? [{ ...INITIAL_OWNER_EMPLOYEE({ id: user.id, email: user.email, image: user.image }) }] : [],
       usesShipping: false,
       warehouseLocations: [{ address: '', postalCode: '', city: '', country: '', latitude: 0, longitude: 0 }],
     },
@@ -227,10 +229,10 @@ export const MyCompanyCreateForm = () => {
       });
     }
 
-    const updatedEmployeeList = [
-      INITIAL_OWNER_EMPLOYEE(user!),
+    const updatedEmployeeList = user?.id ? [
+      INITIAL_OWNER_EMPLOYEE({ id: user.id, email: user.email, image: user.image }),
       ...employeeList.filter(employee => employee.userId !== user?.id),
-    ];
+    ] : employeeList;
 
     const updatedFormData = {
       ...newValues,
@@ -242,12 +244,12 @@ export const MyCompanyCreateForm = () => {
     startTransition(() => {
       MyCreateCompanyAction(updatedFormData)
         .then((data) => {
-          if (data.error) {
+          if ('error' in data) {
             setError(data.error);
           }
-          if (data.success) {
+          if ('success' in data) {
             setSuccess(data.success);
-            router.push(`/nexus/company/${data.companyId}`);
+            router.push(`/companies/${data.companyId}`);
           }
         });
     });
@@ -519,7 +521,7 @@ export const MyCompanyCreateForm = () => {
               </div>
             </div>
           </div>
-          {user.role === 'ADMIN' && (
+          {user?.role === 'ADMIN' && (
             <FormField control={form.control} name='employees' render={({ field }) => (
               <FormItem className='w-full px-4 py-2'>
                 <FormLabel>Employees</FormLabel>
