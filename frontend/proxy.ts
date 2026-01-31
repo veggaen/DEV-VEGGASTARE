@@ -83,8 +83,9 @@ function buildCsp(nonce: string, isDev: boolean) {
   ].join("; ");
 }
 
-function applySecurityHeaders(res: NextResponse, requestId: string, nonce: string) {
+function applySecurityHeaders(res: NextResponse, requestId: string, nonce: string, pathname: string = '') {
   const isDev = process.env.NODE_ENV !== "production";
+  const isGatePage = pathname === '/gate';
 
   res.headers.set("x-request-id", requestId);
   res.headers.set("x-content-type-options", "nosniff");
@@ -96,13 +97,19 @@ function applySecurityHeaders(res: NextResponse, requestId: string, nonce: strin
   );
   // Wallet SDKs (Coinbase Smart Wallet, etc.) often require popups that rely on
   // window.opener. In dev, allow popups; in prod keep stricter isolation.
-  res.headers.set("cross-origin-opener-policy", isDev ? "same-origin-allow-popups" : "same-origin");
+  // Gate page also needs looser COOP to work properly
+  res.headers.set("cross-origin-opener-policy", (isDev || isGatePage) ? "same-origin-allow-popups" : "same-origin");
 
   if (!isDev) {
     res.headers.set(
       "strict-transport-security",
       "max-age=63072000; includeSubDomains; preload"
     );
+  }
+
+  // Skip CSP for gate page to avoid console noise
+  if (isGatePage) {
+    return res;
   }
 
   // In development, CSP (even report-only) produces a lot of console noise from
@@ -140,6 +147,7 @@ export default function proxy(req: NextRequest) {
   }
 
   const { nextUrl } = req;
+  const { pathname } = nextUrl;
   const isLoggedIn = hasSessionCookie(req);
 
   const requestHeaders = new Headers(req.headers);
@@ -148,20 +156,21 @@ export default function proxy(req: NextRequest) {
   requestHeaders.set("x-request-id", requestId);
   requestHeaders.set("x-nonce", nonce);
 
-  const isApiAuthRoute = apiAuthPrefix.some((prefix) => nextUrl.pathname.startsWith(prefix));
-  const isAuthRoute = authRoutes.includes(nextUrl.pathname);
-  const isApiRoute = nextUrl.pathname.startsWith("/api") || nextUrl.pathname.startsWith("/trpc");
+  const isApiAuthRoute = apiAuthPrefix.some((prefix) => pathname.startsWith(prefix));
+  const isAuthRoute = authRoutes.includes(pathname);
+  const isApiRoute = pathname.startsWith("/api") || pathname.startsWith("/trpc");
 
   // Allow /products and /products/[id] to be public.
-  const isPublicProductPage = nextUrl.pathname === "/products" || nextUrl.pathname.startsWith("/products/");
+  const isPublicProductPage = pathname === "/products" || pathname.startsWith("/products/");
 
-  const isPublicRoute = publicRoutes.includes(nextUrl.pathname) || isPublicProductPage;
+  const isPublicRoute = publicRoutes.includes(pathname) || isPublicProductPage;
 
   if (isApiAuthRoute) {
     return applySecurityHeaders(
       NextResponse.next({ request: { headers: requestHeaders } }),
       requestId,
-      nonce
+      nonce,
+      pathname
     );
   }
 
@@ -170,7 +179,8 @@ export default function proxy(req: NextRequest) {
     return applySecurityHeaders(
       NextResponse.next({ request: { headers: requestHeaders } }),
       requestId,
-      nonce
+      nonce,
+      pathname
     );
   }
 
@@ -179,33 +189,37 @@ export default function proxy(req: NextRequest) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl)),
         requestId,
-        nonce
+        nonce,
+        pathname
       );
     }
 
     return applySecurityHeaders(
       NextResponse.next({ request: { headers: requestHeaders } }),
       requestId,
-      nonce
+      nonce,
+      pathname
     );
   }
 
   if (!isLoggedIn && !isPublicRoute) {
-    let callbackUrl = nextUrl.pathname;
+    let callbackUrl = pathname;
     if (nextUrl.search) callbackUrl += nextUrl.search;
 
     const encodedCallbackUrl = encodeURIComponent(callbackUrl);
     return applySecurityHeaders(
       NextResponse.redirect(new URL(`/auth/login?callbackUrl=${encodedCallbackUrl}`, nextUrl)),
       requestId,
-      nonce
+      nonce,
+      pathname
     );
   }
 
   return applySecurityHeaders(
     NextResponse.next({ request: { headers: requestHeaders } }),
     requestId,
-    nonce
+    nonce,
+    pathname
   );
 }
 

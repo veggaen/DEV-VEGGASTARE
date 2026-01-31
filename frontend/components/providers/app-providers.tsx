@@ -4,6 +4,7 @@ import * as React from "react";
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { usePathname } from "next/navigation";
 
 import { EdgeStoreProvider } from "@/lib/edgestore";
 import { ThemeProvider } from "@/components/providers/themeprovider";
@@ -25,6 +26,23 @@ export default function AppProviders({
   session: Session | null;
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  
+  // Gate page gets minimal layout - no providers, no header/footer
+  if (pathname === '/gate') {
+    return (
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="dark"
+        enableSystem={false}
+        disableTransitionOnChange
+        storageKey="veggat:theme"
+      >
+        {children}
+      </ThemeProvider>
+    );
+  }
+
   return (
     <SessionProvider session={session} refetchOnWindowFocus>
       <EdgeStoreProvider>
