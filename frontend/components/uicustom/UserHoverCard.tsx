@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useFollowState } from '@/hooks/useFollowState';
 import { CalendarDays, Users } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
 
@@ -41,10 +42,18 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
   align = 'start',
 }) => {
   const currentUser = useCurrentUser();
+  const followState = useFollowState();
   const [userPreview, setUserPreview] = useState<UserPreview | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+
+  // Get follow state from shared context, fallback to local preview data
+  const globalFollowState = followState.isFollowing(userId);
+  const isFollowing = globalFollowState !== undefined ? globalFollowState : (userPreview?.isFollowing ?? false);
+  
+  // Get follower count with adjustment from shared state
+  const followerCountDelta = followState.getFollowerCountDelta(userId);
+  const displayFollowerCount = (userPreview?._count?.followers ?? 0) + followerCountDelta;
 
   // Fetch user preview when hover card opens
   useEffect(() => {
@@ -57,7 +66,10 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
         if (res.ok) {
           const data = await res.json();
           setUserPreview(data);
-          setIsFollowing(data.isFollowing || false);
+          // Initialize follow state in shared context if not already set
+          if (data.isFollowing !== undefined && globalFollowState === undefined) {
+            followState.initializeFollowStates([{ id: userId, isFollowing: data.isFollowing }]);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch user preview:', error);
@@ -67,31 +79,30 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
     };
 
     fetchUserPreview();
-  }, [isOpen, userId, userPreview]);
+  }, [isOpen, userId, userPreview, followState, globalFollowState]);
 
   const handleFollow = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!currentUser || currentUser.id === userId) return;
 
+    const newFollowState = !isFollowing;
+    
+    // Optimistic update via shared state
+    followState.setFollowState(userId, newFollowState);
+
     try {
       const res = await fetch(`/api/users/${encodeURIComponent(userId)}/follow`, {
         method: isFollowing ? 'DELETE' : 'POST',
       });
-      if (res.ok) {
-        setIsFollowing(!isFollowing);
-        if (userPreview) {
-          setUserPreview({
-            ...userPreview,
-            _count: {
-              ...userPreview._count,
-              followers: userPreview._count.followers + (isFollowing ? -1 : 1),
-            },
-          });
-        }
+      if (!res.ok) {
+        // Revert on error
+        followState.setFollowState(userId, isFollowing);
       }
     } catch (error) {
       console.error('Failed to follow/unfollow:', error);
+      // Revert on error
+      followState.setFollowState(userId, isFollowing);
     }
   };
 
@@ -176,7 +187,7 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-1">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{userPreview?._count?.followers || 0}</span>
+                    <span className="font-medium">{Math.max(0, displayFollowerCount)}</span>
                     <span className="text-muted-foreground">followers</span>
                   </div>
                   <div>

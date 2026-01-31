@@ -9,6 +9,7 @@ import { EdgeStoreProvider } from "@/lib/edgestore";
 import { ThemeProvider } from "@/components/providers/themeprovider";
 import { UiPreferencesProvider } from "@/components/providers/ui-preferences";
 import { Toaster } from "@/components/ui/sonner";
+import { FollowStateProvider } from "@/hooks/useFollowState";
 
 import Web3Providers from "@/components/crypto-related/Web3Providers";
 
@@ -29,19 +30,21 @@ export default function AppProviders({
       <EdgeStoreProvider>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <UiPreferencesProvider>
-            <Web3Providers>
-              <MyTopBar />
-              <div className="flex flex-1 flex-col min-h-0 overflow-auto">
-                <main className="flex flex-1 flex-col pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]">
-                  {children}
-                </main>
-              </div>
-              <SiteFooter />
+            <FollowStateProvider>
+              <Web3Providers>
+                <MyTopBar />
+                <div className="flex flex-1 flex-col min-h-0 overflow-auto">
+                  <main className="flex flex-1 flex-col pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]">
+                    {children}
+                  </main>
+                </div>
+                <SiteFooter />
 
-              <CookieBanner />
-              <DevBanner />
-              <Toaster />
-            </Web3Providers>
+                <CookieBanner />
+                <DevBanner />
+                <Toaster />
+              </Web3Providers>
+            </FollowStateProvider>
           </UiPreferencesProvider>
           <SpeedInsights />
         </ThemeProvider>

@@ -8,6 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import Spinner from '@/components/uicustom/spinner';
 import { FiSearch, FiUserPlus, FiUserCheck, FiUsers, FiTrendingUp } from 'react-icons/fi';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useFollowState } from '@/hooks/useFollowState';
 import { toast } from 'sonner';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 
@@ -33,13 +34,13 @@ interface SuggestedUser extends SearchUser {
 export function DiscoverPeople() {
   const router = useRouter();
   const currentUser = useCurrentUser();
+  const followState = useFollowState();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
-  const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
 
   // Fetch suggested users on mount
   useEffect(() => {
@@ -57,11 +58,8 @@ export function DiscoverPeople() {
           const suggestions = data.suggestions || [];
           setSuggestedUsers(suggestions);
           
-          // Initialize following state from API response
-          const followingIds = suggestions
-            .filter((u: SuggestedUser) => u.isFollowing)
-            .map((u: SuggestedUser) => u.id);
-          setFollowingUsers(new Set(followingIds));
+          // Initialize following state in shared context
+          followState.initializeFollowStates(suggestions);
         }
       } catch (error) {
         console.error('Failed to fetch suggestions:', error);
@@ -71,7 +69,7 @@ export function DiscoverPeople() {
     };
 
     fetchSuggestions();
-  }, [currentUser]);
+  }, [currentUser, followState]);
 
   // Search users with debounce
   useEffect(() => {
@@ -91,15 +89,8 @@ export function DiscoverPeople() {
           );
           setSearchResults(users);
           
-          // Update following state from search results
-          const followingIds = users
-            .filter((u: SearchUser) => u.isFollowing)
-            .map((u: SearchUser) => u.id);
-          setFollowingUsers(prev => {
-            const newSet = new Set(prev);
-            followingIds.forEach((id: string) => newSet.add(id));
-            return newSet;
-          });
+          // Initialize following state in shared context
+          followState.initializeFollowStates(users);
         }
       } catch (error) {
         console.error('Search error:', error);
@@ -110,9 +101,9 @@ export function DiscoverPeople() {
 
     const debounce = setTimeout(searchUsers, 300);
     return () => clearTimeout(debounce);
-  }, [searchQuery, currentUser?.id]);
+  }, [searchQuery, currentUser?.id, followState]);
 
-  // Handle follow/unfollow
+  // Handle follow/unfollow - uses shared state
   const handleFollow = useCallback(async (userId: string, isCurrentlyFollowing: boolean) => {
     if (!currentUser) {
       toast.error('Please sign in to follow users');
@@ -120,40 +111,27 @@ export function DiscoverPeople() {
     }
 
     const method = isCurrentlyFollowing ? 'DELETE' : 'POST';
+    const newFollowState = !isCurrentlyFollowing;
     
-    // Optimistic update
-    setFollowingUsers(prev => {
-      const next = new Set(prev);
-      if (isCurrentlyFollowing) {
-        next.delete(userId);
-      } else {
-        next.add(userId);
-      }
-      return next;
-    });
+    // Optimistic update via shared state
+    followState.setFollowState(userId, newFollowState);
 
     try {
       const res = await fetch(`/api/users/${userId}/follow`, { method });
       if (!res.ok) {
-        // Revert on error
-        setFollowingUsers(prev => {
-          const next = new Set(prev);
-          if (isCurrentlyFollowing) {
-            next.add(userId);
-          } else {
-            next.delete(userId);
-          }
-          return next;
-        });
+        // Revert on error via shared state
+        followState.setFollowState(userId, isCurrentlyFollowing);
         const data = await res.json();
         toast.error(data.error || 'Failed to update follow status');
       } else {
         toast.success(isCurrentlyFollowing ? 'Unfollowed' : 'Following!');
       }
     } catch (error) {
+      // Revert on error via shared state
+      followState.setFollowState(userId, isCurrentlyFollowing);
       toast.error('Failed to update follow status');
     }
-  }, [currentUser]);
+  }, [currentUser, followState]);
 
   const displayUsers = searchQuery.length >= 2 ? searchResults : suggestedUsers;
   const isLoading = searchQuery.length >= 2 ? isSearching : isLoadingSuggestions;
@@ -188,7 +166,8 @@ export function DiscoverPeople() {
           </p>
         ) : (
           displayUsers.map((user) => {
-            const isFollowing = followingUsers.has(user.id) || user.isFollowing;
+            // Use shared follow state, falling back to API response
+            const isFollowing = followState.isFollowing(user.id) ?? user.isFollowing;
             
             return (
               <div
