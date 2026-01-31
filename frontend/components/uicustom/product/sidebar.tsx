@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { FiX, FiSearch, FiRotateCcw, FiChevronDown, FiChevronUp, FiDollarSign, FiGrid, FiUsers, FiShield, FiSliders } from 'react-icons/fi';
 import { MdAdd } from 'react-icons/md';
-import { useSidebar } from '@/components/providers/product-layoutProvider';
+import { useSidebar, type SidebarDock } from '@/components/providers/product-layoutProvider';
 import { useCategories, type CategoryWithCount } from '@/components/providers/categoriesContext';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -290,19 +290,96 @@ export const MySidebarProductsMenu = () => {
     ];
   }, [productsFrameBounds?.left, productsFrameBounds?.right, viewportW]);
 
+  // Find the closest snap point to a given x position
+  const findClosestSnapPoint = useCallback((x: number) => {
+    let closest = snapPoints[0];
+    let minDist = Math.abs(x - closest.x);
+    
+    for (const sp of snapPoints) {
+      const dist = Math.abs(x - sp.x);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = sp;
+      }
+    }
+    return closest;
+  }, [snapPoints]);
+
   const leftForDock = useMemo(() => {
     const hit = snapPoints.find((p) => p.dock === sidebarDock);
     if (hit) return hit.x;
     return snapPoints[0]?.x ?? 0;
   }, [sidebarDock, snapPoints]);
 
-  const dragRef = useRef<{ pointerId: number; grabOffsetX: number } | null>(null);
+  // Enhanced drag ref that tracks start position for gesture detection
+  const dragRef = useRef<{ 
+    pointerId: number; 
+    grabOffsetX: number;
+    startX: number;
+    startY: number;
+    startDock: SidebarDock;
+  } | null>(null);
   const [dragLeft, setDragLeft] = useState<number | null>(null);
+  const [previewDock, setPreviewDock] = useState<SidebarDock | null>(null);
   const effectiveLeft = dragLeft ?? leftForDock;
 
   useEffect(() => {
     if (dragRef.current === null && dragLeft !== null) setDragLeft(null);
-  }, [sidebarDock, dragLeft]);
+    if (dragRef.current === null && previewDock !== null) setPreviewDock(null);
+  }, [sidebarDock, dragLeft, previewDock]);
+  
+  // Gesture-based dock calculation
+  const calculateDockFromGesture = useCallback((
+    deltaX: number, 
+    deltaY: number, 
+    startDock: SidebarDock
+  ): SidebarDock => {
+    const isOnLeft = startDock === 'edge-left' || startDock === 'frame-left';
+    const isEdge = startDock === 'edge-left' || startDock === 'edge-right';
+    
+    // Thresholds for gesture detection
+    const horizontalThreshold = 100; // px to switch sides
+    const verticalThreshold = 40;    // px to switch edge/inline
+    
+    // Check if this is primarily a vertical or horizontal gesture
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    
+    // Vertical gesture: switch between edge and inline on same side
+    if (absY > verticalThreshold && absY > absX * 0.7) {
+      if (deltaY > 0) {
+        // Dragging DOWN → move to inline (frame)
+        return isOnLeft ? 'frame-left' : 'frame-right';
+      } else {
+        // Dragging UP → move to edge
+        return isOnLeft ? 'edge-left' : 'edge-right';
+      }
+    }
+    
+    // Horizontal gesture: switch sides
+    if (absX > horizontalThreshold) {
+      if (deltaX > 0) {
+        // Dragging RIGHT
+        if (absX > horizontalThreshold * 2) {
+          // Far right → edge-right
+          return 'edge-right';
+        }
+        // Medium right → frame-right (or stay if already on right)
+        return isOnLeft ? 'frame-right' : (isEdge ? 'frame-right' : 'edge-right');
+      } else {
+        // Dragging LEFT
+        if (absX > horizontalThreshold * 2) {
+          // Far left → edge-left
+          return 'edge-left';
+        }
+        // Medium left → frame-left (or stay if already on left)
+        return isOnLeft ? (isEdge ? 'frame-left' : 'edge-left') : 'frame-left';
+      }
+    }
+    
+    // Small movement - stay at current position
+    return startDock;
+  }, []);
 
   // ─── Filter State from Context ─────────────────────────────────────────────
   const {
@@ -376,38 +453,49 @@ export const MySidebarProductsMenu = () => {
       if (e.button !== 0) return;
       e.preventDefault();
       const currentLeft = effectiveLeft;
-      dragRef.current = { pointerId: e.pointerId, grabOffsetX: e.clientX - currentLeft };
+      dragRef.current = { 
+        pointerId: e.pointerId, 
+        grabOffsetX: e.clientX - currentLeft,
+        startX: e.clientX,
+        startY: e.clientY,
+        startDock: sidebarDock,
+      };
       (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
       setDragLeft(currentLeft);
+      setPreviewDock(sidebarDock);
     };
 
     const onHeaderPointerMove: React.PointerEventHandler<HTMLDivElement> = (e) => {
       const s = dragRef.current;
       if (!s || s.pointerId !== e.pointerId) return;
+      
+      // Calculate gesture delta from start position
+      const deltaX = e.clientX - s.startX;
+      const deltaY = e.clientY - s.startY;
+      
+      // Use gesture to determine target dock
+      const targetDock = calculateDockFromGesture(deltaX, deltaY, s.startDock);
+      
+      // Show the actual drag position for smooth 1:1 tracking during drag
       const maxLeft = Math.max(0, viewportW - SIDEBAR_WIDTH);
       const rawLeft = clamp(e.clientX - s.grabOffsetX, 0, maxLeft);
-      let idx = 0;
-      for (let i = 0; i < snapPoints.length - 1; i++) {
-        const mid = (snapPoints[i].x + snapPoints[i + 1].x) / 2;
-        if (rawLeft >= mid) idx = i + 1;
-      }
-      const target = snapPoints[idx] ?? snapPoints[0];
-      setDragLeft(target?.x ?? rawLeft);
-      if (target && target.dock !== sidebarDock) setSidebarDock(target.dock);
+      
+      // Always show raw position during drag for smooth tracking
+      setDragLeft(rawLeft);
+      
+      // Update preview dock for visual feedback (this determines where it will snap on release)
+      if (targetDock !== previewDock) setPreviewDock(targetDock);
     };
 
     const finishDrag: React.PointerEventHandler<HTMLDivElement> = (e) => {
       const s = dragRef.current;
       if (!s || s.pointerId !== e.pointerId) return;
-      const l = dragLeft ?? effectiveLeft;
-      let idx = 0;
-      for (let i = 0; i < snapPoints.length - 1; i++) {
-        const mid = (snapPoints[i].x + snapPoints[i + 1].x) / 2;
-        if (l >= mid) idx = i + 1;
-      }
-      const target = snapPoints[idx] ?? snapPoints[0];
-      if (target) setSidebarDock(target.dock);
+      
+      // Use the preview dock (calculated from gesture) as final position
+      const finalDock = previewDock ?? s.startDock;
+      setSidebarDock(finalDock);
       setDragLeft(null);
+      setPreviewDock(null);
       dragRef.current = null;
     };
 
@@ -751,18 +839,27 @@ export const MySidebarProductsMenu = () => {
         const desktopHeightWithInset =
           bottomInsetPx > 0 ? `calc(${desktopHeight} - ${bottomInsetPx}px)` : desktopHeight;
 
+				const isDragging = dragRef.current !== null;
+
   return (
     <>
       {/* Desktop sidebar (fixed overlay; does NOT push layout) */}
       <aside
         data-sidebar-filters="true"
         className={cn(
-          "hidden md:block fixed z-50",
-          "transition-[opacity,transform,top] duration-300 ease-out will-change-transform",
+          "hidden md:block fixed z-[60]",
+          "will-change-transform",
+          // Smooth transitions when not dragging, instant when dragging for 1:1 tracking
+          isDragging 
+            ? "transition-[opacity,transform,top] duration-0" 
+            : "transition-[opacity,transform,top,left] duration-300 ease-out",
           isSidebarOpen ? "opacity-100 translate-y-0" : "opacity-0 pointer-events-none -translate-y-1"
         )}
         style={{
-          left: effectiveLeft,
+          // When edge-right and docked, overlap 1px to eliminate any subpixel gap
+          left: isDocked && isEdgeDock && sidebarDock === 'edge-right' && !isDragging
+            ? effectiveLeft - 1 
+            : effectiveLeft,
           width: SIDEBAR_WIDTH,
           top: `calc(${desktopTop} + ${floatingTopOffset}px)`,
 			height: desktopHeightWithInset

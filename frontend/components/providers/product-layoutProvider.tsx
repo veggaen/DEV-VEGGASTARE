@@ -695,6 +695,10 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		transition: 'width 300ms ease-out, min-width 300ms ease-out, opacity 300ms ease-out',
 	};
 
+	// When scrolled/sticky, show a toolbar-matching background on the spacer to seamlessly
+	// connect the sticky toolbar with the edge-docked sidebar (no visible gap).
+	const spacerHasToolbarBg = isContentScrolled && isSidebarOpen && isEdgeDock;
+
   return (
 	  <SidebarContext.Provider
 			value={{
@@ -737,9 +741,17 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 								{/* Left spacer when sidebar is edge-left */}
 								<div
 									aria-hidden="true"
-									className="hidden md:block flex-shrink-0"
+									className="hidden md:block flex-shrink-0 relative"
 									style={showLeftSpacer ? spacerStyle : collapsedSpacerStyle}
-								/>
+								>
+									{/* Sticky toolbar-matching background to connect with edge-docked sidebar */}
+									{spacerHasToolbarBg && sidebarDock === 'edge-left' && (
+										<div 
+											className="sticky top-0 z-50 h-[var(--products-controls-height,44px)] bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg border-b border-black/5 dark:border-white/5"
+											style={{ width: spacerWidth }}
+										/>
+									)}
+								</div>
 								{/* Main content area - takes remaining width */}
 								<div className="relative flex-1 min-w-0">
 									{children}
@@ -747,9 +759,17 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 								{/* Right spacer when sidebar is edge-right */}
 								<div
 									aria-hidden="true"
-									className="hidden md:block flex-shrink-0"
+									className="hidden md:block flex-shrink-0 relative"
 									style={showRightSpacer ? spacerStyle : collapsedSpacerStyle}
-								/>
+								>
+									{/* Sticky toolbar-matching background to connect with edge-docked sidebar */}
+									{spacerHasToolbarBg && sidebarDock === 'edge-right' && (
+										<div 
+											className="sticky top-0 z-50 h-[var(--products-controls-height,44px)] bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg border-b border-black/5 dark:border-white/5"
+											style={{ width: spacerWidth }}
+										/>
+									)}
+								</div>
 							</div>
 					</div>
 		    </div>

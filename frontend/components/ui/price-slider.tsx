@@ -472,8 +472,9 @@ export const PriceSlider = ({
             isDragging === 'min' ? "z-30" : isDragging === 'max' ? "z-10" : lastDragged === 'min' ? "z-20" : "z-10"
           )}
           style={{
-            left: trackPadding + minPx,
-            transform: 'translateX(-50%)',
+            // Position the handle center at the correct px, using margin-left instead of transform
+            // This avoids conflicts with Framer Motion's scale transform
+            left: trackPadding + minPx - handleSize / 2,
             touchAction: 'none',
           }}
           onPointerDown={handleThumbPointerDown('min')}
@@ -481,9 +482,6 @@ export const PriceSlider = ({
           onPointerUp={handleThumbPointerUp}
           onPointerCancel={handleThumbPointerUp}
           onKeyDown={handleKeyDown('min')}
-          whileDrag={{ scale: 1.2 }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 1.15 }}
         >
           {/* Handle glow */}
           <motion.div
@@ -497,12 +495,14 @@ export const PriceSlider = ({
               filter: 'blur(4px)',
             }}
           />
-          {/* Handle body */}
+          {/* Handle body - scale effect on hover/active via CSS to avoid position jump */}
           <div className={cn(
-            "relative w-5 h-5 rounded-full shadow-md",
+            "relative w-5 h-5 rounded-full shadow-md transition-transform duration-150",
             "bg-gradient-to-br from-white to-slate-100",
             "dark:from-slate-600 dark:to-slate-800",
-            "border-2 border-emerald-500 dark:border-emerald-400"
+            "border-2 border-emerald-500 dark:border-emerald-400",
+            "hover:scale-110 active:scale-115",
+            isDragging === 'min' && "scale-115"
           )}>
             <div className="absolute inset-0.5 rounded-full bg-gradient-to-br from-emerald-200/30 to-transparent dark:from-emerald-400/20" />
           </div>
@@ -526,8 +526,9 @@ export const PriceSlider = ({
             isDragging === 'max' ? "z-30" : isDragging === 'min' ? "z-10" : lastDragged === 'max' ? "z-20" : "z-10"
           )}
           style={{
-            left: trackPadding + maxPx,
-            transform: 'translateX(-50%)',
+            // Position the handle center at the correct px, using direct left instead of transform
+            // This avoids conflicts with Framer Motion's scale transform
+            left: trackPadding + maxPx - handleSize / 2,
             touchAction: 'none',
           }}
           onPointerDown={handleThumbPointerDown('max')}
@@ -535,9 +536,6 @@ export const PriceSlider = ({
           onPointerUp={handleThumbPointerUp}
           onPointerCancel={handleThumbPointerUp}
           onKeyDown={handleKeyDown('max')}
-          whileDrag={{ scale: 1.2 }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 1.15 }}
         >
           {/* Handle glow */}
           <motion.div
@@ -551,12 +549,14 @@ export const PriceSlider = ({
               filter: 'blur(4px)',
             }}
           />
-          {/* Handle body */}
+          {/* Handle body - scale effect on hover/active via CSS to avoid position jump */}
           <div className={cn(
-            "relative w-5 h-5 rounded-full shadow-md",
+            "relative w-5 h-5 rounded-full shadow-md transition-transform duration-150",
             "bg-gradient-to-br from-white to-slate-100",
             "dark:from-slate-600 dark:to-slate-800",
-            "border-2 border-violet-500 dark:border-violet-400"
+            "border-2 border-violet-500 dark:border-violet-400",
+            "hover:scale-110 active:scale-115",
+            isDragging === 'max' && "scale-115"
           )}>
             <div className="absolute inset-0.5 rounded-full bg-gradient-to-br from-violet-200/30 to-transparent dark:from-violet-400/20" />
           </div>

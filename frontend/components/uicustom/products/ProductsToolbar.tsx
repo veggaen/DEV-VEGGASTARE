@@ -345,6 +345,9 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
     );
   }
 
+  // Determine if we should extend background to connect with edge sidebar
+  const isEdgeDock = sidebarDock === 'edge-left' || sidebarDock === 'edge-right';
+
   return (
     <div className={cn(
       "relative z-50 transition-all duration-200 w-full",
@@ -353,7 +356,10 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
       <div className="mx-auto max-w-screen-2xl px-3 sm:px-4 md:px-6">
         {/* Desktop Layout */}
         <div className="hidden md:flex items-center gap-1 py-2">
-          {/* Left: Filters toggle + Dock selector */}
+          {/* Divider - shows on LEFT of Filters when sidebar is on right */}
+          {isRight && <div className="h-4 w-px bg-black/10 dark:bg-white/10 mx-1 order-[99]" />}
+          
+          {/* Filters toggle + Dock selector */}
           <div className={cn("flex items-center gap-1", isRight && "order-last")}>
             <button
               onClick={toggleSidebar}
@@ -403,9 +409,10 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-
-            <div className="h-4 w-px bg-black/10 dark:bg-white/10 mx-1" />
           </div>
+
+          {/* Divider - shows on RIGHT of Filters when sidebar is on left */}
+          {!isRight && <div className="h-4 w-px bg-black/10 dark:bg-white/10 mx-1" />}
 
           {/* Categories */}
           <AllCategoriesDropdown
