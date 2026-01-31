@@ -1,13 +1,11 @@
 import type { MetadataRoute } from 'next';
-
-// Set to false when you're ready to launch and want search engines to index
-const IS_PRIVATE_TESTING = true;
+import { SEO_CONFIG } from '@/lib/site-config';
 
 export default function robots(): MetadataRoute.Robots {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.veggat.com';
 
   // During private testing, block all crawlers
-  if (IS_PRIVATE_TESTING) {
+  if (!SEO_CONFIG.allowCrawlers) {
     return {
       rules: {
         userAgent: '*',

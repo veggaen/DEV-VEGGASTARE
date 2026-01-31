@@ -7,31 +7,34 @@ import {
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { ACCESS_GATE_CONFIG } from "@/lib/site-config";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ACCESS GATE - Production testing lock
+// Uses config from lib/site-config.ts - change SITE_MODE to 'public' to disable
 // ─────────────────────────────────────────────────────────────────────────────
-const ACCESS_GATE_ENABLED = true; // Set to false to disable the gate
-const CORRECT_PASSWORD = 'MainAdc123';
-const COOKIE_NAME = 'veggastare_access';
+const ACCESS_GATE_ENABLED = ACCESS_GATE_CONFIG.enabled;
+const CORRECT_PASSWORD = ACCESS_GATE_CONFIG.password;
+const COOKIE_NAME = ACCESS_GATE_CONFIG.cookieName;
 const COOKIE_VALUE = 'granted_' + Buffer.from(CORRECT_PASSWORD).toString('base64').slice(0, 16);
 
-// Routes that bypass the access gate
-const GATE_BYPASS_ROUTES = [
-  '/gate',           // The gate page itself
-  '/api/access-gate', // The authentication API
-];
+// Routes that bypass the access gate (legal pages should be accessible)
+const GATE_BYPASS_ROUTES = ACCESS_GATE_CONFIG.bypassRoutes;
 
 function checkAccessGate(req: NextRequest): NextResponse | null {
   if (!ACCESS_GATE_ENABLED) return null;
 
   const { pathname } = req.nextUrl;
 
-  // Skip gate for bypass routes and static files
-  // Use exact match for /gate and startsWith for /api/access-gate
-  if (pathname === '/gate' || pathname.startsWith('/api/access-gate')) {
+  // Skip gate for bypass routes (legal pages, gate itself, API)
+  const shouldBypass = GATE_BYPASS_ROUTES.some(route => 
+    pathname === route || pathname.startsWith(route + '/')
+  );
+  if (shouldBypass) {
     return null;
   }
+  
+  // Skip static files
   if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname.includes('.')) {
     return null;
   }
