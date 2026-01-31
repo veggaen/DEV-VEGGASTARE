@@ -676,22 +676,38 @@ const FeedPage: React.FC = () => {
                       'Post';
 
                     return (
-                      <button
+                      <div
                         key={post.id}
-                        type="button"
-                        onClick={() => openPulse(post.id)}
                         className="w-full rounded-xl border border-border/50 bg-background/20 px-3 py-2 text-left transition hover:bg-background/40"
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="text-sm font-medium truncate">{post.user?.name || 'Anonymous'}</div>
-                            <div className="text-xs text-muted-foreground truncate">{headline}</div>
+                            {/* Username with HoverCard - clicking navigates to profile */}
+                            <UserHoverCard
+                              userId={post.userId}
+                              userName={post.user?.name}
+                              userImage={post.user?.image}
+                              side="left"
+                              align="start"
+                            >
+                              <span className="text-sm font-medium truncate block cursor-pointer hover:underline">
+                                {post.user?.name || 'Anonymous'}
+                              </span>
+                            </UserHoverCard>
+                            {/* Content preview - clicking opens the pulse */}
+                            <button
+                              type="button"
+                              onClick={() => openPulse(post.id)}
+                              className="text-xs text-muted-foreground truncate block hover:text-foreground/80 cursor-pointer text-left w-full"
+                            >
+                              {headline}
+                            </button>
                           </div>
                           <div className="shrink-0 text-xs text-muted-foreground">
                             {(post.uniqueViewCount || 0) > 0 ? `${post.uniqueViewCount} views` : `${post.messageCount} msgs`}
                           </div>
                         </div>
-                      </button>
+                      </div>
                     );
                   })
                 )}

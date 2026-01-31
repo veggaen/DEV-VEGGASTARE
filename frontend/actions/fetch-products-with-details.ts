@@ -123,7 +123,12 @@ export const fetchProductsWithDetails = async ({
     });
 
     if (shouldLog) console.log(`${LOG_PREFIX} Successfully fetched ${products.length} products.`);
-    return products;
+    // Transform Prisma field names (User/Company) to lowercase (user/company) for frontend
+    return products.map((p: any) => ({
+      ...p,
+      user: p.User,
+      company: p.Company,
+    }));
   } catch (error) {
     console.error(`${LOG_PREFIX} Error fetching products with details:`, error);
     return [];

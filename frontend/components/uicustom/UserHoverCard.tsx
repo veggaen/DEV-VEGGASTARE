@@ -148,7 +148,7 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
                     size="sm"
                     variant={isFollowing ? 'outline' : 'default'}
                     onClick={handleFollow}
-                    className="rounded-full mb-1"
+                    className="rounded-full mb-1 relative z-10"
                   >
                     {isFollowing ? 'Following' : 'Follow'}
                   </Button>

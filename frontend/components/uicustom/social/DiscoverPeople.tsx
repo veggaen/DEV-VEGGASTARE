@@ -9,6 +9,7 @@ import Spinner from '@/components/uicustom/spinner';
 import { FiSearch, FiUserPlus, FiUserCheck, FiUsers, FiTrendingUp } from 'react-icons/fi';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { toast } from 'sonner';
+import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 
 interface SearchUser {
   id: string;
@@ -192,20 +193,37 @@ export function DiscoverPeople() {
             return (
               <div
                 key={user.id}
-                className="flex items-center gap-3 p-2 rounded-xl hover:bg-background/40 transition-colors cursor-pointer group"
-                onClick={() => router.push(`/profile/${user.id}`)}
+                className="flex items-center gap-3 p-2 rounded-xl hover:bg-background/40 transition-colors group"
               >
-                <Avatar className="h-10 w-10 ring-2 ring-border/30">
-                  <AvatarImage src={user.image || undefined} />
-                  <AvatarFallback className="text-sm bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
-                    {user.name?.[0] || user.email?.[0]?.toUpperCase() || '?'}
-                  </AvatarFallback>
-                </Avatar>
+                {/* Avatar with HoverCard */}
+                <UserHoverCard
+                  userId={user.id}
+                  userName={user.name}
+                  userImage={user.image}
+                  side="left"
+                  align="start"
+                >
+                  <Avatar className="h-10 w-10 ring-2 ring-border/30 cursor-pointer">
+                    <AvatarImage src={user.image || undefined} />
+                    <AvatarFallback className="text-sm bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                      {user.name?.[0] || user.email?.[0]?.toUpperCase() || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                </UserHoverCard>
                 
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">
-                    {user.name || 'Anonymous'}
-                  </div>
+                  {/* Name with HoverCard */}
+                  <UserHoverCard
+                    userId={user.id}
+                    userName={user.name}
+                    userImage={user.image}
+                    side="left"
+                    align="start"
+                  >
+                    <span className="font-medium text-sm truncate block cursor-pointer hover:underline">
+                      {user.name || 'Anonymous'}
+                    </span>
+                  </UserHoverCard>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {/* Show reach/views instead of just followers - "reach over followers" philosophy */}
                     {user.totalViews !== undefined && user.totalViews > 0 ? (
