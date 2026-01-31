@@ -11,6 +11,7 @@ export const publicRoutes = [
   "/pulse", // ✅ Public Pulse page (anyone can view, only logged-in can post)
   "/info",
   "/privacy", // ✅ Privacy page is public
+  "/terms", // ✅ Sales terms page (required for Vipps)
   "/contact",
   "/auth/new-verification",
   "/api/bring-shipping",

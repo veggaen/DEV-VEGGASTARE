@@ -3,8 +3,10 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
 import { parseQueryOrError } from '@/lib/api-validate';
 import { z } from 'zod';
+import { UserSearchResponseSchema } from '@/lib/types/users';
 
 const LOG_PREFIX = '[api/users/search]';
+const isDev = process.env.NODE_ENV !== 'production';
 
 /**
  * GET /api/users/search?q=<query>&limit=<number>&excludeSelf=<boolean>
@@ -106,12 +108,22 @@ export async function GET(req: Request) {
       followerCount: countMap.get(user.id) || 0,
       isFollowing: followingSet.has(user.id),
     }));
-    
-    return NextResponse.json({
+
+    const payload = {
       users: processedUsers,
       count: processedUsers.length,
-    });
-    
+    };
+
+    const validated = UserSearchResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error(LOG_PREFIX, 'Invalid user search DTO:', validated.error);
+      return NextResponse.json(
+        { users: [], message: 'Server error while searching users', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
   } catch (error) {
     console.error(LOG_PREFIX, 'Error searching users:', error);
     return NextResponse.json(

@@ -1,6 +1,12 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  FriendRequestActionResponseSchema,
+  FriendRequestDeleteResponseSchema,
+} from '@/lib/types/friend-requests';
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -70,11 +76,22 @@ export async function PATCH(
         }),
       ]);
 
-      return NextResponse.json({
-        success: true,
-        status: 'ACCEPTED',
+      const payload = {
+        success: true as const,
+        status: 'ACCEPTED' as const,
         message: 'Friend request accepted',
-      });
+      };
+
+      const validated = FriendRequestActionResponseSchema.safeParse(payload);
+      if (!validated.success) {
+        console.error('[api/friend-requests/[id]] Invalid PATCH accept DTO:', validated.error);
+        return NextResponse.json(
+          { error: 'Failed to process friend request', ...(isDev ? { issues: validated.error.issues } : {}) },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(validated.data);
     } else {
       // Decline
       await dbPrisma.friendRequest.update({
@@ -82,11 +99,22 @@ export async function PATCH(
         data: { status: 'DECLINED' },
       });
 
-      return NextResponse.json({
-        success: true,
-        status: 'DECLINED',
+      const payload = {
+        success: true as const,
+        status: 'DECLINED' as const,
         message: 'Friend request declined',
-      });
+      };
+
+      const validated = FriendRequestActionResponseSchema.safeParse(payload);
+      if (!validated.success) {
+        console.error('[api/friend-requests/[id]] Invalid PATCH decline DTO:', validated.error);
+        return NextResponse.json(
+          { error: 'Failed to process friend request', ...(isDev ? { issues: validated.error.issues } : {}) },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(validated.data);
     }
   } catch (error: any) {
     console.error('[api/friend-requests/[id]] Error:', error);
@@ -124,10 +152,17 @@ export async function DELETE(
 
       await dbPrisma.friendRequest.delete({ where: { id } });
 
-      return NextResponse.json({
-        success: true,
-        message: 'Friend request cancelled',
-      });
+      const payload = { success: true as const, message: 'Friend request cancelled' };
+      const validated = FriendRequestDeleteResponseSchema.safeParse(payload);
+      if (!validated.success) {
+        console.error('[api/friend-requests/[id]] Invalid DELETE cancel DTO:', validated.error);
+        return NextResponse.json(
+          { error: 'Failed to process request', ...(isDev ? { issues: validated.error.issues } : {}) },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(validated.data);
     }
 
     // Check if it's a friendship ID
@@ -143,10 +178,17 @@ export async function DELETE(
       // Remove friendship
       await dbPrisma.friendship.delete({ where: { id } });
 
-      return NextResponse.json({
-        success: true,
-        message: 'Friend removed',
-      });
+      const payload = { success: true as const, message: 'Friend removed' };
+      const validated = FriendRequestDeleteResponseSchema.safeParse(payload);
+      if (!validated.success) {
+        console.error('[api/friend-requests/[id]] Invalid DELETE remove DTO:', validated.error);
+        return NextResponse.json(
+          { error: 'Failed to process request', ...(isDev ? { issues: validated.error.issues } : {}) },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(validated.data);
     }
 
     return NextResponse.json({ error: 'Request or friendship not found' }, { status: 404 });

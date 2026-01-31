@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import { useParams } from 'next/navigation';
-import { Company, Employee, User, WarehouseLocation } from '@prisma/client';
 import Link from 'next/link';
 import Image from 'next/image';
 import { MyNewEmployeeForm } from '@/components/uicustom/company/form/new-employee-form';
@@ -10,24 +9,13 @@ import { RemoveEmployeeButton } from '@/components/uicustom/company/remove-emplo
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import DeleteCompanyBtn from '@/components/uicustom/company/delete-company-btn';
-import { EmployeePermissions } from '@/actions/edit-company-employee-permission';
+import type { EmployeePermissions } from '@/lib/types/company-permissions';
 import { formatDistanceToNow } from 'date-fns';
 import { MdAddCircleOutline, MdDelete, MdEdit, MdRemoveCircleOutline, MdPostAdd } from 'react-icons/md';
 import ProgressBar from '@/components/bars/progress-bar';
 import EditEmployeePermissionsModal from '@/components/uicustom/company/edit-employee-permission';
 import { FaBriefcase } from 'react-icons/fa';
-
-export interface ExtendedEmployee extends Employee {
-        user: User;
-        permissions: { [key: string]: any | EmployeePermissions };
-}
-
-export interface ExtendedCompany extends Company {
-        creator: User;
-        owner: User;
-        employees: ExtendedEmployee[];
-        warehouseLocations?: (WarehouseLocation & { inventory?: { quantity: number; stock: number }[] })[];
-}
+import type { CompanyDetailsResponse } from '@/lib/types/company';
 
 export interface TagReplacement {
         name: string;
@@ -55,11 +43,11 @@ const CompanyDetails = () => {
         const params = useParams();
         const clientUser = useCurrentUser();
         const [change, setChange] = useState(false);
-        const [company, setCompany] = useState<ExtendedCompany | null>(null);
+        const [company, setCompany] = useState<CompanyDetailsResponse | null>(null);
         const [loading, setLoading] = useState(true);
         const [loadError, setLoadError] = useState<string | null>(null);
         const [errorMessages, setErrorMessages] = useState<{ [key: string]: string | null }>({});
-        const [selectedEmployee, setSelectedEmployee] = useState<ExtendedEmployee | null>(null);
+        const [selectedEmployee, setSelectedEmployee] = useState<CompanyDetailsResponse['employees'][number] | null>(null);
         const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
     // Optional company metadata (org type / org number / notice days)
@@ -248,7 +236,7 @@ const CompanyDetails = () => {
                 }));
         };
 
-        const handleNewEmployee = (newEmployee: ExtendedEmployee) => {
+        const handleNewEmployee = (newEmployee: CompanyDetailsResponse['employees'][number]) => {
                 setCompany(prevCompany => {
                         if (!prevCompany) return null;
                         const updatedEmployees = [...prevCompany.employees, newEmployee];
@@ -257,7 +245,7 @@ const CompanyDetails = () => {
                 console.log('Employee was added. Refreshing list...');
         };
 
-        const handleEmployeeClick = (employee: ExtendedEmployee) => {
+        const handleEmployeeClick = (employee: CompanyDetailsResponse['employees'][number]) => {
                 setSelectedEmployee(employee);
         };
 
@@ -271,7 +259,7 @@ const CompanyDetails = () => {
 
         const currentUserPermissions = currentEmployee?.permissions;
 
-        const formatDate = (date: Date) => {
+        const formatDate = (date: string) => {
                 return formatDistanceToNow(new Date(date), { addSuffix: true });
         };
 
@@ -556,10 +544,10 @@ const CompanyDetails = () => {
                                                         <div className="mt-2">
                                                             <p className="font-semibold">Permissions</p>
                                                             <div className="space-y-2">
-                                                                {Object.keys(employee.permissions).length === 0 ? (
+                                                                {Object.keys(employee.permissions ?? {}).length === 0 ? (
                                                                         <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded text-center text-gray-500 dark:text-gray-400">No permissions</div>
                                                                 ) : (
-                                                                    Object.entries(employee.permissions).map(([key, value]) => {
+                                                                    Object.entries(employee.permissions ?? {}).map(([key, value]) => {
                                                                         const tag = tagReplacements[key] || { name: key, description: '', icon: null };
                                                                         return (
                                                                             <div 

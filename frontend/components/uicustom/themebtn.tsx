@@ -12,20 +12,23 @@ interface MyThemeBtnProps {
 }
 
 export function MyThemeBtn({ customName, onClick }: MyThemeBtnProps) {
-  const { setTheme, theme } = useTheme();
+  const { setTheme, theme, resolvedTheme } = useTheme();
 
   useEffect(() => {
-    if (theme === "light") {
+    const effective = (resolvedTheme ?? theme) as string | undefined;
+
+    if (effective === "light") {
       document.body.classList.add("light-mode");
       document.body.classList.remove("dark-mode");
-    } else if (theme === "dark") {
+    } else if (effective === "dark") {
       document.body.classList.add("dark-mode");
       document.body.classList.remove("light-mode");
     }
-  }, [theme]);
+  }, [theme, resolvedTheme]);
 
   const handleClick = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
+    const effective = (resolvedTheme ?? theme) as string | undefined;
+    setTheme(effective === "dark" ? "light" : "dark");
     if (onClick) onClick();
   };
 

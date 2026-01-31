@@ -17,10 +17,78 @@ import {
   canDeleteImmediately,
   formatTimeUntilDeletion,
 } from '@/lib/conversation-deletion';
+import { ConversationAdminResponseSchema } from '@/lib/types/conversations';
 
 const LOG_PREFIX = '[api/conversations/[id]]';
 
 const isDev = process.env.NODE_ENV !== 'production';
+
+function toConversationAdminDto(conversation: any) {
+  const user = conversation?.User
+    ? {
+        id: String(conversation.User.id),
+        name: conversation.User.name ?? null,
+        email: conversation.User.email ?? null,
+        image: conversation.User.image ?? null,
+      }
+    : null;
+
+  return {
+    id: String(conversation.id),
+    companyId: conversation.companyId ?? null,
+
+    title: conversation.title ?? null,
+    description: conversation.description ?? null,
+
+    userId: String(conversation.userId),
+    participants: Array.isArray(conversation.participants) ? conversation.participants : [],
+
+    createdAt: conversation.createdAt,
+    updatedAt: conversation.updatedAt,
+    editedAt: conversation.editedAt ?? null,
+
+    allowedRoles: Array.isArray(conversation.allowedRoles) ? conversation.allowedRoles : [],
+    customViewers: Array.isArray(conversation.customViewers) ? conversation.customViewers : [],
+
+    isLocked: Boolean(conversation.isLocked),
+    isPinned: Boolean(conversation.isPinned),
+    replyPermission: conversation.replyPermission,
+    tags: Array.isArray(conversation.tags) ? conversation.tags : [],
+    type: conversation.type,
+    visibility: conversation.visibility,
+
+    lastActivityAt: conversation.lastActivityAt,
+
+    replyCount: typeof conversation.replyCount === 'number' ? conversation.replyCount : undefined,
+    uniqueRepliers: typeof conversation.uniqueRepliers === 'number' ? conversation.uniqueRepliers : undefined,
+    viewCount: typeof conversation.viewCount === 'number' ? conversation.viewCount : undefined,
+    uniqueViewCount: typeof conversation.uniqueViewCount === 'number' ? conversation.uniqueViewCount : undefined,
+
+    deletionRequestedAt: conversation.deletionRequestedAt ?? null,
+    deletionScheduledFor: conversation.deletionScheduledFor ?? null,
+    deletionVisibility: conversation.deletionVisibility ?? null,
+
+    isAnonymized: Boolean(conversation.isAnonymized),
+    originalUserId: conversation.originalUserId ?? null,
+
+    suspiciousActivity: typeof conversation.suspiciousActivity === 'boolean' ? conversation.suspiciousActivity : undefined,
+    suspiciousReason: conversation.suspiciousReason ?? null,
+
+    repostOfConversationId: conversation.repostOfConversationId ?? null,
+
+    uniqueIpCount: typeof conversation.uniqueIpCount === 'number' ? conversation.uniqueIpCount : undefined,
+    loggedInViewCount: typeof conversation.loggedInViewCount === 'number' ? conversation.loggedInViewCount : undefined,
+    anonymousViewCount: typeof conversation.anonymousViewCount === 'number' ? conversation.anonymousViewCount : undefined,
+    reachScore: typeof conversation.reachScore === 'number' ? conversation.reachScore : undefined,
+
+    positivePulseCount: typeof conversation.positivePulseCount === 'number' ? conversation.positivePulseCount : undefined,
+    negativePulseCount: typeof conversation.negativePulseCount === 'number' ? conversation.negativePulseCount : undefined,
+    repulseCount: typeof conversation.repulseCount === 'number' ? conversation.repulseCount : undefined,
+
+    User: user,
+    user: user,
+  };
+}
 
 const deleteQuerySchema = z.object({
   visibility: z.nativeEnum(DeletionVisibility).optional(),
@@ -272,7 +340,20 @@ export async function GET(
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
-    return NextResponse.json(conversation, { status: 200 });
+    const dto = toConversationAdminDto(conversation);
+    const parsed = ConversationAdminResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error(LOG_PREFIX, 'GET - invalid DTO:', parsed.error.issues);
+      return NextResponse.json(
+        {
+          message: 'Error fetching conversation',
+          ...(isDev ? { error: 'Invalid DTO', issues: parsed.error.issues } : {}),
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error fetching conversation:', error);
     return NextResponse.json(
@@ -375,7 +456,20 @@ export async function PATCH(
 
     console.log(LOG_PREFIX, `Updated conversation ${conversationId}:`, Object.keys(updateData));
 
-    return NextResponse.json(updated, { status: 200 });
+    const dto = toConversationAdminDto(updated);
+    const parsed = ConversationAdminResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error(LOG_PREFIX, 'PATCH - invalid DTO:', parsed.error.issues);
+      return NextResponse.json(
+        {
+          message: 'Error updating conversation',
+          ...(isDev ? { error: 'Invalid DTO', issues: parsed.error.issues } : {}),
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error updating conversation:', error);
     return NextResponse.json(

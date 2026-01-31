@@ -985,7 +985,7 @@ export default function HomeHero({
 
             <KineticHeadline
               text={headline}
-              className="relative text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200/80 cursor-pointer"
+              className="relative text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-200/80 cursor-pointer"
               startDelay={headlineStart}
               baseSpeed={100}
               onAnimationComplete={() => {
@@ -996,7 +996,7 @@ export default function HomeHero({
           </motion.div>
 
           <motion.div
-            className="relative mt-1 text-balance text-4xl font-semibold tracking-[0.02em] text-white drop-shadow-sm sm:text-6xl lg:text-7xl 2xl:text-8xl"
+            className="relative mt-1 text-balance text-4xl font-semibold tracking-[0.02em] text-gray-900 dark:text-white drop-shadow-sm sm:text-6xl lg:text-7xl 2xl:text-8xl"
             onPointerEnter={() => {
               if (reduceMotion) return;
               setTitleAreaHovering(true);
@@ -1043,10 +1043,8 @@ export default function HomeHero({
                 />
 
                 <motion.span
-                  className="relative z-10 inline-flex"
+                  className="relative z-10 inline-flex text-gray-900 dark:text-white"
                   style={{
-                    // Keep readable in all browsers: never go transparent.
-                    color: "white",
                     filter: tmActive ? "drop-shadow(0 0 10px rgba(167,139,250,0.28))" : "none",
                     textShadow: tmActive
                       ? "0 0 10px rgba(96,165,250,0.25), 0 0 18px rgba(167,139,250,0.18)"
@@ -1115,7 +1113,7 @@ export default function HomeHero({
         <div className="w-full min-h-[3.25rem] sm:min-h-[3rem] mt-10 sm:mt-12">
           <KineticDescription
             text={descriptionText}
-            className="mx-auto max-w-3xl text-pretty text-sm text-white/75 sm:text-base transition-[color,text-shadow] duration-700 ease-out hover:text-white/85 hover:[text-shadow:0_0_18px_rgba(56,189,248,0.16)]"
+            className="mx-auto max-w-3xl text-pretty text-sm text-gray-600 dark:text-white/75 sm:text-base transition-[color,text-shadow] duration-700 ease-out hover:text-gray-800 dark:hover:text-white/85 hover:[text-shadow:0_0_18px_rgba(56,189,248,0.16)]"
             startDelay={descriptionStart}
             startSpeed={45}
             endSpeed={12}
@@ -1167,7 +1165,7 @@ export default function HomeHero({
             />
             <Link
               href="/products"
-              className="relative flex items-center gap-2 rounded-xl bg-black/80 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 group-hover:bg-black/90 group-hover:text-emerald-300"
+              className="relative flex items-center gap-2 rounded-xl bg-emerald-600 dark:bg-black/80 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 group-hover:bg-emerald-700 dark:group-hover:bg-black/90 group-hover:text-emerald-100 dark:group-hover:text-emerald-300"
             >
               <motion.span
                 className="inline-block"
@@ -1208,7 +1206,7 @@ export default function HomeHero({
           >
             {/* Subtle idle border pulse */}
             <motion.div
-              className="absolute -inset-[1px] rounded-xl bg-gradient-to-r from-white/5 via-white/15 to-white/5 blur-[1px]"
+              className="absolute -inset-[1px] rounded-xl bg-gradient-to-r from-gray-400/20 via-gray-400/40 to-gray-400/20 dark:from-white/5 dark:via-white/15 dark:to-white/5 blur-[1px]"
               animate={{ opacity: [0.2, 0.4, 0.2] }}
               whileHover={{ opacity: 0.7 }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -1216,7 +1214,7 @@ export default function HomeHero({
             />
             <Link
               href="/pulse"
-              className="relative flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white/80 backdrop-blur-sm transition-all duration-300 hover:border-white/40 hover:bg-white/10 hover:text-white group-hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+              className="relative flex items-center gap-2 rounded-xl border border-gray-300 dark:border-white/20 bg-gray-100/80 dark:bg-white/5 px-5 py-3 text-sm font-medium text-gray-700 dark:text-white/80 backdrop-blur-sm transition-all duration-300 hover:border-gray-400 dark:hover:border-white/40 hover:bg-gray-200/80 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white group-hover:shadow-[0_0_20px_rgba(0,0,0,0.08)] dark:group-hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
             >
               <span className="relative h-4 w-4">
                 <span className="absolute inset-0 opacity-60 transition-all duration-300 group-hover:opacity-0 group-hover:-rotate-12">
@@ -1265,7 +1263,7 @@ export default function HomeHero({
               className="relative group"
             >
               <MyLoginButton mode="modal" asChild>
-                <button className="relative flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90">
+                <button className="relative flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-gray-500 dark:text-white/60 transition-all duration-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-800 dark:hover:text-white/90">
                   <span className="relative h-4 w-4">
                     <span className="absolute inset-0 transition-all duration-300 group-hover:opacity-0 group-hover:-rotate-12">
                       <FaLock size={16} className="opacity-50 group-hover:opacity-100" />
@@ -1290,7 +1288,7 @@ export default function HomeHero({
             >
               <Link
                 href="/nexus"
-                className="relative flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90"
+                className="relative flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-gray-500 dark:text-white/60 transition-all duration-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-800 dark:hover:text-white/90"
               >
                 <motion.svg
                   xmlns="http://www.w3.org/2000/svg"

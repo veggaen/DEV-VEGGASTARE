@@ -6,10 +6,11 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { CiInboxIn } from "react-icons/ci";
 import { SiGooglebigquery } from "react-icons/si";
 import { 
-  FiUser, FiSettings, FiMessageCircle, FiRss, FiBriefcase,
+  FiUser, FiSettings, FiMessageCircle, FiBriefcase,
   FiChevronRight, FiGrid
 } from 'react-icons/fi';
 import { MdBusiness } from 'react-icons/md';
+import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 
 export default function NexusPage() {
   const reduceMotion = useReducedMotion();
@@ -42,7 +43,7 @@ export default function NexusPage() {
           href: '/pulse', 
           label: 'Pulse', 
           description: 'Public feed and discussions',
-          icon: FiRss,
+          icon: PulseHeart,
           color: 'pink'
         },
         { 
@@ -107,7 +108,7 @@ export default function NexusPage() {
   if (!user) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="animate-pulse text-white/60">Loading...</div>
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -116,7 +117,7 @@ export default function NexusPage() {
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
       {/* Background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/5" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/5 dark:from-black/15 dark:to-black/5" />
         <motion.div
           className="absolute -right-20 top-32 h-[480px] w-[480px] rounded-full blur-3xl"
           animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.06, 0.12, 0.06] }}
@@ -136,8 +137,8 @@ export default function NexusPage() {
         >
           {/* Header */}
           <header className="mb-10">
-            <h1 className="text-3xl font-semibold text-white sm:text-4xl mb-2">Nexus</h1>
-            <p className="text-white/60 text-sm">Your command center. Quick access to everything.</p>
+            <h1 className="text-3xl font-semibold text-foreground sm:text-4xl mb-2">Nexus</h1>
+            <p className="text-muted-foreground text-sm">Your command center. Quick access to everything.</p>
           </header>
 
           {/* Quick Links Grid */}
@@ -149,7 +150,7 @@ export default function NexusPage() {
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: sectionIndex * 0.05 }}
               >
-                <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3">
+                <h2 className="text-sm font-semibold text-muted-foreground/70 uppercase tracking-wider mb-3">
                   {section.section}
                 </h2>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -157,16 +158,16 @@ export default function NexusPage() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="group flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-all hover:bg-white/[0.05] hover:border-white/20"
+                      className="group flex items-center gap-4 rounded-xl border border-border/60 bg-card/30 p-4 transition-all hover:bg-card/60 hover:border-border"
                     >
                       <div className={`h-10 w-10 rounded-lg flex items-center justify-center transition-colors ${colorClasses[item.color]}`}>
                         <item.icon className="h-5 w-5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-white group-hover:text-white">{item.label}</div>
-                        <div className="text-xs text-white/40">{item.description}</div>
+                        <div className="font-medium text-foreground">{item.label}</div>
+                        <div className="text-xs text-muted-foreground">{item.description}</div>
                       </div>
-                      <FiChevronRight className="h-4 w-4 text-white/30 group-hover:text-white/60 transition-colors" />
+                      <FiChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
                     </Link>
                   ))}
                 </div>
@@ -176,8 +177,8 @@ export default function NexusPage() {
 
           {/* Keyboard shortcut hint */}
           <div className="mt-10 text-center">
-            <p className="text-xs text-white/30">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/50 font-mono text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/50 font-mono text-[10px]">K</kbd> to open command palette anywhere
+            <p className="text-xs text-muted-foreground/60">
+              Press <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono text-[10px]">K</kbd> to open command palette anywhere
             </p>
           </div>
         </motion.div>

@@ -1,6 +1,15 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { UserFollowListResponseSchema } from '@/lib/types/users';
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+function toIsoString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && value) return value;
+  return new Date(String(value)).toISOString();
+}
 
 type RouteContext = { params: Promise<{ userId: string }> };
 
@@ -58,20 +67,35 @@ export async function GET(
     }
 
     const users = following.map(f => ({
-      ...f.following,
+      id: f.following.id,
+      name: f.following.name,
+      email: f.following.email,
+      image: f.following.image,
+      bio: f.following.bio,
       followerCount: f.following._count.followers,
       followingCount: f.following._count.following,
       isFollowing: followingSet.has(f.following.id),
-      followedAt: f.createdAt,
+      followedAt: toIsoString(f.createdAt),
     }));
 
     const nextCursor = following.length === limit ? following[following.length - 1]?.id : null;
 
-    return NextResponse.json({
+    const payload = {
       users,
       nextCursor,
       total: await dbPrisma.follow.count({ where: { followerId: userId } }),
-    });
+    };
+
+    const validated = UserFollowListResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error('[api/users/[userId]/following] Invalid DTO:', validated.error);
+      return NextResponse.json(
+        { error: 'Failed to fetch following', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
   } catch (error) {
     console.error('[api/users/[userId]/following] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch following' }, { status: 500 });

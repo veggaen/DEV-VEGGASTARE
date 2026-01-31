@@ -12,7 +12,7 @@ import { CiStar } from "react-icons/ci";
 import Image from "next/image";
 import Link from "next/link";
 import ProductsSkeleton from '@/components/uicustom/skeletons/products-skeleton';
-import { Product, User, Company } from "@prisma/client";
+import type { ProductsListItem } from '@/lib/types/products';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useCategories } from '@/components/providers/categoriesContext';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
@@ -27,10 +27,7 @@ import { MdAdd } from 'react-icons/md';
 // â˜… NEW: network-aware price display
 import PriceAmount from "@/components/crypto-related/PriceAmount";
 
-interface ExtendedProduct extends Product {
-  user?: Pick<User, 'id' | 'name'>;
-  company?: Pick<Company, 'id' | 'name'> | null;
-}
+type ExtendedProduct = ProductsListItem;
 
 const LOG_PREFIX = 'frontend/app/products/page.tsx';
 

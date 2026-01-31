@@ -1,6 +1,9 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { UserSuggestionsResponseSchema } from '@/lib/types/users';
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 // GET - Get user suggestions for starting a conversation
 // Priority: Recent chats > Friends > Following > Colleagues
@@ -173,9 +176,18 @@ export async function GET(request: NextRequest) {
       isFollowing: followingSet.has(s.id),
     }));
 
-    return NextResponse.json({
-      suggestions: enrichedSuggestions,
-    });
+    const payload = { suggestions: enrichedSuggestions };
+
+    const validated = UserSuggestionsResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error('[api/users/suggestions] Invalid DTO:', validated.error);
+      return NextResponse.json(
+        { error: 'Failed to fetch suggestions', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
   } catch (error) {
     console.error('[api/users/suggestions] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch suggestions' }, { status: 500 });

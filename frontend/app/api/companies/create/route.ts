@@ -5,6 +5,7 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
+import { CompanyCreateResponseSchema } from '@/lib/types/company';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -38,7 +39,31 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        return NextResponse.json(newCompany, { status: 201 });
+        const dto = {
+            id: String(newCompany.id),
+            name: String(newCompany.name),
+            description: newCompany.description ?? null,
+            websiteUrl: (newCompany as any).websiteUrl ?? null,
+            logo: Array.isArray((newCompany as any).logo) ? (newCompany as any).logo : [],
+            bannerImage: Array.isArray((newCompany as any).bannerImage) ? (newCompany as any).bannerImage : [],
+            colorScheme: (newCompany as any).colorScheme ?? null,
+            usesShipping: Boolean((newCompany as any).usesShipping),
+            ownerId: String((newCompany as any).ownerId),
+            creatorId: String((newCompany as any).creatorId),
+            createdAt: newCompany.createdAt instanceof Date ? newCompany.createdAt.toISOString() : String(newCompany.createdAt),
+            updatedAt: newCompany.updatedAt instanceof Date ? newCompany.updatedAt.toISOString() : String(newCompany.updatedAt),
+        };
+
+        const parsed = CompanyCreateResponseSchema.safeParse(dto);
+        if (!parsed.success) {
+            console.error('[frontend/app/api/companies/create/route.ts] Invalid POST DTO:', parsed.error);
+            return NextResponse.json(
+                { error: 'Internal Server Error', ...(isDev ? { issues: parsed.error.issues } : {}) },
+                { status: 500 }
+            );
+        }
+
+        return NextResponse.json(parsed.data, { status: 201 });
     } catch (error: unknown) {
         console.error('Failed to create company:', error);
         return NextResponse.json(

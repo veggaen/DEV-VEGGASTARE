@@ -4,6 +4,15 @@ import { MyLibUserAuth } from "@/lib/user-auth";
 import { parseJsonOrError } from "@/lib/api-validate";
 import { ChainFamily } from "@prisma/client";
 import { z } from "zod";
+import { WalletDtoSchema } from "@/lib/types/wallets";
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+function toIsoString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && value) return value;
+  return new Date(String(value)).toISOString();
+}
 
 const createWalletSchema = z.object({
   label: z.string().trim().min(1).max(64),
@@ -58,5 +67,29 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json(wallet, { status: 201 });
+  const dto = {
+    id: wallet.id,
+    label: wallet.label,
+    family: wallet.family,
+    chainId: wallet.chainId ?? null,
+    solanaCluster: wallet.solanaCluster ?? null,
+    address: wallet.address,
+    isDefault: wallet.isDefault,
+    ownerUserId: wallet.ownerUserId ?? null,
+    ownerCompanyId: wallet.ownerCompanyId ?? null,
+    createdAt: toIsoString(wallet.createdAt),
+    updatedAt: toIsoString(wallet.updatedAt),
+    verifiedAt: wallet.verifiedAt ? toIsoString(wallet.verifiedAt) : null,
+  };
+
+  const parsed = WalletDtoSchema.safeParse(dto);
+  if (!parsed.success) {
+    console.error('[api/wallets] Invalid POST DTO:', parsed.error);
+    return NextResponse.json(
+      { error: 'Failed to create wallet', ...(isDev ? { issues: parsed.error.issues } : {}) },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json(parsed.data, { status: 201 });
 }

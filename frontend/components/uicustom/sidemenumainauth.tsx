@@ -6,7 +6,8 @@ import { useMemo, useState, useTransition } from "react";
 import { MySidebarToggleBtn } from "./sidebartogglebtn";
 import { LogoutMyAction } from "@/actions/logout";
 import { usePathname } from "next/navigation";
-import { FiGrid, FiMessageSquare, FiPackage, FiSettings, FiShoppingCart, FiLogOut, FiRss } from "react-icons/fi";
+import { FiGrid, FiMessageSquare, FiPackage, FiSettings, FiShoppingCart, FiLogOut } from "react-icons/fi";
+import { PulseHeart } from "@/components/uicustom/icons/PulseIcons";
 
 const LOG_PREFIX = '[[USE CLIENT] sidemenumainauth.tsx.tsx]'
 export const MyMenuSide = () => {
@@ -19,7 +20,7 @@ export const MyMenuSide = () => {
     () => [
       { href: "/dashboard", label: "Dashboard", icon: FiGrid },
       { href: "/products", label: "Products", icon: FiPackage },
-      { href: "/pulse", label: "Pulse", icon: FiRss },
+      { href: "/pulse", label: "Pulse", icon: PulseHeart },
       { href: "/conversations", label: "Conversations", icon: FiMessageSquare },
       { href: "/cart", label: "Cart", icon: FiShoppingCart },
       { href: "/nexus", label: "Settings", icon: FiSettings },

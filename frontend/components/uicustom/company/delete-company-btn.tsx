@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { EmployeePermissions } from '@/actions/edit-company-employee-permission';
+import type { EmployeePermissions } from '@/lib/types/company-permissions';
 import { useRouter } from 'next/navigation';
 
 interface DeleteCompanyBtnProps {

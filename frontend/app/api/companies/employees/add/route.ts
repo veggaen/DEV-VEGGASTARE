@@ -4,8 +4,10 @@ import { parseJsonOrError } from '@/lib/api-validate';
 import { NextRequest, NextResponse } from 'next/server';
 import { EmployeeRole } from '@prisma/client';
 import { z } from 'zod';
+import { CompanyEmployeeResponseSchema } from '@/lib/types/company';
 
 const isDev = process.env.NODE_ENV !== 'production';
+const LOG_PREFIX = '[frontend/app/api/companies/employees/add/route.ts]';
 
 const addEmployeeSchema = z.object({
   userId: z.string().trim().min(1).max(200),
@@ -65,9 +67,55 @@ export async function POST(req: NextRequest) {
         jobTitle: jobTitle || null,
         permissions: {},
       },
+      include: {
+        User: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
     });
 
-    return NextResponse.json(newEmployee, { status: 200 });
+    const toRecordOrUndefined = (val: unknown): Record<string, unknown> | undefined => {
+      if (!val || typeof val !== 'object' || Array.isArray(val)) return undefined;
+      return val as Record<string, unknown>;
+    };
+
+    const dto = {
+      id: String(newEmployee.id),
+      userId: String(newEmployee.userId),
+      role: newEmployee.role,
+      jobTitle: newEmployee.jobTitle ?? null,
+      createdAt:
+        newEmployee.createdAt instanceof Date
+          ? newEmployee.createdAt.toISOString()
+          : String(newEmployee.createdAt),
+      updatedAt:
+        (newEmployee as any).updatedAt instanceof Date
+          ? (newEmployee as any).updatedAt.toISOString()
+          : String((newEmployee as any).updatedAt ?? newEmployee.createdAt),
+      user: {
+        id: String((newEmployee as any).User?.id ?? newEmployee.userId),
+        name: (newEmployee as any).User?.name ?? null,
+        email: (newEmployee as any).User?.email ?? null,
+        image: (newEmployee as any).User?.image ?? null,
+      },
+      permissions: toRecordOrUndefined(newEmployee.permissions) ?? {},
+    };
+
+    const parsed = CompanyEmployeeResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error(LOG_PREFIX, 'Invalid POST DTO:', parsed.error);
+      return NextResponse.json(
+        { error: 'Internal Server Error', ...(isDev ? { issues: parsed.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
     console.error('Failed to add employee:', error);
     return NextResponse.json(

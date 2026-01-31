@@ -387,7 +387,7 @@ export default function SettingsPage() {
   if (!user) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="animate-pulse text-white/60">Loading...</div>
+        <div className="animate-pulse text-muted-foreground dark:text-white/60">Loading...</div>
       </div>
     );
   }
@@ -396,7 +396,7 @@ export default function SettingsPage() {
     <div className="relative flex-1 flex flex-col overflow-x-hidden">
       {/* Background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/5" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/70 to-sky-950/10 dark:from-black/15 dark:via-transparent dark:to-black/5" />
         <motion.div
           className="absolute -right-20 top-32 h-[480px] w-[480px] rounded-full blur-3xl"
           animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.06, 0.12, 0.06] }}
@@ -416,8 +416,8 @@ export default function SettingsPage() {
         >
           {/* Header */}
           <header className="mb-8">
-            <h1 className="text-3xl font-semibold text-white sm:text-4xl mb-2">Settings</h1>
-            <p className="text-white/60 text-sm">Manage your account settings and preferences</p>
+            <h1 className="text-3xl font-semibold text-foreground dark:text-white sm:text-4xl mb-2">Settings</h1>
+            <p className="text-muted-foreground dark:text-white/60 text-sm">Manage your account settings and preferences</p>
           </header>
 
           <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
@@ -429,14 +429,14 @@ export default function SettingsPage() {
                   onClick={() => setActiveSection(section.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
                     activeSection === section.id
-                      ? 'bg-white/10 text-white'
-                      : 'text-white/60 hover:bg-white/5 hover:text-white/80'
+                      ? 'bg-slate-200/70 text-foreground dark:bg-white/10 dark:text-white'
+                      : 'text-muted-foreground hover:bg-slate-100 hover:text-foreground dark:text-white/60 dark:hover:bg-white/5 dark:hover:text-white/80'
                   }`}
                 >
                   <section.icon className="h-5 w-5" />
                   <div className="flex-1">
                     <div className="font-medium text-sm">{section.label}</div>
-                    <div className="text-xs text-white/40">{section.description}</div>
+                    <div className="text-xs text-muted-foreground/70 dark:text-white/40">{section.description}</div>
                   </div>
                   <FiChevronRight className={`h-4 w-4 transition-transform ${activeSection === section.id ? 'rotate-90' : ''}`} />
                 </button>
@@ -444,13 +444,13 @@ export default function SettingsPage() {
             </nav>
 
             {/* Main Content */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <div className="rounded-2xl border border-border bg-slate-100/80 dark:border-white/10 dark:bg-white/[0.02] p-6">
               {activeSection === 'profile' && (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                  <div className="flex items-center justify-between border-b border-border dark:border-white/10 pb-4">
                     <div>
-                      <h2 className="text-xl font-semibold text-white">Profile</h2>
-                      <p className="text-sm text-white/50">Customize your avatar, banner, and bio</p>
+                      <h2 className="text-xl font-semibold text-foreground dark:text-white">Profile</h2>
+                      <p className="text-sm text-muted-foreground dark:text-white/50">Customize your avatar, banner, and bio</p>
                     </div>
                     {/* Save/Discard buttons - only show when there are changes */}
                     {hasUnsavedChanges && (
@@ -460,7 +460,7 @@ export default function SettingsPage() {
                           variant="outline"
                           size="sm"
                           onClick={handleDiscardChanges}
-                          className="border-white/20 text-white/80 hover:bg-white/10"
+                          className="border-border text-foreground/80 hover:bg-slate-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
                         >
                           <FiX className="h-4 w-4 mr-1" />
                           Discard
@@ -493,18 +493,18 @@ export default function SettingsPage() {
 
                   {/* Banner Upload - with drag & drop and paste */}
                   <div className="space-y-3">
-                    <label className="text-sm font-medium text-white/80">Banner Image</label>
+                    <label className="text-sm font-medium text-foreground/80 dark:text-white/80">Banner Image</label>
                     
                     {/* Show comparison if there's a pending change */}
                     {'banner' in pendingChanges && originalData.banner !== pendingChanges.banner && (
-                      <div className="flex items-center gap-4 p-3 rounded-lg bg-white/5 border border-white/10">
+                      <div className="flex items-center gap-4 p-3 rounded-lg bg-white/70 border border-border dark:bg-white/5 dark:border-white/10">
                         <div className="flex-1">
-                          <div className="text-xs text-white/40 mb-1">Current</div>
-                          <div className="relative h-16 w-full rounded-lg overflow-hidden bg-white/5">
+                          <div className="text-xs text-muted-foreground dark:text-white/40 mb-1">Current</div>
+                          <div className="relative h-16 w-full rounded-lg overflow-hidden bg-slate-200/60 dark:bg-white/5">
                             {originalData.banner ? (
                               <Image src={originalData.banner} alt="Current banner" fill className="object-cover opacity-60" />
                             ) : (
-                              <div className="flex items-center justify-center h-full text-white/20 text-xs">No banner</div>
+                              <div className="flex items-center justify-center h-full text-muted-foreground/70 dark:text-white/20 text-xs">No banner</div>
                             )}
                           </div>
                         </div>
@@ -515,7 +515,7 @@ export default function SettingsPage() {
                             {pendingChanges.banner ? (
                               <Image src={pendingChanges.banner} alt="New banner" fill className="object-cover" />
                             ) : (
-                              <div className="flex items-center justify-center h-full text-white/20 text-xs">No banner</div>
+                              <div className="flex items-center justify-center h-full text-muted-foreground/70 dark:text-white/20 text-xs">No banner</div>
                             )}
                           </div>
                         </div>
@@ -532,7 +532,7 @@ export default function SettingsPage() {
                       className={`relative h-32 w-full rounded-xl overflow-hidden border-2 border-dashed transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
                         isDraggingBanner 
                           ? 'border-emerald-400 bg-emerald-500/10' 
-                          : 'border-white/20 bg-gradient-to-br from-indigo-500/20 to-purple-600/20 hover:border-white/40'
+                          : 'border-slate-300/70 bg-slate-50/80 hover:border-slate-400 dark:border-white/20 dark:bg-gradient-to-br dark:from-indigo-500/20 dark:to-purple-600/20 dark:hover:border-white/40'
                       }`}
                       onClick={() => bannerInputRef.current?.click()}
                     >
@@ -545,8 +545,8 @@ export default function SettingsPage() {
                         />
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                          <FiImage className="h-8 w-8 text-white/30" />
-                          <span className="text-xs text-white/40">Click, paste (Ctrl+V), or drag & drop</span>
+                          <FiImage className="h-8 w-8 text-muted-foreground/60 dark:text-white/30" />
+                          <span className="text-xs text-muted-foreground dark:text-white/40">Click, paste (Ctrl+V), or drag & drop</span>
                         </div>
                       )}
                       {isDraggingBanner && (
@@ -565,7 +565,7 @@ export default function SettingsPage() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="border-white/30 text-white hover:bg-white/20"
+                            className="border-border text-foreground hover:bg-slate-100 dark:border-white/30 dark:text-white dark:hover:bg-white/20"
                           >
                             <FiUpload className="h-4 w-4 mr-2" />
                             Change Banner
@@ -580,23 +580,23 @@ export default function SettingsPage() {
                       onChange={handleBannerInputChange}
                       className="hidden"
                     />
-                    <p className="text-xs text-white/40">Recommended: 1500x500px, JPG/PNG/GIF/WebP, max 5MB. Paste from clipboard or drag & drop!</p>
+                    <p className="text-xs text-muted-foreground dark:text-white/40">Recommended: 1500x500px, JPG/PNG/GIF/WebP, max 5MB. Paste from clipboard or drag & drop!</p>
                   </div>
 
                   {/* Avatar Upload - with drag & drop and paste */}
                   <div className="space-y-3">
-                    <label className="text-sm font-medium text-white/80">Profile Picture</label>
+                    <label className="text-sm font-medium text-foreground/80 dark:text-white/80">Profile Picture</label>
                     
                     {/* Show comparison if there's a pending change */}
                     {'image' in pendingChanges && originalData.image !== pendingChanges.image && (
-                      <div className="flex items-center gap-4 p-3 rounded-lg bg-white/5 border border-white/10">
+                      <div className="flex items-center gap-4 p-3 rounded-lg bg-white/70 border border-border dark:bg-white/5 dark:border-white/10">
                         <div className="text-center">
-                          <div className="text-xs text-white/40 mb-1">Current</div>
-                          <div className="relative h-16 w-16 rounded-full overflow-hidden bg-white/5 mx-auto">
+                          <div className="text-xs text-muted-foreground dark:text-white/40 mb-1">Current</div>
+                          <div className="relative h-16 w-16 rounded-full overflow-hidden bg-slate-200/60 dark:bg-white/5 mx-auto">
                             {originalData.image ? (
                               <Image src={originalData.image} alt="Current avatar" fill className="object-cover opacity-60" />
                             ) : (
-                              <div className="flex items-center justify-center h-full"><FiUser className="h-6 w-6 text-white/20" /></div>
+                              <div className="flex items-center justify-center h-full"><FiUser className="h-6 w-6 text-muted-foreground/60 dark:text-white/20" /></div>
                             )}
                           </div>
                         </div>
@@ -607,7 +607,7 @@ export default function SettingsPage() {
                             {pendingChanges.image ? (
                               <Image src={pendingChanges.image} alt="New avatar" fill className="object-cover" />
                             ) : (
-                              <div className="flex items-center justify-center h-full"><FiUser className="h-6 w-6 text-white/20" /></div>
+                              <div className="flex items-center justify-center h-full"><FiUser className="h-6 w-6 text-muted-foreground/60 dark:text-white/20" /></div>
                             )}
                           </div>
                         </div>
@@ -625,7 +625,7 @@ export default function SettingsPage() {
                         className={`relative h-24 w-24 rounded-full overflow-hidden border-2 border-dashed transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
                           isDraggingAvatar 
                             ? 'border-emerald-400 bg-emerald-500/10' 
-                            : 'border-white/20 bg-gradient-to-br from-indigo-500/30 to-purple-600/30 hover:border-white/40'
+                            : 'border-slate-300/70 bg-slate-50/80 hover:border-slate-400 dark:border-white/20 dark:bg-gradient-to-br dark:from-indigo-500/30 dark:to-purple-600/30 dark:hover:border-white/40'
                         }`}
                         onClick={() => avatarInputRef.current?.click()}
                       >
@@ -638,7 +638,7 @@ export default function SettingsPage() {
                           />
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <FiUser className="h-10 w-10 text-white/40" />
+                            <FiUser className="h-10 w-10 text-muted-foreground/60 dark:text-white/40" />
                           </div>
                         )}
                         {isDraggingAvatar && (
@@ -664,11 +664,11 @@ export default function SettingsPage() {
                           size="sm"
                           onClick={() => avatarInputRef.current?.click()}
                           disabled={isUploadingAvatar}
-                          className="border-white/20 text-white/80 hover:bg-white/10"
+                          className="border-border text-foreground/80 hover:bg-slate-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
                         >
                           {isUploadingAvatar ? 'Uploading...' : 'Choose Image'}
                         </Button>
-                        <p className="text-xs text-white/40 mt-2">Click, paste (Ctrl+V), or drag & drop</p>
+                        <p className="text-xs text-muted-foreground dark:text-white/40 mt-2">Click, paste (Ctrl+V), or drag & drop</p>
                       </div>
                     </div>
                     <input
@@ -682,18 +682,18 @@ export default function SettingsPage() {
 
                   {/* Bio */}
                   <div className="space-y-3">
-                    <label className="text-sm font-medium text-white/80">Bio</label>
+                    <label className="text-sm font-medium text-foreground/80 dark:text-white/80">Bio</label>
                     
                     {/* Show comparison if bio changed */}
                     {'bio' in pendingChanges && originalData.bio !== pendingChanges.bio && (
-                      <div className="p-3 rounded-lg bg-white/5 border border-white/10 space-y-2">
+                      <div className="p-3 rounded-lg bg-white/70 border border-border dark:bg-white/5 dark:border-white/10 space-y-2">
                         <div>
-                          <div className="text-xs text-white/40 mb-1">Current</div>
-                          <div className="text-sm text-white/60 line-through">{originalData.bio || '(no bio)'}</div>
+                          <div className="text-xs text-muted-foreground dark:text-white/40 mb-1">Current</div>
+                          <div className="text-sm text-muted-foreground dark:text-white/60 line-through">{originalData.bio || '(no bio)'}</div>
                         </div>
                         <div>
                           <div className="text-xs text-emerald-400 mb-1">New</div>
-                          <div className="text-sm text-white">{pendingChanges.bio || '(no bio)'}</div>
+                          <div className="text-sm text-foreground dark:text-white">{pendingChanges.bio || '(no bio)'}</div>
                         </div>
                       </div>
                     )}
@@ -702,28 +702,28 @@ export default function SettingsPage() {
                       value={'bio' in pendingChanges ? (pendingChanges.bio || '') : (originalData.bio || '')}
                       onChange={(e) => setPendingChanges(prev => ({ ...prev, bio: e.target.value }))}
                       placeholder="Tell others about yourself..."
-                      className="bg-white/5 border-white/10 text-white placeholder-white/30 focus:border-emerald-500/50 min-h-[100px] resize-none"
+                      className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-emerald-500/50 min-h-[100px] resize-none dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
                       maxLength={500}
                     />
                     <div className="flex items-center justify-between">
-                      <p className="text-xs text-white/40">
+                      <p className="text-xs text-muted-foreground dark:text-white/40">
                         {('bio' in pendingChanges ? pendingChanges.bio?.length : originalData.bio?.length) || 0}/500 characters
                       </p>
                     </div>
                   </div>
 
                   {/* Reach Stats Radar Chart with Calculation Breakdown */}
-                  <div className="pt-4 border-t border-white/10 space-y-4">
+                  <div className="pt-4 border-t border-border dark:border-white/10 space-y-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-foreground dark:text-white flex items-center gap-2">
                         <FiTrendingUp className="h-5 w-5 text-emerald-400" />
                         Your Reach Analytics
                       </h3>
-                      <p className="text-sm text-white/50">Real engagement metrics - not vanity follower counts</p>
+                      <p className="text-sm text-muted-foreground dark:text-white/50">Real engagement metrics - not vanity follower counts</p>
                     </div>
                     
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="rounded-xl bg-white/5 p-4">
+                      <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
                         <div className="max-w-[240px] mx-auto">
                           <Radar data={reachChartData} options={reachChartOptions} />
                         </div>
@@ -735,13 +735,13 @@ export default function SettingsPage() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <FiEye className="h-4 w-4 text-emerald-400" />
-                              <span className="text-sm text-white/70">Total Views</span>
+                              <span className="text-sm text-muted-foreground dark:text-white/70">Total Views</span>
                             </div>
                             <div className="text-lg font-bold text-emerald-400">
                               {(reach?.totalViews || 0).toLocaleString()}
                             </div>
                           </div>
-                          <div className="text-xs text-white/40 mt-1">
+                          <div className="text-xs text-muted-foreground dark:text-white/40 mt-1">
                             Chart: {Math.min((reach?.totalViews || 0) / 10, 100).toFixed(0)}% (1000 views = 100%)
                           </div>
                         </div>
@@ -751,13 +751,13 @@ export default function SettingsPage() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <FiUsers className="h-4 w-4 text-blue-400" />
-                              <span className="text-sm text-white/70">Unique Viewers</span>
+                              <span className="text-sm text-muted-foreground dark:text-white/70">Unique Viewers</span>
                             </div>
                             <div className="text-lg font-bold text-blue-400">
                               {(reach?.uniqueViewers || 0).toLocaleString()}
                             </div>
                           </div>
-                          <div className="text-xs text-white/40 mt-1">
+                          <div className="text-xs text-muted-foreground dark:text-white/40 mt-1">
                             Chart: {Math.min((reach?.uniqueViewers || 0) / 5, 100).toFixed(0)}% (500 unique = 100%)
                           </div>
                         </div>
@@ -767,35 +767,35 @@ export default function SettingsPage() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <FiActivity className="h-4 w-4 text-purple-400" />
-                              <span className="text-sm text-white/70">Engagement Rate</span>
+                              <span className="text-sm text-muted-foreground dark:text-white/70">Engagement Rate</span>
                             </div>
                             <div className="text-lg font-bold text-purple-400">
                               {(reach?.engagementRate || 0).toFixed(1)}%
                             </div>
                           </div>
-                          <div className="text-xs text-white/40 mt-1">
+                          <div className="text-xs text-muted-foreground dark:text-white/40 mt-1">
                             Formula: (views ÷ followers) × 100 = ({reach?.totalViews || 0} ÷ {reach?.followerCount || 1}) × 100
                           </div>
                         </div>
                         
                         {/* Post Count */}
-                        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                        <div className="rounded-xl bg-white/70 border border-border p-3 dark:bg-white/5 dark:border-white/10">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-white/70">Posts</span>
-                            <span className="font-bold text-white">{reach?.postCount || 0}</span>
+                            <span className="text-sm text-muted-foreground dark:text-white/70">Posts</span>
+                            <span className="font-bold text-foreground dark:text-white">{reach?.postCount || 0}</span>
                           </div>
-                          <div className="text-xs text-white/40 mt-1">
+                          <div className="text-xs text-muted-foreground dark:text-white/40 mt-1">
                             Chart: {Math.min((reach?.postCount || 0) * 10, 100)}% (10 posts = 100%)
                           </div>
                         </div>
                         
                         {/* Followers */}
-                        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                        <div className="rounded-xl bg-white/70 border border-border p-3 dark:bg-white/5 dark:border-white/10">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-white/70">Followers</span>
-                            <span className="font-bold text-white">{reach?.followerCount || 0}</span>
+                            <span className="text-sm text-muted-foreground dark:text-white/70">Followers</span>
+                            <span className="font-bold text-foreground dark:text-white">{reach?.followerCount || 0}</span>
                           </div>
-                          <div className="text-xs text-white/40 mt-1">
+                          <div className="text-xs text-muted-foreground dark:text-white/40 mt-1">
                             Chart: {Math.min(reach?.followerCount || 0, 100)}% (100 followers = 100%)
                           </div>
                         </div>
@@ -804,7 +804,7 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Profile Link */}
-                  <div className="pt-4 border-t border-white/10">
+                  <div className="pt-4 border-t border-border dark:border-white/10">
                     <Link
                       href={`/profile/${user.id}`}
                       className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
@@ -819,16 +819,16 @@ export default function SettingsPage() {
 
               {activeSection === 'account' && (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                  <div className="flex items-center justify-between border-b border-border dark:border-white/10 pb-4">
                     <div>
-                      <h2 className="text-xl font-semibold text-white">Account Settings</h2>
-                      <p className="text-sm text-white/50">Update your personal information</p>
+                      <h2 className="text-xl font-semibold text-foreground dark:text-white">Account Settings</h2>
+                      <p className="text-sm text-muted-foreground dark:text-white/50">Update your personal information</p>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleStartEdit}
-                      className="border-white/20 text-white/80 hover:bg-white/10"
+                      className="border-border text-foreground/80 hover:bg-slate-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
                     >
                       {isEditing ? <FiX className="h-4 w-4 mr-2" /> : <FiEdit2 className="h-4 w-4 mr-2" />}
                       {isEditing ? 'Cancel' : 'Edit'}
@@ -842,13 +842,13 @@ export default function SettingsPage() {
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-white/80">Display Name</FormLabel>
+                            <FormLabel className="text-foreground/80 dark:text-white/80">Display Name</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
                                 disabled={isPending || !isEditing}
                                 placeholder={user?.name || 'Enter your name'}
-                                className="bg-white/5 border-white/10 text-white placeholder-white/30 focus:border-blue-500/50 disabled:opacity-50"
+                                className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
                               />
                             </FormControl>
                             <FormMessage />
@@ -861,17 +861,17 @@ export default function SettingsPage() {
                         name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-white/80">Email Address</FormLabel>
+                            <FormLabel className="text-foreground/80 dark:text-white/80">Email Address</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
                                 type="email"
                                 disabled={isPending || !isEditing}
                                 placeholder={user?.email || 'Enter your email'}
-                                className="bg-white/5 border-white/10 text-white placeholder-white/30 focus:border-blue-500/50 disabled:opacity-50"
+                                className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
                               />
                             </FormControl>
-                            <FormDescription className="text-white/40">
+                            <FormDescription className="text-muted-foreground dark:text-white/40">
                               This is the email used for notifications and login
                             </FormDescription>
                             <FormMessage />
@@ -880,7 +880,7 @@ export default function SettingsPage() {
                       />
 
                       {/* Profile Link */}
-                      <div className="pt-4 border-t border-white/10">
+                      <div className="pt-4 border-t border-border dark:border-white/10">
                         <Link
                           href={`/profile/${user.id}`}
                           className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
@@ -904,7 +904,7 @@ export default function SettingsPage() {
                             type="button"
                             variant="outline"
                             onClick={handleCancelEdit}
-                            className="border-white/20 text-white/80 hover:bg-white/10"
+                            className="border-border text-foreground/80 hover:bg-slate-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
                           >
                             Cancel
                           </Button>
@@ -920,9 +920,9 @@ export default function SettingsPage() {
 
               {activeSection === 'security' && (
                 <div className="space-y-6">
-                  <div className="border-b border-white/10 pb-4">
-                    <h2 className="text-xl font-semibold text-white">Security</h2>
-                    <p className="text-sm text-white/50">Manage your password and authentication</p>
+                  <div className="border-b border-border dark:border-white/10 pb-4">
+                    <h2 className="text-xl font-semibold text-foreground dark:text-white">Security</h2>
+                    <p className="text-sm text-muted-foreground dark:text-white/50">Manage your password and authentication</p>
                   </div>
 
                   <Form {...form}>
@@ -932,14 +932,14 @@ export default function SettingsPage() {
                         name="password"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-white/80">Current Password</FormLabel>
+                            <FormLabel className="text-foreground/80 dark:text-white/80">Current Password</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
                                 type="password"
                                 disabled={isPending}
                                 placeholder="Enter current password"
-                                className="bg-white/5 border-white/10 text-white placeholder-white/30 focus:border-blue-500/50"
+                                className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
                               />
                             </FormControl>
                             <FormMessage />
@@ -952,17 +952,17 @@ export default function SettingsPage() {
                         name="newPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-white/80">New Password</FormLabel>
+                            <FormLabel className="text-foreground/80 dark:text-white/80">New Password</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
                                 type="password"
                                 disabled={isPending}
                                 placeholder="Enter new password"
-                                className="bg-white/5 border-white/10 text-white placeholder-white/30 focus:border-blue-500/50"
+                                className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
                               />
                             </FormControl>
-                            <FormDescription className="text-white/40">
+                            <FormDescription className="text-muted-foreground dark:text-white/40">
                               Must be at least 8 characters
                             </FormDescription>
                             <FormMessage />
@@ -970,15 +970,15 @@ export default function SettingsPage() {
                         )}
                       />
 
-                      <div className="pt-4 border-t border-white/10">
+                      <div className="pt-4 border-t border-border dark:border-white/10">
                         <FormField
                           control={form.control}
                           name="isTwoFactorEnabled"
                           render={({ field }) => (
-                            <FormItem className="flex items-center justify-between rounded-xl bg-white/5 p-4">
+                            <FormItem className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
                               <div className="space-y-0.5">
-                                <FormLabel className="text-white/80">Two-Factor Authentication</FormLabel>
-                                <FormDescription className="text-white/40">
+                                <FormLabel className="text-foreground/80 dark:text-white/80">Two-Factor Authentication</FormLabel>
+                                <FormDescription className="text-muted-foreground dark:text-white/40">
                                   Add an extra layer of security to your account
                                 </FormDescription>
                               </div>
@@ -1011,9 +1011,9 @@ export default function SettingsPage() {
 
               {activeSection === 'notifications' && (
                 <div className="space-y-6">
-                  <div className="border-b border-white/10 pb-4">
-                    <h2 className="text-xl font-semibold text-white">Notifications</h2>
-                    <p className="text-sm text-white/50">Choose what you want to be notified about</p>
+                  <div className="border-b border-border dark:border-white/10 pb-4">
+                    <h2 className="text-xl font-semibold text-foreground dark:text-white">Notifications</h2>
+                    <p className="text-sm text-muted-foreground dark:text-white/50">Choose what you want to be notified about</p>
                   </div>
 
                   <div className="space-y-4">
@@ -1023,10 +1023,10 @@ export default function SettingsPage() {
                       { id: 'jobs', label: 'Job Updates', description: 'Updates on your job requests and applications' },
                       { id: 'marketing', label: 'Marketing', description: 'News, updates and promotional content' },
                     ].map((item) => (
-                      <div key={item.id} className="flex items-center justify-between rounded-xl bg-white/5 p-4">
+                      <div key={item.id} className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
                         <div>
-                          <div className="font-medium text-white/90">{item.label}</div>
-                          <div className="text-sm text-white/40">{item.description}</div>
+                          <div className="font-medium text-foreground dark:text-white/90">{item.label}</div>
+                          <div className="text-sm text-muted-foreground dark:text-white/40">{item.description}</div>
                         </div>
                         <Switch defaultChecked={item.id !== 'marketing'} />
                       </div>
@@ -1100,9 +1100,9 @@ function PrivacySettings() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="border-b border-white/10 pb-4">
-          <h2 className="text-xl font-semibold text-white">Privacy</h2>
-          <p className="text-sm text-white/50">Loading settings...</p>
+        <div className="border-b border-border dark:border-white/10 pb-4">
+          <h2 className="text-xl font-semibold text-foreground dark:text-white">Privacy</h2>
+          <p className="text-sm text-muted-foreground dark:text-white/50">Loading settings...</p>
         </div>
       </div>
     );
@@ -1110,19 +1110,19 @@ function PrivacySettings() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-white/10 pb-4">
-        <h2 className="text-xl font-semibold text-white">Privacy</h2>
-        <p className="text-sm text-white/50">Control who can see your information and activity</p>
+      <div className="border-b border-border dark:border-white/10 pb-4">
+        <h2 className="text-xl font-semibold text-foreground dark:text-white">Privacy</h2>
+        <p className="text-sm text-muted-foreground dark:text-white/50">Control who can see your information and activity</p>
       </div>
 
-      {/* Pulse Privacy Settings */}
+      {/* Heartbeat Privacy Settings */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-white/70 uppercase tracking-wider">Pulse Settings</h3>
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Heartbeat Settings</h3>
         <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl bg-white/5 p-4">
+          <div className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
             <div>
-              <div className="font-medium text-white/90">Show Pulses Given</div>
-              <div className="text-sm text-white/40">Let others see what content you&apos;ve pulsed</div>
+              <div className="font-medium text-foreground dark:text-white/90">Show Heartbeats Given</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">Let others see what content you&apos;ve heartbeated</div>
             </div>
             <Switch 
               checked={settings.showPulsesGiven} 
@@ -1131,10 +1131,10 @@ function PrivacySettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-white/5 p-4">
+          <div className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
             <div>
-              <div className="font-medium text-white/90">Show Pulses Received</div>
-              <div className="text-sm text-white/40">Display pulse counts on your content</div>
+              <div className="font-medium text-foreground dark:text-white/90">Show Heartbeats Received</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">Display heartbeat counts on your content</div>
             </div>
             <Switch 
               checked={settings.showPulsesReceived} 
@@ -1143,10 +1143,10 @@ function PrivacySettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-white/5 p-4">
+          <div className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
             <div>
-              <div className="font-medium text-white/90">Show Negative Pulses</div>
-              <div className="text-sm text-white/40">Display negative pulse counts publicly (hidden by default)</div>
+              <div className="font-medium text-foreground dark:text-white/90">Show Negative Heartbeats</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">Display negative heartbeat counts publicly (hidden by default)</div>
             </div>
             <Switch 
               checked={settings.showNegativePulses} 
@@ -1155,10 +1155,10 @@ function PrivacySettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-white/5 p-4">
+          <div className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
             <div>
-              <div className="font-medium text-white/90">Show Repulses</div>
-              <div className="text-sm text-white/40">Let others see your repulse activity</div>
+              <div className="font-medium text-foreground dark:text-white/90">Show Repulses</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">Let others see your repulse activity</div>
             </div>
             <Switch 
               checked={settings.showRepulses} 
@@ -1167,10 +1167,10 @@ function PrivacySettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-white/5 p-4">
+          <div className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
             <div>
-              <div className="font-medium text-white/90">Allow Negative Pulses</div>
-              <div className="text-sm text-white/40">Let others give negative pulses to your content</div>
+              <div className="font-medium text-foreground dark:text-white/90">Allow Negative Heartbeats</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">Let others give negative heartbeats to your content</div>
             </div>
             <Switch 
               checked={settings.allowNegativePulses} 
@@ -1183,17 +1183,17 @@ function PrivacySettings() {
 
       {/* General Privacy Settings */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-white/70 uppercase tracking-wider">General</h3>
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">General</h3>
         <div className="space-y-3">
           {[
             { id: 'profile', label: 'Public Profile', description: 'Allow others to view your profile' },
             { id: 'activity', label: 'Show Activity Status', description: 'Let others see when you&apos;re online' },
             { id: 'analytics', label: 'Usage Analytics', description: 'Help us improve by sharing anonymous usage data' },
           ].map((item) => (
-            <div key={item.id} className="flex items-center justify-between rounded-xl bg-white/5 p-4">
+            <div key={item.id} className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
               <div>
-                <div className="font-medium text-white/90">{item.label}</div>
-                <div className="text-sm text-white/40">{item.description}</div>
+                <div className="font-medium text-foreground dark:text-white/90">{item.label}</div>
+                <div className="text-sm text-muted-foreground dark:text-white/40">{item.description}</div>
               </div>
               <Switch defaultChecked={item.id === 'profile'} />
             </div>
@@ -1201,11 +1201,11 @@ function PrivacySettings() {
         </div>
       </div>
 
-      <div className="pt-4 border-t border-white/10">
+      <div className="pt-4 border-t border-border dark:border-white/10">
         <Button variant="destructive" className="bg-red-600 hover:bg-red-500">
           Delete Account
         </Button>
-        <p className="text-xs text-white/40 mt-2">
+        <p className="text-xs text-muted-foreground dark:text-white/40 mt-2">
           This action is irreversible. All your data will be permanently deleted.
         </p>
       </div>

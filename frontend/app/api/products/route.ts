@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fetchProductsWithDetails } from '@/actions/fetch-products-with-details';
 import { z } from 'zod';
+import { ProductsListResponseSchema } from '@/lib/types/products';
 
 const LOG_PREFIX = '[frontend/app/api/products/route.ts]';
 const isDev = process.env.NODE_ENV !== 'production';
@@ -43,7 +44,17 @@ export const GET = async (request: Request) => {
       sellerIds 
     });
     if (shouldLog) console.log(`${LOG_PREFIX} Successfully fetched products`);
-    return NextResponse.json(products, { status: 200 });
+
+    const parsed = ProductsListResponseSchema.safeParse(products);
+    if (!parsed.success) {
+      console.error(`${LOG_PREFIX} Invalid GET DTO:`, parsed.error);
+      return NextResponse.json(
+        { error: 'Failed to fetch products', ...(isDev ? { issues: parsed.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
     console.error(`${LOG_PREFIX} Failed to fetch products:`, error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });

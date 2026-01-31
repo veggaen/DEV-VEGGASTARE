@@ -11,6 +11,11 @@ import { sendTwoFactorTokenEmail } from "@/lib/mail";
 import { generateTwoFactorToken } from "@/lib/tokens";
 import { ChainFamily } from "@prisma/client";
 import { getAddress } from "viem";
+import {
+	WalletChallengeCreatedResponseSchema,
+	WalletErrorResponseSchema,
+	WalletTwoFactorResponseSchema,
+} from "@/lib/types/wallets";
 
 const createChallengeSchema = z.object({
 	address: z.string().trim().min(1).max(256),
@@ -20,12 +25,22 @@ const createChallengeSchema = z.object({
 
 export async function POST(req: NextRequest) {
 	const me = await MyLibUserAuth();
-	if (!me?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	if (!me?.id) {
+		const dto = { error: "Unauthorized" };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 401 });
+	}
 
 	const dbUser = await getUserById(me.id);
-	if (!dbUser?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	if (!dbUser?.id) {
+		const dto = { error: "Unauthorized" };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 401 });
+	}
 	if (!dbUser.web3ModeEnabled) {
-		return NextResponse.json({ error: "Enable Web3 mode first." }, { status: 403 });
+		const dto = { error: "Enable Web3 mode first." };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 403 });
 	}
 
 	const bodyResult = await parseJsonOrError(req, createChallengeSchema);
@@ -37,14 +52,28 @@ export async function POST(req: NextRequest) {
 		if (!code) {
 			const twoFactorToken = await generateTwoFactorToken(dbUser.email ?? "");
 			await sendTwoFactorTokenEmail(twoFactorToken.email, twoFactorToken.token);
-			return NextResponse.json({ twoFactor: true }, { status: 200 });
+			const dto = { twoFactor: true };
+			const parsed = WalletTwoFactorResponseSchema.safeParse(dto);
+			return NextResponse.json(parsed.success ? parsed.data : dto, { status: 200 });
 		}
 
 		const twoFactorToken = await getTwoFactortokenByEmail(dbUser.email ?? "");
-		if (!twoFactorToken) return NextResponse.json({ error: "Invalid code" }, { status: 400 });
-		if (twoFactorToken.token !== code) return NextResponse.json({ error: "Invalid code" }, { status: 400 });
+		if (!twoFactorToken) {
+			const dto = { error: "Invalid code" };
+			const parsed = WalletErrorResponseSchema.safeParse(dto);
+			return NextResponse.json(parsed.success ? parsed.data : dto, { status: 400 });
+		}
+		if (twoFactorToken.token !== code) {
+			const dto = { error: "Invalid code" };
+			const parsed = WalletErrorResponseSchema.safeParse(dto);
+			return NextResponse.json(parsed.success ? parsed.data : dto, { status: 400 });
+		}
 		const expired = new Date(twoFactorToken.expires) < new Date();
-		if (expired) return NextResponse.json({ error: "Code expired" }, { status: 400 });
+		if (expired) {
+			const dto = { error: "Code expired" };
+			const parsed = WalletErrorResponseSchema.safeParse(dto);
+			return NextResponse.json(parsed.success ? parsed.data : dto, { status: 400 });
+		}
 		await dbPrisma.twoFactorToken.delete({ where: { id: twoFactorToken.id } });
 	}
 
@@ -52,7 +81,9 @@ export async function POST(req: NextRequest) {
 	try {
 		address = getAddress(bodyResult.data.address);
 	} catch {
-		return NextResponse.json({ error: "Invalid address" }, { status: 400 });
+		const dto = { error: "Invalid address" };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 400 });
 	}
 
 	const chainId = bodyResult.data.chainId ?? null;
@@ -101,12 +132,23 @@ export async function POST(req: NextRequest) {
 		},
 	});
 
-	return NextResponse.json(
-		{
-			challengeId: challenge.id,
-			message: challenge.message,
-			expires: challenge.expires,
-		},
-		{ status: 201 }
-	);
+	const dto = {
+		challengeId: challenge.id,
+		message: challenge.message,
+		expires: challenge.expires.toISOString(),
+	};
+
+	const parsed = WalletChallengeCreatedResponseSchema.safeParse(dto);
+	if (!parsed.success) {
+		console.error('[api/wallets/evm/challenge] Invalid response DTO:', parsed.error.issues);
+		return NextResponse.json(
+			{
+				error: 'Invalid response shape',
+				issues: process.env.NODE_ENV === 'development' ? parsed.error.issues : undefined,
+			},
+			{ status: 500 }
+		);
+	}
+
+	return NextResponse.json(parsed.data, { status: 201 });
 }

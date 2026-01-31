@@ -4,6 +4,10 @@ import { z } from "zod";
 import { dbPrisma } from "@/lib/db";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { CompanyOrgType } from "@prisma/client";
+import { CompanyRegistrationPatchResponseSchema } from "@/lib/types/company";
+
+const isDev = process.env.NODE_ENV !== 'production';
+const LOG_PREFIX = '[frontend/app/api/companies/[companyId]/registration/route.ts]';
 
 type CompanyParams = { companyId?: string; companyid?: string };
 
@@ -77,7 +81,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Comp
       },
     });
 
-    return NextResponse.json({ success: true, company: updated }, { status: 200 });
+    const dto = {
+      success: true as const,
+      company: {
+        id: String(updated.id),
+        orgType: (updated as any).orgType ?? null,
+        orgNumber: (updated as any).orgNumber ?? null,
+        employmentNoticeDays: (updated as any).employmentNoticeDays ?? null,
+      },
+    };
+
+    const out = CompanyRegistrationPatchResponseSchema.safeParse(dto);
+    if (!out.success) {
+      console.error(LOG_PREFIX, 'Invalid PATCH DTO:', out.error);
+      return NextResponse.json(
+        { error: 'Internal Server Error', ...(isDev ? { issues: out.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(out.data, { status: 200 });
   } catch (error: unknown) {
     console.error("Failed to update company registration:", error);
     return NextResponse.json({ error: "Failed to update registration" }, { status: 500 });

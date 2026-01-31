@@ -5,6 +5,7 @@ import { canReplyToConversation } from '@/lib/conversation-permissions';
 import { NextResponse } from 'next/server';
 import { parseJsonOrError, parseQueryOrError } from '@/lib/api-validate';
 import { z } from 'zod';
+import { MessageResponseSchema, MessagesGetResponseSchema } from '@/lib/types/messages';
 
 const LOG_PREFIX = '[frontend/app/api/messages/route.ts]'
 
@@ -73,6 +74,11 @@ export async function POST(req: Request) {
         senderId: userId,
         conversationId,
       },
+      include: {
+        User: {
+          select: { id: true, name: true, image: true },
+        },
+      },
     });
 
     // Update conversation engagement metrics (for "reach over followers" sorting)
@@ -109,7 +115,44 @@ export async function POST(req: Request) {
       },
     });
     console.log(LOG_PREFIX, 'POST(3/3) - message successfully created, triggering pusher event...', `ConversationChannel_${conversationId} - new-message`);
-    return NextResponse.json(message, { status: 201 });
+
+    const dto = {
+      id: message.id,
+      content: message.content,
+      imageUrl: message.imageUrl ?? null,
+      senderId: message.senderId,
+      conversationId: message.conversationId,
+      createdAt: message.createdAt,
+      editedAt: message.editedAt ?? null,
+      User: message.User
+        ? {
+            id: message.User.id,
+            name: message.User.name,
+            image: message.User.image ?? null,
+          }
+        : null,
+      sender: message.User
+        ? {
+            id: message.User.id,
+            name: message.User.name,
+            image: message.User.image ?? null,
+          }
+        : null,
+    };
+
+    const parsed = MessageResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error(LOG_PREFIX, 'POST - invalid DTO:', parsed.error.issues);
+      return NextResponse.json(
+        {
+          message: 'Error sending message',
+          ...(isDev ? { error: 'Invalid DTO', issues: parsed.error.issues } : {}),
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data, { status: 201 });
   } catch (error) {
     console.error(LOG_PREFIX, 'POST - error creating message:', error);
     return NextResponse.json(
@@ -131,10 +174,13 @@ export async function GET(req: Request) {
   const userRole = session?.role;
 
   try {
-    // Fetch the conversation
+    // Fetch the conversation with the creator's user data
     const conversation = await dbPrisma.conversation.findUnique({
       where: { id: conversationId },
       include: {
+        User: {
+          select: { id: true, name: true, image: true },
+        },
         Conversation: {
           select: {
             id: true,
@@ -161,10 +207,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: 'You do not have permission to view this conversation' }, { status: 403 });
     }
 
-    // Fetch the messages
+    // Fetch the messages with sender info
     const messages = await dbPrisma.message.findMany({
       where: { conversationId },
       orderBy: { createdAt: 'asc' },
+      include: {
+        User: {
+          select: { id: true, name: true, image: true },
+        },
+      },
     });
 
     // Fetch users who are participants in the conversation
@@ -176,8 +227,114 @@ export async function GET(req: Request) {
       select: { id: true, name: true, image: true },
     });
 
+    // Normalize response shape + validate contract.
+    const creator = conversation.User
+      ? {
+          id: conversation.User.id,
+          name: conversation.User.name,
+          image: conversation.User.image ?? null,
+        }
+      : null;
+
+    const dto = {
+      messages: messages.map((m) => ({
+        id: m.id,
+        content: m.content,
+        imageUrl: m.imageUrl ?? null,
+        senderId: m.senderId,
+        conversationId: m.conversationId,
+        createdAt: m.createdAt,
+        editedAt: m.editedAt ?? null,
+        User: m.User
+          ? {
+              id: m.User.id,
+              name: m.User.name,
+              image: m.User.image ?? null,
+            }
+          : null,
+        sender: m.User
+          ? {
+              id: m.User.id,
+              name: m.User.name,
+              image: m.User.image ?? null,
+            }
+          : null,
+      })),
+      users: users.map((u) => ({
+        id: u.id,
+        name: u.name,
+        image: u.image ?? null,
+      })),
+      conversation: {
+        id: conversation.id,
+        title: conversation.title,
+        description: (conversation as any).description ?? null,
+        tags: Array.isArray((conversation as any).tags) ? (conversation as any).tags : [],
+        messageCount: typeof (conversation as any).messageCount === 'number' ? (conversation as any).messageCount : undefined,
+        viewCount: typeof (conversation as any).viewCount === 'number' ? (conversation as any).viewCount : undefined,
+        uniqueViewCount:
+          typeof (conversation as any).uniqueViewCount === 'number' ? (conversation as any).uniqueViewCount : undefined,
+        repostCount: typeof (conversation as any).repostCount === 'number' ? (conversation as any).repostCount : undefined,
+        positivePulseCount:
+          typeof (conversation as any).positivePulseCount === 'number' ? (conversation as any).positivePulseCount : undefined,
+        hasPoll: typeof (conversation as any).hasPoll === 'boolean' ? (conversation as any).hasPoll : undefined,
+
+        type: conversation.type,
+        userId: conversation.userId,
+        originalUserId: (conversation as any).originalUserId ?? null,
+
+        deletionRequestedAt: (conversation as any).deletionRequestedAt ?? null,
+        deletionScheduledFor: (conversation as any).deletionScheduledFor ?? null,
+        deletionVisibility: (conversation as any).deletionVisibility ?? null,
+        isAnonymized: !!(conversation as any).isAnonymized,
+
+        createdAt: (conversation as any).createdAt,
+        updatedAt: (conversation as any).updatedAt,
+
+        participants: Array.isArray((conversation as any).participants) ? (conversation as any).participants : [],
+        participantDetails: users.map((u) => ({ id: u.id, name: u.name, image: u.image ?? null })),
+
+        User: creator,
+        user: creator,
+
+        Conversation: (conversation as any).Conversation
+          ? {
+              id: (conversation as any).Conversation.id,
+              title: (conversation as any).Conversation.title ?? null,
+              createdAt: (conversation as any).Conversation.createdAt,
+              User: (conversation as any).Conversation.User
+                ? {
+                    id: (conversation as any).Conversation.User.id,
+                    name: (conversation as any).Conversation.User.name,
+                    image: (conversation as any).Conversation.User.image ?? null,
+                  }
+                : null,
+              Message: Array.isArray((conversation as any).Conversation.Message)
+                ? (conversation as any).Conversation.Message.map((mm: any) => ({
+                    id: typeof mm?.id === 'string' ? mm.id : undefined,
+                    content: typeof mm?.content === 'string' ? mm.content : undefined,
+                    createdAt: mm?.createdAt,
+                  }))
+                : undefined,
+            }
+          : null,
+      },
+    };
+
+    const parsed = MessagesGetResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error(LOG_PREFIX, 'GET - invalid DTO:', parsed.error.issues);
+      return NextResponse.json(
+        {
+          message: 'Error fetching messages',
+          ...(isDev ? { error: 'Invalid DTO', issues: parsed.error.issues } : {}),
+        },
+        { status: 500 }
+      );
+    }
+
     console.log(LOG_PREFIX, `GET(3/3) - fetched messages successfully`);
-    return NextResponse.json({ messages, users, conversation }, { status: 200 });
+    return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
     console.error(LOG_PREFIX, `GET - error fetching messages:`, error);
     return NextResponse.json(

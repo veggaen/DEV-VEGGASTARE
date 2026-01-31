@@ -1,0 +1,86 @@
+[
+  {
+    "id": "cmksethpy000rt51cawni5494",
+    "conversationId": "clznwofrv00252qrlg5hzch4b",
+    "userId": "clzj635s4000010k9w6o328yn",
+    "viewCount": 1,
+    "firstViewedAt": "2026-01-24T14:33:20.373Z",
+    "lastViewedAt": "2026-01-24T14:33:20.373Z",
+    "ipHash": null,
+    "userAgent": null,
+    "isLoggedIn": false,
+    "viewStrength": 1
+  },
+  {
+    "id": "cmkt4ht2g0001ib04fsyuwldw",
+    "conversationId": "clzyc7tt30005hzep28gw1wkq",
+    "userId": "clzj635s4000010k9w6o328yn",
+    "viewCount": 1,
+    "firstViewedAt": "2026-01-25T02:32:05.224Z",
+    "lastViewedAt": "2026-01-25T02:32:05.224Z",
+    "ipHash": null,
+    "userAgent": null,
+    "isLoggedIn": false,
+    "viewStrength": 1
+  },
+  {
+    "id": "cmkt4w5bx0001jz04b4uxmzcd",
+    "conversationId": "cmkt4w3j30003l704s9arsjvf",
+    "userId": "cmkt4ochm0000js041jk383yi",
+    "viewCount": 1,
+    "firstViewedAt": "2026-01-25T02:43:14.299Z",
+    "lastViewedAt": "2026-01-25T02:43:14.299Z",
+    "ipHash": null,
+    "userAgent": null,
+    "isLoggedIn": false,
+    "viewStrength": 1
+  },
+  {
+    "id": "cmkt57ek30001l804bb88q1um",
+    "conversationId": "cmkt57clw0003jz04i53xm99b",
+    "userId": "cmkt4ochm0000js041jk383yi",
+    "viewCount": 3,
+    "firstViewedAt": "2026-01-25T02:51:59.474Z",
+    "lastViewedAt": "2026-01-25T03:07:58.469Z",
+    "ipHash": null,
+    "userAgent": null,
+    "isLoggedIn": false,
+    "viewStrength": 1
+  },
+  {
+    "id": "cml0cobav0001t528tlvjp8ge",
+    "conversationId": "cml0ab1fg0001t5x0mlbvt5vi",
+    "userId": "clzj6543o000910k9t0q6rs0s",
+    "viewCount": 1,
+    "firstViewedAt": "2026-01-30T03:55:28.949Z",
+    "lastViewedAt": "2026-01-30T03:55:28.949Z",
+    "ipHash": null,
+    "userAgent": null,
+    "isLoggedIn": false,
+    "viewStrength": 1
+  },
+  {
+    "id": "cml2b6ja40001l604p3m254vj",
+    "conversationId": "cml0ab1fg0001t5x0mlbvt5vi",
+    "userId": null,
+    "viewCount": 3,
+    "firstViewedAt": "2026-01-31T12:49:12.219Z",
+    "lastViewedAt": "2026-01-31T12:49:55.857Z",
+    "ipHash": "8a8b7af7059f5f4ad5b6011b913b6f68",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Mobile Safari/537.36",
+    "isLoggedIn": false,
+    "viewStrength": 0.1
+  },
+  {
+    "id": "cml1ea0s20001t5u0r3uzno7r",
+    "conversationId": "cml0ab1fg0001t5x0mlbvt5vi",
+    "userId": "clzj635s4000010k9w6o328yn",
+    "viewCount": 49,
+    "firstViewedAt": "2026-01-30T21:28:07.391Z",
+    "lastViewedAt": "2026-01-31T20:35:25.032Z",
+    "ipHash": "41210dc38086fd5d019bfc35b812a332",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "isLoggedIn": true,
+    "viewStrength": 0.02200000000000001
+  }
+]

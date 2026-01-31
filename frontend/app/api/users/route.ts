@@ -3,6 +3,15 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
+import { AdminUsersListResponseSchema } from '@/lib/types/users';
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+function toIsoString(value: unknown): string {
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === 'string' && value) return value;
+    return new Date(String(value)).toISOString();
+}
 
 export async function GET() {
     // Authentication check - only admins can list all users
@@ -33,32 +42,33 @@ export async function GET() {
         });
         // Post-process users to handle null/undefined fields
         const processedUsers = users.map(user => ({
-            ...user,
-            name: user.name || '', // Provide a default name if null/undefined
-            email: user.email || '', // Provide a default email if
-            emailVerified: user.emailVerified || false, // Provide a default emailVerified if null/undefined
-            image: user.image || '', // Provide a default image path if null/undefined
-            referredBy: user.referredBy || '', // Provide a default referrer if null/undefined
-            role: user.role || '', // Provide a default role if null/undefined
-            isTwoFactorEnabled: user.isTwoFactorEnabled || false, // Provide a default isTwoFactorEnabled if null/undefined
-            createdAt: user.createdAt || new Date().toISOString(), // Provide a default createdAt if null/undefined
-            updatedAt: user.updatedAt || new Date().toISOString(),
-            // Handle other fields similarly if needed
+            id: user.id,
+            name: user.name || '',
+            email: user.email || '',
+            emailVerified: Boolean(user.emailVerified),
+            image: user.image || '',
+            referredBy: user.referredBy || '',
+            role: user.role || '',
+            isTwoFactorEnabled: Boolean(user.isTwoFactorEnabled),
+            createdAt: toIsoString(user.createdAt),
+            updatedAt: toIsoString(user.updatedAt),
         }));
 
-        return new Response(JSON.stringify(processedUsers), {
-            status: 201, // Resource created
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+        const validated = AdminUsersListResponseSchema.safeParse(processedUsers);
+        if (!validated.success) {
+            console.error('Invalid admin users list DTO:', validated.error);
+            return NextResponse.json(
+                { error: 'Failed to get users', ...(isDev ? { issues: validated.error.issues } : {}) },
+                { status: 500 }
+            );
+        }
+
+        return NextResponse.json(validated.data, { status: 200 });
     } catch (error: unknown) {
         console.error('Failed to get users:', error);
-        return new Response(JSON.stringify({ error: (error as Error).message }), {
-            status: 500,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+        return NextResponse.json(
+            { error: (error as Error).message || 'Failed to get users' },
+            { status: 500 }
+        );
     }
 }

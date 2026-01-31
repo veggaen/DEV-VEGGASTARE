@@ -1,11 +1,22 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  UserProfileGetResponseSchema,
+  UserProfilePatchResponseSchema,
+} from '@/lib/types/users';
 
 // Next.js 16+ params type
 type RouteContext = { params: Promise<{ userId: string }> };
 
 const LOG_PREFIX = '[api/users/[userId]]';
+const isDev = process.env.NODE_ENV !== 'production';
+
+function toIsoString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && value) return value;
+  return new Date(String(value)).toISOString();
+}
 
 export async function GET(
   request: NextRequest,
@@ -90,7 +101,7 @@ export async function GET(
       image: user.image,
       banner: user.banner,
       bio: user.bio,
-      createdAt: user.createdAt,
+      createdAt: toIsoString(user.createdAt),
       ...(isAdmin ? { role: user.role } : {}),
       // Include follower/following counts
       _count: {
@@ -106,7 +117,17 @@ export async function GET(
       },
     };
 
-    return NextResponse.json({ user: safeUser }, { status: 200 });
+    const payload = { user: safeUser };
+    const validated = UserProfileGetResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error(LOG_PREFIX, 'Invalid user profile GET DTO:', validated.error);
+      return NextResponse.json(
+        { error: 'Failed to fetch user', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data, { status: 200 });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error fetching user:', error);
     return NextResponse.json(
@@ -177,7 +198,27 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json({ user: updatedUser }, { status: 200 });
+    const payload = {
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email ?? null,
+        image: updatedUser.image,
+        banner: updatedUser.banner,
+        bio: updatedUser.bio,
+      },
+    };
+
+    const validated = UserProfilePatchResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error(LOG_PREFIX, 'Invalid user profile PATCH DTO:', validated.error);
+      return NextResponse.json(
+        { error: 'Failed to update user', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data, { status: 200 });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error updating user:', error);
     return NextResponse.json(

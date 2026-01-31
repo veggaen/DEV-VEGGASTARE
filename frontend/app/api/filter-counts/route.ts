@@ -1,11 +1,10 @@
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
-
-export interface FilterCountsResponse {
-  categories: { category: string; count: number }[];
-  sellers: { id: string; name: string; type: 'user' | 'company'; count: number }[];
-}
+import {
+  FilterCountsBadRequestSchema,
+  FilterCountsResponseSchema,
+  FilterCountsServerErrorSchema,
+} from '@/lib/types/filter-counts';
 
 // Helper to parse comma-separated strings to arrays
 function parseCommaSeparated(value: string | null, maxItems: number): string[] {
@@ -40,7 +39,9 @@ export async function GET(request: Request) {
     
     // Runtime validation for price range
     if (maxPrice < minPrice) {
-      return NextResponse.json({ message: 'maxPrice must be >= minPrice' }, { status: 400 });
+      const errorDto = { message: 'maxPrice must be >= minPrice' };
+      const parsed = FilterCountsBadRequestSchema.safeParse(errorDto);
+      return NextResponse.json(parsed.success ? parsed.data : errorDto, { status: 400 });
     }
 
     // Build base where clause (excluding the dimension we're counting)
@@ -129,7 +130,7 @@ export async function GET(request: Request) {
         sellersMap.set(p.User.id, { id: p.User.id, name: p.User.name ?? 'Unknown', type: 'user' });
       }
       if (p.Company && !sellersMap.has(p.Company.id)) {
-        sellersMap.set(p.Company.id, { id: p.Company.id, name: p.Company.name, type: 'company' });
+        sellersMap.set(p.Company.id, { id: p.Company.id, name: p.Company.name ?? 'Unknown', type: 'company' });
       }
     }
 
@@ -141,10 +142,25 @@ export async function GET(request: Request) {
     // Sort by count descending
     sellers.sort((a, b) => b.count - a.count);
 
-    return NextResponse.json({ categories, sellers } as FilterCountsResponse);
+    const dto = { categories, sellers };
+    const parsed = FilterCountsResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error('[API/filter-counts] Invalid response DTO:', parsed.error.issues);
+      return NextResponse.json(
+        {
+          error: 'Invalid response shape',
+          issues: process.env.NODE_ENV === 'development' ? parsed.error.issues : undefined,
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data);
   } catch (error) {
     console.error('[API/filter-counts] Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch filter counts' }, { status: 500 });
+    const errorDto = { error: 'Failed to fetch filter counts' };
+    const parsed = FilterCountsServerErrorSchema.safeParse(errorDto);
+    return NextResponse.json(parsed.success ? parsed.data : errorDto, { status: 500 });
   }
 }
 

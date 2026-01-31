@@ -11,7 +11,7 @@ export default function MyProductCreationPage() {
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
       {/* Animated background effects with noise overlay to prevent gradient banding */}
       <div className="pointer-events-none fixed inset-0 noise-overlay">
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/15 to-black/5" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/15 to-background/5 dark:from-black/30 dark:via-black/15 dark:to-black/5" />
         
         {/* Primary emerald/sky glow - top right */}
         <motion.div
@@ -79,7 +79,7 @@ export default function MyProductCreationPage() {
               initial={reduceMotion ? undefined : { opacity: 0, y: -8 }}
               animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: 0.35, ease: 'easeOut', delay: 0.05 }}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/70 backdrop-blur-sm"
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm"
             >
               <motion.span
                 className="h-2 w-2 rounded-full bg-emerald-400"
@@ -88,12 +88,12 @@ export default function MyProductCreationPage() {
                 transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               />
               <span>Marketplace</span>
-              <span className="text-white/30">/</span>
+              <span className="text-muted-foreground/50">/</span>
               <span>Create listing</span>
             </motion.div>
             
             <motion.h1
-              className="mt-3 text-2xl font-semibold text-white sm:text-3xl lg:text-4xl"
+              className="mt-3 text-2xl font-semibold text-foreground sm:text-3xl lg:text-4xl"
               initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
               animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: 'easeOut', delay: 0.1 }}
@@ -102,7 +102,7 @@ export default function MyProductCreationPage() {
             </motion.h1>
             
             <motion.p
-              className="mt-2 max-w-2xl text-sm text-white/60 sm:text-base"
+              className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base"
               initial={reduceMotion ? undefined : { opacity: 0, y: 8 }}
               animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: 'easeOut', delay: 0.15 }}
@@ -114,13 +114,13 @@ export default function MyProductCreationPage() {
 
           {/* Form container with glass effect */}
           <motion.div
-            className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/25 backdrop-blur-xl"
+            className="relative overflow-hidden rounded-2xl border border-border bg-card/50 dark:bg-white/[0.03] shadow-2xl shadow-black/10 dark:shadow-black/25 backdrop-blur-xl"
             initial={reduceMotion ? undefined : { opacity: 0, y: 12, scale: 0.98 }}
             animate={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.45, ease: 'easeOut', delay: 0.2 }}
           >
             {/* Subtle top gradient accent */}
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
             
             <div className="p-4 sm:p-6 lg:p-8">
               <MyProductCreationForm />
@@ -129,7 +129,7 @@ export default function MyProductCreationPage() {
 
           {/* Helper text */}
           <motion.p
-            className="text-center text-xs text-white/40"
+            className="text-center text-xs text-muted-foreground/60"
             initial={reduceMotion ? undefined : { opacity: 0 }}
             animate={reduceMotion ? undefined : { opacity: 1 }}
             transition={{ duration: 0.3, delay: 0.4 }}

@@ -205,10 +205,10 @@ export default function ConversationsPage() {
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: index * 0.03 }}
         onClick={() => handleConversationClick(conversation.id)}
-        className="group relative cursor-pointer rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition-all hover:bg-white/[0.05] hover:border-white/20"
+        className="group relative cursor-pointer rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/30 p-4 transition-all hover:bg-slate-200/80 dark:hover:bg-card/60 hover:border-border"
       >
         {isNavigating === conversation.id && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl z-10">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-2xl z-10">
             <Spinner />
           </div>
         )}
@@ -216,7 +216,7 @@ export default function ConversationsPage() {
         <div className="flex items-start gap-4">
           {/* Avatar */}
           {conversation.type === 'PRIVATE_DM' && otherParticipant ? (
-            <Avatar className="h-12 w-12 shrink-0 ring-2 ring-white/10">
+            <Avatar className="h-12 w-12 shrink-0 ring-2 ring-border/30">
               <AvatarImage src={otherParticipant.image} />
               <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
                 {otherParticipant.name?.[0] || '?'}
@@ -225,7 +225,7 @@ export default function ConversationsPage() {
           ) : conversation.type === 'GROUP' ? (
             <div className="relative h-12 w-12 shrink-0">
               {participants.slice(0, 2).map((p, i) => (
-                <Avatar key={p.id} className={`h-8 w-8 absolute ${i === 0 ? 'top-0 left-0' : 'bottom-0 right-0'} ring-2 ring-slate-900`}>
+                <Avatar key={p.id} className={`h-8 w-8 absolute ${i === 0 ? 'top-0 left-0' : 'bottom-0 right-0'} ring-2 ring-background`}>
                   <AvatarImage src={p.image} />
                   <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs">
                     {p.name?.[0] || '?'}
@@ -233,13 +233,13 @@ export default function ConversationsPage() {
                 </Avatar>
               ))}
               {participants.length > 2 && (
-                <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-slate-700 text-[10px] flex items-center justify-center text-white ring-2 ring-slate-900">
+                <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-muted text-[10px] flex items-center justify-center text-muted-foreground ring-2 ring-background">
                   +{participants.length - 2}
                 </div>
               )}
             </div>
           ) : (
-            <div className="h-12 w-12 shrink-0 rounded-full bg-white/5 flex items-center justify-center">
+            <div className="h-12 w-12 shrink-0 rounded-full bg-muted/50 flex items-center justify-center">
               {TYPE_ICONS[conversation.type]}
             </div>
           )}
@@ -260,7 +260,7 @@ export default function ConversationsPage() {
               {conversation.isPinned && (
                 <BsPin className="h-3 w-3 text-amber-400 flex-shrink-0" />
               )}
-              <h3 className={`font-semibold text-white truncate ${conversation.isAnonymized ? 'italic' : ''}`}>
+              <h3 className={`font-semibold text-foreground truncate ${conversation.isAnonymized ? 'italic' : ''}`}>
                 {conversation.type === 'PRIVATE_DM' && otherParticipant
                   ? otherParticipant.name || 'Direct message'
                   : conversation.title || 'Untitled conversation'}
@@ -270,13 +270,13 @@ export default function ConversationsPage() {
 
             {/* Last message preview */}
             {conversation.lastMessage && (
-              <p className="text-sm text-white/50 truncate mb-2">
+              <p className="text-sm text-muted-foreground truncate mb-2">
                 {conversation.lastMessage.content}
               </p>
             )}
 
             {/* Meta row */}
-            <div className="flex items-center gap-3 text-xs text-white/40">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
               {conversation.type === 'GROUP' && (
                 <span className="flex items-center gap-1">
                   <FiUsers className="h-3 w-3" />
@@ -302,23 +302,23 @@ export default function ConversationsPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 rounded-full hover:bg-white/10"
+                    className="h-8 w-8 rounded-full hover:bg-muted"
                     disabled={actionLoading === conversation.id}
                   >
                     {actionLoading === conversation.id ? (
                       <Spinner />
                     ) : (
-                      <FiMoreVertical className="h-4 w-4 text-white/60" />
+                      <FiMoreVertical className="h-4 w-4 text-muted-foreground" />
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10">
+                <DropdownMenuContent align="end" className="bg-popover border-border">
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
                       router.push(`/conversations/${conversation.id}/edit`);
                     }}
-                    className="text-white/80 hover:text-white focus:text-white"
+                    className="text-foreground/80 hover:text-foreground focus:text-foreground"
                   >
                     <FiEdit className="h-4 w-4 mr-2" />
                     Edit
@@ -328,12 +328,12 @@ export default function ConversationsPage() {
                       e.stopPropagation();
                       navigator.clipboard.writeText(`${window.location.origin}/conversations/${conversation.id}`);
                     }}
-                    className="text-white/80 hover:text-white focus:text-white"
+                    className="text-foreground/80 hover:text-foreground focus:text-foreground"
                   >
                     <FiShare2 className="h-4 w-4 mr-2" />
                     Copy Link
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuSeparator className="bg-border" />
                   {conversation.deletionScheduledFor ? (
                     <DropdownMenuItem
                       onClick={(e) => handleCancelDelete(conversation.id, e)}
@@ -363,7 +363,7 @@ export default function ConversationsPage() {
   if (!currentUser) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="animate-pulse text-white/60">Loading...</div>
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -372,7 +372,7 @@ export default function ConversationsPage() {
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
       {/* Background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/5" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/5 dark:from-black/15 dark:to-black/5" />
         <motion.div
           className="absolute -right-20 top-32 h-[480px] w-[480px] rounded-full blur-3xl"
           animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.08, 0.14, 0.08] }}
@@ -394,10 +394,10 @@ export default function ConversationsPage() {
           <header className="mb-8">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h1 className="text-3xl font-semibold text-white sm:text-4xl mb-2">
+                <h1 className="text-3xl font-semibold text-foreground sm:text-4xl mb-2">
                   Messages
                 </h1>
-                <p className="text-white/60 text-sm">
+                <p className="text-muted-foreground text-sm">
                   Your private conversations and group chats
                 </p>
               </div>
@@ -412,22 +412,22 @@ export default function ConversationsPage() {
             {/* Search and Sort */}
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Search conversations..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-white placeholder-white/40 outline-none transition-colors hover:bg-white/[0.07] focus:border-indigo-500/50 focus:bg-white/[0.07]"
+                  className="h-10 w-full rounded-xl border border-border bg-background/50 pl-10 pr-4 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors hover:bg-background/70 focus:border-primary/50 focus:bg-background/70"
                 />
               </div>
               <Select value={sort} onValueChange={(v) => setSort(v as SortType)}>
-                <SelectTrigger className="w-40 h-10 border-white/10 bg-white/5 text-white/80">
+                <SelectTrigger className="w-40 h-10 border-border bg-background/50 text-foreground">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-white/10">
+                <SelectContent className="bg-popover border-border">
                   {SORT_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value} className="text-white/80">
+                    <SelectItem key={option.value} value={option.value} className="text-foreground">
                       {option.label}
                     </SelectItem>
                   ))}
@@ -453,10 +453,10 @@ export default function ConversationsPage() {
               </Button>
             </div>
           ) : filteredConversations.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-12 text-center">
-              <FiInbox className="h-12 w-12 text-white/20 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-white mb-2">No conversations yet</h3>
-              <p className="text-white/50 text-sm mb-6">
+            <div className="rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/30 p-12 text-center">
+              <FiInbox className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No conversations yet</h3>
+              <p className="text-muted-foreground text-sm mb-6">
                 Start a new conversation to connect with others
               </p>
               <Link href="/conversations/new">

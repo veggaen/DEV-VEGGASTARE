@@ -1,9 +1,12 @@
-import { EmployeePermissions } from '@/actions/edit-company-employee-permission';
+import type { EmployeePermissions } from '@/lib/types/company-permissions';
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { CompanyDeleteResponseSchema } from '@/lib/types/company';
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 const deleteCompanySchema = z.object({
   companyId: z.string().trim().min(1).max(200),
@@ -70,7 +73,17 @@ export async function DELETE(req: NextRequest) {
       });
     });
 
-    return NextResponse.json({ success: 'Company deleted successfully' }, { status: 200 });
+    const dto = { success: 'Company deleted successfully' };
+    const parsed = CompanyDeleteResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error('[api/companies/delete] Invalid DELETE DTO:', parsed.error);
+      return NextResponse.json(
+        { error: 'Internal Server Error', ...(isDev ? { issues: parsed.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data, { status: 200 });
   } catch (error: unknown) {
     console.error('Failed to delete company:', error);
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });

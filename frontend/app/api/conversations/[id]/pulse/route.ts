@@ -3,8 +3,14 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import {
+  ConversationPulseDeleteResponseSchema,
+  ConversationPulseGetResponseSchema,
+  ConversationPulsePostResponseSchema,
+} from '@/lib/types/conversations';
 
 const LOG_PREFIX = '[api/conversations/[id]/pulse]';
+const isDev = process.env.NODE_ENV !== 'production';
 
 const postBodySchema = z.object({
   type: z.enum(['POSITIVE', 'NEGATIVE']),
@@ -150,12 +156,23 @@ export async function POST(
       `positive=${updatedConversation.positivePulseCount} negative=${updatedConversation.negativePulseCount}`
     );
 
-    return NextResponse.json({
+    const payload = {
       action,
       currentPulse: newType,
       positivePulseCount: updatedConversation.positivePulseCount,
       negativePulseCount: updatedConversation.negativePulseCount,
-    });
+    };
+
+    const validated = ConversationPulsePostResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error(`${LOG_PREFIX} Invalid POST response DTO:`, validated.error);
+      return NextResponse.json(
+        { message: 'Internal Server Error', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
 
   } catch (error) {
     console.error(`${LOG_PREFIX} Error:`, error);
@@ -215,12 +232,23 @@ export async function GET(
       userPulse = pulse?.type ?? null;
     }
 
-    return NextResponse.json({
+    const payload = {
       positivePulseCount: conversation.positivePulseCount,
       negativePulseCount: showNegative ? conversation.negativePulseCount : null,
       userPulse,
       showNegativePulses: showNegative,
-    });
+    };
+
+    const validated = ConversationPulseGetResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error(`${LOG_PREFIX} Invalid GET response DTO:`, validated.error);
+      return NextResponse.json(
+        { message: 'Internal Server Error', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
 
   } catch (error) {
     console.error(`${LOG_PREFIX} Error:`, error);
@@ -281,11 +309,22 @@ export async function DELETE(
       },
     });
 
-    return NextResponse.json({
+    const payload = {
       removed: true,
       positivePulseCount: updatedConversation.positivePulseCount,
       negativePulseCount: updatedConversation.negativePulseCount,
-    });
+    };
+
+    const validated = ConversationPulseDeleteResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error(`${LOG_PREFIX} Invalid DELETE response DTO:`, validated.error);
+      return NextResponse.json(
+        { message: 'Internal Server Error', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
 
   } catch (error) {
     console.error(`${LOG_PREFIX} Error:`, error);

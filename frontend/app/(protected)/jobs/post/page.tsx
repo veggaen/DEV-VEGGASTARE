@@ -11,7 +11,12 @@ import { FiXCircle, FiPlus, FiTrash2, FiLink, FiFileText, FiTruck, FiMessageSqua
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useEdgeStore } from '@/lib/edgestore';
 import { ImageHandlerJobAsk } from '@/components/uicustom/company/img-handler-job-ask';
-import { Company } from '@prisma/client';
+
+interface CompanyListItem {
+  id: string;
+  name: string;
+  description?: string | null;
+}
 
 interface FormData {
   title: string;
@@ -55,7 +60,7 @@ export default function PostJobPage() {
     sendToAll: true,
     userId: user?.id ?? '',
   });
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companies, setCompanies] = useState<CompanyListItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [imagePreviews, setImagePreviews] = useState<string[][]>([[]]);
   const [showOptional, setShowOptional] = useState(false);

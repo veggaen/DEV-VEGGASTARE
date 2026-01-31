@@ -8,6 +8,48 @@ import {
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ACCESS GATE - Production testing lock
+// ─────────────────────────────────────────────────────────────────────────────
+const ACCESS_GATE_ENABLED = true; // Set to false to disable the gate
+const CORRECT_PASSWORD = 'MainAdc123';
+const COOKIE_NAME = 'veggastare_access';
+const COOKIE_VALUE = 'granted_' + Buffer.from(CORRECT_PASSWORD).toString('base64').slice(0, 16);
+
+// Routes that bypass the access gate
+const GATE_BYPASS_ROUTES = [
+  '/gate',           // The gate page itself
+  '/api/access-gate', // The authentication API
+];
+
+function checkAccessGate(req: NextRequest): NextResponse | null {
+  if (!ACCESS_GATE_ENABLED) return null;
+
+  const { pathname } = req.nextUrl;
+
+  // Skip gate for bypass routes and static files
+  if (GATE_BYPASS_ROUTES.some(route => pathname.startsWith(route))) {
+    return null;
+  }
+  if (pathname.startsWith('/_next') || pathname.includes('.')) {
+    return null;
+  }
+
+  // Check for access cookie
+  const accessCookie = req.cookies.get(COOKIE_NAME);
+
+  if (accessCookie?.value === COOKIE_VALUE) {
+    return null; // Authenticated
+  }
+
+  // Not authenticated - redirect to gate
+  const gateUrl = new URL('/gate', req.url);
+  gateUrl.searchParams.set('redirect', pathname);
+  
+  return NextResponse.redirect(gateUrl);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function generateNonce() {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -90,6 +132,12 @@ function hasSessionCookie(req: NextRequest): boolean {
 }
 
 export default function proxy(req: NextRequest) {
+  // ─── ACCESS GATE CHECK (first priority) ───
+  const gateResponse = checkAccessGate(req);
+  if (gateResponse) {
+    return gateResponse;
+  }
+
   const { nextUrl } = req;
   const isLoggedIn = hasSessionCookie(req);
 

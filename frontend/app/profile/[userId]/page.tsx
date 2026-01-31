@@ -270,10 +270,10 @@ export default function ProfilePage() {
   if (error || !profile) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
-        <FiUser className="h-16 w-16 text-white/20" />
-        <h2 className="text-xl font-semibold text-white">User not found</h2>
-        <p className="text-white/50">{error || 'This profile doesn\'t exist or has been removed'}</p>
-        <Button onClick={() => router.back()} variant="outline" className="border-white/20 text-white/80">
+        <FiUser className="h-16 w-16 text-muted-foreground/40" />
+        <h2 className="text-xl font-semibold text-foreground">User not found</h2>
+        <p className="text-muted-foreground">{error || 'This profile doesn\'t exist or has been removed'}</p>
+        <Button onClick={() => router.back()} variant="outline">
           Go Back
         </Button>
       </div>
@@ -387,17 +387,17 @@ export default function ProfilePage() {
           <div className="flex-1 pb-4">
             <div className="flex items-start justify-between">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-white">
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                   {profile.name || 'Anonymous User'}
                 </h1>
-                <p className="text-white/50 text-sm">
+                <p className="text-muted-foreground text-sm">
                   @{profile.username || profile.email?.split('@')[0] || profile.name?.toLowerCase().replace(/\s+/g, '') || profile.id.slice(0, 8)}
                 </p>
               </div>
 
               {isOwnProfile ? (
                 <Link href="/settings">
-                  <Button variant="outline" className="border-white/20 text-white/80 hover:bg-white/10">
+                  <Button variant="outline">
                     <FiSettings className="h-4 w-4 mr-2" />
                     Edit Profile
                   </Button>
@@ -412,7 +412,7 @@ export default function ProfilePage() {
                       borderColor: bannerColors.primary,
                     } : undefined}
                     className={isFollowing 
-                      ? "bg-white/10 hover:bg-red-600/80 text-white border border-white/20" 
+                      ? "bg-muted hover:bg-red-600/80 text-foreground border border-border hover:text-white" 
                       : "hover:opacity-90 text-white"
                     }
                   >
@@ -426,8 +426,7 @@ export default function ProfilePage() {
                     )}
                   </Button>
                   <Button 
-                    variant="outline" 
-                    className="border-white/20 text-white/80 hover:bg-white/10"
+                    variant="outline"
                     style={bannerColors ? {
                       borderColor: `${bannerColors.primary}40`,
                     } : undefined}
@@ -443,10 +442,10 @@ export default function ProfilePage() {
         {/* Bio and meta info */}
         <div className="mt-6 space-y-4">
           {profile.bio && (
-            <p className="text-white/80 max-w-2xl">{profile.bio}</p>
+            <p className="text-foreground/80 max-w-2xl">{profile.bio}</p>
           )}
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-white/50">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             {profile.location && (
               <span className="flex items-center gap-1">
                 <FiMapPin className="h-4 w-4" />
@@ -473,8 +472,8 @@ export default function ProfilePage() {
           {/* Stats - Now with Reach (actual engagement) alongside Followers */}
           <div className="flex flex-wrap gap-4 sm:gap-6 pt-2">
             <div className="text-center px-2">
-              <div className="text-xl font-bold text-white">{posts.length}</div>
-              <div className="text-xs text-white/50">Posts</div>
+              <div className="text-xl font-bold text-foreground">{posts.length}</div>
+              <div className="text-xs text-muted-foreground">Posts</div>
             </div>
             
             {/* Reach - The new metric that matters - uses CONTRAST color to pop */}
@@ -530,10 +529,10 @@ export default function ProfilePage() {
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
               <div 
-                className="text-xl font-bold text-white transition-colors group-hover:text-opacity-100"
+                className="text-xl font-bold text-foreground transition-colors group-hover:text-opacity-100"
                 style={{ '--hover-color': bannerColors?.primary } as React.CSSProperties}
               >{followerCount}</div>
-              <div className="text-xs text-white/50 group-hover:text-white/70 transition-colors">Followers</div>
+              <div className="text-xs text-muted-foreground group-hover:opacity-100 transition-colors">Followers</div>
             </button>
             <button 
               onClick={() => setActiveTab('connections')}
@@ -541,8 +540,8 @@ export default function ProfilePage() {
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = bannerColors ? `${bannerColors.primary}15` : 'rgba(255,255,255,0.05)'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
-              <div className="text-xl font-bold text-white group-hover:text-opacity-100 transition-colors">{followingCount}</div>
-              <div className="text-xs text-white/50 group-hover:text-white/70 transition-colors">Following</div>
+              <div className="text-xl font-bold text-foreground group-hover:text-opacity-100 transition-colors">{followingCount}</div>
+              <div className="text-xs text-muted-foreground group-hover:opacity-100 transition-colors">Following</div>
             </button>
 
             {/* Engagement rate badge - shows if followers are actually seeing content */}
@@ -560,7 +559,7 @@ export default function ProfilePage() {
                 >
                   {profile.reach.engagementRate >= 100 ? '100%+' : `${profile.reach.engagementRate}%`}
                 </div>
-                <div className="text-xs text-white/50">Engagement</div>
+                <div className="text-xs text-muted-foreground">Engagement</div>
                 <div 
                   className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg text-xs text-white/80 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl border"
                   style={{ 
@@ -589,8 +588,8 @@ export default function ProfilePage() {
         >
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
             <TabsList 
-              className="bg-white/5 border"
-              style={{ borderColor: bannerColors ? `${bannerColors.primary}25` : 'rgba(255,255,255,0.1)' }}
+              className="bg-muted/50 border border-border"
+              style={{ borderColor: bannerColors ? `${bannerColors.primary}25` : undefined }}
             >
               <TabsTrigger 
                 value="posts" 
@@ -760,12 +759,12 @@ export default function ProfilePage() {
                           style={{ color: bannerColors?.primaryLight || '#60a5fa' }}
                         >
                           <FiMessageCircle className="h-3 w-3" />
-                          <span>Commented on</span>
+                          <span>Engaged with</span>
                         </div>
-                        <h4 className="font-medium text-white mb-2">
+                        <h4 className="font-medium text-foreground dark:text-white mb-2">
                           {post.title || 'Untitled post'}
                         </h4>
-                        <div className="flex items-center gap-3 text-xs text-white/40">
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground dark:text-white/40">
                           <span>{post.messageCount} messages</span>
                           <span>{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}</span>
                         </div>
@@ -775,7 +774,7 @@ export default function ProfilePage() {
                               <Badge 
                                 key={tag} 
                                 variant="secondary" 
-                                className="text-xs text-white/60"
+                                className="text-xs text-foreground/60 dark:text-white/60"
                                 style={{ backgroundColor: bannerColors ? `${bannerColors.primary}15` : 'rgba(255,255,255,0.05)' }}
                               >
                                 #{tag}

@@ -3,8 +3,21 @@ import { dbPrisma } from '@/lib/db'; // Adjust the import according to your proj
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { z } from 'zod';
+import {
+  JobRequestCreateResponseSchema,
+  JobRequestDtoSchema,
+  JobRequestErrorResponseSchema,
+  JobRequestsListResponseSchema,
+} from '@/lib/types/job-requests';
 
 const LOG_PREFIX = '[frontend/app/api/job-requests/route.ts]';
+const isDev = process.env.NODE_ENV !== 'production';
+
+function toIsoString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && value) return value;
+  return new Date(String(value)).toISOString();
+}
 
 const createJobRequestSchema = z.object({
   descriptions: z.array(z.string().trim().min(1).max(1000)).min(1).max(50),
@@ -24,11 +37,54 @@ const createJobRequestSchema = z.object({
 
 type JobRequestData = z.infer<typeof createJobRequestSchema>;
 
+function toJobRequestDto(jobRequest: {
+  id: string;
+  userId: string;
+  title: string | null;
+  descriptions: string[];
+  images: string[];
+  links: string[];
+  docs: string[];
+  price: number | null;
+  negotiable: boolean | null;
+  paymentMethod: string | null;
+  delivery: string | null;
+  additionalNotes: string | null;
+  companyIds: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  User: { id: string; name: string | null; image: string | null };
+}) {
+  return {
+    id: jobRequest.id,
+    userId: jobRequest.userId,
+    title: jobRequest.title ?? null,
+    descriptions: jobRequest.descriptions ?? [],
+    images: jobRequest.images ?? [],
+    links: jobRequest.links ?? [],
+    docs: jobRequest.docs ?? [],
+    price: jobRequest.price ?? null,
+    negotiable: jobRequest.negotiable ?? null,
+    paymentMethod: jobRequest.paymentMethod ?? null,
+    delivery: jobRequest.delivery ?? null,
+    additionalNotes: jobRequest.additionalNotes ?? null,
+    companyIds: jobRequest.companyIds ?? [],
+    createdAt: toIsoString(jobRequest.createdAt),
+    updatedAt: toIsoString(jobRequest.updatedAt),
+    user: {
+      id: jobRequest.User.id,
+      name: jobRequest.User.name ?? null,
+      image: jobRequest.User.image ?? null,
+    },
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await MyLibUserAuth();
     if (!session?.id) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      const parsed = JobRequestErrorResponseSchema.safeParse({ success: false, error: 'Unauthorized' });
+      return NextResponse.json(parsed.success ? parsed.data : { success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const bodyResult = await parseJsonOrError(req, createJobRequestSchema);
@@ -38,7 +94,8 @@ export async function POST(req: NextRequest) {
 
     const isAdmin = session.role === 'ADMIN' || session.role === 'OWNER';
     if (!isAdmin && data.userId !== session.id) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      const parsed = JobRequestErrorResponseSchema.safeParse({ success: false, error: 'Forbidden' });
+      return NextResponse.json(parsed.success ? parsed.data : { success: false, error: 'Forbidden' }, { status: 403 });
     }
 
     // Validate userId
@@ -48,10 +105,12 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       console.error(LOG_PREFIX, 'Invalid userId:', data.userId);
-      return NextResponse.json({ success: false, error: 'Invalid userId' }, { status: 400 });
+      const parsed = JobRequestErrorResponseSchema.safeParse({ success: false, error: 'Invalid userId' });
+      return NextResponse.json(parsed.success ? parsed.data : { success: false, error: 'Invalid userId' }, { status: 400 });
     }
     if (!user.email) {
-      return NextResponse.json({ success: false, error: 'Invalid userId' }, { status: 400 });
+      const parsed = JobRequestErrorResponseSchema.safeParse({ success: false, error: 'Invalid userId' });
+      return NextResponse.json(parsed.success ? parsed.data : { success: false, error: 'Invalid userId' }, { status: 400 });
     }
 
     const jobRequest = await dbPrisma.jobRequest.create({
@@ -70,12 +129,35 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         email: user.email
       },
+      include: {
+        User: { select: { id: true, name: true, image: true } },
+      },
     });
 
-    return NextResponse.json({ success: true, jobRequest });
+    const dto = toJobRequestDto(jobRequest);
+    const parsedDto = JobRequestDtoSchema.safeParse(dto);
+    if (!parsedDto.success) {
+      console.error(LOG_PREFIX, 'Invalid POST jobRequest DTO:', parsedDto.error);
+      return NextResponse.json(
+        { success: false, error: 'Internal server error', ...(isDev ? { issues: parsedDto.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    const parsedResponse = JobRequestCreateResponseSchema.safeParse({ success: true, jobRequest: parsedDto.data });
+    if (!parsedResponse.success) {
+      console.error(LOG_PREFIX, 'Invalid POST response DTO:', parsedResponse.error);
+      return NextResponse.json(
+        { success: false, error: 'Internal server error', ...(isDev ? { issues: parsedResponse.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsedResponse.data);
   } catch (error) {
     console.error(LOG_PREFIX, 'Error creating job request:', (error as Error).message);
-    return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
+    const parsed = JobRequestErrorResponseSchema.safeParse({ success: false, error: (error as Error).message });
+    return NextResponse.json(parsed.success ? parsed.data : { success: false, error: (error as Error).message }, { status: 500 });
   }
 }
 
@@ -85,7 +167,8 @@ export async function GET(req: NextRequest) {
     const userId = session?.id;
 
     if (!userId) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      const parsed = JobRequestErrorResponseSchema.safeParse({ success: false, error: 'Unauthorized' });
+      return NextResponse.json(parsed.success ? parsed.data : { success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     // Fetch the user's companies
@@ -108,7 +191,7 @@ export async function GET(req: NextRequest) {
     // Fetch job requests
     const jobRequests = await dbPrisma.jobRequest.findMany({
       include: {
-        User: true, // Include the user who created the job request
+        User: { select: { id: true, name: true, image: true } }, // Include only safe user summary
       },
     });
 
@@ -123,9 +206,20 @@ export async function GET(req: NextRequest) {
       );
     });
 
-    return NextResponse.json(filteredJobRequests);
+    const dto = filteredJobRequests.map(toJobRequestDto);
+    const parsed = JobRequestsListResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error(LOG_PREFIX, 'Invalid GET DTO:', parsed.error);
+      return NextResponse.json(
+        { success: false, error: 'Internal server error', ...(isDev ? { issues: parsed.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data);
   } catch (error) {
     console.error(LOG_PREFIX, 'Error fetching job requests:', error);
-    return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
+    const parsed = JobRequestErrorResponseSchema.safeParse({ success: false, error: (error as Error).message });
+    return NextResponse.json(parsed.success ? parsed.data : { success: false, error: (error as Error).message }, { status: 500 });
   }
 }

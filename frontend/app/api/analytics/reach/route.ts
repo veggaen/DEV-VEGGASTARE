@@ -1,6 +1,7 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
+import { ReachResponseSchema } from '@/lib/types/analytics';
 
 const LOG_PREFIX = '[api/analytics/reach]';
 
@@ -22,7 +23,9 @@ export async function GET(req: Request) {
   const period = searchParams.get('period') || 'all';
 
   if (!targetUserId && !conversationId) {
-    return NextResponse.json({ message: 'User ID or Conversation ID required' }, { status: 400 });
+    const dto = { message: 'User ID or Conversation ID required' };
+    const parsed = ReachResponseSchema.safeParse(dto);
+    return NextResponse.json(parsed.success ? parsed.data : dto, { status: 400 });
   }
 
   try {
@@ -64,7 +67,9 @@ export async function GET(req: Request) {
       });
 
       if (!conversation) {
-        return NextResponse.json({ message: 'Conversation not found' }, { status: 404 });
+        const dto = { message: 'Conversation not found' };
+        const parsed = ReachResponseSchema.safeParse(dto);
+        return NextResponse.json(parsed.success ? parsed.data : dto, { status: 404 });
       }
 
       // Get view breakdown by type
@@ -107,24 +112,59 @@ export async function GET(req: Request) {
         : 0;
       const qualityScore = (ipDiversity * 0.4 + userDiversity * 0.4 + Math.min(engagementRate / 10, 0.2)) * 100;
 
-      return NextResponse.json({
+      const dto = {
         conversation: {
-          ...conversation,
+          id: conversation.id,
+          title: conversation.title,
+          viewCount: conversation.viewCount,
+          uniqueViewCount: conversation.uniqueViewCount,
+          uniqueIpCount: conversation.uniqueIpCount,
+          loggedInViewCount: conversation.loggedInViewCount,
+          anonymousViewCount: conversation.anonymousViewCount,
+          reachScore: conversation.reachScore,
+          replyCount: conversation.replyCount,
+          uniqueRepliers: conversation.uniqueRepliers,
+          createdAt: conversation.createdAt.toISOString(),
           engagementRate: engagementRate.toFixed(2),
           qualityScore: qualityScore.toFixed(1),
         },
-        viewBreakdown: viewEvents.map(v => ({
-          type: v.viewType,
-          count: v._count,
-          totalStrength: v._sum.strength || 0,
-        })),
-        topViewers: topViewers.map(v => ({
-          user: v.User,
+        viewBreakdown: viewEvents.map((v) => {
+          const count =
+            typeof (v as any)._count === 'number'
+              ? (v as any)._count
+              : (v as any)._count?._all ?? 0;
+          return {
+            type: v.viewType,
+            count,
+            totalStrength: v._sum.strength ?? 0,
+          };
+        }),
+        topViewers: topViewers.map((v) => ({
+          user: {
+            // `userId` is guaranteed non-null by the query filter.
+            id: v.User?.id ?? v.userId!,
+            name: v.User?.name ?? null,
+            image: v.User?.image ?? null,
+          },
           viewCount: v.viewCount,
-          firstViewedAt: v.firstViewedAt,
-          lastViewedAt: v.lastViewedAt,
+          firstViewedAt: v.firstViewedAt.toISOString(),
+          lastViewedAt: v.lastViewedAt.toISOString(),
         })),
-      });
+      };
+
+      const parsed = ReachResponseSchema.safeParse(dto);
+      if (!parsed.success) {
+        console.error(LOG_PREFIX, 'Invalid response DTO:', parsed.error.issues);
+        return NextResponse.json(
+          {
+            message: 'Invalid response shape',
+            issues: process.env.NODE_ENV === 'development' ? parsed.error.issues : undefined,
+          },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(parsed.data);
     }
 
     // Get analytics for user's all content
@@ -190,28 +230,50 @@ export async function GET(req: Request) {
       _sum: { strength: true },
     });
 
-    return NextResponse.json({
+    const dto = {
       totals: {
         ...totals,
         postCount: conversations.length,
         avgEngagementRate: avgEngagementRate.toFixed(2),
         reachQuality: reachQuality.toFixed(1),
       },
-      topPosts: conversations.slice(0, 5).map(c => ({
+      topPosts: conversations.slice(0, 5).map((c) => ({
         id: c.id,
         title: c.title,
         reachScore: c.reachScore,
         viewCount: c.viewCount,
         uniqueViewCount: c.uniqueViewCount,
       })),
-      recentViewBreakdown: recentViews.map(v => ({
-        type: v.viewType,
-        count: v._count,
-        totalStrength: v._sum.strength || 0,
-      })),
-    });
+      recentViewBreakdown: recentViews.map((v) => {
+        const count =
+          typeof (v as any)._count === 'number'
+            ? (v as any)._count
+            : (v as any)._count?._all ?? 0;
+        return {
+          type: v.viewType,
+          count,
+          totalStrength: v._sum.strength ?? 0,
+        };
+      }),
+    };
+
+    const parsed = ReachResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error(LOG_PREFIX, 'Invalid response DTO:', parsed.error.issues);
+      return NextResponse.json(
+        {
+          message: 'Invalid response shape',
+          issues: process.env.NODE_ENV === 'development' ? parsed.error.issues : undefined,
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data);
   } catch (error) {
     console.error(LOG_PREFIX, 'Error fetching reach analytics:', error);
-    return NextResponse.json({ message: 'Error fetching analytics' }, { status: 500 });
+    const dto = { message: 'Error fetching analytics' };
+    const parsed = ReachResponseSchema.safeParse(dto);
+    return NextResponse.json(parsed.success ? parsed.data : dto, { status: 500 });
   }
 }

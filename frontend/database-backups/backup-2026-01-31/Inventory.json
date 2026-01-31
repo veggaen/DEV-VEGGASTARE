@@ -1,0 +1,162 @@
+[
+  {
+    "id": "clzj6d57l001110k96ci13ijr",
+    "quantity": 12000,
+    "stock": 12000,
+    "warehouseId": "clzj69cs2000s10k94n0lvyc3",
+    "productId": "clzj6d4x4000z10k9lv4h2eca",
+    "createdAt": "2024-08-07T01:32:56.098Z",
+    "updatedAt": "2024-08-07T01:32:56.098Z",
+    "version": 0
+  },
+  {
+    "id": "clzj6eee3001510k9nczayn2f",
+    "quantity": 16000,
+    "stock": 16000,
+    "warehouseId": "clzj69cs2000s10k94n0lvyc3",
+    "productId": "clzj6ee4p001310k91l9sxckd",
+    "createdAt": "2024-08-07T01:33:54.652Z",
+    "updatedAt": "2024-08-07T01:33:54.652Z",
+    "version": 0
+  },
+  {
+    "id": "clzj6gj0o001910k9r529t31y",
+    "quantity": 27000,
+    "stock": 27000,
+    "warehouseId": "clzj6av52000x10k9zuh8ywbo",
+    "productId": "clzj6gir9001710k99hkmi6nu",
+    "createdAt": "2024-08-07T01:35:33.960Z",
+    "updatedAt": "2024-08-07T01:35:33.960Z",
+    "version": 0
+  },
+  {
+    "id": "clzj6kgr2001j10k9otgthtmc",
+    "quantity": 8000,
+    "stock": 8000,
+    "warehouseId": "clzj6igwu001f10k9wxkv1k54",
+    "productId": "clzj6kghj001h10k9pps553x4",
+    "createdAt": "2024-08-07T01:38:37.646Z",
+    "updatedAt": "2024-08-07T01:38:37.646Z",
+    "version": 0
+  },
+  {
+    "id": "clzj6kgz8001l10k9n1zhyish",
+    "quantity": 8000,
+    "stock": 8000,
+    "warehouseId": "clzj6igwu001e10k95g10me11",
+    "productId": "clzj6kghj001h10k9pps553x4",
+    "createdAt": "2024-08-07T01:38:37.941Z",
+    "updatedAt": "2024-08-07T01:38:37.941Z",
+    "version": 0
+  },
+  {
+    "id": "clzj6lqbe001p10k96jqcoyt3",
+    "quantity": 600,
+    "stock": 600,
+    "warehouseId": "clzj6igwu001e10k95g10me11",
+    "productId": "clzj6lq1w001n10k91d6yj6o1",
+    "createdAt": "2024-08-07T01:39:36.698Z",
+    "updatedAt": "2024-08-07T01:39:36.698Z",
+    "version": 0
+  },
+  {
+    "id": "clzj6lqjj001r10k9rkaop0jd",
+    "quantity": 600,
+    "stock": 600,
+    "warehouseId": "clzj6igwu001f10k9wxkv1k54",
+    "productId": "clzj6lq1w001n10k91d6yj6o1",
+    "createdAt": "2024-08-07T01:39:36.992Z",
+    "updatedAt": "2024-08-07T01:39:36.992Z",
+    "version": 0
+  },
+  {
+    "id": "clzj6srx2002e10k9iwm9p5b5",
+    "quantity": 100000,
+    "stock": 100000,
+    "warehouseId": "clzj6rg2a002a10k924cyipe1",
+    "productId": "clzj6srnf002c10k9hhdytr7o",
+    "createdAt": "2024-08-07T01:45:05.366Z",
+    "updatedAt": "2024-08-07T01:45:05.366Z",
+    "version": 0
+  },
+  {
+    "id": "clzj6u90b002i10k9szfofwox",
+    "quantity": 4000,
+    "stock": 4000,
+    "warehouseId": "clzj6rg2a002a10k924cyipe1",
+    "productId": "clzj6u8qn002g10k9c68v1b0r",
+    "createdAt": "2024-08-07T01:46:14.172Z",
+    "updatedAt": "2024-08-07T01:46:14.172Z",
+    "version": 0
+  },
+  {
+    "id": "clzj6u98o002k10k9lfwkxr0d",
+    "quantity": 4000,
+    "stock": 4000,
+    "warehouseId": "clzj6onyq002010k9yna1ar75",
+    "productId": "clzj6u8qn002g10k9c68v1b0r",
+    "createdAt": "2024-08-07T01:46:14.472Z",
+    "updatedAt": "2024-08-07T01:46:14.472Z",
+    "version": 0
+  },
+  {
+    "id": "clzj6u9gw002m10k9av09bzgi",
+    "quantity": 4000,
+    "stock": 4000,
+    "warehouseId": "clzj6onyq001z10k96y1i7bzy",
+    "productId": "clzj6u8qn002g10k9c68v1b0r",
+    "createdAt": "2024-08-07T01:46:14.769Z",
+    "updatedAt": "2024-08-07T01:46:14.769Z",
+    "version": 0
+  },
+  {
+    "id": "clzj6u9p2002o10k9aazhb7yu",
+    "quantity": 4000,
+    "stock": 4000,
+    "warehouseId": "clzj6onyq001y10k9czslsh2a",
+    "productId": "clzj6u8qn002g10k9c68v1b0r",
+    "createdAt": "2024-08-07T01:46:15.063Z",
+    "updatedAt": "2024-08-07T01:46:15.063Z",
+    "version": 0
+  },
+  {
+    "id": "clzowl3wi0008k3wvamox9xea",
+    "quantity": 50,
+    "stock": 50,
+    "warehouseId": "clzowcnz40004k3wv40h0dd0l",
+    "productId": "clzowl3q70006k3wvkhjtxxo6",
+    "createdAt": "2024-08-11T01:45:48.546Z",
+    "updatedAt": "2024-08-11T01:45:48.546Z",
+    "version": 0
+  },
+  {
+    "id": "cm0jawp7d0005u7xcgxw4dn8w",
+    "quantity": 300,
+    "stock": 300,
+    "warehouseId": "cm0jawp450003u7xci8fnbzb2",
+    "productId": "cm0jawowe0001u7xc6mkvwb2x",
+    "createdAt": "2024-09-01T08:19:49.273Z",
+    "updatedAt": "2024-09-01T08:19:49.273Z",
+    "version": 0
+  },
+  {
+    "id": "cm0je7za50005zlshnhi38ags",
+    "quantity": 120,
+    "stock": 120,
+    "warehouseId": "cm0je7z6q0003zlshhxrn7w4j",
+    "productId": "cm0je7yw10001zlshglnk8pxj",
+    "createdAt": "2024-09-01T09:52:34.397Z",
+    "updatedAt": "2024-09-01T09:52:34.397Z",
+    "version": 0
+  },
+  {
+    "id": "cmkdmmlic0003t5oweg4kv9ni",
+    "quantity": 100,
+    "stock": 100,
+    "warehouseId": "clzowcnz40004k3wv40h0dd0l",
+    "productId": "cmkdmmlah0001t5ow2spt630z",
+    "createdAt": "2026-01-14T06:15:22.981Z",
+    "updatedAt": "2026-01-14T06:15:22.981Z",
+    "version": 0
+  }
+]

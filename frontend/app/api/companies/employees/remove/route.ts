@@ -3,6 +3,7 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { CompanyEmployeeRemoveResponseSchema } from '@/lib/types/company';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -55,10 +56,17 @@ export async function DELETE(req: NextRequest) {
       where: { id: existingEmployee.id },
     });
 
-    return NextResponse.json(
-      { message: `Successfully removed employee ${userId} from company ${companyId}` },
-      { status: 200 }
-    );
+    const dto = { message: `Successfully removed employee ${userId} from company ${companyId}` };
+    const parsed = CompanyEmployeeRemoveResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error('[api/companies/employees/remove] Invalid DELETE DTO:', parsed.error);
+      return NextResponse.json(
+        { message: 'Internal Server Error', ...(isDev ? { issues: parsed.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
     console.error('Failed to remove employee:', error);
     return NextResponse.json(

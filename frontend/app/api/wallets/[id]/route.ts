@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { dbPrisma } from "@/lib/db";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { z } from "zod";
+import { WalletDtoSchema } from "@/lib/types/wallets";
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+function toIsoString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && value) return value;
+  return new Date(String(value)).toISOString();
+}
 
 // Validate wallet ID format (CUID)
 const walletIdSchema = z.string().min(1).max(200);
@@ -34,5 +43,29 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  return NextResponse.json(w);
+  const dto = {
+    id: w.id,
+    label: w.label,
+    family: w.family,
+    chainId: w.chainId ?? null,
+    solanaCluster: w.solanaCluster ?? null,
+    address: w.address,
+    isDefault: w.isDefault,
+    ownerUserId: w.ownerUserId ?? null,
+    ownerCompanyId: w.ownerCompanyId ?? null,
+    createdAt: toIsoString(w.createdAt),
+    updatedAt: toIsoString(w.updatedAt),
+    verifiedAt: w.verifiedAt ? toIsoString(w.verifiedAt) : null,
+  };
+
+  const parsed = WalletDtoSchema.safeParse(dto);
+  if (!parsed.success) {
+    console.error('[api/wallets/[id]] Invalid GET DTO:', parsed.error);
+    return NextResponse.json(
+      { error: 'Failed to fetch wallet', ...(isDev ? { issues: parsed.error.issues } : {}) },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json(parsed.data);
 }

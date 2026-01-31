@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 
 interface DominantColors {
   primary: string;
@@ -19,6 +20,8 @@ interface DominantColors {
   bgGlow: string;
   isDark: boolean;
 }
+
+type ThemeMode = 'light' | 'dark';
 
 /**
  * Convert hex to RGB values
@@ -135,6 +138,48 @@ function getBgTint(hex: string): string {
   // Very dark, slightly saturated version for dark mode backgrounds
   const rgb = hslToRgb(h, Math.min(40, s), 8);
   return rgbToHex(rgb.r, rgb.g, rgb.b);
+}
+
+function getBgTintForMode(hex: string, mode: ThemeMode): string {
+  if (mode === 'dark') return getBgTint(hex);
+
+  const { r, g, b } = hexToRgbValues(hex);
+  const { h, s } = rgbToHsl(r, g, b);
+  // Very light, slightly saturated tint for light mode backgrounds
+  const rgb = hslToRgb(h, Math.min(35, s), 96);
+  return rgbToHex(rgb.r, rgb.g, rgb.b);
+}
+
+function applyModeToColors(base: DominantColors, mode: ThemeMode): DominantColors {
+  // Treat extracted colors as the “true” palette, then derive mode-friendly variants.
+  const primary = mode === 'light' ? getLighterColor(base.primary, 18) : getDarkerColor(base.primary, 18);
+  const secondary = mode === 'light' ? getLighterColor(base.secondary, 18) : getDarkerColor(base.secondary, 18);
+  const accent = mode === 'light' ? getLighterColor(base.accent, 18) : getDarkerColor(base.accent, 18);
+
+  const primaryContrast = getContrastColor(primary);
+  const secondaryContrast = getContrastColor(secondary);
+  const accentContrast = getContrastColor(accent);
+
+  const primaryBrightness = (() => {
+    const rgb = hexToRgbValues(primary);
+    return (rgb.r + rgb.g + rgb.b) / 3;
+  })();
+
+  return {
+    primary,
+    secondary,
+    accent,
+    primaryContrast,
+    secondaryContrast,
+    accentContrast,
+    // Keep providing both variants for UI usage
+    primaryLight: getLighterColor(primary, 18),
+    primaryDark: getDarkerColor(primary, 18),
+    secondaryLight: getLighterColor(secondary, 18),
+    bgTint: getBgTintForMode(primary, mode),
+    bgGlow: getGlowColor(primary),
+    isDark: primaryBrightness < 128,
+  };
 }
 
 /**
@@ -315,13 +360,17 @@ function getDefaultColors(): DominantColors {
  * Hook to extract colors from a banner image
  */
 export function useBannerColors(bannerUrl: string | null | undefined) {
-  const [colors, setColors] = useState<DominantColors | null>(null);
+  const [rawColors, setRawColors] = useState<DominantColors | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const { resolvedTheme } = useTheme();
+
+  // Dark-first default if theme hasn't resolved yet.
+  const mode: ThemeMode = resolvedTheme === 'light' ? 'light' : 'dark';
 
   useEffect(() => {
     if (!bannerUrl) {
-      setColors(null);
+      setRawColors(null);
       return;
     }
 
@@ -332,7 +381,7 @@ export function useBannerColors(bannerUrl: string | null | undefined) {
     extractColorsFromImage(bannerUrl)
       .then((extractedColors) => {
         if (mounted) {
-          setColors(extractedColors);
+          setRawColors(extractedColors);
           setLoading(false);
         }
       })
@@ -341,7 +390,7 @@ export function useBannerColors(bannerUrl: string | null | undefined) {
           setError(err);
           setLoading(false);
           // Set default colors on error
-          setColors(getDefaultColors());
+          setRawColors(getDefaultColors());
         }
       });
 
@@ -350,6 +399,7 @@ export function useBannerColors(bannerUrl: string | null | undefined) {
     };
   }, [bannerUrl]);
 
+  const colors = rawColors ? applyModeToColors(rawColors, mode) : null;
   return { colors, loading, error };
 }
 

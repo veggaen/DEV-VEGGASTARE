@@ -5,9 +5,14 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { User } from '@prisma/client';
 import { formatDistanceToNow, format } from 'date-fns';
 import { FiArrowLeft, FiExternalLink, FiFileText, FiTruck, FiDollarSign, FiMessageSquare } from 'react-icons/fi';
+
+interface UserSummary {
+  id: string;
+  name: string | null;
+  image: string | null;
+}
 
 // Security: Validate and sanitize user-provided URLs
 function isSafeUrl(url: string): boolean {
@@ -32,13 +37,13 @@ interface JobRequest {
   images: string[];
   links: string[];
   docs: string[];
-  price: string | null;
+  price: number | null;
   negotiable: boolean | null;
   paymentMethod: string | null;
   delivery: string | null;
   additionalNotes: string | null;
   createdAt: string;
-  user: User;
+  user: UserSummary;
 }
 
 export default function JobDetailPage() {

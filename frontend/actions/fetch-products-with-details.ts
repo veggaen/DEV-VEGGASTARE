@@ -1,26 +1,13 @@
 'use server';
 
 import { dbPrisma } from '@/lib/db';
-import { User, Company } from '@prisma/client';
+import type { ProductsListItem } from '@/lib/types/products';
 
-// Define the exact shape returned by the query instead of extending Product
-interface ExtendedProduct {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  price: number;
-  stock: number;
-  shipFromPostalId: string;
-  image: string[];
-  specifications: unknown;
-  userId: string;
-  companyId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  user?: Pick<User, 'id' | 'name'>;
-  company?: Pick<Company, 'id' | 'name'> | null;
-}
+const toIsoString = (value: unknown): string => {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && value.length) return value;
+  return new Date(String(value)).toISOString();
+};
 
 interface FetchProductsParams {
   page: number;
@@ -43,7 +30,7 @@ export const fetchProductsWithDetails = async ({
   maxPrice,
   searchTerm,
   sellerIds = [], // Add sellerIds with a default empty array
-}: FetchProductsParams): Promise<ExtendedProduct[]> => {
+}: FetchProductsParams): Promise<ProductsListItem[]> => {
   if (shouldLog) {
     console.log(
       `${LOG_PREFIX} Fetching products for page ${page} with ${perPage} items per page.`
@@ -123,12 +110,42 @@ export const fetchProductsWithDetails = async ({
     });
 
     if (shouldLog) console.log(`${LOG_PREFIX} Successfully fetched ${products.length} products.`);
-    // Transform Prisma field names (User/Company) to lowercase (user/company) for frontend
-    return products.map((p: any) => ({
-      ...p,
-      user: p.User,
-      company: p.Company,
-    }));
+
+    return products.map((p: any) => {
+      const user = p?.User
+        ? {
+            id: String(p.User.id),
+            name: p.User.name ?? null,
+          }
+        : null;
+
+      const company = p?.Company
+        ? {
+            id: String(p.Company.id),
+            name: String(p.Company.name),
+          }
+        : null;
+
+      const dto: ProductsListItem = {
+        id: String(p.id),
+        title: String(p.title),
+        description: String(p.description),
+        category: String(p.category),
+        price: typeof p.price === 'number' ? p.price : Number(p.price),
+        stock: typeof p.stock === 'number' ? p.stock : Number(p.stock),
+        shipFromPostalId: String(p.shipFromPostalId),
+        image: Array.isArray(p.image) ? p.image : [],
+        specifications: (p as any).specifications ?? null,
+        userId: String(p.userId),
+        companyId: p.companyId ? String(p.companyId) : null,
+        createdAt: toIsoString(p.createdAt),
+        updatedAt: toIsoString(p.updatedAt),
+        user,
+        company,
+      };
+
+      return dto;
+    });
   } catch (error) {
     console.error(`${LOG_PREFIX} Error fetching products with details:`, error);
     return [];

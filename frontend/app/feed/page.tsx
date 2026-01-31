@@ -27,7 +27,8 @@ import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2 } from 'react-icons/fi';
-import { PulsePositive, PulseFlat } from '@/components/uicustom/icons/PulseIcons';
+import { PulseHeart, PulseFlat, PulsePositive } from '@/components/uicustom/icons/PulseIcons';
+import { pulseLabels } from '@/lib/pulse-labels';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { PollDisplay } from '@/components/uicustom/chats/poll-display';
 import { DiscoverPeople } from '@/components/uicustom/social/DiscoverPeople';
@@ -98,7 +99,7 @@ type SortType = 'reach' | 'recent' | 'popular' | 'discussed';
 const SORT_OPTIONS: { value: SortType; label: string; description: string }[] = [
   { value: 'reach', label: 'Top Reach', description: 'Most viewed & engaged' },
   { value: 'recent', label: 'Latest', description: 'Newest first' },
-  { value: 'popular', label: 'Most Pulsed', description: 'Most positive pulses' },
+  { value: 'popular', label: 'Most Heartbeats', description: 'Most heartbeats' },
   { value: 'discussed', label: 'Most Discussed', description: 'Most comments' },
 ];
 
@@ -388,7 +389,7 @@ const FeedPage: React.FC = () => {
         <div className="min-w-0 space-y-4">
           {/* Compose Box */}
           {currentUser && (
-            <div className="rounded-2xl border border-border/60 bg-card">
+            <div className="rounded-2xl border border-border/60 bg-slate-200/80 dark:bg-card">
               <div className="p-4 space-y-3">
                 {/* User avatar + textarea */}
                 <div className="flex gap-3">
@@ -578,7 +579,7 @@ const FeedPage: React.FC = () => {
                       size="sm"
                       className="rounded-full px-4"
                     >
-                      {isSubmitting ? <Spinner /> : <><FiSend className="h-4 w-4 mr-1" /> Post</>}
+                      {isSubmitting ? <Spinner /> : <><PulsePositive className="h-4 w-4 mr-1" /> {pulseLabels.post}</>}
                     </Button>
                   </div>
                 </div>
@@ -621,7 +622,7 @@ const FeedPage: React.FC = () => {
         <aside className="hidden lg:block">
           <div className="sticky top-[calc(var(--app-header-offset,0px)+16px)] space-y-4">
             {!currentUser && (
-              <div className="rounded-2xl border border-border/60 bg-transparent p-4 transition-colors hover:bg-card/30">
+              <div className="rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-slate-200/80 dark:hover:bg-card/30">
                 <div className="font-semibold">Welcome</div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Browse public posts, polls, and updates. Sign in to post and join the conversation.
@@ -633,7 +634,7 @@ const FeedPage: React.FC = () => {
               </div>
             )}
 
-            <div className="rounded-2xl border border-border/60 bg-transparent p-4 transition-colors hover:bg-card/30">
+            <div className="rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-slate-200/80 dark:hover:bg-card/30">
               <div className="flex items-center justify-between">
                 <div className="font-semibold">Trending tags</div>
                 {tagFilter && (
@@ -661,8 +662,8 @@ const FeedPage: React.FC = () => {
               )}
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-transparent p-4 transition-colors hover:bg-card/30">
-              <div className="font-semibold">Top pulses</div>
+            <div className="rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-slate-200/80 dark:hover:bg-card/30">
+              <div className="font-semibold">Top heartbeats</div>
               <div className="mt-3 space-y-2">
                 {topPosts.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nothing yet.</p>
@@ -704,7 +705,7 @@ const FeedPage: React.FC = () => {
                             </button>
                           </div>
                           <div className="shrink-0 text-xs text-muted-foreground">
-                            {(post.uniqueViewCount || 0) > 0 ? `${post.uniqueViewCount} views` : `${post.messageCount} msgs`}
+                            {(post.viewCount || 0) > 0 ? `${post.viewCount} views` : `${post.messageCount} msgs`}
                           </div>
                         </div>
                       </div>
@@ -775,7 +776,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     return raw.length > max ? `${raw.slice(0, max).trimEnd()}…` : raw;
   }, [item.repostOfConversation, item.repostOfLastMessage]);
 
-  // Handle pulse (like/dislike)
+  // Handle heartbeat (like/dislike)
   const handlePulse = async (type: 'POSITIVE' | 'NEGATIVE') => {
     if (!currentUser || isPulsing) return;
     setIsPulsing(true);
@@ -811,13 +812,13 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
         setLocalPulse(previousPulse);
         setLocalPositiveCount(previousCount);
         const t = await res.text().catch(() => '');
-        throw new Error(t || 'Failed to pulse');
+        throw new Error(t || 'Failed to heartbeat');
       }
       const data = await res.json();
       setLocalPulse(data.currentPulse);
       setLocalPositiveCount(data.positivePulseCount || 0);
     } catch (e) {
-      console.error('Pulse failed:', e);
+      console.error('Heartbeat failed:', e);
     } finally {
       setIsPulsing(false);
     }
@@ -942,7 +943,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   return (
     <article
       ref={viewTrackingRef}
-      className="group relative cursor-pointer rounded-2xl border border-border/60 bg-card/30 p-4 sm:p-5 shadow-sm transition hover:bg-card/50 hover:shadow-md"
+      className="group relative cursor-pointer rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/30 p-4 sm:p-5 shadow-sm transition hover:bg-slate-200/80 dark:hover:bg-card/50 hover:shadow-md"
       onClick={onClick}
     >
       <div className="flex gap-3 items-start">
@@ -1159,7 +1160,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
           {/* Stats & Actions */}
           <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-            {/* Pulse button (positive) - uses pulse wave icon */}
+            {/* Heartbeat button (positive) */}
             <button
               type="button"
               disabled={!currentUser || isPulsing}
@@ -1167,9 +1168,9 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               className={`flex items-center gap-1.5 transition-all hover:text-emerald-500 group ${
                 localPulse === 'POSITIVE' ? 'text-emerald-500' : ''
               }`}
-              title="Pulse this"
+              title={pulseLabels.heartbeatVerb}
             >
-              <PulsePositive 
+              <PulseHeart 
                 size={18} 
                 filled={localPulse === 'POSITIVE'}
                 className={`transition-transform ${localPulse === 'POSITIVE' ? 'scale-110' : 'group-hover:scale-105'}`}

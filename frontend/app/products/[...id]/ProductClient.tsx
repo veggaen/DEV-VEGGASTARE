@@ -1124,17 +1124,18 @@ function ProductDetails({ product }: { product: Product }) {
   }, [product.specifications]);
 
   // Inventory helpers
-  const totalStock = useMemo(
-    () => product.inventory.reduce((sum, it) => sum + it.stock, 0),
-    [product.inventory]
-  );
+  const totalStock = useMemo(() => {
+    const inventory = product.inventory ?? [];
+    return inventory.reduce((sum, it) => sum + it.stock, 0);
+  }, [product.inventory]);
 
   const stockAtClosest = useMemo(() => {
     if (!closestWarehouse) return 0;
-    const match = product.inventory.find((it) => it.warehouseId === closestWarehouse.id);
+    const inventory = product.inventory ?? [];
+    const match = inventory.find((it) => it.warehouseId === closestWarehouse.id);
     if (match) return match.stock;
     // fallback: max warehouse stock
-    return product.inventory.reduce((m, it) => (it.stock > m ? it.stock : m), 0);
+    return inventory.reduce((m, it) => (it.stock > m ? it.stock : m), 0);
   }, [closestWarehouse, product.inventory]);
 
   // Find closest warehouse from user geolocation

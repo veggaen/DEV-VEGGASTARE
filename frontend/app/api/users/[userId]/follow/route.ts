@@ -1,6 +1,12 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  UserFollowMutationResponseSchema,
+  UserFollowStatusResponseSchema,
+} from '@/lib/types/users';
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 type RouteContext = { params: Promise<{ userId: string }> };
 
@@ -37,11 +43,22 @@ export async function GET(
         : null,
     ]);
 
-    return NextResponse.json({
+    const payload = {
       followerCount,
       followingCount,
       isFollowing: !!isFollowing,
-    });
+    };
+
+    const validated = UserFollowStatusResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error('[api/users/[userId]/follow] Invalid GET DTO:', validated.error);
+      return NextResponse.json(
+        { error: 'Failed to fetch follow status', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
   } catch (error) {
     console.error('[api/users/[userId]/follow] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch follow status' }, { status: 500 });
@@ -93,12 +110,23 @@ export async function POST(
       dbPrisma.follow.count({ where: { followerId: userId } }),
     ]);
 
-    return NextResponse.json({
-      success: true,
+    const payload = {
+      success: true as const,
       isFollowing: true,
       followerCount,
       followingCount,
-    });
+    };
+
+    const validated = UserFollowMutationResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error('[api/users/[userId]/follow] Invalid POST DTO:', validated.error);
+      return NextResponse.json(
+        { error: 'Failed to follow user', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
   } catch (error: any) {
     // Handle duplicate follow (already following)
     if (error.code === 'P2002') {
@@ -141,12 +169,23 @@ export async function DELETE(
       dbPrisma.follow.count({ where: { followerId: userId } }),
     ]);
 
-    return NextResponse.json({
-      success: true,
+    const payload = {
+      success: true as const,
       isFollowing: false,
       followerCount,
       followingCount,
-    });
+    };
+
+    const validated = UserFollowMutationResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error('[api/users/[userId]/follow] Invalid DELETE DTO:', validated.error);
+      return NextResponse.json(
+        { error: 'Failed to unfollow user', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
   } catch (error: any) {
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Not following this user' }, { status: 404 });

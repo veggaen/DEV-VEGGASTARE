@@ -51,11 +51,21 @@ export default function SiteFooter() {
 
   return (
     <footer className="hidden md:block mt-auto shrink-0 z-10 border-t border-white/10 bg-black/40 backdrop-blur-xl">
+      {/* Soft maintenance notice */}
+      <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2">
+        <p className="text-center text-xs text-amber-200/80">
+          🛠️ We&apos;re still building! Some features may be incomplete or change without notice.
+        </p>
+      </div>
+      
       <div className="mx-auto flex max-w-screen-2xl flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-white/60">
           <span className="font-medium text-white/80">VeggaStare</span>
           <span className="mx-2 text-white/25">·</span>
           <span>© {year}</span>
+          {/* TODO: Add your org number here once registered */}
+          {/* <span className="mx-2 text-white/25">·</span>
+          <span>Org.nr: XXX XXX XXX</span> */}
         </div>
 
         <div className="flex items-center gap-3">
@@ -63,19 +73,25 @@ export default function SiteFooter() {
             href="/info"
             className="rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90"
           >
-            Info / Contact
+            Kontakt
           </Link>
-				<Link
-					href="/privacy"
-					className="rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90"
-				>
-					Privacy & cookies
-				</Link>
+          <Link
+            href="/terms"
+            className="rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90"
+          >
+            Salgsvilkår
+          </Link>
+          <Link
+            href="/privacy"
+            className="rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90"
+          >
+            Personvern
+          </Link>
           <Link
             href="/products"
             className="rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90"
           >
-            Marketplace
+            Markedsplass
           </Link>
         </div>
       </div>

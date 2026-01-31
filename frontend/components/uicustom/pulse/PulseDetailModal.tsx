@@ -20,6 +20,7 @@ import {
   FiCopy,
   FiCheck
 } from 'react-icons/fi';
+import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 import Pusher from 'pusher-js';
 import Spinner from '@/components/uicustom/spinner';
 
@@ -51,6 +52,7 @@ interface PulseData {
   viewCount?: number;
   uniqueViewCount?: number;
   repostCount?: number;
+  positivePulseCount?: number;
   hasPoll?: boolean;
 }
 
@@ -85,13 +87,49 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
       const data = await res.json();
       
       if (data.conversation) {
-        setPulse(data.conversation);
+        // Normalize user data (API returns User but we expect user)
+        const conv = data.conversation;
+        setPulse({
+          ...conv,
+          user: conv.User || conv.user,
+        });
+        
+        // Normalize message sender data (API returns User but we expect sender)
+        const allMessages = (data.messages || []).map((msg: Message & { User?: { id: string; name: string | null; image?: string | null }; senderId?: string }) => ({
+          ...msg,
+          sender: msg.User || msg.sender,
+        }));
+        
+        // Filter out the first "initial" message that duplicates the pulse content
+        // This happens when creating a pulse - an initial message is auto-created
+        const filteredMessages = allMessages.filter((msg: Message & { senderId?: string }, index: number) => {
+          // Skip the first message if:
+          // 1. It's the first message (index 0)
+          // 2. It was sent by the conversation creator
+          // 3. Its content matches the pulse title or description
+          if (index === 0) {
+            const senderId = msg.senderId || msg.sender?.id;
+            const isFromCreator = senderId === conv.userId;
+            const contentMatches = msg.content === conv.title || msg.content === conv.description;
+            if (isFromCreator && contentMatches) {
+              return false; // Filter out this duplicate
+            }
+          }
+          return true;
+        });
+        
+        setMessages(filteredMessages);
+      } else {
+        // No conversation data, just set messages as-is
+        const normalizedMessages = (data.messages || []).map((msg: Message & { User?: { id: string; name: string | null; image?: string | null } }) => ({
+          ...msg,
+          sender: msg.User || msg.sender,
+        }));
+        setMessages(normalizedMessages);
       }
       
-      setMessages(data.messages || []);
-      
-      // Track view with enhanced tracking
-      await fetch(`/api/conversations/${pulseId}/view`, { method: 'POST' }).catch(() => {});
+      // Track view in background (non-blocking)
+      fetch(`/api/conversations/${pulseId}/view`, { method: 'POST' }).catch(() => {});
     } catch (err) {
       console.error('Failed to fetch pulse:', err);
       setError('Failed to load pulse');
@@ -174,21 +212,29 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm"
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-[80] bg-black/50 dark:bg-black/70 backdrop-blur-sm"
+            style={{ 
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+            }}
             onClick={onClose}
           />
 
           {/* Modal */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed left-[50%] top-[50%] z-[90] w-[95vw] max-w-2xl translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-2xl border border-white/10 shadow-2xl"
+            exit={{ opacity: 0, scale: 0.98, y: 10 }}
+            transition={{ duration: 0.15 }}
+            className="fixed left-[50%] top-[50%] z-[90] w-[95vw] max-w-2xl translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl bg-white dark:bg-slate-900"
             style={{
-              background: 'linear-gradient(to bottom, rgba(15, 23, 42, 0.98), rgba(10, 15, 30, 0.99))',
-              boxShadow: '0 0 80px rgba(34, 197, 94, 0.08), 0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               maxHeight: '90vh',
             }}
           >
@@ -211,28 +257,28 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
             </div>
 
             {/* Header */}
-            <div className="relative flex items-center justify-between border-b border-white/10 bg-white/[0.02] px-5 py-4">
+            <div className="relative flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/50 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20">
-                  <FiTrendingUp className="h-4 w-4 text-emerald-400" />
+                  <FiTrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <span className="text-sm font-medium text-white/80">Pulse</span>
+                <span className="text-sm font-medium text-foreground/80 dark:text-white/80">Pulse</span>
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={copyLink}
-                  className="h-8 gap-1.5 text-white/60 hover:bg-white/10 hover:text-white"
+                  className="h-8 gap-1.5 text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
                 >
-                  {copied ? <FiCheck className="h-3.5 w-3.5 text-emerald-400" /> : <FiCopy className="h-3.5 w-3.5" />}
+                  {copied ? <FiCheck className="h-3.5 w-3.5 text-emerald-500" /> : <FiCopy className="h-3.5 w-3.5" />}
                   <span className="text-xs">{copied ? 'Copied!' : 'Share'}</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={openFullPage}
-                  className="h-8 gap-1.5 text-white/60 hover:bg-white/10 hover:text-white"
+                  className="h-8 gap-1.5 text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
                 >
                   <FiExternalLink className="h-3.5 w-3.5" />
                   <span className="text-xs">Expand</span>
@@ -241,7 +287,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                   variant="ghost"
                   size="icon"
                   onClick={onClose}
-                  className="h-8 w-8 text-white/60 hover:bg-white/10 hover:text-white"
+                  className="h-8 w-8 text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
                 >
                   <FiX className="h-4 w-4" />
                 </Button>
@@ -253,7 +299,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                 <Spinner />
               </div>
             ) : error ? (
-              <div className="flex h-80 flex-col items-center justify-center gap-3 text-white/60">
+              <div className="flex h-80 flex-col items-center justify-center gap-3 text-muted-foreground">
                 <p>{error}</p>
                 <Button variant="outline" size="sm" onClick={onClose}>
                   Close
@@ -264,11 +310,11 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                 {/* Scrollable content */}
                 <div
                   ref={scrollRef}
-                  className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10"
+                  className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/10"
                   style={{ maxHeight: 'calc(90vh - 200px)' }}
                 >
                   <div className="p-5">
-                    {/* Original post */}
+                    {/* Original Pulse */}
                     <div className="pb-5">
                       <div className="flex gap-4">
                         {/* Avatar with glow */}
@@ -292,9 +338,9 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                         <div className="min-w-0 flex-1">
                           {/* Author info */}
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <span className="font-semibold text-white">{pulse.user?.name || 'Anonymous'}</span>
-                            <span className="text-white/30">·</span>
-                            <span className="text-sm text-white/50">
+                            <span className="font-semibold text-foreground dark:text-white">{pulse.user?.name || 'Anonymous'}</span>
+                            <span className="text-muted-foreground/50 dark:text-white/30">·</span>
+                            <span className="text-sm text-muted-foreground dark:text-white/50">
                               {formatDistanceToNowStrict(new Date(pulse.createdAt), { addSuffix: true })}
                             </span>
                           </div>
@@ -302,12 +348,12 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                           {/* Content - NO TRUNCATION */}
                           <div className="mt-3 space-y-2">
                             {pulse.title && (
-                              <p className="text-[15px] leading-relaxed text-white/95 whitespace-pre-wrap break-words">
+                              <p className="text-[15px] leading-relaxed text-foreground/95 dark:text-white/95 whitespace-pre-wrap break-words">
                                 {pulse.title}
                               </p>
                             )}
                             {pulse.description && pulse.description !== pulse.title && (
-                              <p className="text-[15px] leading-relaxed text-white/80 whitespace-pre-wrap break-words">
+                              <p className="text-[15px] leading-relaxed text-foreground/80 dark:text-white/80 whitespace-pre-wrap break-words">
                                 {pulse.description}
                               </p>
                             )}
@@ -327,7 +373,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                                 <Badge
                                   key={tag}
                                   variant="secondary"
-                                  className="cursor-pointer border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 transition-colors"
+                                  className="cursor-pointer border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-700 dark:hover:text-emerald-200 transition-colors"
                                   onClick={() => {
                                     onTagClick?.(tag);
                                     onClose();
@@ -340,30 +386,40 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                           )}
 
                           {/* Stats bar */}
-                          <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
-                            <div className="flex items-center gap-1.5 text-white/50">
+                          <div className="mt-4 flex flex-wrap items-center gap-5 text-sm">
+                            {/* Heartbeats (likes) */}
+                            <div className="flex items-center gap-2 text-emerald-500 dark:text-emerald-400">
+                              <PulseHeart size={16} filled={(pulse.positivePulseCount || 0) > 0} />
+                              <span>{pulse.positivePulseCount || 0}</span>
+                            </div>
+                            
+                            {/* Vibes (comments) */}
+                            <div className="flex items-center gap-2 text-muted-foreground dark:text-white/50">
                               <FiMessageCircle className="h-4 w-4" />
                               <span>{messages.length}</span>
-                              <span className="hidden sm:inline">comments</span>
                             </div>
+                            
+                            {/* Reposts */}
                             {pulse.repostCount !== undefined && pulse.repostCount > 0 && (
-                              <div className="flex items-center gap-1.5 text-white/50">
+                              <div className="flex items-center gap-2 text-muted-foreground dark:text-white/50">
                                 <FiRepeat className="h-4 w-4" />
                                 <span>{pulse.repostCount}</span>
                               </div>
                             )}
+                            
+                            {/* Views with unique on hover */}
                             {pulse.viewCount !== undefined && pulse.viewCount > 0 && (
-                              <div className="flex items-center gap-1.5 text-white/50">
+                              <div 
+                                className="group relative flex items-center gap-2 text-muted-foreground dark:text-white/50 cursor-default"
+                                title={pulse.uniqueViewCount ? `${pulse.uniqueViewCount} unique viewers` : undefined}
+                              >
                                 <FiEye className="h-4 w-4" />
                                 <span>{pulse.viewCount}</span>
-                                <span className="hidden sm:inline">views</span>
-                              </div>
-                            )}
-                            {pulse.uniqueViewCount !== undefined && pulse.uniqueViewCount > 0 && (
-                              <div className="flex items-center gap-1.5 text-emerald-400/70">
-                                <FiTrendingUp className="h-4 w-4" />
-                                <span>{pulse.uniqueViewCount}</span>
-                                <span className="hidden sm:inline">unique</span>
+                                {pulse.uniqueViewCount !== undefined && pulse.uniqueViewCount > 0 && (
+                                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-800 dark:bg-slate-700 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">
+                                    {pulse.uniqueViewCount} unique
+                                  </span>
+                                )}
                               </div>
                             )}
                           </div>
@@ -374,10 +430,10 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                     {/* Divider */}
                     <div className="relative my-4">
                       <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-white/10" />
+                        <div className="w-full border-t border-slate-200 dark:border-white/10" />
                       </div>
                       <div className="relative flex justify-center">
-                        <span className="bg-slate-900/80 px-3 text-xs font-medium text-white/40">
+                        <span className="bg-white dark:bg-slate-900 px-3 text-xs font-medium text-muted-foreground dark:text-white/40">
                           {messages.length > 0 ? `${messages.length} vibes` : 'No vibes yet'}
                         </span>
                       </div>
@@ -385,45 +441,42 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
 
                     {/* Comments/Messages */}
                     <div className="space-y-4">
-                      {messages.map((message, index) => (
-                        <motion.div
+                      {messages.map((message) => (
+                        <div
                           key={message.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.03, duration: 0.2 }}
-                          className="flex gap-3 rounded-xl bg-white/[0.02] p-3 transition-colors hover:bg-white/[0.04]"
+                          className="flex gap-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 p-3 transition-colors hover:bg-slate-200 dark:hover:bg-slate-800"
                         >
-                          <Avatar className="h-9 w-9 shrink-0 ring-1 ring-white/10">
+                          <Avatar className="h-9 w-9 shrink-0 ring-1 ring-slate-200 dark:ring-white/10">
                             <AvatarImage src={message.sender?.image || undefined} />
-                            <AvatarFallback className="bg-gradient-to-br from-slate-600 to-slate-700 text-sm text-white">
+                            <AvatarFallback className="bg-gradient-to-br from-slate-400 to-slate-500 dark:from-slate-600 dark:to-slate-700 text-sm text-white">
                               {message.sender?.name?.[0]?.toUpperCase() || '?'}
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                              <span className="text-sm font-medium text-white/90">
+                              <span className="text-sm font-medium text-foreground/90 dark:text-white/90">
                                 {message.sender?.name || 'Anonymous'}
                               </span>
-                              <span className="text-xs text-white/40">
+                              <span className="text-xs text-muted-foreground dark:text-white/40">
                                 {formatDistanceToNowStrict(new Date(message.createdAt), { addSuffix: true })}
                               </span>
                               {message.editedAt && (
-                                <span className="text-xs text-white/30">(edited)</span>
+                                <span className="text-xs text-muted-foreground/70 dark:text-white/30">(edited)</span>
                               )}
                             </div>
-                            <p className="mt-1 text-sm leading-relaxed text-white/80 whitespace-pre-wrap break-words">
+                            <p className="mt-1 text-sm leading-relaxed text-foreground/80 dark:text-white/80 whitespace-pre-wrap break-words">
                               {message.content}
                             </p>
                           </div>
-                        </motion.div>
+                        </div>
                       ))}
 
                       {messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-8 text-center">
-                          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/5">
-                            <FiMessageCircle className="h-6 w-6 text-white/30" />
+                          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                            <FiMessageCircle className="h-6 w-6 text-muted-foreground dark:text-white/30" />
                           </div>
-                          <p className="text-sm text-white/50">Be the first to drop a vibe</p>
+                          <p className="text-sm text-muted-foreground dark:text-white/50">Be the first to drop a vibe</p>
                         </div>
                       )}
                     </div>
@@ -432,18 +485,18 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
 
                 {/* Message input */}
                 {currentUser ? (
-                  <div className="shrink-0 border-t border-white/10 bg-white/[0.02] p-4">
+                  <div className="shrink-0 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/50 p-4">
                     <MessageInput
                       conversationId={pulse.id}
                       onMessageSent={handleMessageSent}
                     />
                   </div>
                 ) : (
-                  <div className="shrink-0 border-t border-white/10 bg-white/[0.02] p-4">
-                    <p className="text-center text-sm text-white/50">
+                  <div className="shrink-0 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/50 p-4">
+                    <p className="text-center text-sm text-muted-foreground dark:text-white/50">
                       <Button
                         variant="link"
-                        className="h-auto p-0 text-emerald-400 hover:text-emerald-300"
+                        className="h-auto p-0 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
                         onClick={() => router.push('/auth/login')}
                       >
                         Sign in

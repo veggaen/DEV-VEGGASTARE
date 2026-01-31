@@ -12,9 +12,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useState, useEffect } from 'react';
-import { EmployeePermissions, editCompanyEmployeePermissionAction } from '@/actions/edit-company-employee-permission';
+import type { EmployeePermissions } from '@/lib/types/company-permissions';
+import { editCompanyEmployeePermissionAction } from '@/actions/edit-company-employee-permission';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { ExtendedCompany, ExtendedEmployee } from '@/app/companies/[id]/settings/CompanySettingsClient';
+import type { ExtendedCompany, ExtendedEmployee } from '@/lib/types/company-management';
 import EditEmployeeRoleModal from './edit-employee-role-modal';
 
 

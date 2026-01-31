@@ -28,7 +28,13 @@ export default function AppProviders({
   return (
     <SessionProvider session={session} refetchOnWindowFocus>
       <EdgeStoreProvider>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+          storageKey="veggat:theme"
+        >
           <UiPreferencesProvider>
             <FollowStateProvider>
               <Web3Providers>

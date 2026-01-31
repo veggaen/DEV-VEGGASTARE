@@ -10,10 +10,22 @@ import {
   Prisma
 } from '@prisma/client';
 import { z } from 'zod';
+import {
+  ConversationsListResponseSchema,
+  ConversationListItemSchema,
+  type ConversationsListResponse,
+} from '@/lib/types/conversations';
+import { ConversationAdminResponseSchema } from '@/lib/types/conversations';
 
 const LOG_PREFIX = '[api/conversations]';
 
 const isDev = process.env.NODE_ENV !== 'production';
+
+function toIsoString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return new Date(String(value)).toISOString();
+}
 
 const createConversationSchema = z.object({
   title: z.string().trim().max(200).optional().nullable(),
@@ -185,7 +197,93 @@ export async function POST(req: Request) {
       console.log(LOG_PREFIX, `Created initial message for conversation ${conversation.id}${messageImageUrl ? ' (with image)' : ''}`);
     }
 
-    return NextResponse.json(conversation, { status: 201 });
+    const created = await dbPrisma.conversation.findUnique({
+      where: { id: conversation.id },
+      include: {
+        User: { select: { id: true, name: true, email: true, image: true } },
+      },
+    });
+
+    if (!created) {
+      return NextResponse.json({ message: 'Error creating conversation' }, { status: 500 });
+    }
+
+    const dto = {
+      id: created.id,
+      companyId: (created as any).companyId ?? null,
+
+      title: created.title,
+      description: created.description ?? null,
+
+      userId: created.userId,
+      participants: (created.participants as string[]) ?? [],
+
+      createdAt: toIsoString(created.createdAt),
+      updatedAt: toIsoString(created.updatedAt),
+      editedAt: created.editedAt ? toIsoString(created.editedAt) : null,
+
+      allowedRoles: (created.allowedRoles as string[]) ?? [],
+      customViewers: (created.customViewers as string[]) ?? [],
+
+      isLocked: created.isLocked,
+      isPinned: created.isPinned,
+      replyPermission: created.replyPermission,
+      tags: (created.tags as string[]) ?? [],
+      type: created.type,
+      visibility: created.visibility,
+
+      lastActivityAt: created.lastActivityAt ? toIsoString(created.lastActivityAt) : undefined,
+
+      replyCount: created.replyCount ?? undefined,
+      uniqueRepliers: (created as any).uniqueRepliers ?? undefined,
+      viewCount: created.viewCount ?? undefined,
+      uniqueViewCount: (created as any).uniqueViewCount ?? undefined,
+
+      deletionRequestedAt: created.deletionRequestedAt ? toIsoString(created.deletionRequestedAt) : null,
+      deletionScheduledFor: created.deletionScheduledFor ? toIsoString(created.deletionScheduledFor) : null,
+      deletionVisibility: (created as any).deletionVisibility ?? null,
+
+      isAnonymized: (created as any).isAnonymized ?? false,
+      originalUserId: (created as any).originalUserId ?? null,
+
+      suspiciousActivity: (created as any).suspiciousActivity ?? undefined,
+      suspiciousReason: (created as any).suspiciousReason ?? null,
+
+      repostOfConversationId: (created as any).repostOfConversationId ?? null,
+
+      uniqueIpCount: (created as any).uniqueIpCount ?? undefined,
+      loggedInViewCount: (created as any).loggedInViewCount ?? undefined,
+      anonymousViewCount: (created as any).anonymousViewCount ?? undefined,
+      reachScore: (created as any).reachScore ?? undefined,
+
+      positivePulseCount: created.positivePulseCount ?? undefined,
+      negativePulseCount: created.negativePulseCount ?? undefined,
+      repulseCount: (created as any).repulseCount ?? undefined,
+
+      User: {
+        id: created.User.id,
+        name: created.User.name,
+        email: created.User.email ?? null,
+        image: created.User.image ?? null,
+      },
+      user: {
+        id: created.User.id,
+        name: created.User.name,
+        email: created.User.email ?? null,
+        image: created.User.image ?? null,
+      },
+    };
+
+    const validated = ConversationAdminResponseSchema.safeParse(dto);
+    if (!validated.success) {
+      console.error(LOG_PREFIX, 'Invalid create conversation DTO:', validated.error);
+      return NextResponse.json(
+        { message: 'Internal Server Error', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data, { status: 201 });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error creating conversation:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -384,7 +482,7 @@ export async function GET(req: Request) {
             title: true,
             createdAt: true,
             User: {
-              select: { id: true, name: true, image: true },
+              select: { id: true, name: true, email: true, image: true },
             },
             Message: {
               take: 1,
@@ -393,7 +491,7 @@ export async function GET(req: Request) {
           },
         },
         User: {
-          select: { id: true, name: true, image: true },
+          select: { id: true, name: true, email: true, image: true },
         },
         Poll: {
           // Feed needs the question to show a longer preview than the truncated title.
@@ -443,29 +541,139 @@ export async function GET(req: Request) {
     const users = await fetchUserManyDetails(allParticipantIds);
 
     // Add participant details to each conversation
-    const conversationsWithUserDetails = conversations.map((conversation) => {
-      const participantDetails = (conversation.participants as string[]).map((id) =>
-        users.find((user) => user.id === id)
-      ).filter(Boolean);
+    const conversationsWithUserDetails = conversations.map((conversation): z.infer<typeof ConversationListItemSchema> => {
+      const participantDetails = (conversation.participants as string[])
+        .map((id) => users.find((u) => u.id === id))
+        .filter((p): p is NonNullable<typeof p> => Boolean(p));
 
-      return {
-        ...conversation,
-        participantDetails, // Keep original participants array, add details separately
-        lastMessage: conversation.Message?.[0] || null,
-        repostOfLastMessage: conversation.Conversation?.Message?.[0] || null,
+      const lastMessage = conversation.Message?.[0]
+        ? {
+            id: conversation.Message[0].id,
+            content: conversation.Message[0].content,
+            createdAt: toIsoString(conversation.Message[0].createdAt),
+            imageUrl: conversation.Message[0].imageUrl ?? null,
+            senderId: conversation.Message[0].senderId ?? null,
+          }
+        : null;
+
+      const repostOfLastMessage = conversation.Conversation?.Message?.[0]
+        ? {
+            content: conversation.Conversation.Message[0].content,
+            createdAt: toIsoString(conversation.Conversation.Message[0].createdAt),
+          }
+        : null;
+
+      const repostOfConversation = conversation.Conversation
+        ? {
+            id: conversation.Conversation.id,
+            title: conversation.Conversation.title,
+            createdAt: toIsoString(conversation.Conversation.createdAt),
+            User: {
+              id: conversation.Conversation.User.id,
+              name: conversation.Conversation.User.name,
+              email: conversation.Conversation.User.email ?? null,
+              image: conversation.Conversation.User.image ?? null,
+            },
+            user: {
+              id: conversation.Conversation.User.id,
+              name: conversation.Conversation.User.name,
+              email: conversation.Conversation.User.email ?? null,
+              image: conversation.Conversation.User.image ?? null,
+            },
+            lastMessage: conversation.Conversation.Message?.[0]
+              ? {
+                  id: conversation.Conversation.Message[0].id,
+                  content: conversation.Conversation.Message[0].content,
+                  createdAt: toIsoString(conversation.Conversation.Message[0].createdAt),
+                  imageUrl: conversation.Conversation.Message[0].imageUrl ?? null,
+                  senderId: conversation.Conversation.Message[0].senderId ?? null,
+                }
+              : null,
+          }
+        : null;
+
+      const dto = {
+        id: conversation.id,
+        companyId: (conversation as any).companyId ?? null,
+
+        title: conversation.title ?? '',
+        description: conversation.description ?? null,
+
+        userId: conversation.userId,
+        participants: (conversation.participants as string[]) ?? [],
+        participantDetails: participantDetails.map((p) => ({
+          id: p.id,
+          name: p.name ?? null,
+          email: p.email ?? null,
+          image: p.image ?? null,
+          referredBy: (p as any).referredBy ?? null,
+        })),
+
+        createdAt: toIsoString(conversation.createdAt),
+        updatedAt: toIsoString(conversation.updatedAt),
+        editedAt: conversation.editedAt ? toIsoString(conversation.editedAt) : null,
+        lastActivityAt: conversation.lastActivityAt ? toIsoString(conversation.lastActivityAt) : null,
+
+        allowedRoles: (conversation.allowedRoles as string[]) ?? [],
+        customViewers: (conversation.customViewers as string[]) ?? [],
+
+        isLocked: conversation.isLocked,
+        isPinned: conversation.isPinned,
+        replyPermission: conversation.replyPermission,
+        tags: (conversation.tags as string[]) ?? [],
+        type: conversation.type,
+        visibility: conversation.visibility,
+
+        replyCount: conversation.replyCount ?? undefined,
+        uniqueRepliers: (conversation as any).uniqueRepliers ?? undefined,
+        viewCount: conversation.viewCount ?? undefined,
+        uniqueViewCount: (conversation as any).uniqueViewCount ?? undefined,
+
+        deletionRequestedAt: conversation.deletionRequestedAt ? toIsoString(conversation.deletionRequestedAt) : null,
+        deletionScheduledFor: conversation.deletionScheduledFor ? toIsoString(conversation.deletionScheduledFor) : null,
+        deletionVisibility: (conversation as any).deletionVisibility ?? null,
+
+        isAnonymized: (conversation as any).isAnonymized ?? undefined,
+        originalUserId: (conversation as any).originalUserId ?? null,
+
+        repostOfConversationId: (conversation as any).repostOfConversationId ?? null,
+        repostOfConversation,
+        Conversation: repostOfConversation,
+
+        lastMessage,
+        repostOfLastMessage,
+
         messageCount: conversation._count.Message,
         repostCount: conversation._count.ConversationRepost,
+        quoteRepostCount: (conversation as any).quoteRepostCount ?? undefined,
         hasReposted: userId ? repostedSet.has(conversation.id) : false,
-        hasPoll: !!conversation.Poll, // Boolean indicator for poll existence
-        // Pulse data
+
+        hasPoll: !!conversation.Poll,
+        poll: conversation.Poll ? { id: conversation.Poll.id, question: conversation.Poll.question ?? null } : null,
+        Poll: conversation.Poll ? { id: conversation.Poll.id, question: conversation.Poll.question ?? null } : null,
+
         positivePulseCount: conversation.positivePulseCount || 0,
         negativePulseCount: conversation.negativePulseCount || 0,
         userPulse: userId ? userPulseMap.get(conversation.id) || null : null,
-        // Normalize field names for frontend
-        user: conversation.User,
-        poll: conversation.Poll,
-        messages: conversation.Message,
+
+        User: {
+          id: conversation.User.id,
+          name: conversation.User.name,
+          email: conversation.User.email ?? null,
+          image: conversation.User.image ?? null,
+        },
+        user: {
+          id: conversation.User.id,
+          name: conversation.User.name,
+          email: conversation.User.email ?? null,
+          image: conversation.User.image ?? null,
+        },
+
+        Message: lastMessage ? [lastMessage] : [],
+        messages: lastMessage ? [lastMessage] : [],
       };
+
+      return dto;
     });
 
     // Return with next cursor for pagination
@@ -473,10 +681,21 @@ export async function GET(req: Request) {
       ? conversations[conversations.length - 1]?.id
       : null;
 
-    return NextResponse.json({
+    const responsePayload: ConversationsListResponse = {
       conversations: conversationsWithUserDetails,
       nextCursor,
-    }, { status: 200 });
+    };
+
+    const validated = ConversationsListResponseSchema.safeParse(responsePayload);
+    if (!validated.success) {
+      console.error(LOG_PREFIX, 'Invalid conversations list DTO:', validated.error);
+      return NextResponse.json(
+        { message: 'Internal Server Error', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data, { status: 200 });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error fetching conversations:', error);
 

@@ -26,7 +26,7 @@ export default function PrivacyPage() {
   return (
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-black/75 to-sky-950/25" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/75 to-sky-950/10 dark:from-black dark:via-black/75 dark:to-sky-950/25" />
         <motion.div
           className="absolute -right-12 top-24 h-[560px] w-[560px] rounded-full blur-3xl"
           animate={
@@ -51,36 +51,36 @@ export default function PrivacyPage() {
           className="space-y-8"
         >
           <header className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground">
               <span className="h-2 w-2 rounded-full bg-sky-400" aria-hidden />
               <span>Privacy & cookies</span>
             </div>
-            <h1 className="text-balance text-4xl font-semibold text-white sm:text-5xl">Privacy-first, by default.</h1>
-            <p className="max-w-2xl text-pretty text-sm text-white/70 sm:text-base">
+            <h1 className="text-balance text-4xl font-semibold text-foreground sm:text-5xl">Privacy-first, by default.</h1>
+            <p className="max-w-2xl text-pretty text-sm text-muted-foreground sm:text-base">
               This page explains what we store in your browser and why. We keep this high-level on purpose — enough to be
               transparent, without publishing details that could be useful for abuse.
             </p>
           </header>
 
-          <section className="rounded-2xl border border-white/10 bg-black/30 p-6 backdrop-blur-xl">
-            <h2 className="text-xl font-semibold text-white">What we use</h2>
-            <div className="mt-3 space-y-4 text-sm leading-relaxed text-white/70">
+          <section className="rounded-2xl border border-border bg-card/50 dark:bg-black/30 p-6 backdrop-blur-xl">
+            <h2 className="text-xl font-semibold text-foreground">What we use</h2>
+            <div className="mt-3 space-y-4 text-sm leading-relaxed text-muted-foreground">
               <div>
-                <div className="font-semibold text-white/85">Essential cookies (required)</div>
+                <div className="font-semibold text-foreground/85">Essential cookies (required)</div>
                 <div>
                   Used for authentication, security, and core site operation (for example: keeping you signed in, preventing
                   request forgery, and maintaining basic session state).
                 </div>
               </div>
               <div>
-                <div className="font-semibold text-white/85">Preference storage</div>
+                <div className="font-semibold text-foreground/85">Preference storage</div>
                 <div>
                   Some UI settings and feature toggles are stored locally in your browser so the site feels consistent between
                   visits.
                 </div>
               </div>
               <div>
-                <div className="font-semibold text-white/85">Optional cookies (only if you consent)</div>
+                <div className="font-semibold text-foreground/85">Optional cookies (only if you consent)</div>
                 <div>
                   Analytics cookies can help us understand which screens are slow or confusing. Marketing cookies are not used
                   by default.
@@ -89,9 +89,9 @@ export default function PrivacyPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-white/10 bg-black/30 p-6 backdrop-blur-xl">
-            <h2 className="text-xl font-semibold text-white">Your choices</h2>
-            <p className="mt-2 text-sm text-white/70 leading-relaxed">
+          <section className="rounded-2xl border border-border bg-card/50 dark:bg-black/30 p-6 backdrop-blur-xl">
+            <h2 className="text-xl font-semibold text-foreground">Your choices</h2>
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
               You can accept all cookies, reject non-essential cookies, or customize categories. You can also clear your
               browser storage to reset choices.
             </p>
@@ -99,35 +99,35 @@ export default function PrivacyPage() {
               <button
 						type="button"
 						onClick={openCookieSettings}
-						className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white/90 transition-colors hover:bg-white/15"
+						className="rounded-xl bg-primary/10 dark:bg-white/10 px-4 py-2 text-sm font-semibold text-primary dark:text-white/90 transition-colors hover:bg-primary/15 dark:hover:bg-white/15"
 					>
 						Cookie settings
 					</button>
 					<button
 						type="button"
 						onClick={resetCookieConsent}
-						className="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white/90"
+						className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 					>
 						Reset consent
 					</button>
               <Link
                 href="/"
-                className="rounded-xl bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                className="rounded-xl bg-muted/50 dark:bg-white/5 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
               >
                 Back home
               </Link>
               <Link
                 href="/info"
-                className="rounded-xl px-4 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white/90"
+                className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground/60 transition-colors hover:bg-muted/50 dark:hover:bg-white/5 hover:text-foreground dark:hover:text-white/90"
               >
                 Info / contact
               </Link>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-white/10 bg-black/30 p-6 backdrop-blur-xl">
-            <h2 className="text-xl font-semibold text-white">Security note</h2>
-            <p className="mt-2 text-sm text-white/70 leading-relaxed">
+          <section className="rounded-2xl border border-border bg-card/50 dark:bg-black/30 p-6 backdrop-blur-xl">
+            <h2 className="text-xl font-semibold text-foreground">Security note</h2>
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
               We won’t list internal infrastructure details here. If you find a security issue, please report it responsibly.
             </p>
           </section>

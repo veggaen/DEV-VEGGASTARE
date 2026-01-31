@@ -24,7 +24,7 @@ model Account {
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
-  @@index([userId])                        // Get accounts by user
+  @@index([userId])
 }
 
 model Cart {
@@ -86,7 +86,6 @@ model Conversation {
   participants           String[]
   createdAt              DateTime               @default(now())
   updatedAt              DateTime               @updatedAt
-  editedAt               DateTime?              // Set when content (title/description) is edited by user
   allowedRoles           String[]               @default([])
   customViewers          String[]               @default([])
   description            String?
@@ -109,15 +108,14 @@ model Conversation {
   suspiciousReason       String?
   uniqueViewCount        Int                    @default(0)
   repostOfConversationId String?
-  // Enhanced reach metrics
-  uniqueIpCount          Int                    @default(0) // Unique IPs that viewed
-  loggedInViewCount      Int                    @default(0) // Views from logged-in users
-  anonymousViewCount     Int                    @default(0) // Views from anonymous users
-  reachScore             Float                  @default(0) // Weighted reach score
-  // Pulse metrics
-  positivePulseCount     Int                    @default(0) // Total positive pulses (likes)
-  negativePulseCount     Int                    @default(0) // Total negative pulses (dislikes) - hidden by default
-  repulseCount           Int                    @default(0) // Total repulses (reposts)
+  anonymousViewCount     Int                    @default(0)
+  editedAt               DateTime?
+  loggedInViewCount      Int                    @default(0)
+  negativePulseCount     Int                    @default(0)
+  positivePulseCount     Int                    @default(0)
+  reachScore             Float                  @default(0)
+  repulseCount           Int                    @default(0)
+  uniqueIpCount          Int                    @default(0)
   Company                Company?               @relation(fields: [companyId], references: [id])
   Conversation           Conversation?          @relation("ConversationToConversation", fields: [repostOfConversationId], references: [id])
   other_Conversation     Conversation[]         @relation("ConversationToConversation")
@@ -128,13 +126,12 @@ model Conversation {
   Poll                   Poll?
   Pulse                  Pulse[]
 
-  // Performance indexes for common queries
-  @@index([userId])                           // Get conversations by user
-  @@index([type])                             // Filter by type
-  @@index([visibility])                       // Filter by visibility
-  @@index([lastActivityAt])                   // Sort by activity
-  @@index([deletionScheduledFor])             // Clean up scheduled deletions
-  @@index([type, visibility, lastActivityAt]) // Combined feed query
+  @@index([userId])
+  @@index([type])
+  @@index([visibility])
+  @@index([lastActivityAt])
+  @@index([deletionScheduledFor])
+  @@index([type, visibility, lastActivityAt])
 }
 
 model ConversationRepost {
@@ -153,14 +150,14 @@ model ConversationRepost {
 model ConversationView {
   id             String       @id @default(cuid())
   conversationId String
-  userId         String?      // Nullable for anonymous views
+  userId         String?
   viewCount      Int          @default(1)
   firstViewedAt  DateTime     @default(now())
   lastViewedAt   DateTime     @default(now())
-  ipHash         String?      // Hashed IP for privacy but allows uniqueness check
-  userAgent      String?      // Browser/device fingerprint
+  ipHash         String?
   isLoggedIn     Boolean      @default(false)
-  viewStrength   Float        @default(1.0) // Calculated strength of this view relationship
+  userAgent      String?
+  viewStrength   Float        @default(1.0)
   Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   User           User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -170,32 +167,22 @@ model ConversationView {
   @@index([ipHash])
 }
 
-// Detailed view event log for analytics
 model ViewEvent {
-  id             String       @id @default(cuid())
+  id             String   @id @default(cuid())
   conversationId String
   userId         String?
   ipHash         String
   userAgent      String?
-  viewType       ViewType     @default(FIRST_VIEW)
-  strength       Float        @default(1.0) // Weight of this specific view
-  referrer       String?      // Where did they come from
-  sessionId      String?      // Track session for bounce rate etc
-  viewedAt       DateTime     @default(now())
+  viewType       ViewType @default(FIRST_VIEW)
+  strength       Float    @default(1.0)
+  referrer       String?
+  sessionId      String?
+  viewedAt       DateTime @default(now())
 
   @@index([conversationId])
   @@index([userId])
   @@index([ipHash])
   @@index([viewedAt])
-}
-
-enum ViewType {
-  FIRST_VIEW           // First time user sees this content
-  REPEAT_VIEW          // Same user viewing again
-  ANONYMOUS_VIEW       // Not logged in
-  SAME_IP_NEW_USER     // Different account but same IP
-  UNIQUE_IP_NEW_USER   // Completely unique viewer
-  BOT_VIEW             // Detected as bot
 }
 
 model EmailLoginToken {
@@ -219,9 +206,9 @@ model Employee {
   Company     Company      @relation(fields: [companyId], references: [id])
   User        User         @relation(fields: [userId], references: [id])
 
-  @@index([userId])                        // Get employee records by user
-  @@index([companyId])                     // Get employees by company
-  @@unique([userId, companyId])            // User can only be one employee per company
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
 }
 
 model EmployeeTermination {
@@ -294,9 +281,9 @@ model Message {
   Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   User           User         @relation(fields: [senderId], references: [id])
 
-  @@index([conversationId])                // Get messages in conversation
-  @@index([senderId])                      // Get messages by user
-  @@index([conversationId, createdAt])     // Paginated conversation messages
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([conversationId, createdAt])
 }
 
 model MonthlyReport {
@@ -324,10 +311,10 @@ model Order {
   User          User        @relation(fields: [userId], references: [id])
   Payment       Payment?
 
-  @@index([userId])                        // Get orders by user
-  @@index([status])                        // Filter by status
-  @@index([createdAt])                     // Sort by date
-  @@index([userId, status])                // Combined filter
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId, status])
 }
 
 model Package {
@@ -423,13 +410,12 @@ model Product {
   Review               Review[]
   ShippingDetails      ShippingDetails[]
 
-  // Performance indexes for common queries
-  @@index([category])                    // Filter by category
-  @@index([price])                       // Sort/filter by price
-  @@index([userId])                      // Get products by user
-  @@index([companyId])                   // Get products by company
-  @@index([createdAt])                   // Sort by date
-  @@index([category, price])             // Combined filter
+  @@index([category])
+  @@index([price])
+  @@index([userId])
+  @@index([companyId])
+  @@index([createdAt])
+  @@index([category, price])
 }
 
 model ProductAcceptedToken {
@@ -524,8 +510,6 @@ model User {
   email                                                           String?                       @unique
   emailVerified                                                   DateTime?
   image                                                           String?
-  banner                                                          String?
-  bio                                                             String?
   password                                                        String?
   referredBy                                                      String?
   role                                                            UserRole                      @default(USER)
@@ -533,30 +517,20 @@ model User {
   createdAt                                                       DateTime                      @default(now())
   updatedAt                                                       DateTime                      @updatedAt
   web3ModeEnabled                                                 Boolean                       @default(false)
-  siteNoticeDismissedVersion                                      Int                           @default(0)
-  
-  // ─── Verification Tier System ───
-  // These fields determine the user's verification tier for view strength calculations
-  verificationTier                                                UserVerificationTier          @default(ANONYMOUS)
-  verificationScore                                               Int                           @default(0) // Calculated score from all verifications
-  
-  // OAuth/Social verifications (tracked in Account but summarized here for quick access)
-  hasGoogleAuth                                                   Boolean                       @default(false)
+  banner                                                          String?
+  bio                                                             String?
   hasDiscordAuth                                                  Boolean                       @default(false)
   hasGithubAuth                                                   Boolean                       @default(false)
-  
-  // Web3 verifications
-  hasVerifiedWallet                                               Boolean                       @default(false) // Any wallet with signature verification
-  hasWeb3Payment                                                  Boolean                       @default(false) // Made a blockchain transaction
-  
-  // Web2 payment verifications
-  hasWeb2Payment                                                  Boolean                       @default(false) // Verified card/PayPal etc
-  
-  // Phone verification
+  hasGoogleAuth                                                   Boolean                       @default(false)
+  hasVerifiedWallet                                               Boolean                       @default(false)
+  hasWeb2Payment                                                  Boolean                       @default(false)
+  hasWeb3Payment                                                  Boolean                       @default(false)
+  phoneCountryCode                                                String?
   phoneNumber                                                     String?                       @unique
   phoneVerified                                                   DateTime?
-  phoneCountryCode                                                String?                       // e.g., "NO", "US"
-  
+  siteNoticeDismissedVersion                                      Int                           @default(0)
+  verificationScore                                               Int                           @default(0)
+  verificationTier                                                UserVerificationTier          @default(ANONYMOUS)
   Account                                                         Account[]
   Cart                                                            Cart?
   Company_Company_creatorIdToUser                                 Company[]                     @relation("Company_creatorIdToUser")
@@ -567,30 +541,26 @@ model User {
   Employee                                                        Employee[]
   EmployeeTermination_EmployeeTermination_employeeUserIdToUser    EmployeeTermination[]         @relation("EmployeeTermination_employeeUserIdToUser")
   EmployeeTermination_EmployeeTermination_initiatedByUserIdToUser EmployeeTermination[]         @relation("EmployeeTermination_initiatedByUserIdToUser")
+  followers                                                       Follow[]                      @relation("UserFollowers")
+  following                                                       Follow[]                      @relation("UserFollowing")
+  receivedFriendRequests                                          FriendRequest[]               @relation("ReceivedFriendRequests")
+  sentFriendRequests                                              FriendRequest[]               @relation("SentFriendRequests")
+  friendshipsA                                                    Friendship[]                  @relation("FriendshipsA")
+  friendshipsB                                                    Friendship[]                  @relation("FriendshipsB")
   JobRequest                                                      JobRequest[]
   Message                                                         Message[]
   Order                                                           Order[]
   Package                                                         Package[]
   PhoneVerification                                               PhoneVerification[]
   Product                                                         Product[]
+  pulses                                                          Pulse[]
   Review                                                          Review[]
   SecurityActionToken                                             SecurityActionToken[]
   TwoFactorConfirmation                                           TwoFactorConfirmation?
+  privacySettings                                                 UserPrivacySettings?
   Wallet                                                          Wallet[]
   WalletVerificationChallenge                                     WalletVerificationChallenge[]
   WarehouseLocation                                               WarehouseLocation[]
-  
-  // Social relationships
-  followers                                                       Follow[]                      @relation("UserFollowers")
-  following                                                       Follow[]                      @relation("UserFollowing")
-  sentFriendRequests                                              FriendRequest[]               @relation("SentFriendRequests")
-  receivedFriendRequests                                          FriendRequest[]               @relation("ReceivedFriendRequests")
-  friendshipsA                                                    Friendship[]                  @relation("FriendshipsA")
-  friendshipsB                                                    Friendship[]                  @relation("FriendshipsB")
-  
-  // Pulse system
-  pulses                                                          Pulse[]
-  privacySettings                                                 UserPrivacySettings?
 }
 
 model VerificationToken {
@@ -655,6 +625,105 @@ model WarehouseLocation {
   User       User?       @relation(fields: [userId], references: [id])
 
   @@unique([companyId, postalCode])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model FriendRequest {
+  id         String              @id @default(cuid())
+  senderId   String
+  receiverId String
+  status     FriendRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  receiver   User                @relation("ReceivedFriendRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User                @relation("SentFriendRequests", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId, status])
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userAId   String
+  userBId   String
+  createdAt DateTime @default(now())
+  userA     User     @relation("FriendshipsA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User     @relation("FriendshipsB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+}
+
+model Pulse {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  type           PulseType
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  User           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@index([type])
+}
+
+model PhoneVerification {
+  id          String                    @id @default(cuid())
+  userId      String
+  phoneNumber String
+  countryCode String
+  provider    PhoneVerificationProvider @default(SVEVE)
+  code        String?
+  attempts    Int                       @default(0)
+  status      PhoneVerificationStatus   @default(PENDING)
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  lastSentAt  DateTime?
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  User        User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([phoneNumber])
+  @@index([status])
+}
+
+model UserPrivacySettings {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  showPulsesGiven     Boolean  @default(true)
+  showPulsesReceived  Boolean  @default(true)
+  showNegativePulses  Boolean  @default(false)
+  showRepulses        Boolean  @default(true)
+  allowNegativePulses Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  User                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum ViewType {
+  FIRST_VIEW
+  REPEAT_VIEW
+  ANONYMOUS_VIEW
+  SAME_IP_NEW_USER
+  UNIQUE_IP_NEW_USER
+  BOT_VIEW
 }
 
 enum ChainFamily {
@@ -755,150 +824,44 @@ enum UserRole {
   USER
 }
 
-// ─── Social Features ─────────────────────────────────────────────────────────
-
-model Follow {
-  id          String   @id @default(cuid())
-  followerId  String
-  followingId String
-  createdAt   DateTime @default(now())
-  
-  follower    User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
-  following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
-  
-  @@unique([followerId, followingId])
-  @@index([followerId])
-  @@index([followingId])
-}
-
-model FriendRequest {
-  id         String              @id @default(cuid())
-  senderId   String
-  receiverId String
-  status     FriendRequestStatus @default(PENDING)
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
-  
-  sender     User                @relation("SentFriendRequests", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver   User                @relation("ReceivedFriendRequests", fields: [receiverId], references: [id], onDelete: Cascade)
-  
-  @@unique([senderId, receiverId])
-  @@index([receiverId, status])
-}
-
-model Friendship {
-  id        String   @id @default(cuid())
-  userAId   String
-  userBId   String
-  createdAt DateTime @default(now())
-  
-  userA     User     @relation("FriendshipsA", fields: [userAId], references: [id], onDelete: Cascade)
-  userB     User     @relation("FriendshipsB", fields: [userBId], references: [id], onDelete: Cascade)
-  
-  @@unique([userAId, userBId])
-  @@index([userAId])
-  @@index([userBId])
-}
-
 enum FriendRequestStatus {
   PENDING
   ACCEPTED
   DECLINED
 }
 
-// ─── Pulse System (Like/Dislike) ─────────────────────────────────────────────
-
-model Pulse {
-  id             String       @id @default(cuid())
-  conversationId String
-  userId         String
-  type           PulseType    // POSITIVE or NEGATIVE
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  
-  Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  User           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([conversationId, userId])
-  @@index([conversationId])
-  @@index([userId])
-  @@index([type])
-}
-
 enum PulseType {
-  POSITIVE   // Like / upvote
-  NEGATIVE   // Dislike / downvote (hidden by default)
+  POSITIVE
+  NEGATIVE
 }
-
-// ─── User Verification Tier System ───────────────────────────────────────────
-// Determines the strength/weight of a user's views for reach calculation
 
 enum UserVerificationTier {
-  ANONYMOUS          // Not logged in (views have lowest weight)
-  WALLET_ONLY        // Connected web3 wallet but no other verification
-  WEB2_BASIC         // Signed up with email, no payment yet
-  WEB3_BASIC         // Web3 wallet + signed message, no payment
-  SOCIAL_BASIC       // Discord/GitHub OAuth only
-  SOCIAL_VERIFIED    // Google OAuth (higher trust - real identity)
-  WEB2_PAYMENT       // Verified web2 payment method (card/PayPal)
-  WEB3_VERIFIED      // Google + Verified wallet with signature
-  WEB3_PAYMENT       // Crypto purchase completed
-  PAYMENT_VERIFIED   // Both Web2 AND Web3 payment verified
-  PHONE_VERIFIED     // Phone number verified via SMS/call
-  FULLY_VERIFIED     // Google + Web3 + Payment + Phone (highest trust)
-}
-
-// Phone verification records - supports multiple providers
-model PhoneVerification {
-  id              String                    @id @default(cuid())
-  userId          String
-  phoneNumber     String                    // E.164 format: +4712345678
-  countryCode     String                    // ISO 3166-1 alpha-2: NO, US, etc.
-  provider        PhoneVerificationProvider @default(SVEVE)
-  code            String?                   // OTP code (hashed)
-  attempts        Int                       @default(0)
-  status          PhoneVerificationStatus   @default(PENDING)
-  expiresAt       DateTime
-  verifiedAt      DateTime?
-  lastSentAt      DateTime?
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
-  
-  User            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@index([phoneNumber])
-  @@index([status])
+  ANONYMOUS
+  WALLET_ONLY
+  WEB2_BASIC
+  WEB3_BASIC
+  SOCIAL_BASIC
+  SOCIAL_VERIFIED
+  WEB2_PAYMENT
+  WEB3_VERIFIED
+  WEB3_PAYMENT
+  PAYMENT_VERIFIED
+  PHONE_VERIFIED
+  FULLY_VERIFIED
 }
 
 enum PhoneVerificationProvider {
-  SVEVE              // Norwegian SMS provider (sveve.no)
-  LINK_MOBILITY      // Norwegian/Nordic provider (linkmobility.com)
-  TWILIO             // International fallback
-  VONAGE             // International fallback (formerly Nexmo)
-  VIPPS              // Norwegian Vipps login (future)
-  BANKID             // Norwegian BankID (future - highest trust)
+  SVEVE
+  LINK_MOBILITY
+  TWILIO
+  VONAGE
+  VIPPS
+  BANKID
 }
 
 enum PhoneVerificationStatus {
-  PENDING            // Code sent, awaiting verification
-  VERIFIED           // Successfully verified
-  EXPIRED            // Code expired
-  BLOCKED            // Too many attempts
-}
-
-// ─── User Privacy Settings ───────────────────────────────────────────────────
-
-model UserPrivacySettings {
-  id                     String   @id @default(cuid())
-  userId                 String   @unique
-  showPulsesGiven        Boolean  @default(true)  // Show what user has pulsed
-  showPulsesReceived     Boolean  @default(true)  // Show pulse count on user's content
-  showNegativePulses     Boolean  @default(false) // Show negative pulse counts (hidden by default)
-  showRepulses           Boolean  @default(true)  // Show repulse activity
-  allowNegativePulses    Boolean  @default(true)  // Allow others to negative pulse your content
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-  
-  User                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  PENDING
+  VERIFIED
+  EXPIRED
+  BLOCKED
 }

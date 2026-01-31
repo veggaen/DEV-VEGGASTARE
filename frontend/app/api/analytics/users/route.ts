@@ -2,6 +2,7 @@ import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
+import { AnalyticsUsersResponseSchema } from '@/lib/types/analytics';
 
 export async function GET(request: Request) {
   try {
@@ -32,7 +33,9 @@ export async function GET(request: Request) {
     });
 
     if (users.length === 0) {
-      return NextResponse.json({ data: [], error: 'No users found' });
+      const dto = { data: [], error: 'No users found' };
+      const parsed = AnalyticsUsersResponseSchema.safeParse(dto);
+      return NextResponse.json(parsed.success ? parsed.data : dto);
     }
 
     // Determine the first user created date and today's date
@@ -56,19 +59,33 @@ export async function GET(request: Request) {
     const cumulativeData = Object.entries(userGrowthData).reduce(
       (acc, [date, count]) => {
         const previousCount = acc.length > 0 ? acc[acc.length - 1].users : 0;
-        acc.push({ date: new Date(date), users: previousCount + count });
+        acc.push({ date: new Date(date).toISOString(), users: previousCount + count });
         return acc;
       },
-      [] as { date: Date; users: number }[]
+      [] as { date: string; users: number }[]
     );
 
     // Send response
-    return NextResponse.json({
+    const dto = {
       data: [{ label: 'User Growth', data: cumulativeData }],
       firstUserDate: firstUserDate.toISOString(),
       lastUserDate: users[users.length - 1].createdAt.toISOString(),
       today: today.toISOString(),
-    });
+    };
+
+    const parsed = AnalyticsUsersResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error('Invalid analytics/users DTO:', parsed.error.issues);
+      return NextResponse.json(
+        {
+          error: 'Invalid response shape',
+          issues: process.env.NODE_ENV === 'development' ? parsed.error.issues : undefined,
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data);
   } catch (error) {
     console.error('Error fetching analytics data:', error);
     return NextResponse.json({ error: 'Failed to fetch analytics data' }, { status: 500 });

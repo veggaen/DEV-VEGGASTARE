@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { MyRequestWeb3ModeSecurityAction } from "@/actions/security-action";
 import EvmWalletVerify from "@/components/crypto-related/EvmWalletVerify";
 import EvmWalletList from "@/components/crypto-related/EvmWalletList";
+import ThemeToggleMenu from "@/components/uicustom/ThemeToggleMenu";
 
 type NavLinkProps = {
   href: string;
@@ -542,9 +543,7 @@ const MyTopBar = () => {
 															<span className="ml-auto hidden text-xs opacity-60 md:inline">Ctrl K</span>
 														</button>
 													</div>
-													<Button variant="outline" onClick={() => toggleTheme()}>
-														{resolvedTheme === "dark" ? "Switch to light" : "Switch to dark"}
-													</Button>
+													<ThemeToggleMenu />
 													<Button variant="destructive" onClick={() => signOut()}>
 														Logout
 													</Button>
@@ -571,9 +570,7 @@ const MyTopBar = () => {
 													>
 														Sign up
 													</Link>
-													<Button variant="outline" onClick={() => toggleTheme()}>
-														{resolvedTheme === "dark" ? "Switch to light" : "Switch to dark"}
-													</Button>
+													<ThemeToggleMenu />
 												</>
 											)}
 										</div>

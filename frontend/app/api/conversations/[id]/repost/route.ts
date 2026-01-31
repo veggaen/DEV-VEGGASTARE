@@ -3,6 +3,10 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import {
+  ConversationRepostDeleteResponseSchema,
+  ConversationRepostPostResponseSchema,
+} from '@/lib/types/conversations';
 
 const LOG_PREFIX = '[api/conversations/[id]/repost]';
 const isDev = process.env.NODE_ENV !== 'production';
@@ -68,7 +72,17 @@ export async function POST(
         update: {},
       });
 
-      return NextResponse.json({ reposted: true, mode: 'repost' }, { status: 201 });
+      const payload = { reposted: true as const, mode: 'repost' as const };
+      const validated = ConversationRepostPostResponseSchema.safeParse(payload);
+      if (!validated.success) {
+        console.error(LOG_PREFIX, 'Invalid repost POST response DTO:', validated.error);
+        return NextResponse.json(
+          { message: 'Internal Server Error', ...(isDev ? { issues: validated.error.issues } : {}) },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(validated.data, { status: 201 });
     }
 
     // Quote repost: create a new PUBLIC_THREAD referencing the original
@@ -107,10 +121,17 @@ export async function POST(
       },
     });
 
-    return NextResponse.json(
-      { reposted: true, mode: 'quote', conversationId: quoteConversation.id },
-      { status: 201 }
-    );
+    const payload = { reposted: true as const, mode: 'quote' as const, conversationId: quoteConversation.id };
+    const validated = ConversationRepostPostResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error(LOG_PREFIX, 'Invalid quote repost POST response DTO:', validated.error);
+      return NextResponse.json(
+        { message: 'Internal Server Error', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data, { status: 201 });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error creating repost:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -142,11 +163,31 @@ export async function DELETE(
       where: { conversationId_userId: { conversationId, userId } },
     });
 
-    return NextResponse.json({ reposted: false }, { status: 200 });
+    const payload = { reposted: false as const };
+    const validated = ConversationRepostDeleteResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error(LOG_PREFIX, 'Invalid repost DELETE response DTO:', validated.error);
+      return NextResponse.json(
+        { message: 'Internal Server Error', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data, { status: 200 });
   } catch (error) {
     // If there was nothing to delete, treat as idempotent
     if (error instanceof Error && error.message.includes('Record to delete does not exist')) {
-      return NextResponse.json({ reposted: false }, { status: 200 });
+      const payload = { reposted: false as const };
+      const validated = ConversationRepostDeleteResponseSchema.safeParse(payload);
+      if (!validated.success) {
+        console.error(LOG_PREFIX, 'Invalid repost DELETE response DTO:', validated.error);
+        return NextResponse.json(
+          { message: 'Internal Server Error', ...(isDev ? { issues: validated.error.issues } : {}) },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(validated.data, { status: 200 });
     }
 
     console.error(LOG_PREFIX, 'Error removing repost:', error);

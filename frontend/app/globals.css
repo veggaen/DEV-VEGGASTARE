@@ -219,6 +219,8 @@ body {
 }
 
 
+/* Backdrop gradients: support both legacy body.* classes and the canonical html.dark class */
+html:not(.dark) body,
 body.light-mode {
   background-image:
     radial-gradient(900px circle at 10% 10%, rgba(56, 189, 248, 0.22), transparent 55%),
@@ -227,6 +229,7 @@ body.light-mode {
     linear-gradient(120deg, rgb(248, 250, 252) 0%, rgb(226, 232, 240) 50%, rgb(248, 250, 252) 100%);
 }
 
+html.dark body,
 body.dark-mode {
   background-image:
     radial-gradient(900px circle at 10% 10%, rgba(56, 189, 248, 0.14), transparent 55%),

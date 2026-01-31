@@ -5,33 +5,11 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-
-interface Employee {
-  id: string;
-  userId: string;
-  role: string;
-  jobTitle?: string;
-  createdAt: string;
-  user: {
-    id: string;
-    name: string | null;
-    email: string | null;
-    image: string | null;
-  };
-}
-
-interface Company {
-  id: string;
-  name: string;
-  logo: string[] | null;
-  ownerId: string;
-  creatorId: string;
-  employees: Employee[];
-}
+import type { CompanyDetailsResponse } from '@/lib/types/company';
 
 export default function CompanyHubClient({ companyId }: { companyId: string }) {
   const user = useCurrentUser();
-  const [company, setCompany] = useState<Company | null>(null);
+  const [company, setCompany] = useState<CompanyDetailsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

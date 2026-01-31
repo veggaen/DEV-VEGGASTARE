@@ -18,11 +18,27 @@ import {
   isPhoneVerificationAvailable,
 } from '@/lib/phone-verification';
 import { calculateVerificationScore, determineUserVerificationTier } from '@/lib/view-strength';
+import { PhoneSendResponseSchema } from '@/lib/types/phone-verification';
 
 const LOG_PREFIX = '[api/auth/phone]';
 const MAX_ATTEMPTS = 3;
 const COOLDOWN_MINUTES = 1; // Minimum time between code sends
 const EXPIRATION_MINUTES = 10;
+
+function respond(status: number, dto: unknown) {
+  const parsed = PhoneSendResponseSchema.safeParse(dto);
+  if (!parsed.success) {
+    console.error(LOG_PREFIX, 'Invalid response DTO:', parsed.error.issues);
+    return NextResponse.json(
+      {
+        error: 'Invalid response shape',
+        issues: process.env.NODE_ENV === 'development' ? parsed.error.issues : undefined,
+      },
+      { status: 500 }
+    );
+  }
+  return NextResponse.json(parsed.data, { status });
+}
 
 /**
  * POST /api/auth/phone/send
@@ -34,15 +50,15 @@ export async function POST(req: Request) {
   const session = await MyLibUserAuth();
   
   if (!session?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return respond(401, { error: 'Unauthorized' });
   }
 
   // Check if phone verification is configured
   if (!isPhoneVerificationAvailable()) {
-    return NextResponse.json({ 
+    return respond(503, {
       error: 'Phone verification is not currently available',
       message: 'SMS service is not configured. Please contact support.',
-    }, { status: 503 });
+    });
   }
 
   try {
@@ -50,16 +66,16 @@ export async function POST(req: Request) {
     const { phoneNumber, countryCode = 'NO' } = body;
 
     if (!phoneNumber) {
-      return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
+      return respond(400, { error: 'Phone number is required' });
     }
 
     // Format and validate phone number
     const formattedPhone = formatPhoneE164(phoneNumber, countryCode);
     if (!isValidPhoneNumber(formattedPhone)) {
-      return NextResponse.json({ 
+      return respond(400, {
         error: 'Invalid phone number format',
         message: 'Please enter a valid phone number',
-      }, { status: 400 });
+      });
     }
 
     // Check if phone is already verified by another user
@@ -72,10 +88,10 @@ export async function POST(req: Request) {
     });
 
     if (existingUser) {
-      return NextResponse.json({ 
+      return respond(409, {
         error: 'Phone number already in use',
         message: 'This phone number is already associated with another account',
-      }, { status: 409 });
+      });
     }
 
     // Check for recent pending verification (cooldown)
@@ -93,11 +109,11 @@ export async function POST(req: Request) {
       const waitSeconds = Math.ceil(
         (recentVerification.lastSentAt!.getTime() + COOLDOWN_MINUTES * 60 * 1000 - Date.now()) / 1000
       );
-      return NextResponse.json({
+      return respond(429, {
         error: 'Too many requests',
         message: `Please wait ${waitSeconds} seconds before requesting a new code`,
         retryAfter: waitSeconds,
-      }, { status: 429 });
+      });
     }
 
     // Get available provider
@@ -112,10 +128,10 @@ export async function POST(req: Request) {
 
     if (!result.success) {
       console.error(LOG_PREFIX, 'Failed to send code:', result.error);
-      return NextResponse.json({ 
+      return respond(500, {
         error: 'Failed to send verification code',
         message: result.error || 'Please try again later',
-      }, { status: 500 });
+      });
     }
 
     // Cancel any existing pending verifications
@@ -146,7 +162,7 @@ export async function POST(req: Request) {
 
     console.log(LOG_PREFIX, `Verification code sent to ${formattedPhone.slice(0, -4)}**** for user ${session.id}`);
 
-    return NextResponse.json({
+    return respond(200, {
       success: true,
       message: 'Verification code sent',
       expiresAt: result.expiresAt.toISOString(),
@@ -155,6 +171,6 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error sending verification code:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return respond(500, { error: 'Internal server error' });
   }
 }

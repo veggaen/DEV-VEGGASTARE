@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { EmployeeRole } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogTrigger, DialogHeader, DialogContent, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ExtendedCompany, ExtendedEmployee } from '@/app/companies/[id]/settings/CompanySettingsClient';
+import type { ExtendedCompany, ExtendedEmployee } from '@/lib/types/company-management';
 import { editEmployeeRoleAction } from '@/actions/edit-employee-role';
 
 interface EditEmployeeRoleModalProps {

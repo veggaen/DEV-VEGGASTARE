@@ -17,7 +17,8 @@ import { MdAddCircleOutline, MdBusiness } from "react-icons/md";
 import { CiCircleCheck, CiInboxIn } from "react-icons/ci";
 import { TiMessages } from "react-icons/ti";
 import { FaStore } from "react-icons/fa";
-import { FiRss, FiSend, FiUser } from "react-icons/fi";
+import { FiSend, FiUser } from "react-icons/fi";
+import { PulseHeart } from "@/components/uicustom/icons/PulseIcons";
 
 type MyDialogbarNavigatorProps = {
   /** Optional hook for parents (e.g. user dropdown) to close themselves before opening the dialog */
@@ -90,7 +91,7 @@ export const MyDialogbarNavigator = ({ onOpen, variant = "default", open, onOpen
       {
         group: "Community",
         items: [
-          { href: "/pulse", label: "Pulse", icon: <FiRss className="h-4 w-4" /> },
+            { href: "/pulse", label: "Pulse", icon: <PulseHeart className="h-4 w-4" /> },
           { href: "/conversations", label: "Messages", icon: <TiMessages className="h-4 w-4" /> },
         ],
       },

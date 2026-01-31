@@ -3,8 +3,10 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { UserPrivacySettingsResponseSchema } from '@/lib/types/users';
 
 const LOG_PREFIX = '[api/users/privacy-settings]';
+const isDev = process.env.NODE_ENV !== 'production';
 
 const updateSchema = z.object({
   showPulsesGiven: z.boolean().optional(),
@@ -50,13 +52,24 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({
+    const payload = {
       showPulsesGiven: settings.showPulsesGiven,
       showPulsesReceived: settings.showPulsesReceived,
       showNegativePulses: settings.showNegativePulses,
       showRepulses: settings.showRepulses,
       allowNegativePulses: settings.allowNegativePulses,
-    });
+    };
+
+    const validated = UserPrivacySettingsResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error(`${LOG_PREFIX} Invalid GET DTO:`, validated.error);
+      return NextResponse.json(
+        { message: 'Failed to get privacy settings', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
 
   } catch (error) {
     console.error(`${LOG_PREFIX} GET Error:`, error);
@@ -105,13 +118,24 @@ export async function PATCH(req: Request) {
 
     console.log(`${LOG_PREFIX} Updated settings for user=${userId}:`, updateData);
 
-    return NextResponse.json({
+    const payload = {
       showPulsesGiven: settings.showPulsesGiven,
       showPulsesReceived: settings.showPulsesReceived,
       showNegativePulses: settings.showNegativePulses,
       showRepulses: settings.showRepulses,
       allowNegativePulses: settings.allowNegativePulses,
-    });
+    };
+
+    const validated = UserPrivacySettingsResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error(`${LOG_PREFIX} Invalid PATCH DTO:`, validated.error);
+      return NextResponse.json(
+        { message: 'Failed to update privacy settings', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
 
   } catch (error) {
     console.error(`${LOG_PREFIX} PATCH Error:`, error);

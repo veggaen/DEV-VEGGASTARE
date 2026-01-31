@@ -4,22 +4,27 @@ import { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
-import { User } from '@prisma/client';
 import { formatDistanceToNow } from 'date-fns';
+
+interface UserSummary {
+  id: string;
+  name: string | null;
+  image: string | null;
+}
 
 interface JobRequest {
   id: string;
   title: string;
-  user: User;
+  user: UserSummary;
   descriptions: string[];
   images: string[];
   links: string[];
   docs: string[];
-  price: string;
-  negotiable: boolean;
-  paymentMethod: string;
-  delivery: string;
-  additionalNotes: string;
+  price: number | null;
+  negotiable: boolean | null;
+  paymentMethod: string | null;
+  delivery: string | null;
+  additionalNotes: string | null;
   createdAt: string;
 }
 

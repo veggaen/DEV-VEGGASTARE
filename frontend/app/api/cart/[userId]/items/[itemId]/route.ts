@@ -3,6 +3,9 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { z } from 'zod';
+import { CartItemResponseSchema, CartMessageResponseSchema } from '@/lib/types/carts';
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 const patchBodySchema = z.object({
   changeType: z.enum(['increment', 'decrement']),
@@ -47,7 +50,27 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       include: { Product: true },
     });
 
-    return NextResponse.json(updatedCartItem);
+    const dto = {
+      id: updatedCartItem.id,
+      quantity: updatedCartItem.quantity,
+      product: {
+        id: updatedCartItem.Product.id,
+        title: updatedCartItem.Product.title,
+        price: updatedCartItem.Product.price,
+        image: updatedCartItem.Product.image ?? [],
+      },
+    };
+
+    const parsed = CartItemResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error('[api/cart/[userId]/items/[itemId]] Invalid PATCH DTO:', parsed.error);
+      return NextResponse.json(
+        { error: 'Internal Server Error', ...(isDev ? { issues: parsed.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
     console.error('Error updating cart item quantity:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -80,7 +103,8 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     await dbPrisma.cartItem.delete({ where: { id: item.id } });
 
-    return NextResponse.json({ message: 'Item removed from cart' });
+    const parsed = CartMessageResponseSchema.safeParse({ message: 'Item removed from cart' });
+    return NextResponse.json(parsed.success ? parsed.data : { message: 'Item removed from cart' }, { status: 200 });
   } catch (error) {
     console.error('Error removing item from cart:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

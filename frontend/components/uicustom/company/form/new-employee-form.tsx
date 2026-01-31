@@ -7,7 +7,7 @@ import { EmployeeRole, User, UserRole } from '@prisma/client';
 import { employeeSchema } from '@/schemas';
 import { MyAddEmployeeAction } from '@/actions/create-company-employee';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { ExtendedEmployee } from '@/app/companies/[id]/settings/CompanySettingsClient';
+import type { ExtendedEmployee } from '@/lib/types/company-management';
 
 
 interface MyNewEmployeeFormProps {

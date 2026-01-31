@@ -1,20 +1,13 @@
 'use server';
 
-import { ExtendedEmployee } from '@/app/companies/[id]/settings/CompanySettingsClient';
+import type { ExtendedEmployee } from '@/lib/types/company-management';
 import { dbPrisma } from '@/lib/db';
 import { ExtendedUser } from '@/next-auth';
 import { Prisma, Employee } from '@prisma/client';
 import { NextApiResponse } from 'next';
+import type { EmployeePermissions } from '@/lib/types/company-permissions';
 
-export interface EmployeePermissions {
-  CAN_REMOVE_EMPLOYEE?: boolean;
-  CAN_EDIT_PERMISSION?: boolean;
-  CAN_DELETE_COMPANY?: boolean;
-  CAN_POST_PRODUCT_POSITION_PERMISSION?: boolean;
-  CAN_EDIT_PRODUCT_POSITION_PERMISSION?: boolean;
-  CAN_ADD_EMPLOYEE?: boolean;
-  CAN_EDIT_EMPLOYEE_ROLE?: boolean;
-}
+export type { EmployeePermissions };
 
 interface EditPermissionRequest {
   clientUser: ExtendedUser;

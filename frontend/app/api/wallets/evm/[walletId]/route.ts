@@ -9,6 +9,7 @@ import { dbPrisma } from "@/lib/db";
 import { sendTwoFactorTokenEmail } from "@/lib/mail";
 import { generateTwoFactorToken } from "@/lib/tokens";
 import { ChainFamily } from "@prisma/client";
+import { WalletErrorResponseSchema, WalletOkResponseSchema, WalletTwoFactorResponseSchema } from "@/lib/types/wallets";
 
 const codeSchema = z.object({
 	code: z.string().trim().min(1).max(10).optional().nullable(),
@@ -20,19 +21,30 @@ async function requireTwoFactorIfEnabled(user: { isTwoFactorEnabled: boolean; em
 	if (!code) {
 		const twoFactorToken = await generateTwoFactorToken(user.email ?? "");
 		await sendTwoFactorTokenEmail(twoFactorToken.email, twoFactorToken.token);
-		return { ok: false as const, response: NextResponse.json({ twoFactor: true }, { status: 200 }) };
+		const dto = { twoFactor: true };
+		const parsed = WalletTwoFactorResponseSchema.safeParse(dto);
+		return {
+			ok: false as const,
+			response: NextResponse.json(parsed.success ? parsed.data : dto, { status: 200 }),
+		};
 	}
 
 	const twoFactorToken = await getTwoFactortokenByEmail(user.email ?? "");
 	if (!twoFactorToken) {
-		return { ok: false as const, response: NextResponse.json({ error: "Invalid code" }, { status: 400 }) };
+		const dto = { error: "Invalid code" };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return { ok: false as const, response: NextResponse.json(parsed.success ? parsed.data : dto, { status: 400 }) };
 	}
 	if (twoFactorToken.token !== code) {
-		return { ok: false as const, response: NextResponse.json({ error: "Invalid code" }, { status: 400 }) };
+		const dto = { error: "Invalid code" };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return { ok: false as const, response: NextResponse.json(parsed.success ? parsed.data : dto, { status: 400 }) };
 	}
 	const expired = new Date(twoFactorToken.expires) < new Date();
 	if (expired) {
-		return { ok: false as const, response: NextResponse.json({ error: "Code expired" }, { status: 400 }) };
+		const dto = { error: "Code expired" };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return { ok: false as const, response: NextResponse.json(parsed.success ? parsed.data : dto, { status: 400 }) };
 	}
 	await dbPrisma.twoFactorToken.delete({ where: { id: twoFactorToken.id } });
 
@@ -41,12 +53,22 @@ async function requireTwoFactorIfEnabled(user: { isTwoFactorEnabled: boolean; em
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ walletId: string }> }) {
 	const me = await MyLibUserAuth();
-	if (!me?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	if (!me?.id) {
+		const dto = { error: "Unauthorized" };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 401 });
+	}
 
 	const dbUser = await getUserById(me.id);
-	if (!dbUser?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	if (!dbUser?.id) {
+		const dto = { error: "Unauthorized" };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 401 });
+	}
 	if (!dbUser.web3ModeEnabled) {
-		return NextResponse.json({ error: "Enable Web3 mode first." }, { status: 403 });
+		const dto = { error: "Enable Web3 mode first." };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 403 });
 	}
 
 	const bodyResult = await parseJsonOrError(req, codeSchema);
@@ -66,7 +88,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ walletId:
 		},
 	});
 
-	if (!wallet) return NextResponse.json({ error: "Wallet not found" }, { status: 404 });
+	if (!wallet) {
+		const dto = { error: "Wallet not found" };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 404 });
+	}
 
 	await dbPrisma.$transaction([
 		dbPrisma.wallet.updateMany({
@@ -76,17 +102,29 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ walletId:
 		dbPrisma.wallet.update({ where: { id: wallet.id }, data: { isDefault: true } }),
 	]);
 
-	return NextResponse.json({ ok: true }, { status: 200 });
+	const dto = { ok: true as const };
+	const parsed = WalletOkResponseSchema.safeParse(dto);
+	return NextResponse.json(parsed.success ? parsed.data : dto, { status: 200 });
 }
 
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ walletId: string }> }) {
 	const me = await MyLibUserAuth();
-	if (!me?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	if (!me?.id) {
+		const dto = { error: "Unauthorized" };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 401 });
+	}
 
 	const dbUser = await getUserById(me.id);
-	if (!dbUser?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	if (!dbUser?.id) {
+		const dto = { error: "Unauthorized" };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 401 });
+	}
 	if (!dbUser.web3ModeEnabled) {
-		return NextResponse.json({ error: "Enable Web3 mode first." }, { status: 403 });
+		const dto = { error: "Enable Web3 mode first." };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 403 });
 	}
 
 	const bodyResult = await parseJsonOrError(req, codeSchema);
@@ -106,14 +144,17 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ walletId
 		},
 	});
 
-	if (!wallet) return NextResponse.json({ error: "Wallet not found" }, { status: 404 });
+	if (!wallet) {
+		const dto = { error: "Wallet not found" };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 404 });
+	}
 
 	const assignedCount = await dbPrisma.product.count({ where: { receiverWalletId: wallet.id } });
 	if (assignedCount > 0) {
-		return NextResponse.json(
-			{ error: "Wallet is assigned to one or more products. Remove it from products first." },
-			{ status: 409 }
-		);
+		const dto = { error: "Wallet is assigned to one or more products. Remove it from products first." };
+		const parsed = WalletErrorResponseSchema.safeParse(dto);
+		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 409 });
 	}
 
 	await dbPrisma.$transaction(async (tx) => {
@@ -131,5 +172,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ walletId
 		}
 	});
 
-	return NextResponse.json({ ok: true }, { status: 200 });
+	const dto = { ok: true as const };
+	const parsed = WalletOkResponseSchema.safeParse(dto);
+	return NextResponse.json(parsed.success ? parsed.data : dto, { status: 200 });
 }

@@ -6,7 +6,7 @@ import { CiStar } from "react-icons/ci";
 import Image from "next/image";
 import Link from "next/link";
 import ProductsSkeleton from '@/components/uicustom/skeletons/products-skeleton';
-import { Product, User, Company } from "@prisma/client";
+import type { ProductsListItem } from '@/lib/types/products';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useCategories } from '@/components/providers/categoriesContext';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
@@ -22,10 +22,7 @@ import PriceAmount from "@/components/crypto-related/PriceAmount";
 // ★ NEW: Unified products toolbar with categories, search, and filter controls
 import { ProductsToolbar } from "@/components/uicustom/products/ProductsToolbar";
 
-interface ExtendedProduct extends Product {
-  user?: Pick<User, 'id' | 'name'>;
-  company?: Pick<Company, 'id' | 'name'> | null;
-}
+type ExtendedProduct = ProductsListItem;
 
 const LOG_PREFIX = 'frontend/app/products/page.tsx';
 
@@ -131,7 +128,7 @@ ProductCard.displayName = 'ProductCard';
 export default function MyProductsPage() {
 	const reduceMotion = useReducedMotion();
   const [loading, setLoading] = useState(true);
-  const [products, setProducts] = useState<ExtendedProduct[]>([]);
+	const [products, setProducts] = useState<ExtendedProduct[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);

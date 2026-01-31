@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { dbPrisma } from "@/lib/db";
 import { auth } from "@/auth";
 import CompanyReachChart from "@/components/uicustom/company/CompanyReachChart";
+import BannerThemeWrapper from "@/components/uicustom/banner/BannerThemeWrapper";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -68,17 +69,31 @@ export default async function CompanyPublicPage({
   const uniqueVisitors = Math.floor(totalProductViews * 0.7); // Estimate: 70% unique
 
   return (
-    <div className="w-full">
+    <BannerThemeWrapper bannerUrl={banner} className="w-full">
       {/* Full-bleed hero */}
       <div className="relative w-full">
         <div className="absolute inset-0">
           {banner ? (
             <>
               <Image src={banner} alt={`${company.name} banner`} fill className="object-cover" priority />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/40 to-black/70" />
+              <div
+                className="absolute inset-0"
+                style={{
+                  background:
+                    "linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.40), rgba(0,0,0,0.70))," +
+                    "radial-gradient(circle at top left, rgba(var(--theme-primary-rgb, 16, 185, 129), 0.28), transparent 55%)," +
+                    "radial-gradient(circle at bottom right, rgba(var(--theme-secondary-rgb, 56, 189, 248), 0.22), transparent 45%)",
+                }}
+              />
             </>
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/15 via-sky-500/10 to-fuchsia-500/15" />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(var(--theme-primary-rgb, 16, 185, 129), 0.18), rgba(var(--theme-secondary-rgb, 56, 189, 248), 0.14), rgba(var(--theme-accent-rgb, 217, 70, 239), 0.16))",
+              }}
+            />
           )}
         </div>
 
@@ -197,6 +212,6 @@ export default async function CompanyPublicPage({
           />
         </div>
       </div>
-    </div>
+    </BannerThemeWrapper>
   );
 }

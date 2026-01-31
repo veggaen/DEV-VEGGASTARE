@@ -3,6 +3,9 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { z } from 'zod';
+import { CompanyEmployeePermissionsPatchResponseSchema } from '@/lib/types/company';
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 // Strict schema for employee permissions update
 const updateEmployeePermissionsSchema = z.object({
@@ -69,7 +72,17 @@ export async function PATCH(req: NextRequest) {
         },
       });
   
-      return NextResponse.json({ message: 'Employee permissions updated successfully' }, { status: 200 });
+      const dto = { message: 'Employee permissions updated successfully' };
+      const parsed = CompanyEmployeePermissionsPatchResponseSchema.safeParse(dto);
+      if (!parsed.success) {
+        console.error('[api/companies/employees/edit] Invalid PATCH DTO:', parsed.error);
+        return NextResponse.json(
+          { error: 'Internal Server Error', ...(isDev ? { issues: parsed.error.issues } : {}) },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(parsed.data, { status: 200 });
     } catch (error) {
       console.error('Error updating employee permissions:', error);
       return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

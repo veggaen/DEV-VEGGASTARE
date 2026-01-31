@@ -4,6 +4,7 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { z } from 'zod';
+import { MessageResponseSchema } from '@/lib/types/messages';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -54,6 +55,11 @@ export async function PATCH(
         ...(imageUrl !== undefined ? { imageUrl: imageUrl ?? undefined } : {}),
         editedAt: new Date(),
       },
+      include: {
+        User: {
+          select: { id: true, name: true, image: true },
+        },
+      },
     });
 
     // Trigger Pusher event for editing
@@ -64,7 +70,42 @@ export async function PATCH(
       editedAt: updatedMessage.editedAt,
     });
 
-    return NextResponse.json(updatedMessage, { status: 200 });
+    const dto = {
+      id: updatedMessage.id,
+      content: updatedMessage.content,
+      imageUrl: updatedMessage.imageUrl ?? null,
+      senderId: updatedMessage.senderId,
+      conversationId: updatedMessage.conversationId,
+      createdAt: updatedMessage.createdAt,
+      editedAt: updatedMessage.editedAt,
+      User: updatedMessage.User
+        ? {
+            id: updatedMessage.User.id,
+            name: updatedMessage.User.name,
+            image: updatedMessage.User.image ?? null,
+          }
+        : null,
+      sender: updatedMessage.User
+        ? {
+            id: updatedMessage.User.id,
+            name: updatedMessage.User.name,
+            image: updatedMessage.User.image ?? null,
+          }
+        : null,
+    };
+
+    const parsed = MessageResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: 'Error updating message',
+          ...(isDev ? { detail: 'Invalid DTO', issues: parsed.error.issues } : {}),
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
     return NextResponse.json(
       { error: 'Error updating message', ...(isDev && error instanceof Error ? { detail: error.message } : {}) },

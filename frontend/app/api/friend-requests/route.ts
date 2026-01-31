@@ -1,6 +1,18 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  FriendRequestCreateResponseSchema,
+  FriendRequestsListResponseSchema,
+} from '@/lib/types/friend-requests';
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+function toIsoString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && value) return value;
+  return new Date(String(value)).toISOString();
+}
 
 // GET - Get pending friend requests for current user
 export async function GET(request: NextRequest) {
@@ -46,22 +58,36 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({
-      requests: requests.map(r => ({
-        id: r.id,
-        status: r.status,
-        createdAt: r.createdAt,
-        user: type === 'received' ? {
-          ...r.sender,
-          followerCount: r.sender._count.followers,
-          followingCount: r.sender._count.following,
-        } : {
-          ...r.receiver,
-          followerCount: r.receiver._count.followers,
-          followingCount: r.receiver._count.following,
-        },
-      })),
-    });
+    const payload = {
+      requests: requests.map((r) => {
+        const peer = type === 'received' ? r.sender : r.receiver;
+        return {
+          id: r.id,
+          status: r.status,
+          createdAt: toIsoString(r.createdAt),
+          user: {
+            id: peer.id,
+            name: peer.name,
+            email: peer.email,
+            image: peer.image,
+            bio: peer.bio,
+            followerCount: peer._count.followers,
+            followingCount: peer._count.following,
+          },
+        };
+      }),
+    };
+
+    const validated = FriendRequestsListResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error('[api/friend-requests] Invalid GET DTO:', validated.error);
+      return NextResponse.json(
+        { error: 'Failed to fetch friend requests', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
   } catch (error) {
     console.error('[api/friend-requests] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch friend requests' }, { status: 500 });
@@ -139,10 +165,28 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      request: friendRequest,
-    });
+    const payload = {
+      success: true as const,
+      request: {
+        id: friendRequest.id,
+        senderId: friendRequest.senderId,
+        receiverId: friendRequest.receiverId,
+        status: friendRequest.status,
+        createdAt: toIsoString(friendRequest.createdAt),
+        updatedAt: toIsoString(friendRequest.updatedAt),
+      },
+    };
+
+    const validated = FriendRequestCreateResponseSchema.safeParse(payload);
+    if (!validated.success) {
+      console.error('[api/friend-requests] Invalid POST DTO:', validated.error);
+      return NextResponse.json(
+        { error: 'Failed to send friend request', ...(isDev ? { issues: validated.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
   } catch (error: any) {
     console.error('[api/friend-requests] Error:', error);
     return NextResponse.json({ error: 'Failed to send friend request' }, { status: 500 });

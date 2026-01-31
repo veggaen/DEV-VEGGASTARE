@@ -3,6 +3,7 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { z } from 'zod';
+import { PollVoteResponseSchema } from '@/lib/types/polls';
 
 const LOG_PREFIX = '[api/polls/vote]';
 
@@ -56,7 +57,18 @@ export async function POST(req: NextRequest) {
       });
 
       console.log(LOG_PREFIX, `User ${currentUser.id} removed vote from option ${optionId}`);
-      return NextResponse.json({ voted: false, message: 'Vote removed' }, { status: 200 });
+
+      const dto = { voted: false, message: 'Vote removed' };
+      const parsed = PollVoteResponseSchema.safeParse(dto);
+      if (!parsed.success) {
+        console.error(LOG_PREFIX, 'Invalid POST DTO:', parsed.error);
+        return NextResponse.json(
+          { message: 'Internal Server Error', ...(isDev ? { issues: parsed.error.issues } : {}) },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(parsed.data, { status: 200 });
     } else {
       // If not allowMultiple, remove any existing votes on other options first
       if (!option.Poll.allowMultiple) {
@@ -77,7 +89,18 @@ export async function POST(req: NextRequest) {
       });
 
       console.log(LOG_PREFIX, `User ${currentUser.id} voted for option ${optionId}`);
-      return NextResponse.json({ voted: true, message: 'Vote recorded' }, { status: 200 });
+
+      const dto = { voted: true, message: 'Vote recorded' };
+      const parsed = PollVoteResponseSchema.safeParse(dto);
+      if (!parsed.success) {
+        console.error(LOG_PREFIX, 'Invalid POST DTO:', parsed.error);
+        return NextResponse.json(
+          { message: 'Internal Server Error', ...(isDev ? { issues: parsed.error.issues } : {}) },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(parsed.data, { status: 200 });
     }
   } catch (error) {
     console.error(LOG_PREFIX, 'Error voting:', error);

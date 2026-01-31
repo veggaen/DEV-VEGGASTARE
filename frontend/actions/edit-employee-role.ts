@@ -79,6 +79,16 @@ export const editEmployeeRoleAction = async (formData: unknown): Promise<EditEmp
     const updatedEmployee = await dbPrisma.employee.update({
       where: { id: employeeId },
       data: { role: newRole },
+      include: {
+        User: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
     });
 
     console.log(`${LOG_PREFIX} Successfully updated employee role:`, updatedEmployee);

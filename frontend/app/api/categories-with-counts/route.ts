@@ -1,5 +1,8 @@
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { CategoriesWithCountsResponseSchema } from '@/lib/types/categories';
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 export interface CategoryWithCount {
   category: string;
@@ -26,7 +29,16 @@ export async function GET() {
       count: item._count.id,
     }));
 
-    return NextResponse.json(result);
+    const parsed = CategoriesWithCountsResponseSchema.safeParse(result);
+    if (!parsed.success) {
+      console.error('[API/categories-with-counts] Invalid GET DTO:', parsed.error);
+      return NextResponse.json(
+        { error: 'Failed to fetch categories with counts', ...(isDev ? { issues: parsed.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data);
   } catch (error) {
     console.error('[API/categories-with-counts] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch categories with counts' }, { status: 500 });

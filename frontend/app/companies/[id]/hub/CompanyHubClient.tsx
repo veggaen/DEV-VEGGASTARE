@@ -5,33 +5,12 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-
-interface Employee {
-  id: string;
-  userId: string;
-  role: string;
-  jobTitle?: string;
-  createdAt: string;
-  user: {
-    id: string;
-    name: string | null;
-    email: string | null;
-    image: string | null;
-  };
-}
-
-interface Company {
-  id: string;
-  name: string;
-  logo: string[] | null;
-  ownerId: string;
-  creatorId: string;
-  employees: Employee[];
-}
+import BannerThemeWrapper from '@/components/uicustom/banner/BannerThemeWrapper';
+import type { CompanyDetailsResponse } from '@/lib/types/company';
 
 export default function CompanyHubClient({ companyId }: { companyId: string }) {
   const user = useCurrentUser();
-  const [company, setCompany] = useState<Company | null>(null);
+  const [company, setCompany] = useState<CompanyDetailsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,8 +84,10 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
     return (roleOrder[a.role] ?? 99) - (roleOrder[b.role] ?? 99);
   });
 
+  const banner = company.bannerImage?.[0] ?? null;
+
   return (
-    <div className="w-full bg-slate-50 dark:bg-slate-950">
+    <BannerThemeWrapper bannerUrl={banner} className="w-full">
       <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -230,6 +211,6 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
           </div>
         </div>
       </div>
-    </div>
+    </BannerThemeWrapper>
   );
 }

@@ -13,7 +13,7 @@ export default function InfoPage() {
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
       {/* background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/0" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/25 via-background/10 to-background/0 dark:from-black/25 dark:via-black/10 dark:to-black/0" />
         <motion.div
           className="absolute -right-12 top-20 h-[560px] w-[560px] rounded-full blur-3xl"
           animate={reduceMotion ? undefined : { x: [0, -14, 0], y: [0, 10, 0], opacity: [0.14, 0.24, 0.14], scale: [1, 1.06, 1] }}
@@ -44,7 +44,7 @@ export default function InfoPage() {
         >
           <div className="grid grid-cols-1 gap-10 2xl:grid-cols-[320px_minmax(0,1fr)_260px]">
             <header className="space-y-3 2xl:col-start-2 2xl:col-span-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground">
                 <motion.span
                   className="h-2 w-2 rounded-full bg-emerald-400"
                   aria-hidden
@@ -53,10 +53,10 @@ export default function InfoPage() {
                 />
                 <span>Info / Contact</span>
               </div>
-              <h1 className="text-balance text-4xl font-semibold text-white sm:text-5xl">
+              <h1 className="text-balance text-4xl font-semibold text-foreground sm:text-5xl">
                 Building a marketplace that feels alive.
               </h1>
-              <p className="max-w-3xl text-pretty text-sm text-white/70 sm:text-base">
+              <p className="max-w-3xl text-pretty text-sm text-muted-foreground sm:text-base">
                 VeggaStare is my playground for fast UI motion, realtime signals, and practical marketplace workflows. I’m
                 iterating in public: shipping small, learning quickly, and steadily turning the rough edges into a system that
                 feels effortless.
@@ -163,14 +163,14 @@ export default function InfoPage() {
                     alt="Veggaen profile image"
                     width={180}
                     height={180}
-                    className="relative h-[96px] w-[96px] rounded-full border border-white/10 object-cover sm:h-[120px] sm:w-[120px] 2xl:h-[160px] 2xl:w-[160px]"
+                    className="relative h-[96px] w-[96px] rounded-full border border-border object-cover sm:h-[120px] sm:w-[120px] 2xl:h-[160px] 2xl:w-[160px]"
                     priority
                   />
                 </motion.div>
 
                 <div className="min-w-0">
-                  <div className="text-lg font-semibold text-white">Veggaen</div>
-                  <div className="mt-0.5 text-sm text-white/60">
+                  <div className="text-lg font-semibold text-foreground">Veggaen</div>
+                  <div className="mt-0.5 text-sm text-muted-foreground">
                     Builder · motion-first UI · backend systems · crypto tooling
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -178,28 +178,28 @@ export default function InfoPage() {
                       href="https://github.com/veggaen"
                       target="_blank"
                       rel="noreferrer"
-                      className="text-sm font-medium text-white/70 underline decoration-white/15 underline-offset-4 transition-colors hover:text-white hover:decoration-white/40"
+                      className="text-sm font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground/40"
                     >
                       GitHub
                     </Link>
-                    <span className="text-sm text-white/40">Email (add later)</span>
+                    <span className="text-sm text-muted-foreground/60">Email (add later)</span>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-7 hidden 2xl:block border-t border-white/10 pt-5">
-                <div className="text-xs font-semibold tracking-wide text-white/70">Now</div>
-                <ul className="mt-3 space-y-2 text-sm text-white/65">
+              <div className="mt-7 hidden 2xl:block border-t border-border pt-5">
+                <div className="text-xs font-semibold tracking-wide text-muted-foreground">Now</div>
+                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
                   <li className="flex gap-2">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-white/25" />
+                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-foreground/25" />
                     <span>Polishing marketplace UX, search, and filtering.</span>
                   </li>
                   <li className="flex gap-2">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-white/25" />
+                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-foreground/25" />
                     <span>Realtime “Pulse” as signal, not noise.</span>
                   </li>
                   <li className="flex gap-2">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-white/25" />
+                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-foreground/25" />
                     <span>Wallet UX + network-aware pricing.</span>
                   </li>
                 </ul>
@@ -211,14 +211,14 @@ export default function InfoPage() {
                 initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: "easeOut", delay: 0.08 }}
-                className="border-t border-white/10 pt-5"
+                className="border-t border-border pt-5"
               >
-                <h2 className="text-sm font-semibold tracking-wide text-white/90">What this is</h2>
-                <p className="mt-2 text-sm text-white/70 leading-relaxed">
+                <h2 className="text-sm font-semibold tracking-wide text-foreground/90">What this is</h2>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                   A modern marketplace where the boring parts are solid (search, inventory, checkout), and the interface feels
                   responsive, expressive, and calm — even when the data is moving.
                 </p>
-                <p className="mt-3 text-sm text-white/70 leading-relaxed">
+                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
                   I’m building it with a systems mindset: permissions and roles that make sense, realtime updates that scale,
                   and UI motion that helps you understand state instead of distracting you.
                 </p>
@@ -252,10 +252,10 @@ export default function InfoPage() {
                 initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: "easeOut", delay: 0.16 }}
-                className="border-t border-white/10 pt-5"
+                className="border-t border-border pt-5"
               >
-                <h2 className="text-sm font-semibold tracking-wide text-white/90">How I build</h2>
-                <p className="mt-2 text-sm text-white/70 leading-relaxed">
+                <h2 className="text-sm font-semibold tracking-wide text-foreground/90">How I build</h2>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                   Ship small changes, validate with real usage, then refine. I care about performance, accessibility, and
                   consistent interaction patterns so the product stays coherent as it grows.
                 </p>
@@ -265,22 +265,22 @@ export default function InfoPage() {
                 initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: "easeOut", delay: 0.2 }}
-                className="border-t border-white/10 pt-5"
+                className="border-t border-border pt-5"
               >
-                <h2 className="text-sm font-semibold tracking-wide text-white/90">Contact</h2>
-                <p className="mt-2 text-sm text-white/70">
+                <h2 className="text-sm font-semibold tracking-wide text-foreground/90">Contact</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
                   Want to collaborate, report a bug, or suggest a feature? The fastest path right now is GitHub.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Link
                     href="/products"
-                    className="rounded-xl bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                    className="rounded-xl bg-muted/50 dark:bg-white/5 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted dark:hover:bg-white/10 hover:text-foreground"
                   >
                     Explore marketplace
                   </Link>
                   <Link
                     href="/"
-                    className="rounded-xl px-4 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white/90"
+                    className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground/60 transition-colors hover:bg-muted/50 dark:hover:bg-white/5 hover:text-foreground"
                   >
                     Back home
                   </Link>
@@ -294,25 +294,25 @@ export default function InfoPage() {
               transition={{ duration: 0.35, ease: "easeOut", delay: 0.1 }}
               className="hidden space-y-8 2xl:block 2xl:col-start-3"
             >
-              <div className="border-t border-white/10 pt-5">
-                <div className="text-xs font-semibold tracking-wide text-white/70">Focus</div>
-                <div className="mt-2 text-sm text-white/65 leading-relaxed">
+              <div className="border-t border-border pt-5">
+                <div className="text-xs font-semibold tracking-wide text-muted-foreground">Focus</div>
+                <div className="mt-2 text-sm text-muted-foreground leading-relaxed">
                   Motion as feedback, not decoration. Realtime where it matters. Clear roles and data that stays correct.
                 </div>
               </div>
-              <div className="border-t border-white/10 pt-5">
-                <div className="text-xs font-semibold tracking-wide text-white/70">Stack</div>
-                <ul className="mt-3 space-y-2 text-sm text-white/65">
+              <div className="border-t border-border pt-5">
+                <div className="text-xs font-semibold tracking-wide text-muted-foreground">Stack</div>
+                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
                   <li className="flex gap-2">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-white/25" />
+                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-foreground/25" />
                     <span>Next.js App Router + Tailwind</span>
                   </li>
                   <li className="flex gap-2">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-white/25" />
+                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-foreground/25" />
                     <span>Prisma + realtime primitives</span>
                   </li>
                   <li className="flex gap-2">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-white/25" />
+                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-foreground/25" />
                     <span>wagmi + wallet UX polish</span>
                   </li>
                 </ul>

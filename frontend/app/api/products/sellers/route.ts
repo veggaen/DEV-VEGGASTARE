@@ -1,5 +1,8 @@
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { SellersResponseSchema } from '@/lib/types/products';
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 export interface SellerWithCount {
   id: string;
@@ -64,7 +67,16 @@ export async function GET() {
     // Sort by count descending
     sellers.sort((a, b) => b.count - a.count);
 
-    return NextResponse.json(sellers);
+    const parsed = SellersResponseSchema.safeParse(sellers);
+    if (!parsed.success) {
+      console.error('[api/products/sellers] Invalid GET DTO:', parsed.error);
+      return NextResponse.json(
+        { error: 'Failed to fetch sellers', ...(isDev ? { issues: parsed.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data);
   } catch (error) {
     console.error('Failed to fetch sellers:', error);
     return NextResponse.json({ error: 'Failed to fetch sellers' }, { status: 500 });

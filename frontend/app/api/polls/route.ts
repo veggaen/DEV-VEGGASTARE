@@ -3,10 +3,17 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError, parseQueryOrError } from '@/lib/api-validate';
 import { z } from 'zod';
+import { PollCreateResponseSchema, PollGetResponseSchema } from '@/lib/types/polls';
 
 const LOG_PREFIX = '[api/polls]';
 
 const isDev = process.env.NODE_ENV !== 'production';
+
+const toIsoString = (value: unknown): string => {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && value.length) return value;
+  return new Date(String(value)).toISOString();
+};
 
 const createPollSchema = z.object({
   conversationId: z.string().min(1),
@@ -82,7 +89,47 @@ export async function POST(req: NextRequest) {
 
     console.log(LOG_PREFIX, `Created poll "${question}" for conversation ${conversationId}`);
 
-    return NextResponse.json({ poll }, { status: 201 });
+    const now = new Date();
+    const totalVotes = poll.PollOption.reduce((sum, opt) => sum + (opt.PollVote?.length ?? 0), 0);
+    const userVotedOptionIds: string[] = [];
+    const isExpired = poll.expiresAt ? new Date(poll.expiresAt) < now : false;
+
+    const dto = {
+      poll: {
+        id: String(poll.id),
+        question: String(poll.question),
+        allowMultiple: Boolean(poll.allowMultiple),
+        isAnonymous: Boolean(poll.isAnonymous),
+        expiresAt: poll.expiresAt ? toIsoString(poll.expiresAt) : null,
+        isExpired,
+        totalVotes,
+        userVotedOptionIds,
+        options: poll.PollOption.map((opt) => {
+          const voteCount = opt.PollVote?.length ?? 0;
+          const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+          return {
+            id: String(opt.id),
+            text: String(opt.text),
+            order: Number(opt.order),
+            voteCount,
+            percentage,
+            hasVoted: false,
+            voters: poll.isAnonymous ? [] : (opt.PollVote ?? []).map((v) => String(v.userId)),
+          };
+        }),
+      },
+    };
+
+    const parsedDto = PollCreateResponseSchema.safeParse(dto);
+    if (!parsedDto.success) {
+      console.error(LOG_PREFIX, 'Invalid POST DTO:', parsedDto.error);
+      return NextResponse.json(
+        { message: 'Internal Server Error', ...(isDev ? { issues: parsedDto.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsedDto.data, { status: 201 });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error creating poll:', error);
     return NextResponse.json(
@@ -113,7 +160,16 @@ export async function GET(req: NextRequest) {
     });
 
     if (!poll) {
-      return NextResponse.json({ poll: null }, { status: 200 });
+      const dto = { poll: null };
+      const parsedEmpty = PollGetResponseSchema.safeParse(dto);
+      if (!parsedEmpty.success) {
+        console.error(LOG_PREFIX, 'Invalid GET empty DTO:', parsedEmpty.error);
+        return NextResponse.json(
+          { message: 'Internal Server Error', ...(isDev ? { issues: parsedEmpty.error.issues } : {}) },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json(parsedEmpty.data, { status: 200 });
     }
 
     // Get current user to check if they've voted
@@ -130,28 +186,41 @@ export async function GET(req: NextRequest) {
 
     const userVotedOptionIds = userVotes.map((v) => v.optionId);
 
-    // Calculate total votes
     const totalVotes = poll.PollOption.reduce((sum, opt) => sum + opt._count.PollVote, 0);
+    const isExpired = poll.expiresAt ? new Date(poll.expiresAt) < new Date() : false;
 
-    // Format response
-    const formattedPoll = {
-      ...poll,
-      totalVotes,
-      userVotedOptionIds,
-      isExpired: poll.expiresAt ? new Date(poll.expiresAt) < new Date() : false,
-      options: poll.PollOption.map((opt) => ({
-        id: opt.id,
-        text: opt.text,
-        order: opt.order,
-        voteCount: opt._count.PollVote,
-        percentage: totalVotes > 0 ? Math.round((opt._count.PollVote / totalVotes) * 100) : 0,
-        hasVoted: userVotedOptionIds.includes(opt.id),
-        // Only include voter IDs if not anonymous
-        voters: poll.isAnonymous ? [] : opt.PollVote.map((v) => v.userId),
-      })),
+    const dto = {
+      poll: {
+        id: String(poll.id),
+        question: String(poll.question),
+        allowMultiple: Boolean(poll.allowMultiple),
+        isAnonymous: Boolean(poll.isAnonymous),
+        expiresAt: poll.expiresAt ? toIsoString(poll.expiresAt) : null,
+        isExpired,
+        totalVotes,
+        userVotedOptionIds,
+        options: poll.PollOption.map((opt) => ({
+          id: String(opt.id),
+          text: String(opt.text),
+          order: Number(opt.order),
+          voteCount: Number(opt._count.PollVote),
+          percentage: totalVotes > 0 ? Math.round((opt._count.PollVote / totalVotes) * 100) : 0,
+          hasVoted: userVotedOptionIds.includes(opt.id),
+          voters: poll.isAnonymous ? [] : opt.PollVote.map((v) => String(v.userId)),
+        })),
+      },
     };
 
-    return NextResponse.json({ poll: formattedPoll }, { status: 200 });
+    const parsedDto = PollGetResponseSchema.safeParse(dto);
+    if (!parsedDto.success) {
+      console.error(LOG_PREFIX, 'Invalid GET DTO:', parsedDto.error);
+      return NextResponse.json(
+        { message: 'Internal Server Error', ...(isDev ? { issues: parsedDto.error.issues } : {}) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsedDto.data, { status: 200 });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error fetching poll:', error);
     return NextResponse.json(

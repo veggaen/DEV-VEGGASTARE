@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { pusherServer } from '@/lib/pusher';
 import { MyLibUserAuth } from '@/lib/user-auth';
+import { WarehouseInventoryUpdateResponseSchema } from '@/lib/types/pusher-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,12 +17,16 @@ const postBodySchema = z.object({
 export async function POST(req: Request) {
   const sessionUser = await MyLibUserAuth();
   if (!sessionUser?.id) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    const dto = { message: 'Unauthorized' };
+    const parsed = WarehouseInventoryUpdateResponseSchema.safeParse(dto);
+    return NextResponse.json(parsed.success ? parsed.data : dto, { status: 401 });
   }
 
   const role = (sessionUser as any).role as string | undefined;
   if (role !== 'ADMIN' && role !== 'OWNER') {
-    return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+    const dto = { message: 'Forbidden' };
+    const parsed = WarehouseInventoryUpdateResponseSchema.safeParse(dto);
+    return NextResponse.json(parsed.success ? parsed.data : dto, { status: 403 });
   }
 
   const bodyResult = await parseJsonOrError(req, postBodySchema);
@@ -65,7 +70,9 @@ export async function POST(req: Request) {
     });
 
     if (!updatedInventory) {
-      return NextResponse.json({ message: 'Inventory not found' }, { status: 404 });
+      const dto = { message: 'Inventory not found' };
+      const parsed = WarehouseInventoryUpdateResponseSchema.safeParse(dto);
+      return NextResponse.json(parsed.success ? parsed.data : dto, { status: 404 });
     }
 
     await pusherServer.trigger(`WarehouseChannel_${warehouseId}`, 'inventory-update', {
@@ -79,9 +86,24 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ message: 'Inventory updated successfully' }, { status: 200 });
+    const dto = { message: 'Inventory updated successfully' };
+    const parsed = WarehouseInventoryUpdateResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error('Invalid pusher/warehouse-inventory/update DTO:', parsed.error.issues);
+      return NextResponse.json(
+        {
+          message: 'Invalid response shape',
+          issues: process.env.NODE_ENV === 'development' ? parsed.error.issues : undefined,
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
     console.error('Error updating inventory:', error);
-    return NextResponse.json({ message: 'Failed to update inventory' }, { status: 500 });
+    const dto = { message: 'Failed to update inventory' };
+    const parsed = WarehouseInventoryUpdateResponseSchema.safeParse(dto);
+    return NextResponse.json(parsed.success ? parsed.data : dto, { status: 500 });
   }
 }

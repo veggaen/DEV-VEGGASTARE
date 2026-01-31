@@ -9,8 +9,10 @@ import {
   type ViewStrengthContext,
   type VerificationTier,
 } from '@/lib/view-strength';
+import { ConversationViewPostResponseSchema } from '@/lib/types/conversations';
 
 const LOG_PREFIX = '[api/conversations/[id]/view]';
+const isDev = process.env.NODE_ENV !== 'production';
 
 /**
  * Hash IP address for privacy while maintaining uniqueness tracking
@@ -268,14 +270,25 @@ export async function POST(
         `View tracked: ${conversationId} | tier: ${verificationTier} | type: ${viewType} | strength: ${strength.toFixed(2)} (${strengthResult.strengthCategory}) | user: ${userId} | ip: ${ipHash.substring(0, 8)}...`
       );
 
-      return NextResponse.json({ 
-        success: true, 
+      const payload = {
+        success: true as const,
         viewType,
         strength,
         strengthCategory: strengthResult.strengthCategory,
         verificationTier,
         isFirstView,
-      }, { status: 200 });
+      };
+
+      const validated = ConversationViewPostResponseSchema.safeParse(payload);
+      if (!validated.success) {
+        console.error(LOG_PREFIX, 'Invalid view POST response DTO:', validated.error);
+        return NextResponse.json(
+          { message: 'Internal Server Error', ...(isDev ? { issues: validated.error.issues } : {}) },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(validated.data, { status: 200 });
     } else {
       // Anonymous view - track by IP
       const anonymousStrength = calculateViewStrength({
@@ -350,14 +363,25 @@ export async function POST(
         `Anonymous view tracked: ${conversationId} | strength: ${anonymousStrength.strength.toFixed(2)} (${anonymousStrength.strengthCategory}) | ip: ${ipHash.substring(0, 8)}...`
       );
 
-      return NextResponse.json({ 
-        success: true, 
-        viewType: 'ANONYMOUS_VIEW',
+      const payload = {
+        success: true as const,
+        viewType: 'ANONYMOUS_VIEW' as const,
         strength: anonymousStrength.strength,
         strengthCategory: anonymousStrength.strengthCategory,
-        verificationTier: 'ANONYMOUS',
+        verificationTier: 'ANONYMOUS' as const,
         isFirstView: !existingIpView,
-      }, { status: 200 });
+      };
+
+      const validated = ConversationViewPostResponseSchema.safeParse(payload);
+      if (!validated.success) {
+        console.error(LOG_PREFIX, 'Invalid anonymous view POST response DTO:', validated.error);
+        return NextResponse.json(
+          { message: 'Internal Server Error', ...(isDev ? { issues: validated.error.issues } : {}) },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(validated.data, { status: 200 });
     }
   } catch (error) {
     console.error(LOG_PREFIX, 'Error tracking view:', error);

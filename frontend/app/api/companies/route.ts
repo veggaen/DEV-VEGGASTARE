@@ -1,9 +1,9 @@
 // frontend\app\api\companies\route.ts
 
 import { dbPrisma } from '@/lib/db';
-import { Company } from '@prisma/client';
 import { NextResponse, type NextRequest } from 'next/server';
 import { MyLibUserAuth } from '@/lib/user-auth';
+import { CompanyListResponseSchema } from '@/lib/types/company';
 
 const LOG_PREFIX = '[frontend/app/api/companies/route.ts]'
 export async function GET() {
@@ -18,8 +18,27 @@ export async function GET() {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
 
-      const companies: Company[] = await dbPrisma.company.findMany();
-      return NextResponse.json(companies);
+      const companies = await dbPrisma.company.findMany({
+        select: {
+          id: true,
+          name: true,
+          description: true,
+        },
+        orderBy: {
+          name: 'asc',
+        },
+      });
+
+      const parsed = CompanyListResponseSchema.safeParse(companies);
+      if (!parsed.success) {
+        console.error(LOG_PREFIX, 'Invalid GET DTO:', parsed.error);
+        return NextResponse.json(
+          { error: 'Internal Server Error', issues: parsed.error.issues },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(parsed.data);
     } catch (error) {
       console.error('Error fetching companies:', error);
       return new NextResponse('Internal Server Error', { status: 500 });

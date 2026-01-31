@@ -146,7 +146,7 @@ export function DiscoverPeople() {
   const isLoading = searchQuery.length >= 2 ? isSearching : isLoadingSuggestions;
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-transparent p-4 transition-colors hover:bg-card/30">
+    <div className="rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-slate-200/80 dark:hover:bg-card/30">
       <div className="font-semibold flex items-center gap-2 mb-3">
         <FiUsers className="h-4 w-4" />
         Discover People

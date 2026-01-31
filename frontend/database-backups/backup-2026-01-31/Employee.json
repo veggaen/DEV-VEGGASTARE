@@ -1,0 +1,261 @@
+[
+  {
+    "id": "clzj69cqe000r10k95k2pfnqo",
+    "userId": "clzj635s4000010k9w6o328yn",
+    "companyId": "clzj69col000q10k9n4nd2coa",
+    "role": "OWNER",
+    "permissions": {
+      "CAN_ADD_EMPLOYEE": true,
+      "CAN_DELETE_COMPANY": true,
+      "CAN_EDIT_PERMISSION": true,
+      "CAN_REMOVE_EMPLOYEE": true,
+      "CAN_EDIT_EMPLOYEE_ROLE": true,
+      "CAN_EDIT_PRODUCT_POSITION_PERMISSION": true,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": true
+    },
+    "createdAt": "2024-08-07T01:29:59.095Z",
+    "updatedAt": "2024-08-07T01:29:59.095Z",
+    "jobTitle": null
+  },
+  {
+    "id": "clzj6av3c000w10k95eqq721w",
+    "userId": "clzj635s4000010k9w6o328yn",
+    "companyId": "clzj6av1f000v10k9idmfbjph",
+    "role": "OWNER",
+    "permissions": {
+      "CAN_ADD_EMPLOYEE": true,
+      "CAN_DELETE_COMPANY": true,
+      "CAN_EDIT_PERMISSION": true,
+      "CAN_REMOVE_EMPLOYEE": true,
+      "CAN_EDIT_EMPLOYEE_ROLE": true,
+      "CAN_EDIT_PRODUCT_POSITION_PERMISSION": true,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": true
+    },
+    "createdAt": "2024-08-07T01:31:09.545Z",
+    "updatedAt": "2024-08-07T01:31:09.545Z",
+    "jobTitle": null
+  },
+  {
+    "id": "clzj6igv4001d10k98vvh84ig",
+    "userId": "clzj635s4000010k9w6o328yn",
+    "companyId": "clzj6igtg001c10k98lz6kl7k",
+    "role": "OWNER",
+    "permissions": {
+      "CAN_ADD_EMPLOYEE": true,
+      "CAN_DELETE_COMPANY": true,
+      "CAN_EDIT_PERMISSION": true,
+      "CAN_REMOVE_EMPLOYEE": true,
+      "CAN_EDIT_EMPLOYEE_ROLE": true,
+      "CAN_EDIT_PRODUCT_POSITION_PERMISSION": true,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": true
+    },
+    "createdAt": "2024-08-07T01:37:04.361Z",
+    "updatedAt": "2024-08-07T01:37:04.361Z",
+    "jobTitle": null
+  },
+  {
+    "id": "clzj6onvy001v10k923dj3dlg",
+    "userId": "clzj66bd4000j10k9ieookzgk",
+    "companyId": "clzj6ont4001u10k9l8lrlyx6",
+    "role": "OWNER",
+    "permissions": {
+      "CAN_ADD_EMPLOYEE": true,
+      "CAN_DELETE_COMPANY": true,
+      "CAN_EDIT_PERMISSION": true,
+      "CAN_REMOVE_EMPLOYEE": true,
+      "CAN_EDIT_EMPLOYEE_ROLE": true,
+      "CAN_EDIT_PRODUCT_POSITION_PERMISSION": true,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": true
+    },
+    "createdAt": "2024-08-07T01:41:53.357Z",
+    "updatedAt": "2024-08-07T01:41:53.357Z",
+    "jobTitle": null
+  },
+  {
+    "id": "clzj6onvy001w10k9nh1kq5h4",
+    "userId": "clzj6543o000910k9t0q6rs0s",
+    "companyId": "clzj6ont4001u10k9l8lrlyx6",
+    "role": "STAFF",
+    "permissions": {
+      "CAN_ADD_EMPLOYEE": false,
+      "CAN_DELETE_COMPANY": false,
+      "CAN_EDIT_PERMISSION": false,
+      "CAN_REMOVE_EMPLOYEE": false,
+      "CAN_EDIT_EMPLOYEE_ROLE": false,
+      "CAN_EDIT_PRODUCT_POSITION_PERMISSION": false,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": false
+    },
+    "createdAt": "2024-08-07T01:41:53.357Z",
+    "updatedAt": "2024-08-07T01:41:53.357Z",
+    "jobTitle": null
+  },
+  {
+    "id": "clzj6onvy001x10k9txerjk7u",
+    "userId": "clzj635s4000010k9w6o328yn",
+    "companyId": "clzj6ont4001u10k9l8lrlyx6",
+    "role": "MANAGER",
+    "permissions": {
+      "CAN_ADD_EMPLOYEE": false,
+      "CAN_DELETE_COMPANY": false,
+      "CAN_EDIT_PERMISSION": false,
+      "CAN_REMOVE_EMPLOYEE": false,
+      "CAN_EDIT_EMPLOYEE_ROLE": false,
+      "CAN_EDIT_PRODUCT_POSITION_PERMISSION": false,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": false
+    },
+    "createdAt": "2024-08-07T01:41:53.357Z",
+    "updatedAt": "2024-08-07T01:41:53.357Z",
+    "jobTitle": null
+  },
+  {
+    "id": "clzj6q7jj002410k9qig6skyl",
+    "userId": "clzj66bd4000j10k9ieookzgk",
+    "companyId": "clzj6q7gq002310k9cl2vhble",
+    "role": "OWNER",
+    "permissions": {
+      "CAN_ADD_EMPLOYEE": true,
+      "CAN_DELETE_COMPANY": true,
+      "CAN_EDIT_PERMISSION": true,
+      "CAN_REMOVE_EMPLOYEE": true,
+      "CAN_EDIT_EMPLOYEE_ROLE": true,
+      "CAN_EDIT_PRODUCT_POSITION_PERMISSION": true,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": true
+    },
+    "createdAt": "2024-08-07T01:43:05.484Z",
+    "updatedAt": "2024-08-07T01:43:05.484Z",
+    "jobTitle": null
+  },
+  {
+    "id": "clzj6rg0n002910k91upqga9p",
+    "userId": "clzj66bd4000j10k9ieookzgk",
+    "companyId": "clzj6rfxu002810k97r1nvhu1",
+    "role": "OWNER",
+    "permissions": {
+      "CAN_ADD_EMPLOYEE": true,
+      "CAN_DELETE_COMPANY": true,
+      "CAN_EDIT_PERMISSION": true,
+      "CAN_REMOVE_EMPLOYEE": true,
+      "CAN_EDIT_EMPLOYEE_ROLE": true,
+      "CAN_EDIT_PRODUCT_POSITION_PERMISSION": true,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": true
+    },
+    "createdAt": "2024-08-07T01:44:03.128Z",
+    "updatedAt": "2024-08-07T01:44:03.128Z",
+    "jobTitle": null
+  },
+  {
+    "id": "clzk9fdf1000b12365v0yojhi",
+    "userId": "clzj65dji000d10k9bh7qsftn",
+    "companyId": "clzj6av1f000v10k9idmfbjph",
+    "role": "MANAGER",
+    "permissions": {
+      "CAN_EDIT_PERMISSION": false
+    },
+    "createdAt": "2024-08-07T19:46:25.070Z",
+    "updatedAt": "2024-08-07T19:47:43.192Z",
+    "jobTitle": null
+  },
+  {
+    "id": "clzou1n870003v25wj8lszhb8",
+    "userId": "clzj635s4000010k9w6o328yn",
+    "companyId": "clzou1n550002v25wkd1mohw9",
+    "role": "OWNER",
+    "permissions": {
+      "CAN_ADD_EMPLOYEE": true,
+      "CAN_DELETE_COMPANY": true,
+      "CAN_EDIT_PERMISSION": true,
+      "CAN_REMOVE_EMPLOYEE": true,
+      "CAN_EDIT_EMPLOYEE_ROLE": true,
+      "CAN_EDIT_PRODUCT_POSITION_PERMISSION": true,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": true
+    },
+    "createdAt": "2024-08-11T00:34:41.070Z",
+    "updatedAt": "2024-08-11T00:34:41.070Z",
+    "jobTitle": null
+  },
+  {
+    "id": "clzowcnwg0003k3wvteg2jpli",
+    "userId": "clzj6543o000910k9t0q6rs0s",
+    "companyId": "clzowcnuz0002k3wv01inksh2",
+    "role": "OWNER",
+    "permissions": {
+      "CAN_ADD_EMPLOYEE": true,
+      "CAN_DELETE_COMPANY": true,
+      "CAN_EDIT_PERMISSION": true,
+      "CAN_REMOVE_EMPLOYEE": true,
+      "CAN_EDIT_EMPLOYEE_ROLE": true,
+      "CAN_EDIT_PRODUCT_POSITION_PERMISSION": true,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": true
+    },
+    "createdAt": "2024-08-11T01:39:14.462Z",
+    "updatedAt": "2024-08-11T01:39:14.462Z",
+    "jobTitle": null
+  },
+  {
+    "id": "clzowe1480001109x91d0gcnr",
+    "userId": "clzjtsswz0000khx5h50xr4of",
+    "companyId": "clzowcnuz0002k3wv01inksh2",
+    "role": "STAFF",
+    "permissions": {},
+    "createdAt": "2024-08-11T01:40:18.344Z",
+    "updatedAt": "2024-08-11T01:40:18.344Z",
+    "jobTitle": null
+  },
+  {
+    "id": "clzowegdm0003109xwapi0rt9",
+    "userId": "clzj635s4000010k9w6o328yn",
+    "companyId": "clzowcnuz0002k3wv01inksh2",
+    "role": "MANAGER",
+    "permissions": {
+      "CAN_ADD_EMPLOYEE": true,
+      "CAN_EDIT_PERMISSION": true,
+      "CAN_REMOVE_EMPLOYEE": true,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": true
+    },
+    "createdAt": "2024-08-11T01:40:38.123Z",
+    "updatedAt": "2024-08-11T01:41:10.124Z",
+    "jobTitle": null
+  },
+  {
+    "id": "cmi9cx1fg00033b1mpxapokxc",
+    "userId": "cmi9co8wz0000u5pnq4awrbx8",
+    "companyId": "cmi9cx1dv00023b1md1jnw4kg",
+    "role": "OWNER",
+    "permissions": {
+      "CAN_ADD_EMPLOYEE": true,
+      "CAN_DELETE_COMPANY": true,
+      "CAN_EDIT_PERMISSION": true,
+      "CAN_REMOVE_EMPLOYEE": true,
+      "CAN_EDIT_EMPLOYEE_ROLE": true,
+      "CAN_EDIT_PRODUCT_POSITION_PERMISSION": true,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": true
+    },
+    "createdAt": "2025-11-21T21:13:04.535Z",
+    "updatedAt": "2025-11-21T21:13:04.535Z",
+    "jobTitle": null
+  },
+  {
+    "id": "cm32yczon0003ydb01x3u83wo",
+    "userId": "clzj6543o000910k9t0q6rs0s",
+    "companyId": "clzj69col000q10k9n4nd2coa",
+    "role": "MANAGER",
+    "permissions": {
+      "CAN_EDIT_PERMISSION": true,
+      "CAN_EDIT_PRODUCT_POSITION_PERMISSION": true,
+      "CAN_POST_PRODUCT_POSITION_PERMISSION": true
+    },
+    "createdAt": "2024-11-04T11:43:22.536Z",
+    "updatedAt": "2026-01-26T08:59:50.803Z",
+    "jobTitle": null
+  },
+  {
+    "id": "cmkuy1gs20001t59gh23jis14",
+    "userId": "clzj65dji000d10k9bh7qsftn",
+    "companyId": "clzj69col000q10k9n4nd2coa",
+    "role": "USER",
+    "permissions": {},
+    "createdAt": "2026-01-26T09:06:57.459Z",
+    "updatedAt": "2026-01-26T09:06:57.459Z",
+    "jobTitle": null
+  }
+]

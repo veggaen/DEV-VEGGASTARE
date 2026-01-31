@@ -1,5 +1,6 @@
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { UserProductCreationAnalyticsResponseSchema } from '@/lib/types/analytics';
 
 export async function GET(request: Request) {
   try {
@@ -37,9 +38,20 @@ export async function GET(request: Request) {
     ];
 
     // Send response
-    return NextResponse.json({
-      data: chartData,
-    });
+    const dto = { data: chartData };
+    const parsed = UserProductCreationAnalyticsResponseSchema.safeParse(dto);
+    if (!parsed.success) {
+      console.error('Invalid analytics/user-product-creation DTO:', parsed.error.issues);
+      return NextResponse.json(
+        {
+          error: 'Invalid response shape',
+          issues: process.env.NODE_ENV === 'development' ? parsed.error.issues : undefined,
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(parsed.data);
   } catch (error) {
     console.error('Error fetching user product creation data:', error);
     return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });

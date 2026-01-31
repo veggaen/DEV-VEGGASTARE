@@ -9,9 +9,25 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { verifyCodeHash } from '@/lib/phone-verification';
 import { calculateVerificationScore, determineUserVerificationTier } from '@/lib/view-strength';
+import { PhoneVerifyResponseSchema } from '@/lib/types/phone-verification';
 
 const LOG_PREFIX = '[api/auth/phone/verify]';
 const MAX_ATTEMPTS = 3;
+
+function respond(status: number, dto: unknown) {
+  const parsed = PhoneVerifyResponseSchema.safeParse(dto);
+  if (!parsed.success) {
+    console.error(LOG_PREFIX, 'Invalid response DTO:', parsed.error.issues);
+    return NextResponse.json(
+      {
+        error: 'Invalid response shape',
+        issues: process.env.NODE_ENV === 'development' ? parsed.error.issues : undefined,
+      },
+      { status: 500 }
+    );
+  }
+  return NextResponse.json(parsed.data, { status });
+}
 
 /**
  * POST /api/auth/phone/verify
@@ -22,7 +38,7 @@ export async function POST(req: Request) {
   const session = await MyLibUserAuth();
   
   if (!session?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return respond(401, { error: 'Unauthorized' });
   }
 
   try {
@@ -30,10 +46,10 @@ export async function POST(req: Request) {
     const { code } = body;
 
     if (!code || typeof code !== 'string' || code.length !== 6) {
-      return NextResponse.json({ 
+      return respond(400, {
         error: 'Invalid code',
         message: 'Please enter a 6-digit verification code',
-      }, { status: 400 });
+      });
     }
 
     // Get pending verification
@@ -47,10 +63,10 @@ export async function POST(req: Request) {
     });
 
     if (!verification) {
-      return NextResponse.json({ 
+      return respond(400, {
         error: 'No pending verification',
         message: 'Please request a new verification code',
-      }, { status: 400 });
+      });
     }
 
     // Check attempts
@@ -60,10 +76,10 @@ export async function POST(req: Request) {
         data: { status: 'BLOCKED' },
       });
       
-      return NextResponse.json({
+      return respond(429, {
         error: 'Too many attempts',
         message: 'Maximum attempts exceeded. Please request a new code.',
-      }, { status: 429 });
+      });
     }
 
     // Verify code
@@ -77,14 +93,15 @@ export async function POST(req: Request) {
       });
 
       const attemptsRemaining = MAX_ATTEMPTS - verification.attempts - 1;
-      
-      return NextResponse.json({
+
+      return respond(400, {
         error: 'Invalid code',
-        message: attemptsRemaining > 0 
-          ? `Incorrect code. ${attemptsRemaining} attempt${attemptsRemaining === 1 ? '' : 's'} remaining.`
-          : 'Incorrect code. No attempts remaining.',
+        message:
+          attemptsRemaining > 0
+            ? `Incorrect code. ${attemptsRemaining} attempt${attemptsRemaining === 1 ? '' : 's'} remaining.`
+            : 'Incorrect code. No attempts remaining.',
         attemptsRemaining,
-      }, { status: 400 });
+      });
     }
 
     // Code is valid - update verification and user
@@ -149,15 +166,16 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({
+    return respond(200, {
       success: true,
       message: 'Phone number verified successfully',
       phoneVerified: true,
-      verificationTier: updatedUser?.verificationTier,
-      verificationScore: updatedUser?.verificationScore,
+      verificationTier: updatedUser?.verificationTier ?? null,
+      verificationScore:
+        typeof updatedUser?.verificationScore === 'number' ? updatedUser.verificationScore : null,
     });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error verifying code:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return respond(500, { error: 'Internal server error' });
   }
 }
