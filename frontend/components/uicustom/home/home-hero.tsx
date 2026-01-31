@@ -1112,7 +1112,7 @@ export default function HomeHero({
         </div>
 
         {/* Description comes after title with slow-to-fast animation */}
-        <div className="w-full min-h-[3.25rem] sm:min-h-[3rem] mt-6">
+        <div className="w-full min-h-[3.25rem] sm:min-h-[3rem] mt-10 sm:mt-12">
           <KineticDescription
             text={descriptionText}
             className="mx-auto max-w-3xl text-pretty text-sm text-white/75 sm:text-base transition-[color,text-shadow] duration-700 ease-out hover:text-white/85 hover:[text-shadow:0_0_18px_rgba(56,189,248,0.16)]"

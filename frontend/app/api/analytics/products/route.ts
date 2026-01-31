@@ -1,13 +1,34 @@
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 export async function GET(request: Request) {
   try {
-    // Fetch product data from your database
+    // Authentication: Only admins can access analytics
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Check for admin role
+    if (session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    }
+    
+    // Rate limiting: analytics queries are expensive
+    const identifier = getClientIdentifier(request, session.user.id);
+    const rateLimitResult = checkRateLimit(identifier, 'analytics');
+    if (!rateLimitResult.success) {
+      return rateLimitedResponse(rateLimitResult);
+    }
+
+    // Fetch product data from your database with limit for safety
     const products = await dbPrisma.product.findMany({
       select: {
         createdAt: true,
       },
+      take: 10000, // Safety limit to prevent unbounded queries
     });
 
     if (products.length === 0) {

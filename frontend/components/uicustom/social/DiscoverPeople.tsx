@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -41,15 +41,21 @@ export function DiscoverPeople() {
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
+  const hasFetchedSuggestions = useRef(false);
 
-  // Fetch suggested users on mount
+  // Fetch suggested users on mount (only once)
   useEffect(() => {
+    // Prevent multiple fetches
+    if (hasFetchedSuggestions.current) return;
+    
     const fetchSuggestions = async () => {
       if (!currentUser) {
         setIsLoadingSuggestions(false);
         return;
       }
 
+      hasFetchedSuggestions.current = true;
+      
       try {
         // Get user suggestions based on activity
         const res = await fetch('/api/users/suggestions?limit=5');
@@ -63,13 +69,15 @@ export function DiscoverPeople() {
         }
       } catch (error) {
         console.error('Failed to fetch suggestions:', error);
+        hasFetchedSuggestions.current = false; // Allow retry on error
       } finally {
         setIsLoadingSuggestions(false);
       }
     };
 
     fetchSuggestions();
-  }, [currentUser, followState]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]); // Only depend on user ID, not followState object
 
   // Search users with debounce
   useEffect(() => {
@@ -101,7 +109,8 @@ export function DiscoverPeople() {
 
     const debounce = setTimeout(searchUsers, 300);
     return () => clearTimeout(debounce);
-  }, [searchQuery, currentUser?.id, followState]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, currentUser?.id]); // Don't include followState to prevent loops
 
   // Handle follow/unfollow - uses shared state
   const handleFollow = useCallback(async (userId: string, isCurrentlyFollowing: boolean) => {

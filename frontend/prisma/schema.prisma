@@ -24,6 +24,7 @@ model Account {
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])                        // Get accounts by user
 }
 
 model Cart {
@@ -126,6 +127,14 @@ model Conversation {
   Message                Message[]
   Poll                   Poll?
   Pulse                  Pulse[]
+
+  // Performance indexes for common queries
+  @@index([userId])                           // Get conversations by user
+  @@index([type])                             // Filter by type
+  @@index([visibility])                       // Filter by visibility
+  @@index([lastActivityAt])                   // Sort by activity
+  @@index([deletionScheduledFor])             // Clean up scheduled deletions
+  @@index([type, visibility, lastActivityAt]) // Combined feed query
 }
 
 model ConversationRepost {
@@ -209,6 +218,10 @@ model Employee {
   jobTitle    String?
   Company     Company      @relation(fields: [companyId], references: [id])
   User        User         @relation(fields: [userId], references: [id])
+
+  @@index([userId])                        // Get employee records by user
+  @@index([companyId])                     // Get employees by company
+  @@unique([userId, companyId])            // User can only be one employee per company
 }
 
 model EmployeeTermination {
@@ -280,6 +293,10 @@ model Message {
   parentId       String?
   Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   User           User         @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId])                // Get messages in conversation
+  @@index([senderId])                      // Get messages by user
+  @@index([conversationId, createdAt])     // Paginated conversation messages
 }
 
 model MonthlyReport {
@@ -306,6 +323,11 @@ model Order {
   commentOrder  String?
   User          User        @relation(fields: [userId], references: [id])
   Payment       Payment?
+
+  @@index([userId])                        // Get orders by user
+  @@index([status])                        // Filter by status
+  @@index([createdAt])                     // Sort by date
+  @@index([userId, status])                // Combined filter
 }
 
 model Package {
@@ -400,6 +422,14 @@ model Product {
   ProductAcceptedToken ProductAcceptedToken[]
   Review               Review[]
   ShippingDetails      ShippingDetails[]
+
+  // Performance indexes for common queries
+  @@index([category])                    // Filter by category
+  @@index([price])                       // Sort/filter by price
+  @@index([userId])                      // Get products by user
+  @@index([companyId])                   // Get products by company
+  @@index([createdAt])                   // Sort by date
+  @@index([category, price])             // Combined filter
 }
 
 model ProductAcceptedToken {

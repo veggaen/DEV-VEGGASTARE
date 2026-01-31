@@ -17,12 +17,15 @@ export default {
   Google({
     clientId: process.env.AUTH_GOOGLE_ID,
     clientSecret: process.env.AUTH_GOOGLE_SECRET,
-    allowDangerousEmailAccountLinking: true
+    // SECURITY: Disabled dangerous email account linking to prevent account takeover
+    // If a user signs up with email/password, they cannot be hijacked by OAuth with same email
+    allowDangerousEmailAccountLinking: false,
   }),
   Github({
     clientId: process.env.AUTH_GITHUB_ID,
     clientSecret: process.env.AUTH_GITHUB_SECRET,
-    allowDangerousEmailAccountLinking: true
+    // SECURITY: Disabled dangerous email account linking to prevent account takeover
+    allowDangerousEmailAccountLinking: false,
   }),
   // Magic-link login provider for auto-login after email verification
   Credentials({
