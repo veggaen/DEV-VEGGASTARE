@@ -132,10 +132,10 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
             </div>
 
             {/* Content with avatar overlapping banner */}
-            <div className="px-4 pb-4">
+            <div className="relative px-4 pb-4">
               {/* Avatar + Follow button row */}
-              <div className="flex items-end justify-between -mt-8">
-                <Link href={`/profile/${userId}`} onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-end justify-between -mt-8 relative z-20">
+                <Link href={`/profile/${userId}`} onClick={(e) => e.stopPropagation()} className="relative z-10">
                   <Avatar className="h-16 w-16 border-4 border-popover ring-0">
                     <AvatarImage src={userPreview?.image || userImage || undefined} />
                     <AvatarFallback className="text-xl">
@@ -148,7 +148,7 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
                     size="sm"
                     variant={isFollowing ? 'outline' : 'default'}
                     onClick={handleFollow}
-                    className="rounded-full mb-1 relative z-10"
+                    className="rounded-full mb-1 relative z-30"
                   >
                     {isFollowing ? 'Following' : 'Follow'}
                   </Button>

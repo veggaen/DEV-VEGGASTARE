@@ -66,6 +66,9 @@ export const PriceSlider = ({
   
   const parse = parseValue ?? defaultParseValue;
 
+  // Track if component has mounted to prevent initial jump
+  const [hasMounted, setHasMounted] = useState(false);
+
   // Measure track width (usable area after padding)
   useLayoutEffect(() => {
     const updateWidth = () => {
@@ -75,9 +78,16 @@ export const PriceSlider = ({
         setTrackWidth(Math.max(0, totalWidth - trackPadding * 2));
       }
     };
-    updateWidth();
+    // Use requestAnimationFrame to ensure DOM is fully laid out
+    const raf = requestAnimationFrame(() => {
+      updateWidth();
+      setHasMounted(true);
+    });
     window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', updateWidth);
+    };
   }, [trackPadding]);
 
   // Calculate values
@@ -398,10 +408,10 @@ export const PriceSlider = ({
         </div>
       </div>
 
-      {/* Track container with padding for handles */}
+      {/* Track container with padding for handles - overflow hidden to prevent handle overflow */}
       <div
         ref={trackRef}
-        className="relative h-10 flex items-center cursor-pointer"
+        className="relative h-10 flex items-center cursor-pointer overflow-hidden"
         style={{ touchAction: 'none' }}
         onPointerDown={handleTrackPointerDown}
         onMouseEnter={() => setIsHovered(true)}
