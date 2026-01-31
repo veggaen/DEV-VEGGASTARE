@@ -2,12 +2,6 @@
 
 import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import {
-	LuPanelLeftClose,
-	LuPanelLeftOpen,
-	LuPanelRightClose,
-	LuPanelRightOpen,
-} from "react-icons/lu";
 import { CiStar } from "react-icons/ci";
 import Image from "next/image";
 import Link from "next/link";
@@ -17,17 +11,16 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useCategories } from '@/components/providers/categoriesContext';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Button } from '@/components/ui/button';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useInView } from 'react-intersection-observer';
 import Spinner from '@/components/uicustom/spinner';
 import debounce from 'lodash.debounce';
-import { useSidebar, type SidebarDock } from '@/components/providers/product-layoutProvider';
+import { useSidebar } from '@/components/providers/product-layoutProvider';
 
 // ★ NEW: network-aware price display
 import PriceAmount from "@/components/crypto-related/PriceAmount";
 
-// ★ NEW: Category sub-bar for quick category navigation
-import { CategorySubBar } from "@/components/uicustom/products/CategorySubBar";
+// ★ NEW: Unified products toolbar with categories, search, and filter controls
+import { ProductsToolbar } from "@/components/uicustom/products/ProductsToolbar";
 
 interface ExtendedProduct extends Product {
   user?: Pick<User, 'id' | 'name'>;
@@ -149,19 +142,15 @@ export default function MyProductsPage() {
   });
   const pageRef = useRef(1);
 	const lastFilterKeyRef = useRef<string>('');
-  const { setCategories, selectedCategories, minPrice, maxPrice, searchTerm, setSearchTerm, selectedSellers } = useCategories();
+  const { setCategories, selectedCategories, minPrice, maxPrice, searchTerm, selectedSellers } = useCategories();
 
 	const {
-		isSidebarOpen,
-		toggleSidebar,
 		isContentScrolled,
-			sidebarDock,
-			setSidebarDock,
-			registerProductsFrame,
-			scrollProgress,
-			setShowFooter,
-			perPage,
-			productsControlsVisible,
+		registerProductsFrame,
+		scrollProgress,
+		setShowFooter,
+		perPage,
+		productsControlsVisible,
 	} = useSidebar();
 
 	const filterKey = useMemo(
@@ -280,31 +269,17 @@ export default function MyProductsPage() {
 	}, [hasMore, setShowFooter]);
 
 	const controlsScrolled = isContentScrolled;
-		const controlsBarRef = useRef<HTMLDivElement | null>(null);
-		const isRight = sidebarDock === 'edge-right' || sidebarDock === 'frame-right';
-		const isEdgeDock = sidebarDock === 'edge-left' || sidebarDock === 'edge-right';
-	const SidebarIcon = isSidebarOpen
-		? isRight
-			? LuPanelRightClose
-			: LuPanelLeftClose
-		: isRight
-			? LuPanelRightOpen
-			: LuPanelLeftOpen;
+	const toolbarRef = useRef<HTMLDivElement | null>(null);
 
-					const frameClassName = "mx-auto w-full max-w-screen-2xl px-3 sm:px-4 md:px-6";
-					// Keep the *content* width stable (like the main TopBar) while letting the sticky bar's
-					// background/border go full-width. This prevents the search input from becoming huge and
-					// avoids left/right controls shifting positions during the scroll morph.
-					const controlsContainerClassName = frameClassName;
+	const frameClassName = "mx-auto w-full max-w-screen-2xl px-3 sm:px-4 md:px-6";
 
-				// Keep a CSS var in sync so the filters sidebar can avoid overlapping this sticky bar.
-				// useLayoutEffect prevents a 1-frame lag that can cause brief overlap during the morph.
-				useLayoutEffect(() => {
-					const el = controlsBarRef.current;
-					if (!el) return;
+	// Keep a CSS var in sync so the filters sidebar can avoid overlapping the toolbar.
+	useLayoutEffect(() => {
+		const el = toolbarRef.current;
+		if (!el) return;
 
-					const update = () => {
-						const h = el.getBoundingClientRect().height;
+		const update = () => {
+			const h = el.getBoundingClientRect().height;
 						document.documentElement.style.setProperty(
 							"--products-controls-height",
 							`${h}px`
@@ -404,84 +379,10 @@ export default function MyProductsPage() {
 				</div>
 				</div>
 
-							{/* Category sub-bar with dropdown menus */}
-							<CategorySubBar />
-
-							{/* Full-width sticky controls bar (collapses on mobile scroll-down) */}
-							<div className="sticky top-0 z-40 pointer-events-none">
-								<div
-									className="grid transition-[grid-template-rows] duration-200 ease-out"
-									style={{ gridTemplateRows: productsControlsVisible ? "1fr" : "0fr" }}
-								>
-									<div className="overflow-hidden">
-										<div
-											ref={controlsBarRef}
-											className={
-												`pointer-events-auto relative transform-gpu transition-[opacity,transform,box-shadow,border-color] ease-out ${
-													productsControlsVisible
-														? "opacity-100 translate-y-0 duration-200"
-														: "opacity-0 -translate-y-3 duration-150"
-												} ${
-													controlsScrolled
-														? "border-b border-black/10 dark:border-white/10 shadow-sm"
-														: "border-b border-transparent shadow-none"
-												}`
-											}
-										>
-									{/* Glass fill - more solid background */}
-									<div
-										aria-hidden="true"
-										className={`pointer-events-none absolute inset-0 bg-white/95 dark:bg-slate-950/90 backdrop-blur-xl transform-gpu transition-opacity duration-200 ease-out ${
-											controlsScrolled ? "opacity-100" : "opacity-0"
-										}`}
-									/>
-
-									<div className={`${controlsContainerClassName} relative py-3`}>
-										<div className="grid grid-cols-2 items-center gap-3 lg:grid lg:grid-cols-[auto,minmax(0,1fr),auto] lg:items-center lg:gap-4">
-											{/* Filters controls - left when sidebar is left, right when sidebar is right */}
-											{/* When right-docked, reverse order so Filters button is at the far right edge */}
-											<div className={`flex items-center gap-3 col-start-1 row-start-1 lg:row-start-1 ${isRight ? "lg:col-start-3 lg:justify-self-end flex-row-reverse" : "lg:col-start-1"}`}>
-												<Button
-													variant="outline"
-													onClick={toggleSidebar}
-														className="hidden sm:inline-flex h-11 rounded-lg border-transparent bg-white/45 text-slate-700 shadow-sm shadow-black/[0.03] hover:bg-white/70 hover:text-slate-950 hover:border-black/10 dark:bg-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.10] dark:hover:text-slate-50 dark:hover:border-white/15 focus-visible:ring-2 focus-visible:ring-sky-400/35 focus-visible:ring-offset-0"
-													aria-label={isSidebarOpen ? "Close filters" : "Open filters"}
-												>
-													<SidebarIcon className="h-5 w-5" />
-													<span className="ml-2 hidden sm:inline">Filters</span>
-												</Button>
-
-														<Select value={sidebarDock} onValueChange={(v) => setSidebarDock(v as SidebarDock)}>
-															<SelectTrigger className="hidden sm:flex w-[210px] h-11 rounded-lg border-transparent bg-white/45 text-slate-700 shadow-sm shadow-black/[0.03] hover:bg-white/70 hover:border-black/10 dark:bg-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.10] dark:hover:border-white/15 focus-visible:ring-2 focus-visible:ring-sky-400/35 focus-visible:ring-offset-0">
-														<SelectValue placeholder="Filters position" />
-													</SelectTrigger>
-															<SelectContent className="rounded-lg border-black/10 bg-white/95 text-slate-950 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-50">
-														<SelectItem value="edge-left">Edge left</SelectItem>
-														<SelectItem value="frame-left">Left of products</SelectItem>
-														<SelectItem value="frame-right">Right of products</SelectItem>
-														<SelectItem value="edge-right">Edge right</SelectItem>
-													</SelectContent>
-												</Select>
-											</div>
-
-											{/* Center search */}
-											<div className="col-span-2 row-start-2 w-full lg:row-start-1 lg:col-start-2 lg:w-full lg:justify-self-center lg:max-w-[760px] xl:max-w-[900px]">
-													<input
-														type="text"
-													placeholder="Search products…"
-													value={searchTerm}
-													onChange={(e) => setSearchTerm(e.target.value)}
-														className="w-full h-11 rounded-lg border border-transparent bg-white/45 px-3 py-2 text-[13px] text-slate-800 shadow-sm shadow-black/[0.03] placeholder:text-slate-500 outline-none hover:bg-white/70 hover:border-black/10 dark:bg-white/[0.06] dark:text-slate-100 dark:placeholder:text-slate-400 dark:hover:bg-white/[0.10] dark:hover:border-white/15 focus-visible:ring-2 focus-visible:ring-sky-400/35 focus-visible:ring-offset-0"
-												/>
-											</div>
-
-											{/* Actions moved into the Filters sidebar (New listing + per-page) */}
-									</div>
-									</div>
-									</div>
-								</div>
+							{/* Unified products toolbar with categories, search, and filter controls */}
+							<div className="sticky top-0 z-50" ref={toolbarRef}>
+								<ProductsToolbar isScrolled={controlsScrolled} />
 							</div>
-						</div>
 
 	      <div className={`${frameClassName} pb-10`}>
 	        <div className="mt-6">
