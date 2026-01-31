@@ -347,7 +347,7 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
 
   return (
     <div className={cn(
-      "relative z-50 transition-all duration-200",
+      "relative z-50 transition-all duration-200 w-full",
       isScrolled && "bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg border-b border-black/5 dark:border-white/5"
     )}>
       <div className="mx-auto max-w-screen-2xl px-3 sm:px-4 md:px-6">
