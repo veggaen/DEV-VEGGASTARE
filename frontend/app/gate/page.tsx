@@ -15,20 +15,25 @@ export default function GatePage() {
   const redirectTo = searchParams.get('redirect') || '/';
 
   // Check if already authenticated on mount
+  // Only redirect if we have a valid non-auth redirect target
   useEffect(() => {
     const checkAuth = async () => {
+      // Don't auto-redirect to auth pages to avoid loops
+      if (redirectTo.startsWith('/auth')) {
+        return;
+      }
       try {
         const res = await fetch('/api/access-gate');
         if (res.ok) {
-          // Already authenticated, redirect
-          router.replace(redirectTo);
+          // Already authenticated, redirect to home (not the original URL to be safe)
+          window.location.href = '/';
         }
       } catch {
         // Not authenticated, stay on gate
       }
     };
     checkAuth();
-  }, [router, redirectTo]);
+  }, [redirectTo]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,8 +48,8 @@ export default function GatePage() {
       });
 
       if (res.ok) {
-        // Success - redirect to original page
-        router.replace(redirectTo);
+        // Success - redirect to home page (safer than redirectTo to avoid loops)
+        window.location.href = '/';
       } else {
         const data = await res.json();
         setError(data.error || 'Incorrect password');

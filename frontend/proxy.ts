@@ -28,10 +28,11 @@ function checkAccessGate(req: NextRequest): NextResponse | null {
   const { pathname } = req.nextUrl;
 
   // Skip gate for bypass routes and static files
-  if (GATE_BYPASS_ROUTES.some(route => pathname.startsWith(route))) {
+  // Use exact match for /gate and startsWith for /api/access-gate
+  if (pathname === '/gate' || pathname.startsWith('/api/access-gate')) {
     return null;
   }
-  if (pathname.startsWith('/_next') || pathname.includes('.')) {
+  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname.includes('.')) {
     return null;
   }
 
