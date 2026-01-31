@@ -334,13 +334,22 @@ export async function PATCH(
 
     // Build update data - only include fields that were explicitly provided
     const updateData: Record<string, unknown> = {};
+    let contentEdited = false; // Track if content was changed (triggers editedAt)
 
     if (typeof title === 'string') {
       updateData.title = title.trim() || null;
+      contentEdited = true;
     }
     if (typeof description === 'string') {
       updateData.description = description.trim() || null;
+      contentEdited = true;
     }
+    
+    // Set editedAt if content was changed
+    if (contentEdited) {
+      updateData.editedAt = new Date();
+    }
+    
     if (visibility) updateData.visibility = visibility;
     if (replyPermission) updateData.replyPermission = replyPermission;
     if (tags) updateData.tags = tags;

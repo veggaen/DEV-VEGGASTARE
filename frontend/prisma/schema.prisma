@@ -85,6 +85,7 @@ model Conversation {
   participants           String[]
   createdAt              DateTime               @default(now())
   updatedAt              DateTime               @updatedAt
+  editedAt               DateTime?              // Set when content (title/description) is edited by user
   allowedRoles           String[]               @default([])
   customViewers          String[]               @default([])
   description            String?

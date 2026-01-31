@@ -22,6 +22,7 @@ interface UserPreview {
   id: string;
   name: string | null;
   image: string | null;
+  banner: string | null;
   bio: string | null;
   createdAt: string;
   _count: {
@@ -110,77 +111,91 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
       <HoverCardContent
         side={side}
         align={align}
-        className="w-80"
+        className="w-80 p-0"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
-          <div className="flex items-center justify-center py-4">
+          <div className="flex items-center justify-center py-8">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         ) : (
-          <div className="space-y-3">
-            {/* Header */}
-            <div className="flex items-start justify-between">
-              <Link href={`/profile/${userId}`} onClick={(e) => e.stopPropagation()}>
-                <Avatar className="h-14 w-14 border-2 border-border">
-                  <AvatarImage src={userPreview?.image || userImage || undefined} />
-                  <AvatarFallback className="text-lg">
-                    {(userPreview?.name || userName)?.[0]?.toUpperCase() || '?'}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
-              {!isOwnProfile && currentUser && (
-                <Button
-                  size="sm"
-                  variant={isFollowing ? 'outline' : 'default'}
-                  onClick={handleFollow}
-                  className="rounded-full"
-                >
-                  {isFollowing ? 'Following' : 'Follow'}
-                </Button>
+          <div>
+            {/* Banner */}
+            <div className="relative h-20 bg-gradient-to-br from-primary/30 via-primary/20 to-muted">
+              {userPreview?.banner && (
+                <img
+                  src={userPreview.banner}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
               )}
             </div>
 
-            {/* Name */}
-            <div>
-              <Link
-                href={`/profile/${userId}`}
-                className="font-semibold hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {userPreview?.name || userName || 'Anonymous'}
-              </Link>
+            {/* Content with avatar overlapping banner */}
+            <div className="px-4 pb-4">
+              {/* Avatar + Follow button row */}
+              <div className="flex items-end justify-between -mt-8">
+                <Link href={`/profile/${userId}`} onClick={(e) => e.stopPropagation()}>
+                  <Avatar className="h-16 w-16 border-4 border-popover ring-0">
+                    <AvatarImage src={userPreview?.image || userImage || undefined} />
+                    <AvatarFallback className="text-xl">
+                      {(userPreview?.name || userName)?.[0]?.toUpperCase() || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+                {!isOwnProfile && currentUser && (
+                  <Button
+                    size="sm"
+                    variant={isFollowing ? 'outline' : 'default'}
+                    onClick={handleFollow}
+                    className="rounded-full mb-1"
+                  >
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </Button>
+                )}
+              </div>
+
+              <div className="mt-2 space-y-2">
+                {/* Name */}
+                <Link
+                  href={`/profile/${userId}`}
+                  className="font-semibold hover:underline block"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {userPreview?.name || userName || 'Anonymous'}
+                </Link>
+
+                {/* Bio */}
+                {userPreview?.bio && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {userPreview.bio}
+                  </p>
+                )}
+
+                {/* Stats */}
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{userPreview?._count?.followers || 0}</span>
+                    <span className="text-muted-foreground">followers</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">{userPreview?._count?.following || 0}</span>
+                    <span className="text-muted-foreground"> following</span>
+                  </div>
+                </div>
+
+                {/* Joined date */}
+                {userPreview?.createdAt && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <CalendarDays className="h-3 w-3" />
+                    <span>
+                      Joined {formatDistanceToNowStrict(new Date(userPreview.createdAt), { addSuffix: true })}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-
-            {/* Bio */}
-            {userPreview?.bio && (
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {userPreview.bio}
-              </p>
-            )}
-
-            {/* Stats */}
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{userPreview?._count?.followers || 0}</span>
-                <span className="text-muted-foreground">followers</span>
-              </div>
-              <div>
-                <span className="font-medium">{userPreview?._count?.following || 0}</span>
-                <span className="text-muted-foreground"> following</span>
-              </div>
-            </div>
-
-            {/* Joined date */}
-            {userPreview?.createdAt && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <CalendarDays className="h-3 w-3" />
-                <span>
-                  Joined {formatDistanceToNowStrict(new Date(userPreview.createdAt), { addSuffix: true })}
-                </span>
-              </div>
-            )}
           </div>
         )}
       </HoverCardContent>

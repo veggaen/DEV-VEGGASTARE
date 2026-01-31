@@ -17,6 +17,7 @@ export async function GET(
         id: true,
         name: true,
         image: true,
+        banner: true,
         bio: true,
         createdAt: true,
         _count: {

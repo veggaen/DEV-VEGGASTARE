@@ -26,7 +26,7 @@ import {
 import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useViewTracking } from '@/hooks/useViewTracking';
-import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff } from 'react-icons/fi';
+import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { PulsePositive, PulseFlat } from '@/components/uicustom/icons/PulseIcons';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { PollDisplay } from '@/components/uicustom/chats/poll-display';
@@ -50,6 +50,7 @@ interface FeedItem {
   user: User;
   userId: string;
   createdAt: string;
+  editedAt?: string | null;
   viewCount?: number;
   uniqueViewCount?: number;
   replyCount?: number;
@@ -725,6 +726,16 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   const [localPulse, setLocalPulse] = useState<'POSITIVE' | 'NEGATIVE' | null>(item.userPulse || null);
   const [localPositiveCount, setLocalPositiveCount] = useState(item.positivePulseCount || 0);
   const [localViewCount, setLocalViewCount] = useState(item.viewCount || 0);
+  
+  // Edit/Delete state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState(item.title || '');
+  const [editDescription, setEditDescription] = useState(item.description || '');
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  
+  const isOwner = currentUser?.id === item.userId;
 
   // View tracking - tracks when this post becomes visible in viewport
   const { ref: viewTrackingRef, hasTracked } = useViewTracking(item.id, {
@@ -850,6 +861,55 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     }
   };
 
+  // Handle edit pulse
+  const handleEdit = async () => {
+    if (!isOwner || isEditing) return;
+    setIsEditing(true);
+    try {
+      const res = await fetch(`/api/conversations/${encodeURIComponent(item.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle.trim() || null,
+          description: editDescription.trim() || null,
+        }),
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        throw new Error(t || 'Failed to update pulse');
+      }
+      setEditOpen(false);
+      // Reload feed to show updated content
+      window.location.reload();
+    } catch (e) {
+      console.error('Edit failed:', e);
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  // Handle delete pulse
+  const handleDelete = async () => {
+    if (!isOwner || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/conversations/${encodeURIComponent(item.id)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        throw new Error(t || 'Failed to delete pulse');
+      }
+      setDeleteConfirmOpen(false);
+      // Reload feed to remove deleted item
+      window.location.reload();
+    } catch (e) {
+      console.error('Delete failed:', e);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const MAX_PREVIEW_CHARS = 500;
   const rawPreviewText =
     item.description?.trim() ||
@@ -901,6 +961,12 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
             </UserHoverCard>
             <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground">{timeAgo}</span>
+            {item.editedAt && (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground/70 text-xs italic">edited</span>
+              </>
+            )}
 
             <div className="ml-auto flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
               <DropdownMenu>
@@ -958,6 +1024,35 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                     <PulseFlat className="h-4 w-4 mr-2" />
                     Don&apos;t show from this user
                   </DropdownMenuItem>
+
+                  {/* Owner-only actions */}
+                  {isOwner && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Manage</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setEditTitle(item.title || '');
+                          setEditDescription(item.description || '');
+                          setEditOpen(true);
+                        }}
+                      >
+                        <FiEdit2 className="h-4 w-4 mr-2" />
+                        Edit pulse
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setDeleteConfirmOpen(true);
+                        }}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <FiTrash2 className="h-4 w-4 mr-2" />
+                        Delete pulse
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1126,6 +1221,78 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
             </Button>
             <Button onClick={() => void handleQuoteRepulse()} disabled={isReposting || !quoteText.trim()}>
               Post
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Pulse Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Edit pulse</DialogTitle>
+            <DialogDescription>Make changes to your pulse.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Title</label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Pulse title (optional)"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Description</label>
+              <Textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="What's on your mind?"
+                className="min-h-[120px]"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => setEditOpen(false)}
+              disabled={isEditing}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => void handleEdit()} disabled={isEditing}>
+              {isEditing ? 'Saving...' : 'Save changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Delete pulse</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this pulse? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void handleDelete()}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>
