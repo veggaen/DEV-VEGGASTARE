@@ -26,6 +26,9 @@ import { useSidebar, type SidebarDock } from '@/components/providers/product-lay
 // ★ NEW: network-aware price display
 import PriceAmount from "@/components/crypto-related/PriceAmount";
 
+// ★ NEW: Category sub-bar for quick category navigation
+import { CategorySubBar } from "@/components/uicustom/products/CategorySubBar";
+
 interface ExtendedProduct extends Product {
   user?: Pick<User, 'id' | 'name'>;
   company?: Pick<Company, 'id' | 'name'> | null;
@@ -400,6 +403,9 @@ export default function MyProductsPage() {
 					</div>
 				</div>
 				</div>
+
+							{/* Category sub-bar with dropdown menus */}
+							<CategorySubBar />
 
 							{/* Full-width sticky controls bar (collapses on mobile scroll-down) */}
 							<div className="sticky top-0 z-40 pointer-events-none">
