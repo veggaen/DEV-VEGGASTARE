@@ -33,20 +33,28 @@ const init = async (): Promise<void> => {
         : [])
     : ['*'];
 
+  const corsConfig: false | { origin: string[]; additionalHeaders: string[] } =
+    isProduction && corsOrigins.length === 0
+      ? false
+      : {
+          origin: corsOrigins,
+          additionalHeaders: ['x-request-id', 'x-nonce'],
+        };
+
   console.log(LOG_PREFIX, `Starting in ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'} mode`);
   console.log(LOG_PREFIX, `Ports: http=${httpPort} ws=${wsPort}`);
   if (isProduction) {
-    console.log(LOG_PREFIX, `CORS allowed origins: ${corsOrigins.length > 0 ? corsOrigins.join(', ') : '(none - all blocked!)'}`);
+    console.log(
+      LOG_PREFIX,
+      `CORS allowed origins: ${corsOrigins.length > 0 ? corsOrigins.join(', ') : '(none - CORS disabled)'}`
+    );
   }
 
   const server = Hapi.server({
     port: httpPort,
     host: '0.0.0.0',
     routes: {
-      cors: {
-        origin: corsOrigins,
-        additionalHeaders: ['x-request-id', 'x-nonce'],
-      },
+      cors: corsConfig,
     },
   });
 
