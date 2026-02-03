@@ -32,7 +32,7 @@ export const MyNavbarProtected = () => {
 
   return (
     <div>
-      <nav className="hidden lg:flex text-white justify-center items-center w-full mx-auto py-2">
+      <nav className="hidden lg:flex text-zinc-900 dark:text-white justify-center items-center w-full mx-auto py-2">
         <div className="flex flex-wrap justify-center items-center gap-3 text-black dark:text-white">
           <div className={`flex flex-wrap justify-center items-center gap-3 text-black dark:text-white ${user && user.role === 'ADMIN' ? '' : 'hidden'}`}>
           <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/server' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>

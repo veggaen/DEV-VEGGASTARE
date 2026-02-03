@@ -116,10 +116,10 @@ export default function EvmWalletList({
 		<div className="rounded-xl border border-black/10 p-3 dark:border-white/10">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+					<div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
 						Linked wallets
 					</div>
-					<div className="mt-1 text-sm text-slate-900 dark:text-slate-100">
+					<div className="mt-1 text-sm text-zinc-900 dark:text-zinc-100">
 						{defaultWallet
 							? `Primary: ${trimAddress(defaultWallet.address)}`
 							: "No primary wallet"}
@@ -136,13 +136,13 @@ export default function EvmWalletList({
 			</div>
 
 			{!enabled ? (
-				<div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+				<div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
 					Enable Web3 mode to manage wallets.
 				</div>
 			) : null}
 
 			{enabled && wallets.length === 0 && !loading ? (
-				<div className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+				<div className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
 					No wallets linked yet.
 				</div>
 			) : null}
@@ -159,7 +159,7 @@ export default function EvmWalletList({
 								<div className="flex items-start justify-between gap-3">
 									<div className="min-w-0">
 										<div className="flex items-center gap-2">
-											<div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+											<div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
 												{w.label}
 											</div>
 											{w.isDefault ? (
@@ -177,7 +177,7 @@ export default function EvmWalletList({
 												</span>
 											)}
 										</div>
-										<div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 break-all">
+										<div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400 break-all">
 											{w.address}
 										</div>
 									</div>
@@ -206,7 +206,7 @@ export default function EvmWalletList({
 
 								{isPending ? (
 									<div className="mt-2 space-y-2">
-										<div className="text-xs text-slate-500 dark:text-slate-400">
+										<div className="text-xs text-zinc-500 dark:text-zinc-400">
 											Enter the 2FA code from email to continue.
 										</div>
 										<Input

@@ -80,9 +80,9 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
         setSellersLoading(true);
 
         const [fetchedCategoriesWithCounts, fetchedPriceRange, fetchedSellers] = await Promise.all([
-          fetch('/api/categories-with-counts').then((res) => res.json()),
-          fetch('/api/price-range').then((res) => res.json()),
-          fetch('/api/products/sellers').then((res) => res.json()),
+          fetch('/api/categories-with-counts').then((res) => (res.ok ? res.json() : [])),
+          fetch('/api/price-range').then((res) => (res.ok ? res.json() : null)),
+          fetch('/api/products/sellers').then((res) => (res.ok ? res.json() : [])),
         ]);
 
         // Set categories with counts
@@ -95,7 +95,11 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
         setSellers(fetchedSellers || []);
 
         // Store initial price range for reset functionality
-        if (fetchedPriceRange) {
+        if (
+          fetchedPriceRange &&
+          typeof fetchedPriceRange.min === 'number' &&
+          typeof fetchedPriceRange.max === 'number'
+        ) {
           setInitialPriceRange({ min: fetchedPriceRange.min, max: fetchedPriceRange.max });
           if (minPrice === null) setMinPrice(fetchedPriceRange.min);
           if (maxPrice === null) setMaxPrice(fetchedPriceRange.max);
@@ -126,11 +130,11 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
         if (selectedSellers.length > 0) {
           params.set('selectedSellers', selectedSellers.join(','));
         }
-        if (minPrice !== null) {
-          params.set('minPrice', minPrice.toString());
+        if (typeof minPrice === 'number' && Number.isFinite(minPrice)) {
+          params.set('minPrice', String(minPrice));
         }
-        if (maxPrice !== null && maxPrice !== Infinity) {
-          params.set('maxPrice', maxPrice.toString());
+        if (typeof maxPrice === 'number' && Number.isFinite(maxPrice) && maxPrice !== Infinity) {
+          params.set('maxPrice', String(maxPrice));
         }
         if (searchTerm) {
           params.set('searchTerm', searchTerm);

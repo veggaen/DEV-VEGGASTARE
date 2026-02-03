@@ -83,8 +83,24 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       description: (product as any).description,
       category: (product as any).category,
       price: (product as any).price,
+      priceCurrency: (product as any).priceCurrency ?? 'USD',
+      acceptedFiatCurrencies: Array.isArray((product as any).acceptedFiatCurrencies)
+        ? (product as any).acceptedFiatCurrencies
+        : [],
+      condition: (product as any).condition,
       image: Array.isArray((product as any).image) ? (product as any).image : [],
       specifications: normalizeSpecifications((product as any).specifications),
+      userId: (product as any).userId,
+      companyId: (product as any).companyId ?? null,
+      acceptedTokens: Array.isArray((product as any).ProductAcceptedToken)
+        ? (product as any).ProductAcceptedToken.map((t: any) => ({
+            family: t.family,
+            symbol: t.symbol,
+            decimals: t.decimals,
+            tokenAddress: t.tokenAddress ?? null,
+            tokenMint: t.tokenMint ?? null,
+          }))
+        : [],
       company: (product as any).companyId
         ? { warehouseLocations: warehouseLocations.length ? warehouseLocations : null }
         : null,

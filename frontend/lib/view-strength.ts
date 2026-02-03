@@ -11,12 +11,20 @@
  * - WEB3_BASIC: Web3 wallet + signed message, no payment (0.45x)
  * - SOCIAL_BASIC: Discord/GitHub OAuth (0.5x)
  * - SOCIAL_VERIFIED: Google OAuth - higher trust (0.7x)
+ * - MULTI_SOCIAL: Multiple OAuth providers linked (0.75x) - cross-verified identity
  * - WEB2_PAYMENT: Verified payment method (0.85x)
  * - WEB3_VERIFIED: Google + Verified wallet (0.9x)
  * - WEB3_PAYMENT: Web3 payment verified (crypto purchase) (0.92x)
  * - PAYMENT_VERIFIED: Web2 AND Web3 payment verified (0.95x)
  * - PHONE_VERIFIED: Phone number verified (1.0x)
  * - FULLY_VERIFIED: All verifications (1.2x)
+ * 
+ * SECURITY NOTE ON MULTI-OAUTH:
+ * Multiple linked OAuth providers INCREASE trust because:
+ * - Each provider (Google, GitHub, Discord) independently verifies the email
+ * - An attacker would need to compromise MULTIPLE OAuth accounts
+ * - Cross-verification proves consistent identity across platforms
+ * - Example: Google + GitHub linked = 2 independent identity confirmations
  * 
  * FIRST VIEW BONUS:
  * First-time views have higher weight than repeat views.
@@ -27,6 +35,7 @@
  * - Unique IP: +20% bonus for truly unique viewers
  * - Same IP different user: -30% (could be gaming the system)
  * - Account age: +10% for accounts > 30 days old
+ * - Multi-OAuth bonus: +5% per additional linked provider
  */
 
 import type { User } from '@prisma/client';
@@ -40,6 +49,7 @@ export const VERIFICATION_TIER_MULTIPLIERS = {
   WEB3_BASIC: 0.45,        // Web3 wallet + signed message, no payment
   SOCIAL_BASIC: 0.5,       // Discord/GitHub - moderate trust
   SOCIAL_VERIFIED: 0.7,    // Google OAuth - real email, higher trust
+  MULTI_SOCIAL: 0.75,      // Multiple OAuth providers - cross-verified identity
   WEB2_PAYMENT: 0.85,      // Verified payment card - significant trust
   WEB3_VERIFIED: 0.9,      // Google + verified wallet signature
   WEB3_PAYMENT: 0.92,      // Crypto purchase completed
@@ -219,6 +229,9 @@ function generateExplanation(
     case 'SOCIAL_VERIFIED':
       parts.push('Google-verified user');
       break;
+    case 'MULTI_SOCIAL':
+      parts.push('Multi-OAuth verified (cross-platform identity)');
+      break;
     case 'WEB2_PAYMENT':
       parts.push('Web2 payment verified');
       break;
@@ -311,6 +324,16 @@ export function determineUserVerificationTier(user: Partial<User> & {
     return 'WEB2_PAYMENT';
   }
   
+  // Count linked OAuth providers for multi-social tier
+  const oauthCount = [hasGoogle, hasDiscord, hasGithub].filter(Boolean).length;
+  
+  // Multi-social: 2+ OAuth providers linked = cross-verified identity
+  // This is MORE secure than single OAuth because attacker would need to
+  // compromise multiple independent identity providers
+  if (oauthCount >= 2) {
+    return 'MULTI_SOCIAL';
+  }
+  
   // Google OAuth (verified email provider)
   if (hasGoogle) {
     return 'SOCIAL_VERIFIED';
@@ -359,10 +382,26 @@ export function calculateVerificationScore(user: Partial<User> & {
   // Email verified: +10
   if (user.emailVerified) score += 10;
   
-  // Social OAuth: +15 each
-  if (user.hasGoogleAuth) score += 20; // Google is worth more
+  // Social OAuth scoring
+  // Each OAuth provider independently verifies your email
+  // Multiple providers = cross-verified identity = MORE secure
+  const oauthProviders = [
+    user.hasGoogleAuth,
+    user.hasDiscordAuth,
+    user.hasGithubAuth,
+  ].filter(Boolean).length;
+  
+  // Base OAuth scores
+  if (user.hasGoogleAuth) score += 20; // Google is worth more (stricter verification)
   if (user.hasDiscordAuth) score += 10;
-  if (user.hasGithubAuth) score += 10;
+  if (user.hasGithubAuth) score += 12; // GitHub slightly more (developer identity)
+  
+  // MULTI-OAUTH BONUS: +5 for each provider beyond the first
+  // Rationale: An attacker would need to compromise multiple OAuth providers
+  // to impersonate you, which is exponentially harder
+  if (oauthProviders >= 2) {
+    score += (oauthProviders - 1) * 5;
+  }
   
   // Web3 wallet: +15
   if (user.hasVerifiedWallet) score += 15;

@@ -17,7 +17,7 @@ import { MdAddCircleOutline, MdBusiness } from "react-icons/md";
 import { CiCircleCheck, CiInboxIn } from "react-icons/ci";
 import { TiMessages } from "react-icons/ti";
 import { FaStore } from "react-icons/fa";
-import { FiSend, FiUser } from "react-icons/fi";
+import { FiSend, FiUser, FiShoppingCart, FiCreditCard } from "react-icons/fi";
 import { PulseHeart } from "@/components/uicustom/icons/PulseIcons";
 
 type MyDialogbarNavigatorProps = {
@@ -79,6 +79,8 @@ export const MyDialogbarNavigator = ({ onOpen, variant = "default", open, onOpen
         items: [
           { href: "/products", label: "Marketplace", icon: <FaStore className="h-4 w-4" /> },
           { href: "/products/create", label: "Create listing", icon: <MdAddCircleOutline className="h-4 w-4" /> },
+          { href: "/cart", label: "Shopping Cart", icon: <FiShoppingCart className="h-4 w-4" /> },
+          { href: "/checkout", label: "Checkout", icon: <FiCreditCard className="h-4 w-4" /> },
         ],
       },
       {
@@ -91,7 +93,7 @@ export const MyDialogbarNavigator = ({ onOpen, variant = "default", open, onOpen
       {
         group: "Community",
         items: [
-            { href: "/pulse", label: "Pulse", icon: <PulseHeart className="h-4 w-4" /> },
+          { href: "/pulse", label: "Pulse", icon: <PulseHeart className="h-4 w-4" /> },
           { href: "/conversations", label: "Messages", icon: <TiMessages className="h-4 w-4" /> },
         ],
       },
@@ -123,7 +125,7 @@ export const MyDialogbarNavigator = ({ onOpen, variant = "default", open, onOpen
           onClick={openDialog}
           className={
             variant === "topbar"
-              ? "group inline-flex h-10 w-10 items-center justify-center bg-transparent text-slate-700 hover:bg-transparent hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 dark:text-slate-200 dark:hover:text-slate-50"
+              ? "group inline-flex h-10 w-10 items-center justify-center bg-transparent text-zinc-700 hover:bg-transparent hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 dark:text-zinc-200 dark:hover:text-zinc-50"
               : "flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
           }
           aria-label="Open Nexus command palette"

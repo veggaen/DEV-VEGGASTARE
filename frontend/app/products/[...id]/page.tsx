@@ -6,11 +6,12 @@ import ProductClient from "./ProductClient";
 
 export default function Page() {
   const { id } = useParams();
-  const productId = Array.isArray(id) ? id[0] : id;
+  // Catch-all route can include extra segments; treat the last segment as the product id.
+  const productId = Array.isArray(id) ? id[id.length - 1] : id;
 
-  if (!productId) {
+  if (typeof productId !== "string" || !productId) {
     return (
-      <div className="p-6 text-sm text-slate-600 dark:text-slate-300">
+      <div className="p-6 text-sm text-zinc-600 dark:text-zinc-300">
         Invalid product link.
       </div>
     );

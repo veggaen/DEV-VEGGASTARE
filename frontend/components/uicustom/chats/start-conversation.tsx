@@ -86,9 +86,9 @@ function StartConversationForm() {
   const style = {
     baseRoot: 'flex flex-col justify-center items-start w-full px-4 py-2',
     baseItem: 'flex flex-col md:flex-row justify-between items-center w-full px-4 py-4 hover:bg-white/30 dark:hover:bg-black/30 transition-colors duration-300 rounded',
-    txtArea: 'p-2 w-full border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
-    input: 'p-2 w-full border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
-    inputCheckbox: 'border bg-slate-50 hover:bg-slate-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
+    txtArea: 'p-2 w-full border bg-zinc-50 hover:bg-zinc-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
+    input: 'p-2 w-full border bg-zinc-50 hover:bg-zinc-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
+    inputCheckbox: 'border bg-zinc-50 hover:bg-zinc-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
     dropzone: 'border border-dashed border-gray-400 dark:border-gray-400 rounded-md p-2 text-center',
   };
 

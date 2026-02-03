@@ -56,87 +56,106 @@
 
     /* App layout tokens */
     --app-header: 72px;
-	    /*
-	     * Actual sticky header height (can be larger than --app-header when the
-	     * TopBar adds vertical padding in its "floating" state).
-	     * JS updates this from the rendered header height.
-	     */
-	    --app-header-offset: var(--app-header);
+    --app-header-offset: var(--app-header);
+    --products-controls-offset: 0px;
+    --products-controls-height: 0px;
 
-		    /* /products sticky controls bar height (set dynamically when stuck). */
-		    --products-controls-offset: 0px;
-		    /* /products controls bar rendered height (always measured; used for alignment). */
-		    --products-controls-height: 0px;
+    /* ─────────────────────────────────────────────────────────────────────────
+     * CLEAN LIGHT THEME - Pure white base, neutral grays (no blue tint)
+     * Enhanced surface contrast for better visual hierarchy
+     * ───────────────────────────────────────────────────────────────────────── */
+    --background: 0 0% 99%;          /* #fcfcfc - Near white (slightly off-white) */
+    --foreground: 0 0% 9%;           /* #171717 - zinc-900 */
 
-    /* shadcn/ui base tokens */
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Surface hierarchy for depth (more pronounced for light mode) */
+    --surface-1: 0 0% 100%;          /* #ffffff - raised cards (white stands out) */
+    --surface-2: 0 0% 97%;           /* #f7f7f7 - subtle panels */
+    --surface-3: 0 0% 94%;           /* #f0f0f0 - distinct raised areas */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;               /* Pure white cards for contrast against bg */
+    --card-foreground: 0 0% 9%;
  
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 0 0% 9%;
  
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 0 0% 9%;              /* Dark primary */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
  
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 0 0% 94%;           /* More visible secondary */
+    --secondary-foreground: 0 0% 9%;
  
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 0 0% 94%;               /* More visible muted (#f0f0f0) */
+    --muted-foreground: 0 0% 40%;    /* Darker muted text for better readability */
  
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 0 0% 96%;              /* zinc-100 - accent surfaces */
+    --accent-foreground: 0 0% 9%;
  
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 0 0% 87%;              /* More visible borders (#dedede) */
+    --input: 0 0% 97%;               /* Very light input backgrounds */
+    --ring: 0 0% 50%;                /* Darker focus rings for visibility */
  
-	    --radius: 0.5rem;
+    --radius: 0.5rem;
 
-			/* Scrollbar colors (used by ::-webkit-scrollbar rules above) */
-			--scrollbar-track: transparent;
-			--scrollbar-thumb: rgba(15, 23, 42, 0.22);
-			--scrollbar-thumb-hover: rgba(15, 23, 42, 0.38);
+    /* Scrollbar */
+    --scrollbar-track: transparent;
+    --scrollbar-thumb: rgba(0, 0, 0, 0.12);
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
+
+    /* Profile/accent theming (overridden per-page when on user profiles) */
+    --theme-accent: 0 0% 9%;
+    --theme-accent-foreground: 0 0% 100%;
+    --theme-accent-muted: 0 0% 96%;
   }
  
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* ─────────────────────────────────────────────────────────────────────────
+     * CLEAN DARK THEME - True black base, neutral zinc grays (NO blue tint)
+     * Think: Linear.app, Vercel dashboard, premium dark mode
+     * ───────────────────────────────────────────────────────────────────────── */
+    --background: 0 0% 0%;           /* #000000 - True black */
+    --foreground: 0 0% 98%;          /* #fafafa - Near white */
+
+    /* Surface hierarchy for depth (zinc-based, no blue undertones) */
+    --surface-1: 0 0% 4%;            /* #0a0a0a - flush/cards (zinc-950) */
+    --surface-2: 0 0% 7%;            /* #121212 - slight elevation */
+    --surface-3: 0 0% 10%;           /* #1a1a1a - raised panels (zinc-900) */
  
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 4%;                 /* #0a0a0a - cards flush with bg */
+    --card-foreground: 0 0% 98%;
  
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 7%;              /* #121212 - popover surface */
+    --popover-foreground: 0 0% 98%;
  
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 0 0% 98%;             /* Near white primary */
+    --primary-foreground: 0 0% 4%;   /* Dark text on primary */
  
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 10%;           /* #1a1a1a - secondary surfaces */
+    --secondary-foreground: 0 0% 98%;
  
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 0 0% 14%;               /* #242424 - muted backgrounds (zinc-800) */
+    --muted-foreground: 0 0% 64%;    /* #a3a3a3 - muted text (zinc-400) */
  
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 0 0% 14%;              /* #242424 - accent surfaces */
+    --accent-foreground: 0 0% 98%;
  
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
  
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-	    --ring: 212.7 26.8% 83.9%;
+    --border: 0 0% 16%;              /* #292929 - subtle borders (zinc-800) */
+    --input: 0 0% 10%;               /* #1a1a1a - input backgrounds */
+    --ring: 0 0% 80%;                /* zinc-200 - focus rings */
 
-			--scrollbar-track: transparent;
-			--scrollbar-thumb: rgba(226, 232, 240, 0.22);
-			--scrollbar-thumb-hover: rgba(226, 232, 240, 0.38);
+    --scrollbar-track: transparent;
+    --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+
+    /* Profile/accent theming (overridden per-page when on user profiles) */
+    --theme-accent: 0 0% 98%;
+    --theme-accent-foreground: 0 0% 4%;
+    --theme-accent-muted: 0 0% 14%;
   }
 }
 /*  
@@ -219,23 +238,109 @@ body {
 }
 
 
-/* Backdrop gradients: support both legacy body.* classes and the canonical html.dark class */
+/* ─────────────────────────────────────────────────────────────────────────────
+ * CLEAN NEUTRAL BACKGROUNDS - No colored gradients, pure black/white base
+ * Profile pages with [data-theme-tinted] get their own accent-based tints
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/* Light mode: pure white, subtle neutral grain for depth */
 html:not(.dark) body,
 body.light-mode {
-  background-image:
-    radial-gradient(900px circle at 10% 10%, rgba(56, 189, 248, 0.22), transparent 55%),
-    radial-gradient(700px circle at 90% 15%, rgba(168, 85, 247, 0.18), transparent 55%),
-    radial-gradient(900px circle at 50% 95%, rgba(34, 197, 94, 0.14), transparent 60%),
-    linear-gradient(120deg, rgb(248, 250, 252) 0%, rgb(226, 232, 240) 50%, rgb(248, 250, 252) 100%);
+  background-color: #fcfcfc;
+  background-image: none;
 }
 
+/* Dark mode: true black, clean and premium */
 html.dark body,
 body.dark-mode {
+  background-color: #000000;
+  background-image: none;
+}
+
+/* Light mode card shadows for depth */
+/* ─── Light Mode Card & Surface Enhancements ─── */
+/* Make cards more prominent with shadows in light mode */
+html:not(.dark) .card,
+html:not(.dark) [data-card] {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+html:not(.dark) .card:hover,
+html:not(.dark) [data-card]:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Light mode: Make borders more visible */
+html:not(.dark) .border {
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+html:not(.dark) .border-2 {
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Light mode: Enhance rounded panels with subtle shadow */
+html:not(.dark) .rounded-xl,
+html:not(.dark) .rounded-2xl {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+/* Light mode: Surface-1 cards (white on off-white bg) */
+html:not(.dark) .bg-surface-1\/30,
+html:not(.dark) .bg-surface-1\/50 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Light mode: Stronger accent for selected/active states */
+html:not(.dark) .bg-emerald-500\/10 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+
+html:not(.dark) .bg-emerald-500\/20 {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+}
+
+/* Light mode: Make icon backgrounds more visible */
+html:not(.dark) [style*="backgroundColor"][style*="15"] {
+  filter: saturate(1.2);
+}
+
+/* Light mode: Enhance profile page pillar cards */
+html:not(.dark) .group.rounded-xl[style*="background: linear-gradient"] {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* ─── Optional: Very subtle ambient gradient (disabled by default) ─── */
+/* Enable with .enable-ambient-bg class on body when user opts-in via preferences */
+
+html:not(.dark) body.enable-ambient-bg {
   background-image:
-    radial-gradient(900px circle at 10% 10%, rgba(56, 189, 248, 0.14), transparent 55%),
-    radial-gradient(700px circle at 90% 15%, rgba(168, 85, 247, 0.12), transparent 55%),
-    radial-gradient(900px circle at 50% 95%, rgba(34, 197, 94, 0.10), transparent 60%),
-    linear-gradient(120deg, rgb(2, 6, 23) 0%, rgb(15, 23, 42) 50%, rgb(2, 6, 23) 100%);
+    radial-gradient(800px ellipse at 20% 0%, rgba(0, 0, 0, 0.015), transparent 60%),
+    radial-gradient(600px ellipse at 80% 100%, rgba(0, 0, 0, 0.01), transparent 50%);
+}
+
+html.dark body.enable-ambient-bg {
+  background-image:
+    radial-gradient(800px ellipse at 20% 0%, rgba(255, 255, 255, 0.015), transparent 60%),
+    radial-gradient(600px ellipse at 80% 100%, rgba(255, 255, 255, 0.01), transparent 50%);
+}
+
+/* ─── Profile page theming: when [data-theme-tinted] is present ─── */
+/* These accent colors are set via CSS custom properties from banner extraction */
+
+[data-theme-tinted] {
+  --theme-glow: var(--theme-accent);
+}
+
+html:not(.dark) [data-theme-tinted] {
+  background-image:
+    radial-gradient(800px ellipse at 50% -200px, hsl(var(--theme-accent) / 0.06), transparent 70%);
+}
+
+html.dark [data-theme-tinted] {
+  background-image:
+    radial-gradient(800px ellipse at 50% -200px, hsl(var(--theme-accent) / 0.08), transparent 70%);
 }
 
 .pppage {

@@ -131,7 +131,7 @@ function CategoryDropdown({ group, availableCategories, selectedCategories, onCa
             transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
             className="absolute top-full left-0 mt-1 z-50 min-w-[200px] max-w-[280px]"
           >
-            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden">
+            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden">
               {/* Header with gradient */}
               <div className={cn("px-3 py-2 bg-gradient-to-r text-white text-xs font-medium", group.color)}>
                 {group.label} Categories
@@ -146,7 +146,7 @@ function CategoryDropdown({ group, availableCategories, selectedCategories, onCa
                       onClick={() => onCategoryToggle(cat.category)}
                       className={cn(
                         "w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-150",
-                        "hover:bg-slate-100 dark:hover:bg-white/[0.06]",
+                        "hover:bg-zinc-100 dark:hover:bg-white/[0.06]",
                         isSelected && "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
                       )}
                     >
@@ -155,7 +155,7 @@ function CategoryDropdown({ group, availableCategories, selectedCategories, onCa
                         "text-xs tabular-nums px-1.5 py-0.5 rounded-full",
                         isSelected 
                           ? "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300"
-                          : "bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400"
+                          : "bg-zinc-100 dark:bg-white/[0.06] text-zinc-500 dark:text-zinc-400"
                       )}>
                         {cat.count}
                       </span>
@@ -239,8 +239,8 @@ function AllCategoriesDropdown({
             transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
             className="absolute top-full left-0 mt-1 z-50 min-w-[220px] max-w-[300px]"
           >
-            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden">
-              <div className="px-3 py-2 bg-gradient-to-r from-slate-600 to-slate-700 text-white text-xs font-medium">
+            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden">
+              <div className="px-3 py-2 bg-gradient-to-r from-zinc-600 to-zinc-700 text-white text-xs font-medium">
                 Browse All Categories
               </div>
               
@@ -253,7 +253,7 @@ function AllCategoriesDropdown({
                       onClick={() => onCategoryToggle(cat.category)}
                       className={cn(
                         "w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-150",
-                        "hover:bg-slate-100 dark:hover:bg-white/[0.06]",
+                        "hover:bg-zinc-100 dark:hover:bg-white/[0.06]",
                         isSelected && "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
                       )}
                     >
@@ -262,7 +262,7 @@ function AllCategoriesDropdown({
                         "text-xs tabular-nums px-1.5 py-0.5 rounded-full",
                         isSelected 
                           ? "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300"
-                          : "bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400"
+                          : "bg-zinc-100 dark:bg-white/[0.06] text-zinc-500 dark:text-zinc-400"
                       )}>
                         {cat.count}
                       </span>
@@ -298,11 +298,11 @@ export function CategorySubBar() {
 
   if (categoriesLoading) {
     return (
-      <div className="border-b border-black/5 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/30">
+      <div className="border-b border-black/5 dark:border-white/5 bg-zinc-50/50 dark:bg-zinc-900/30">
         <div className="mx-auto max-w-screen-2xl px-3 sm:px-4 md:px-6">
           <div className="flex items-center gap-2 py-2 overflow-x-auto">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-9 w-24 rounded-lg bg-slate-200/50 dark:bg-white/5 animate-pulse" />
+              <div key={i} className="h-9 w-24 rounded-lg bg-zinc-200/50 dark:bg-white/5 animate-pulse" />
             ))}
           </div>
         </div>
@@ -311,7 +311,7 @@ export function CategorySubBar() {
   }
 
   return (
-    <div className="border-b border-black/5 dark:border-white/5 bg-gradient-to-r from-slate-50/80 via-white/60 to-slate-50/80 dark:from-slate-900/40 dark:via-slate-800/30 dark:to-slate-900/40">
+    <div className="border-b border-black/5 dark:border-white/5 bg-gradient-to-r from-zinc-50/80 via-white/60 to-zinc-50/80 dark:from-zinc-900/40 dark:via-zinc-800/30 dark:to-zinc-900/40">
       <div className="mx-auto max-w-screen-2xl px-3 sm:px-4 md:px-6">
         <div className="flex items-center gap-1 py-2 overflow-x-auto scrollbar-hide">
           {/* All Categories dropdown */}
@@ -348,8 +348,8 @@ export function CategorySubBar() {
                   href={filter.href}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-                    "text-slate-600 dark:text-slate-400",
-                    "hover:bg-white/60 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-slate-200"
+                    "text-zinc-600 dark:text-zinc-400",
+                    "hover:bg-white/60 dark:hover:bg-white/[0.08] hover:text-zinc-900 dark:hover:text-zinc-200"
                   )}
                 >
                   <Icon className="h-4 w-4" />

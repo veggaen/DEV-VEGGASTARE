@@ -27,6 +27,7 @@ export const fetchProductById = cache(async (id: string): Promise<Product | null
           },
         },
         Inventory: true,
+        ProductAcceptedToken: true,
       },
     });
 

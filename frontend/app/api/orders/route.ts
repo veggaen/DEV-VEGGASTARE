@@ -5,6 +5,8 @@ import { NextResponse } from 'next/server';
 import { PaymentMethod } from '@prisma/client';
 import { z } from 'zod';
 import { OrderDtoSchema } from '@/lib/types/orders';
+import { sendOrderConfirmationEmail } from '@/lib/mail';
+import { generateDownloadTokensForOrder } from '@/lib/download-tokens';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -13,6 +15,14 @@ function toIsoString(value: unknown): string {
   if (typeof value === 'string' && value) return value;
   return new Date(String(value)).toISOString();
 }
+
+// Schema for order items from checkout
+const OrderItemSchema = z.object({
+  productId: z.string().min(1),
+  quantity: z.coerce.number().int().positive(),
+  priceAtTime: z.coerce.number().nonnegative(),
+  title: z.string().min(1).max(500),
+});
 
 export async function POST(req: Request) {
   const session = await MyLibUserAuth();
@@ -29,11 +39,28 @@ export async function POST(req: Request) {
       commentOrder: z.string().trim().max(2000).optional().nullable(),
       commentPay: z.string().trim().max(2000).optional().nullable(),
       method: z.nativeEnum(PaymentMethod).optional().nullable(),
+      // Shipping fields
+      shippingName: z.string().trim().min(2).max(200).optional().nullable(),
+      shippingAddress: z.string().trim().min(3).max(500).optional().nullable(),
+      shippingCity: z.string().trim().min(2).max(100).optional().nullable(),
+      shippingPostalCode: z.string().trim().min(4).max(10).optional().nullable(),
+      shippingCountry: z.string().trim().length(2).default('NO'),
+      shippingPhone: z.string().trim().max(20).optional().nullable(),
+      shippingEmail: z.string().email().optional().nullable(),
+      shippingMethod: z.string().trim().max(100).optional().nullable(),
+      shippingCost: z.coerce.number().nonnegative().optional().nullable(),
+      // Order items
+      items: z.array(OrderItemSchema).optional(),
     })
   );
   if (!bodyResult.ok) return bodyResult.response;
 
-  const { totalAmount, transactionId, commentOrder, commentPay, method } = bodyResult.data;
+  const { 
+    totalAmount, transactionId, commentOrder, commentPay, method,
+    shippingName, shippingAddress, shippingCity, shippingPostalCode, 
+    shippingCountry, shippingPhone, shippingEmail, shippingMethod, shippingCost,
+    items 
+  } = bodyResult.data;
 
   try {
     const order = await dbPrisma.order.create({
@@ -43,6 +70,16 @@ export async function POST(req: Request) {
         status: 'COMPLETED',
         transactionId: transactionId ?? null,
         commentOrder: commentOrder?.trim() || '',
+        // Shipping info
+        shippingName: shippingName ?? null,
+        shippingAddress: shippingAddress ?? null,
+        shippingCity: shippingCity ?? null,
+        shippingPostalCode: shippingPostalCode ?? null,
+        shippingCountry: shippingCountry ?? 'NO',
+        shippingPhone: shippingPhone ?? null,
+        shippingEmail: shippingEmail ?? null,
+        shippingMethod: shippingMethod ?? null,
+        shippingCost: shippingCost ?? null,
         Payment: {
           create: {
             commentPay: commentPay?.trim() || '',
@@ -51,11 +88,64 @@ export async function POST(req: Request) {
             transactionId: transactionId ?? null,
           },
         },
+        // Create order items if provided
+        ...(items && items.length > 0 ? {
+          OrderItem: {
+            create: items.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              priceAtTime: item.priceAtTime,
+              title: item.title,
+            })),
+          },
+        } : {}),
       },
       include: {
         Payment: true,
+        OrderItem: true,
       },
     });
+
+    // Generate download tokens for digital products
+    let downloadTokens: Awaited<ReturnType<typeof generateDownloadTokensForOrder>> = [];
+    if (items && items.length > 0) {
+      try {
+        const orderItemsWithIds = order.OrderItem.map((oi, idx) => ({
+          id: oi.id,
+          productId: items[idx]?.productId || oi.productId,
+        }));
+        downloadTokens = await generateDownloadTokensForOrder({
+          orderId: order.id,
+          userId: session.id,
+          orderItems: orderItemsWithIds,
+        });
+      } catch (tokenError) {
+        console.error('[api/orders] Failed to generate download tokens:', tokenError);
+        // Don't fail the order if token generation fails
+      }
+    }
+
+    // Send order confirmation email
+    const emailTo = shippingEmail || session.email;
+    if (emailTo) {
+      try {
+        await sendOrderConfirmationEmail(emailTo, {
+          orderId: order.id,
+          name: shippingName || 'Kunde',
+          items: items ?? [],
+          totalAmount,
+          shippingAddress: shippingAddress ?? '',
+          shippingCity: shippingCity ?? '',
+          shippingPostalCode: shippingPostalCode ?? '',
+          shippingCountry: shippingCountry ?? 'NO',
+          transactionId: transactionId ?? undefined,
+          downloadLinks: downloadTokens.length > 0 ? downloadTokens : undefined,
+        });
+      } catch (emailError) {
+        console.error('[api/orders] Failed to send confirmation email:', emailError);
+        // Don't fail the order if email fails
+      }
+    }
 
     const payment = order.Payment
       ? {

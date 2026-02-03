@@ -90,8 +90,8 @@ export const PriceSlider = ({
     };
   }, [trackPadding]);
 
-  // Calculate values
-  const range = rangeMax - rangeMin;
+  // Calculate values - ensure range is never 0 to avoid division by zero
+  const range = Math.max(1, rangeMax - rangeMin);
   const effectiveMin = minValue ?? rangeMin;
   const effectiveMax = maxValue ?? rangeMax;
   const minPercent = (effectiveMin - rangeMin) / range;
@@ -116,12 +116,18 @@ export const PriceSlider = ({
 
   // Convert value to pixel offset
   const valueToPx = useCallback((value: number) => {
-    return ((value - rangeMin) / range) * trackWidth;
+    // Safety checks to prevent NaN
+    if (trackWidth <= 0 || !Number.isFinite(value) || !Number.isFinite(rangeMin) || range <= 0) {
+      return 0;
+    }
+    const px = ((value - rangeMin) / range) * trackWidth;
+    return Number.isFinite(px) ? px : 0;
   }, [rangeMin, range, trackWidth]);
 
   // Current positions in pixels (within usable track area)
-  const minPx = valueToPx(effectiveMin);
-  const maxPx = valueToPx(effectiveMax);
+  // Ensure we have valid numbers before rendering
+  const minPx = Number.isFinite(valueToPx(effectiveMin)) ? valueToPx(effectiveMin) : 0;
+  const maxPx = Number.isFinite(valueToPx(effectiveMax)) ? valueToPx(effectiveMax) : 0;
 
   const clampPx = useCallback((px: number, min: number, max: number) => {
     return Math.max(min, Math.min(px, max));
@@ -353,7 +359,7 @@ export const PriceSlider = ({
       <div className="flex items-center justify-between gap-2 mb-3">
         {/* Min value - clickable/editable */}
         <div className="min-w-0 flex-1">
-          <div className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">From</div>
+          <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">From</div>
           {editingMin ? (
             <input
               ref={minInputRef}
@@ -363,14 +369,14 @@ export const PriceSlider = ({
               onChange={(e) => setMinInputValue(e.target.value)}
               onBlur={handleMinBlur}
               onKeyDown={handleMinKeyDown}
-              className="w-full h-6 bg-white/60 dark:bg-white/[0.08] border border-emerald-400/50 dark:border-emerald-500/40 rounded px-1.5 text-sm font-medium text-slate-800 dark:text-slate-200 tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/50"
+              className="w-full h-6 bg-white/60 dark:bg-white/[0.08] border border-emerald-400/50 dark:border-emerald-500/40 rounded px-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-200 tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/50"
               autoFocus
             />
           ) : (
             <button
               type="button"
               onClick={handleMinClick}
-              className="group w-full text-left text-sm font-medium text-slate-800 dark:text-slate-200 tabular-nums truncate rounded px-1 -mx-1 py-0.5 -my-0.5 hover:bg-white/40 dark:hover:bg-white/[0.06] transition-colors cursor-text border border-transparent hover:border-emerald-400/30 dark:hover:border-emerald-500/20"
+              className="group w-full text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 tabular-nums truncate rounded px-1 -mx-1 py-0.5 -my-0.5 hover:bg-white/40 dark:hover:bg-white/[0.06] transition-colors cursor-text border border-transparent hover:border-emerald-400/30 dark:hover:border-emerald-500/20"
               title="Click to edit"
             >
               {formatValue(effectiveMin)}
@@ -378,11 +384,11 @@ export const PriceSlider = ({
           )}
         </div>
         
-        <div className="text-slate-300 dark:text-slate-600 text-xs select-none">–</div>
+        <div className="text-zinc-300 dark:text-zinc-600 text-xs select-none">–</div>
         
         {/* Max value - clickable/editable */}
         <div className="min-w-0 flex-1 text-right">
-          <div className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">To</div>
+          <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">To</div>
           {editingMax ? (
             <input
               ref={maxInputRef}
@@ -392,14 +398,14 @@ export const PriceSlider = ({
               onChange={(e) => setMaxInputValue(e.target.value)}
               onBlur={handleMaxBlur}
               onKeyDown={handleMaxKeyDown}
-              className="w-full h-6 bg-white/60 dark:bg-white/[0.08] border border-violet-400/50 dark:border-violet-500/40 rounded px-1.5 text-sm font-medium text-slate-800 dark:text-slate-200 tabular-nums text-right outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
+              className="w-full h-6 bg-white/60 dark:bg-white/[0.08] border border-violet-400/50 dark:border-violet-500/40 rounded px-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-200 tabular-nums text-right outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
               autoFocus
             />
           ) : (
             <button
               type="button"
               onClick={handleMaxClick}
-              className="group w-full text-right text-sm font-medium text-slate-800 dark:text-slate-200 tabular-nums truncate rounded px-1 -mx-1 py-0.5 -my-0.5 hover:bg-white/40 dark:hover:bg-white/[0.06] transition-colors cursor-text border border-transparent hover:border-violet-400/30 dark:hover:border-violet-500/20"
+              className="group w-full text-right text-sm font-medium text-zinc-800 dark:text-zinc-200 tabular-nums truncate rounded px-1 -mx-1 py-0.5 -my-0.5 hover:bg-white/40 dark:hover:bg-white/[0.06] transition-colors cursor-text border border-transparent hover:border-violet-400/30 dark:hover:border-violet-500/20"
               title="Click to edit"
             >
               {formatValue(effectiveMax)}
@@ -419,7 +425,7 @@ export const PriceSlider = ({
       >
         {/* Background track */}
         <div
-          className="absolute h-1.5 rounded-full bg-slate-200/60 dark:bg-white/[0.08]"
+          className="absolute h-1.5 rounded-full bg-zinc-200/60 dark:bg-white/[0.08]"
           style={{ left: trackPadding, right: trackPadding }}
         />
 
@@ -498,8 +504,8 @@ export const PriceSlider = ({
           {/* Handle body - scale effect on hover/active via CSS to avoid position jump */}
           <div className={cn(
             "relative w-5 h-5 rounded-full shadow-md transition-transform duration-150",
-            "bg-gradient-to-br from-white to-slate-100",
-            "dark:from-slate-600 dark:to-slate-800",
+            "bg-gradient-to-br from-white to-zinc-100",
+            "dark:from-zinc-600 dark:to-zinc-800",
             "border-2 border-emerald-500 dark:border-emerald-400",
             "hover:scale-110 active:scale-115",
             isDragging === 'min' && "scale-115"
@@ -552,8 +558,8 @@ export const PriceSlider = ({
           {/* Handle body - scale effect on hover/active via CSS to avoid position jump */}
           <div className={cn(
             "relative w-5 h-5 rounded-full shadow-md transition-transform duration-150",
-            "bg-gradient-to-br from-white to-slate-100",
-            "dark:from-slate-600 dark:to-slate-800",
+            "bg-gradient-to-br from-white to-zinc-100",
+            "dark:from-zinc-600 dark:to-zinc-800",
             "border-2 border-violet-500 dark:border-violet-400",
             "hover:scale-110 active:scale-115",
             isDragging === 'max' && "scale-115"
@@ -564,7 +570,7 @@ export const PriceSlider = ({
       </div>
 
       {/* Range labels */}
-      <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+      <div className="flex items-center justify-between mt-1 text-[10px] text-zinc-400 dark:text-zinc-500">
         <span>{formatValue(rangeMin)}</span>
         <span>{formatValue(rangeMax)}</span>
       </div>

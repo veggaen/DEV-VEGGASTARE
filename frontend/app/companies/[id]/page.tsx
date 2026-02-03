@@ -159,10 +159,10 @@ export default async function CompanyPublicPage({
       <div className="mx-auto w-full max-w-screen-2xl px-4 pb-12">
         <div className="pt-8">
           <div className="flex items-end justify-between gap-4">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-200">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-700 dark:text-zinc-200">
               Products
             </h2>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
+            <div className="text-xs text-zinc-500 dark:text-zinc-400">
               Latest first
             </div>
           </div>
@@ -182,10 +182,10 @@ export default async function CompanyPublicPage({
                       ) : null}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                      <div className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
                         {p.category}
                       </div>
-                      <div className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      <div className="mt-1 line-clamp-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                         {p.title}
                       </div>
                       <div className="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
@@ -197,7 +197,7 @@ export default async function CompanyPublicPage({
               ))}
             </div>
           ) : (
-            <div className="mt-4 text-sm text-slate-600 dark:text-slate-300">No products yet.</div>
+            <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-300">No products yet.</div>
           )}
 
           {/* Company Reach Analytics */}

@@ -1,6 +1,6 @@
 'use client'
 
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 import { MyLoginForm2 } from "../forms/login-form2";
 
@@ -31,6 +31,10 @@ export const MyLoginButton = ({
                     {children}
                 </DialogTrigger>
                 <DialogContent className='p-0 w-auto bg-transparent border-none'>
+                    <DialogTitle className="sr-only">Sign In</DialogTitle>
+                    <DialogDescription className="sr-only">
+                        Sign in to your account using email/password or social providers.
+                    </DialogDescription>
                     <MyLoginForm2 />
                 </DialogContent>
             </Dialog>

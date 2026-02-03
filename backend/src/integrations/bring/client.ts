@@ -63,33 +63,47 @@ export class LiveBringProvider implements BringProvider {
       width: Number(p.width),
       height: Number(p.height),
       grossWeight: Number(p.grossWeight),
+      // Bring API fields
+      nonStackable: false,
+      numberOfPallets: 0,
+      volumeSpecial: false,
     }));
 
     // Shipping Guide API v2 expects consignments[] payload.
-    // Note: customerNumber is sometimes required for richer pricing responses.
+    // According to Bring docs: customerNumber must be INSIDE the products array for pricing
     const body = {
       language: req.language ?? 'en',
       withPrice: true,
-      withExpectedDelivery: false,
+      withExpectedDelivery: true,
       withGuiInformation: true,
       numberOfAlternativeDeliveryDates: 0,
       edi: true,
-      postingAtPostOffice: true,
-      trace: true,
+      postingAtPostOffice: false,
+      trace: false,
+      withEnvironmentalData: false,
       consignments: [
         {
-          id: 1,
-          products: [{ id: '5800' }],
+          id: '1',
+          // Product with customerNumber for pricing - using 5800 (Pickup Parcel) as default
+          products: [
+            {
+              id: '5800',
+              ...(req.customerNumber ? { customerNumber: req.customerNumber } : {}),
+            },
+          ],
+          additionalServices: [],
           fromCountryCode: req.fromCountryCode,
           toCountryCode: req.toCountryCode,
           fromPostalCode: req.fromPostalCode,
           toPostalCode: req.toPostalCode,
           shippingDate: nowShippingDate(),
           packages,
-          ...(req.customerNumber ? { customerNumber: req.customerNumber } : {}),
+          pickupPoints: [],
         },
       ],
     };
+
+    console.log('[bring/client.ts] Calling Bring API with body:', JSON.stringify(body, null, 2));
 
     const response = await fetch(
       'https://api.bring.com/shippingguide/api/v2/products',
@@ -101,6 +115,8 @@ export class LiveBringProvider implements BringProvider {
     );
 
     const text = await response.text();
+    console.log('[bring/client.ts] Bring API response status:', response.status, 'body:', text.substring(0, 500));
+    
     if (!response.ok) {
       throw new Error(`Bring Shipping Guide error (${response.status}): ${text}`);
     }

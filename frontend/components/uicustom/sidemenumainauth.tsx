@@ -6,7 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { MySidebarToggleBtn } from "./sidebartogglebtn";
 import { LogoutMyAction } from "@/actions/logout";
 import { usePathname } from "next/navigation";
-import { FiGrid, FiMessageSquare, FiPackage, FiSettings, FiShoppingCart, FiLogOut } from "react-icons/fi";
+import { FiGrid, FiMessageSquare, FiPackage, FiSettings, FiShoppingCart, FiCreditCard, FiLogOut } from "react-icons/fi";
 import { PulseHeart } from "@/components/uicustom/icons/PulseIcons";
 
 const LOG_PREFIX = '[[USE CLIENT] sidemenumainauth.tsx.tsx]'
@@ -23,7 +23,8 @@ export const MyMenuSide = () => {
       { href: "/pulse", label: "Pulse", icon: PulseHeart },
       { href: "/conversations", label: "Conversations", icon: FiMessageSquare },
       { href: "/cart", label: "Cart", icon: FiShoppingCart },
-      { href: "/nexus", label: "Settings", icon: FiSettings },
+      { href: "/checkout", label: "Checkout", icon: FiCreditCard },
+      { href: "/settings", label: "Settings", icon: FiSettings },
     ],
     []
   );
@@ -39,7 +40,7 @@ export const MyMenuSide = () => {
 
   return (
     <aside
-      className={`MyMenuSideMainRoot h-[calc(100dvh-var(--app-header))] border-r border-black/10 dark:border-white/10 bg-white/50 dark:bg-black/20 text-slate-900 dark:text-slate-100 backdrop-blur-xl ${
+      className={`MyMenuSideMainRoot h-[calc(100dvh-var(--app-header))] border-r border-black/10 dark:border-white/10 bg-white/50 dark:bg-black/20 text-zinc-900 dark:text-zinc-100 backdrop-blur-xl ${
         isSidebarCollapsed ? "w-[64px]" : "w-[280px]"
       } transition-[width] duration-200 ease-out overflow-hidden`}
     >
@@ -82,7 +83,7 @@ export const MyMenuSide = () => {
                         `h-4 w-4 shrink-0 transition-transform duration-200 ` +
                         (active
                           ? "text-sky-600 dark:text-sky-400"
-                          : "text-slate-600 dark:text-slate-300") +
+                          : "text-zinc-600 dark:text-zinc-300") +
                         (item.href === "/pulse" ? " group-hover:-rotate-6 group-hover:scale-110" : "")
                       }
                     />
@@ -102,7 +103,7 @@ export const MyMenuSide = () => {
             className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50`}
             title={isSidebarCollapsed ? "Logout" : undefined}
           >
-            <FiLogOut className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+            <FiLogOut className="h-4 w-4 text-zinc-600 dark:text-zinc-300" />
             <span className={`${isSidebarCollapsed ? "hidden" : ""}`}>{isPending ? "Signing out..." : "Logout"}</span>
           </button>
         </div>

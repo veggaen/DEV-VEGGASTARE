@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useState, useEffect } from 'react';
 import type { EmployeePermissions } from '@/lib/types/company-permissions';
+import { PERMISSION_GROUPS, PERMISSION_LABELS } from '@/lib/permissions';
 import { editCompanyEmployeePermissionAction } from '@/actions/edit-company-employee-permission';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import type { ExtendedCompany, ExtendedEmployee } from '@/lib/types/company-management';
@@ -35,25 +36,47 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
   const [success, setSuccess] = useState<boolean>(false);
   const [showOwnerWarning, setShowOwnerWarning] = useState(false);
   const [permissions, setPermissions] = useState<EmployeePermissions>({
+    // Employee Management
+    CAN_ADD_EMPLOYEE: false,
     CAN_REMOVE_EMPLOYEE: false,
+    CAN_EDIT_EMPLOYEE_ROLE: false,
     CAN_EDIT_PERMISSION: false,
+    // Company Management
+    CAN_DELETE_COMPANY: false,
+    CAN_EDIT_COMPANY_DETAILS: false,
+    CAN_MANAGE_WAREHOUSES: false,
+    // Product Management
     CAN_POST_PRODUCT_POSITION_PERMISSION: false,
     CAN_EDIT_PRODUCT_POSITION_PERMISSION: false,
-    CAN_DELETE_COMPANY: false,
-    CAN_ADD_EMPLOYEE: false,
-    CAN_EDIT_EMPLOYEE_ROLE: false,
+    CAN_DELETE_PRODUCT: false,
+    CAN_VIEW_ANALYTICS: false,
+    // Financial
+    CAN_VIEW_SALES: false,
+    CAN_MANAGE_PRICING: false,
+    CAN_PROCESS_REFUNDS: false,
   });
 
   useEffect(() => {
     if (selectedEmployee) {
       setPermissions({
-        CAN_REMOVE_EMPLOYEE: selectedEmployee.permissions.CAN_REMOVE_EMPLOYEE,
-        CAN_EDIT_PERMISSION: selectedEmployee.permissions.CAN_EDIT_PERMISSION,
-        CAN_DELETE_COMPANY: selectedEmployee.permissions.CAN_DELETE_COMPANY,
-        CAN_POST_PRODUCT_POSITION_PERMISSION: selectedEmployee.permissions.CAN_POST_PRODUCT_POSITION_PERMISSION,
-        CAN_EDIT_PRODUCT_POSITION_PERMISSION: selectedEmployee.permissions.CAN_EDIT_PRODUCT_POSITION_PERMISSION,
-        CAN_ADD_EMPLOYEE: selectedEmployee.permissions.CAN_ADD_EMPLOYEE,
-        CAN_EDIT_EMPLOYEE_ROLE: selectedEmployee.permissions.CAN_EDIT_EMPLOYEE_ROLE,
+        // Employee Management
+        CAN_ADD_EMPLOYEE: selectedEmployee.permissions.CAN_ADD_EMPLOYEE ?? false,
+        CAN_REMOVE_EMPLOYEE: selectedEmployee.permissions.CAN_REMOVE_EMPLOYEE ?? false,
+        CAN_EDIT_EMPLOYEE_ROLE: selectedEmployee.permissions.CAN_EDIT_EMPLOYEE_ROLE ?? false,
+        CAN_EDIT_PERMISSION: selectedEmployee.permissions.CAN_EDIT_PERMISSION ?? false,
+        // Company Management
+        CAN_DELETE_COMPANY: selectedEmployee.permissions.CAN_DELETE_COMPANY ?? false,
+        CAN_EDIT_COMPANY_DETAILS: selectedEmployee.permissions.CAN_EDIT_COMPANY_DETAILS ?? false,
+        CAN_MANAGE_WAREHOUSES: selectedEmployee.permissions.CAN_MANAGE_WAREHOUSES ?? false,
+        // Product Management
+        CAN_POST_PRODUCT_POSITION_PERMISSION: selectedEmployee.permissions.CAN_POST_PRODUCT_POSITION_PERMISSION ?? false,
+        CAN_EDIT_PRODUCT_POSITION_PERMISSION: selectedEmployee.permissions.CAN_EDIT_PRODUCT_POSITION_PERMISSION ?? false,
+        CAN_DELETE_PRODUCT: selectedEmployee.permissions.CAN_DELETE_PRODUCT ?? false,
+        CAN_VIEW_ANALYTICS: selectedEmployee.permissions.CAN_VIEW_ANALYTICS ?? false,
+        // Financial
+        CAN_VIEW_SALES: selectedEmployee.permissions.CAN_VIEW_SALES ?? false,
+        CAN_MANAGE_PRICING: selectedEmployee.permissions.CAN_MANAGE_PRICING ?? false,
+        CAN_PROCESS_REFUNDS: selectedEmployee.permissions.CAN_PROCESS_REFUNDS ?? false,
       });
     }
   }, [selectedEmployee, stateChange]);
@@ -128,32 +151,99 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
             Edit Permissions
           </Button>
         </DialogTrigger>
-        <DialogContent className='text-black dark:text-white bg-gradient-to-tr dark:from-slate-700 dark:to-slate-900 from-blue-100 via-gray-200 to-blue-200 border-gray-700 dark:border-gray-700'>
+        <DialogContent className='max-w-2xl max-h-[85vh] overflow-y-auto text-black dark:text-white bg-background border-border'>
           <DialogHeader>
-            <DialogTitle className='flex gap-2'>
-              Edit Profile Permissions | <p className='text-purple-600 italic font-bold'> {selectedEmployee?.user?.name}</p>
+            <DialogTitle className='flex gap-2 items-center'>
+              Edit Permissions
+              <span className='text-primary font-medium'>{selectedEmployee?.user?.name}</span>
             </DialogTitle>
             <DialogDescription>
-              Make changes to selected profile here. Click save when done.
+              Configure what this employee can do within the company.
             </DialogDescription>
           </DialogHeader>
-          <div>
-            {Object.entries(permissions).map(([key, value]) => (
-              <div key={key} className='flex items-center gap-2 mb-2 bg-gray-400/50 border-gray-300 dark:bg-gray-700/50 dark:border-gray-700 text-white transition duration-300 ease-in-out hover:shadow-lg border hover:border-blue-500/50 dark:hover:border-blue-500/50 active:border-sky-500 hover:bg-sky-400 dark:hover:bg-sky-700 p-2 rounded-sm'>
-                <Checkbox
-                  id={key}
-                  checked={value}
-                  onCheckedChange={() => handleCheckboxChange(key as keyof EmployeePermissions)}
-                  className='bg-gray-300 border-gray-600 dark:bg-gray-200 dark:border-gray-500 w-7 h-7'
-                />
-                <label htmlFor={key} className='text-black dark:text-white'>{key}</label>
+          
+          <div className="space-y-4">
+            {/* Employee Management */}
+            <div className="rounded-lg border border-border p-3">
+              <div className="text-sm font-semibold mb-2 text-foreground">Employee Management</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {(['CAN_ADD_EMPLOYEE', 'CAN_REMOVE_EMPLOYEE', 'CAN_EDIT_EMPLOYEE_ROLE', 'CAN_EDIT_PERMISSION'] as const).map((key) => (
+                  <label key={key} className='flex items-center gap-2 p-2 rounded-md hover:bg-accent/50 cursor-pointer transition-colors'>
+                    <Checkbox
+                      id={key}
+                      checked={permissions[key]}
+                      onCheckedChange={() => handleCheckboxChange(key)}
+                      className='h-4 w-4'
+                    />
+                    <span className='text-sm'>{PERMISSION_LABELS[key] || key}</span>
+                  </label>
+                ))}
               </div>
-            ))}
-            {error && <div className='text-red-500'>{error}</div>}
-            {success && <div className='text-green-500'>Permissions saved successfully.</div>}
+            </div>
+
+            {/* Company Management */}
+            <div className="rounded-lg border border-border p-3">
+              <div className="text-sm font-semibold mb-2 text-foreground">Company Management</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {(['CAN_EDIT_COMPANY_DETAILS', 'CAN_MANAGE_WAREHOUSES', 'CAN_DELETE_COMPANY'] as const).map((key) => (
+                  <label key={key} className={`flex items-center gap-2 p-2 rounded-md hover:bg-accent/50 cursor-pointer transition-colors ${key === 'CAN_DELETE_COMPANY' ? 'text-red-600 dark:text-red-400' : ''}`}>
+                    <Checkbox
+                      id={key}
+                      checked={permissions[key]}
+                      onCheckedChange={() => handleCheckboxChange(key)}
+                      className='h-4 w-4'
+                    />
+                    <span className='text-sm'>{PERMISSION_LABELS[key] || key}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Product Management */}
+            <div className="rounded-lg border border-border p-3">
+              <div className="text-sm font-semibold mb-2 text-foreground">Product Management</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {(['CAN_POST_PRODUCT_POSITION_PERMISSION', 'CAN_EDIT_PRODUCT_POSITION_PERMISSION', 'CAN_DELETE_PRODUCT', 'CAN_VIEW_ANALYTICS'] as const).map((key) => (
+                  <label key={key} className='flex items-center gap-2 p-2 rounded-md hover:bg-accent/50 cursor-pointer transition-colors'>
+                    <Checkbox
+                      id={key}
+                      checked={permissions[key]}
+                      onCheckedChange={() => handleCheckboxChange(key)}
+                      className='h-4 w-4'
+                    />
+                    <span className='text-sm'>{PERMISSION_LABELS[key] || key}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Financial */}
+            <div className="rounded-lg border border-border p-3">
+              <div className="text-sm font-semibold mb-2 text-foreground">Financial</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {(['CAN_VIEW_SALES', 'CAN_MANAGE_PRICING', 'CAN_PROCESS_REFUNDS'] as const).map((key) => (
+                  <label key={key} className='flex items-center gap-2 p-2 rounded-md hover:bg-accent/50 cursor-pointer transition-colors'>
+                    <Checkbox
+                      id={key}
+                      checked={permissions[key]}
+                      onCheckedChange={() => handleCheckboxChange(key)}
+                      className='h-4 w-4'
+                    />
+                    <span className='text-sm'>{PERMISSION_LABELS[key] || key}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {error && <div className='text-sm text-red-500 p-2 rounded bg-red-500/10'>{error}</div>}
+            {success && <div className='text-sm text-green-500 p-2 rounded bg-green-500/10'>Permissions saved successfully.</div>}
           </div>
+
           <DialogFooter>
-            <Button onClick={handleSavePermissions} disabled={isLoading} className='bg-blue-500 hover:bg-blue-600 dark:bg-blue-400 dark:hover:bg-blue-500'>
+            <Button variant="outline" onClick={() => setIsShowing(false)} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleSavePermissions} disabled={isLoading}>
               {isLoading ? 'Saving...' : 'Save changes'}
             </Button>
           </DialogFooter>
@@ -161,24 +251,22 @@ const EditEmployeePermissionsModal: React.FC<EditEmployeePermissionsModalProps> 
 
         {showOwnerWarning && (
           <Dialog open={showOwnerWarning} onOpenChange={setShowOwnerWarning}>
-            <DialogContent className='bg-gray-100 text-black dark:bg-gray-900 dark:text-white'>
+            <DialogContent className='bg-background'>
               <DialogHeader>
-                <DialogTitle className='text-red-500 text-1xl'>Warning</DialogTitle>
-                <DialogDescription className='text-yellow-500'>
-                  Disabling Can Edit Permission will prevent you from reverting this change later. 
+                <DialogTitle className='text-red-500'>Warning</DialogTitle>
+                <DialogDescription className='text-amber-500'>
+                  Disabling &quot;Manage Permissions&quot; will prevent you from reverting this change later. 
                   If no other employee has this permission, no one in the company will be able to change permissions in the future. 
                   Are you sure you want to proceed?
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter>
-                <div className='flex justify-between w-full'>
-                  <Button variant="destructive" onClick={confirmDisableEditPermission} className='bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'>
-                    Confirm
-                  </Button>
-                  <Button onClick={() => setShowOwnerWarning(false)} className='bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600'>
-                    Cancel
-                  </Button>
-                </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setShowOwnerWarning(false)}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={confirmDisableEditPermission}>
+                  Confirm
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

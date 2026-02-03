@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button"
 // import { MyUserButton } from "@/components/uicustom/auth/buttons/user-button";
 import Link from "next/link";
 import { usePathname } from "next/navigation"
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export const MyNavbarProducts = () => {
   
     const pathname = usePathname();
+    const user = useCurrentUser();
+    const isLoggedIn = !!user;
 
     return (
       <nav className="bg-secondary flex justify-center items-center p-4 rounded-xl w-[calc(100%+1rem)] m-4 shadow-sm">
@@ -21,9 +24,12 @@ export const MyNavbarProducts = () => {
           <Button asChild variant={pathname === '/products/member-discount' ? 'vegaEmeraldBtn' : 'vegaNormalBtn'} className="hover:shadow-md transition-shadow duration-300">
             <Link href='/products/member-discount'>Member Discounts</Link>
           </Button>
-          <Button  asChild variant={pathname === '/products/create' ? 'vegaEmeraldBtn' : 'vegaNormalBtn'} className="hover:shadow-md transition-shadow duration-300">
-            <Link href='/products/create'>Create</Link>
-          </Button>
+          {/* Create button - only shown when logged in */}
+          {isLoggedIn && (
+            <Button  asChild variant={pathname === '/products/create' ? 'vegaEmeraldBtn' : 'vegaNormalBtn'} className="hover:shadow-md transition-shadow duration-300">
+              <Link href='/products/create'>Create</Link>
+            </Button>
+          )}
         </div>
         <div>
           

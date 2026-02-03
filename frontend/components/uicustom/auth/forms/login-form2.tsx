@@ -20,7 +20,7 @@ const LOG_PREFIX = '[frontend/components/uicustom/auth/forms/login-form2.tsx]'
 export const MyLoginForm2 = () => {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
-  const urlError = searchParams.get("error") === "OAuthAccountNotLinked" ? "Email already in use with different provider!" : "";
+  const urlError = searchParams.get("error") === "OAuthAccountNotLinked" ? "This email is registered with a different sign-in method. Please use email/password to log in, then link your Google account in Settings." : "";
 
   const [showTwoFactor, setShowTwoFactor] = useState(false);
   const [error, setError] = useState<string | undefined>('')

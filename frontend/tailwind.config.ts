@@ -24,6 +24,14 @@ const config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        
+        /* Surface hierarchy for depth - use these for layered UI */
+        surface: {
+          1: "hsl(var(--surface-1))",   /* Cards, modals - flush with bg */
+          2: "hsl(var(--surface-2))",   /* Slightly raised panels */
+          3: "hsl(var(--surface-3))",   /* Higher elevation elements */
+        },
+        
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -51,6 +59,13 @@ const config = {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        
+        /* Theme accent (dynamically set on profile pages from banner color extraction) */
+        "theme-accent": {
+          DEFAULT: "hsl(var(--theme-accent))",
+          foreground: "hsl(var(--theme-accent-foreground))",
+          muted: "hsl(var(--theme-accent-muted))",
         },
       },
       borderRadius: {

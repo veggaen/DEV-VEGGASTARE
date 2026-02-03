@@ -21,8 +21,10 @@ export async function GET() {
       select: { price: true }
     });
 
+    // In an empty marketplace, return a safe default instead of 404. Consumers
+    // use this for filter initialization and should not crash.
     if (minPriceResult === null || maxPriceResult === null) {
-      return NextResponse.json({ error: 'No products found' }, { status: 404 });
+      return NextResponse.json({ min: 0, max: 0 }, { status: 200 });
     }
 
     const dto = { min: toNumber(minPriceResult.price), max: toNumber(maxPriceResult.price) };

@@ -11,30 +11,7 @@ export default function InfoPage() {
 
   return (
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
-      {/* background */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-background/25 via-background/10 to-background/0 dark:from-black/25 dark:via-black/10 dark:to-black/0" />
-        <motion.div
-          className="absolute -right-12 top-20 h-[560px] w-[560px] rounded-full blur-3xl"
-          animate={reduceMotion ? undefined : { x: [0, -14, 0], y: [0, 10, 0], opacity: [0.14, 0.24, 0.14], scale: [1, 1.06, 1] }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            background:
-              "radial-gradient(closest-side, rgba(34,197,94,0.20), rgba(56,189,248,0.10), rgba(34,197,94,0) 72%)",
-            mixBlendMode: "screen",
-          }}
-        />
-        <motion.div
-          className="absolute -left-16 bottom-10 h-[620px] w-[620px] rounded-full blur-3xl"
-          animate={reduceMotion ? undefined : { x: [0, 18, 0], y: [0, -12, 0], opacity: [0.10, 0.20, 0.10], scale: [1, 1.04, 1] }}
-          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            background:
-              "radial-gradient(closest-side, rgba(167,139,250,0.12), rgba(236,72,153,0.10), rgba(56,189,248,0) 74%)",
-            mixBlendMode: "screen",
-          }}
-        />
-      </div>
+      {/* Clean background - no gradient orbs for better display compatibility */}
 
       <div className="relative mx-auto w-full max-w-7xl px-6 py-10 lg:py-12">
         <motion.div
@@ -228,10 +205,10 @@ export default function InfoPage() {
                 initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: "easeOut", delay: 0.12 }}
-                className="border-t border-white/10 pt-5"
+                className="border-t border-border pt-5"
               >
-                <h2 className="text-sm font-semibold tracking-wide text-white/90">What’s next</h2>
-                <ul className="mt-3 grid grid-cols-1 gap-x-10 gap-y-2 text-sm text-white/70 sm:grid-cols-2">
+                <h2 className="text-sm font-semibold tracking-wide text-foreground/90">What's next</h2>
+                <ul className="mt-3 grid grid-cols-1 gap-x-10 gap-y-2 text-sm text-muted-foreground sm:grid-cols-2">
                   {[
                     "Production hardening: stability, performance, and fewer sharp edges.",
                     "Pulse: a high-signal realtime stream with good filtering.",
@@ -241,7 +218,7 @@ export default function InfoPage() {
                     "More user control: what gets emphasized, what stays quiet.",
                   ].map((item) => (
                     <li key={item} className="flex gap-2">
-                      <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 flex-none rounded-full bg-white/25" />
+                      <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 flex-none rounded-full bg-foreground/25" />
                       <span>{item}</span>
                     </li>
                   ))}

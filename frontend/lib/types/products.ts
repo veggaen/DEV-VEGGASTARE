@@ -34,6 +34,7 @@ export const ProductsListItemSchema = z
     description: z.string(),
     category: z.string(),
     price: z.number().finite(),
+    priceCurrency: z.string().optional().default('USD'),
     stock: z.number().int().finite(),
     shipFromPostalId: z.string(),
     image: z.array(z.string()),
@@ -46,6 +47,13 @@ export const ProductsListItemSchema = z
     // Normalized fields used by frontend
     user: ProductUserSummarySchema.nullable().optional(),
     company: ProductCompanySummarySchema.nullable().optional(),
+
+    // Web3 fields
+    acceptedTokens: z.array(z.object({
+      symbol: z.string(),
+      family: z.string().optional(),
+      decimals: z.number().optional(),
+    })).optional(),
 
     // Back-compat with raw Prisma select casing
     User: ProductUserSummarySchema.nullable().optional(),
@@ -85,8 +93,26 @@ export const ProductDetailsResponseSchema = z
     description: z.string(),
     category: z.string(),
     price: z.number().finite(),
+    priceCurrency: z.enum(['USD', 'NOK', 'EUR', 'GBP']),
+    acceptedFiatCurrencies: z.array(z.enum(['USD', 'NOK', 'EUR', 'GBP'])).default([]),
+    condition: z.string().min(1),
     image: z.array(z.string()),
     specifications: z.array(ProductSpecificationSchema).nullable(),
+    userId: z.string().min(1),
+    companyId: z.string().nullable(),
+    acceptedTokens: z
+      .array(
+        z
+          .object({
+            family: z.enum(['EVM', 'SOLANA']),
+            symbol: z.string().min(1),
+            decimals: z.number().int().nonnegative(),
+            tokenAddress: z.string().nullable(),
+            tokenMint: z.string().nullable(),
+          })
+          .strict()
+      )
+      .default([]),
     company: z
       .object({
         warehouseLocations: z.array(ProductWarehouseLocationSchema).nullable(),

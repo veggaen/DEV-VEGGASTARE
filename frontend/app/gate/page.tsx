@@ -57,25 +57,16 @@ export default function GatePage() {
   }, [password]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0a0a0f]">
-      {/* Background gradient */}
+    <div className="min-h-screen flex flex-col bg-neutral-950">
+      {/* Clean solid background */}
       <div 
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0f 100%)',
-        }}
+        className="fixed inset-0 pointer-events-none bg-neutral-950"
       />
-      
-      {/* Subtle animated orbs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-50">
-        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-emerald-500/5 to-transparent rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-cyan-500/5 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-      </div>
 
       {/* Main content - centered */}
       <main className="flex-1 flex items-center justify-center relative z-10 px-4 py-12">
         <div 
-          className={`w-full max-w-md p-8 rounded-2xl bg-zinc-900/80 border border-zinc-700/50 shadow-2xl backdrop-blur-xl ${
+          className={`w-full max-w-md p-8 rounded-2xl bg-neutral-900 border border-neutral-800 shadow-2xl ${
             shake ? 'animate-shake' : ''
           }`}
         >
@@ -83,7 +74,7 @@ export default function GatePage() {
           <div className="text-center mb-8">
             <div className="text-5xl mb-4">🔐</div>
             <h1 className="text-2xl font-bold text-white tracking-tight">VeggaStare</h1>
-            <p className="text-sm text-zinc-400 mt-3">
+            <p className="text-sm text-neutral-400 mt-3">
               This site is currently in private testing mode.
             </p>
           </div>
@@ -91,7 +82,7 @@ export default function GatePage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="access-password" className="block text-sm font-medium text-zinc-300 mb-2">
+              <label htmlFor="access-password" className="block text-sm font-medium text-neutral-300 mb-2">
                 Access Password
               </label>
               <input
@@ -100,7 +91,7 @@ export default function GatePage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
-                className="w-full px-4 py-3 rounded-xl bg-zinc-800/80 border border-zinc-600/50 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                className="w-full px-4 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-neutral-600 transition-all"
                 autoComplete="off"
                 autoFocus
                 disabled={isLoading}

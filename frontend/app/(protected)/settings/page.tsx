@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 
 import { useRef, useState, useTransition, useEffect, useCallback, DragEvent, ClipboardEvent } from "react";
 import { useSession } from "next-auth/react";
+import { useTheme } from "next-themes";
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MyAuthSettingsSchema } from '@/schemas';
@@ -25,10 +26,11 @@ import { MyFormSuccess } from '@/components/uicustom/forms/form-sucess';
 import { UserRole } from '@prisma/client';
 import { useUiPreferences } from '@/components/providers/ui-preferences';
 import { useEdgeStore } from '@/lib/edgestore';
+import { FancyBackground } from '@/components/uicustom/fancy-background';
 import { 
   FiUser, FiLock, FiMail, FiBell, FiShield, FiSave, 
   FiEdit2, FiX, FiCheck, FiImage, FiChevronRight, FiCamera, FiUpload,
-  FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity
+  FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity, FiSliders
 } from 'react-icons/fi';
 import {
   Chart as ChartJS,
@@ -55,7 +57,7 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
-  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'notifications' | 'privacy'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'notifications' | 'privacy' | 'appearance'>('profile');
   
   // Profile editing state - ORIGINAL values from server
   const [originalData, setOriginalData] = useState<{
@@ -332,6 +334,7 @@ export default function SettingsPage() {
   const sections = [
     { id: 'profile', label: 'Profile', icon: FiImage, description: 'Avatar, banner & bio' },
     { id: 'account', label: 'Account', icon: FiUser, description: 'Manage your account details' },
+    { id: 'appearance', label: 'Appearance', icon: FiSliders, description: 'Theme, effects & animations' },
     { id: 'security', label: 'Security', icon: FiShield, description: 'Password and authentication' },
     { id: 'notifications', label: 'Notifications', icon: FiBell, description: 'Email and push notifications' },
     { id: 'privacy', label: 'Privacy', icon: FiLock, description: 'Control your data and visibility' },
@@ -394,24 +397,17 @@ export default function SettingsPage() {
 
   return (
     <div className="relative flex-1 flex flex-col overflow-x-hidden">
-      {/* Background */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/70 to-sky-950/10 dark:from-black/15 dark:via-transparent dark:to-black/5" />
-        <motion.div
-          className="absolute -right-20 top-32 h-[480px] w-[480px] rounded-full blur-3xl"
-          animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.06, 0.12, 0.06] }}
-          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            background: "radial-gradient(closest-side, rgba(59,130,246,0.1), rgba(99,102,241,0.06), transparent 70%)",
-            mixBlendMode: "screen",
-          }}
-        />
-      </div>
+      {/* Conditional fancy background */}
+      <FancyBackground
+        gradient
+        gradientVariant="default"
+        spheres={[{ position: "top-right", color: "blue", size: "lg" }]}
+      />
 
       <div className="relative mx-auto w-full max-w-5xl px-6 py-10 lg:py-12">
         <motion.div
-          initial={reduceMotion ? undefined : { opacity: 0, y: 14 }}
-          animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+          initial={reduceMotion || prefs.pageAnimations === "none" ? undefined : { opacity: 0, y: 14 }}
+          animate={reduceMotion || prefs.pageAnimations === "none" ? undefined : { opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
         >
           {/* Header */}
@@ -427,24 +423,24 @@ export default function SettingsPage() {
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all border-2 ${
                     activeSection === section.id
-                      ? 'bg-slate-200/70 text-foreground dark:bg-white/10 dark:text-white'
-                      : 'text-muted-foreground hover:bg-slate-100 hover:text-foreground dark:text-white/60 dark:hover:bg-white/5 dark:hover:text-white/80'
+                      ? 'bg-emerald-50 border-emerald-500 text-foreground shadow-md shadow-emerald-500/10 dark:bg-emerald-500/10 dark:border-emerald-500 dark:text-white'
+                      : 'bg-white border-transparent text-muted-foreground hover:bg-zinc-50 hover:border-zinc-200 hover:text-foreground dark:bg-transparent dark:text-white/60 dark:hover:bg-white/5 dark:hover:border-white/10 dark:hover:text-white/80'
                   }`}
                 >
-                  <section.icon className="h-5 w-5" />
+                  <section.icon className={`h-5 w-5 ${activeSection === section.id ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
                   <div className="flex-1">
                     <div className="font-medium text-sm">{section.label}</div>
                     <div className="text-xs text-muted-foreground/70 dark:text-white/40">{section.description}</div>
                   </div>
-                  <FiChevronRight className={`h-4 w-4 transition-transform ${activeSection === section.id ? 'rotate-90' : ''}`} />
+                  <FiChevronRight className={`h-4 w-4 transition-transform ${activeSection === section.id ? 'rotate-90 text-emerald-600 dark:text-emerald-400' : ''}`} />
                 </button>
               ))}
             </nav>
 
             {/* Main Content */}
-            <div className="rounded-2xl border border-border bg-slate-100/80 dark:border-white/10 dark:bg-white/[0.02] p-6">
+            <div className="rounded-2xl border-2 border-zinc-200 bg-white shadow-lg dark:border-white/10 dark:bg-white/[0.02] p-6">
               {activeSection === 'profile' && (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between border-b border-border dark:border-white/10 pb-4">
@@ -460,7 +456,7 @@ export default function SettingsPage() {
                           variant="outline"
                           size="sm"
                           onClick={handleDiscardChanges}
-                          className="border-border text-foreground/80 hover:bg-slate-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
+                          className="border-border text-foreground/80 hover:bg-zinc-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
                         >
                           <FiX className="h-4 w-4 mr-1" />
                           Discard
@@ -500,7 +496,7 @@ export default function SettingsPage() {
                       <div className="flex items-center gap-4 p-3 rounded-lg bg-white/70 border border-border dark:bg-white/5 dark:border-white/10">
                         <div className="flex-1">
                           <div className="text-xs text-muted-foreground dark:text-white/40 mb-1">Current</div>
-                          <div className="relative h-16 w-full rounded-lg overflow-hidden bg-slate-200/60 dark:bg-white/5">
+                          <div className="relative h-16 w-full rounded-lg overflow-hidden bg-zinc-200/60 dark:bg-white/5">
                             {originalData.banner ? (
                               <Image src={originalData.banner} alt="Current banner" fill className="object-cover opacity-60" />
                             ) : (
@@ -532,7 +528,9 @@ export default function SettingsPage() {
                       className={`relative h-32 w-full rounded-xl overflow-hidden border-2 border-dashed transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
                         isDraggingBanner 
                           ? 'border-emerald-400 bg-emerald-500/10' 
-                          : 'border-slate-300/70 bg-slate-50/80 hover:border-slate-400 dark:border-white/20 dark:bg-gradient-to-br dark:from-indigo-500/20 dark:to-purple-600/20 dark:hover:border-white/40'
+                          : prefs.hoverEffects === 'colorful'
+                            ? 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-gradient-to-br dark:from-indigo-500/20 dark:to-purple-600/20 dark:hover:border-white/40'
+                            : 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:hover:border-white/40'
                       }`}
                       onClick={() => bannerInputRef.current?.click()}
                     >
@@ -565,7 +563,7 @@ export default function SettingsPage() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="border-border text-foreground hover:bg-slate-100 dark:border-white/30 dark:text-white dark:hover:bg-white/20"
+                            className="border-border text-foreground hover:bg-zinc-100 dark:border-white/30 dark:text-white dark:hover:bg-white/20"
                           >
                             <FiUpload className="h-4 w-4 mr-2" />
                             Change Banner
@@ -592,7 +590,7 @@ export default function SettingsPage() {
                       <div className="flex items-center gap-4 p-3 rounded-lg bg-white/70 border border-border dark:bg-white/5 dark:border-white/10">
                         <div className="text-center">
                           <div className="text-xs text-muted-foreground dark:text-white/40 mb-1">Current</div>
-                          <div className="relative h-16 w-16 rounded-full overflow-hidden bg-slate-200/60 dark:bg-white/5 mx-auto">
+                          <div className="relative h-16 w-16 rounded-full overflow-hidden bg-zinc-200/60 dark:bg-white/5 mx-auto">
                             {originalData.image ? (
                               <Image src={originalData.image} alt="Current avatar" fill className="object-cover opacity-60" />
                             ) : (
@@ -625,7 +623,9 @@ export default function SettingsPage() {
                         className={`relative h-24 w-24 rounded-full overflow-hidden border-2 border-dashed transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
                           isDraggingAvatar 
                             ? 'border-emerald-400 bg-emerald-500/10' 
-                            : 'border-slate-300/70 bg-slate-50/80 hover:border-slate-400 dark:border-white/20 dark:bg-gradient-to-br dark:from-indigo-500/30 dark:to-purple-600/30 dark:hover:border-white/40'
+                            : prefs.hoverEffects === 'colorful'
+                              ? 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-gradient-to-br dark:from-indigo-500/30 dark:to-purple-600/30 dark:hover:border-white/40'
+                              : 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:hover:border-white/40'
                         }`}
                         onClick={() => avatarInputRef.current?.click()}
                       >
@@ -664,7 +664,7 @@ export default function SettingsPage() {
                           size="sm"
                           onClick={() => avatarInputRef.current?.click()}
                           disabled={isUploadingAvatar}
-                          className="border-border text-foreground/80 hover:bg-slate-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
+                          className="border-border text-foreground/80 hover:bg-zinc-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
                         >
                           {isUploadingAvatar ? 'Uploading...' : 'Choose Image'}
                         </Button>
@@ -828,7 +828,7 @@ export default function SettingsPage() {
                       variant="outline"
                       size="sm"
                       onClick={handleStartEdit}
-                      className="border-border text-foreground/80 hover:bg-slate-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
+                      className="border-border text-foreground/80 hover:bg-zinc-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
                     >
                       {isEditing ? <FiX className="h-4 w-4 mr-2" /> : <FiEdit2 className="h-4 w-4 mr-2" />}
                       {isEditing ? 'Cancel' : 'Edit'}
@@ -904,7 +904,7 @@ export default function SettingsPage() {
                             type="button"
                             variant="outline"
                             onClick={handleCancelEdit}
-                            className="border-border text-foreground/80 hover:bg-slate-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
+                            className="border-border text-foreground/80 hover:bg-zinc-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
                           >
                             Cancel
                           </Button>
@@ -1037,6 +1037,10 @@ export default function SettingsPage() {
 
               {activeSection === 'privacy' && (
                 <PrivacySettings />
+              )}
+
+              {activeSection === 'appearance' && (
+                <AppearanceSettings />
               )}
             </div>
           </div>
@@ -1187,7 +1191,7 @@ function PrivacySettings() {
         <div className="space-y-3">
           {[
             { id: 'profile', label: 'Public Profile', description: 'Allow others to view your profile' },
-            { id: 'activity', label: 'Show Activity Status', description: 'Let others see when you&apos;re online' },
+            { id: 'activity', label: 'Show Activity Status', description: "Let others see when you're online" },
             { id: 'analytics', label: 'Usage Analytics', description: 'Help us improve by sharing anonymous usage data' },
           ].map((item) => (
             <div key={item.id} className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
@@ -1210,5 +1214,258 @@ function PrivacySettings() {
         </p>
       </div>
     </div>
+  );
+}
+
+// Appearance Settings Component
+function AppearanceSettings() {
+  const { prefs, setPrefs, resetPrefs } = useUiPreferences();
+  const { theme, setTheme } = useTheme();
+  
+  return (
+    <div className="space-y-6">
+      <div className="border-b border-border dark:border-white/10 pb-4">
+        <h2 className="text-xl font-semibold text-foreground dark:text-white">Appearance</h2>
+        <p className="text-sm text-muted-foreground dark:text-white/50">Customize the look and feel of your experience</p>
+      </div>
+
+      {/* Theme */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Theme</h3>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { id: 'light', label: 'Light', description: 'Bright & clean', icon: '☀️' },
+            { id: 'dark', label: 'Dark', description: 'Easy on eyes', icon: '🌙' },
+            { id: 'system', label: 'System', description: 'Match device', icon: '💻' },
+          ].map((themeOption) => (
+            <button
+              key={themeOption.id}
+              onClick={() => setTheme(themeOption.id)}
+              className={`p-4 rounded-xl border-2 text-left transition-all ${
+                theme === themeOption.id
+                  ? 'border-emerald-500 bg-emerald-500/20 dark:bg-emerald-500/10 ring-2 ring-emerald-500/40 dark:ring-emerald-500/30 shadow-lg shadow-emerald-500/20'
+                  : 'border-zinc-200 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 bg-white dark:bg-white/5 shadow-sm'
+              }`}
+            >
+              <div className="text-2xl mb-2">{themeOption.icon}</div>
+              <div className="font-medium text-foreground dark:text-white/90">{themeOption.label}</div>
+              <div className="text-xs text-muted-foreground dark:text-white/40">{themeOption.description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Style Preset */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Style Preset</h3>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { id: 'minimal', label: 'Minimal', description: 'Clean & simple', icon: '○' },
+            { id: 'modern', label: 'Modern', description: 'Balanced look', icon: '◐' },
+            { id: 'vibrant', label: 'Vibrant', description: 'Full effects', icon: '●' },
+          ].map((preset) => (
+            <button
+              key={preset.id}
+              onClick={() => setPrefs({ 
+                stylePreset: preset.id as 'minimal' | 'modern' | 'vibrant',
+                // Auto-enable effects for vibrant preset
+                ...(preset.id === 'vibrant' ? {
+                  enableGradientBackgrounds: true,
+                  enableGradientSpheres: true,
+                  pageAnimations: 'full' as const,
+                  hoverEffects: 'colorful' as const,
+                } : {}),
+                // Auto-disable for minimal
+                ...(preset.id === 'minimal' ? {
+                  enableGradientBackgrounds: false,
+                  enableGradientSpheres: false,
+                  pageAnimations: 'subtle' as const,
+                  hoverEffects: 'simple' as const,
+                } : {}),
+              })}
+              className={`p-4 rounded-xl border-2 text-left transition-all ${
+                prefs.stylePreset === preset.id
+                  ? 'border-emerald-500 bg-emerald-500/20 dark:bg-emerald-500/10 ring-2 ring-emerald-500/40 dark:ring-emerald-500/30 shadow-lg shadow-emerald-500/20'
+                  : 'border-zinc-200 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 bg-white dark:bg-white/5 shadow-sm'
+              }`}
+            >
+              <div className="text-2xl mb-2">{preset.icon}</div>
+              <div className="font-medium text-foreground dark:text-white/90">{preset.label}</div>
+              <div className="text-xs text-muted-foreground dark:text-white/40">{preset.description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Visual Effects */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Visual Effects</h3>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+            <div>
+              <div className="font-medium text-foreground dark:text-white/90">Gradient Backgrounds</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">Colorful gradient backgrounds on pages and cards</div>
+            </div>
+            <Switch 
+              checked={prefs.enableGradientBackgrounds} 
+              onCheckedChange={(checked) => setPrefs({ enableGradientBackgrounds: checked })}
+            />
+          </div>
+          
+          <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+            <div>
+              <div className="font-medium text-foreground dark:text-white/90">Floating Spheres</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">Animated gradient orbs in the background</div>
+            </div>
+            <Switch 
+              checked={prefs.enableGradientSpheres} 
+              onCheckedChange={(checked) => setPrefs({ enableGradientSpheres: checked })}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Animations */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Animations</h3>
+        <div className="space-y-3">
+          <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+            <div className="font-medium text-foreground dark:text-white/90 mb-3">Page Transitions</div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'none', label: 'None' },
+                { id: 'subtle', label: 'Subtle' },
+                { id: 'full', label: 'Full' },
+              ].map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => setPrefs({ pageAnimations: option.id as 'none' | 'subtle' | 'full' })}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    prefs.pageAnimations === option.id
+                      ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
+                      : 'bg-zinc-100 text-foreground hover:bg-zinc-200 dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/20'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+            <div>
+              <div className="font-medium text-foreground dark:text-white/90">Colorful Hover Effects</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">Fancy color transitions on hover (instead of simple highlights)</div>
+            </div>
+            <Switch 
+              checked={prefs.hoverEffects === 'colorful'} 
+              onCheckedChange={(checked) => setPrefs({ hoverEffects: checked ? 'colorful' : 'simple' })}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Advanced */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Advanced</h3>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+            <div>
+              <div className="font-medium text-foreground dark:text-white/90">Web3 Mode</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">Enable advanced wallet controls and crypto features</div>
+            </div>
+            <Web3ModeToggle />
+          </div>
+          <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+            <div>
+              <div className="font-medium text-foreground dark:text-white/90">Experimental Effects</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">Enable bleeding-edge visual features (may be unstable)</div>
+            </div>
+            <Switch 
+              checked={prefs.enableExperimentalEffects} 
+              onCheckedChange={(checked) => setPrefs({ enableExperimentalEffects: checked })}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Reset */}
+      <div className="pt-4 border-t border-border dark:border-white/10 flex gap-3">
+        <Button 
+          variant="outline" 
+          onClick={resetPrefs}
+          className="border-zinc-300 dark:border-white/20"
+        >
+          Reset to Defaults
+        </Button>
+        <p className="text-xs text-muted-foreground dark:text-white/40 self-center">
+          Resets all appearance settings to minimal/clean defaults
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Web3 Mode Toggle Component
+function Web3ModeToggle() {
+  const user = useCurrentUser();
+  const [web3ModeEnabled, setWeb3ModeEnabled] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("veggastare:web3ModeEnabled");
+      if (raw === "true") setWeb3ModeEnabled(true);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Sync with user's server-side setting if logged in
+  useEffect(() => {
+    if (user && (user as any).web3ModeEnabled !== undefined) {
+      setWeb3ModeEnabled(!!(user as any).web3ModeEnabled);
+    }
+  }, [user]);
+
+  const handleToggle = async (checked: boolean) => {
+    if (user) {
+      // Logged in: update server
+      setIsRequesting(true);
+      try {
+        const { MyRequestWeb3ModeSecurityAction } = await import("@/actions/security-action");
+        const data = await MyRequestWeb3ModeSecurityAction(checked);
+        if (data?.error) {
+          toast.error(data.error, { position: "top-center" });
+          return;
+        }
+        if (data?.success) {
+          toast.success(data.success, { position: "top-center" });
+          setWeb3ModeEnabled(checked);
+        }
+      } catch {
+        toast.error("Something went wrong!", { position: "top-center" });
+      } finally {
+        setIsRequesting(false);
+      }
+    } else {
+      // Logged out: store locally
+      setWeb3ModeEnabled(checked);
+      try {
+        window.localStorage.setItem("veggastare:web3ModeEnabled", String(checked));
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  return (
+    <Switch
+      checked={web3ModeEnabled}
+      disabled={isRequesting}
+      onCheckedChange={handleToggle}
+      aria-label="Toggle Web3 mode"
+    />
   );
 }

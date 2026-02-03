@@ -158,23 +158,23 @@ export default function JobDetailPage() {
                   alt={jobRequest.user.name || 'User'}
                   width={48}
                   height={48}
-                  className="h-12 w-12 rounded-full object-cover ring-2 ring-white/10"
+                  className="h-12 w-12 rounded-full object-cover ring-2 ring-black/10 dark:ring-white/10"
                 />
               )}
               <div>
-                <p className="text-sm font-medium text-white/80">{jobRequest.user?.name || 'Anonymous'}</p>
-                <p className="text-xs text-white/50">
+                <p className="text-sm font-medium text-zinc-700 dark:text-white/80">{jobRequest.user?.name || 'Anonymous'}</p>
+                <p className="text-xs text-zinc-500 dark:text-white/50">
                   Posted {formatDistanceToNow(new Date(jobRequest.createdAt), { addSuffix: true })}
                   <span className="mx-1.5">·</span>
                   {format(new Date(jobRequest.createdAt), 'MMM d, yyyy')}
                 </p>
               </div>
             </div>
-            
-            <h1 className="text-2xl font-semibold text-white sm:text-3xl lg:text-4xl">
+
+            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white sm:text-3xl lg:text-4xl">
               {jobRequest.title || `Request #${jobRequest.id.slice(0, 8)}`}
             </h1>
-            
+
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {jobRequest.negotiable && (
                 <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
@@ -182,12 +182,12 @@ export default function JobDetailPage() {
                 </span>
               )}
               {jobRequest.price && (
-                <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300">
+                <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-600 dark:text-indigo-300">
                   Budget: ${jobRequest.price}
                 </span>
               )}
               {jobRequest.delivery && (
-                <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-medium text-white/60">
+                <span className="rounded-full bg-black/5 dark:bg-white/5 px-3 py-1 text-xs font-medium text-zinc-500 dark:text-white/60">
                   {jobRequest.delivery}
                 </span>
               )}
@@ -200,7 +200,7 @@ export default function JobDetailPage() {
               {/* Images */}
               {jobRequest.images.length > 0 && (
                 <div className="space-y-3">
-                  <div className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+                  <div className="relative aspect-video overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
                     {selectedImage && (
                       <Image
                         src={selectedImage}
@@ -217,9 +217,9 @@ export default function JobDetailPage() {
                           key={idx}
                           onClick={() => setSelectedImage(img)}
                           className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all ${
-                            selectedImage === img 
-                              ? 'ring-2 ring-indigo-400' 
-                              : 'ring-1 ring-white/10 hover:ring-white/30'
+                            selectedImage === img
+                              ? 'ring-2 ring-indigo-400'
+                              : 'ring-1 ring-black/10 dark:ring-white/10 hover:ring-black/30 dark:hover:ring-white/30'
                           }`}
                         >
                           <Image src={img} alt={`Thumbnail ${idx + 1}`} fill className="object-cover" />
@@ -232,10 +232,10 @@ export default function JobDetailPage() {
 
               {/* Descriptions */}
               <div className="space-y-4">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-white/40">Description</h2>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-400 dark:text-white/40">Description</h2>
                 {jobRequest.descriptions.map((desc, idx) => (
-                  <div key={idx} className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-                    <p className="text-sm text-white/70 whitespace-pre-wrap leading-relaxed">{desc}</p>
+                  <div key={idx} className="rounded-xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-4">
+                    <p className="text-sm text-zinc-600 dark:text-white/70 whitespace-pre-wrap leading-relaxed">{desc}</p>
                   </div>
                 ))}
               </div>
@@ -243,12 +243,12 @@ export default function JobDetailPage() {
               {/* Additional Notes */}
               {jobRequest.additionalNotes && (
                 <div className="space-y-3">
-                  <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/40">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400 dark:text-white/40">
                     <FiMessageSquare className="h-4 w-4" />
                     Additional Notes
                   </h2>
-                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-                    <p className="text-sm text-white/70 whitespace-pre-wrap leading-relaxed">
+                  <div className="rounded-xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-4">
+                    <p className="text-sm text-zinc-600 dark:text-white/70 whitespace-pre-wrap leading-relaxed">
                       {jobRequest.additionalNotes}
                     </p>
                   </div>
@@ -259,8 +259,8 @@ export default function JobDetailPage() {
             {/* Sidebar */}
             <aside className="lg:col-span-2 space-y-6">
               {/* Contact Card */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                <h3 className="text-sm font-semibold text-white/80 mb-4">Interested in this request?</h3>
+              <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-5">
+                <h3 className="text-sm font-semibold text-zinc-700 dark:text-white/80 mb-4">Interested in this request?</h3>
                 <Link
                   href={`/conversations?userId=${jobRequest.user?.id}`}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-400"
@@ -271,35 +271,35 @@ export default function JobDetailPage() {
               </div>
 
               {/* Details Card */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 space-y-4">
-                <h3 className="text-sm font-semibold text-white/80">Request Details</h3>
-                
+              <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-5 space-y-4">
+                <h3 className="text-sm font-semibold text-zinc-700 dark:text-white/80">Request Details</h3>
+
                 {jobRequest.price && (
                   <div className="flex items-center gap-3 text-sm">
-                    <FiDollarSign className="h-4 w-4 text-white/40" />
+                    <FiDollarSign className="h-4 w-4 text-zinc-400 dark:text-white/40" />
                     <div>
-                      <p className="text-white/50">Budget</p>
-                      <p className="text-white/90">${jobRequest.price}</p>
+                      <p className="text-zinc-500 dark:text-white/50">Budget</p>
+                      <p className="text-zinc-800 dark:text-white/90">${jobRequest.price}</p>
                     </div>
                   </div>
                 )}
-                
+
                 {jobRequest.delivery && (
                   <div className="flex items-center gap-3 text-sm">
-                    <FiTruck className="h-4 w-4 text-white/40" />
+                    <FiTruck className="h-4 w-4 text-zinc-400 dark:text-white/40" />
                     <div>
-                      <p className="text-white/50">Delivery</p>
-                      <p className="text-white/90">{jobRequest.delivery}</p>
+                      <p className="text-zinc-500 dark:text-white/50">Delivery</p>
+                      <p className="text-zinc-800 dark:text-white/90">{jobRequest.delivery}</p>
                     </div>
                   </div>
                 )}
 
                 {jobRequest.paymentMethod && (
                   <div className="flex items-center gap-3 text-sm">
-                    <FiDollarSign className="h-4 w-4 text-white/40" />
+                    <FiDollarSign className="h-4 w-4 text-zinc-400 dark:text-white/40" />
                     <div>
-                      <p className="text-white/50">Payment Method</p>
-                      <p className="text-white/90">{jobRequest.paymentMethod}</p>
+                      <p className="text-zinc-500 dark:text-white/50">Payment Method</p>
+                      <p className="text-zinc-800 dark:text-white/90">{jobRequest.paymentMethod}</p>
                     </div>
                   </div>
                 )}
@@ -307,15 +307,15 @@ export default function JobDetailPage() {
 
               {/* Links */}
               {jobRequest.links.filter(l => l && isSafeUrl(l)).length > 0 && (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 space-y-3">
-                  <h3 className="text-sm font-semibold text-white/80">Reference Links</h3>
+                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-5 space-y-3">
+                  <h3 className="text-sm font-semibold text-zinc-700 dark:text-white/80">Reference Links</h3>
                   {jobRequest.links.filter(l => l && isSafeUrl(l)).map((link, idx) => (
                     <a
                       key={idx}
                       href={link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm text-indigo-300 transition-colors hover:bg-white/10"
+                      className="flex items-center gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-3 py-2 text-sm text-indigo-600 dark:text-indigo-300 transition-colors hover:bg-black/10 dark:hover:bg-white/10"
                     >
                       <FiExternalLink className="h-4 w-4 flex-shrink-0" />
                       <span className="truncate">{link}</span>
@@ -326,15 +326,15 @@ export default function JobDetailPage() {
 
               {/* Documents */}
               {jobRequest.docs.filter(d => d && isSafeUrl(d)).length > 0 && (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 space-y-3">
-                  <h3 className="text-sm font-semibold text-white/80">Documents</h3>
+                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-5 space-y-3">
+                  <h3 className="text-sm font-semibold text-zinc-700 dark:text-white/80">Documents</h3>
                   {jobRequest.docs.filter(d => d && isSafeUrl(d)).map((doc, idx) => (
                     <a
                       key={idx}
                       href={doc}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10"
+                      className="flex items-center gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-3 py-2 text-sm text-zinc-600 dark:text-white/70 transition-colors hover:bg-black/10 dark:hover:bg-white/10"
                     >
                       <FiFileText className="h-4 w-4 flex-shrink-0" />
                       <span className="truncate">Document {idx + 1}</span>

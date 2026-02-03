@@ -76,6 +76,7 @@ model Company {
   Sale                         Sale[]
   Wallet                       Wallet[]
   WarehouseLocation            WarehouseLocation[]
+  DigitalAsset                 DigitalAsset[]
 }
 
 model Conversation {
@@ -308,13 +309,43 @@ model Order {
   updatedAt     DateTime    @updatedAt
   transactionId String?
   commentOrder  String?
+  
+  // Shipping address
+  shippingName       String?
+  shippingAddress    String?
+  shippingCity       String?
+  shippingPostalCode String?
+  shippingCountry    String?   @default("NO")
+  shippingPhone      String?
+  shippingEmail      String?
+  shippingMethod     String?   // e.g. "PAKKE_I_POSTKASSEN", "SERVICEPAKKE"
+  shippingCost       Float?
+  
   User          User        @relation(fields: [userId], references: [id])
   Payment       Payment?
+  OrderItem     OrderItem[]
+  DownloadToken DownloadToken[]
 
   @@index([userId])
   @@index([status])
   @@index([createdAt])
   @@index([userId, status])
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  productId   String
+  quantity    Int
+  priceAtTime Float    // Price when ordered (prices can change)
+  title       String   // Product title at time of order
+  createdAt   DateTime @default(now())
+  
+  Order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  Product     Product  @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model Package {
@@ -386,21 +417,75 @@ model PollVote {
   @@unique([optionId, userId])
 }
 
+// Category/Tag system for products - supports multiple tags per product
+model Category {
+  id          String     @id @default(cuid())
+  name        String     // Display name: "Digitale tjenester"
+  slug        String     @unique // Normalized for matching: "digitale-tjenester"
+  parentId    String?    // Optional parent for sub-categories
+  description String?
+  createdById String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Self-relation for hierarchical categories
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  
+  // Creator relation
+  createdBy   User?      @relation("CategoryCreator", fields: [createdById], references: [id])
+  
+  // Many-to-many with products
+  products    ProductCategory[]
+
+  @@index([slug])
+  @@index([parentId])
+  @@index([name])
+}
+
+// Junction table for Product <-> Category many-to-many
+model ProductCategory {
+  id         String   @id @default(cuid())
+  productId  String
+  categoryId String
+  createdAt  DateTime @default(now())
+
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, categoryId])
+  @@index([productId])
+  @@index([categoryId])
+}
+
 model Product {
   id                   String                 @id @default(cuid())
   title                String
   description          String
-  category             String
+  category             String                 // Keep for backward compatibility, will be deprecated
   price                Float
+  priceCurrency         FiatCurrency           @default(USD)
+  acceptedFiatCurrencies FiatCurrency[]        @default([])
   stock                Int
   shipFromPostalId     String
   image                String[]
   specifications       Json?
+  condition            ProductCondition       @default(NEW)
   userId               String
   companyId            String?
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   receiverWalletId     String?
+  
+  // Product type (physical, digital, or hybrid)
+  productType          ProductType            @default(PHYSICAL)
+  
+  // Digital product fields
+  digitalAssetId       String?                @unique
+  downloadsEnabled     Boolean                @default(true)
+  maxDownloads         Int?                   // null = unlimited
+  downloadExpiryDays   Int?                   // null = never expires
+  
   CartItem             CartItem[]
   Inventory            Inventory[]
   Company              Company?               @relation(fields: [companyId], references: [id])
@@ -409,6 +494,11 @@ model Product {
   ProductAcceptedToken ProductAcceptedToken[]
   Review               Review[]
   ShippingDetails      ShippingDetails[]
+  OrderItem            OrderItem[]
+  DigitalAsset         DigitalAsset?          @relation(fields: [digitalAssetId], references: [id])
+  
+  // New many-to-many categories/tags
+  categories           ProductCategory[]
 
   @@index([category])
   @@index([price])
@@ -416,6 +506,83 @@ model Product {
   @@index([companyId])
   @@index([createdAt])
   @@index([category, price])
+  @@index([productType])
+}
+
+// Digital asset storage for downloadable products
+model DigitalAsset {
+  id              String           @id @default(cuid())
+  
+  // File metadata
+  fileName        String           // Original filename
+  fileSize        Int              // Size in bytes
+  mimeType        String           // e.g., "application/zip", "image/jpeg"
+  fileExtension   String           // e.g., "zip", "jpg", "rar"
+  
+  // Storage (encrypted)
+  storageKey      String           @unique  // Key/path in storage provider
+  storageProvider StorageProvider  @default(EDGESTORE)
+  encryptionKey   String?          // Encrypted with server key
+  checksum        String           // SHA-256 hash for integrity
+  
+  // Ownership
+  uploadedById    String
+  companyId       String?
+  
+  // Status
+  isActive        Boolean          @default(true)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  User            User             @relation(fields: [uploadedById], references: [id])
+  Company         Company?         @relation(fields: [companyId], references: [id])
+  Product         Product?
+  DownloadToken   DownloadToken[]
+
+  @@index([uploadedById])
+  @@index([companyId])
+  @@index([storageKey])
+}
+
+// Secure download tokens - generated after purchase
+model DownloadToken {
+  id              String          @id @default(cuid())
+  
+  // Token info
+  token           String          @unique  // Secure random token
+  
+  // Links
+  digitalAssetId  String
+  orderId         String
+  orderItemId     String?
+  userId          String
+  
+  // Limits
+  maxUses         Int             @default(5)
+  usedCount       Int             @default(0)
+  expiresAt       DateTime?       // null = never expires
+  
+  // Tracking
+  lastUsedAt      DateTime?
+  lastUsedIp      String?
+  userAgent       String?
+  
+  // Status
+  isRevoked       Boolean         @default(false)
+  revokedReason   String?
+  
+  createdAt       DateTime        @default(now())
+  
+  DigitalAsset    DigitalAsset    @relation(fields: [digitalAssetId], references: [id])
+  Order           Order           @relation(fields: [orderId], references: [id])
+  User            User            @relation(fields: [userId], references: [id])
+
+  @@index([token])
+  @@index([digitalAssetId])
+  @@index([orderId])
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model ProductAcceptedToken {
@@ -561,6 +728,9 @@ model User {
   Wallet                                                          Wallet[]
   WalletVerificationChallenge                                     WalletVerificationChallenge[]
   WarehouseLocation                                               WarehouseLocation[]
+  DigitalAsset                                                    DigitalAsset[]
+  DownloadToken                                                   DownloadToken[]
+  CategoriesCreated                                               Category[]                    @relation("CategoryCreator")
 }
 
 model VerificationToken {
@@ -731,6 +901,13 @@ enum ChainFamily {
   SOLANA
 }
 
+enum FiatCurrency {
+  USD
+  NOK
+  EUR
+  GBP
+}
+
 enum CompanyOrgType {
   ENK
   AS
@@ -842,6 +1019,7 @@ enum UserVerificationTier {
   WEB3_BASIC
   SOCIAL_BASIC
   SOCIAL_VERIFIED
+  MULTI_SOCIAL      // Multiple OAuth providers linked - cross-verified identity
   WEB2_PAYMENT
   WEB3_VERIFIED
   WEB3_PAYMENT
@@ -864,4 +1042,24 @@ enum PhoneVerificationStatus {
   VERIFIED
   EXPIRED
   BLOCKED
+}
+enum ProductCondition {
+  NEW           // Brand new, unopened/unused
+  AS_NEW        // Like new, barely used
+  GOOD          // Used but in good condition
+  FAIR          // Shows wear but fully functional
+  POOR          // Significant wear, may need repair
+}
+
+enum ProductType {
+  PHYSICAL      // Physical product requiring shipping
+  DIGITAL       // Digital download only
+  HYBRID        // Both physical item + digital content
+}
+
+enum StorageProvider {
+  EDGESTORE     // Default - EdgeStore
+  S3            // AWS S3 or compatible
+  R2            // Cloudflare R2
+  LOCAL         // Local storage (dev only)
 }

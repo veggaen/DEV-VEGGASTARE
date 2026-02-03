@@ -4,6 +4,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { RefCallback, RefObject } from "react";
+import { usePathname } from "next/navigation";
 import { MySidebarProductsMenu } from "../uicustom/product/sidebar";
 
 export type SidebarDock = "edge-left" | "frame-left" | "frame-right" | "edge-right";
@@ -50,6 +51,9 @@ interface SidebarContextProps {
 	/** Pagination size for /products */
 	perPage: number;
 	setPerPage: (n: number) => void;
+	/** Sticky toolbar element to render at scroll container level */
+	stickyToolbar: React.ReactNode;
+	setStickyToolbar: (toolbar: React.ReactNode) => void;
 }
 
 // Create the context
@@ -71,6 +75,7 @@ export const useSidebarOptional = () => {
 
 // Define the ProductProvider component
 const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 	const [sidebarSwipePx, setSidebarSwipePx] = useState(0);
 	const [isSidebarSwiping, setIsSidebarSwiping] = useState(false);
@@ -80,10 +85,31 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 	const topBarVisibleRef = useRef(true);
 	const sidebarOpenRef = useRef(false);
 	const menuOpenRef = useRef(false);
+	const isSidebarSwipingRef = useRef(false);
 
+	// Reset chrome visibility when pathname changes within /products/*
+	// This ensures the topbar is visible when navigating to /products/create, etc.
+	useEffect(() => {
+		setProductsControlsVisible(true);
+		setTopBarVisible(true);
+		productsControlsVisibleRef.current = true;
+		topBarVisibleRef.current = true;
+		try {
+			window.dispatchEvent(
+				new CustomEvent("veggat:products-chrome", {
+					detail: { controlsVisible: true, topbarVisible: true },
+				})
+			);
+		} catch {
+			// ignore
+		}
+	}, [pathname]);
 	useEffect(() => {
 		sidebarOpenRef.current = isSidebarOpen;
 	}, [isSidebarOpen]);
+	useEffect(() => {
+		isSidebarSwipingRef.current = isSidebarSwiping;
+	}, [isSidebarSwiping]);
 	useEffect(() => {
 		productsControlsVisibleRef.current = productsControlsVisible;
 	}, [productsControlsVisible]);
@@ -364,7 +390,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 				return;
 			}
 			// Don't auto-hide UI while a sheet is open.
-			if (menuOpenRef.current || sidebarOpenRef.current || isSidebarSwiping) return;
+			if (menuOpenRef.current || sidebarOpenRef.current || isSidebarSwipingRef.current) return;
 
 			const top = el.scrollTop || 0;
 			const delta = top - lastScrollTop;
@@ -418,6 +444,8 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 	const [showFooter, setShowFooter] = useState(false);
 	// Pagination size - used by products page + sidebar
 	const [perPage, setPerPage] = useState(30);
+	// Sticky toolbar - registered by pages, rendered at scroll container level
+	const [stickyToolbar, setStickyToolbar] = useState<React.ReactNode>(null);
 		const [isContentScrolled, setIsContentScrolled] = useState(false);
 		// "Compact / full" mode for /products. Entered on first scroll gesture even if we prevent
 		// the actual scroll movement, to avoid the initial scroll feeling "boosted".
@@ -537,6 +565,24 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 				// Ignore mostly-horizontal gestures.
 				if (Math.abs(dx) > Math.abs(dy)) return;
 
+				// Helper to detect mobile for chrome visibility
+				const isMobile = () => (window.matchMedia ? !window.matchMedia("(min-width: 768px)").matches : true);
+
+				// Helper to update chrome visibility (updates refs + state + dispatches event)
+				const updateChrome = (controls: boolean, topbar: boolean) => {
+					setProductsControlsVisible(controls);
+					setTopBarVisible(topbar);
+					productsControlsVisibleRef.current = controls;
+					topBarVisibleRef.current = topbar;
+					try {
+						window.dispatchEvent(
+							new CustomEvent("veggat:products-chrome", {
+								detail: { controlsVisible: controls, topbarVisible: topbar },
+							})
+						);
+					} catch {}
+				};
+
 				// dy < 0 means finger moved up -> would scroll content down (enter compact).
 				if (el.scrollTop === 0 && !compactRef.current && dy < -TOUCH_THRESHOLD_PX) {
 					e.preventDefault();
@@ -545,6 +591,10 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 					compactRef.current = true;
 					setIsCompactMode(true);
 					setIsContentScrolled(true);
+					// On mobile, entering compact mode should also hide the chrome
+					if (isMobile()) {
+						updateChrome(false, false);
+					}
 					return;
 				}
 
@@ -557,6 +607,10 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 					compactRef.current = false;
 					setIsCompactMode(false);
 					setIsContentScrolled(false);
+					// On mobile, exiting compact mode should show the chrome
+					if (isMobile()) {
+						updateChrome(true, true);
+					}
 				}
 			};
 			const onTouchEnd = () => {
@@ -699,6 +753,10 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 	// connect the sticky toolbar with the edge-docked sidebar (no visible gap).
 	const spacerHasToolbarBg = isContentScrolled && isSidebarOpen && isEdgeDock;
 
+	// /products/create should fit on one screen on desktop. Lock the provider scroll
+	// container on large screens so the page doesn't scroll, while keeping mobile scroll.
+	const lockScrollOnDesktopCreate = pathname?.startsWith("/products/create") && viewportWidth >= 1024;
+
   return (
 	  <SidebarContext.Provider
 			value={{
@@ -722,6 +780,8 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 					setShowFooter,
 					perPage,
 					setPerPage,
+					stickyToolbar,
+					setStickyToolbar,
 			}}
 		>
 		    <div className="productProvider relative flex w-full h-full min-h-0">
@@ -734,42 +794,19 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 						ref={scrollContainerRef}
 						data-app-scroll-container="true"
 						className="flex-1 min-w-0 h-full min-h-0 overscroll-contain"
+						style={{ overflowY: lockScrollOnDesktopCreate ? "hidden" : undefined }}
 					>
 							<MySidebarProductsMenu />
-							{/* Flex container for spacer + content */}
-							<div className="flex w-full min-h-full">
-								{/* Left spacer when sidebar is edge-left */}
-								<div
-									aria-hidden="true"
-									className="hidden md:block flex-shrink-0 relative"
-									style={showLeftSpacer ? spacerStyle : collapsedSpacerStyle}
-								>
-									{/* Sticky toolbar-matching background to connect with edge-docked sidebar */}
-									{spacerHasToolbarBg && sidebarDock === 'edge-left' && (
-										<div 
-											className="sticky top-0 z-50 h-[var(--products-controls-height,44px)] bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg border-b border-black/5 dark:border-white/5"
-											style={{ width: spacerWidth }}
-										/>
-									)}
-								</div>
-								{/* Main content area - takes remaining width */}
-								<div className="relative flex-1 min-w-0">
-									{children}
-								</div>
-								{/* Right spacer when sidebar is edge-right */}
-								<div
-									aria-hidden="true"
-									className="hidden md:block flex-shrink-0 relative"
-									style={showRightSpacer ? spacerStyle : collapsedSpacerStyle}
-								>
-									{/* Sticky toolbar-matching background to connect with edge-docked sidebar */}
-									{spacerHasToolbarBg && sidebarDock === 'edge-right' && (
-										<div 
-											className="sticky top-0 z-50 h-[var(--products-controls-height,44px)] bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg border-b border-black/5 dark:border-white/5"
-											style={{ width: spacerWidth }}
-										/>
-									)}
-								</div>
+							{/* Content wrapper with sidebar spacing */}
+							<div 
+								className="h-full"
+								style={{
+									paddingLeft: showLeftSpacer ? spacerWidth : 0,
+									paddingRight: showRightSpacer ? spacerWidth : 0,
+									transition: 'padding 300ms ease-out',
+								}}
+							>
+								{children}
 							</div>
 					</div>
 		    </div>

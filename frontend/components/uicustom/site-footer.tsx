@@ -50,46 +50,45 @@ export default function SiteFooter() {
   }
 
   return (
-    <footer className="hidden md:block mt-auto shrink-0 z-10 border-t border-white/10 bg-black/40 backdrop-blur-xl">
+    <footer className="hidden md:block mt-auto shrink-0 z-10 border-t border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-black/60 backdrop-blur-xl">
       {/* Soft maintenance notice */}
-      <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2">
-        <p className="text-center text-xs text-amber-200/80">
+      <div className="bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/20 px-6 py-2">
+        <p className="text-center text-xs text-amber-700 dark:text-amber-200/80">
           🛠️ We&apos;re still building! Some features may be incomplete or change without notice.
         </p>
       </div>
       
       <div className="mx-auto flex max-w-screen-2xl flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-white/60">
-          <span className="font-medium text-white/80">VeggaStare</span>
-          <span className="mx-2 text-white/25">·</span>
+        <div className="text-sm text-zinc-500 dark:text-zinc-400">
+          <span className="font-medium text-zinc-700 dark:text-zinc-200">VeggaStare</span>
+          <span className="mx-2 text-zinc-300 dark:text-zinc-600">·</span>
           <span>© {year}</span>
-          {/* TODO: Add your org number here once registered */}
-          {/* <span className="mx-2 text-white/25">·</span>
-          <span>Org.nr: XXX XXX XXX</span> */}
+          <span className="mx-2 text-zinc-300 dark:text-zinc-600">·</span>
+          <span>Org.nr: 937 051 107</span>
         </div>
 
         <div className="flex items-center gap-3">
           <Link
             href="/info"
-            className="rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90"
+            className="rounded-xl px-3 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-all duration-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
           >
             Kontakt
           </Link>
           <Link
             href="/terms"
-            className="rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90"
+            className="rounded-xl px-3 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-all duration-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
           >
             Salgsvilkår
           </Link>
           <Link
             href="/privacy"
-            className="rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90"
+            className="rounded-xl px-3 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-all duration-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
           >
             Personvern
           </Link>
           <Link
             href="/products"
-            className="rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-all duration-300 hover:bg-white/5 hover:text-white/90"
+            className="rounded-xl px-3 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-all duration-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
           >
             Markedsplass
           </Link>

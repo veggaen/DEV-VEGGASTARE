@@ -145,13 +145,13 @@ export default function NewConversationPage() {
           <header className="mb-8">
             <Link
               href="/conversations"
-              className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors mb-4"
+              className="inline-flex items-center gap-2 text-sm text-zinc-500 dark:text-white/50 hover:text-zinc-800 dark:hover:text-white/80 transition-colors mb-4"
             >
               <FiArrowLeft className="h-4 w-4" />
               Back to Messages
             </Link>
-            <h1 className="text-3xl font-semibold text-white mb-2">New Conversation</h1>
-            <p className="text-white/60 text-sm">Start a private message or create a group chat</p>
+            <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white mb-2">New Conversation</h1>
+            <p className="text-zinc-500 dark:text-white/60 text-sm">Start a private message or create a group chat</p>
           </header>
 
           {/* Type Selection */}
@@ -163,8 +163,8 @@ export default function NewConversationPage() {
               }}
               className={`flex-1 flex items-center justify-center gap-2 rounded-xl border p-4 transition-all ${
                 conversationType === 'PRIVATE_DM'
-                  ? 'border-indigo-500/50 bg-indigo-500/10 text-white'
-                  : 'border-white/10 bg-white/[0.02] text-white/60 hover:bg-white/[0.05]'
+                  ? 'border-indigo-500/50 bg-indigo-500/10 text-zinc-900 dark:text-white'
+                  : 'border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] text-zinc-500 dark:text-white/60 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]'
               }`}
             >
               <FiMessageCircle className="h-5 w-5" />
@@ -174,8 +174,8 @@ export default function NewConversationPage() {
               onClick={() => setConversationType('GROUP')}
               className={`flex-1 flex items-center justify-center gap-2 rounded-xl border p-4 transition-all ${
                 conversationType === 'GROUP'
-                  ? 'border-indigo-500/50 bg-indigo-500/10 text-white'
-                  : 'border-white/10 bg-white/[0.02] text-white/60 hover:bg-white/[0.05]'
+                  ? 'border-indigo-500/50 bg-indigo-500/10 text-zinc-900 dark:text-white'
+                  : 'border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] text-zinc-500 dark:text-white/60 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]'
               }`}
             >
               <FiUsers className="h-5 w-5" />
@@ -186,12 +186,12 @@ export default function NewConversationPage() {
           {/* Group Name (for groups) */}
           {conversationType === 'GROUP' && (
             <div className="mb-6">
-              <label className="block text-sm font-medium text-white/80 mb-2">Group Name</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-white/80 mb-2">Group Name</label>
               <Input
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="Enter group name..."
-                className="bg-white/5 border-white/10 text-white placeholder-white/40"
+                className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/40"
               />
             </div>
           )}
@@ -199,14 +199,14 @@ export default function NewConversationPage() {
           {/* Selected Users */}
           {selectedUsers.length > 0 && (
             <div className="mb-4">
-              <label className="block text-sm font-medium text-white/80 mb-2">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-white/80 mb-2">
                 {conversationType === 'PRIVATE_DM' ? 'Recipient' : 'Participants'}
               </label>
               <div className="flex flex-wrap gap-2">
                 {selectedUsers.map(user => (
                   <div
                     key={user.id}
-                    className="flex items-center gap-2 bg-white/10 rounded-full pl-1 pr-3 py-1"
+                    className="flex items-center gap-2 bg-black/10 dark:bg-white/10 rounded-full pl-1 pr-3 py-1"
                   >
                     <Avatar className="h-6 w-6">
                       <AvatarImage src={user.image || undefined} />
@@ -214,10 +214,10 @@ export default function NewConversationPage() {
                         {user.name?.[0] || user.email[0]}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm text-white">{user.name || user.email}</span>
+                    <span className="text-sm text-zinc-900 dark:text-white">{user.name || user.email}</span>
                     <button
                       onClick={() => handleRemoveUser(user.id)}
-                      className="text-white/50 hover:text-white/80 transition-colors"
+                      className="text-zinc-500 dark:text-white/50 hover:text-zinc-800 dark:hover:text-white/80 transition-colors"
                     >
                       <FiX className="h-4 w-4" />
                     </button>
@@ -230,24 +230,24 @@ export default function NewConversationPage() {
           {/* User Search */}
           {(conversationType === 'GROUP' || selectedUsers.length === 0) && (
             <div className="mb-6">
-              <label className="block text-sm font-medium text-white/80 mb-2">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-white/80 mb-2">
                 {conversationType === 'PRIVATE_DM' ? 'Find someone' : 'Add people'}
               </label>
               <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-white/40" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by name or email..."
-                  className="pl-10 bg-white/5 border-white/10 text-white placeholder-white/40"
+                  className="pl-10 bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/40"
                 />
               </div>
 
               {/* Search Results */}
               {(searchResults.length > 0 || isSearching) && (
-                <div className="mt-2 rounded-xl border border-white/10 bg-slate-900/90 overflow-hidden">
+                <div className="mt-2 rounded-xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-zinc-900/90 overflow-hidden">
                   {isSearching ? (
-                    <div className="p-4 text-center text-white/50">
+                    <div className="p-4 text-center text-zinc-500 dark:text-white/50">
                       <Spinner />
                     </div>
                   ) : (
@@ -255,7 +255,7 @@ export default function NewConversationPage() {
                       <button
                         key={user.id}
                         onClick={() => handleSelectUser(user)}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors"
+                        className="w-full flex items-center gap-3 p-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                       >
                         <Avatar className="h-10 w-10">
                           <AvatarImage src={user.image || undefined} />
@@ -264,10 +264,10 @@ export default function NewConversationPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 text-left">
-                          <div className="font-medium text-white">{user.name || 'Unknown'}</div>
-                          <div className="text-sm text-white/50">{user.email}</div>
+                          <div className="font-medium text-zinc-900 dark:text-white">{user.name || 'Unknown'}</div>
+                          <div className="text-sm text-zinc-500 dark:text-white/50">{user.email}</div>
                         </div>
-                        <FiPlus className="h-5 w-5 text-white/40" />
+                        <FiPlus className="h-5 w-5 text-zinc-400 dark:text-white/40" />
                       </button>
                     ))
                   )}
@@ -278,7 +278,7 @@ export default function NewConversationPage() {
 
           {/* Initial Message */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-white/80 mb-2">
+            <label className="block text-sm font-medium text-zinc-700 dark:text-white/80 mb-2">
               Message (optional)
             </label>
             <Textarea
@@ -286,7 +286,7 @@ export default function NewConversationPage() {
               onChange={(e) => setInitialMessage(e.target.value)}
               placeholder="Write your first message..."
               rows={3}
-              className="bg-white/5 border-white/10 text-white placeholder-white/40 resize-none"
+              className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/40 resize-none"
             />
           </div>
 

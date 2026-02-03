@@ -103,18 +103,19 @@ const CartPage = () => {
     return (
       <div className="w-full min-h-screen flex items-center justify-center">
         <motion.div
-          className="w-full max-w-md p-6 bg-white dark:bg-gray-900 rounded-xl shadow-lg"
+          className="w-full max-w-md p-6 bg-surface-1 dark:bg-white/[0.02] border border-border dark:border-white/10 rounded-xl"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4 text-center">Loading Cart...</h1>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+          <h1 className="text-2xl font-bold text-foreground mb-4 text-center">Loading Cart...</h1>
+          <div className="w-full bg-muted dark:bg-white/10 rounded-full h-2.5 overflow-hidden">
             <motion.div
-              className="bg-blue-600 h-2.5 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: "100%" }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+              className="bg-emerald-500 h-2.5 rounded-full"
+              initial={{ x: "-100%" }}
+              animate={{ x: "100%" }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+              style={{ width: "50%" }}
             />
           </div>
         </motion.div>
@@ -128,53 +129,62 @@ const CartPage = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto p-4 lg:p-8">
-      <h1 className="text-4xl font-extrabold mb-6 text-gray-900 dark:text-white bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Shopping Cart</h1>
+      <h1 className="text-4xl font-extrabold mb-6 text-foreground">Shopping Cart</h1>
       {cartItems.length === 0 ? (
-        <p className="text-center text-gray-600 dark:text-gray-400 text-lg">Your cart is empty.</p>
+        <div className="text-center py-12">
+          <p className="text-muted-foreground text-lg mb-4">Your cart is empty.</p>
+          <Button onClick={() => router.push("/products")} variant="outline">
+            Continue Shopping
+          </Button>
+        </div>
       ) : (
         <div>
           {cartItems.map((item) => (
             <motion.div
               key={item.id}
-              className="flex flex-col sm:flex-row items-center justify-between gap-2 max-w-[1440px] w-full bg-white dark:bg-gray-900 p-3 lg:p-4 rounded-xl shadow-lg mb-3"
+              className="flex flex-col sm:flex-row items-center justify-between gap-4 max-w-[1440px] w-full bg-surface-1 dark:bg-white/[0.02] border border-border dark:border-white/10 p-4 lg:p-5 rounded-xl mb-3"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="flex items-center gap-2 flex-1">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0">
+              <div className="flex items-center gap-4 flex-1">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-muted dark:bg-white/5 rounded-lg overflow-hidden flex-shrink-0">
                   <AspectRatio ratio={1 / 1}>
                     <Image src={item.product.image[0]} alt={item.product.title} fill className="object-cover" />
                   </AspectRatio>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">{item.product.title}</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">${item.product.price.toFixed(2)}</p>
+                  <h2 className="text-lg font-semibold text-foreground truncate">{item.product.title}</h2>
+                  <p className="text-sm text-muted-foreground">${item.product.price.toFixed(2)}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-muted/50 dark:bg-white/5 rounded-lg px-2 py-1">
                   <Button
                     onClick={() => handleQuantityChange(item.id, "decrement")}
                     disabled={item.quantity <= 1}
-                    className="w-7 h-7 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-sm"
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8 rounded-full hover:bg-zinc-200 dark:hover:bg-white/10"
                   >
                     -
                   </Button>
-                  <span className="text-lg text-gray-800 dark:text-gray-200 min-w-[30px] text-center">
+                  <span className="text-lg font-medium text-foreground min-w-[32px] text-center">
                     {item.quantity}
                   </span>
                   <Button
                     onClick={() => handleQuantityChange(item.id, "increment")}
-                    className="w-7 h-7 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-sm"
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8 rounded-full hover:bg-zinc-200 dark:hover:bg-white/10"
                   >
                     +
                   </Button>
                 </div>
                 <Button
-                  variant="destructive"
+                  variant="outline"
                   onClick={() => handleRemoveItem(item.id)}
-                  className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm"
+                  className="text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10"
                 >
                   Remove
                 </Button>
@@ -182,17 +192,25 @@ const CartPage = () => {
             </motion.div>
           ))}
           <motion.div
-            className="mt-6 p-4 lg:p-6 bg-white dark:bg-gray-900 rounded-xl shadow-lg"
+            className="mt-6 p-5 lg:p-6 bg-surface-1 dark:bg-white/[0.02] border border-border dark:border-white/10 rounded-xl"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-3">Order Summary</h2>
-            <p className="text-gray-600 dark:text-gray-400 text-lg">Total Items: {totalQuantity}</p>
-            <p className="text-gray-600 dark:text-gray-400 text-lg">Total Price: ${totalPrice.toFixed(2)}</p>
+            <h2 className="text-2xl font-semibold text-foreground mb-4">Order Summary</h2>
+            <div className="space-y-2 mb-4">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Items:</span>
+                <span className="font-medium text-foreground">{totalQuantity}</span>
+              </div>
+              <div className="flex justify-between text-lg font-semibold">
+                <span className="text-foreground">Total Price:</span>
+                <span className="text-emerald-600 dark:text-emerald-400">${totalPrice.toFixed(2)}</span>
+              </div>
+            </div>
             <Button
               onClick={handleCheckout}
-              className="mt-4 w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 transition-all duration-300 text-lg py-2 rounded-lg shadow-lg"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white transition-all duration-300 text-lg py-3 rounded-xl"
             >
               Proceed to Checkout
             </Button>

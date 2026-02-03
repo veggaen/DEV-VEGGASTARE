@@ -18,3 +18,30 @@ export const useCurrentUser = (): ExtendedUser | null => {
 
   return user;
 };
+
+/**
+ * Extended hook that also returns the session loading status
+ * Use this when you need to differentiate between "not logged in" and "still loading"
+ */
+export const useCurrentUserWithStatus = (): { 
+  user: ExtendedUser | null; 
+  status: 'loading' | 'authenticated' | 'unauthenticated';
+  isLoading: boolean;
+} => {
+  const { data: session, status } = useSession();
+  const [user, setUser] = useState<ExtendedUser | null>(session?.user || null);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      setUser(session?.user ?? null);
+    } else if (status === 'unauthenticated') {
+      setUser(null);
+    }
+  }, [session, status]);
+
+  return { 
+    user, 
+    status, 
+    isLoading: status === 'loading' 
+  };
+};

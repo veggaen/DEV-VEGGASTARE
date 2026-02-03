@@ -84,7 +84,7 @@ export const MySecurityActionForm = () => {
 
 				{!success && showTwoFactor ? (
 					<div className="w-full space-y-3">
-						<div className="text-sm text-slate-600 dark:text-slate-300">
+						<div className="text-sm text-zinc-600 dark:text-zinc-300">
 							Two-factor is enabled. Enter the code we emailed you.
 						</div>
 						<Input

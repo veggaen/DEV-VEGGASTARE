@@ -148,7 +148,7 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
       className="space-y-5 border border-black/10 bg-white/40 p-5 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05] rounded-lg hover:rounded-2xl"
     >
       <div className="relative">
-        <label htmlFor="userSearch" className="block text-xs font-medium text-slate-600 dark:text-slate-300">
+        <label htmlFor="userSearch" className="block text-xs font-medium text-zinc-600 dark:text-zinc-300">
           Search user
         </label>
         <input
@@ -159,12 +159,12 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
           value={searchTerm}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-slate-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-slate-900 dark:text-white hover:rounded-2xl"
+          className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-zinc-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-zinc-900 dark:text-white hover:rounded-2xl"
         />
         {showDropdown && searchTerm && (
           <div
             ref={dropdownRef}
-            className="absolute z-10 mt-2 w-full overflow-auto rounded-lg border border-black/10 bg-white shadow-lg dark:border-white/10 dark:bg-slate-950 max-h-[160px]"
+            className="absolute z-10 mt-2 w-full overflow-auto rounded-lg border border-black/10 bg-white shadow-lg dark:border-white/10 dark:bg-zinc-950 max-h-[160px]"
           >
             {users
               .filter((user) => user.name?.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -173,7 +173,7 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
                   key={user.id}
                   onClick={() => handleUserSelect(user)}
                   className={
-                    "cursor-pointer px-3 py-2 text-sm text-slate-900 hover:bg-black/5 dark:text-white dark:hover:bg-white/[0.06] " +
+                    "cursor-pointer px-3 py-2 text-sm text-zinc-900 hover:bg-black/5 dark:text-white dark:hover:bg-white/[0.06] " +
                     (highlightedIndex === index ? "bg-black/5 dark:bg-white/[0.06]" : "")
                   }
                 >
@@ -181,7 +181,7 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
                 </div>
               ))}
             {users.length === 0 && (
-              <div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">No users found</div>
+              <div className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">No users found</div>
             )}
           </div>
         )}
@@ -190,18 +190,18 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
       {selectedUser ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Selected</p>
-            <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-white">{selectedUser.name}</p>
+            <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Selected</p>
+            <p className="mt-1 truncate text-sm font-semibold text-zinc-900 dark:text-white">{selectedUser.name}</p>
           </div>
 
           <div>
-            <label htmlFor="roleSelect" className="block text-xs font-medium text-slate-600 dark:text-slate-300">
+            <label htmlFor="roleSelect" className="block text-xs font-medium text-zinc-600 dark:text-zinc-300">
               Role
             </label>
             <select
               id="roleSelect"
               {...register('role')}
-              className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-slate-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-slate-900 dark:text-white hover:rounded-2xl"
+              className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-zinc-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-zinc-900 dark:text-white hover:rounded-2xl"
             >
               {Object.values(EmployeeRole).map((role) => (
                 <option key={role} value={role}>
@@ -213,7 +213,7 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
           </div>
 
           <div className="md:col-span-2">
-            <label htmlFor="jobTitle" className="block text-xs font-medium text-slate-600 dark:text-slate-300">
+            <label htmlFor="jobTitle" className="block text-xs font-medium text-zinc-600 dark:text-zinc-300">
               Job title (optional)
             </label>
             <input
@@ -221,7 +221,7 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
               type="text"
               placeholder="e.g. Operations Lead"
               {...register('jobTitle')}
-              className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-slate-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-slate-900 dark:text-white hover:rounded-2xl"
+              className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-zinc-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-zinc-900 dark:text-white hover:rounded-2xl"
             />
           </div>
         </div>
@@ -233,7 +233,7 @@ export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
       <button
         type="submit"
         disabled={!selectedUser || isLoading}
-        className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-[border-radius,background-color,opacity] hover:bg-slate-800 hover:rounded-2xl disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-white/90"
+        className="w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-[border-radius,background-color,opacity] hover:bg-zinc-800 hover:rounded-2xl disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-white/90"
       >
         {isLoading ? 'Adding…' : 'Add Employee'}
       </button>

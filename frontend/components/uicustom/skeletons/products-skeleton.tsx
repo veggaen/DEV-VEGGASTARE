@@ -19,16 +19,16 @@ export default function ProductsSkeleton() {
             </div>
             <div className="p-2 pt-4 flex flex-col justify-between flex-grow">
               <div>
-                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2 mb-1"></div>
-                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-5/6 mb-1"></div>
-                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div>
+                <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-1/2 mb-1"></div>
+                <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-5/6 mb-1"></div>
+                <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-1/2"></div>
               </div>
               <div className="flex justify-between items-center my-2 sm:mt-4 gap-2">
                 <HiOutlineCog6Tooth className="h-5 w-5 text-gray-500" />
-                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/4"></div>
+                <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-1/4"></div>
               </div>
-              <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-full"></div>
+              <div className="h-8 bg-zinc-200 dark:bg-zinc-700 rounded w-full"></div>
             </div>
           </div>
         ))}

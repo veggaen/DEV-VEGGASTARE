@@ -148,7 +148,7 @@ export default function DevClientErrorsPage() {
               {r.stack && (
                 <div className="text-xs text-muted-foreground">
                   <div className="font-semibold text-foreground/80">Stack</div>
-                  <pre className="mt-1 max-h-[360px] overflow-auto rounded-lg border border-border bg-slate-50/80 p-3 text-[11px] leading-4 text-slate-800 dark:bg-black/20 dark:text-slate-100">
+                  <pre className="mt-1 max-h-[360px] overflow-auto rounded-lg border border-border bg-zinc-50/80 p-3 text-[11px] leading-4 text-zinc-800 dark:bg-black/20 dark:text-zinc-100">
 {r.stack}
                   </pre>
                 </div>
@@ -156,7 +156,7 @@ export default function DevClientErrorsPage() {
 
               <div className="text-xs text-muted-foreground">
                 <div className="font-semibold text-foreground/80">Raw</div>
-                <pre className="mt-1 max-h-[240px] overflow-auto rounded-lg border border-border bg-slate-50/80 p-3 text-[11px] leading-4 text-slate-800 dark:bg-black/20 dark:text-slate-100">
+                <pre className="mt-1 max-h-[240px] overflow-auto rounded-lg border border-border bg-zinc-50/80 p-3 text-[11px] leading-4 text-zinc-800 dark:bg-black/20 dark:text-zinc-100">
 {JSON.stringify(r, null, 2)}
                 </pre>
               </div>

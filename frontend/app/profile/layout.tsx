@@ -4,7 +4,7 @@ interface ProfileLayoutProps {
 
 export default function ProfileLayout({ children }: ProfileLayoutProps) {
   return (
-    <div className="flex flex-1 flex-col w-full min-h-0">
+    <div className="flex flex-col w-full pb-8">
       {children}
     </div>
   );

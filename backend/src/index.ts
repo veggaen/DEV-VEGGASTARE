@@ -23,17 +23,24 @@ const pusherTriggerSchema = z.object({
 });
 
 const init = async (): Promise<void> => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const corsOrigins = isProduction
+    ? (process.env.CORS_ORIGINS
+        ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+        : [])
+    : ['*'];
+
+  console.log(LOG_PREFIX, `Starting in ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'} mode`);
+  if (isProduction) {
+    console.log(LOG_PREFIX, `CORS allowed origins: ${corsOrigins.length > 0 ? corsOrigins.join(', ') : '(none - all blocked!)'}`);
+  }
+
   const server = Hapi.server({
     port: process.env.PORT || 3001,
     host: '0.0.0.0',
     routes: {
       cors: {
-        origin:
-          process.env.NODE_ENV === 'production'
-            ? (process.env.CORS_ORIGINS
-                ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
-                : [])
-            : ['*'],
+        origin: corsOrigins,
         additionalHeaders: ['x-request-id', 'x-nonce'],
       },
     },

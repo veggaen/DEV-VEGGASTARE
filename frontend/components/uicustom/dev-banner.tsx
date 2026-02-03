@@ -277,30 +277,21 @@ export default function DevBanner() {
       className="fixed inset-x-0 z-[80] px-4"
         >
         <div ref={ref} className="mx-auto max-w-3xl">
-					<div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/70 backdrop-blur-xl shadow-[0_18px_60px_rgba(0,0,0,0.55)]">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 opacity-80"
-              style={{
-                background:
-                  "radial-gradient(800px 120px at 25% 40%, rgba(34,197,94,0.18), transparent 60%), radial-gradient(900px 140px at 75% 40%, rgba(56,189,248,0.16), transparent 60%)",
-                mixBlendMode: "screen",
-              }}
-            />
-
-            <div className="relative flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          {/* Solid banner - theme-aware, no gradients */}
+          <div className="overflow-hidden rounded-2xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/80 shadow-lg dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+            <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <div className="flex items-center gap-2 text-sm font-semibold text-white/90">
+                <div className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-100">
                   <span
                     className={
                       "inline-flex h-2.5 w-2.5 shrink-0 rounded-full " +
-                      (online ? "bg-emerald-400" : "bg-amber-400")
+                      (online ? "bg-emerald-500 dark:bg-emerald-400" : "bg-amber-500 dark:bg-amber-400")
                     }
                     aria-hidden
                   />
                   <span className="truncate">Under development</span>
                 </div>
-                <p className="mt-1 text-xs text-white/70 sm:text-sm">
+                <p className="mt-1 text-xs text-amber-700 dark:text-amber-300/80 sm:text-sm">
                   Expect iteration: animations, features, and UX polish are actively evolving.
                 </p>
               </div>
@@ -308,7 +299,7 @@ export default function DevBanner() {
               <div className="flex shrink-0 items-center gap-2">
                 <Link
                   href="/info"
-                  className="group relative inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-white/80 transition-all duration-300 hover:bg-white/5 hover:text-white"
+                  className="group relative inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-amber-800 dark:text-amber-200 transition-all duration-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-900 dark:hover:text-amber-100"
                 >
                   <span className="relative h-4 w-4">
                     <span className="absolute inset-0 opacity-60 transition-all duration-300 group-hover:opacity-0 group-hover:-rotate-12">
@@ -347,23 +338,23 @@ export default function DevBanner() {
                   <span>Info</span>
                 </Link>
 
-        <button
-          type="button"
-          onClick={dismiss}
-          className="rounded-xl px-3 py-2 text-xs font-medium text-white/70 transition-all duration-300 hover:bg-white/10 hover:text-white"
-          aria-label="Dismiss development banner"
-          title={
-            isLoggedIn
-              ? "Hide this notice (saved to your account)"
-              : "Hide this notice (saved in your browser)"
-          }
-        >
-          Dismiss
-        </button>
+                <button
+                  type="button"
+                  onClick={dismiss}
+                  className="rounded-xl px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-300 transition-all duration-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-900 dark:hover:text-amber-100"
+                  aria-label="Dismiss development banner"
+                  title={
+                    isLoggedIn
+                      ? "Hide this notice (saved to your account)"
+                      : "Hide this notice (saved in your browser)"
+                  }
+                >
+                  Dismiss
+                </button>
               </div>
             </div>
-					</div>
-				</div>
+          </div>
+        </div>
         </motion.div>
       ) : null}
     </AnimatePresence>

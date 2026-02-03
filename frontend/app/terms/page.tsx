@@ -7,7 +7,7 @@ import { motion, useReducedMotion } from "framer-motion";
 const BUSINESS_INFO = {
   name: "THORSEN SOFTWARE",
   orgNumber: "937 051 107",
-  address: "Blåskjellveien 5, 4310 Hommersåk",
+  address: "Blåskjellveien 5B, 4310 Hommersåk",
   email: "kontakt@veggat.com",
   phone: "+47 984 207 21",
   country: "Norge",
@@ -18,24 +18,7 @@ export default function TermsPage() {
 
   return (
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
-      {/* Background */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/75 to-emerald-950/10 dark:from-black dark:via-black/75 dark:to-emerald-950/20" />
-        <motion.div
-          className="absolute -right-12 top-24 h-[560px] w-[560px] rounded-full blur-3xl"
-          animate={
-            reduceMotion
-              ? undefined
-              : { x: [0, -16, 0], y: [0, 12, 0], opacity: [0.08, 0.16, 0.08], scale: [1, 1.05, 1] }
-          }
-          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            background:
-              "radial-gradient(closest-side, rgba(34,197,94,0.18), rgba(56,189,248,0.10), rgba(34,197,94,0) 72%)",
-            mixBlendMode: "screen",
-          }}
-        />
-      </div>
+      {/* Clean background - no gradient orbs */}
 
       <div className="relative mx-auto w-full max-w-4xl px-6 py-16">
         <motion.div

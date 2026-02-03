@@ -301,7 +301,7 @@ export const MyCompanyCreateForm = () => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="w-full max-w-[640px] flex flex-col justify-start items-center border-y sm:border bg-slate-200 border-gray-300 dark:bg-gray-700 dark:border-gray-600 sm:rounded">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="w-full max-w-[640px] flex flex-col justify-start items-center border-y sm:border bg-zinc-200 border-gray-300 dark:bg-gray-700 dark:border-gray-600 sm:rounded">
         <div className="w-full flex flex-col justify-start items-center">
           <div>
             <h1 className='font-bold py-4 px-6'>Create a Company</h1>
@@ -442,8 +442,8 @@ export const MyCompanyCreateForm = () => {
             </FormItem>
           )} />
           <div className='w-full px-4 py-2'>
-            <div className={`h-full w-full flex justify-center items-center rounded-md bg-slate-100 dark:bg-slate-900 border border-input disabled:pointer-events-none px-3 py-2 text-sm ring-offset-bg-black/20 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}>
-              <div {...getLogoRootProps()} className={`w-full dropzone cursor-pointer bg-slate-100 dark:bg-slate-900 rounded-md border border-dashed ${logoPreview.length >= 1 ? 'border-transparent dark:border-transparent bg-white/0 dark:bg-black/0 hover:bg-transparent dark:hover:bg-transparent' : ' border-gray-600/60 dark:border-gray-600/60'}`}>
+            <div className={`h-full w-full flex justify-center items-center rounded-md bg-zinc-100 dark:bg-zinc-900 border border-input disabled:pointer-events-none px-3 py-2 text-sm ring-offset-bg-black/20 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}>
+              <div {...getLogoRootProps()} className={`w-full dropzone cursor-pointer bg-zinc-100 dark:bg-zinc-900 rounded-md border border-dashed ${logoPreview.length >= 1 ? 'border-transparent dark:border-transparent bg-white/0 dark:bg-black/0 hover:bg-transparent dark:hover:bg-transparent' : ' border-gray-600/60 dark:border-gray-600/60'}`}>
                 {logoPreview.length < 1 && (
                   <AspectRatio ratio={1 / 1}>
                     <div className={`text-center flex flex-col justify-center items-center w-full h-full text-black dark:text-white focus:outline-none transition rounded-md`} title='Optimal image ratio 1:1'>
@@ -488,8 +488,8 @@ export const MyCompanyCreateForm = () => {
             </FormItem>
           )} />
           <div className='w-full px-4 py-2'>
-            <div className={`h-full w-full flex justify-center items-center rounded-md bg-slate-100 dark:bg-slate-900 border border-input disabled:pointer-events-none px-3 py-2 text-sm ring-offset-bg-black/20 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}>
-              <div {...getBannerRootProps()} className={`w-full dropzone cursor-pointer bg-slate-100 dark:bg-slate-900 rounded-md border border-dashed ${bannerPreview.length >= 1 ? 'border-transparent dark:border-transparent bg-white/0 dark:bg-black/0 hover:bg-transparent dark:hover:bg-transparent' : ' border-gray-600/60 dark:border-gray-600/60'}`}>
+            <div className={`h-full w-full flex justify-center items-center rounded-md bg-zinc-100 dark:bg-zinc-900 border border-input disabled:pointer-events-none px-3 py-2 text-sm ring-offset-bg-black/20 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}>
+              <div {...getBannerRootProps()} className={`w-full dropzone cursor-pointer bg-zinc-100 dark:bg-zinc-900 rounded-md border border-dashed ${bannerPreview.length >= 1 ? 'border-transparent dark:border-transparent bg-white/0 dark:bg-black/0 hover:bg-transparent dark:hover:bg-transparent' : ' border-gray-600/60 dark:border-gray-600/60'}`}>
                 {bannerPreview.length < 1 && (
                   <AspectRatio ratio={3 / 1}>
                     <div className={`text-center flex flex-col justify-center items-center w-full h-full text-black dark:text-white focus:outline-none transition rounded-md`} title='Optimal image ratio 3:1'>
@@ -528,7 +528,7 @@ export const MyCompanyCreateForm = () => {
                 <FormDescription className='px-4 py-0'>
                   Select users to add to your company as Employees and assign their roles.
                 </FormDescription>
-                <div className="flex flex-col bg-slate-50 dark:bg-slate-900 p-2 rounded">
+                <div className="flex flex-col bg-zinc-50 dark:bg-zinc-900 p-2 rounded">
                   <div className={'grid gap-2 p-2'}>
                     <Select onValueChange={setSelectedEmployeeId} value={selectedEmployeeId}>
                       <FormControl>
@@ -553,8 +553,8 @@ export const MyCompanyCreateForm = () => {
                   </div>
                   <div className={`flex flex-col justify-between items-center gap-3 p-4 pt-0 ${employeeList.length <= 1 ? 'hidden' : ''}`}>
                     {employeeList.map((employee, index) => (
-                      <div key={employee.userId} className={`flex justify-between items-center gap-3 p-2 w-full bg-slate-200 dark:bg-slate-700 ${employee.userId === user?.id && 'hidden'} rounded`} >
-                        <div className={'capitalize bg-slate-100 dark:bg-slate-800 p-2 rounded'}>{employee.email}</div>
+                      <div key={employee.userId} className={`flex justify-between items-center gap-3 p-2 w-full bg-zinc-200 dark:bg-zinc-700 ${employee.userId === user?.id && 'hidden'} rounded`} >
+                        <div className={'capitalize bg-zinc-100 dark:bg-zinc-800 p-2 rounded'}>{employee.email}</div>
                         <Select defaultValue={employee.role} onValueChange={(newRole) => handleRoleChange(employee.userId, newRole as EmployeeRole)}>
                           <SelectTrigger>
                             <SelectValue />
@@ -583,7 +583,7 @@ export const MyCompanyCreateForm = () => {
                     <p className='xs:hidden'>Enable Shipping Cost Calc?</p>
                   </div>
                 </FormLabel>
-                <div className="flex h-10 bg-slate-50 dark:bg-slate-900 w-full space-x-2 rounded-md border border-input disabled:pointer-events-none bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                <div className="flex h-10 bg-zinc-50 dark:bg-zinc-900 w-full space-x-2 rounded-md border border-input disabled:pointer-events-none bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                   <FormControl>
                     <Input {...field} className='w-5 h-5 ' disabled={!user || isSubmitting} type='checkbox' value={field.value ? 'false' : 'true'} />
                   </FormControl>
@@ -612,7 +612,7 @@ export const MyCompanyCreateForm = () => {
                     <FormField name={`warehouseLocations.${index}.address`} control={form.control} render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Input {...field} placeholder="Address" disabled={!user || isSubmitting} type="text" title={"Enter street name and number."} className='bg-white dark:bg-slate-800' />
+                          <Input {...field} placeholder="Address" disabled={!user || isSubmitting} type="text" title={"Enter street name and number."} className='bg-white dark:bg-zinc-800' />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -620,7 +620,7 @@ export const MyCompanyCreateForm = () => {
                     <FormField name={`warehouseLocations.${index}.postalCode`} control={form.control} render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Input {...field} placeholder="postal code" disabled={!user || isSubmitting} type="text" title={"Enter your ZIP/postal code. E.g., 12345 or A1B 2C3."} className='bg-white dark:bg-slate-800' />
+                          <Input {...field} placeholder="postal code" disabled={!user || isSubmitting} type="text" title={"Enter your ZIP/postal code. E.g., 12345 or A1B 2C3."} className='bg-white dark:bg-zinc-800' />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -628,7 +628,7 @@ export const MyCompanyCreateForm = () => {
                     <FormField name={`warehouseLocations.${index}.city`} control={form.control} render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Input {...field} placeholder="City" disabled={!user || isSubmitting} type="text" title={"Enter the name of your city."} className='bg-white dark:bg-slate-800' />
+                          <Input {...field} placeholder="City" disabled={!user || isSubmitting} type="text" title={"Enter the name of your city."} className='bg-white dark:bg-zinc-800' />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -636,7 +636,7 @@ export const MyCompanyCreateForm = () => {
                     <FormField name={`warehouseLocations.${index}.country`} control={form.control} render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Input {...field} placeholder="Country" disabled={!user || isSubmitting} type="text" title={"Select your country from the list."} className='bg-white dark:bg-slate-800' />
+                          <Input {...field} placeholder="Country" disabled={!user || isSubmitting} type="text" title={"Select your country from the list."} className='bg-white dark:bg-zinc-800' />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -644,7 +644,7 @@ export const MyCompanyCreateForm = () => {
                     <FormField name={`warehouseLocations.${index}.latitude`} control={form.control} render={({ field: { onChange, value } }) => (
                       <FormItem>
                         <FormControl>
-                          <Input {...field} placeholder="Latitude (Optional)" disabled={!user || isSubmitting} value={value} onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))} type="number" step="any" title={"Enter latitude in decimal format (e.g., 59.9139)."} className='bg-white dark:bg-slate-800' />
+                          <Input {...field} placeholder="Latitude (Optional)" disabled={!user || isSubmitting} value={value} onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))} type="number" step="any" title={"Enter latitude in decimal format (e.g., 59.9139)."} className='bg-white dark:bg-zinc-800' />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -652,7 +652,7 @@ export const MyCompanyCreateForm = () => {
                     <FormField name={`warehouseLocations.${index}.longitude`} control={form.control} render={({ field: { onChange, value } }) => (
                       <FormItem>
                         <FormControl>
-                          <Input {...field} placeholder="Longitude (Optional)" disabled={!user || isSubmitting} value={value} onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))} type="number" step="any" title={"Enter longitude in decimal format (e.g., 10.7522)."} className='bg-white dark:bg-slate-800' />
+                          <Input {...field} placeholder="Longitude (Optional)" disabled={!user || isSubmitting} value={value} onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))} type="number" step="any" title={"Enter longitude in decimal format (e.g., 10.7522)."} className='bg-white dark:bg-zinc-800' />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

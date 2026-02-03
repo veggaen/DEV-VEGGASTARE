@@ -104,62 +104,62 @@ const WarehouseInventory = () => {
     const fmtPercent = (n: number) => `${Math.round(n * 100)}%`;
 
     return (
-        <div className="min-h-screen w-full bg-slate-50 dark:bg-slate-950">
+        <div className="min-h-screen w-full bg-zinc-50 dark:bg-zinc-950">
             <div className="mx-auto w-full max-w-screen-2xl px-4 py-6">
                 <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                     <div>
                         <div className="flex items-center gap-3">
                             <Link
                                 href={`/nexus/company/${companyId}`}
-                                className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
+                                className="text-sm font-medium text-zinc-700 hover:underline dark:text-zinc-200"
                             >
                                 Back
                             </Link>
-                            <span className="text-slate-400">/</span>
-                            <span className="text-sm text-slate-500 dark:text-slate-300">Warehouse</span>
+                            <span className="text-zinc-400">/</span>
+                            <span className="text-sm text-zinc-500 dark:text-zinc-300">Warehouse</span>
                         </div>
-                        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white md:text-3xl">
+                        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white md:text-3xl">
                             {warehouse.address}
                         </h1>
-                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
                             {warehouse.postalCode}, {warehouse.city}, {warehouse.country}
                         </p>
                     </div>
 
                     <div className="w-full md:max-w-sm">
-                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Search inventory</label>
+                        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-300">Search inventory</label>
                         <input
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder="Search by title or category…"
-                            className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-slate-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-white/[0.03] dark:text-white hover:rounded-2xl"
+                            className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-zinc-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-white/[0.03] dark:text-white hover:rounded-2xl"
                         />
                     </div>
                 </div>
 
                 <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
                     <div className="rounded-lg border border-black/10 bg-white/50 p-4 transition-[border-radius,box-shadow] duration-200 hover:shadow-md hover:rounded-2xl dark:border-white/10 dark:bg-white/[0.03]">
-                        <p className="text-xs font-medium text-slate-600 dark:text-slate-300">SKUs</p>
-                        <p className="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">{fmtNumber(totals.skuCount)}</p>
+                        <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">SKUs</p>
+                        <p className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-white">{fmtNumber(totals.skuCount)}</p>
                     </div>
                     <div className="rounded-lg border border-black/10 bg-white/50 p-4 transition-[border-radius,box-shadow] duration-200 hover:shadow-md hover:rounded-2xl dark:border-white/10 dark:bg-white/[0.03]">
-                        <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Initial Qty</p>
-                        <p className="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">{fmtNumber(totals.initialTotal)}</p>
+                        <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Initial Qty</p>
+                        <p className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-white">{fmtNumber(totals.initialTotal)}</p>
                     </div>
                     <div className="rounded-lg border border-black/10 bg-white/50 p-4 transition-[border-radius,box-shadow] duration-200 hover:shadow-md hover:rounded-2xl dark:border-white/10 dark:bg-white/[0.03]">
-                        <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Current Stock</p>
-                        <p className="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">{fmtNumber(totals.currentTotal)}</p>
+                        <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Current Stock</p>
+                        <p className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-white">{fmtNumber(totals.currentTotal)}</p>
                     </div>
                     <div className="rounded-lg border border-black/10 bg-white/50 p-4 transition-[border-radius,box-shadow] duration-200 hover:shadow-md hover:rounded-2xl dark:border-white/10 dark:bg-white/[0.03]">
-                        <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Stock Ratio</p>
-                        <p className="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">{fmtPercent(totals.ratio)}</p>
+                        <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Stock Ratio</p>
+                        <p className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-white">{fmtPercent(totals.ratio)}</p>
                     </div>
                 </div>
 
                 <div className="mt-6 overflow-hidden rounded-lg border border-black/10 bg-white/50 dark:border-white/10 dark:bg-white/[0.03]">
                     <div className="flex items-center justify-between px-4 py-3">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">Inventory</p>
-                        <p className="text-sm text-slate-600 dark:text-slate-300">
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-white">Inventory</p>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-300">
                             Showing {fmtNumber(filteredInventory.length)} of {fmtNumber(warehouse.inventory.length)}
                         </p>
                     </div>
@@ -181,20 +181,20 @@ const WarehouseInventory = () => {
                                 <div className="min-w-0">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
-                                            <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                                            <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white">
                                                 {item.product?.title}
                                             </p>
-                                            <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
+                                            <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-300">
                                                 {item.product?.category || 'Uncategorized'}
                                             </p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-xs text-slate-600 dark:text-slate-300">Initial</p>
-                                            <p className="text-sm font-semibold text-slate-900 dark:text-white">{fmtNumber(item.quantity)}</p>
+                                            <p className="text-xs text-zinc-600 dark:text-zinc-300">Initial</p>
+                                            <p className="text-sm font-semibold text-zinc-900 dark:text-white">{fmtNumber(item.quantity)}</p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-xs text-slate-600 dark:text-slate-300">Current</p>
-                                            <p className="text-sm font-semibold text-slate-900 dark:text-white">{fmtNumber(item.stock)}</p>
+                                            <p className="text-xs text-zinc-600 dark:text-zinc-300">Current</p>
+                                            <p className="text-sm font-semibold text-zinc-900 dark:text-white">{fmtNumber(item.stock)}</p>
                                         </div>
                                     </div>
                                     <div className="mt-3">
@@ -203,7 +203,7 @@ const WarehouseInventory = () => {
                                 </div>
 
                                 <div className="flex items-center justify-end">
-                                    <div className="rounded-lg border border-black/10 bg-black/5 px-3 py-2 text-xs font-medium text-slate-700 transition-[border-radius,background-color] group-hover:bg-black/10 group-hover:rounded-2xl dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:group-hover:bg-white/[0.07]">
+                                    <div className="rounded-lg border border-black/10 bg-black/5 px-3 py-2 text-xs font-medium text-zinc-700 transition-[border-radius,background-color] group-hover:bg-black/10 group-hover:rounded-2xl dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200 dark:group-hover:bg-white/[0.07]">
                                         {item.quantity > 0 ? fmtPercent(item.stock / item.quantity) : '—'}
                                     </div>
                                 </div>
@@ -211,7 +211,7 @@ const WarehouseInventory = () => {
                         ))}
 
                         {filteredInventory.length === 0 ? (
-                            <div className="px-4 py-10 text-center text-sm text-slate-600 dark:text-slate-300">
+                            <div className="px-4 py-10 text-center text-sm text-zinc-600 dark:text-zinc-300">
                                 No inventory items match your search.
                             </div>
                         ) : null}

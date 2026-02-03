@@ -154,7 +154,7 @@ export default function ConversationPage() {
   if (!conversation) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
-        <h2 className="text-xl font-semibold text-white">Conversation not found</h2>
+        <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Conversation not found</h2>
         <Button onClick={() => router.push('/conversations')} variant="outline">
           Back to Messages
         </Button>
@@ -173,13 +173,13 @@ export default function ConversationPage() {
       <motion.header
         initial={reduceMotion ? undefined : { opacity: 0, y: -10 }}
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-        className="flex items-center gap-4 border-b border-white/10 bg-slate-900/80 backdrop-blur-sm px-4 py-3"
+        className="flex items-center gap-4 border-b border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm px-4 py-3"
       >
         <Link
           href="/conversations"
-          className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-white/10 transition-colors"
+          className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
         >
-          <FiArrowLeft className="h-5 w-5 text-white/70" />
+          <FiArrowLeft className="h-5 w-5 text-zinc-600 dark:text-white/70" />
         </Link>
 
         {conversation.type === 'PRIVATE_DM' && otherParticipant ? (
@@ -191,25 +191,25 @@ export default function ConversationPage() {
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <h1 className="font-semibold text-white truncate">
+              <h1 className="font-semibold text-zinc-900 dark:text-white truncate">
                 {otherParticipant.name || 'Unknown'}
               </h1>
-              <p className="text-xs text-white/50">Direct Message</p>
+              <p className="text-xs text-zinc-500 dark:text-white/50">Direct Message</p>
             </div>
           </div>
         ) : (
           <div className="flex-1 min-w-0">
-            <h1 className="font-semibold text-white truncate">
+            <h1 className="font-semibold text-zinc-900 dark:text-white truncate">
               {conversation.title || 'Untitled Conversation'}
             </h1>
-            <p className="text-xs text-white/50 flex items-center gap-1">
+            <p className="text-xs text-zinc-500 dark:text-white/50 flex items-center gap-1">
               {conversation.type === 'GROUP' && <FiUsers className="h-3 w-3" />}
               {conversation.type === 'GROUP' ? 'Group Chat' : conversation.type}
             </p>
           </div>
         )}
 
-        <Button variant="ghost" size="icon" className="text-white/60 hover:text-white hover:bg-white/10">
+        <Button variant="ghost" size="icon" className="text-zinc-500 dark:text-white/60 hover:text-zinc-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10">
           <FiMoreVertical className="h-5 w-5" />
         </Button>
       </motion.header>
@@ -240,7 +240,7 @@ export default function ConversationPage() {
 
       {/* Poll (if exists) */}
       {hasPoll && conversationId && (
-        <div className="px-4 py-3 border-b border-white/10">
+        <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
           <PollDisplay conversationId={conversationId} />
         </div>
       )}
@@ -256,7 +256,7 @@ export default function ConversationPage() {
       </div>
 
       {/* Input */}
-      <div className="border-t border-white/10 bg-slate-900/80 backdrop-blur-sm p-4">
+      <div className="border-t border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm p-4">
         <MessageInput
           conversationId={conversationId!}
           onMessageSent={fetchMessages}

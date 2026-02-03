@@ -232,7 +232,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 10 }}
             transition={{ duration: 0.15 }}
-            className="fixed left-[50%] top-[50%] z-[90] w-[95vw] max-w-2xl translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl bg-white dark:bg-slate-900"
+            className="fixed left-[50%] top-[50%] z-[90] w-[95vw] max-w-2xl translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 shadow-2xl bg-white dark:bg-zinc-900"
             style={{
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               maxHeight: '90vh',
@@ -257,7 +257,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
             </div>
 
             {/* Header */}
-            <div className="relative flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/50 px-5 py-4">
+            <div className="relative flex items-center justify-between border-b border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800/50 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20">
                   <FiTrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -269,7 +269,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                   variant="ghost"
                   size="sm"
                   onClick={copyLink}
-                  className="h-8 gap-1.5 text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
+                  className="h-8 gap-1.5 text-muted-foreground hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
                 >
                   {copied ? <FiCheck className="h-3.5 w-3.5 text-emerald-500" /> : <FiCopy className="h-3.5 w-3.5" />}
                   <span className="text-xs">{copied ? 'Copied!' : 'Share'}</span>
@@ -278,7 +278,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                   variant="ghost"
                   size="sm"
                   onClick={openFullPage}
-                  className="h-8 gap-1.5 text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
+                  className="h-8 gap-1.5 text-muted-foreground hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
                 >
                   <FiExternalLink className="h-3.5 w-3.5" />
                   <span className="text-xs">Expand</span>
@@ -287,7 +287,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                   variant="ghost"
                   size="icon"
                   onClick={onClose}
-                  className="h-8 w-8 text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
+                  className="h-8 w-8 text-muted-foreground hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
                 >
                   <FiX className="h-4 w-4" />
                 </Button>
@@ -310,7 +310,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                 {/* Scrollable content */}
                 <div
                   ref={scrollRef}
-                  className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/10"
+                  className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-300 dark:scrollbar-thumb-white/10"
                   style={{ maxHeight: 'calc(90vh - 200px)' }}
                 >
                   <div className="p-5">
@@ -416,7 +416,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                                 <FiEye className="h-4 w-4" />
                                 <span>{pulse.viewCount}</span>
                                 {pulse.uniqueViewCount !== undefined && pulse.uniqueViewCount > 0 && (
-                                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-800 dark:bg-slate-700 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">
+                                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-800 dark:bg-zinc-700 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">
                                     {pulse.uniqueViewCount} unique
                                   </span>
                                 )}
@@ -430,10 +430,10 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                     {/* Divider */}
                     <div className="relative my-4">
                       <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-200 dark:border-white/10" />
+                        <div className="w-full border-t border-zinc-200 dark:border-white/10" />
                       </div>
                       <div className="relative flex justify-center">
-                        <span className="bg-white dark:bg-slate-900 px-3 text-xs font-medium text-muted-foreground dark:text-white/40">
+                        <span className="bg-white dark:bg-zinc-900 px-3 text-xs font-medium text-muted-foreground dark:text-white/40">
                           {messages.length > 0 ? `${messages.length} vibes` : 'No vibes yet'}
                         </span>
                       </div>
@@ -444,11 +444,11 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                       {messages.map((message) => (
                         <div
                           key={message.id}
-                          className="flex gap-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 p-3 transition-colors hover:bg-slate-200 dark:hover:bg-slate-800"
+                          className="flex gap-3 rounded-xl bg-zinc-100 dark:bg-zinc-800/50 p-3 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-800"
                         >
-                          <Avatar className="h-9 w-9 shrink-0 ring-1 ring-slate-200 dark:ring-white/10">
+                          <Avatar className="h-9 w-9 shrink-0 ring-1 ring-zinc-200 dark:ring-white/10">
                             <AvatarImage src={message.sender?.image || undefined} />
-                            <AvatarFallback className="bg-gradient-to-br from-slate-400 to-slate-500 dark:from-slate-600 dark:to-slate-700 text-sm text-white">
+                            <AvatarFallback className="bg-gradient-to-br from-zinc-400 to-zinc-500 dark:from-zinc-600 dark:to-zinc-700 text-sm text-white">
                               {message.sender?.name?.[0]?.toUpperCase() || '?'}
                             </AvatarFallback>
                           </Avatar>
@@ -473,7 +473,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
 
                       {messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-8 text-center">
-                          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
                             <FiMessageCircle className="h-6 w-6 text-muted-foreground dark:text-white/30" />
                           </div>
                           <p className="text-sm text-muted-foreground dark:text-white/50">Be the first to drop a vibe</p>
@@ -485,14 +485,14 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
 
                 {/* Message input */}
                 {currentUser ? (
-                  <div className="shrink-0 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/50 p-4">
+                  <div className="shrink-0 border-t border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800/50 p-4">
                     <MessageInput
                       conversationId={pulse.id}
                       onMessageSent={handleMessageSent}
                     />
                   </div>
                 ) : (
-                  <div className="shrink-0 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/50 p-4">
+                  <div className="shrink-0 border-t border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800/50 p-4">
                     <p className="text-center text-sm text-muted-foreground dark:text-white/50">
                       <Button
                         variant="link"

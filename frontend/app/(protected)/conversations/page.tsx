@@ -78,7 +78,7 @@ const SORT_OPTIONS: { value: SortType; label: string }[] = [
 
 const TYPE_ICONS: Record<Conversation['type'], React.ReactNode> = {
   PUBLIC_THREAD: <FiMessageCircle className="h-5 w-5 text-blue-500" />,
-  PRIVATE_DM: <FiMessageCircle className="h-5 w-5 text-slate-500" />,
+  PRIVATE_DM: <FiMessageCircle className="h-5 w-5 text-zinc-500" />,
   GROUP: <FiUsers className="h-5 w-5 text-emerald-500" />,
   RESTRICTED: <FiLock className="h-5 w-5 text-orange-500" />,
 };
@@ -205,7 +205,7 @@ export default function ConversationsPage() {
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: index * 0.03 }}
         onClick={() => handleConversationClick(conversation.id)}
-        className="group relative cursor-pointer rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/30 p-4 transition-all hover:bg-slate-200/80 dark:hover:bg-card/60 hover:border-border"
+        className="group relative cursor-pointer rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/30 p-4 transition-all hover:bg-zinc-200/80 dark:hover:bg-card/60 hover:border-border"
       >
         {isNavigating === conversation.id && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-2xl z-10">
@@ -453,7 +453,7 @@ export default function ConversationsPage() {
               </Button>
             </div>
           ) : filteredConversations.length === 0 ? (
-            <div className="rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/30 p-12 text-center">
+            <div className="rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/30 p-12 text-center">
               <FiInbox className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-foreground mb-2">No conversations yet</h3>
               <p className="text-muted-foreground text-sm mb-6">

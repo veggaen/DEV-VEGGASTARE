@@ -11,12 +11,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { IoMoonOutline } from 'react-icons/io5';
-import { FiSun } from 'react-icons/fi';
-import { FiMonitor } from 'react-icons/fi';
+import { FiSun, FiMonitor, FiCheck } from 'react-icons/fi';
 
 type ThemeValue = 'light' | 'dark' | 'system';
 
-export default function ThemeToggleMenu() {
+interface ThemeToggleMenuProps {
+  /** Show label next to icon (default: true) */
+  showLabel?: boolean;
+  /** Compact mode - just icon button (default: false) */
+  compact?: boolean;
+}
+
+export default function ThemeToggleMenu({ showLabel = true, compact = false }: ThemeToggleMenuProps) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
@@ -34,32 +40,83 @@ export default function ThemeToggleMenu() {
         ? FiSun
         : FiMonitor;
 
-  const label = !mounted ? 'Theme' : theme === 'system' ? `System (${effective ?? '…'})` : theme;
+  const label = !mounted 
+    ? 'Theme' 
+    : theme === 'system' 
+      ? `System` 
+      : theme === 'dark' 
+        ? 'Dark' 
+        : 'Light';
+
+  // Quick toggle function for compact mode
+  const quickToggle = () => {
+    if (effective === 'dark') {
+      setTheme('light');
+    } else {
+      setTheme('dark');
+    }
+  };
+
+  // Compact mode - just a toggle button
+  if (compact) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={quickToggle}
+        className="h-9 w-9 p-0 rounded-xl text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        aria-label={`Switch to ${effective === 'dark' ? 'light' : 'dark'} mode`}
+      >
+        <Icon className="h-4 w-4" />
+      </Button>
+    );
+  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className="h-10 gap-2 rounded-xl border border-border bg-white/60 text-foreground hover:bg-slate-50 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.10]"
+          className="h-9 gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
         >
           <Icon className="h-4 w-4" />
-          <span className="text-sm">{label}</span>
+          {showLabel && <span className="text-sm">{label}</span>}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuItem onClick={() => setTheme('dark')}>
-          <IoMoonOutline className="mr-2 h-4 w-4" />
-          Dark
+      <DropdownMenuContent 
+        align="end" 
+        className="w-40 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+      >
+        <DropdownMenuItem 
+          onClick={() => setTheme('light')}
+          className="flex items-center justify-between cursor-pointer"
+        >
+          <div className="flex items-center">
+            <FiSun className="mr-2 h-4 w-4" />
+            Light
+          </div>
+          {theme === 'light' && <FiCheck className="h-4 w-4 text-emerald-500" />}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('light')}>
-          <FiSun className="mr-2 h-4 w-4" />
-          Light
+        <DropdownMenuItem 
+          onClick={() => setTheme('dark')}
+          className="flex items-center justify-between cursor-pointer"
+        >
+          <div className="flex items-center">
+            <IoMoonOutline className="mr-2 h-4 w-4" />
+            Dark
+          </div>
+          {theme === 'dark' && <FiCheck className="h-4 w-4 text-emerald-500" />}
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setTheme('system')}>
-          <FiMonitor className="mr-2 h-4 w-4" />
-          System
+        <DropdownMenuSeparator className="bg-zinc-200 dark:bg-zinc-800" />
+        <DropdownMenuItem 
+          onClick={() => setTheme('system')}
+          className="flex items-center justify-between cursor-pointer"
+        >
+          <div className="flex items-center">
+            <FiMonitor className="mr-2 h-4 w-4" />
+            System
+          </div>
+          {theme === 'system' && <FiCheck className="h-4 w-4 text-emerald-500" />}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

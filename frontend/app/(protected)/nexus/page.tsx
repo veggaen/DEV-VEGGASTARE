@@ -97,7 +97,7 @@ export default function NexusPage() {
 
   const colorClasses: Record<string, string> = {
     indigo: 'text-indigo-500 group-hover:bg-indigo-500/10',
-    slate: 'text-slate-500 group-hover:bg-slate-500/10',
+    slate: 'text-zinc-500 group-hover:bg-zinc-500/10',
     pink: 'text-pink-500 group-hover:bg-pink-500/10',
     blue: 'text-blue-500 group-hover:bg-blue-500/10',
     emerald: 'text-emerald-500 group-hover:bg-emerald-500/10',

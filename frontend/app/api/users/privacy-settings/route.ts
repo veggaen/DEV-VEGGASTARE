@@ -1,5 +1,6 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
+import { ensureUser } from '@/lib/ensure-user';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -23,34 +24,33 @@ const updateSchema = z.object({
  */
 export async function GET() {
   const session = await MyLibUserAuth();
-  if (!session) {
+  if (!session?.id) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const userId = session.id;
-  if (!userId) {
-    return NextResponse.json({ message: 'Unauthorized ID' }, { status: 401 });
-  }
-
   try {
-    // Get or create privacy settings
-    let settings = await dbPrisma.userPrivacySettings.findUnique({
-      where: { userId },
-    });
-
-    if (!settings) {
-      // Create default settings
-      settings = await dbPrisma.userPrivacySettings.create({
-        data: {
-          userId,
-          showPulsesGiven: true,
-          showPulsesReceived: true,
-          showNegativePulses: false,
-          showRepulses: true,
-          allowNegativePulses: true,
-        },
-      });
+    // Ensure user exists in DB before creating dependent records
+    const ensureResult = await ensureUser(session);
+    if (!ensureResult.success) {
+      console.error(`${LOG_PREFIX} Failed to ensure user:`, ensureResult.error);
+      return NextResponse.json({ message: 'Failed to initialize user' }, { status: 500 });
     }
+
+    const userId = ensureResult.userId;
+
+    // Use upsert to get or create settings atomically (avoids race conditions)
+    const settings = await dbPrisma.userPrivacySettings.upsert({
+      where: { userId },
+      create: {
+        userId,
+        showPulsesGiven: true,
+        showPulsesReceived: true,
+        showNegativePulses: false,
+        showRepulses: true,
+        allowNegativePulses: true,
+      },
+      update: {}, // No updates needed, just return existing
+    });
 
     const payload = {
       showPulsesGiven: settings.showPulsesGiven,
@@ -87,13 +87,8 @@ export async function GET() {
  */
 export async function PATCH(req: Request) {
   const session = await MyLibUserAuth();
-  if (!session) {
+  if (!session?.id) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
-
-  const userId = session.id;
-  if (!userId) {
-    return NextResponse.json({ message: 'Unauthorized ID' }, { status: 401 });
   }
 
   const bodyResult = await parseJsonOrError(req, updateSchema);
@@ -102,6 +97,15 @@ export async function PATCH(req: Request) {
   const updateData = bodyResult.data;
 
   try {
+    // Ensure user exists in DB before upserting dependent records
+    const ensureResult = await ensureUser(session);
+    if (!ensureResult.success) {
+      console.error(`${LOG_PREFIX} Failed to ensure user:`, ensureResult.error);
+      return NextResponse.json({ message: 'Failed to initialize user' }, { status: 500 });
+    }
+
+    const userId = ensureResult.userId;
+
     // Upsert privacy settings
     const settings = await dbPrisma.userPrivacySettings.upsert({
       where: { userId },
@@ -116,7 +120,9 @@ export async function PATCH(req: Request) {
       update: updateData,
     });
 
-    console.log(`${LOG_PREFIX} Updated settings for user=${userId}:`, updateData);
+    if (isDev) {
+      console.log(`${LOG_PREFIX} Updated settings for user=${userId}:`, updateData);
+    }
 
     const payload = {
       showPulsesGiven: settings.showPulsesGiven,

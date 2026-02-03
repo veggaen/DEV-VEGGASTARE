@@ -12,7 +12,7 @@ export const MyLoginForm = () => {
 
     return (
         <form className="flex flex-col justify-center w-full p-4 sm:p-8 md:p-12 lg:p-24 xl:p-36 lg:py-12 xl:py-12"> {/* action={dispatch} */}
-            <div className="flex flex-col md:flex-row w-full justify-center bg-neutral-300 dark:bg-slate-700 max-w-[1440px] rounded-xl overflow-hidden">
+            <div className="flex flex-col md:flex-row w-full justify-center bg-neutral-300 dark:bg-zinc-700 max-w-[1440px] rounded-xl overflow-hidden">
               <div className="w-full h-full">
                 <div className={`relative flex flex-col items-center justify-center w-full h-72 sm:h-96 md:h-full md:min-h-[720px] transition ease-linear duration-300`}>
                   <Image
@@ -41,8 +41,8 @@ export const MyLoginForm = () => {
                   <div className={` text-white dark:text-white py-1 text-center group w-full bg-green-500/50 dark:bg-emerald-500/50`}>
                 <h1 className="font-bold text-xl tracking-[0.03em]">Freedom Store™</h1>
                   </div>
-                <div className="p-4 h-full md:min-w-[300px] lg:min-w-[360px] xl:min-w-[420px] lg:min-h-[620px] bg-neutral-400 dark:bg-slate-600">
-                  <div className="flex flex-col justify-between p-6 h-full bg-neutral-300 dark:bg-slate-700 w-full rounded-b-lg rounded-t">
+                <div className="p-4 h-full md:min-w-[300px] lg:min-w-[360px] xl:min-w-[420px] lg:min-h-[620px] bg-neutral-400 dark:bg-zinc-600">
+                  <div className="flex flex-col justify-between p-6 h-full bg-neutral-300 dark:bg-zinc-700 w-full rounded-b-lg rounded-t">
                     <div className="UserDataSettingsUserInterface">
                       <div className="flex items-center justify-between">
                         <h1 className="font-bold text-xl sm:text-lg lg:text-xl">Login</h1>

@@ -88,16 +88,16 @@ export default function EvmWalletVerify({
 
 	return (
 		<div className="rounded-xl border border-black/10 p-3 dark:border-white/10">
-			<div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+			<div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
 				EVM wallet
 			</div>
-			<div className="mt-1 text-sm text-slate-900 dark:text-slate-100 break-all">
+			<div className="mt-1 text-sm text-zinc-900 dark:text-zinc-100 break-all">
 				{isConnected && address ? address : "Not connected"}
 			</div>
 
 			{needTwoFactor ? (
 				<div className="mt-3 space-y-2">
-					<div className="text-xs text-slate-500 dark:text-slate-400">
+					<div className="text-xs text-zinc-500 dark:text-zinc-400">
 						Enter the 2FA code from email to continue.
 					</div>
 					<Input

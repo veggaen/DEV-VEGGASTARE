@@ -47,7 +47,12 @@ declare global {
 // - PRISMA_POOL_TIMEOUT=10
 // - PRISMA_CONNECT_TIMEOUT=10
 // Optional: enable query logging PRISMA_LOG_QUERIES=1
-const tunedDatabaseUrl = buildPrismaUrlWithPoolTuning(process.env.DATABASE_URL)
+const selectedDatabaseUrl =
+    process.env.NODE_ENV !== 'production'
+        ? process.env.DATABASE_URL_DEV ?? process.env.DATABASE_URL
+        : process.env.DATABASE_URL
+
+const tunedDatabaseUrl = buildPrismaUrlWithPoolTuning(selectedDatabaseUrl)
 const shouldLogQueries = isTruthy(process.env.PRISMA_LOG_QUERIES)
 
 function createPrismaClient(): PrismaClient {

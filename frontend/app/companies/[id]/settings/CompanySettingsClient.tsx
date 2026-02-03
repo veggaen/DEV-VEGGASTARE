@@ -158,15 +158,15 @@ const CompanySettingsClient = () => {
         // Redirect non-members to public page
         if (!hasInternalAccess) {
             return (
-                <div className="w-full bg-slate-50 dark:bg-slate-950">
+                <div className="w-full bg-zinc-50 dark:bg-zinc-950">
                     <div className="mx-auto w-full max-w-screen-2xl px-4 py-12 text-center">
-                        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white mb-4">Access Restricted</h1>
-                        <p className="text-slate-600 dark:text-slate-300 mb-6">
+                        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-4">Access Restricted</h1>
+                        <p className="text-zinc-600 dark:text-zinc-300 mb-6">
                             You don&apos;t have permission to access company settings.
                         </p>
                         <Link
                             href={`/companies/${company.id}`}
-                            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
                         >
                             View Company Profile
                         </Link>
@@ -328,9 +328,9 @@ const CompanySettingsClient = () => {
 
                         <div className="px-4 py-5 md:px-6">
                             <div className="mb-8">
-                                <p className="text-lg font-semibold text-slate-900 dark:text-white mb-3">Description</p>
-                                <p className="text-base text-slate-700 dark:text-slate-300 mb-4">{company.description}</p>
-                                <div className="text-sm text-slate-700 dark:text-slate-300">
+                                <p className="text-lg font-semibold text-zinc-900 dark:text-white mb-3">Description</p>
+                                <p className="text-base text-zinc-700 dark:text-zinc-300 mb-4">{company.description}</p>
+                                <div className="text-sm text-zinc-700 dark:text-zinc-300">
                                     <span className="font-medium">Website:</span>{' '}
                                     {company.websiteUrl ? (
                                         <a
@@ -348,11 +348,11 @@ const CompanySettingsClient = () => {
                             </div>
 
                             {showRegistrationPrompt ? (
-                                <div className="mb-8 rounded-lg border border-black/10 bg-white/50 p-4 text-slate-900 dark:border-white/10 dark:bg-white/[0.03] dark:text-white">
+                                <div className="mb-8 rounded-lg border border-black/10 bg-white/50 p-4 text-zinc-900 dark:border-white/10 dark:bg-white/[0.03] dark:text-white">
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
                                             <p className="text-base font-semibold">Optional company metadata</p>
-                                            <p className="text-sm text-slate-600 dark:text-slate-300">
+                                            <p className="text-sm text-zinc-600 dark:text-zinc-300">
                                                 Add these details to improve invoices, contracts, and internal settings. Nothing is required.
                                             </p>
                                         </div>
@@ -365,7 +365,7 @@ const CompanySettingsClient = () => {
                                                 value={regOrgType}
                                                 onChange={(e) => setRegOrgType(e.target.value)}
                                                 disabled={!canUpdateRegistration || regSaving}
-                                                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
+                                                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-zinc-900"
                                             >
                                                 <option value="">Not specified</option>
                                                 <option value="ENK">Enkeltpersonforetak (ENK)</option>
@@ -389,7 +389,7 @@ const CompanySettingsClient = () => {
                                                 pattern="\d*"
                                                 maxLength={9}
                                                 placeholder="123456789"
-                                                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
+                                                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-zinc-900"
                                             />
                                         </label>
 
@@ -402,7 +402,7 @@ const CompanySettingsClient = () => {
                                                 value={regNoticeDays}
                                                 onChange={(e) => setRegNoticeDays(Number(e.target.value))}
                                                 disabled={!canUpdateRegistration || regSaving}
-                                                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
+                                                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-zinc-900"
                                             />
                                         </label>
                                     </div>
@@ -412,7 +412,7 @@ const CompanySettingsClient = () => {
                                             type="button"
                                             onClick={saveRegistration}
                                             disabled={!canUpdateRegistration || regSaving}
-                                            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-slate-900"
+                                            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900"
                                         >
                                             {regSaving ? 'Saving…' : 'Save'}
                                         </button>

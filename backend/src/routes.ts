@@ -23,11 +23,19 @@ const shippingRatesSchema = z.object({
   fromPostalCode: z.string().min(1),
   toPostalCode: z.string().min(1),
   packages: z.array(z.object({
-    length: z.number().positive().optional().default(10),
-    width: z.number().positive().optional().default(10),
-    height: z.number().positive().optional().default(10),
-    grossWeight: z.number().positive().optional().default(300),
-  })).min(1, 'At least one package is required'),
+    id: z.string().optional(),
+    length: z.number().nonnegative().optional().default(20),
+    width: z.number().nonnegative().optional().default(15),
+    height: z.number().nonnegative().optional().default(10),
+    grossWeight: z.number().nonnegative().optional().default(500),
+  }).transform((pkg) => ({
+    // Ensure we always have positive values for Bring API
+    id: pkg.id,
+    length: pkg.length > 0 ? pkg.length : 20,
+    width: pkg.width > 0 ? pkg.width : 15,
+    height: pkg.height > 0 ? pkg.height : 10,
+    grossWeight: pkg.grossWeight > 0 ? pkg.grossWeight : 500,
+  }))).min(1, 'At least one package is required'),
   language: z.string().optional(),
   customerNumber: z.string().optional(),
 });

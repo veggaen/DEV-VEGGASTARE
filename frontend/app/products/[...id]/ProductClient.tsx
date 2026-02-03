@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CiStar } from "react-icons/ci";
 import { useSession } from "next-auth/react";
@@ -17,17 +19,32 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 import { BringShippingDetails } from "@/components/uicustom/product/bringShipping-details";
 import { fetchPostalCodeFromCoords } from "@/components/uicustom/product/postal-code-from-coords";
 import { fetchCoordsFromPostalCode } from "@/components/uicustom/product/postal-cords-from-code";
-import { getCountryCode, haversineDistance } from "@/lib/utils";
+import { PostalCodeAutocomplete } from "@/components/uicustom/postal-code-autocomplete";
+import { cn, getCountryCode, haversineDistance } from "@/lib/utils";
 import ProductSkeleton from "@/components/uicustom/skeletons/product-skeleton";
 import PriceAmount from "@/components/crypto-related/PriceAmount";
 import { usePricing } from "@/components/crypto-related/PricingContext";
 import { useTheme } from "next-themes";
 import { useUiPreferences } from "@/components/providers/ui-preferences";
 import ProductHeroHeading from "@/components/uicustom/product/product-hero-heading";
+import { fetchUserEmployeePermissions } from "@/actions/user-company-permissions";
+import { MyDeleteProductAction } from "@/actions/products";
+import type { EmployeePermissions } from "@/lib/types/company-permissions";
+import { Pencil, Trash2, Loader2, Navigation } from "lucide-react";
+import { toast } from "sonner";
 
 function getNavigationType() {
   try {
@@ -276,7 +293,7 @@ function AnimatedRating() {
 
   return (
     <motion.span
-      className="text-sm inline-flex"
+      className="text-sm"
       initial="hidden"
       animate="show"
       variants={{
@@ -315,8 +332,20 @@ interface Product {
   description: string;
   category: string;
   price: number; // stored in USD
+  priceCurrency: string;
+  acceptedFiatCurrencies: string[];
+  condition: string;
   image: string[];
   specifications: Specification[] | null;
+  userId: string;
+  companyId: string | null;
+  acceptedTokens: Array<{
+    family: "EVM" | "SOLANA";
+    symbol: string;
+    decimals: number;
+    tokenAddress: string | null;
+    tokenMint: string | null;
+  }>;
   company: { warehouseLocations: WarehouseLocation[] | null } | null;
   inventory: Inventory[];
   shipFromPostalId: string;
@@ -696,7 +725,7 @@ function AnimatedProductTitle({
 
   if (reduceMotion || mode === "off") {
     return (
-      <h1 className="text-balance text-2xl md:text-3xl font-semibold leading-tight tracking-tight text-slate-900 dark:text-white drop-shadow-sm">
+      <h1 className="text-balance text-2xl md:text-3xl font-semibold leading-tight tracking-tight text-foreground drop-shadow-sm">
         {cleaned}
       </h1>
     );
@@ -707,7 +736,7 @@ function AnimatedProductTitle({
 
   return (
     <motion.h1
-      className="text-balance text-2xl md:text-3xl font-semibold leading-tight tracking-tight text-slate-900 dark:text-white drop-shadow-sm"
+      className="text-balance text-2xl md:text-3xl font-semibold leading-tight tracking-tight text-foreground drop-shadow-sm"
       aria-label={cleaned}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -842,7 +871,7 @@ function AnimatedCategoryKicker({ text }: { text: string }) {
 
   return (
     <motion.span 
-      className="inline-flex text-[11px] uppercase tracking-[0.18em] rounded-full px-3 py-1 bg-white/60 dark:bg-white/[0.06] text-slate-700 dark:text-slate-200 border border-black/10 dark:border-white/10"
+      className="inline-flex text-[11px] uppercase tracking-[0.18em] rounded-full px-3 py-1 bg-white/60 dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 border border-black/10 dark:border-white/10"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
@@ -867,13 +896,18 @@ function AnimatedCategoryKicker({ text }: { text: string }) {
   );
 }
 
-function AnimatedPrice({ usd }: { usd: number }) {
+function AnimatedPrice({ amount, currency = 'USD' }: { amount: number; currency?: string }) {
   const reduceMotion = useReducedMotion();
   const { resolvedTheme } = useTheme();
-  const intro = useOncePerTabGate(`price:${usd}`);
+  const intro = useOncePerTabGate(`price:${amount}:${currency}`);
 
   const { nativeSymbol, convertFromUSD } = usePricing();
-  const primary = useMemo(() => convertFromUSD(usd, "NATIVE"), [usd, convertFromUSD]);
+  
+  // Convert from original currency to USD first
+  const FIAT_TO_USD: Record<string, number> = { USD: 1, NOK: 0.091, EUR: 1.08, GBP: 1.27 };
+  const usdValue = amount * (FIAT_TO_USD[currency] ?? 1);
+  
+  const primary = useMemo(() => convertFromUSD(usdValue, "NATIVE"), [usdValue, convertFromUSD]);
 
   const base = resolvedTheme === "dark" ? "#F8FAFC" : "#0F172A";
   const green = "#22C55E";
@@ -884,7 +918,14 @@ function AnimatedPrice({ usd }: { usd: number }) {
     return `${formatDecimal(primary, 6)} ${nativeSymbol}`;
   }, [nativeSymbol, primary]);
 
-  const secondaryText = useMemo(() => `(~ ${formatUSD(usd)})`, [usd]);
+  const secondaryText = useMemo(() => {
+    // Show original currency if not USD
+    if (currency !== 'USD') {
+      const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+      return `(${formatted} ≈ ${formatUSD(usdValue)})`;
+    }
+    return `(~ ${formatUSD(usdValue)})`;
+  }, [amount, currency, usdValue]);
 
   const shouldAnimate = !reduceMotion && !!intro && primary != null;
   const [primaryStageIndex, setPrimaryStageIndex] = useState(0);
@@ -959,15 +1000,19 @@ function AnimatedPrice({ usd }: { usd: number }) {
 
   if (reduceMotion || !intro) {
     return (
-      <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-        <PriceAmount usd={usd} />
+      <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+        <PriceAmount 
+          amount={amount} 
+          currency={currency}
+          acceptsWeb3={false} // TODO: pass from product
+        />
       </div>
     );
   }
 
   if (primary == null) {
     return (
-      <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">—</div>
+      <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">—</div>
     );
   }
 
@@ -999,7 +1044,7 @@ function AnimatedPrice({ usd }: { usd: number }) {
     >
       <span className="inline-flex items-baseline">
         <motion.span
-          className="text-slate-900 dark:text-slate-100 inline-flex"
+          className="text-zinc-900 dark:text-zinc-100 inline-flex"
           initial={false}
           animate={pulse ? { color: pulse.primary } : { color: base }}
           transition={
@@ -1079,17 +1124,79 @@ function AnimatedPrice({ usd }: { usd: number }) {
 }
 
 function ProductDetails({ product }: { product: Product }) {
+  const router = useRouter();
   const { data: session } = useSession();
   const reduceMotion = useReducedMotion();
   const { prefs } = useUiPreferences();
 
+  const [companyEditAllowed, setCompanyEditAllowed] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const sessionUserId = (session as any)?.user?.id as string | undefined;
+  const sessionRole = (session as any)?.user?.role as string | undefined;
+  const isAdminLike = sessionRole === "ADMIN" || sessionRole === "OWNER";
+
+  const canEditProduct = useMemo(() => {
+    if (!sessionUserId) return false;
+    if (isAdminLike) return true;
+    if (product.userId === sessionUserId) return true;
+    if (product.companyId && companyEditAllowed) return true;
+    return false;
+  }, [companyEditAllowed, isAdminLike, product.companyId, product.userId, sessionUserId]);
+
+  const handleDeleteProduct = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const result = await MyDeleteProductAction(product.id);
+      if (result.error) {
+        toast.error(result.error);
+        setIsDeleting(false);
+        return;
+      }
+      toast.success(result.success || "Product deleted successfully");
+      setDeleteDialogOpen(false);
+      // Redirect to products page
+      router.push("/products");
+    } catch (err) {
+      toast.error("Failed to delete product");
+      setIsDeleting(false);
+    }
+  }, [product.id, router]);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        if (!sessionUserId) return;
+        if (!product.companyId) return;
+        // Ask server for employee permissions
+        const res = await fetchUserEmployeePermissions({ id: sessionUserId }, product.companyId);
+        if (!alive) return;
+        if (res instanceof Response) {
+          setCompanyEditAllowed(false);
+          return;
+        }
+        const perms = (res ?? {}) as EmployeePermissions;
+        setCompanyEditAllowed(perms?.CAN_EDIT_PRODUCT_POSITION_PERMISSION === true);
+      } catch {
+        if (!alive) return;
+        setCompanyEditAllowed(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [product.companyId, sessionUserId]);
+
   const [userPostalCode, setUserPostalCode] = useState<string | null>(null);
+  const [userCity, setUserCity] = useState<string | null>(null);
   const [closestWarehouse, setClosestWarehouse] = useState<WarehouseLocation | null>(null);
   const [hasFetchedLocation, setHasFetchedLocation] = useState(false);
   const [showShippingDetails, setShowShippingDetails] = useState(false);
   const [isLocLoading, setIsLocLoading] = useState(false);
-  const [manualPostal, setManualPostal] = useState("");
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [showManualInput, setShowManualInput] = useState(false);
 
   // Where can we ship from?
   const warehouseLocations = useMemo(() => {
@@ -1110,15 +1217,18 @@ function ProductDetails({ product }: { product: Product }) {
     return [] as WarehouseLocation[];
   }, [product.company?.warehouseLocations, product.shipFromPostalId]);
 
-  // Specs normalization
+  // Specs normalization - use sensible defaults for shipping calculation
   const specs = useMemo(() => {
-    const base = { length: 0, width: 0, height: 0, grossWeight: 0 };
+    // Default package: 20x15x10cm, 500g (reasonable small parcel)
+    const base = { length: 20, width: 15, height: 10, grossWeight: 500 };
     (product.specifications || []).forEach((s) => {
       const v = parseFloat(s.value);
-      if (s.key === "Length") base.length = v;
-      if (s.key === "Width") base.width = v;
-      if (s.key === "Height") base.height = v;
-      if (s.key === "Weight") base.grossWeight = v;
+      if (!isNaN(v) && v > 0) {
+        if (s.key === "Length") base.length = v;
+        if (s.key === "Width") base.width = v;
+        if (s.key === "Height") base.height = v;
+        if (s.key === "Weight") base.grossWeight = v;
+      }
     });
     return base;
   }, [product.specifications]);
@@ -1176,6 +1286,19 @@ function ProductDetails({ product }: { product: Product }) {
 				throw new Error("Could not determine your postal code. Please enter it manually.");
 			}
 			setUserPostalCode(postal);
+      
+      // Try to fetch city from postal code
+      try {
+        const res = await fetch(`/api/bring-shipping-suggest-postcode?postalCode=${postal}&countryCode=no`);
+        const data = await res.json();
+        const match = data?.postal_codes?.find((p: any) => p.postal_code === postal);
+        if (match?.city) {
+          setUserCity(match.city);
+        }
+      } catch {
+        // Ignore city lookup errors
+      }
+      
       const closest = await resolveClosestWarehouse(latitude, longitude);
       if (closest) setClosestWarehouse(closest);
       setHasFetchedLocation(true);
@@ -1188,28 +1311,6 @@ function ProductDetails({ product }: { product: Product }) {
       setIsLocLoading(false);
     }
 	}, [warehouseLocations.length, resolveClosestWarehouse]);
-
-  const handleManualPostal = useCallback(async () => {
-    if (!manualPostal || !warehouseLocations.length) return;
-		setShowShippingDetails(true);
-    setLocationError(null);
-    setIsLocLoading(true);
-    try {
-      // assume same country as first warehouse if we don’t know user’s country
-      const country = warehouseLocations[0]?.countryCode || "NO";
-      const user = await fetchCoordsFromPostalCode(manualPostal, country);
-      if (!user) throw new Error("Could not locate that postal code.");
-      setUserPostalCode(manualPostal);
-      const closest = await resolveClosestWarehouse(user.latitude, user.longitude);
-      if (closest) setClosestWarehouse(closest);
-      setHasFetchedLocation(true);
-    } catch (e: any) {
-			setHasFetchedLocation(false);
-      setLocationError(e?.message || "Could not use that postal code.");
-    } finally {
-      setIsLocLoading(false);
-    }
-  }, [manualPostal, warehouseLocations, resolveClosestWarehouse]);
 
   // Cart actions
   const handleAddToCart = useCallback(async () => {
@@ -1251,7 +1352,7 @@ function ProductDetails({ product }: { product: Product }) {
             show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.45, ease: "easeOut" } },
           }}
         >
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-900/40 p-2">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/40 p-2">
             <Carousel>
               <CarouselContent>
                 {product.image.map((src, idx) => (
@@ -1300,17 +1401,16 @@ function ProductDetails({ product }: { product: Product }) {
             <ProductHeroHeading
               accent="auto"
               accentKey={product.category}
-              kicker={
-                <AnimatedCategoryKicker text={product.category} />
-              }
-              title={
-                <AnimatedProductTitle
-                  text={product.title}
-                  mode={prefs.productTitleAnimationMode}
-                  rsvpWpm={prefs.rsvpWpm}
+              kicker={product.category}
+              title={product.title}
+              price={
+                <PriceAmount 
+                  amount={product.price} 
+                  currency={product.priceCurrency || 'USD'}
+                  acceptsWeb3={Array.isArray(product.acceptedTokens) && product.acceptedTokens.length > 0}
+                  acceptedCryptos={product.acceptedTokens?.map((t: any) => t.symbol)}
                 />
               }
-              price={<AnimatedPrice usd={product.price} />}
             />
           </motion.div>
 
@@ -1326,6 +1426,51 @@ function ProductDetails({ product }: { product: Product }) {
               <CiStar className="h-5 w-5 text-yellow-500" />
               <AnimatedRating />
             </div>
+
+            {canEditProduct && (
+              <div className="flex items-center gap-2">
+                <Button asChild variant="outline" size="sm" className="gap-2">
+                  <Link href={`/products/edit/${product.id}`}>
+                    <Pencil className="h-4 w-4" />
+                    Edit listing
+                  </Link>
+                </Button>
+                <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950">
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete Product</DialogTitle>
+                      <DialogDescription>
+                        Are you sure you want to delete &quot;{product.title}&quot;? This action cannot be undone.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setDeleteDialogOpen(false)}
+                        disabled={isDeleting}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        onClick={handleDeleteProduct}
+                        disabled={isDeleting}
+                        className="gap-2"
+                      >
+                        {isDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
+                        {isDeleting ? "Deleting..." : "Delete Product"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )}
           </motion.div>
 
           {/* actions */}
@@ -1351,6 +1496,7 @@ function ProductDetails({ product }: { product: Product }) {
                 Buy Now
               </Button>
             </motion.div>
+
             <motion.div
               variants={{
                 hidden: { opacity: 0, x: 18, filter: "blur(10px)" },
@@ -1389,76 +1535,186 @@ function ProductDetails({ product }: { product: Product }) {
 
           {/* shipping */}
           <motion.div
-            className="mt-4 rounded-xl border border-gray-200 dark:border-gray-800 p-4"
+            className="mt-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 overflow-hidden"
             variants={{
               hidden: { opacity: 0, y: 12 },
               show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
             }}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-                <CiDeliveryTruck className="h-4 w-4" />
-                Shipping
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 dark:from-emerald-500/30 dark:to-teal-500/30 flex items-center justify-center">
+                  <CiDeliveryTruck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900 dark:text-white">Shipping Estimate</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {userPostalCode 
+                      ? `Delivering to ${userPostalCode}${userCity ? ` ${userCity}` : ''}`
+                      : 'Get shipping costs instantly'}
+                  </div>
+                </div>
               </div>
-						<div className="flex items-center gap-2">
-							{showShippingDetails ? (
-								<>
-									<Button
-										variant="secondary"
-										onClick={handleLocate}
-										disabled={isLocLoading || !warehouseLocations.length}
-										size="sm"
-									>
-										{isLocLoading ? "Locating…" : "Retry location"}
-									</Button>
-									<Button variant="ghost" size="sm" onClick={() => setShowShippingDetails(false)}>
-										Hide
-									</Button>
-								</>
-							) : (
-								<Button onClick={handleLocate} disabled={isLocLoading || !warehouseLocations.length} size="sm">
-									{isLocLoading ? "Locating…" : "Get Shipping Details"}
-								</Button>
-							)}
-						</div>
+              {showShippingDetails && userPostalCode && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setShowShippingDetails(false);
+                    setUserPostalCode(null);
+                    setUserCity(null);
+                    setShowManualInput(false);
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  Change
+                </Button>
+              )}
             </div>
 
-					{showShippingDetails && userPostalCode && (closestWarehouse?.postalCode || product.shipFromPostalId) && (
-              <div className="mt-3">
-                <BringShippingDetails
-								fromPostalCode={closestWarehouse?.postalCode || product.shipFromPostalId}
-                  toPostalCode={userPostalCode}
-                  productSpecifications={specs}
-                />
-              </div>
-            )}
+            {/* Location Input - Prominent Auto-Detect Design */}
+            <div className="p-4 bg-gray-50 dark:bg-white/[0.02]">
+              {warehouseLocations.length > 0 ? (
+                <>
+                  {/* Show detected location or input options */}
+                  {!userPostalCode ? (
+                    <div className="space-y-4">
+                      {/* Primary: Big Auto-Detect Button */}
+                      <motion.button
+                        type="button"
+                        onClick={handleLocate}
+                        disabled={isLocLoading}
+                        className={cn(
+                          "w-full py-4 px-4 rounded-xl",
+                          "bg-gradient-to-br from-emerald-500 to-teal-600",
+                          "hover:from-emerald-400 hover:to-teal-500",
+                          "text-white font-medium",
+                          "flex items-center justify-center gap-3",
+                          "transition-all duration-200",
+                          "shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30",
+                          isLocLoading && "opacity-70 cursor-wait"
+                        )}
+                        whileHover={!isLocLoading ? { scale: 1.01 } : {}}
+                        whileTap={!isLocLoading ? { scale: 0.99 } : {}}
+                      >
+                        {isLocLoading ? (
+                          <>
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>Finding your location...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Navigation className="h-5 w-5" />
+                            <span>Use My Location</span>
+                          </>
+                        )}
+                      </motion.button>
 
-					{showShippingDetails && warehouseLocations.length > 0 && (
-              <div className="mt-3 space-y-2">
-                <div className="text-xs text-gray-600 dark:text-gray-300">
-								Enter a postal code to calculate shipping:
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm w-40"
-                    placeholder="Postal code"
-                    value={manualPostal}
-                    onChange={(e) => setManualPostal(e.target.value)}
-                    inputMode="numeric"
-                  />
-                  <Button variant="secondary" size="sm" onClick={handleManualPostal} disabled={isLocLoading}>
-                    Use Postal
-                  </Button>
-                </div>
-                {locationError && <div className="text-xs text-red-600">{locationError}</div>}
-							{!userPostalCode && !locationError && (
-								<div className="text-xs text-gray-600 dark:text-gray-300">
-									Tip: click <span className="font-medium">Retry location</span> to auto-detect your postal code.
-								</div>
-							)}
-              </div>
-            )}
-              </motion.div>
+                      {/* Secondary: Manual entry toggle */}
+                      {!showManualInput ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowManualInput(true)}
+                          className="w-full text-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 py-2"
+                        >
+                          Or enter postal code manually
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <PostalCodeAutocomplete
+                            value=""
+                            onChange={(postal, city) => {
+                              if (postal.length >= 4) {
+                                setUserPostalCode(postal);
+                                if (city) setUserCity(city);
+                                setShowShippingDetails(true);
+                              }
+                            }}
+                            onSelect={async (suggestion) => {
+                              setUserPostalCode(suggestion.postal_code);
+                              setUserCity(suggestion.city || null);
+                              setShowShippingDetails(true);
+                              setLocationError(null);
+                              
+                              if (suggestion.latitude && suggestion.longitude) {
+                                const lat = parseFloat(suggestion.latitude);
+                                const lon = parseFloat(suggestion.longitude);
+                                if (!isNaN(lat) && !isNaN(lon)) {
+                                  const closest = await resolveClosestWarehouse(lat, lon);
+                                  if (closest) setClosestWarehouse(closest);
+                                }
+                              }
+                              setHasFetchedLocation(true);
+                            }}
+                            isLocating={isLocLoading}
+                            placeholder="Type postal code (e.g. 4310)"
+                            countryCode={warehouseLocations[0]?.countryCode?.toLowerCase() || "no"}
+                            disabled={isLocLoading}
+                            showLocateButton={false}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowManualInput(false)}
+                            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            ← Back to auto-detect
+                          </button>
+                        </div>
+                      )}
+
+                      {locationError && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 text-center flex items-center justify-center gap-1.5">
+                          <CiMapPin className="h-3 w-3" />
+                          {locationError}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    /* Location detected - show confirmation */
+                    <div className="flex items-center gap-3 py-2">
+                      <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                        <CiMapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          {userPostalCode} {userCity}
+                        </div>
+                        <div className="text-xs text-emerald-600 dark:text-emerald-400">
+                          ✓ Location confirmed
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+                  Shipping not available for this product
+                </p>
+              )}
+            </div>
+
+            {/* Shipping Results */}
+            <AnimatePresence mode="wait">
+              {showShippingDetails && userPostalCode && (closestWarehouse?.postalCode || product.shipFromPostalId) && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="border-t border-gray-100 dark:border-white/5"
+                >
+                  <div className="p-4 bg-white dark:bg-transparent">
+                    <BringShippingDetails
+                      fromPostalCode={closestWarehouse?.postalCode || product.shipFromPostalId}
+                      toPostalCode={userPostalCode}
+                      productSpecifications={specs}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
 
           {/* availability */}
           <motion.div
@@ -1468,23 +1724,33 @@ function ProductDetails({ product }: { product: Product }) {
               show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
             }}
           >
-            <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold tracking-tight text-gray-900 dark:text-zinc-100">
                 <GoPackage className="h-4 w-4" />
                 Availability
               </div>
               <div className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                {stockAtClosest > 0
-                  ? `${stockAtClosest} in stock at closest warehouse`
-                  : "Out of stock at closest warehouse"}
+                {totalStock > 0 ? (
+                  closestWarehouse ? (
+                    stockAtClosest > 0 
+                      ? `${stockAtClosest} in stock nearby`
+                      : "Check other locations"
+                  ) : (
+                    `${totalStock} in stock`
+                  )
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400">Out of stock</span>
+                )}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Overall: {totalStock} in stock
-              </div>
+              {totalStock > 0 && closestWarehouse && stockAtClosest !== totalStock && (
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Total: {totalStock} across all locations
+                </div>
+              )}
             </div>
 
-            <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold tracking-tight text-gray-900 dark:text-zinc-100">
                 <CiMapPin className="h-4 w-4" />
                 Shipping from
               </div>
@@ -1496,7 +1762,7 @@ function ProductDetails({ product }: { product: Product }) {
 
           {/* description */}
           <motion.div
-            className="mt-2 rounded-xl border border-gray-200 dark:border-gray-800 p-4"
+            className="mt-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent p-4"
             variants={{
               hidden: { opacity: 0, y: 10 },
               show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
@@ -1509,13 +1775,13 @@ function ProductDetails({ product }: { product: Product }) {
 
       {/* Bottom section */}
       <motion.section
-        className="mt-8 rounded-2xl bg-slate-100/60 dark:bg-gray-800/50 border border-slate-200 dark:border-gray-800 p-6"
+        className="mt-8 rounded-2xl bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 p-6"
         initial={reduceMotion ? false : { opacity: 0, y: 12 }}
         whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
-        <h3 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100 mb-3">Specifications</h3>
+        <h3 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 mb-3">Specifications</h3>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {(product.specifications || []).map((spec, idx) => (
             <div key={idx} className="flex flex-col">
@@ -1552,35 +1818,83 @@ function ProductDetails({ product }: { product: Product }) {
 export default function ProductClient({ productId }: { productId: string }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const pageShellClassName = "mx-auto w-full max-w-screen-2xl px-3 sm:px-4 md:px-6 py-6";
 
   useEffect(() => {
     let stopped = false;
+    setIsLoading(true);
+    setError(null);
+    
     (async () => {
       try {
         const res = await fetch(`/api/products/${productId}`, { cache: "no-store" });
-        if (!res.ok) throw new Error(`Failed to fetch product: ${res.statusText}`);
+        if (stopped) return;
+        
+        if (res.status === 404) {
+          setError("not-found");
+          setProduct(null);
+          return;
+        }
+        
+        if (!res.ok) {
+          setError("fetch-error");
+          setProduct(null);
+          return;
+        }
+        
         const data: Product | null = await res.json();
         if (!stopped) setProduct(data);
       } catch {
         if (!stopped) {
-          setError("Product not found");
+          setError("network-error");
           setProduct(null);
         }
+      } finally {
+        if (!stopped) setIsLoading(false);
       }
     })();
     return () => { stopped = true; };
   }, [productId]);
 
-  if (error)
+  if (error === "not-found")
     return (
       <div className={pageShellClassName}>
-        <p className="text-red-600">{error}</p>
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Product Not Found</h1>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            This product may have been removed or the link is invalid.
+          </p>
+          <a
+            href="/products"
+            className="mt-6 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          >
+            Browse Products
+          </a>
+        </div>
       </div>
     );
 
-  if (!product)
+  if (error)
+    return (
+      <div className={pageShellClassName}>
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Something went wrong</h1>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            We couldn't load this product. Please try again.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+
+  if (isLoading || !product)
     return (
       <div className={pageShellClassName}>
         <ProductSkeleton />

@@ -1,5 +1,6 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
+import { ensureUser } from '@/lib/ensure-user';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   UserProfileGetResponseSchema,
@@ -24,15 +25,12 @@ export async function GET(
 ) {
   // Authentication required
   const session = await MyLibUserAuth();
-  console.log(LOG_PREFIX, 'Session:', session?.id, session?.role);
   
   if (!session?.id) {
-    console.log(LOG_PREFIX, 'No session - returning 401');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { userId } = await context.params;
-  console.log(LOG_PREFIX, 'Looking for userId:', userId);
 
   if (!userId) {
     return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
@@ -41,9 +39,17 @@ export async function GET(
   // Users can view their own profile, admins can view any profile
   const isOwnProfile = session.id === userId;
   const isAdmin = session.role === 'ADMIN';
-  console.log(LOG_PREFIX, 'isOwnProfile:', isOwnProfile, 'isAdmin:', isAdmin);
 
   try {
+    // If viewing own profile, ensure user exists in DB first
+    if (isOwnProfile) {
+      const ensureResult = await ensureUser(session);
+      if (!ensureResult.success) {
+        console.error(`${LOG_PREFIX} Failed to ensure user:`, ensureResult.error);
+        return NextResponse.json({ error: 'Failed to initialize user profile' }, { status: 500 });
+      }
+    }
+
     // Fetch user with reach statistics (view counts across all their posts)
     const user = await dbPrisma.user.findUnique({
       where: { id: userId },
@@ -70,10 +76,14 @@ export async function GET(
       },
     });
 
-    console.log(LOG_PREFIX, 'User found:', user?.id, user?.name);
-
     if (!user) {
-      console.log(LOG_PREFIX, 'User not found in DB');
+      // Differentiate: own profile missing vs other user not found
+      if (isOwnProfile) {
+        // This shouldn't happen after ensureUser, but handle gracefully
+        console.error(`${LOG_PREFIX} Own profile not found after ensureUser - session id mismatch?`);
+        return NextResponse.json({ error: 'Profile initialization failed' }, { status: 500 });
+      }
+      // Other user not found - normal 404
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
@@ -120,7 +130,7 @@ export async function GET(
     const payload = { user: safeUser };
     const validated = UserProfileGetResponseSchema.safeParse(payload);
     if (!validated.success) {
-      console.error(LOG_PREFIX, 'Invalid user profile GET DTO:', validated.error);
+      console.error(`${LOG_PREFIX} Invalid user profile GET DTO:`, validated.error);
       return NextResponse.json(
         { error: 'Failed to fetch user', ...(isDev ? { issues: validated.error.issues } : {}) },
         { status: 500 }
@@ -129,7 +139,7 @@ export async function GET(
 
     return NextResponse.json(validated.data, { status: 200 });
   } catch (error) {
-    console.error(LOG_PREFIX, 'Error fetching user:', error);
+    console.error(`${LOG_PREFIX} Error fetching user:`, error);
     return NextResponse.json(
       { error: 'Failed to fetch user' },
       { status: 500 }

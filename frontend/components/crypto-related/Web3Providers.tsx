@@ -9,7 +9,6 @@ import wagmiConfig from "./evmConfig";
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
-import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 
 import { ActiveNetworkProvider, useActiveNetwork } from "./ActiveNetworkContext";
 import { PricingProvider } from "./PricingContext";
@@ -25,7 +24,7 @@ function SolanaLayer({ children }: { children: ReactNode }) {
   const { http } = useMemo(() => getSolanaEndpoints(cluster), [cluster]);
 
   const wallets = useMemo(
-    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter({ network: cluster })],
+    () => [new PhantomWalletAdapter()],
     [cluster]
   );
 

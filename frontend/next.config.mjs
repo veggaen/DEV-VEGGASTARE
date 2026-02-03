@@ -109,6 +109,18 @@ const nextConfig = {
                 hostname: 'wss://api.mainnet-beta.solana.com/',
                 port: '*',
                 pathname: '**',
+            },
+            {
+                protocol: 'https',
+                hostname: 'www.mybring.com',
+                port: '',
+                pathname: '**',
+            },
+            {
+                protocol: 'https',
+                hostname: 'www.bring.com',
+                port: '',
+                pathname: '**',
             }
         ],
     },

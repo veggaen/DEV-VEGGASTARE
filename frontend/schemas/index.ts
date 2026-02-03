@@ -94,18 +94,48 @@ const SpecificationSchema = z.object({
     key: z.string(),
     value: z.union([z.string(), z.number()])
 });
+
+// Product condition enum values
+export const ProductConditionValues = ['NEW', 'AS_NEW', 'GOOD', 'FAIR', 'POOR'] as const;
+export type ProductConditionType = typeof ProductConditionValues[number];
+
+// Fiat currency values (for product pricing + payment availability)
+export const FiatCurrencyValues = ['USD', 'NOK', 'EUR', 'GBP'] as const;
+export type FiatCurrencyType = typeof FiatCurrencyValues[number];
+
+// Product type values
+export const ProductTypeValues = ['PHYSICAL', 'DIGITAL', 'HYBRID'] as const;
+export type ProductTypeType = typeof ProductTypeValues[number];
+
+// Category tag schema for the new multi-category system
+export const CategoryTagSchema = z.object({
+    id: z.string().optional(), // For existing categories
+    name: z.string().min(1, { message: 'Category name is required' }),
+    slug: z.string().optional(),
+    isNew: z.boolean().optional(), // True if creating a new category
+    parentId: z.string().nullable().optional(),
+    parentName: z.string().nullable().optional(),
+});
+export type CategoryTag = z.infer<typeof CategoryTagSchema>;
+
 // Schema for product creation 2/4
 export const MyProductCreateSchema = z.object({
     title: z.string().min(1, { message: "Title is required" }),
     description: z.string().min(1, { message: "Description is required" }),
+    // Legacy single category - kept for backward compatibility
     category: z.string().min(1, { message: "Category is required" }),
-    price: z.number().min(1, { message: "Price is required" }),
+    // New multi-category system - array of category tags
+    categories: z.array(CategoryTagSchema).optional().default([]),
+    price: z.number().min(0, { message: "Price must be 0 or greater" }),
+    priceCurrency: z.enum(FiatCurrencyValues).default('USD'),
+    acceptedFiatCurrencies: z.array(z.enum(FiatCurrencyValues)).default([]),
+    condition: z.enum(ProductConditionValues).default('NEW'),
     userId: z.string().min(1, { message: "User is required" }),
     companyId: z.string().optional(),
     stock: z.number().optional(),
     shipFromPostalId: z.string().optional(),
-    image: z.array(z.string()), // Optional, assuming array of image URLs
-    quantity: z.number().min(0, 'Quantity must be a positive number'),
+    image: z.array(z.string()).default([]), // Optional, array of image URLs
+    quantity: z.number().min(1, { message: 'Quantity must be at least 1' }),
     isPhysicalProduct: z.boolean().optional(),
     specifications: z.array(SpecificationSchema).optional(), // Optional, assuming arbitrary JSON data
     shippingDetails: z.array(z.object({
@@ -113,6 +143,13 @@ export const MyProductCreateSchema = z.object({
         price: z.number(),
         regions: z.array(z.string())
     })).optional(),
+    
+    // Digital product fields
+    productType: z.enum(ProductTypeValues).default('PHYSICAL'),
+    digitalAssetId: z.string().optional(), // Reference to uploaded digital asset
+    downloadsEnabled: z.boolean().default(true),
+    maxDownloads: z.number().int().positive().optional().nullable(), // null = unlimited
+    downloadExpiryDays: z.number().int().positive().optional().nullable(), // null = never expires
 });
 
 // Schema for product update (optional fields for updates) 3/4
@@ -129,13 +166,51 @@ export const MyProductReviewSchema = z.object({
 // new company?
 // Define the schema for employee
 export const employeePermissionsSchema = z.object({
+    // Employee Management
+    CAN_ADD_EMPLOYEE: z.boolean().default(false),
     CAN_REMOVE_EMPLOYEE: z.boolean().default(false),
+    CAN_EDIT_EMPLOYEE_ROLE: z.boolean().default(false),
     CAN_EDIT_PERMISSION: z.boolean().default(false),
+    
+    // Company Management
     CAN_DELETE_COMPANY: z.boolean().default(false),
+    CAN_EDIT_COMPANY_DETAILS: z.boolean().default(false),
+    CAN_MANAGE_WAREHOUSES: z.boolean().default(false),
+    
+    // Product Management - General (legacy, applies to all product types)
     CAN_POST_PRODUCT_POSITION_PERMISSION: z.boolean().default(false),
     CAN_EDIT_PRODUCT_POSITION_PERMISSION: z.boolean().default(false),
-    CAN_ADD_EMPLOYEE: z.boolean().default(false),
-    CAN_EDIT_EMPLOYEE_ROLE: z.boolean().default(false),
+    CAN_DELETE_PRODUCT: z.boolean().default(false),
+    CAN_VIEW_ANALYTICS: z.boolean().default(false),
+    
+    // Physical Products - Specific permissions
+    CAN_CREATE_PHYSICAL_PRODUCT: z.boolean().default(false),
+    CAN_EDIT_PHYSICAL_PRODUCT: z.boolean().default(false),
+    CAN_DELETE_PHYSICAL_PRODUCT: z.boolean().default(false),
+    
+    // Digital Products - Specific permissions
+    CAN_CREATE_DIGITAL_PRODUCT: z.boolean().default(false),
+    CAN_EDIT_DIGITAL_PRODUCT: z.boolean().default(false),
+    CAN_DELETE_DIGITAL_PRODUCT: z.boolean().default(false),
+    CAN_UPLOAD_DIGITAL_ASSETS: z.boolean().default(false),
+    CAN_MANAGE_DOWNLOAD_SETTINGS: z.boolean().default(false),
+    CAN_VIEW_DOWNLOAD_STATS: z.boolean().default(false),
+    CAN_REVOKE_DOWNLOAD_TOKENS: z.boolean().default(false),
+    
+    // Field-level edit permissions (granular control)
+    CAN_EDIT_PRODUCT_TITLE: z.boolean().default(false),
+    CAN_EDIT_PRODUCT_DESCRIPTION: z.boolean().default(false),
+    CAN_EDIT_PRODUCT_PRICE: z.boolean().default(false),
+    CAN_EDIT_PRODUCT_IMAGES: z.boolean().default(false),
+    CAN_EDIT_PRODUCT_STOCK: z.boolean().default(false),
+    CAN_EDIT_PRODUCT_CATEGORY: z.boolean().default(false),
+    CAN_EDIT_ACCEPTED_PAYMENTS: z.boolean().default(false),
+    CAN_EDIT_SHIPPING_SETTINGS: z.boolean().default(false),
+    
+    // Financial
+    CAN_VIEW_SALES: z.boolean().default(false),
+    CAN_MANAGE_PRICING: z.boolean().default(false),
+    CAN_PROCESS_REFUNDS: z.boolean().default(false),
 });
 export const employeeSchema = z.object({
     userId: z.string().min(1, 'User ID is required'),

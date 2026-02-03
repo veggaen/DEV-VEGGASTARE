@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { MyLoginButton } from "@/components/uicustom/auth/buttons/login-button";
 import { FaLock, FaUnlockAlt } from "react-icons/fa";
 import AnimatedTitle from "@/components/uicustom/animated-title";
+import { useUiPreferences } from "@/components/providers/ui-preferences";
 
 type IgniteState = {
   untilMs: number;
@@ -75,6 +76,8 @@ function KineticTitle({
   onHoverChange?: (isHovering: boolean, char: string | null, intensity: number) => void;
 }) {
   const reduceMotion = useReducedMotion();
+  const { prefs } = useUiPreferences();
+  const showFancyHover = prefs.hoverEffects === "colorful";
   const words = React.useMemo(() => text.split(/\s+/).filter(Boolean), [text]);
   
   const [stageIndex, setStageIndex] = React.useState(0);
@@ -182,11 +185,27 @@ function KineticTitle({
                   const charPosition = wordIdx * 10 + charIdx;
                   const hue = (charPosition * 40) % 360;
                   const glowColor = `hsl(${hue}, 80%, 65%)`;
+                  
+                  // Simple mode colors - emerald that's visible in both light/dark
+                  // Intensity 1 = full color, 0.5 = weaker partner color
+                  const simpleHoverColor = hoverEffect.intensity >= 0.8 
+                    ? "rgb(16, 185, 129)" // emerald-500 for primary
+                    : hoverEffect.intensity >= 0.4 
+                      ? "rgb(52, 211, 153)" // emerald-400 for neighbors
+                      : undefined;
 
+                  // Always apply scale/position effects when hovering
                   const scale = isNew ? 1.35 : hoverEffect.scale;
                   const yOffset = isNew ? -3 : (hoverEffect.intensity > 0 ? -2 * hoverEffect.intensity : 0);
-                  const showGlow = isNew || hoverEffect.glow;
+                  
+                  // Glow effects only when fancy enabled
+                  const showGlow = showFancyHover && (isNew || hoverEffect.glow);
                   const glowIntensity = isNew ? 1 : hoverEffect.intensity;
+                  
+                  // Color: fancy mode uses rainbow glow colors, simple mode uses solid emerald
+                  const hoverColor = showFancyHover 
+                    ? (showGlow ? glowColor : undefined)
+                    : simpleHoverColor;
 
                   return (
                     <span
@@ -195,14 +214,14 @@ function KineticTitle({
                       style={{
                         opacity: isRevealed ? 1 : 0,
                         transform: `scale(${scale}) translateY(${yOffset}px)`,
-                        color: showGlow ? glowColor : undefined,
+                        color: hoverColor,
                         textShadow: showGlow
                           ? `0 0 ${14 * glowIntensity}px ${glowColor}, 0 0 ${28 * glowIntensity}px ${glowColor}, 0 0 ${42 * glowIntensity}px ${glowColor}`
                           : "none",
                         transition: "opacity 0.2s ease-out, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease-out, text-shadow 0.2s ease-out",
                       }}
                       onPointerEnter={() => {
-                        // Allow hover as soon as character is revealed
+                        // Always allow hover effects when character is revealed
                         if (isRevealed) {
                           setHoveredChar(char);
                           setHoveredPosition({ wordIdx, charIdx });
@@ -367,6 +386,8 @@ function KineticHeadline({
   onAnimationComplete?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
+  const { prefs } = useUiPreferences();
+  const showFancyHover = prefs.hoverEffects === "colorful";
   const words = React.useMemo(() => text.split(/\s+/).filter(Boolean), [text]);
 
   const [stageIndex, setStageIndex] = React.useState(0);
@@ -531,6 +552,8 @@ function KineticHeadline({
                   const charPosition = wordIdx * 10 + charIdx;
                   const hueBase = 140 + (charPosition * 15) % 80;
                   const glowColor = `hsl(${hueBase}, 75%, 65%)`;
+                  // Solid hover color when fancy is disabled (emerald for consistency)
+                  const solidHoverColor = "rgb(52, 211, 153)"; // emerald-400
                   
                   // Idle animation: subtle color pulse based on character position (no movement)
                   const idlePhase = (charPosition * 0.3) % (2 * Math.PI);
@@ -544,21 +567,24 @@ function KineticHeadline({
                   const glowSize1 = hoverEffect.wordGlow ? 6 : 10;
                   const glowSize2 = hoverEffect.wordGlow ? 12 : 20;
 
+                  // Determine color: fancy mode gets gradient glow colors, simple mode gets solid color
+                  const hoverColor = showFancyHover ? glowColor : (showGlow ? solidHoverColor : undefined);
+
                   return (
                     <motion.span
                       key={`char-${wordIdx}-${charIdx}`}
                       className="inline-block origin-bottom cursor-pointer"
                       style={{
                         opacity: isRevealed ? 1 : 0,
-                        color: showGlow ? glowColor : undefined,
-                        textShadow: showGlow 
+                        color: hoverColor,
+                        textShadow: showFancyHover && showGlow 
                           ? `0 0 ${glowSize1 * glowIntensity}px ${glowColor}, 0 0 ${glowSize2 * glowIntensity}px ${glowColor}` 
                           : "none",
                         transform: `scale(${scale}) translateY(${yOffset}px)`,
                         transition: "transform 0.15s ease-out, color 0.15s ease-out, text-shadow 0.15s ease-out",
                       }}
                       animate={
-                        introDone && !showGlow
+                        showFancyHover && introDone && !showGlow
                           ? {
                               textShadow: [
                                 `0 0 0px ${glowColor}`,
@@ -569,7 +595,7 @@ function KineticHeadline({
                           : undefined
                       }
                       transition={
-                        introDone && !showGlow
+                        showFancyHover && introDone && !showGlow
                           ? {
                               duration: 3,
                               repeat: Infinity,
@@ -632,6 +658,8 @@ function DroppingWords({
   onGlowHover?: (hoverMs: number) => void;
 }) {
   const reduceMotion = useReducedMotion();
+  const { prefs } = useUiPreferences();
+  const showFancyHover = prefs.hoverEffects === "colorful";
   const words = React.useMemo(() => String(text ?? "").split(/\s+/).filter(Boolean), [text]);
   const [ignite, setIgnite] = React.useState<Record<string, IgniteState>>({});
   const hoverStartsRef = React.useRef<Record<string, number>>({});
@@ -712,12 +740,12 @@ function DroppingWords({
               transition={i === glowWordIndex && glowActive ? { duration: 0.95, ease: "easeInOut" } : undefined}
               className={
                 "inline-flex" +
-                (i === glowWordIndex && glowActive
+                (showFancyHover && i === glowWordIndex && glowActive
                   ? " text-emerald-100"
                   : "")
               }
               style={
-                i === glowWordIndex && glowActive
+                showFancyHover && i === glowWordIndex && glowActive
                   ? {
                       textShadow: "0 0 14px rgba(34,197,94,0.35)",
                       filter: "drop-shadow(0 0 8px rgba(34,197,94,0.18))",
@@ -725,13 +753,13 @@ function DroppingWords({
                   : undefined
               }
               onPointerEnter={(e) => {
-                if (i !== glowWordIndex) return;
+                if (!showFancyHover || i !== glowWordIndex) return;
                 hoverStartsRef.current[`word-${i}`] = performance.now();
                 // immediate small re-ignite for responsiveness
                 onGlowHover?.(200);
               }}
               onPointerLeave={() => {
-                if (i !== glowWordIndex) return;
+                if (!showFancyHover || i !== glowWordIndex) return;
                 const start = hoverStartsRef.current[`word-${i}`];
                 const hoverMs = start ? Math.max(0, performance.now() - start) : 0;
                 delete hoverStartsRef.current[`word-${i}`];
@@ -742,7 +770,7 @@ function DroppingWords({
                 const key = `${i}-${ci}`;
                 const state = ignite[key];
                 const now = Date.now();
-                const isIgnited = state ? state.untilMs > now : false;
+                const isIgnited = showFancyHover && state ? state.untilMs > now : false;
                 const intensity = state ? state.intensity : 0;
                 const glowAlpha = 0.12 + 0.55 * intensity;
                 const blur = 6 + 18 * intensity;
@@ -761,10 +789,12 @@ function DroppingWords({
                         : undefined
                     }
                     onPointerEnter={() => {
+                      if (!showFancyHover) return;
                       hoverStartsRef.current[key] = performance.now();
                       igniteKey(key, 0);
                     }}
                     onPointerLeave={() => {
+                      if (!showFancyHover) return;
                       const start = hoverStartsRef.current[key];
                       const hoverMs = start ? Math.max(0, performance.now() - start) : 0;
                       delete hoverStartsRef.current[key];
@@ -852,6 +882,14 @@ export default function HomeHero({
   userName?: string | null;
 }) {
   const reduceMotion = useReducedMotion();
+  const { prefs } = useUiPreferences();
+  
+  // Fancy effects only show when logged in AND user has enabled them in preferences
+  const showFancyEffects = isLoggedIn && prefs.enableGradientSpheres;
+  // Gradient/glow hover effects only when colorful hover is enabled
+  const showFancyHover = prefs.hoverEffects === "colorful";
+  const showAnimations = !reduceMotion && prefs.pageAnimations !== "none";
+  
   const headline = "Where choices know no limits";
   const mountAtRef = React.useRef<number | null>(null);
   const [whereGlowUntilMs, setWhereGlowUntilMs] = React.useState(0);
@@ -908,35 +946,36 @@ export default function HomeHero({
 
   return (
     <div className="relative flex h-[calc(100vh-102px)] max-h-full w-full items-center justify-center overflow-hidden">
-      {/* subtle animated background with noise overlay to prevent gradient banding */}
-      <div className="pointer-events-none absolute inset-0 noise-overlay">
-        <div className="absolute inset-0" />
-        {/* Orb 1 - uses more color stops for smoother gradients on different monitors */}
-        <motion.div
-          className="absolute right-8 top-8 h-[520px] w-[520px] rounded-full"
-          animate={{ x: [0, -18, 0], y: [0, 12, 0], opacity: [0.16, 0.26, 0.16], scale: [1, 1.05, 1] }}
-          transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            // Multi-stop gradient for smoother color transitions across different color profiles
-            background:
-              "radial-gradient(closest-side, rgba(34,197,94,0.24) 0%, rgba(34,197,94,0.18) 25%, rgba(16,185,129,0.12) 50%, rgba(34,197,94,0.04) 75%, rgba(34,197,94,0) 100%)",
-            mixBlendMode: "screen",
-            filter: "blur(60px)", // CSS blur instead of Tailwind for better cross-browser consistency
-          }}
-        />
-        {/* Orb 2 */}
-        <motion.div
-          className="absolute bottom-10 left-10 h-[580px] w-[580px] rounded-full"
-          animate={{ x: [0, 24, 0], y: [0, -14, 0], opacity: [0.12, 0.22, 0.12], scale: [1, 1.04, 1] }}
-          transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            background:
-              "radial-gradient(closest-side, rgba(56,189,248,0.18) 0%, rgba(56,189,248,0.12) 30%, rgba(167,139,250,0.08) 55%, rgba(56,189,248,0.02) 80%, rgba(56,189,248,0) 100%)",
-            mixBlendMode: "screen",
-            filter: "blur(60px)",
-          }}
-        />
-      </div>
+      {/* Conditional animated background - only shows for logged in users with fancy mode enabled */}
+      {showFancyEffects && (
+        <div className="pointer-events-none absolute inset-0 noise-overlay">
+          <div className="absolute inset-0" />
+          {/* Orb 1 - uses more color stops for smoother gradients on different monitors */}
+          <motion.div
+            className="absolute right-8 top-8 h-[520px] w-[520px] rounded-full"
+            animate={showAnimations ? { x: [0, -18, 0], y: [0, 12, 0], opacity: [0.16, 0.26, 0.16], scale: [1, 1.05, 1] } : { opacity: 0.2 }}
+            transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
+            style={{
+              background:
+                "radial-gradient(closest-side, rgba(34,197,94,0.24) 0%, rgba(34,197,94,0.18) 25%, rgba(16,185,129,0.12) 50%, rgba(34,197,94,0.04) 75%, rgba(34,197,94,0) 100%)",
+              mixBlendMode: "screen",
+              filter: "blur(60px)",
+            }}
+          />
+          {/* Orb 2 */}
+          <motion.div
+            className="absolute bottom-10 left-10 h-[580px] w-[580px] rounded-full"
+            animate={showAnimations ? { x: [0, 24, 0], y: [0, -14, 0], opacity: [0.12, 0.22, 0.12], scale: [1, 1.04, 1] } : { opacity: 0.15 }}
+            transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
+            style={{
+              background:
+                "radial-gradient(closest-side, rgba(56,189,248,0.18) 0%, rgba(56,189,248,0.12) 30%, rgba(167,139,250,0.08) 55%, rgba(56,189,248,0.02) 80%, rgba(56,189,248,0) 100%)",
+              mixBlendMode: "screen",
+              filter: "blur(60px)",
+            }}
+          />
+        </div>
+      )}
 
       <motion.div
         className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-6 px-6 text-center xl:max-w-6xl"
@@ -947,41 +986,43 @@ export default function HomeHero({
         <div className="space-y-3">
           <motion.div
             className="relative inline-block rounded-2xl px-6 py-4 -mx-6 -my-4"
-            // one-time pulse after the whole sequence settles
-            style={{ textShadow: "0 0 0px rgba(34,197,94,0)" }}
-            animate={{
+            // one-time pulse after the whole sequence settles (only if fancy enabled)
+            style={showFancyEffects ? { textShadow: "0 0 0px rgba(34,197,94,0)" } : undefined}
+            animate={showFancyEffects ? {
               textShadow: [
                 "0 0 0px rgba(34,197,94,0)",
                 "0 0 18px rgba(34,197,94,0.35)",
                 "0 0 0px rgba(34,197,94,0)",
               ],
-            }}
-            transition={{ delay: settlePulseDelay, duration: 1.05, ease: "easeInOut" }}
+            } : undefined}
+            transition={showFancyEffects ? { delay: settlePulseDelay, duration: 1.05, ease: "easeInOut" } : undefined}
             onPointerEnter={() => {
-              if (reduceMotion) return;
+              if (reduceMotion || !showFancyEffects) return;
               setWhereGlowUntilMs((cur) => Math.max(cur, Date.now() + 8000));
             }}
             onPointerLeave={() => {
-              if (reduceMotion) return;
+              if (reduceMotion || !showFancyEffects) return;
               setWhereGlowUntilMs((cur) => Math.max(cur, Date.now() + 4000));
             }}
           >
-            {/* Idle glow field - always subtly pulsing */}
-            <motion.div
-              aria-hidden
-              className="pointer-events-none absolute -inset-8 rounded-[28px]"
-              animate={
-                whereGlowActive
-                  ? { opacity: [0.2, 0.35, 0.2], scale: [1, 1.05, 1] }
-                  : { opacity: [0.05, 0.12, 0.05], scale: [1, 1.02, 1] }
-              }
-              transition={{ duration: whereGlowActive ? 2.2 : 4, repeat: Infinity, ease: "easeInOut" }}
-              style={{
-                background:
-                  "radial-gradient(closest-side, rgba(34,197,94,0.25), rgba(34,197,94,0) 72%)",
-                mixBlendMode: "screen",
-              }}
-            />
+            {/* Idle glow field - only shows for logged in users with fancy effects */}
+            {showFancyEffects && (
+              <motion.div
+                aria-hidden
+                className="pointer-events-none absolute -inset-8 rounded-[28px]"
+                animate={
+                  whereGlowActive
+                    ? { opacity: [0.2, 0.35, 0.2], scale: [1, 1.05, 1] }
+                    : { opacity: [0.05, 0.12, 0.05], scale: [1, 1.02, 1] }
+                }
+                transition={{ duration: whereGlowActive ? 2.2 : 4, repeat: Infinity, ease: "easeInOut" }}
+                style={{
+                  background:
+                    "radial-gradient(closest-side, rgba(34,197,94,0.25), rgba(34,197,94,0) 72%)",
+                  mixBlendMode: "screen",
+                }}
+              />
+            )}
 
             <KineticHeadline
               text={headline}
@@ -1028,25 +1069,27 @@ export default function HomeHero({
                 animate={tmActive ? { y: -11, scale: 1.38, rotate: -6 } : { y: 0, scale: 1, rotate: 0 }}
                 transition={{ type: "spring", stiffness: 520, damping: 18, mass: 0.6 }}
               >
-                {/* Soft glow layer (prevents instant "blur ball" + keeps TM on top) */}
-                <motion.span
-                  aria-hidden
-                  className="pointer-events-none absolute -inset-4 -z-10 rounded-full blur-lg"
-                  initial={false}
-                  animate={tmActive ? { opacity: 0.42, scale: 1 } : { opacity: 0, scale: 0.94 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                  style={{
-                    background:
-                      "radial-gradient(closest-side, rgba(96,165,250,0.42), rgba(167,139,250,0.26), rgba(96,165,250,0) 72%)",
-                    mixBlendMode: "screen",
-                  }}
-                />
+                {/* Soft glow layer - only shown when fancy hover enabled */}
+                {showFancyHover && (
+                  <motion.span
+                    aria-hidden
+                    className="pointer-events-none absolute -inset-4 -z-10 rounded-full blur-lg"
+                    initial={false}
+                    animate={tmActive ? { opacity: 0.42, scale: 1 } : { opacity: 0, scale: 0.94 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    style={{
+                      background:
+                        "radial-gradient(closest-side, rgba(96,165,250,0.42), rgba(167,139,250,0.26), rgba(96,165,250,0) 72%)",
+                      mixBlendMode: "screen",
+                    }}
+                  />
+                )}
 
                 <motion.span
                   className="relative z-10 inline-flex text-gray-900 dark:text-white"
                   style={{
-                    filter: tmActive ? "drop-shadow(0 0 10px rgba(167,139,250,0.28))" : "none",
-                    textShadow: tmActive
+                    filter: showFancyHover && tmActive ? "drop-shadow(0 0 10px rgba(167,139,250,0.28))" : "none",
+                    textShadow: showFancyHover && tmActive
                       ? "0 0 10px rgba(96,165,250,0.25), 0 0 18px rgba(167,139,250,0.18)"
                       : "none",
                   }}
@@ -1054,7 +1097,7 @@ export default function HomeHero({
                   transition={undefined}
                 >
                   <motion.span
-                    className="inline-block cursor-pointer"
+                    className="inline-block cursor-pointer text-gray-900 dark:text-white"
                     initial={{ opacity: 0, y: -18, scale: 0.7 }}
                     animate={{ 
                       opacity: 1, 
@@ -1066,7 +1109,7 @@ export default function HomeHero({
                     onPointerEnter={() => setTmLetterHover("T")}
                     onPointerLeave={() => setTmLetterHover(null)}
                     style={
-                      tmLetterHover === "T"
+                      tmLetterHover === "T" && showFancyHover
                         ? {
                             color: "#e5fff7",
                             textShadow:
@@ -1079,7 +1122,7 @@ export default function HomeHero({
                     T
                   </motion.span>
                   <motion.span
-                    className="inline-block cursor-pointer"
+                    className="inline-block cursor-pointer text-gray-900 dark:text-white"
                     initial={{ opacity: 0, y: -18, scale: 0.7 }}
                     animate={{ 
                       opacity: 1, 
@@ -1091,7 +1134,7 @@ export default function HomeHero({
                     onPointerEnter={() => setTmLetterHover("M")}
                     onPointerLeave={() => setTmLetterHover(null)}
                     style={
-                      tmLetterHover === "M"
+                      tmLetterHover === "M" && showFancyHover
                         ? {
                             color: "#fff7ff",
                             textShadow:
@@ -1113,7 +1156,7 @@ export default function HomeHero({
         <div className="w-full min-h-[3.25rem] sm:min-h-[3rem] mt-10 sm:mt-12">
           <KineticDescription
             text={descriptionText}
-            className="mx-auto max-w-3xl text-pretty text-sm text-gray-600 dark:text-white/75 sm:text-base transition-[color,text-shadow] duration-700 ease-out hover:text-gray-800 dark:hover:text-white/85 hover:[text-shadow:0_0_18px_rgba(56,189,248,0.16)]"
+            className={`mx-auto max-w-3xl text-pretty text-sm text-gray-600 dark:text-white/75 sm:text-base transition-[color,text-shadow] duration-700 ease-out hover:text-gray-800 dark:hover:text-white/85 ${showFancyHover ? "hover:[text-shadow:0_0_18px_rgba(56,189,248,0.16)]" : ""}`}
             startDelay={descriptionStart}
             startSpeed={45}
             endSpeed={12}

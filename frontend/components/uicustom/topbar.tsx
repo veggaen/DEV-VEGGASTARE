@@ -13,8 +13,10 @@ import { useTheme } from "next-themes";
 import { signIn, signOut } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FaUser } from "react-icons/fa";
+import useSWR from "swr";
 import { toast } from "sonner";
 import { TbHexagons } from "react-icons/tb";
+import { FiShoppingCart, FiUser } from "react-icons/fi";
 import {
 	Sheet,
 	SheetContent,
@@ -23,11 +25,10 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
-import { MyRequestWeb3ModeSecurityAction } from "@/actions/security-action";
 import EvmWalletVerify from "@/components/crypto-related/EvmWalletVerify";
 import EvmWalletList from "@/components/crypto-related/EvmWalletList";
 import ThemeToggleMenu from "@/components/uicustom/ThemeToggleMenu";
+import { CurrencySelector } from "@/components/uicustom/currency-selector";
 
 type NavLinkProps = {
   href: string;
@@ -42,8 +43,8 @@ const NavLink = ({ href, children, isActive }: NavLinkProps) => (
 		className={
 			"group relative px-2 py-1 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-emerald-400/70 " +
 			(isActive
-				? "text-slate-950 dark:text-slate-50"
-				: "text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-slate-50") +
+				? "text-zinc-950 dark:text-zinc-50"
+				: "text-zinc-600 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-zinc-50") +
 			" after:absolute after:left-2 after:right-2 after:-bottom-0.5 after:h-[2px] after:rounded-full after:bg-emerald-500/70 after:transition-opacity after:duration-200 " +
 			(isActive ? "after:opacity-100" : "after:opacity-0 hover:after:opacity-40")
 		}
@@ -57,10 +58,21 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+// Fetcher for SWR
+const fetcher = (url: string) => fetch(url).then(res => res.ok ? res.json() : { items: [] });
+
 const MyTopBar = () => {
   const pathname = usePathname();
   const clientUser = useCurrentUser();
   const prefersReducedMotion = useReducedMotion();
+  
+  // Fetch cart count for logged-in users
+  const { data: cartData } = useSWR(
+    clientUser?.id ? `/api/cart/${clientUser.id}` : null,
+    fetcher,
+    { refreshInterval: 30000, dedupingInterval: 5000 }
+  );
+  const cartCount = cartData?.items?.reduce((sum: number, item: { quantity: number }) => sum + item.quantity, 0) || 0;
 	const headerRef = useRef<HTMLElement | null>(null);
 	const { resolvedTheme, setTheme } = useTheme();
 	const [menuOpen, setMenuOpen] = useState(false);
@@ -69,7 +81,6 @@ const MyTopBar = () => {
 	const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState<number>(72);
 	const [nexusOpen, setNexusOpen] = useState(false);
 	const [web3ModeEnabled, setWeb3ModeEnabled] = useState(false);
-	const [isRequestingWeb3Mode, setIsRequestingWeb3Mode] = useState(false);
 	const [walletRefreshToken, setWalletRefreshToken] = useState(0);
 	const collapseForProducts = pathname.startsWith("/products") && isMobile && !productsTopbarVisible;
 	const menuSwipeRef = useRef<{ x: number; y: number; t: number } | null>(null);
@@ -105,15 +116,6 @@ const MyTopBar = () => {
 		}
 	}, []);
 
-	const setWeb3Mode = (next: boolean) => {
-		setWeb3ModeEnabled(next);
-		try {
-			window.localStorage.setItem("veggastare:web3ModeEnabled", String(next));
-		} catch {
-			// ignore
-		}
-	};
-
 	const effectiveWeb3ModeEnabled = clientUser
 		? !!(clientUser as any).web3ModeEnabled
 		: web3ModeEnabled;
@@ -136,11 +138,18 @@ const MyTopBar = () => {
 		// Hysteresis + rAF throttling to prevent near-top "bounce".
 		// (Some devices/wheels can oscillate between 0px and 1px scrollTop.)
 		const isProducts = pathname.startsWith("/products");
+		// /products/create is non-scrollable on desktop; never show "scrolled" state
+		const isCreatePage = pathname === "/products/create";
 		const enter = isProducts ? 6 : 12;
 		const exit = isProducts ? 2 : 4;
 		let raf = 0;
 		const update = () => {
 			raf = 0;
+			// Always keep topbar "unscrolled" on create page
+			if (isCreatePage) {
+				setIsScrolled(false);
+				return;
+			}
 			const top = getScrollTop();
 			const compact =
 				isProducts &&
@@ -200,29 +209,44 @@ const MyTopBar = () => {
     ? { duration: 0 }
 		: { type: "tween", duration: 0.18, ease: "easeOut" };
 
+	// Simplified desktop nav - main discovery paths only
 	const nav: Array<{ href: string; label: string }> = [
 		{ href: "/", label: "Home" },
 		{ href: "/products", label: "Products" },
 		{ href: "/pulse", label: "Pulse" },
 		...(clientUser
 			? [
-					{ href: "/conversations", label: "Conversations" },
+					{ href: "/conversations", label: "Messages" },
 					{ href: "/dashboard", label: "Dashboard" },
-					{ href: "/nexus", label: "Settings" },
 				]
 			: []),
-		{ href: "/analytics", label: "Analytics" },
 	];
 
 	const menuLinks = useMemo(() => {
-		// Keep the sheet clean for logged-out users: primary discovery paths first.
-		const base = nav;
+		// Mobile/sheet menu has full navigation
+		if (clientUser) {
+			return [
+				{ href: "/", label: "Home" },
+				{ href: "/products", label: "Products" },
+				{ href: "/pulse", label: "Pulse" },
+				{ href: "/conversations", label: "Messages" },
+				{ href: "/dashboard", label: "Dashboard" },
+				{ href: "/cart", label: "Shopping Cart" },
+				{ href: "/checkout", label: "Checkout" },
+				{ href: "/profile", label: "My Profile" },
+				{ href: "/settings", label: "Settings" },
+				{ href: "/info", label: "Info / Contact" },
+				{ href: "/privacy", label: "Privacy & cookies" },
+			];
+		}
 		return [
-			...base,
+			{ href: "/", label: "Home" },
+			{ href: "/products", label: "Products" },
+			{ href: "/pulse", label: "Pulse" },
 			{ href: "/info", label: "Info / Contact" },
 			{ href: "/privacy", label: "Privacy & cookies" },
 		];
-	}, [nav]);
+	}, [clientUser]);
 
 	const openCookieSettings = () => {
 		try {
@@ -264,6 +288,21 @@ const MyTopBar = () => {
 		mq?.addEventListener?.("change", update);
 		return () => mq?.removeEventListener?.("change", update);
 	}, []);
+
+	// Reset topbar visibility when navigating away from /products, switching to desktop,
+	// or navigating to a different page within /products/* (like /products/create)
+	useEffect(() => {
+		// Always reset topbar visibility on pathname change - the ProductProvider will
+		// re-hide it if needed based on scroll position
+		setProductsTopbarVisible(true);
+	}, [pathname]);
+
+	// Also reset when switching to desktop
+	useEffect(() => {
+		if (!isMobile) {
+			setProductsTopbarVisible(true);
+		}
+	}, [isMobile]);
 
 	useEffect(() => {
 		const onChrome = (e: Event) => {
@@ -335,7 +374,7 @@ const MyTopBar = () => {
 						transition={{ duration: 0.22, ease: "easeOut" }}
 						style={{ willChange: "clip-path, opacity" }}
 					>
-						<div className="absolute inset-0 bg-white/75 dark:bg-slate-950/65 backdrop-blur-xl" />
+						<div className="absolute inset-0 bg-white/75 dark:bg-black/70 backdrop-blur-xl" />
 					</motion.div>
 
 					{/* Bottom line reveals after the fill finishes */}
@@ -362,7 +401,7 @@ const MyTopBar = () => {
 						<div className="flex min-w-0 items-center gap-4">
 							<Link
 								href="/"
-								className="shrink-0 font-semibold tracking-tight text-slate-900 dark:text-slate-100"
+								className="shrink-0 font-semibold tracking-tight text-zinc-900 dark:text-zinc-100"
 							>
 								VeggaStare
 							</Link>
@@ -395,6 +434,38 @@ const MyTopBar = () => {
 										)}
 									</NavLink>
 								))}
+								
+								{/* Currency selector in main nav */}
+								<div className="ml-2 border-l border-zinc-200 dark:border-zinc-700 pl-3">
+									<CurrencySelector variant="ghost" size="sm" />
+								</div>
+
+								{/* Cart icon - only for logged in users */}
+								{clientUser && (
+									<Link
+										href="/cart"
+										className="relative ml-2 p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+										title="Shopping Cart"
+									>
+										<FiShoppingCart className="h-5 w-5 text-zinc-600 dark:text-zinc-300" />
+										{cartCount > 0 && (
+											<span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold px-1">
+												{cartCount > 99 ? "99+" : cartCount}
+											</span>
+										)}
+									</Link>
+								)}
+
+								{/* Profile link - only for logged in users */}
+								{clientUser && (
+									<Link
+										href="/profile"
+										className="ml-1 p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+										title="My Profile"
+									>
+										<FiUser className="h-5 w-5 text-zinc-600 dark:text-zinc-300" />
+									</Link>
+								)}
 							</nav>
 						</div>
 
@@ -425,7 +496,7 @@ const MyTopBar = () => {
 												whileTap={prefersReducedMotion ? undefined : { scale: 0.96 }}
 												transition={{ type: "spring", stiffness: 520, damping: 26, mass: 0.6 }}
 											>
-												<TbHexagons className="h-6 w-6 text-slate-700 transition-colors group-hover:text-emerald-400 dark:text-slate-200 dark:group-hover:text-emerald-300" />
+												<TbHexagons className="h-6 w-6 text-zinc-700 transition-colors group-hover:text-emerald-400 dark:text-zinc-200 dark:group-hover:text-emerald-300" />
 											</motion.span>
 										)}
 									</Button>
@@ -442,49 +513,10 @@ const MyTopBar = () => {
 											<SheetTitle className="text-lg font-semibold">
 												{clientUser ? (clientUser.name ?? "Account") : "Welcome"}
 											</SheetTitle>
-											<SheetDescription className="text-sm text-slate-600 dark:text-slate-300">
+											<SheetDescription className="text-sm text-zinc-600 dark:text-zinc-300">
 												{clientUser?.email ?? "Sign in to sync your account and wallets."}
 											</SheetDescription>
 										</SheetHeader>
-
-										<div className="flex items-center justify-between rounded-xl border border-black/10 p-3 dark:border-white/10 bg-black/5 dark:bg-white/[0.06]">
-											<div className="min-w-0">
-												<div className="text-sm font-semibold">Mode</div>
-												<div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-													{effectiveWeb3ModeEnabled
-														? "Web3 enabled: advanced wallet controls"
-														: "Web2: simple account experience"}
-												</div>
-											</div>
-											<Switch
-												checked={effectiveWeb3ModeEnabled}
-												disabled={isRequestingWeb3Mode}
-												onCheckedChange={(checked) => {
-													if (clientUser) {
-														setIsRequestingWeb3Mode(true);
-														MyRequestWeb3ModeSecurityAction(checked)
-															.then((data) => {
-																if (data?.error) {
-																	toast.error(data.error, { position: "top-center" });
-																	return;
-																}
-																if (data?.success) {
-																	toast.success(data.success, { position: "top-center" });
-																}
-															})
-															.catch(() => {
-																toast.error("Something went wrong!", { position: "top-center" });
-															})
-															.finally(() => setIsRequestingWeb3Mode(false));
-														return;
-													}
-
-													// Logged out: keep this as a local UX preference.
-													setWeb3Mode(checked);
-												}}
-												aria-label="Toggle Web3 advanced mode"
-											/>
-										</div>
 
 										<WalletConnection mode="dialog" />
 										{clientUser && effectiveWeb3ModeEnabled ? (
@@ -534,7 +566,7 @@ const MyTopBar = () => {
 																// the dialog interpreting the click as an outside interaction.
 																setTimeout(() => setNexusOpen(true), 0);
 															}}
-															className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm text-slate-700 hover:bg-black/5 dark:text-slate-200 dark:hover:bg-white/[0.06]"
+															className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm text-zinc-700 hover:bg-black/5 dark:text-zinc-200 dark:hover:bg-white/[0.06]"
 															aria-label="Open Nexus command palette"
 															title="Open Nexus (Ctrl/Cmd + K)"
 														>
@@ -543,6 +575,7 @@ const MyTopBar = () => {
 															<span className="ml-auto hidden text-xs opacity-60 md:inline">Ctrl K</span>
 														</button>
 													</div>
+													<CurrencySelector />
 													<ThemeToggleMenu />
 													<Button variant="destructive" onClick={() => signOut()}>
 														Logout
@@ -570,6 +603,7 @@ const MyTopBar = () => {
 													>
 														Sign up
 													</Link>
+													<CurrencySelector showCrypto={false} />
 													<ThemeToggleMenu />
 												</>
 											)}

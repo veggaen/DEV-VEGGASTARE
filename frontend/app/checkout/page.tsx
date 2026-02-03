@@ -9,7 +9,7 @@ import { FaRegCopy } from "react-icons/fa";
 
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
 
 import { useCurrentUser } from "@/hooks/use-current-user";
 
@@ -33,6 +33,16 @@ interface CartItem {
   id: string;
   quantity: number;
   product: { id: string; title: string; price: number; image: string[] };
+}
+
+interface ShippingForm {
+  name: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  country: string;
+  phone: string;
+  email: string;
 }
 
 /* ============ Helpers ============ */
@@ -88,6 +98,31 @@ export default function CheckoutPage() {
   const [showError, setShowError] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [paying, setPaying] = useState(false);
+
+  /* shipping form */
+  const [shipping, setShipping] = useState<ShippingForm>({
+    name: "",
+    address: "",
+    city: "",
+    postalCode: "",
+    country: "NO",
+    phone: "",
+    email: user?.email ?? "",
+  });
+
+  const isShippingValid = useMemo(() => {
+    return (
+      shipping.name.trim().length >= 2 &&
+      shipping.address.trim().length >= 3 &&
+      shipping.city.trim().length >= 2 &&
+      shipping.postalCode.trim().length >= 4 &&
+      shipping.email.includes("@")
+    );
+  }, [shipping]);
+
+  const updateShipping = (field: keyof ShippingForm, value: string) => {
+    setShipping((prev) => ({ ...prev, [field]: value }));
+  };
 
   /* load cart (server has USD prices) */
   const loadCart = useCallback(async () => {
@@ -166,25 +201,44 @@ export default function CheckoutPage() {
   const recordOrder = useCallback(
     async (txHash: string) => {
       try {
-        await fetch("/api/orders", {
+        const res = await fetch("/api/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId: user?.id,
             totalAmount: subtotalUSD,
             transactionId: txHash,
-            method: "NATIVE", // or "ERC20/SPL" when you add token payments
-            commentOrder: items.map((it) => it.product.title).join(", "),
+            method: "NATIVE",
+            commentOrder: `${items.length} items`,
             commentPay: `Paid on ${networkLabel}`,
+            // Shipping info
+            shippingName: shipping.name,
+            shippingAddress: shipping.address,
+            shippingCity: shipping.city,
+            shippingPostalCode: shipping.postalCode,
+            shippingCountry: shipping.country,
+            shippingPhone: shipping.phone,
+            shippingEmail: shipping.email,
+            // Cart items for OrderItem records
+            items: items.map((it) => ({
+              productId: it.product.id,
+              quantity: it.quantity,
+              priceAtTime: it.product.price,
+              title: it.product.title,
+            })),
           }),
         });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to record order");
+        }
         // clear cart
         await fetch(`/api/cart/${user?.id}`, { method: "DELETE" });
       } catch (e) {
         console.error("Order recording failed:", e);
+        throw e;
       }
     },
-    [user?.id, items, subtotalUSD, networkLabel]
+    [user?.id, items, subtotalUSD, networkLabel, shipping]
   );
 
   async function handlePayEvmNative() {
@@ -258,17 +312,17 @@ export default function CheckoutPage() {
     return (
       <div className="w-full min-h-screen flex items-center justify-center">
         <motion.div
-          className="w-full max-w-md p-6 bg-white dark:bg-gray-900 rounded-xl shadow-lg"
+          className="w-full max-w-md p-6 bg-surface-1 dark:bg-white/[0.02] border border-border dark:border-white/10 rounded-xl"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4 text-center">
+          <h1 className="text-2xl font-bold text-foreground mb-4 text-center">
             Loading Checkout…
           </h1>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+          <div className="w-full bg-muted dark:bg-white/10 rounded-full h-2.5 overflow-hidden">
             <motion.div
-              className="bg-blue-600 h-2.5 rounded-full"
+              className="bg-emerald-500 h-2.5 rounded-full"
               initial={{ x: "-100%" }}
               animate={{ x: "100%" }}
               transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
@@ -284,15 +338,15 @@ export default function CheckoutPage() {
     return (
       <div className="w-full min-h-screen flex items-center justify-center">
         <motion.div
-          className="w-full max-w-md p-6 bg-red-100 dark:bg-red-900/50 rounded-xl shadow-lg border border-red-400"
+          className="w-full max-w-md p-6 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-500/30"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="flex justify-between items-center">
-            <p className="text-red-700 dark:text-red-200 text-center">{error}</p>
-            <Button variant="ghost" className="text-red-700 dark:text-red-200" onClick={() => setShowError(false)}>
+          <div className="flex flex-col gap-3">
+            <p className="text-red-700 dark:text-red-300 text-center">{error}</p>
+            <Button variant="outline" className="text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/30" onClick={() => setShowError(false)}>
               Dismiss
             </Button>
           </div>
@@ -305,13 +359,13 @@ export default function CheckoutPage() {
     return (
       <div className="w-full min-h-screen flex items-center justify-center">
         <motion.div
-          className="w-full max-w-md p-6 bg-white dark:bg-gray-900 rounded-xl shadow-lg text-center"
+          className="w-full max-w-md p-6 bg-surface-1 dark:bg-white/[0.02] border border-border dark:border-white/10 rounded-xl text-center"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <p className="text-gray-600 dark:text-gray-400 text-lg">Your cart is empty.</p>
-          <Button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => router.push("/products")}>
+          <p className="text-muted-foreground text-lg mb-4">Your cart is empty.</p>
+          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => router.push("/products")}>
             Shop Now
           </Button>
         </motion.div>
@@ -322,7 +376,7 @@ export default function CheckoutPage() {
   return (
     <div className="w-full max-w-7xl mx-auto p-4 lg:p-8">
       <motion.h1
-        className="text-4xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600"
+        className="text-4xl font-extrabold mb-8 text-foreground"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -333,24 +387,24 @@ export default function CheckoutPage() {
       <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8">
         {/* Left: items */}
         <motion.div
-          className="col-span-1 lg:col-span-2 bg-white dark:bg-gray-900 p-4 lg:p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800"
+          className="col-span-1 lg:col-span-2 bg-surface-1 dark:bg-white/[0.02] p-4 lg:p-6 rounded-xl border border-border dark:border-white/10"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="text-2xl font-semibold mb-6 text-gray-800 dark:text-gray-100">Your Order</h2>
+          <h2 className="text-2xl font-semibold mb-6 text-foreground">Your Order</h2>
           {items.map((item) => {
             const imageSrc = item.product.image?.[0] || "/placeholder-image.jpg";
             return (
               <motion.div
                 key={item.id}
-                className="flex items-center justify-between mb-4 p-3 lg:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                className="flex items-center justify-between mb-4 p-3 lg:p-4 bg-muted/30 dark:bg-white/[0.02] rounded-lg border border-border/50 dark:border-white/5"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.4 }}
               >
                 <div className="flex items-center space-x-3">
-                  <div className="w-16 h-16 lg:w-20 lg:h-20 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                  <div className="w-16 h-16 lg:w-20 lg:h-20 bg-muted dark:bg-white/5 rounded-lg overflow-hidden">
                     <AspectRatio ratio={1 / 1}>
                       <Image
                         src={imageSrc}
@@ -365,109 +419,195 @@ export default function CheckoutPage() {
                     </AspectRatio>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
+                    <h3 className="text-lg font-medium text-foreground truncate">
                       {item.product.title}
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-muted-foreground">
                       ${item.product.price.toFixed(2)} × {item.quantity}
                     </p>
                   </div>
                 </div>
-                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                <p className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
                   ${(item.product.price * item.quantity).toFixed(2)}
                 </p>
               </motion.div>
             );
           })}
+
+          {/* Shipping Address Form */}
+          <div className="mt-6 pt-6 border-t border-border dark:border-white/10">
+            <h3 className="text-xl font-semibold mb-4 text-foreground">Shipping Address</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Full name *
+                </label>
+                <input
+                  type="text"
+                  value={shipping.name}
+                  onChange={(e) => updateShipping("name", e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Street address *
+                </label>
+                <input
+                  type="text"
+                  value={shipping.address}
+                  onChange={(e) => updateShipping("address", e.target.value)}
+                  placeholder="123 Main Street"
+                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Postal code *
+                </label>
+                <input
+                  type="text"
+                  value={shipping.postalCode}
+                  onChange={(e) => updateShipping("postalCode", e.target.value)}
+                  placeholder="0001"
+                  maxLength={4}
+                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  City *
+                </label>
+                <input
+                  type="text"
+                  value={shipping.city}
+                  onChange={(e) => updateShipping("city", e.target.value)}
+                  placeholder="Oslo"
+                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={shipping.phone}
+                  onChange={(e) => updateShipping("phone", e.target.value)}
+                  placeholder="+47 123 45 678"
+                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={shipping.email}
+                  onChange={(e) => updateShipping("email", e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                />
+              </div>
+            </div>
+            {!isShippingValid && (
+              <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
+                Please fill in all required fields (*) to continue
+              </p>
+            )}
+          </div>
         </motion.div>
 
         {/* Right: summary */}
         <motion.div
-          className="col-span-1 bg-white dark:bg-gray-900 p-4 lg:p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 sticky top-6"
+          className="col-span-1 bg-surface-1 dark:bg-white/[0.02] p-4 lg:p-6 rounded-xl border border-border dark:border-white/10 sticky top-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="text-2xl font-semibold mb-6 text-gray-800 dark:text-gray-100">Order Summary</h2>
+          <h2 className="text-2xl font-semibold mb-6 text-foreground">Order Summary</h2>
 
           <div className="space-y-4">
             <div>
-              <p className="text-gray-600 dark:text-gray-400 font-medium">Network:</p>
-              <p className="text-gray-900 dark:text-gray-100">{networkLabel}</p>
+              <p className="text-muted-foreground font-medium text-sm">Network:</p>
+              <p className="text-foreground">{networkLabel}</p>
             </div>
 
             <div>
-              <p className="text-gray-600 dark:text-gray-400 font-medium">Sender Address:</p>
+              <p className="text-muted-foreground font-medium text-sm">Sender Address:</p>
               <div className="flex items-center gap-2">
-                <span className="text-gray-900 dark:text-gray-100 break-all md:max-w-none max-w-[260px] truncate">
+                <span className="text-foreground break-all md:max-w-none max-w-[260px] truncate font-mono text-sm">
                   {senderAddress || "Not connected"}
                 </span>
                 {senderAddress && (
                   <button
                     onClick={() => navigator.clipboard.writeText(senderAddress)}
-                    className="text-blue-500 hover:text-blue-600"
+                    className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                   >
-                    <FaRegCopy  className="h-4 w-4" />
+                    <FaRegCopy className="h-4 w-4" />
                   </button>
                 )}
               </div>
             </div>
 
             <div>
-              <p className="text-gray-600 dark:text-gray-400 font-medium">Receiver Address:</p>
+              <p className="text-muted-foreground font-medium text-sm">Receiver Address:</p>
               <div className="flex items-center gap-2">
-                <span className="text-gray-900 dark:text-gray-100 break-all md:max-w-none max-w-[260px] truncate">
+                <span className="text-foreground break-all md:max-w-none max-w-[260px] truncate font-mono text-sm">
                   {receiverAddress}
                 </span>
                 <button
                   onClick={() => navigator.clipboard.writeText(receiverAddress)}
-                  className="text-blue-500 hover:text-blue-600"
+                  className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                 >
-                  <FaRegCopy  className="h-4 w-4" />
+                  <FaRegCopy className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400 font-medium">Subtotal (USD):</span>
-              <span className="text-gray-900 dark:text-gray-100 font-medium">${subtotalUSD.toFixed(2)}</span>
+              <span className="text-muted-foreground font-medium">Subtotal (USD):</span>
+              <span className="text-foreground font-medium">${subtotalUSD.toFixed(2)}</span>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400 font-medium">
-                Conversion Rate ({nativeSymbol}/USD):
+              <span className="text-muted-foreground font-medium text-sm">
+                Rate ({nativeSymbol}/USD):
               </span>
-              <span className="text-gray-900 dark:text-gray-100 font-medium">
+              <span className="text-foreground font-medium">
                 {usdPerNative != null ? <>1 {nativeSymbol} = ${usdPerNative.toFixed(2)}</> : "—"}
               </span>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400 font-medium">Total ({nativeSymbol}):</span>
-              <span className="text-gray-900 dark:text-gray-100 font-medium">
-                {/* Same renderer you used on product cards; follows user preset & active network */}
+              <span className="text-muted-foreground font-medium">Total ({nativeSymbol}):</span>
+              <span className="text-foreground font-medium">
                 <PriceAmount usd={subtotalUSD} />
               </span>
             </div>
 
-            <hr className="border-gray-200 dark:border-gray-700 my-2" />
+            <hr className="border-border dark:border-white/10 my-2" />
             <div className="flex justify-between font-bold text-xl">
-              <span className="text-gray-800 dark:text-gray-200">Total (USD)</span>
-              <span className="text-gray-900 dark:text-gray-100">${subtotalUSD.toFixed(2)}</span>
+              <span className="text-foreground">Total (USD)</span>
+              <span className="text-emerald-600 dark:text-emerald-400">${subtotalUSD.toFixed(2)}</span>
             </div>
 
             {/* Confirm & Pay */}
             <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
               <DialogTrigger asChild>
                 <Button
-                  className="w-full mt-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
-                  disabled={!isWalletReady || paying}
+                  className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                  disabled={!isWalletReady || paying || !isShippingValid}
+                  title={!isShippingValid ? "Fill in shipping address" : undefined}
                 >
-                  {paying ? "Processing…" : `Pay with ${nativeSymbol}`}
+                  {paying ? "Processing…" : !isShippingValid ? "Fill in address" : `Pay with ${nativeSymbol}`}
                 </Button>
               </DialogTrigger>
 
-              <DialogContent className="bg-gray-900 dark:bg-gray-800 p-6 rounded-2xl max-w-md border border-gray-700">
+              <DialogContent className="bg-surface-1 dark:bg-zinc-900 p-6 rounded-2xl max-w-md border border-border dark:border-white/10">
+                <DialogTitle className="sr-only">Confirm Payment</DialogTitle>
                 <AnimatePresence>
                   {confirmOpen && (
                     <motion.div
@@ -476,23 +616,23 @@ export default function CheckoutPage() {
                       exit={{ opacity: 0, y: -14, scale: 0.98 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <h3 className="text-xl font-bold text-white mb-4">Confirm Payment</h3>
+                      <h3 className="text-xl font-bold text-foreground mb-4">Confirm Payment</h3>
                       <div className="space-y-3 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-300">Network</span>
-                          <span className="text-gray-100">{networkLabel}</span>
+                          <span className="text-muted-foreground">Network</span>
+                          <span className="text-foreground">{networkLabel}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-300">From</span>
-                          <span className="text-gray-100">{formatAddr(senderAddress)}</span>
+                          <span className="text-muted-foreground">From</span>
+                          <span className="text-foreground font-mono">{formatAddr(senderAddress)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-300">To</span>
-                          <span className="text-gray-100">{formatAddr(receiverAddress)}</span>
+                          <span className="text-muted-foreground">To</span>
+                          <span className="text-foreground font-mono">{formatAddr(receiverAddress)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-300">Amount</span>
-                          <span className="text-gray-100">
+                          <span className="text-muted-foreground">Amount</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
                             <PriceAmount usd={subtotalUSD} />
                           </span>
                         </div>
@@ -500,7 +640,7 @@ export default function CheckoutPage() {
 
                       <Button
                         onClick={handleConfirmPay}
-                        className="w-full mt-6 bg-green-600 hover:bg-green-700 text-white"
+                        className="w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white"
                         disabled={paying || !isWalletReady || !totalInNative}
                       >
                         {paying ? "Processing…" : `Confirm & Pay`}
@@ -511,10 +651,10 @@ export default function CheckoutPage() {
               </DialogContent>
             </Dialog>
 
-            <footer className="mt-8 text-center text-gray-500 dark:text-gray-400 text-xs">
+            <footer className="mt-8 text-center text-muted-foreground text-xs">
               <p>
                 By proceeding, you agree to our{" "}
-                <Link href="/terms" className="underline hover:text-gray-700 dark:hover:text-gray-300">
+                <Link href="/terms" className="underline hover:text-foreground transition-colors">
                   Terms & Conditions
                 </Link>
                 .

@@ -142,7 +142,7 @@ export default function ProductHeroHeading({
         transition={reduceMotion ? undefined : { duration: 0.35, ease: "easeOut" }}
       >
         {kicker ? (
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-200">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-700 dark:text-zinc-200">
             {kicker}
           </div>
         ) : null}

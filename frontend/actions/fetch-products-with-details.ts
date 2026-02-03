@@ -86,12 +86,20 @@ export const fetchProductsWithDetails = async ({
         description: true,
         category: true,
         price: true,
+        priceCurrency: true,
         stock: true,
         shipFromPostalId: true,
         image: true,
         specifications: true,
         userId: true,
         companyId: true,
+        ProductAcceptedToken: {
+          select: {
+            symbol: true,
+            family: true,
+            decimals: true,
+          },
+        },
         User: {
           select: {
             id: true,
@@ -132,6 +140,7 @@ export const fetchProductsWithDetails = async ({
         description: String(p.description),
         category: String(p.category),
         price: typeof p.price === 'number' ? p.price : Number(p.price),
+        priceCurrency: p.priceCurrency || 'USD',
         stock: typeof p.stock === 'number' ? p.stock : Number(p.stock),
         shipFromPostalId: String(p.shipFromPostalId),
         image: Array.isArray(p.image) ? p.image : [],
@@ -142,6 +151,13 @@ export const fetchProductsWithDetails = async ({
         updatedAt: toIsoString(p.updatedAt),
         user,
         company,
+        acceptedTokens: Array.isArray(p.ProductAcceptedToken) 
+          ? p.ProductAcceptedToken.map((t: any) => ({
+              symbol: t.symbol,
+              family: t.family,
+              decimals: t.decimals,
+            }))
+          : [],
       };
 
       return dto;

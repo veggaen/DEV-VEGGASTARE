@@ -25,23 +25,7 @@ export default function PrivacyPage() {
 
   return (
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/75 to-sky-950/10 dark:from-black dark:via-black/75 dark:to-sky-950/25" />
-        <motion.div
-          className="absolute -right-12 top-24 h-[560px] w-[560px] rounded-full blur-3xl"
-          animate={
-            reduceMotion
-              ? undefined
-              : { x: [0, -16, 0], y: [0, 12, 0], opacity: [0.10, 0.20, 0.10], scale: [1, 1.05, 1] }
-          }
-          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            background:
-              "radial-gradient(closest-side, rgba(56,189,248,0.18), rgba(34,197,94,0.10), rgba(56,189,248,0) 72%)",
-            mixBlendMode: "screen",
-          }}
-        />
-      </div>
+      {/* Clean background - no gradient orbs */}
 
       <div className="relative mx-auto w-full max-w-5xl px-6 py-16">
         <motion.div

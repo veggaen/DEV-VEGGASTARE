@@ -389,7 +389,7 @@ const FeedPage: React.FC = () => {
         <div className="min-w-0 space-y-4">
           {/* Compose Box */}
           {currentUser && (
-            <div className="rounded-2xl border border-border/60 bg-slate-200/80 dark:bg-card">
+            <div className="rounded-2xl border border-border/60 bg-zinc-200/80 dark:bg-card">
               <div className="p-4 space-y-3">
                 {/* User avatar + textarea */}
                 <div className="flex gap-3">
@@ -622,7 +622,7 @@ const FeedPage: React.FC = () => {
         <aside className="hidden lg:block">
           <div className="sticky top-[calc(var(--app-header-offset,0px)+16px)] space-y-4">
             {!currentUser && (
-              <div className="rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-slate-200/80 dark:hover:bg-card/30">
+              <div className="rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-zinc-200/80 dark:hover:bg-card/30">
                 <div className="font-semibold">Welcome</div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Browse public posts, polls, and updates. Sign in to post and join the conversation.
@@ -634,7 +634,7 @@ const FeedPage: React.FC = () => {
               </div>
             )}
 
-            <div className="rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-slate-200/80 dark:hover:bg-card/30">
+            <div className="rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-zinc-200/80 dark:hover:bg-card/30">
               <div className="flex items-center justify-between">
                 <div className="font-semibold">Trending tags</div>
                 {tagFilter && (
@@ -662,7 +662,7 @@ const FeedPage: React.FC = () => {
               )}
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-slate-200/80 dark:hover:bg-card/30">
+            <div className="rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-zinc-200/80 dark:hover:bg-card/30">
               <div className="font-semibold">Top heartbeats</div>
               <div className="mt-3 space-y-2">
                 {topPosts.length === 0 ? (
@@ -943,7 +943,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   return (
     <article
       ref={viewTrackingRef}
-      className="group relative cursor-pointer rounded-2xl border border-border/60 bg-slate-100/80 dark:bg-card/30 p-4 sm:p-5 shadow-sm transition hover:bg-slate-200/80 dark:hover:bg-card/50 hover:shadow-md"
+      className="group relative cursor-pointer rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/30 p-4 sm:p-5 shadow-sm transition hover:bg-zinc-200/80 dark:hover:bg-card/50 hover:shadow-md"
       onClick={onClick}
     >
       <div className="flex gap-3 items-start">

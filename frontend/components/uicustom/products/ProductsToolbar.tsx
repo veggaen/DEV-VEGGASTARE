@@ -135,10 +135,10 @@ function CategoryDropdown({ group, availableCategories, selectedCategories, onCa
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150",
-          "text-slate-600 dark:text-slate-400",
-          "hover:text-slate-900 dark:hover:text-slate-100",
+          "text-zinc-600 dark:text-zinc-400",
+          "hover:text-foreground",
           "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
-          isOpen && "bg-black/[0.04] dark:bg-white/[0.06] text-slate-900 dark:text-slate-100",
+          isOpen && "bg-black/[0.04] dark:bg-white/[0.06] text-zinc-900 dark:text-zinc-100",
           hasActiveSelection && "text-indigo-600 dark:text-indigo-400"
         )}
       >
@@ -156,7 +156,7 @@ function CategoryDropdown({ group, availableCategories, selectedCategories, onCa
             transition={{ duration: 0.12, ease: [0.23, 1, 0.32, 1] }}
             className="absolute top-full left-0 mt-1.5 z-[100] min-w-[180px]"
           >
-            <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-slate-900 shadow-lg shadow-black/10 dark:shadow-black/40 overflow-hidden">
+            <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 shadow-lg shadow-black/10 dark:shadow-black/40 overflow-hidden">
               <div className={cn("px-3 py-1.5 bg-gradient-to-r text-white text-[11px] font-medium tracking-wide uppercase", group.gradient)}>
                 {group.label}
               </div>
@@ -169,7 +169,7 @@ function CategoryDropdown({ group, availableCategories, selectedCategories, onCa
                       onClick={() => onCategoryToggle(cat.category)}
                       className={cn(
                         "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-[13px] transition-colors",
-                        "hover:bg-slate-100 dark:hover:bg-white/[0.06]",
+                        "hover:bg-zinc-100 dark:hover:bg-white/[0.06]",
                         isSelected && "bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
                       )}
                     >
@@ -178,7 +178,7 @@ function CategoryDropdown({ group, availableCategories, selectedCategories, onCa
                         "text-[11px] tabular-nums px-1.5 py-0.5 rounded",
                         isSelected 
                           ? "bg-indigo-100 dark:bg-indigo-500/25 text-indigo-600 dark:text-indigo-300"
-                          : "text-slate-400 dark:text-slate-500"
+                          : "text-zinc-400 dark:text-zinc-500"
                       )}>
                         {cat.count}
                       </span>
@@ -237,10 +237,10 @@ function AllCategoriesDropdown({
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150",
-          "text-slate-600 dark:text-slate-400",
-          "hover:text-slate-900 dark:hover:text-slate-100",
+          "text-zinc-600 dark:text-zinc-400",
+          "hover:text-foreground",
           "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
-          isOpen && "bg-black/[0.04] dark:bg-white/[0.06] text-slate-900 dark:text-slate-100",
+          isOpen && "bg-black/[0.04] dark:bg-white/[0.06] text-zinc-900 dark:text-zinc-100",
           selectedCategories.length > 0 && "text-indigo-600 dark:text-indigo-400"
         )}
       >
@@ -258,8 +258,8 @@ function AllCategoriesDropdown({
             transition={{ duration: 0.12, ease: [0.23, 1, 0.32, 1] }}
             className="absolute top-full left-0 mt-1.5 z-[100] min-w-[200px]"
           >
-            <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-slate-900 shadow-lg shadow-black/10 dark:shadow-black/40 overflow-hidden">
-              <div className="px-3 py-1.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white text-[11px] font-medium tracking-wide uppercase">
+            <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 shadow-lg shadow-black/10 dark:shadow-black/40 overflow-hidden">
+              <div className="px-3 py-1.5 bg-gradient-to-r from-zinc-700 to-zinc-800 text-white text-[11px] font-medium tracking-wide uppercase">
                 All Categories
               </div>
               <div className="p-1.5 max-h-[300px] overflow-y-auto">
@@ -271,7 +271,7 @@ function AllCategoriesDropdown({
                       onClick={() => onCategoryToggle(cat.category)}
                       className={cn(
                         "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-[13px] transition-colors",
-                        "hover:bg-slate-100 dark:hover:bg-white/[0.06]",
+                        "hover:bg-zinc-100 dark:hover:bg-white/[0.06]",
                         isSelected && "bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
                       )}
                     >
@@ -280,7 +280,7 @@ function AllCategoriesDropdown({
                         "text-[11px] tabular-nums px-1.5 py-0.5 rounded",
                         isSelected 
                           ? "bg-indigo-100 dark:bg-indigo-500/25 text-indigo-600 dark:text-indigo-300"
-                          : "text-slate-400 dark:text-slate-500"
+                          : "text-zinc-400 dark:text-zinc-500"
                       )}>
                         {cat.count}
                       </span>
@@ -338,7 +338,7 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
       <div className="mx-auto max-w-screen-2xl px-3 sm:px-4 md:px-6">
         <div className="flex items-center gap-2 py-2.5">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-7 w-16 rounded-md bg-slate-200/50 dark:bg-white/5 animate-pulse" />
+            <div key={i} className="h-7 w-16 rounded-md bg-zinc-200/50 dark:bg-white/5 animate-pulse" />
           ))}
         </div>
       </div>
@@ -351,7 +351,7 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
   return (
     <div className={cn(
       "relative z-50 transition-all duration-200 w-full",
-      isScrolled && "bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg border-b border-black/5 dark:border-white/5"
+      isScrolled && "bg-white/80 dark:bg-zinc-950/80 backdrop-blur-lg border-b border-black/5 dark:border-white/5"
     )}>
       <div className="mx-auto max-w-screen-2xl px-3 sm:px-4 md:px-6">
         {/* Desktop Layout */}
@@ -365,8 +365,8 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
               onClick={toggleSidebar}
               className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150",
-                "text-slate-600 dark:text-slate-400",
-                "hover:text-slate-900 dark:hover:text-slate-100",
+                "text-zinc-600 dark:text-zinc-400",
+                "hover:text-foreground",
                 "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
                 isSidebarOpen && "bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
               )}
@@ -384,15 +384,15 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
               <DropdownMenuTrigger asChild>
                 <button className={cn(
                   "flex items-center gap-1 px-2 py-1.5 rounded-md text-[13px] transition-all duration-150",
-                  "text-slate-500 dark:text-slate-500",
-                  "hover:text-slate-700 dark:hover:text-slate-300",
+                  "text-zinc-500 dark:text-zinc-500",
+                  "hover:text-zinc-700 dark:hover:text-zinc-300",
                   "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
                 )}>
                   <LuSettings2 className="h-3.5 w-3.5" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-40">
-                <DropdownMenuLabel className="text-[11px] text-slate-500 uppercase tracking-wide">Panel Position</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-[11px] text-zinc-500 uppercase tracking-wide">Panel Position</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {DOCK_OPTIONS.map(opt => (
                   <DropdownMenuItem 
@@ -439,7 +439,7 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
             "relative flex items-center transition-all duration-200",
             isSearchFocused ? "w-[280px]" : "w-[200px]"
           )}>
-            <FiSearch className="absolute left-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+            <FiSearch className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <input
               type="text"
               placeholder="Search..."
@@ -450,11 +450,11 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
               className={cn(
                 "w-full h-8 pl-8 pr-3 rounded-md text-[13px] outline-none transition-all duration-150",
                 "bg-black/[0.03] dark:bg-white/[0.04]",
-                "text-slate-800 dark:text-slate-200",
-                "placeholder:text-slate-400 dark:placeholder:text-slate-500",
+                "text-zinc-800 dark:text-zinc-200",
+                "placeholder:text-muted-foreground",
                 "border border-transparent",
                 "hover:bg-black/[0.05] dark:hover:bg-white/[0.06]",
-                "focus:bg-white dark:focus:bg-slate-900",
+                "focus:bg-white dark:focus:bg-zinc-900",
                 "focus:border-indigo-500/50 dark:focus:border-indigo-400/50",
                 "focus:ring-2 focus:ring-indigo-500/20"
               )}
@@ -464,7 +464,7 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
                 onClick={() => setSearchTerm('')}
                 className="absolute right-2 p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10"
               >
-                <FiX className="h-3 w-3 text-slate-400" />
+                <FiX className="h-3 w-3 text-muted-foreground" />
               </button>
             )}
           </div>
@@ -479,8 +479,8 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
                   href={link.href}
                   className={cn(
                     "flex items-center gap-1 px-2 py-1.5 rounded-md text-[12px] font-medium transition-all duration-150",
-                    "text-slate-500 dark:text-slate-500",
-                    "hover:text-slate-700 dark:hover:text-slate-300",
+                    "text-zinc-500 dark:text-zinc-500",
+                    "hover:text-zinc-700 dark:hover:text-zinc-300",
                     "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
                   )}
                 >
@@ -517,7 +517,7 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
               className={cn(
                 "flex items-center justify-center h-9 w-9 rounded-lg transition-colors",
                 "bg-black/[0.04] dark:bg-white/[0.06]",
-                "text-slate-600 dark:text-slate-400",
+                "text-zinc-600 dark:text-zinc-400",
                 mobileMenuOpen && "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
               )}
             >
@@ -525,7 +525,7 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
             </button>
 
             <div className="relative flex-1">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search products..."
@@ -534,9 +534,9 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
                 className={cn(
                   "w-full h-9 pl-9 pr-3 rounded-lg text-[14px] outline-none transition-all duration-150",
                   "bg-black/[0.04] dark:bg-white/[0.06]",
-                  "text-slate-800 dark:text-slate-200",
-                  "placeholder:text-slate-400 dark:placeholder:text-slate-500",
-                  "focus:bg-white dark:focus:bg-slate-900",
+                  "text-zinc-800 dark:text-zinc-200",
+                  "placeholder:text-muted-foreground",
+                  "focus:bg-white dark:focus:bg-zinc-900",
                   "focus:ring-2 focus:ring-indigo-500/30"
                 )}
               />
@@ -547,7 +547,7 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
               className={cn(
                 "flex items-center justify-center h-9 px-3 rounded-lg transition-colors gap-1.5",
                 "bg-black/[0.04] dark:bg-white/[0.06]",
-                "text-slate-600 dark:text-slate-400",
+                "text-zinc-600 dark:text-zinc-400",
                 isSidebarOpen && "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
               )}
             >
@@ -580,7 +580,7 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
                           "px-2.5 py-1 rounded-full text-[12px] font-medium transition-colors",
                           isSelected 
                             ? "bg-indigo-500 text-white" 
-                            : "bg-black/[0.04] dark:bg-white/[0.06] text-slate-600 dark:text-slate-400"
+                            : "bg-black/[0.04] dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400"
                         )}
                       >
                         {cat.category}

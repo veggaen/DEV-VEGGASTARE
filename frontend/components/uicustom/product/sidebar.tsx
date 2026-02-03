@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PriceSlider } from '@/components/ui/price-slider';
 import { cn } from '@/lib/utils';
 import { UseCurrentRole } from '@/hooks/use-current-role';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { UserRole } from '@prisma/client';
 
 // ─── Loading Skeleton ────────────────────────────────────────────────────────
@@ -19,8 +20,8 @@ const FilterSkeleton = ({ count = 5 }: { count?: number }) => (
   <div className="space-y-2 animate-pulse">
     {Array.from({ length: count }).map((_, i) => (
       <div key={i} className="flex items-center gap-2">
-        <div className="h-4 w-4 rounded bg-slate-200 dark:bg-slate-700" />
-        <div className="h-4 flex-1 rounded bg-slate-200 dark:bg-slate-700" style={{ width: `${60 + Math.random() * 30}%` }} />
+        <div className="h-4 w-4 rounded bg-zinc-200 dark:bg-zinc-700" />
+        <div className="h-4 flex-1 rounded bg-zinc-200 dark:bg-zinc-700" style={{ width: `${60 + Math.random() * 30}%` }} />
       </div>
     ))}
   </div>
@@ -66,10 +67,10 @@ const FilterSection = ({
         className="flex items-center gap-2 flex-1 min-w-0 text-left transition-colors hover:opacity-80"
         aria-expanded={isOpen}
       >
-        {icon && <span className="text-slate-500 dark:text-slate-400 flex-shrink-0">{icon}</span>}
-        <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{title}</span>
+        {icon && <span className="text-zinc-500 dark:text-zinc-400 flex-shrink-0">{icon}</span>}
+        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{title}</span>
         {typeof count === 'number' && (
-          <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">({count})</span>
+          <span className="text-xs text-zinc-400 dark:text-zinc-500 flex-shrink-0">({count})</span>
         )}
         {typeof selectedCount === 'number' && selectedCount > 0 && (
           <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500/15 px-1.5 text-xs font-medium text-sky-600 dark:text-sky-400 flex-shrink-0">
@@ -83,7 +84,7 @@ const FilterSection = ({
           <button
             type="button"
             onClick={onReset}
-            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded transition-colors"
+            className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded transition-colors"
             aria-label={`Reset ${title.toLowerCase()}`}
           >
             <FiRotateCcw className="h-3.5 w-3.5" />
@@ -92,7 +93,7 @@ const FilterSection = ({
         <button
           type="button"
           onClick={onToggle}
-          className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded transition-colors"
+          className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded transition-colors"
           aria-label={isOpen ? `Collapse ${title.toLowerCase()}` : `Expand ${title.toLowerCase()}`}
         >
           {isOpen ? (
@@ -137,17 +138,17 @@ const CategoryItem = ({ category, isSelected, onToggle, disabled }: CategoryItem
       checked={isSelected}
       onCheckedChange={onToggle}
       disabled={disabled}
-      className="h-4 w-4 rounded border-slate-300 dark:border-slate-600"
+      className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600"
     />
     <span className={cn(
       "flex-1 text-sm capitalize",
-      isSelected ? "text-slate-900 dark:text-slate-100 font-medium" : "text-slate-700 dark:text-slate-300"
+      isSelected ? "text-zinc-900 dark:text-zinc-100 font-medium" : "text-zinc-700 dark:text-zinc-300"
     )}>
       {category.category}
     </span>
     <span className={cn(
       "text-xs tabular-nums",
-      category.count === 0 ? "text-slate-300 dark:text-slate-600" : "text-slate-400 dark:text-slate-500"
+      category.count === 0 ? "text-zinc-300 dark:text-zinc-600" : "text-zinc-400 dark:text-zinc-500"
     )}>
       {category.count}
     </span>
@@ -161,6 +162,8 @@ export const MySidebarProductsMenu = () => {
   const isEdgeDock = sidebarDock === 'edge-left' || sidebarDock === 'edge-right';
   const isFrameDock = sidebarDock === 'frame-left' || sidebarDock === 'frame-right';
   const userRole = UseCurrentRole();
+  const user = useCurrentUser(); // For showing/hiding create button
+  const isLoggedIn = !!user;
 
   const SIDEBAR_WIDTH = 340;
   const FRAME_GAP = 16;
@@ -529,7 +532,7 @@ export const MySidebarProductsMenu = () => {
           <div className="grid w-full grid-cols-[1fr,auto,1fr] items-center">
             <div />
             <div className="flex items-center justify-center gap-2">
-              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filters</span>
+              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Filters</span>
               {activeFilterCount > 0 && (
                 <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500 px-1.5 text-xs font-medium text-white">
                   {activeFilterCount}
@@ -553,7 +556,7 @@ export const MySidebarProductsMenu = () => {
         ) : (
           <>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filters</span>
+              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Filters</span>
               {activeFilterCount > 0 && (
                 <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500 px-1.5 text-xs font-medium text-white">
                   {activeFilterCount}
@@ -596,12 +599,12 @@ export const MySidebarProductsMenu = () => {
               step={10}
               onMinChange={setMinPrice}
               onMaxChange={setMaxPrice}
-              formatValue={(v) => `$${v.toLocaleString()}`}
+              formatValue={(v) => v.toLocaleString()}
             />
             
             {/* Fallback manual inputs for precise entry */}
             <details className="mt-3 group">
-              <summary className="text-xs text-slate-500 dark:text-slate-400 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors select-none">
+              <summary className="text-xs text-zinc-500 dark:text-zinc-400 cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors select-none">
                 Enter exact values
               </summary>
               <div className="flex items-center gap-2 mt-2">
@@ -615,7 +618,7 @@ export const MySidebarProductsMenu = () => {
                     className="w-full h-9 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-sky-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
-                <span className="text-slate-400 text-sm font-medium select-none">–</span>
+                <span className="text-zinc-400 text-sm font-medium select-none">–</span>
                 <div className="flex-1 relative">
                   <label className="sr-only">Maximum price</label>
                   <input
@@ -649,7 +652,7 @@ export const MySidebarProductsMenu = () => {
                 {/* Category search - always render to maintain focus */}
                 {categoriesWithCounts.length > 6 && (
                   <div className="relative flex-shrink-0 mx-0.5">
-                    <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Search categories..."
@@ -672,7 +675,7 @@ export const MySidebarProductsMenu = () => {
                       />
                     ))
                   ) : (
-                    <div className="text-sm text-slate-400 py-2 px-1">No categories found</div>
+                    <div className="text-sm text-zinc-400 py-2 px-1">No categories found</div>
                   )}
                 </div>
               </div>
@@ -698,7 +701,7 @@ export const MySidebarProductsMenu = () => {
                 {/* Seller search */}
                 {sellers.length > 6 && (
                   <div className="relative flex-shrink-0 mx-0.5">
-                    <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Search sellers..."
@@ -722,31 +725,31 @@ export const MySidebarProductsMenu = () => {
                         <Checkbox
                           checked={selectedSellers.includes(seller.id)}
                           onCheckedChange={() => handleSellerChange(seller.id)}
-                          className="h-4 w-4 rounded border-slate-300 dark:border-slate-600"
+                          className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600"
                         />
                         <span className={cn(
                           "flex-1 text-sm capitalize truncate",
                           selectedSellers.includes(seller.id)
-                            ? "text-slate-900 dark:text-slate-100 font-medium"
-                            : "text-slate-700 dark:text-slate-300"
+                            ? "text-zinc-900 dark:text-zinc-100 font-medium"
+                            : "text-zinc-700 dark:text-zinc-300"
                         )}>
                           {seller.name}
                         </span>
                         <span className={cn(
                           "text-xs tabular-nums flex-shrink-0",
-                          seller.count === 0 ? "text-slate-300 dark:text-slate-600" : "text-slate-400 dark:text-slate-500"
+                          seller.count === 0 ? "text-zinc-300 dark:text-zinc-600" : "text-zinc-400 dark:text-zinc-500"
                         )}>
                           {seller.count}
                         </span>
                       </label>
                     ))
                   ) : (
-                    <div className="text-sm text-slate-400 py-2 px-1">No sellers found</div>
+                    <div className="text-sm text-zinc-400 py-2 px-1">No sellers found</div>
                   )}
                 </div>
               </div>
             ) : (
-              <div className="text-sm text-slate-400 py-2">No sellers available</div>
+              <div className="text-sm text-zinc-400 py-2">No sellers available</div>
             )}
           </FilterSection>
 
@@ -758,8 +761,8 @@ export const MySidebarProductsMenu = () => {
               isOpen={isAdminOpen}
               onToggle={() => setIsAdminOpen((p) => !p)}
             >
-              <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                <p className="text-xs text-slate-500">Mod/Admin only features</p>
+              <div className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
+                <p className="text-xs text-zinc-500">Mod/Admin only features</p>
                 {/* Future: add moderation toggles here */}
                 <div className="text-xs opacity-60">No admin filters yet</div>
               </div>
@@ -774,21 +777,24 @@ export const MySidebarProductsMenu = () => {
             onToggle={() => setIsViewOptionsOpen((p) => !p)}
           >
             <div className="grid gap-2">
-              <Button asChild className="w-full justify-start" variant="outline">
-                <Link href="/products/create" aria-label="Create a new product listing" className="flex items-center gap-2">
-                  <MdAdd className="h-5 w-5" />
-                  <span className="font-medium">Create listing</span>
-                  <span className="ml-auto text-xs text-slate-500 dark:text-slate-400">Sell</span>
-                </Link>
-              </Button>
+              {/* Create listing - only shown when logged in */}
+              {isLoggedIn && (
+                <Button asChild className="w-full justify-start" variant="outline">
+                  <Link href="/products/create" aria-label="Create a new product listing" className="flex items-center gap-2">
+                    <MdAdd className="h-5 w-5" />
+                    <span className="font-medium">Create listing</span>
+                    <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">Sell</span>
+                  </Link>
+                </Button>
+              )}
 
               <div className="grid gap-1.5 sm:grid-cols-[auto,1fr] sm:items-center sm:gap-2">
-                <div className="text-xs text-slate-600 dark:text-slate-300">Items / page</div>
+                <div className="text-xs text-zinc-600 dark:text-zinc-300">Items / page</div>
                 <Select value={perPage.toString()} onValueChange={(v) => setPerPage(Number(v))}>
-                  <SelectTrigger className="h-10 w-full sm:w-[170px] rounded-lg border-black/10 bg-white/60 text-slate-800 shadow-sm shadow-black/[0.03] hover:bg-white/75 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-100 dark:hover:bg-white/[0.10]">
+                  <SelectTrigger className="h-10 w-full sm:w-[170px] rounded-lg border-black/10 bg-white/60 text-zinc-800 shadow-sm shadow-black/[0.03] hover:bg-white/75 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.10]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-lg border-black/10 bg-white/95 text-slate-950 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-50">
+                  <SelectContent className="rounded-lg border-black/10 bg-white/95 text-zinc-950 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/10 dark:bg-surface-1/80 dark:text-zinc-50">
                     <SelectItem value="10" className="whitespace-nowrap">10 per page</SelectItem>
                     <SelectItem value="20" className="whitespace-nowrap">20 per page</SelectItem>
                     <SelectItem value="30" className="whitespace-nowrap">30 per page</SelectItem>
@@ -875,7 +881,7 @@ export const MySidebarProductsMenu = () => {
 					>
 						<div
 							className={cn(
-								"w-full h-full bg-white/55 dark:bg-slate-950/40 backdrop-blur-xl transition-[border-radius,box-shadow] duration-500 ease-out",
+								"w-full h-full bg-white/55 dark:bg-surface-1/40 backdrop-blur-xl transition-[border-radius,box-shadow] duration-500 ease-out",
 								isDocked
 									? cn(
 										"shadow-none rounded-none",
@@ -914,9 +920,9 @@ export const MySidebarProductsMenu = () => {
       <aside
         data-sidebar-filters="true"
         className={cn(
-        "fixed w-[92vw] max-w-[420px] bg-white dark:bg-slate-950 shadow-2xl z-[100] transform will-change-transform md:hidden",
+        "fixed w-[92vw] max-w-[420px] bg-white dark:bg-surface-1 shadow-2xl z-[100] transform will-change-transform md:hidden",
         		isSidebarSwiping ? "transition-none" : "transition-transform duration-300 ease-out",
-          isRight ? "right-0 border-l border-slate-200 dark:border-slate-800" : "left-0 border-r border-slate-200 dark:border-slate-800",
+          isRight ? "right-0 border-l border-zinc-200 dark:border-zinc-800" : "left-0 border-r border-zinc-200 dark:border-zinc-800",
         // During active swipe, we drive transform inline for smooth follow.
         !(isSidebarSwiping && sidebarSwipePx > 0 && !isSidebarOpen)
           ? (isSidebarOpen ? "translate-x-0" : isRight ? "translate-x-full" : "-translate-x-full")

@@ -293,10 +293,10 @@ export default function PostJobPage() {
               />
               <span>New Request</span>
             </div>
-            <h1 className="text-balance text-3xl font-semibold text-white sm:text-4xl">
+            <h1 className="text-balance text-3xl font-semibold text-zinc-900 dark:text-white sm:text-4xl">
               Post a Request
             </h1>
-            <p className="max-w-2xl text-pretty text-sm text-white/70 sm:text-base">
+            <p className="max-w-2xl text-pretty text-sm text-zinc-600 dark:text-white/70 sm:text-base">
               Describe what you&apos;re looking for and companies will reach out with offers.
               Add images and details to help them understand your needs.
             </p>
@@ -307,7 +307,7 @@ export default function PostJobPage() {
             {/* Title Section */}
             <section className="space-y-4">
               <label className="block">
-                <span className="text-sm font-medium text-white/90 mb-2 block">Request Title</span>
+                <span className="text-sm font-medium text-zinc-700 dark:text-white/90 mb-2 block">Request Title</span>
                 <input
                   type="text"
                   name="title"
@@ -315,7 +315,7 @@ export default function PostJobPage() {
                   value={formData.title}
                   onChange={(e) => handleChange(e, undefined, 'title')}
                   required
-                  className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white placeholder-white/30 outline-none transition-colors hover:bg-white/[0.07] focus:border-emerald-500/50 focus:bg-white/[0.07]"
+                  className="h-12 w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50 focus:bg-black/[0.07] dark:focus:bg-white/[0.07]"
                 />
               </label>
             </section>
@@ -323,8 +323,8 @@ export default function PostJobPage() {
             {/* Description Sections */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-white/90">Images & Descriptions</span>
-                <span className="text-xs text-white/40">{formData.descriptions.length} item{formData.descriptions.length > 1 ? 's' : ''}</span>
+                <span className="text-sm font-medium text-zinc-700 dark:text-white/90">Images & Descriptions</span>
+                <span className="text-xs text-zinc-400 dark:text-white/40">{formData.descriptions.length} item{formData.descriptions.length > 1 ? 's' : ''}</span>
               </div>
               
               <div className="space-y-4">
@@ -373,7 +373,7 @@ export default function PostJobPage() {
               >
                 {/* Links */}
                 <div className="space-y-3">
-                  <label className="flex items-center gap-2 text-sm font-medium text-white/80">
+                  <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-white/80">
                     <FiLink className="h-4 w-4" />
                     Reference Links
                   </label>
@@ -384,12 +384,12 @@ export default function PostJobPage() {
                         placeholder="https://example.com/reference"
                         value={link}
                         onChange={(e) => handleChange(e, index, 'links')}
-                        className="h-10 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-white/30 outline-none transition-colors hover:bg-white/[0.07] focus:border-emerald-500/50"
+                        className="h-10 flex-1 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50"
                       />
                       <button
                         type="button"
                         onClick={() => handleRemoveFields(index, 'links')}
-                        className="rounded-xl border border-white/10 bg-white/5 px-3 text-white/40 transition-colors hover:bg-red-500/20 hover:text-red-400"
+                        className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-3 text-zinc-400 dark:text-white/40 transition-colors hover:bg-red-500/20 hover:text-red-400"
                       >
                         <FiTrash2 className="h-4 w-4" />
                       </button>
@@ -398,7 +398,7 @@ export default function PostJobPage() {
                   <button
                     type="button"
                     onClick={() => handleAddFields('links')}
-                    className="text-sm text-emerald-400/80 hover:text-emerald-400 transition-colors"
+                    className="text-sm text-emerald-500 dark:text-emerald-400/80 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                   >
                     + Add another link
                   </button>
@@ -406,7 +406,7 @@ export default function PostJobPage() {
 
                 {/* Documents */}
                 <div className="space-y-3">
-                  <label className="flex items-center gap-2 text-sm font-medium text-white/80">
+                  <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-white/80">
                     <FiFileText className="h-4 w-4" />
                     Documents
                   </label>
@@ -415,14 +415,14 @@ export default function PostJobPage() {
                     name="docs"
                     onChange={(e) => handleChange(e, undefined, 'docs')}
                     multiple
-                    className="w-full text-sm text-white/60 file:mr-4 file:rounded-xl file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:text-white/80 hover:file:bg-white/20"
+                    className="w-full text-sm text-zinc-500 dark:text-white/60 file:mr-4 file:rounded-xl file:border-0 file:bg-black/10 dark:file:bg-white/10 file:px-4 file:py-2 file:text-sm file:text-zinc-700 dark:file:text-white/80 hover:file:bg-black/20 dark:hover:file:bg-white/20"
                   />
                   {formData.docs.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {formData.docs.map((doc, index) => (
-                        <span key={index} className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-3 py-1.5 text-xs text-white/60">
+                        <span key={index} className="inline-flex items-center gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-3 py-1.5 text-xs text-zinc-500 dark:text-white/60">
                           {doc.name}
-                          <button type="button" onClick={() => handleRemoveFields(index, 'docs')} className="text-white/40 hover:text-red-400">
+                          <button type="button" onClick={() => handleRemoveFields(index, 'docs')} className="text-zinc-400 dark:text-white/40 hover:text-red-400">
                             <FiXCircle className="h-3 w-3" />
                           </button>
                         </span>
@@ -433,7 +433,7 @@ export default function PostJobPage() {
 
                 {/* Delivery */}
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-white/80">
+                  <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-white/80">
                     <FiTruck className="h-4 w-4" />
                     Delivery Method
                   </label>
@@ -443,13 +443,13 @@ export default function PostJobPage() {
                     placeholder="e.g., Pickup, Shipping, Digital delivery"
                     value={formData.delivery}
                     onChange={(e) => handleChange(e, undefined, 'delivery')}
-                    className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-white/30 outline-none transition-colors hover:bg-white/[0.07] focus:border-emerald-500/50"
+                    className="h-10 w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50"
                   />
                 </div>
 
                 {/* Additional Notes */}
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-white/80">
+                  <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-white/80">
                     <FiMessageSquare className="h-4 w-4" />
                     Additional Notes
                   </label>
@@ -459,23 +459,23 @@ export default function PostJobPage() {
                     value={formData.additionalNotes}
                     onChange={(e) => handleChange(e, undefined, 'additionalNotes')}
                     rows={3}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition-colors hover:bg-white/[0.07] focus:border-emerald-500/50 resize-none"
+                    className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-3 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50 resize-none"
                   />
                 </div>
 
                 {/* Company Selection */}
-                <div className="space-y-3 pt-2 border-t border-white/10">
+                <div className="space-y-3 pt-2 border-t border-black/10 dark:border-white/10">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
                       type="checkbox"
                       name="sendToAll"
                       checked={formData.sendToAll}
                       onChange={(e) => handleChange(e, undefined, 'sendToAll')}
-                      className="h-4 w-4 rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-emerald-500/50"
+                      className="h-4 w-4 rounded border-zinc-300 dark:border-white/20 bg-white dark:bg-white/5 text-emerald-500 focus:ring-emerald-500/50"
                     />
-                    <span className="text-sm text-white/80">Send to all companies</span>
+                    <span className="text-sm text-zinc-700 dark:text-white/80">Send to all companies</span>
                   </label>
-                  
+
                   {!formData.sendToAll && (
                     <div className="space-y-3 pl-7">
                       <input
@@ -483,16 +483,16 @@ export default function PostJobPage() {
                         placeholder="Search companies..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-white/30 outline-none transition-colors hover:bg-white/[0.07] focus:border-emerald-500/50"
+                        className="h-10 w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50"
                       />
                       <select
                         multiple
                         onChange={handleCompanySelect}
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-colors hover:bg-white/[0.07] focus:border-emerald-500/50"
+                        className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-3 text-sm text-zinc-900 dark:text-white outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50"
                         size={Math.min(filteredCompanies.length, 5)}
                       >
                         {filteredCompanies.map(company => (
-                          <option key={company.id} value={company.id} className="bg-slate-900 py-1">
+                          <option key={company.id} value={company.id} className="bg-white dark:bg-zinc-900 py-1">
                             {company.name}
                           </option>
                         ))}
@@ -503,12 +503,12 @@ export default function PostJobPage() {
 
                 {/* Admin-only fields */}
                 {user?.role === 'ADMIN' && (
-                  <div className="space-y-4 pt-4 border-t border-white/10">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-white/40">Admin Options</span>
-                    
+                  <div className="space-y-4 pt-4 border-t border-black/10 dark:border-white/10">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-white/40">Admin Options</span>
+
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm font-medium text-white/80">
+                        <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-white/80">
                           <FiDollarSign className="h-4 w-4" />
                           Price
                         </label>
@@ -517,30 +517,30 @@ export default function PostJobPage() {
                           name="price"
                           value={formData.price}
                           onChange={(e) => handleChange(e, undefined, 'price')}
-                          className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-white/30 outline-none transition-colors hover:bg-white/[0.07] focus:border-emerald-500/50"
+                          className="h-10 w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-white/80">Payment Method</label>
+                        <label className="text-sm font-medium text-zinc-700 dark:text-white/80">Payment Method</label>
                         <input
                           type="text"
                           name="paymentMethod"
                           value={formData.paymentMethod}
                           onChange={(e) => handleChange(e, undefined, 'paymentMethod')}
-                          className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder-white/30 outline-none transition-colors hover:bg-white/[0.07] focus:border-emerald-500/50"
+                          className="h-10 w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50"
                         />
                       </div>
                     </div>
-                    
+
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
                         type="checkbox"
                         name="negotiable"
                         checked={formData.negotiable}
                         onChange={(e) => handleChange(e, undefined, 'negotiable')}
-                        className="h-4 w-4 rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-emerald-500/50"
+                        className="h-4 w-4 rounded border-zinc-300 dark:border-white/20 bg-white dark:bg-white/5 text-emerald-500 focus:ring-emerald-500/50"
                       />
-                      <span className="text-sm text-white/80">Price is negotiable</span>
+                      <span className="text-sm text-zinc-700 dark:text-white/80">Price is negotiable</span>
                     </label>
                   </div>
                 )}
@@ -663,7 +663,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
             onChange={(e) => handleChange(e, index, 'descriptions')}
             required
             rows={6}
-            className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition-colors hover:bg-white/[0.07] focus:border-emerald-500/50 resize-none"
+            className="flex-1 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-3 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50 resize-none"
           />
           {canRemove && (
             <button

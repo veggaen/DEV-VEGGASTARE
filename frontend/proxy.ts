@@ -163,8 +163,10 @@ export default function proxy(req: NextRequest) {
   const isAuthRoute = authRoutes.includes(pathname);
   const isApiRoute = pathname.startsWith("/api") || pathname.startsWith("/trpc");
 
-  // Allow /products and /products/[id] to be public.
-  const isPublicProductPage = pathname === "/products" || pathname.startsWith("/products/");
+  // Allow /products and /products/[id] to be public, but /products/create requires auth.
+  const isPublicProductPage = 
+    (pathname === "/products" || pathname.startsWith("/products/")) &&
+    pathname !== "/products/create";
 
   const isPublicRoute = publicRoutes.includes(pathname) || isPublicProductPage;
 

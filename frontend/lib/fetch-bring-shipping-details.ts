@@ -66,13 +66,34 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
     try {
         let response: Response;
         if (coreBaseUrl) {
-          response = await fetch(`${coreBaseUrl}/v1/shipping/bring/products`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(coreRequestBody),
-          });
+          try {
+            response = await fetch(`${coreBaseUrl}/v1/shipping/bring/products`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(coreRequestBody),
+            });
+          } catch (networkError: any) {
+            // Backend service unavailable, fall back to legacy API route
+            console.warn('[fetch-bring-shipping-details] Integration Core unavailable, using legacy API:', networkError);
+            
+            // Check if it's a connection refused error (backend not running)
+            if (networkError?.cause?.code === 'ECONNREFUSED' || networkError?.message?.includes('fetch failed')) {
+              throw new ShippingError(
+                'BACKEND_UNAVAILABLE',
+                'The shipping service is currently unavailable. Please try again later.'
+              );
+            }
+            
+            response = await fetch("/api/bring-shipping", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(legacyRequestBody),
+            });
+          }
         } else {
           response = await fetch("/api/bring-shipping", {
             method: "POST",
@@ -83,27 +104,71 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
           });
         }
 
-	        const result = await response.json().catch(() => null);
-	        console.log('[frontend/lib/fetch-bring-shipping-details.ts] result', result)
-	        
-	        if (!response.ok) {
-	            const message = result?.error || response.statusText || `HTTP error! status: ${response.status}`;
-	            // If the backend is misconfigured/unavailable, fall back to legacy route.
-	            if (coreBaseUrl) {
-	              const legacyResponse = await fetch("/api/bring-shipping", {
-	                method: "POST",
-	                headers: { "Content-Type": "application/json" },
-	                body: JSON.stringify(legacyRequestBody),
-	              });
-	              const legacyResult = await legacyResponse.json().catch(() => null);
-	              if (legacyResponse.ok) return legacyResult;
-	            }
-	            throw new Error(message);
-	        }
+        const result = await response.json().catch(() => null);
+        console.log('[frontend/lib/fetch-bring-shipping-details.ts] result', result)
+        
+        if (!response.ok) {
+            const message = result?.error || response.statusText || `HTTP error! status: ${response.status}`;
+            // If the backend is misconfigured/unavailable, fall back to legacy route.
+            if (coreBaseUrl) {
+              try {
+                const legacyResponse = await fetch("/api/bring-shipping", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(legacyRequestBody),
+                });
+                const legacyResult = await legacyResponse.json().catch(() => null);
+                if (legacyResponse.ok) return legacyResult;
+              } catch (legacyError: any) {
+                // Both services failed
+                if (legacyError?.cause?.code === 'ECONNREFUSED') {
+                  throw new ShippingError(
+                    'BACKEND_UNAVAILABLE',
+                    'The shipping service is currently unavailable. Please try again later.'
+                  );
+                }
+              }
+            }
+            
+            // Parse error message for better UX
+            if (message.includes('ECONNREFUSED') || message.includes('fetch failed')) {
+              throw new ShippingError(
+                'BACKEND_UNAVAILABLE',
+                'The shipping service is currently unavailable. Please try again later.'
+              );
+            }
+            
+            throw new ShippingError('API_ERROR', message);
+        }
 
-          return result;
-    } catch (error) {
-	        console.error('There was an error fetching the shipping details:', error);
-        throw error;
+        return result;
+    } catch (error: any) {
+        console.error('There was an error fetching the shipping details:', error);
+        
+        // Re-throw ShippingError as-is
+        if (error instanceof ShippingError) {
+          throw error;
+        }
+        
+        // Handle connection errors
+        if (error?.cause?.code === 'ECONNREFUSED' || error?.message?.includes('fetch failed')) {
+          throw new ShippingError(
+            'BACKEND_UNAVAILABLE',
+            'The shipping service is currently unavailable. Please try again later.'
+          );
+        }
+        
+        throw new ShippingError('UNKNOWN_ERROR', 'Unable to calculate shipping. Please try again.');
     }
+}
+
+// Custom error class for better error handling
+export class ShippingError extends Error {
+  code: string;
+  
+  constructor(code: string, message: string) {
+    super(message);
+    this.code = code;
+    this.name = 'ShippingError';
+  }
 }
