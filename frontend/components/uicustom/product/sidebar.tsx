@@ -581,6 +581,30 @@ export const MySidebarProductsMenu = () => {
         {/* ─── Scrollable Body ─── */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3 flex flex-col gap-1">
 
+          {/* Create listing (discoverable) */}
+          <div className="pb-2">
+            {isLoggedIn ? (
+              <Button asChild className="w-full justify-start" variant="vegaNormalBtn">
+                <Link href="/products/create" aria-label="Create a new product listing" className="flex items-center gap-2">
+                  <MdAdd className="h-5 w-5" />
+                  <span className="font-medium">Create listing</span>
+                  <span className="ml-auto text-xs text-white/80">Sell</span>
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild className="w-full justify-start" variant="outline">
+                <Link
+                  href={`/auth/login?callbackUrl=${encodeURIComponent('/products/create')}`}
+                  aria-label="Sign in to create a listing"
+                  className="flex items-center gap-2"
+                >
+                  <MdAdd className="h-5 w-5" />
+                  <span className="font-medium">Sign in to sell</span>
+                </Link>
+              </Button>
+            )}
+          </div>
+
           {/* Price Filter */}
           <FilterSection
             title="Price"
@@ -777,17 +801,6 @@ export const MySidebarProductsMenu = () => {
             onToggle={() => setIsViewOptionsOpen((p) => !p)}
           >
             <div className="grid gap-2">
-              {/* Create listing - only shown when logged in */}
-              {isLoggedIn && (
-                <Button asChild className="w-full justify-start" variant="outline">
-                  <Link href="/products/create" aria-label="Create a new product listing" className="flex items-center gap-2">
-                    <MdAdd className="h-5 w-5" />
-                    <span className="font-medium">Create listing</span>
-                    <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">Sell</span>
-                  </Link>
-                </Button>
-              )}
-
               <div className="grid gap-1.5 sm:grid-cols-[auto,1fr] sm:items-center sm:gap-2">
                 <div className="text-xs text-zinc-600 dark:text-zinc-300">Items / page</div>
                 <Select value={perPage.toString()} onValueChange={(v) => setPerPage(Number(v))}>

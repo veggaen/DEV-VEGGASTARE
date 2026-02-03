@@ -15,12 +15,14 @@ import {
   FiX,
   FiMenu
 } from 'react-icons/fi';
+import { MdAdd } from 'react-icons/md';
 import { LuPanelLeftClose, LuPanelLeftOpen, LuLayoutGrid, LuSettings2 } from 'react-icons/lu';
 import { useCategories, CategoryWithCount } from '@/components/providers/categoriesContext';
 import { useSidebar, type SidebarDock } from '@/components/providers/product-layoutProvider';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -301,6 +303,9 @@ interface ProductsToolbarProps {
 }
 
 export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
+  const user = useCurrentUser();
+  const isLoggedIn = !!user;
+
   const { 
     categoriesWithCounts, 
     categoriesLoading, 
@@ -469,6 +474,29 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
             )}
           </div>
 
+        {/* Create listing CTA (discoverable; no hidden sidebar tricks) */}
+        <div className="ml-2">
+          {isLoggedIn ? (
+            <Button asChild variant="vegaNormalBtn" className="h-8 rounded-md px-3">
+              <Link href="/products/create" aria-label="Create a new product listing" className="flex items-center gap-2">
+                <MdAdd className="h-4 w-4" />
+                <span className="text-[13px] font-medium">Create listing</span>
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild variant="outline" className="h-8 rounded-md px-3">
+              <Link
+                href={`/auth/login?callbackUrl=${encodeURIComponent('/products/create')}`}
+                aria-label="Sign in to create a listing"
+                className="flex items-center gap-2"
+              >
+                <MdAdd className="h-4 w-4" />
+                <span className="text-[13px] font-medium">Sell</span>
+              </Link>
+            </Button>
+          )}
+        </div>
+
           {/* Quick Links */}
           <div className="hidden xl:flex items-center gap-0.5 ml-2">
             {QUICK_LINKS.map(link => {
@@ -541,6 +569,24 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
                 )}
               />
             </div>
+
+        {/* Create listing (mobile) */}
+        {isLoggedIn ? (
+          <Button asChild size="icon" variant="vegaNormalBtn" className="h-9 w-9 rounded-lg">
+            <Link href="/products/create" aria-label="Create a new product listing">
+              <MdAdd className="h-4 w-4" />
+            </Link>
+          </Button>
+        ) : (
+          <Button asChild size="icon" variant="outline" className="h-9 w-9 rounded-lg">
+            <Link
+              href={`/auth/login?callbackUrl=${encodeURIComponent('/products/create')}`}
+              aria-label="Sign in to create a listing"
+            >
+              <MdAdd className="h-4 w-4" />
+            </Link>
+          </Button>
+        )}
 
             <button
               onClick={toggleSidebar}

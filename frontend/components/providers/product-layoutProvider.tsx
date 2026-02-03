@@ -76,6 +76,7 @@ export const useSidebarOptional = () => {
 // Define the ProductProvider component
 const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
+	const hideSidebarOnThisRoute = pathname?.startsWith("/products/create");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 	const [sidebarSwipePx, setSidebarSwipePx] = useState(0);
 	const [isSidebarSwiping, setIsSidebarSwiping] = useState(false);
@@ -136,18 +137,30 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		setSidebarSwipePx(0);
 	}, []);
 	const openSidebar = useCallback(() => {
+		if (hideSidebarOnThisRoute) return;
 		setIsSidebarOpen(true);
 		try {
 			window.dispatchEvent(new Event("veggat:close-menu"));
 		} catch {
 			// ignore
 		}
-	}, []);
+	}, [hideSidebarOnThisRoute]);
 	const closeSidebar = useCallback(() => {
 		setIsSidebarOpen(false);
 		setIsSidebarSwiping(false);
 		setSidebarSwipePx(0);
 	}, []);
+	const toggleSidebar = useCallback(() => {
+		if (hideSidebarOnThisRoute) return;
+		setIsSidebarOpen((prev) => !prev);
+		setIsSidebarSwiping(false);
+		setSidebarSwipePx(0);
+		try {
+			window.dispatchEvent(new Event("veggat:close-menu"));
+		} catch {
+			// ignore
+		}
+	}, [hideSidebarOnThisRoute]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 	// Swipe-to-open on mobile: kept lightweight (passive touch listeners), and only
 	// triggers when the gesture starts near the screen edges.
@@ -481,7 +494,6 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		return () => window.removeEventListener('resize', onResize);
 	}, []);
 
-  const toggleSidebar = () => setIsSidebarOpen((v) => !v);
 	const setSidebarDock = (dock: SidebarDock) => {
 		setSidebarDockState(dock);
 		try {
@@ -733,8 +745,9 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 	// shrink (grid reflows to fewer columns, inputs shrink) instead of just shifting.
 	const isDesktop = viewportWidth >= 768; // md breakpoint
 	const isEdgeDock = sidebarDock === 'edge-left' || sidebarDock === 'edge-right';
-	const showLeftSpacer = isSidebarOpen && isDesktop && sidebarDock === 'edge-left';
-	const showRightSpacer = isSidebarOpen && isDesktop && sidebarDock === 'edge-right';
+	const effectiveSidebarOpen = hideSidebarOnThisRoute ? false : isSidebarOpen;
+	const showLeftSpacer = effectiveSidebarOpen && isDesktop && sidebarDock === 'edge-left';
+	const showRightSpacer = effectiveSidebarOpen && isDesktop && sidebarDock === 'edge-right';
 	const spacerWidth = SIDEBAR_WIDTH; // No extra gap needed - sidebar already has some padding
 
 	// Spacer style with smooth transition
@@ -751,7 +764,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 	// When scrolled/sticky, show a toolbar-matching background on the spacer to seamlessly
 	// connect the sticky toolbar with the edge-docked sidebar (no visible gap).
-	const spacerHasToolbarBg = isContentScrolled && isSidebarOpen && isEdgeDock;
+	const spacerHasToolbarBg = isContentScrolled && effectiveSidebarOpen && isEdgeDock;
 
 	// /products/create should fit on one screen on desktop. Lock the provider scroll
 	// container on large screens so the page doesn't scroll, while keeping mobile scroll.
@@ -760,7 +773,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
   return (
 	  <SidebarContext.Provider
 			value={{
-				isSidebarOpen,
+				isSidebarOpen: effectiveSidebarOpen,
 				openSidebar,
 				closeSidebar,
 				toggleSidebar,
@@ -796,7 +809,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 						className="flex-1 min-w-0 h-full min-h-0 overscroll-contain"
 						style={{ overflowY: lockScrollOnDesktopCreate ? "hidden" : undefined }}
 					>
-							<MySidebarProductsMenu />
+								{!hideSidebarOnThisRoute && <MySidebarProductsMenu />}
 							{/* Content wrapper with sidebar spacing */}
 							<div 
 								className="h-full"
