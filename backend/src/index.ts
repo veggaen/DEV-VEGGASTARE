@@ -1,11 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config(); // Load env vars FIRST before any other imports that use them
 
-// Debug: log all env vars to diagnose Railway variable injection
-console.log('[DEBUG] NODE_ENV:', process.env.NODE_ENV);
-console.log('[DEBUG] DATABASE_URL_NEON exists:', !!process.env.DATABASE_URL_NEON);
-console.log('[DEBUG] PUSHER_APP_ID exists:', !!process.env.PUSHER_APP_ID);
-
 import Hapi from '@hapi/hapi';
 import { z } from 'zod';
 import { initWebSocketServer } from './websocket';
@@ -28,7 +23,8 @@ const pusherTriggerSchema = z.object({
 });
 
 const init = async (): Promise<void> => {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const railwayEnv = (process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT || '').toLowerCase();
+  const isProduction = process.env.NODE_ENV === 'production' || railwayEnv === 'production';
   const corsOrigins = isProduction
     ? (process.env.CORS_ORIGINS
         ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
@@ -75,9 +71,13 @@ const init = async (): Promise<void> => {
   }
 
   if (isDbConfigured) {
-    const prismaConnectStart = Date.now();
-    await dbbPrisma.$connect();
-    console.log(LOG_PREFIX, `Prisma connected in ${Date.now() - prismaConnectStart}ms`);
+    try {
+      const prismaConnectStart = Date.now();
+      await dbbPrisma.$connect();
+      console.log(LOG_PREFIX, `Prisma connected in ${Date.now() - prismaConnectStart}ms`);
+    } catch (err) {
+      console.error(LOG_PREFIX, 'Prisma failed to initialize/connect. Continuing without DB.', err);
+    }
   } else {
     console.log(LOG_PREFIX, 'DATABASE_URL_NEON missing: skipping Prisma connection (shipping demo mode).');
   }
