@@ -16,6 +16,15 @@ const isDev = process.env.NODE_ENV !== 'production'
 const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
 const authUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL
 
+// Log configuration state (helps debug production issues)
+console.log(LOG_PREFIX, 'Auth config:', {
+  hasAuthSecret: !!authSecret,
+  hasAuthUrl: !!authUrl,
+  authUrl: authUrl || '(not set)',
+  nodeEnv: process.env.NODE_ENV,
+  hasDatabase: !!process.env.DATABASE_URL,
+})
+
 if (!isDev && !authSecret) {
   console.error(`${LOG_PREFIX} Missing AUTH_SECRET (or NEXTAUTH_SECRET). OAuth will fail.`)
 }
