@@ -77,6 +77,7 @@ interface ShippingRequestData {
 // Update the MyBringShippingLogicProps interface to use ShippingRequestData
 interface MyBringShippingLogicProps {
     shippingDetailsFromUser: ShippingRequestData; // Now using the detailed type
+    toPostalCode: string;
 }
 
 interface ShippingErrorState {
@@ -85,7 +86,7 @@ interface ShippingErrorState {
 }
 
 const LOG_PREFIX = '[frontend/components/uicustom/product/bringShipping-logic.tsx]'
-export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ shippingDetailsFromUser }) => {
+export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ shippingDetailsFromUser, toPostalCode }) => {
   const [shippingResponse, setShippingResponse] = useState<ShippingDetails | null>(null);
   const [error, setError] = useState<ShippingErrorState | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -168,7 +169,7 @@ export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ ship
   return (
     <div>
       {shippingResponse ? (
-        <MyShippingDetailsDisplay shippingResponse={shippingResponse} />
+        <MyShippingDetailsDisplay shippingResponse={shippingResponse} toPostalCode={toPostalCode} />
       ) : (
         <div className="text-sm text-muted-foreground">
           Enter your postal code to see shipping options

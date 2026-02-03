@@ -14,6 +14,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FiArrowLeft, FiTrash2, FiMoreVertical, FiUsers } from 'react-icons/fi';
 import { formatDistanceToNowStrict } from 'date-fns';
 import Spinner from '@/components/uicustom/spinner';
+import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 
 interface ConversationDetails {
   id: string;
@@ -184,18 +185,28 @@ export default function ConversationPage() {
 
         {conversation.type === 'PRIVATE_DM' && otherParticipant ? (
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={otherParticipant.image || undefined} />
-              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
-                {otherParticipant.name?.[0] || '?'}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <h1 className="font-semibold text-zinc-900 dark:text-white truncate">
-                {otherParticipant.name || 'Unknown'}
-              </h1>
-              <p className="text-xs text-zinc-500 dark:text-white/50">Direct Message</p>
-            </div>
+            <UserHoverCard
+              userId={otherParticipant.id}
+              userName={otherParticipant.name}
+              userImage={otherParticipant.image}
+              side="bottom"
+              align="start"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={otherParticipant.image || undefined} />
+                  <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                    {otherParticipant.name?.[0] || '?'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <h1 className="font-semibold text-zinc-900 dark:text-white truncate">
+                    {otherParticipant.name || 'Unknown'}
+                  </h1>
+                  <p className="text-xs text-zinc-500 dark:text-white/50">Direct Message</p>
+                </div>
+              </div>
+            </UserHoverCard>
           </div>
         ) : (
           <div className="flex-1 min-w-0">

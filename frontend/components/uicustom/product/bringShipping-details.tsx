@@ -43,7 +43,7 @@ if (!shippingDetailsFromUser) {
 
   return (
     <div>
-      <MyBringShippingLogic shippingDetailsFromUser={shippingDetailsFromUser} />
+      <MyBringShippingLogic shippingDetailsFromUser={shippingDetailsFromUser} toPostalCode={toPostalCode} />
     </div>
   );
 };

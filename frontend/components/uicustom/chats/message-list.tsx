@@ -12,6 +12,7 @@ import Pusher from 'pusher-js';
 import Spinner from '../spinner';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday, formatDistanceToNowStrict } from 'date-fns';
+import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 
 interface Message {
   id: string;
@@ -212,7 +213,13 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                 {/* Message Bubble */}
                 <div className="flex flex-col min-w-0">
                   {showSender && (
-                    <span className="text-xs text-white/50 mb-1 px-3">{senderName}</span>
+                    <div className="mb-1 px-3">
+                      <UserHoverCard userId={message.senderId} userName={senderName} side="top" align="start">
+                        <span className="text-xs text-white/50 hover:text-white/70 transition-colors">
+                          {senderName}
+                        </span>
+                      </UserHoverCard>
+                    </div>
                   )}
                   
                   <div
@@ -293,7 +300,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                     ) : (
                       /* Normal Message View */
                       <>
-                        <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">
+                        <p className="text-[15px] leading-relaxed break-words break-all whitespace-pre-wrap">
                           {message.content}
                         </p>
                         

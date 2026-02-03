@@ -26,6 +26,7 @@ import { fetchUserEmployeePermissions } from '@/actions/user-company-permissions
 import { useRouter, usePathname } from 'next/navigation';
 import { saveFormState, loadFormState, clearFormState, hasPendingFormData } from '@/lib/form-persistence';
 import { CategoryTagInput } from '../../category-tag-input';
+import { AddressInput, type AddressData } from '../../../uicustom/address-input';
 
 // Form persistence key
 const FORM_STORAGE_KEY = 'product-create';
@@ -126,6 +127,9 @@ export const MyProductCreationForm = () => {
   const [warehouseLocations, setWarehouseLocations] = useState<WarehouseLocation[]>([]);
   const [warehouseLocationError, setWarehouseLocationError] = useState<string | null>(null);
   const companiesFetched = useRef(false);
+  
+  // Ship-from address state (for manual entry with full address)
+  const [shipFromAddress, setShipFromAddress] = useState<Partial<AddressData>>({});
 
   // UI States
   const [error, setError] = useState<string | undefined>('');
@@ -526,6 +530,14 @@ export const MyProductCreationForm = () => {
     };
   
     setSpecifications([...specifications, newSpec]);
+  };
+
+  // Helper to get specification value by key (for shipping estimates)
+  const getSpecValue = (key: string): number => {
+    const spec = specifications.find(s => s.key === key);
+    if (!spec) return 0;
+    const val = typeof spec.value === 'number' ? spec.value : parseFloat(String(spec.value));
+    return isNaN(val) ? 0 : val;
   };
 
   const onSubmit = async (values: z.infer<typeof MyProductCreateSchema>) => {
@@ -1458,47 +1470,24 @@ export const MyProductCreationForm = () => {
                       </div>
                     )}
 
-                    {/* Manual postal code */}
+                    {/* Manual address entry - uses AddressInput with auto-detect + manual edit */}
                     {(isCompanyProduct === false || warehouseLocations.length === 0) && (
                       <div className="space-y-2">
-                        <div className={customStyles.label}>Ship from location</div>
-                        <FormField control={form.control} name='shipFromPostalId' render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                disabled={isSubmitting}
-                                placeholder='Postal code'
-                                type='text'
-                                value={postalCodeInput}
-                                onChange={(e) => {
-                                  const newPostalCode = e.target.value;
-                                  setPostalCodeInput(newPostalCode);
-                                  fetchPostalCodeDetails(newPostalCode);
-                                }}
-                                className={customStyles.input}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        
-                        {suggestions.length > 0 && (
-                          <Select onValueChange={handleSelectChange}>
-                            <SelectTrigger className={customStyles.selectTrigger}>
-                              <SelectValue placeholder="Select postal code" />
-                            </SelectTrigger>
-                            <SelectContent className={customStyles.selectContent}>
-                              {suggestions
-                                .filter((s) => s.postal_code.startsWith(postalCodeInput) || s.city.toLowerCase().includes(postalCodeInput.toLowerCase()))
-                                .map((s, i) => (
-                                  <SelectItem key={i} value={s.postal_code} className={customStyles.selectItem}>
-                                    {s.postal_code} - {s.city}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                        )}
+                        <AddressInput
+                          value={shipFromAddress}
+                          onChange={(addr) => {
+                            setShipFromAddress(addr);
+                            // Keep postal code in sync for backwards compatibility
+                            if (addr.postalCode) {
+                              setPostalCodeInput(addr.postalCode);
+                            }
+                          }}
+                          disabled={isSubmitting}
+                          label="Ship from location"
+                          placeholder="Start typing address..."
+                          showAddressLine2={true}
+                          hint="Auto-detect via Bring API or edit manually. Address details help with accurate shipping."
+                        />
                       </div>
                     )}
 

@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FiTruck, FiMapPin, FiPackage, FiClock, FiCheck, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -69,9 +69,49 @@ interface ShippingResponse {
   consignments?: Consignment[];
 }
 
-const MyShippingDetailsDisplay = ({ shippingResponse }: { shippingResponse: ShippingResponse }) => {
+interface PickupPointDetails {
+  id: string;
+  name: string;
+  address: string;
+  postalCode: string;
+  city: string;
+}
+
+const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode }: { shippingResponse: ShippingResponse; toPostalCode: string }) => {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [expandedDetails, setExpandedDetails] = useState<boolean>(false);
+  const [pickupPoints, setPickupPoints] = useState<PickupPointDetails[]>([]);
+  const [pickupPointsLoading, setPickupPointsLoading] = useState<boolean>(false);
+
+  // Fetch pickup points when toPostalCode changes
+  useEffect(() => {
+    const fetchPickupPoints = async () => {
+      if (!toPostalCode) return;
+      setPickupPointsLoading(true);
+      try {
+        const res = await fetch(`/api/bring-pickup-points?postalCode=${toPostalCode}&limit=10`);
+        const data = await res.json();
+        if (data.pickupPoints) {
+          setPickupPoints(data.pickupPoints);
+        }
+      } catch (err) {
+        console.error('Failed to fetch pickup points:', err);
+      } finally {
+        setPickupPointsLoading(false);
+      }
+    };
+    fetchPickupPoints();
+  }, [toPostalCode]);
+
+  // Helper to find a matching pickup point by name
+  const findPickupPointByName = (name: string): PickupPointDetails | undefined => {
+    if (!name || pickupPoints.length === 0) return undefined;
+    const nameLower = name.toLowerCase().trim();
+    return pickupPoints.find(p => 
+      p.name.toLowerCase().includes(nameLower) || 
+      nameLower.includes(p.name.toLowerCase())
+    );
+  };
 
   // Handle error responses from the API
   if (shippingResponse?.error) {
@@ -282,29 +322,37 @@ const MyShippingDetailsDisplay = ({ shippingResponse }: { shippingResponse: Ship
 
               {/* Pickup point info (if selected and has pickup) */}
               <AnimatePresence>
-                {isSelected && guiInfo.closestPickupPoint && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="border-t border-border dark:border-white/5"
-                  >
-                    <div className="px-4 py-3 bg-blue-500/5 dark:bg-blue-500/10">
-                      <div className="flex items-start gap-2">
-                        <FiMapPin className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                        <div>
-                          <div className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                            Nearest Pickup Point
-                          </div>
-                          <div className="text-xs text-blue-600/80 dark:text-blue-400/80 mt-0.5">
-                            {guiInfo.closestPickupPoint}
+                {isSelected && guiInfo.closestPickupPoint && (() => {
+                  const matchedPickupPoint = findPickupPointByName(guiInfo.closestPickupPoint);
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="border-t border-border dark:border-white/5"
+                    >
+                      <div className="px-4 py-3 bg-blue-500/5 dark:bg-blue-500/10">
+                        <div className="flex items-start gap-2">
+                          <FiMapPin className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                          <div>
+                            <div className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                              Nearest Pickup Point
+                            </div>
+                            <div className="text-xs text-blue-600/80 dark:text-blue-400/80 mt-0.5 font-medium">
+                              {matchedPickupPoint?.name || guiInfo.closestPickupPoint}
+                            </div>
+                            {matchedPickupPoint && (
+                              <div className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-0.5">
+                                {matchedPickupPoint.address}, {matchedPickupPoint.postalCode} {matchedPickupPoint.city}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                )}
+                    </motion.div>
+                  );
+                })()}
               </AnimatePresence>
             </button>
           </motion.div>

@@ -26,6 +26,19 @@ function checkAccessGate(req: NextRequest): NextResponse | null {
 
   const { pathname } = req.nextUrl;
 
+  // Never redirect API requests to an HTML gate page.
+  // This avoids breaking client-side fetch() calls that expect JSON.
+  if (pathname.startsWith('/api') || pathname.startsWith('/trpc')) {
+    const accessCookie = req.cookies.get(COOKIE_NAME);
+    if (accessCookie?.value === COOKIE_VALUE) {
+      return null;
+    }
+    return NextResponse.json(
+      { error: 'Access Gate: authentication required' },
+      { status: 401 }
+    );
+  }
+
   // Never gate NextAuth/Auth.js endpoints. OAuth redirects and callbacks rely on these.
   if (pathname === '/api/auth' || pathname.startsWith('/api/auth/')) {
     return null;

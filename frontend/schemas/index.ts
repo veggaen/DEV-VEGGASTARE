@@ -150,6 +150,10 @@ export const MyProductCreateSchema = z.object({
     downloadsEnabled: z.boolean().default(true),
     maxDownloads: z.number().int().positive().optional().nullable(), // null = unlimited
     downloadExpiryDays: z.number().int().positive().optional().nullable(), // null = never expires
+    
+    // Shipping options
+    freeShippingEnabled: z.boolean().default(false),
+    freeShippingThreshold: z.number().min(0).optional().nullable(), // null = no threshold (always free)
 });
 
 // Schema for product update (optional fields for updates) 3/4

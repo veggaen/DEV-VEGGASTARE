@@ -5,15 +5,19 @@ import { NextRequest, NextResponse } from "next/server";
 // Rate limit: 120 requests/second
 
 const BRING_ADDRESS_API = "https://api.bring.com/address/api";
-const BRING_API_UID = process.env.BRING_API_UID || "";
-const BRING_API_KEY = process.env.BRING_API_KEY || "";
+// Support both legacy and current env var names
+const BRING_API_UID = process.env.MYBRING_API_UID || process.env.BRING_API_UID || "";
+const BRING_API_KEY = process.env.MYBRING_API_KEY || process.env.BRING_API_KEY || "";
 
 interface AddressSuggestion {
-  addressId: string;
+  addressId?: string;
   streetName?: string;
+  street_name?: string;
   houseNumber?: string;
+  house_number?: number | string;
   letter?: string;
-  postalCode: string;
+  postalCode?: string;
+  postal_code?: string;
   city: string;
   county?: string;
   municipality?: string;
@@ -21,6 +25,10 @@ interface AddressSuggestion {
   geoCoordinate?: {
     latitude: number;
     longitude: number;
+  };
+  coordinate?: {
+    latitude?: string | number;
+    longitude?: string | number;
   };
 }
 
@@ -67,7 +75,7 @@ export async function GET(request: NextRequest) {
 
   const searchParams = request.nextUrl.searchParams;
   const query = searchParams.get("q");
-  const countryCode = (searchParams.get("country") || "no").toUpperCase();
+  const countryCode = (searchParams.get("country") || "no").toLowerCase();
   const type = searchParams.get("type") || "suggestions"; // suggestions | streets | validate
 
   if (!query || query.length < 2) {
@@ -89,10 +97,11 @@ export async function GET(request: NextRequest) {
     
     switch (type) {
       case "streets":
-        endpoint = `${BRING_ADDRESS_API}/${countryCode}/autocomplete`;
+        // Streets + places suggestions (no house numbers)
+        endpoint = `${BRING_ADDRESS_API}/${countryCode}/suggestions`;
         break;
       case "validate":
-        endpoint = `${BRING_ADDRESS_API}/${countryCode}/addresses/validate`;
+        endpoint = `${BRING_ADDRESS_API}/${countryCode}/validation`;
         params.delete("q");
         params.set("address", query);
         break;
@@ -103,8 +112,8 @@ export async function GET(request: NextRequest) {
           endpoint = `${BRING_ADDRESS_API}/${countryCode}/postal-codes/${query}`;
           params.delete("q");
         } else {
-          // For addresses, use autocomplete
-          endpoint = `${BRING_ADDRESS_API}/${countryCode}/autocomplete`;
+          // For single-input address autocomplete, use address suggestions
+          endpoint = `${BRING_ADDRESS_API}/${countryCode}/addresses/suggestions`;
         }
         break;
     }
@@ -162,20 +171,40 @@ export async function GET(request: NextRequest) {
       suggestions = [data as AddressSuggestion];
     }
 
-    // Format for frontend consumption
-    const formatted = suggestions.map((s, index) => ({
-      id: s.addressId || `${s.postalCode}-${index}`,
-      street: s.streetName,
-      houseNumber: s.houseNumber,
-      letter: s.letter,
-      postalCode: s.postalCode,
-      city: s.city,
-      county: s.county,
-      municipality: s.municipality,
-      type: s.type || "POSTAL_PLACE",
-      coords: s.geoCoordinate,
-      display: formatAddress(s),
-    }));
+    // Format for frontend consumption (handle Bring snake_case fields)
+    const formatted = suggestions.map((s, index) => {
+      const street = s.streetName || s.street_name;
+      const houseNumber = s.houseNumber ?? s.house_number;
+      const postalCode = s.postalCode || s.postal_code;
+      const coords = s.geoCoordinate || s.coordinate;
+
+      const normalized: AddressSuggestion = {
+        ...s,
+        streetName: street,
+        houseNumber: houseNumber != null ? String(houseNumber) : undefined,
+        postalCode: postalCode,
+        geoCoordinate: coords
+          ? {
+              latitude: Number((coords as any).latitude),
+              longitude: Number((coords as any).longitude),
+            }
+          : undefined,
+      };
+
+      return {
+        id: s.addressId || `${postalCode || 'addr'}-${index}`,
+        street,
+        houseNumber: houseNumber != null ? String(houseNumber) : undefined,
+        letter: s.letter,
+        postalCode: postalCode || '',
+        city: s.city,
+        county: s.county,
+        municipality: s.municipality,
+        type: s.type || "POSTAL_PLACE",
+        coords: normalized.geoCoordinate,
+        display: formatAddress(normalized),
+      };
+    });
 
     console.log("[bring-address] Found", formatted.length, "suggestions");
     return NextResponse.json({ suggestions: formatted });

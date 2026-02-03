@@ -17,6 +17,7 @@ import { z } from 'zod';
 export const BringAddressSuggestionSchema = z.object({
   street: z.string(),
   street_number: z.string().optional(),
+  letter: z.string().optional(), // e.g., "A", "B" for addresses like "5A", "5B"
   postal_code: z.string(),
   city: z.string(),
   municipality: z.string().optional(),
@@ -80,10 +81,83 @@ const BRING_API_BASE = '/api/bring-address';
 const DEBOUNCE_MS = 300;
 
 let debounceTimer: NodeJS.Timeout | null = null;
+let lastGoodResults: BringAddressSuggestion[] = [];
+let lastBaseQuery = '';
+
+/**
+ * Extract the base street query (without postal code/city/letter filter)
+ * E.g., "blåskjellveien 5 43" -> base: "blåskjellveien 5", filter: "43"
+ * E.g., "blåskjellveien 5b" -> base: "blåskjellveien 5", filter: "b" (letter filter)
+ * E.g., "blåskjellveien 5b 43" -> base: "blåskjellveien 5b", filter: "43"
+ */
+function extractBaseQuery(query: string): { base: string; filter: string; letterFilter: string } {
+  const trimmed = query.trim();
+  
+  // Check if query has a trailing space + filter (postal code or city)
+  // Pattern: street + number[letter] + space + filter
+  const spaceFilterMatch = trimmed.match(/^(.+?\s+\d+[a-zA-Z]?)\s+(.+)$/);
+  
+  if (spaceFilterMatch) {
+    const [, base, filter] = spaceFilterMatch;
+    // Only treat as filter if it looks like postal code start (digits) or city name (letters)
+    if (/^\d+$/.test(filter) || /^[a-zA-ZæøåÆØÅ]+$/i.test(filter)) {
+      return { base: base.trim(), filter: filter.toLowerCase(), letterFilter: '' };
+    }
+  }
+  
+  // Check if query ends with number+letter (like "5b") without space
+  // In this case, we search for "street 5" and filter by letter "b"
+  const letterMatch = trimmed.match(/^(.+?\s+\d+)([a-zA-Z])$/);
+  if (letterMatch) {
+    const [, base, letter] = letterMatch;
+    return { base: base.trim(), filter: '', letterFilter: letter.toLowerCase() };
+  }
+  
+  return { base: trimmed, filter: '', letterFilter: '' };
+}
+
+/**
+ * Filter suggestions based on partial postal code, city name, or letter
+ */
+function filterSuggestions(
+  suggestions: BringAddressSuggestion[],
+  filter: string,
+  letterFilter: string = ''
+): BringAddressSuggestion[] {
+  let filtered = suggestions;
+  
+  // Filter by letter first (e.g., "b" matches addresses with letter "B")
+  if (letterFilter) {
+    filtered = filtered.filter(s => 
+      s.letter?.toLowerCase() === letterFilter
+    );
+  }
+  
+  // Then filter by postal code or city
+  if (filter) {
+    filtered = filtered.filter(s => {
+      // Match partial postal code (e.g., "43" matches "4310")
+      if (/^\d+$/.test(filter)) {
+        return s.postal_code.startsWith(filter);
+      }
+      // Match city name start (e.g., "sand" matches "Sandnes")
+      return s.city.toLowerCase().startsWith(filter) ||
+             (s.municipality?.toLowerCase().startsWith(filter) ?? false);
+    });
+  }
+  
+  return filtered;
+}
 
 /**
  * Search for addresses using Bring's address autocomplete API
  * Debounced to prevent excessive API calls
+ * 
+ * Smart handling:
+ * - Caches last good results for the base query
+ * - Filters client-side when user adds postal code, city prefix, or letter
+ * - E.g., "blåskjellveien 5 43" will search for "blåskjellveien 5" and filter by "43"
+ * - E.g., "blåskjellveien 5b" will search for "blåskjellveien 5" and filter by letter "b"
  */
 export async function searchAddresses(
   query: string,
@@ -93,16 +167,27 @@ export async function searchAddresses(
     return [];
   }
 
+  // Extract base query, filter, and letter filter
+  const { base, filter, letterFilter } = extractBaseQuery(query);
+  const hasFilter = filter || letterFilter;
+
   // Cancel previous debounced request
   if (debounceTimer) {
     clearTimeout(debounceTimer);
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     debounceTimer = setTimeout(async () => {
       try {
+        // If we have cached results for this base query, use them and filter client-side
+        if (base === lastBaseQuery && lastGoodResults.length > 0 && hasFilter) {
+          const filtered = filterSuggestions(lastGoodResults, filter, letterFilter);
+          resolve(filtered);
+          return;
+        }
+
         const params = new URLSearchParams({
-          q: query,
+          q: base, // Use base query for API (without postal code/letter filter)
           country,
         });
 
@@ -110,7 +195,12 @@ export async function searchAddresses(
         
         if (!response.ok) {
           console.warn('[bring-address] Search failed:', response.status);
-          resolve([]);
+          // If we have cached results, filter and return them
+          if (base === lastBaseQuery && lastGoodResults.length > 0) {
+            resolve(filterSuggestions(lastGoodResults, filter, letterFilter));
+          } else {
+            resolve([]);
+          }
           return;
         }
 
@@ -123,10 +213,25 @@ export async function searchAddresses(
           return;
         }
 
-        resolve(result.data.suggestions);
+        const suggestions = result.data.suggestions;
+        
+        // Cache results for this base query
+        if (suggestions.length > 0) {
+          lastBaseQuery = base;
+          lastGoodResults = suggestions;
+        }
+
+        // Apply filter if present
+        const filtered = hasFilter ? filterSuggestions(suggestions, filter, letterFilter) : suggestions;
+        resolve(filtered);
       } catch (error) {
         console.error('[bring-address] Search error:', error);
-        resolve([]);
+        // On error, try to use cached results
+        if (base === lastBaseQuery && lastGoodResults.length > 0) {
+          resolve(filterSuggestions(lastGoodResults, filter, letterFilter));
+        } else {
+          resolve([]);
+        }
       }
     }, DEBOUNCE_MS);
   });

@@ -486,6 +486,10 @@ model Product {
   maxDownloads         Int?                   // null = unlimited
   downloadExpiryDays   Int?                   // null = never expires
   
+  // Shipping options
+  freeShippingEnabled  Boolean                @default(false)
+  freeShippingThreshold Float?               // null = no threshold (always free if enabled)
+  
   CartItem             CartItem[]
   Inventory            Inventory[]
   Company              Company?               @relation(fields: [companyId], references: [id])
@@ -731,6 +735,7 @@ model User {
   DigitalAsset                                                    DigitalAsset[]
   DownloadToken                                                   DownloadToken[]
   CategoriesCreated                                               Category[]                    @relation("CategoryCreator")
+  Address                                                         Address[]
 }
 
 model VerificationToken {
@@ -779,22 +784,47 @@ model WalletVerificationChallenge {
 }
 
 model WarehouseLocation {
-  id         String      @id @default(cuid())
-  userId     String?
-  companyId  String?
-  postalCode String
-  address    String
-  city       String
-  country    String
-  latitude   Float?
-  longitude  Float?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  Inventory  Inventory[]
-  Company    Company?    @relation(fields: [companyId], references: [id])
-  User       User?       @relation(fields: [userId], references: [id])
+  id           String      @id @default(cuid())
+  userId       String?
+  companyId    String?
+  postalCode   String
+  address      String
+  addressLine2 String?
+  city         String
+  country      String
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  Inventory    Inventory[]
+  Company      Company?    @relation(fields: [companyId], references: [id])
+  User         User?       @relation(fields: [userId], references: [id])
 
   @@unique([companyId, postalCode])
+}
+
+// User saved addresses (home, work, etc.)
+model Address {
+  id           String       @id @default(cuid())
+  userId       String
+  label        AddressLabel @default(OTHER)
+  customLabel  String?      // For "OTHER" type - user can name it
+  addressLine1 String       // Street address + number
+  addressLine2 String?      // Apartment, suite, unit, etc.
+  postalCode   String
+  city         String
+  municipality String?
+  county       String?
+  country      String       @default("NO")
+  latitude     Float?
+  longitude    Float?
+  isDefault    Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  User         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isDefault])
 }
 
 model Follow {
@@ -916,6 +946,14 @@ enum CompanyOrgType {
   SA
   FORENING
   NUF
+  OTHER
+}
+
+enum AddressLabel {
+  HOME
+  WORK
+  WAREHOUSE
+  PICKUP_POINT
   OTHER
 }
 

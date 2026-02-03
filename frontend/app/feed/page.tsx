@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -73,6 +73,8 @@ interface FeedItem {
   poll?: { id: string; question?: string } | null;
   lastMessage?: { content: string; createdAt: string } | null;
 }
+
+const getReplyCount = (messageCount?: number | null) => Math.max(0, (messageCount || 0) - 1);
 
 type FilterType = 'all' | 'polls' | 'trending';
 type PostVisibility = 'PUBLIC' | 'PARTICIPANTS' | 'ROLE_BASED';
@@ -178,7 +180,7 @@ const FeedPage: React.FC = () => {
       if (sortBy === 'popular') {
         feedItems = [...feedItems].sort((a, b) => (b.positivePulseCount || 0) - (a.positivePulseCount || 0));
       } else if (sortBy === 'discussed') {
-        feedItems = [...feedItems].sort((a, b) => (b.messageCount || 0) - (a.messageCount || 0));
+        feedItems = [...feedItems].sort((a, b) => getReplyCount(b.messageCount) - getReplyCount(a.messageCount));
       }
       
       setItems(feedItems);
@@ -214,9 +216,9 @@ const FeedPage: React.FC = () => {
         const bViews = b.uniqueViewCount || 0;
         if (bViews !== aViews) return bViews - aViews;
 
-        const aMsgs = a.messageCount || 0;
-        const bMsgs = b.messageCount || 0;
-        return bMsgs - aMsgs;
+        const aReplies = getReplyCount(a.messageCount);
+        const bReplies = getReplyCount(b.messageCount);
+        return bReplies - aReplies;
       })
       .slice(0, 5);
   }, [items]);
@@ -650,7 +652,6 @@ const FeedPage: React.FC = () => {
                   {trendingTags.map(({ tag, count }) => (
                     <button
                       key={tag}
-                      type="button"
                       onClick={() => setTagFilter(tag)}
                       className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/30 px-3 py-1 text-sm text-foreground/90 transition hover:bg-background/50"
                     >
@@ -734,6 +735,8 @@ interface FeedCardProps {
 
 const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefresh }) => {
   const timeAgo = formatDistanceToNowStrict(new Date(item.createdAt), { addSuffix: true });
+  const pathname = usePathname();
+  const isPulsePage = pathname === '/pulse';
 
   const currentUser = useCurrentUser();
   const [quoteOpen, setQuoteOpen] = useState(false);
@@ -940,6 +943,18 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
       : rawPreviewText;
   const showReadMore = rawPreviewText.length > MAX_PREVIEW_CHARS;
 
+  const replyCount = getReplyCount(item.messageCount);
+
+  const titleText = (item.title || '').trim();
+  const descriptionText = (item.description || '').trim();
+  const shouldShowTitle =
+    !isPulsePage &&
+    Boolean(
+      titleText &&
+        (!descriptionText ||
+          (titleText !== descriptionText && !descriptionText.startsWith(titleText)))
+    );
+
   return (
     <article
       ref={viewTrackingRef}
@@ -1102,32 +1117,39 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
             </div>
           )}
 
-          {/* Content preview */}
-          {previewText && (
+          {/* Content */}
+          {rawPreviewText && (
             <div className="mt-2 space-y-1">
-              {/* Keep title as a subtle label if it differs from the preview source */}
-              {item.title && item.title.trim() && item.title.trim() !== rawPreviewText && (
+              {shouldShowTitle && (
                 <h3 className="text-sm text-foreground/80 font-medium leading-snug">
-                  {item.title}
+                  {titleText}
                 </h3>
               )}
 
-              <p
-                className="text-[15px] leading-relaxed text-foreground/90"
-                style={{
-                  display: '-webkit-box',
-                  WebkitBoxOrient: 'vertical',
-                  WebkitLineClamp: 10,
-                  overflow: 'hidden',
-                }}
-              >
-                {previewText}
-              </p>
+              {isPulsePage ? (
+                <p className="text-[15px] leading-relaxed text-foreground/90 whitespace-pre-wrap break-words">
+                  {rawPreviewText}
+                </p>
+              ) : (
+                <>
+                  <p
+                    className="text-[15px] leading-relaxed text-foreground/90"
+                    style={{
+                      display: '-webkit-box',
+                      WebkitBoxOrient: 'vertical',
+                      WebkitLineClamp: 10,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {previewText}
+                  </p>
 
-              {showReadMore && (
-                <div className="text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                  Read more
-                </div>
+                  {showReadMore && (
+                    <div className="text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                      Read more
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1180,7 +1202,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
             
             <span className="flex items-center gap-1">
               <FiMessageCircle className="h-4 w-4" />
-              {item.messageCount}
+              {replyCount}
             </span>
             <span className={`flex items-center gap-1 ${item.hasReposted ? 'text-cyan-500' : ''}`}>
               <FiRepeat className="h-4 w-4" />

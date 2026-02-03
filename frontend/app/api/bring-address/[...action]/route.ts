@@ -13,8 +13,9 @@ import { z } from 'zod';
 
 // Bring API configuration
 const BRING_API_URL = 'https://api.bring.com/address/api';
-const BRING_API_UID = process.env.BRING_API_UID || '';
-const BRING_API_KEY = process.env.BRING_API_KEY || '';
+// Support both legacy and current env var names
+const BRING_API_UID = process.env.MYBRING_API_UID || process.env.BRING_API_UID || '';
+const BRING_API_KEY = process.env.MYBRING_API_KEY || process.env.BRING_API_KEY || '';
 
 // Rate limiting (simple in-memory, per-IP)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -77,6 +78,9 @@ export async function GET(
     const actionPath = action?.[0];
     const searchParams = request.nextUrl.searchParams;
 
+    // Bring endpoints use lowercase country codes in the URL path.
+    const normalizeCountry = (country: string) => country.toLowerCase();
+
     // Check if Bring API is configured
     if (!BRING_API_UID || !BRING_API_KEY) {
       console.warn('[bring-address] API credentials not configured');
@@ -104,8 +108,9 @@ export async function GET(
           );
         }
 
-        // Bring's address search endpoint
-        const url = `${BRING_API_URL}/${query.data.country}/autocomplete?q=${encodeURIComponent(query.data.q)}`;
+        // Bring's single-input suggestion endpoint (street/place/po box)
+        // https://developer.bring.com/api/address/#get-address-suggestions-get
+        const url = `${BRING_API_URL}/${normalizeCountry(query.data.country)}/addresses/suggestions?q=${encodeURIComponent(query.data.q)}`;
         
         const response = await fetch(url, { headers });
         
@@ -115,19 +120,39 @@ export async function GET(
         }
 
         const data = await response.json();
-        
-        // Transform Bring's response to our format
-        const suggestions = (data.suggestions || data.addresses || []).map((item: Record<string, unknown>) => ({
-          street: item.street || item.streetName || '',
-          street_number: item.streetNumber || item.houseNumber || '',
-          postal_code: item.postalCode || item.zipCode || '',
-          city: item.city || item.postalPlace || '',
-          municipality: item.municipality || '',
-          county: item.county || '',
-          country: query.data.country,
-          latitude: item.latitude || '',
-          longitude: item.longitude || '',
-        }));
+
+        const raw = (data?.addresses || data?.suggestions || []) as Array<Record<string, unknown>>;
+
+        // Transform Bring's response to our format.
+        // Bring uses snake_case (street_name, house_number, postal_code, coordinate).
+        const suggestions = raw.map((item) => {
+          const street = (item.street || item.street_name || item.streetName || item.name || '') as string;
+          const streetNumber = item.street_number ?? item.house_number ?? item.streetNumber ?? item.houseNumber;
+          const letter = (item.letter || item.house_letter || '') as string;
+          const postalCode = (item.postal_code || item.postalCode || item.zipCode || '') as string;
+          const city = (item.city || item.postal_place || item.postalPlace || '') as string;
+          const municipality = (item.municipality || '') as string;
+          const county = (item.county || '') as string;
+
+          const coordinate = (item.coordinate || item.geoCoordinate || item.coords || null) as
+            | { latitude?: unknown; longitude?: unknown }
+            | null;
+          const latitude = (item.latitude ?? coordinate?.latitude ?? '') as string | number;
+          const longitude = (item.longitude ?? coordinate?.longitude ?? '') as string | number;
+
+          return {
+            street,
+            street_number: streetNumber != null ? String(streetNumber) : '',
+            letter: letter ? String(letter) : '',
+            postal_code: postalCode ? String(postalCode) : '',
+            city: city ? String(city) : '',
+            municipality: municipality ? String(municipality) : '',
+            county: county ? String(county) : '',
+            country: query.data.country,
+            latitude: latitude != null ? String(latitude) : '',
+            longitude: longitude != null ? String(longitude) : '',
+          };
+        });
 
         return NextResponse.json({ suggestions });
       }
@@ -146,7 +171,7 @@ export async function GET(
         }
 
         // Bring's postal code lookup endpoint
-        const url = `${BRING_API_URL}/${query.data.country}/postal-codes/${query.data.postalCode}`;
+        const url = `${BRING_API_URL}/${normalizeCountry(query.data.country)}/postal-codes/${query.data.postalCode}`;
         
         const response = await fetch(url, { headers });
         
@@ -190,12 +215,11 @@ export async function GET(
           );
         }
 
-        // Bring's address validation endpoint
-        const url = new URL(`${BRING_API_URL}/${query.data.country}/addresses/validate`);
-        url.searchParams.set('streetName', query.data.street);
-        url.searchParams.set('postalCode', query.data.postal_code);
-        url.searchParams.set('city', query.data.city);
-        
+        // Bring validation endpoint
+        // https://developer.bring.com/api/address/#validate-provided-address-get
+        const url = new URL(`${BRING_API_URL}/${normalizeCountry(query.data.country)}/validation`);
+        url.searchParams.set('address', `${query.data.street}, ${query.data.postal_code} ${query.data.city}`);
+
         const response = await fetch(url.toString(), { headers });
         
         if (!response.ok) {
@@ -204,14 +228,18 @@ export async function GET(
         }
 
         const data = await response.json();
-        
+
+        if (!data?.valid) {
+          return NextResponse.json({ valid: false });
+        }
+
         return NextResponse.json({
           valid: true,
-          street: data.streetName || query.data.street,
-          postal_code: data.postalCode || query.data.postal_code,
-          city: data.city || data.postalPlace || query.data.city,
-          municipality: data.municipality || '',
-          county: data.county || '',
+          street: data?.address?.street_name || data?.address?.streetName || query.data.street,
+          postal_code: data?.address?.postal_code || data?.address?.postalCode || query.data.postal_code,
+          city: data?.address?.city || data?.address?.postal_place || query.data.city,
+          municipality: data?.address?.municipality || '',
+          county: data?.address?.county || '',
         });
       }
 

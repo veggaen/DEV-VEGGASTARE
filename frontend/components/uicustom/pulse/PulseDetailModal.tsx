@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { MessageInput } from '@/components/uicustom/chats/message-input';
 import { PollDisplay } from '@/components/uicustom/chats/poll-display';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { 
   FiX, 
@@ -68,10 +69,34 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
   const scrollRef = useRef<HTMLDivElement>(null);
   
   const [pulse, setPulse] = useState<PulseData | null>(null);
+  const [rootMessageContent, setRootMessageContent] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [modalHeight, setModalHeight] = useState<number | null>(null);
+
+  const { titleText, bodyText } = useMemo(() => {
+    const title = pulse?.title?.trim() || '';
+    const description = pulse?.description?.trim() || '';
+    const root = rootMessageContent?.trim() || '';
+
+    // Prefer stored description; otherwise fall back to the root message.
+    const body = description || root || title;
+
+    // Only show title separately when it's clearly not an auto-generated preview of the body.
+    const shouldShowTitle = Boolean(
+      title &&
+        description &&
+        title !== description &&
+        !description.startsWith(title)
+    );
+
+    return {
+      titleText: shouldShowTitle ? title : '',
+      bodyText: body,
+    };
+  }, [pulse, rootMessageContent]);
 
   // Fetch pulse details and messages
   const fetchPulseData = useCallback(async () => {
@@ -95,37 +120,28 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
         });
         
         // Normalize message sender data (API returns User but we expect sender)
-        const allMessages = (data.messages || []).map((msg: Message & { User?: { id: string; name: string | null; image?: string | null }; senderId?: string }) => ({
-          ...msg,
-          sender: msg.User || msg.sender,
-        }));
-        
-        // Filter out the first "initial" message that duplicates the pulse content
-        // This happens when creating a pulse - an initial message is auto-created
-        const filteredMessages = allMessages.filter((msg: Message & { senderId?: string }, index: number) => {
-          // Skip the first message if:
-          // 1. It's the first message (index 0)
-          // 2. It was sent by the conversation creator
-          // 3. Its content matches the pulse title or description
-          if (index === 0) {
-            const senderId = msg.senderId || msg.sender?.id;
-            const isFromCreator = senderId === conv.userId;
-            const contentMatches = msg.content === conv.title || msg.content === conv.description;
-            if (isFromCreator && contentMatches) {
-              return false; // Filter out this duplicate
-            }
-          }
-          return true;
-        });
-        
-        setMessages(filteredMessages);
+        const allMessages = (data.messages || []).map(
+          (msg: Message & {
+            User?: { id: string; name: string | null; image?: string | null };
+          }) => ({
+            ...msg,
+            sender: msg.User || msg.sender,
+          })
+        );
+
+        // Treat the first message as the pulse itself (root post), not a comment.
+        const root = allMessages[0];
+        setRootMessageContent(root?.content?.trim() || null);
+        setMessages(allMessages.slice(1));
       } else {
         // No conversation data, just set messages as-is
         const normalizedMessages = (data.messages || []).map((msg: Message & { User?: { id: string; name: string | null; image?: string | null } }) => ({
           ...msg,
           sender: msg.User || msg.sender,
         }));
-        setMessages(normalizedMessages);
+        const root = normalizedMessages[0];
+        setRootMessageContent(root?.content?.trim() || null);
+        setMessages(normalizedMessages.slice(1));
       }
       
       // Track view in background (non-blocking)
@@ -201,7 +217,47 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Close on Escape
+  useEffect(() => {
+    if (!pulseId) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pulseId, onClose]);
+
+  // Pre-compute a stable modal height (prevents stutter when content loads)
+  useEffect(() => {
+    if (!pulseId) {
+      setModalHeight(null);
+      return;
+    }
+
+    const compute = () => {
+      // Keep it feeling like a macOS popover: tall enough to read, never full-screen.
+      const vh = window.innerHeight;
+      const target = Math.min(Math.floor(vh * 0.86), 760);
+      setModalHeight(Math.max(520, target));
+    };
+
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, [pulseId]);
+
+  const handleOverlayPointerDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+      if (e.target === e.currentTarget) onClose();
+    },
+    [onClose]
+  );
+
   const isOpen = Boolean(pulseId);
+
+  const modalEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
+  const compactHeight = 210;
+  const expandedHeight = modalHeight ?? 640;
 
   return (
     <AnimatePresence>
@@ -212,7 +268,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: 0.22, ease: modalEase }}
             className="fixed inset-0 z-[80] bg-black/50 dark:bg-black/70 backdrop-blur-sm"
             style={{ 
               position: 'fixed',
@@ -223,39 +279,25 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
               width: '100vw',
               height: '100vh',
             }}
-            onClick={onClose}
           />
 
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: 10 }}
-            transition={{ duration: 0.15 }}
-            className="fixed left-[50%] top-[50%] z-[90] w-[95vw] max-w-2xl translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 shadow-2xl bg-white dark:bg-zinc-900"
-            style={{
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              maxHeight: '90vh',
-            }}
+          {/* Modal overlay (keeps it centered on all screens) */}
+          <div
+            className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+            onMouseDown={handleOverlayPointerDown}
+            onTouchStart={handleOverlayPointerDown}
           >
-            {/* Ambient glow effects */}
-            <div className="pointer-events-none absolute inset-0 overflow-hidden">
-              <div
-                className="absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-20"
-                style={{
-                  background: 'radial-gradient(circle, rgba(34, 197, 94, 0.4) 0%, transparent 70%)',
-                  filter: 'blur(40px)',
-                }}
-              />
-              <div
-                className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full opacity-15"
-                style={{
-                  background: 'radial-gradient(circle, rgba(56, 189, 248, 0.4) 0%, transparent 70%)',
-                  filter: 'blur(40px)',
-                }}
-              />
-            </div>
-
+            <motion.div
+              initial={{ opacity: 0, y: 10, filter: 'blur(8px)', height: compactHeight }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)', height: expandedHeight }}
+              exit={{ opacity: 0, y: 8, filter: 'blur(6px)', height: compactHeight }}
+              transition={{ duration: 0.24, ease: modalEase }}
+              className="w-full max-w-2xl max-h-[90dvh] overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 shadow-2xl bg-white dark:bg-zinc-900 flex flex-col"
+              style={{
+                transformOrigin: '50% 50%',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              }}
+            >
             {/* Header */}
             <div className="relative flex items-center justify-between border-b border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800/50 px-5 py-4">
               <div className="flex items-center gap-3">
@@ -294,51 +336,68 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
               </div>
             </div>
 
-            {loading ? (
-              <div className="flex h-80 items-center justify-center">
-                <Spinner />
+            {error ? (
+              <div className="flex flex-1 min-h-0 flex-col">
+                <div className="flex-1 min-h-0 flex items-center justify-center px-6">
+                  <div className="w-full max-w-md text-center text-muted-foreground">
+                    <p className="text-sm">{error}</p>
+                    <div className="mt-4 flex justify-center">
+                      <Button variant="outline" size="sm" onClick={onClose}>
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            ) : error ? (
-              <div className="flex h-80 flex-col items-center justify-center gap-3 text-muted-foreground">
-                <p>{error}</p>
-                <Button variant="outline" size="sm" onClick={onClose}>
-                  Close
-                </Button>
-              </div>
-            ) : pulse ? (
-              <div className="flex max-h-[calc(90vh-130px)] flex-col">
+            ) : (
+              <div className="flex flex-1 min-h-0 flex-col">
                 {/* Scrollable content */}
                 <div
                   ref={scrollRef}
-                  className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-300 dark:scrollbar-thumb-white/10"
-                  style={{ maxHeight: 'calc(90vh - 200px)' }}
+                  className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-300 dark:scrollbar-thumb-white/10"
                 >
                   <div className="p-5">
-                    {/* Original Pulse */}
-                    <div className="pb-5">
-                      <div className="flex gap-4">
-                        {/* Avatar with glow */}
-                        <div className="relative shrink-0">
-                          <div
-                            className="absolute inset-0 rounded-full opacity-40"
-                            style={{
-                              background: 'radial-gradient(circle, rgba(34, 197, 94, 0.5) 0%, transparent 70%)',
-                              filter: 'blur(8px)',
-                              transform: 'scale(1.2)',
-                            }}
-                          />
-                          <Avatar className="relative h-12 w-12 ring-2 ring-emerald-500/30">
-                            <AvatarImage src={pulse.user?.image || undefined} />
-                            <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-cyan-500 text-white font-semibold">
-                              {pulse.user?.name?.[0]?.toUpperCase() || '?'}
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
+                    {loading ? (
+                      <div className="flex h-64 items-center justify-center">
+                        <Spinner />
+                      </div>
+                    ) : pulse ? (
+                      <>
+                        {/* Original Pulse */}
+                        <div className="pb-5">
+                          <div className="flex gap-4">
+                            {/* Avatar with glow */}
+                            <div className="relative shrink-0">
+                          <UserHoverCard
+                            userId={pulse.userId}
+                            userName={pulse.user?.name}
+                            userImage={pulse.user?.image}
+                            side="right"
+                            align="start"
+                          >
+                            <Avatar className="relative h-12 w-12 ring-2 ring-emerald-500/30">
+                              <AvatarImage src={pulse.user?.image || undefined} />
+                              <AvatarFallback className="bg-emerald-600 text-white font-semibold">
+                                {pulse.user?.name?.[0]?.toUpperCase() || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                          </UserHoverCard>
+                            </div>
 
-                        <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1">
                           {/* Author info */}
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <span className="font-semibold text-foreground dark:text-white">{pulse.user?.name || 'Anonymous'}</span>
+                            <UserHoverCard
+                              userId={pulse.userId}
+                              userName={pulse.user?.name}
+                              userImage={pulse.user?.image}
+                              side="bottom"
+                              align="start"
+                            >
+                              <span className="font-semibold text-foreground dark:text-white">
+                                {pulse.user?.name || 'Anonymous'}
+                              </span>
+                            </UserHoverCard>
                             <span className="text-muted-foreground/50 dark:text-white/30">·</span>
                             <span className="text-sm text-muted-foreground dark:text-white/50">
                               {formatDistanceToNowStrict(new Date(pulse.createdAt), { addSuffix: true })}
@@ -347,14 +406,14 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
 
                           {/* Content - NO TRUNCATION */}
                           <div className="mt-3 space-y-2">
-                            {pulse.title && (
+                            {titleText && (
                               <p className="text-[15px] leading-relaxed text-foreground/95 dark:text-white/95 whitespace-pre-wrap break-words">
-                                {pulse.title}
+                                {titleText}
                               </p>
                             )}
-                            {pulse.description && pulse.description !== pulse.title && (
+                            {bodyText && (
                               <p className="text-[15px] leading-relaxed text-foreground/80 dark:text-white/80 whitespace-pre-wrap break-words">
-                                {pulse.description}
+                                {bodyText}
                               </p>
                             )}
                           </div>
@@ -446,17 +505,33 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                           key={message.id}
                           className="flex gap-3 rounded-xl bg-zinc-100 dark:bg-zinc-800/50 p-3 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-800"
                         >
-                          <Avatar className="h-9 w-9 shrink-0 ring-1 ring-zinc-200 dark:ring-white/10">
-                            <AvatarImage src={message.sender?.image || undefined} />
-                            <AvatarFallback className="bg-gradient-to-br from-zinc-400 to-zinc-500 dark:from-zinc-600 dark:to-zinc-700 text-sm text-white">
-                              {message.sender?.name?.[0]?.toUpperCase() || '?'}
-                            </AvatarFallback>
-                          </Avatar>
+                          <UserHoverCard
+                            userId={message.sender?.id}
+                            userName={message.sender?.name}
+                            userImage={message.sender?.image}
+                            side="right"
+                            align="start"
+                          >
+                            <Avatar className="h-9 w-9 shrink-0 ring-1 ring-zinc-200 dark:ring-white/10">
+                              <AvatarImage src={message.sender?.image || undefined} />
+                              <AvatarFallback className="bg-zinc-500 dark:bg-zinc-600 text-sm text-white">
+                                {message.sender?.name?.[0]?.toUpperCase() || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                          </UserHoverCard>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                              <span className="text-sm font-medium text-foreground/90 dark:text-white/90">
-                                {message.sender?.name || 'Anonymous'}
-                              </span>
+                              <UserHoverCard
+                                userId={message.sender?.id}
+                                userName={message.sender?.name}
+                                userImage={message.sender?.image}
+                                side="bottom"
+                                align="start"
+                              >
+                                <span className="text-sm font-medium text-foreground/90 dark:text-white/90">
+                                  {message.sender?.name || 'Anonymous'}
+                                </span>
+                              </UserHoverCard>
                               <span className="text-xs text-muted-foreground dark:text-white/40">
                                 {formatDistanceToNowStrict(new Date(message.createdAt), { addSuffix: true })}
                               </span>
@@ -464,7 +539,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                                 <span className="text-xs text-muted-foreground/70 dark:text-white/30">(edited)</span>
                               )}
                             </div>
-                            <p className="mt-1 text-sm leading-relaxed text-foreground/80 dark:text-white/80 whitespace-pre-wrap break-words">
+                            <p className="mt-1 text-sm leading-relaxed text-foreground/80 dark:text-white/80 whitespace-pre-wrap break-words break-all">
                               {message.content}
                             </p>
                           </div>
@@ -480,6 +555,8 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                         </div>
                       )}
                     </div>
+                      </>
+                    ) : null}
                   </div>
                 </div>
 
@@ -487,7 +564,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                 {currentUser ? (
                   <div className="shrink-0 border-t border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800/50 p-4">
                     <MessageInput
-                      conversationId={pulse.id}
+                      conversationId={pulseId!}
                       onMessageSent={handleMessageSent}
                     />
                   </div>
@@ -506,8 +583,9 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                   </div>
                 )}
               </div>
-            ) : null}
-          </motion.div>
+            )}
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>
