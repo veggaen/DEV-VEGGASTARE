@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { CiStar } from "react-icons/ci";
+import { MdAdd } from "react-icons/md";
 import Image from "next/image";
 import Link from "next/link";
 import ProductsSkeleton from '@/components/uicustom/skeletons/products-skeleton';
@@ -16,6 +17,7 @@ import Spinner from '@/components/uicustom/spinner';
 import debounce from 'lodash.debounce';
 import { useSidebar } from '@/components/providers/product-layoutProvider';
 import { useUiPreferences } from '@/components/providers/ui-preferences';
+import { useCurrentUser } from '@/hooks/use-current-user';
 
 // ★ NEW: network-aware price display
 import PriceAmount from "@/components/crypto-related/PriceAmount";
@@ -159,6 +161,8 @@ export default function MyProductsPage() {
 	const reduceMotion = useReducedMotion();
 	const { prefs } = useUiPreferences();
 	const showFancyHover = prefs.hoverEffects === "colorful";
+	const user = useCurrentUser();
+	const isLoggedIn = !!user;
   const [loading, setLoading] = useState(true);
 	const [products, setProducts] = useState<ExtendedProduct[]>([]);
   const [page, setPage] = useState(1);
@@ -403,7 +407,29 @@ export default function MyProductsPage() {
 									>
 										Discover listings and filter by category, seller, and price.
 									</motion.p>
-								</div>
+									</div>
+
+									<div className="shrink-0 pb-0.5">
+										{isLoggedIn ? (
+											<Button asChild variant="vegaNormalBtn" className="h-9 rounded-md px-4">
+												<Link href="/products/create" aria-label="Create a new product listing" className="flex items-center gap-2">
+													<MdAdd className="h-4 w-4" />
+													<span className="text-[13px] font-medium">Create listing</span>
+												</Link>
+											</Button>
+										) : (
+											<Button asChild variant="outline" className="h-9 rounded-md px-4">
+												<Link
+													href={`/auth/login?callbackUrl=${encodeURIComponent('/products/create')}`}
+													aria-label="Sign in to create a listing"
+													className="flex items-center gap-2"
+												>
+													<MdAdd className="h-4 w-4" />
+													<span className="text-[13px] font-medium">Sell</span>
+												</Link>
+											</Button>
+										)}
+									</div>
 							</div>
 						</div>
 					</div>
