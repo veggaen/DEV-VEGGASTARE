@@ -12,21 +12,44 @@ import { dbPrisma } from "./lib/db";
 const LOG_PREFIX = '[frontend/auth.config.ts]'
 const isDev = process.env.NODE_ENV !== 'production'
 
+const googleClientId = process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID
+const googleClientSecret = process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET
+
+const githubClientId = process.env.AUTH_GITHUB_ID || process.env.GITHUB_ID || process.env.GITHUB_CLIENT_ID
+const githubClientSecret = process.env.AUTH_GITHUB_SECRET || process.env.GITHUB_SECRET || process.env.GITHUB_CLIENT_SECRET
+
+const oauthProviders: NextAuthConfig['providers'] = []
+
+if (googleClientId && googleClientSecret) {
+  oauthProviders.push(
+    Google({
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
+      allowDangerousEmailAccountLinking: true,
+    })
+  )
+} else if (isDev) {
+  console.log(
+    LOG_PREFIX,
+    'Google OAuth disabled: missing AUTH_GOOGLE_ID/AUTH_GOOGLE_SECRET (or GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET)'
+  )
+}
+
+if (githubClientId && githubClientSecret) {
+  oauthProviders.push(
+    Github({
+      clientId: githubClientId,
+      clientSecret: githubClientSecret,
+      allowDangerousEmailAccountLinking: true,
+    })
+  )
+} else if (isDev) {
+  console.log(LOG_PREFIX, 'GitHub OAuth disabled: missing AUTH_GITHUB_ID/AUTH_GITHUB_SECRET (or GITHUB_*)')
+}
+
 export default {
   providers: [
-  Google({
-    clientId: process.env.AUTH_GOOGLE_ID,
-    clientSecret: process.env.AUTH_GOOGLE_SECRET,
-    // Allow OAuth to link with existing email/password accounts
-    // This enables seamless login with any method for the same email
-    allowDangerousEmailAccountLinking: true,
-  }),
-  Github({
-    clientId: process.env.AUTH_GITHUB_ID,
-    clientSecret: process.env.AUTH_GITHUB_SECRET,
-    // Allow OAuth to link with existing email/password accounts
-    allowDangerousEmailAccountLinking: true,
-  }),
+  ...oauthProviders,
   // Magic-link login provider for auto-login after email verification
   Credentials({
     id: "email-login-token",

@@ -13,12 +13,26 @@ import { getAccountByUserId } from "./lib/account"
 const LOG_PREFIX = '[auth.ts] '
 const isDev = process.env.NODE_ENV !== 'production'
 
+const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+const authUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL
+
+if (!isDev && !authSecret) {
+  console.error(`${LOG_PREFIX} Missing AUTH_SECRET (or NEXTAUTH_SECRET). OAuth will fail.`)
+}
+
+if (!isDev && !authUrl) {
+  console.warn(`${LOG_PREFIX} Missing AUTH_URL (or NEXTAUTH_URL). Set it to https://www.veggat.com for production.`)
+}
+
 export const {
   handlers: { GET, POST },
   auth,
   signIn,
   signOut
 } = NextAuth({
+    secret: authSecret,
+    trustHost: true,
+    debug: isDev,
     pages: {
       signIn: '/auth/login',
       error: '/auth/error',
