@@ -25,6 +25,8 @@ const pusherTriggerSchema = z.object({
 const init = async (): Promise<void> => {
   const railwayEnv = (process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT || '').toLowerCase();
   const isProduction = process.env.NODE_ENV === 'production' || railwayEnv === 'production';
+  const httpPort = Number(process.env.PORT) || 3001;
+  const wsPort = Number(process.env.WS_PORT) || 3002;
   const corsOrigins = isProduction
     ? (process.env.CORS_ORIGINS
         ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
@@ -32,12 +34,13 @@ const init = async (): Promise<void> => {
     : ['*'];
 
   console.log(LOG_PREFIX, `Starting in ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'} mode`);
+  console.log(LOG_PREFIX, `Ports: http=${httpPort} ws=${wsPort}`);
   if (isProduction) {
     console.log(LOG_PREFIX, `CORS allowed origins: ${corsOrigins.length > 0 ? corsOrigins.join(', ') : '(none - all blocked!)'}`);
   }
 
   const server = Hapi.server({
-    port: process.env.PORT || 3001,
+    port: httpPort,
     host: '0.0.0.0',
     routes: {
       cors: {
@@ -110,8 +113,8 @@ const init = async (): Promise<void> => {
   });
 
   await server.start();
-  httpServer.listen(process.env.WS_PORT || 3002, () => {
-    console.log(LOG_PREFIX, `HTTP Server running on http://0.0.0.0:${process.env.WS_PORT || 3002}`);
+  httpServer.listen(wsPort, () => {
+    console.log(LOG_PREFIX, `WS Server running on http://0.0.0.0:${wsPort}`);
   });
 
   console.log(LOG_PREFIX, `Hapi Server running on ${server.info.uri}`);
