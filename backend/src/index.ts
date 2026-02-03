@@ -1,6 +1,11 @@
 import dotenv from 'dotenv';
 dotenv.config(); // Load env vars FIRST before any other imports that use them
 
+// Debug: log all env vars to diagnose Railway variable injection
+console.log('[DEBUG] NODE_ENV:', process.env.NODE_ENV);
+console.log('[DEBUG] DATABASE_URL_NEON exists:', !!process.env.DATABASE_URL_NEON);
+console.log('[DEBUG] PUSHER_APP_ID exists:', !!process.env.PUSHER_APP_ID);
+
 import Hapi from '@hapi/hapi';
 import { z } from 'zod';
 import { initWebSocketServer } from './websocket';
