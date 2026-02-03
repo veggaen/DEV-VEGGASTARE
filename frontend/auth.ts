@@ -41,7 +41,7 @@ export const {
 } = NextAuth({
     secret: authSecret,
     trustHost: true,
-    debug: isDev,
+    debug: false, // Disabled - too noisy. Enable manually if needed: isDev
     pages: {
       signIn: '/auth/login',
       error: '/auth/error',

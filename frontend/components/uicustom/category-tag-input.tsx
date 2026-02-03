@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Plus, Check, AlertCircle, Loader2, ChevronRight } from 'lucide-react';
+import { X, Plus, Check, AlertCircle, Loader2, ChevronRight, ChevronDown, FolderTree } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,14 @@ export interface CategoryTag {
   isNew?: boolean; // True if user is creating a new category
   parentId?: string | null;
   parentName?: string | null;
+}
+
+interface HierarchicalCategory {
+  id: string;
+  name: string;
+  slug: string;
+  children?: HierarchicalCategory[];
+  _count?: { products: number };
 }
 
 interface CategoryTagInputProps {
@@ -55,11 +63,66 @@ export function CategoryTagInput({
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showSimilarWarning, setShowSimilarWarning] = useState<CategorySuggestion | null>(null);
   
+  // Browse mode state
+  const [showBrowser, setShowBrowser] = useState(false);
+  const [hierarchicalCategories, setHierarchicalCategories] = useState<HierarchicalCategory[]>([]);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [isLoadingBrowser, setIsLoadingBrowser] = useState(false);
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedInput = useDebounce(inputValue, 200);
+
+  // Fetch hierarchical categories for browser
+  const fetchHierarchicalCategories = useCallback(async () => {
+    setIsLoadingBrowser(true);
+    try {
+      const res = await fetch('/api/categories?format=full&hierarchical=true');
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data: HierarchicalCategory[] = await res.json();
+      setHierarchicalCategories(data);
+    } catch (err) {
+      console.error('Failed to fetch hierarchical categories:', err);
+    } finally {
+      setIsLoadingBrowser(false);
+    }
+  }, []);
+
+  // Load hierarchical categories when browser is opened
+  useEffect(() => {
+    if (showBrowser && hierarchicalCategories.length === 0) {
+      fetchHierarchicalCategories();
+    }
+  }, [showBrowser, hierarchicalCategories.length, fetchHierarchicalCategories]);
+
+  // Toggle category expansion
+  const toggleExpand = (categoryId: string) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryId)) {
+        newSet.delete(categoryId);
+      } else {
+        newSet.add(categoryId);
+      }
+      return newSet;
+    });
+  };
+
+  // Select from hierarchical browser
+  const selectFromBrowser = (category: HierarchicalCategory, parentName?: string) => {
+    if (value.length >= maxTags) return;
+    if (value.some((v) => v.id === category.id)) return;
+    
+    onChange([...value, {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      isNew: false,
+      parentName: parentName,
+    }]);
+  };
 
   // Fetch suggestions
   const fetchSuggestions = useCallback(async (query: string) => {
@@ -368,6 +431,152 @@ export function CategoryTagInput({
       <p className="mt-1 text-xs text-muted-foreground">
         Trykk Enter eller , for å legge til. Maks {maxTags} kategorier.
       </p>
+
+      {/* Browse categories button - separate line */}
+      <button
+        type="button"
+        onClick={() => setShowBrowser(!showBrowser)}
+        disabled={disabled}
+        className={cn(
+          "mt-2 w-full py-2 px-3 text-xs flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border",
+          "text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-muted/50 transition-colors",
+          disabled && "opacity-50 cursor-not-allowed",
+          showBrowser && "border-primary/50 bg-muted/50 text-foreground"
+        )}
+      >
+        <FolderTree className="h-3.5 w-3.5" />
+        {showBrowser ? 'Hide category browser' : 'Browse all categories'}
+      </button>
+
+      {/* Hierarchical Category Browser */}
+      {showBrowser && (
+        <div className="mt-2 p-3 rounded-md border border-border bg-muted/30 max-h-[300px] overflow-y-auto">
+          <p className="text-xs font-medium text-muted-foreground mb-2">
+            Browse categories (click to add, expand for subcategories)
+          </p>
+          
+          {isLoadingBrowser ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : hierarchicalCategories.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              No categories found. Type above to create one.
+            </p>
+          ) : (
+            <div className="space-y-1">
+              {hierarchicalCategories.map((category) => (
+                <CategoryTreeItem
+                  key={category.id}
+                  category={category}
+                  selectedIds={value.map(v => v.id).filter(Boolean) as string[]}
+                  expandedIds={expandedCategories}
+                  onToggleExpand={toggleExpand}
+                  onSelect={selectFromBrowser}
+                  disabled={disabled || value.length >= maxTags}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Recursive tree item component for hierarchical browsing
+function CategoryTreeItem({
+  category,
+  selectedIds,
+  expandedIds,
+  onToggleExpand,
+  onSelect,
+  disabled,
+  parentName,
+  depth = 0,
+}: {
+  category: HierarchicalCategory;
+  selectedIds: string[];
+  expandedIds: Set<string>;
+  onToggleExpand: (id: string) => void;
+  onSelect: (category: HierarchicalCategory, parentName?: string) => void;
+  disabled: boolean;
+  parentName?: string;
+  depth?: number;
+}) {
+  const hasChildren = category.children && category.children.length > 0;
+  const isExpanded = expandedIds.has(category.id);
+  const isSelected = selectedIds.includes(category.id);
+
+  return (
+    <div>
+      <div
+        className={cn(
+          "flex items-center gap-1 py-1 px-2 rounded text-sm hover:bg-accent/50 transition-colors",
+          isSelected && "bg-primary/10 text-primary",
+          disabled && !isSelected && "opacity-50"
+        )}
+        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+      >
+        {/* Expand/collapse button */}
+        {hasChildren ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand(category.id);
+            }}
+            className="p-0.5 hover:bg-accent rounded"
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )}
+          </button>
+        ) : (
+          <span className="w-4" /> // Spacer for alignment
+        )}
+
+        {/* Category name - clickable to select */}
+        <button
+          type="button"
+          onClick={() => !isSelected && !disabled && onSelect(category, parentName)}
+          disabled={disabled || isSelected}
+          className={cn(
+            "flex-1 text-left flex items-center gap-2",
+            isSelected && "cursor-default",
+            !isSelected && !disabled && "cursor-pointer"
+          )}
+        >
+          <span className={cn(isSelected && "font-medium")}>{category.name}</span>
+          {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
+          {category._count && category._count.products > 0 && (
+            <span className="text-xs text-muted-foreground">
+              ({category._count.products})
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Children (subcategories) */}
+      {hasChildren && isExpanded && (
+        <div>
+          {category.children!.map((child) => (
+            <CategoryTreeItem
+              key={child.id}
+              category={child}
+              selectedIds={selectedIds}
+              expandedIds={expandedIds}
+              onToggleExpand={onToggleExpand}
+              onSelect={onSelect}
+              disabled={disabled}
+              parentName={category.name}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
