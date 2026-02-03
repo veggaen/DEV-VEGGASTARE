@@ -8,6 +8,7 @@ const COOKIE_VALUE = 'granted_' + Buffer.from(CORRECT_PASSWORD).toString('base64
 const GATE_BYPASS_ROUTES = [
   '/gate',           // The gate page itself
   '/api/access-gate', // The authentication API
+  '/api/auth',       // NextAuth/Auth.js (OAuth callbacks)
   '/_next',          // Next.js internals
   '/favicon.ico',
   '/robots.txt',

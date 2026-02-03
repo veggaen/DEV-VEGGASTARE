@@ -32,7 +32,8 @@ export const ACCESS_GATE_CONFIG = {
   enabled: IS_PRIVATE_MODE,
   password: 'MainAdc123', // Change this password as needed
   cookieName: 'veggastare_access',
-  bypassRoutes: ['/gate', '/api/access-gate', '/privacy', '/terms', '/info'],
+  // Important: NextAuth/Auth.js OAuth callbacks must not be gated.
+  bypassRoutes: ['/gate', '/api/access-gate', '/api/auth', '/privacy', '/terms', '/info'],
 };
 
 // SEO configuration

@@ -26,6 +26,11 @@ function checkAccessGate(req: NextRequest): NextResponse | null {
 
   const { pathname } = req.nextUrl;
 
+  // Never gate NextAuth/Auth.js endpoints. OAuth redirects and callbacks rely on these.
+  if (pathname === '/api/auth' || pathname.startsWith('/api/auth/')) {
+    return null;
+  }
+
   // Skip gate for bypass routes (legal pages, gate itself, API)
   const shouldBypass = GATE_BYPASS_ROUTES.some(route => 
     pathname === route || pathname.startsWith(route + '/')
