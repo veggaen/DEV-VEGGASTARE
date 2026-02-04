@@ -512,28 +512,31 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
             )}
           </AnimatePresence>
 
-        {/* Create listing CTA (right-side primary action) */}
-        <div className="ml-2">
-          {isLoggedIn ? (
-            <Button asChild variant="vegaNormalBtn" className="h-8 rounded-md px-3">
-              <Link href="/products/create" aria-label="Create a new product listing" className="flex items-center gap-2">
-                <MdAdd className="h-4 w-4" />
-                <span className="text-[13px] font-medium">Create listing</span>
-              </Link>
-            </Button>
-          ) : (
-            <Button asChild variant="outline" className="h-8 rounded-md px-3">
-              <Link
-                href={`/auth/login?callbackUrl=${encodeURIComponent('/products/create')}`}
-                aria-label="Sign in to create a listing"
-                className="flex items-center gap-2"
-              >
-                <MdAdd className="h-4 w-4" />
-                <span className="text-[13px] font-medium">Sell</span>
-              </Link>
-            </Button>
-          )}
-        </div>
+
+        {/* Create listing CTA (show only when header collapses) */}
+        {isScrolled && (
+          <div className="ml-2">
+            {isLoggedIn ? (
+              <Button asChild variant="vegaNormalBtn" className="h-8 rounded-md px-3">
+                <Link href="/products/create" aria-label="Create a new product listing" className="flex items-center gap-2">
+                  <MdAdd className="h-4 w-4" />
+                  <span className="text-[13px] font-medium">Create listing</span>
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild variant="outline" className="h-8 rounded-md px-3">
+                <Link
+                  href={`/auth/login?callbackUrl=${encodeURIComponent('/products/create')}`}
+                  aria-label="Sign in to create a listing"
+                  className="flex items-center gap-2"
+                >
+                  <MdAdd className="h-4 w-4" />
+                  <span className="text-[13px] font-medium">Sell</span>
+                </Link>
+              </Button>
+            )}
+          </div>
+        )}
         </div>
 
         {/* Mobile Layout */}
@@ -570,23 +573,25 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
               />
             </div>
 
-        {/* Create listing (mobile) */}
-        {isLoggedIn ? (
-          <Button asChild size="icon" variant="vegaNormalBtn" className="h-9 w-9 rounded-lg">
-            <Link href="/products/create" aria-label="Create a new product listing">
-              <MdAdd className="h-4 w-4" />
-            </Link>
-          </Button>
-        ) : (
-          <Button asChild size="icon" variant="outline" className="h-9 w-9 rounded-lg">
-            <Link
-              href={`/auth/login?callbackUrl=${encodeURIComponent('/products/create')}`}
-              aria-label="Sign in to create a listing"
-            >
-              <MdAdd className="h-4 w-4" />
-            </Link>
-          </Button>
-        )}
+          {/* Create listing (mobile): only show when header is collapsed */}
+          {isScrolled && (
+            isLoggedIn ? (
+              <Button asChild size="icon" variant="vegaNormalBtn" className="h-9 w-9 rounded-lg">
+                <Link href="/products/create" aria-label="Create a new product listing">
+                  <MdAdd className="h-4 w-4" />
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild size="icon" variant="outline" className="h-9 w-9 rounded-lg">
+                <Link
+                  href={`/auth/login?callbackUrl=${encodeURIComponent('/products/create')}`}
+                  aria-label="Sign in to create a listing"
+                >
+                  <MdAdd className="h-4 w-4" />
+                </Link>
+              </Button>
+            )
+          )}
 
             <button
               onClick={toggleSidebar}
