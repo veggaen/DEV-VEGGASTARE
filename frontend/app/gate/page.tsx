@@ -12,7 +12,8 @@ export default function GatePage() {
   const [shake, setShake] = useState(false);
 
   // Get redirect URL from query params
-  const redirectTo = searchParams.get('redirect') || '/';
+  const rawRedirectTo = searchParams.get('redirect') || '/';
+  const redirectTo = rawRedirectTo.startsWith('/') ? rawRedirectTo : '/';
 
   // Check if already authenticated on mount
   useEffect(() => {
@@ -20,7 +21,7 @@ export default function GatePage() {
       if (redirectTo.startsWith('/auth')) return;
       try {
         const res = await fetch('/api/access-gate');
-        if (res.ok) window.location.href = '/';
+        if (res.ok) window.location.href = redirectTo;
       } catch {
         // Not authenticated, stay on gate
       }
@@ -41,7 +42,7 @@ export default function GatePage() {
       });
 
       if (res.ok) {
-        window.location.href = '/';
+        window.location.href = redirectTo;
       } else {
         const data = await res.json();
         setError(data.error || 'Incorrect password');
