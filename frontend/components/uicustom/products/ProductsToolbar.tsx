@@ -517,21 +517,30 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
         {isScrolled && (
           <div className="ml-2">
             {isLoggedIn ? (
-              <Button asChild variant="vegaNormalBtn" className="h-8 rounded-md px-3">
-                <Link href="/products/create" aria-label="Create a new product listing" className="flex items-center gap-2">
+              <Button
+                asChild
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 rounded-md text-zinc-600 hover:text-zinc-900 hover:bg-black/[0.04] dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06]"
+                title="Create listing"
+              >
+                <Link href="/products/create" aria-label="Create a new product listing">
                   <MdAdd className="h-4 w-4" />
-                  <span className="text-[13px] font-medium">Create listing</span>
                 </Link>
               </Button>
             ) : (
-              <Button asChild variant="outline" className="h-8 rounded-md px-3">
+              <Button
+                asChild
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-black/[0.04] dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06]"
+                title="Sign in to sell"
+              >
                 <Link
                   href={`/auth/login?callbackUrl=${encodeURIComponent('/products/create')}`}
                   aria-label="Sign in to create a listing"
-                  className="flex items-center gap-2"
                 >
                   <MdAdd className="h-4 w-4" />
-                  <span className="text-[13px] font-medium">Sell</span>
                 </Link>
               </Button>
             )}

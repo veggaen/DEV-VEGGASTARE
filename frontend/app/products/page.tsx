@@ -411,24 +411,24 @@ export default function MyProductsPage() {
 
 									<div className="shrink-0 pb-0.5">
 										{isLoggedIn ? (
-											<Button asChild variant="vegaNormalBtn" className="h-9 rounded-md px-4">
-												<Link href="/products/create" aria-label="Create a new product listing" className="flex items-center gap-2">
-													<MdAdd className="h-4 w-4" />
-													<span className="text-[13px] font-medium">Create listing</span>
-												</Link>
-											</Button>
-										) : (
-											<Button asChild variant="outline" className="h-9 rounded-md px-4">
-												<Link
-													href={`/auth/login?callbackUrl=${encodeURIComponent('/products/create')}`}
-													aria-label="Sign in to create a listing"
-													className="flex items-center gap-2"
-												>
-													<MdAdd className="h-4 w-4" />
-													<span className="text-[13px] font-medium">Sell</span>
-												</Link>
-											</Button>
-										)}
+											<Link
+												href="/products/create"
+												aria-label="Create a new product listing"
+												className="group inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-zinc-600 hover:text-zinc-900 hover:bg-black/[0.04] dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] transition-colors"
+										>
+											<MdAdd className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+											<span>Create listing</span>
+										</Link>
+									) : (
+											<Link
+												href={`/auth/login?callbackUrl=${encodeURIComponent('/products/create')}`}
+												aria-label="Sign in to create a listing"
+												className="group inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-zinc-500 hover:text-zinc-900 hover:bg-black/[0.04] dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] transition-colors"
+										>
+											<MdAdd className="h-4 w-4 opacity-80 group-hover:opacity-100" />
+											<span>Sell</span>
+										</Link>
+									)}
 									</div>
 							</div>
 						</div>
