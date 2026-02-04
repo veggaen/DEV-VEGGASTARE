@@ -157,6 +157,7 @@ export function formatNotificationMessage(
   if (count === 1) {
     return getSingleMessage()
       .replace("{user}", username)
+      .replace("{count}", String(count))
       .replace("{target}", targetName || "your pulse");
   }
   
