@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { NotificationBell } from "./notification-bell";
@@ -39,12 +40,37 @@ export function NotificationDropdown({
 }: NotificationDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "unread">("all");
+  const [mounted, setMounted] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
+  const triggerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Handle client-side mounting for portal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  // Calculate dropdown position when opening
+  useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 8, // 8px gap
+        right: window.innerWidth - rect.right,
+      });
+    }
+  }, [isOpen]);
   
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        dropdownRef.current && 
+        !dropdownRef.current.contains(target) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
@@ -84,31 +110,30 @@ export function NotificationDropdown({
     setIsOpen(false);
   }, [onNotificationClick]);
   
-  return (
-    <div ref={dropdownRef} className={cn("relative", className)}>
-      <NotificationBell
-        count={unreadCount}
-        hasUnread={unreadCount > 0}
-        onClick={() => setIsOpen(!isOpen)}
-        isOpen={isOpen}
-      />
-      
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-            className={cn(
-              "absolute right-0 top-full mt-2 z-[100]",
-              "w-[380px] max-w-[calc(100vw-32px)]",
-              "rounded-xl",
-              "bg-white dark:bg-zinc-950",
-              "border border-zinc-200 dark:border-zinc-800",
-              "shadow-xl shadow-zinc-900/10 dark:shadow-black/30",
-              "overflow-hidden"
-            )}
+  // Dropdown content (rendered via portal)
+  const dropdownContent = (
+    <AnimatePresence>
+      {isOpen && mounted && (
+        <motion.div
+          ref={dropdownRef}
+          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+          transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+          style={{
+            position: 'fixed',
+            top: dropdownPosition.top,
+            right: dropdownPosition.right,
+            zIndex: 9999,
+          }}
+          className={cn(
+            "w-[380px] max-w-[calc(100vw-32px)]",
+            "rounded-xl",
+            "bg-white dark:bg-zinc-950",
+            "border border-zinc-200 dark:border-zinc-800",
+            "shadow-xl shadow-zinc-900/10 dark:shadow-black/30",
+            "overflow-hidden"
+          )}
           >
             {/* Header */}
             <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
@@ -248,6 +273,19 @@ export function NotificationDropdown({
           </motion.div>
         )}
       </AnimatePresence>
+  );
+  
+  return (
+    <div ref={triggerRef} className={cn("relative", className)}>
+      <NotificationBell
+        count={unreadCount}
+        hasUnread={unreadCount > 0}
+        onClick={() => setIsOpen(!isOpen)}
+        isOpen={isOpen}
+      />
+      
+      {/* Render dropdown in portal to escape overflow:hidden containers */}
+      {mounted && createPortal(dropdownContent, document.body)}
     </div>
   );
 }
