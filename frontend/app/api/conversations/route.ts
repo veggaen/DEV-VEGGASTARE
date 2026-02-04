@@ -2,6 +2,7 @@ import { fetchUserManyDetails } from '@/data/user';
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError, parseQueryOrError } from '@/lib/api-validate';
+import { pusherServer } from '@/lib/pusher';
 import { NextResponse } from 'next/server';
 import {
   ConversationType,
@@ -273,6 +274,22 @@ export async function POST(req: Request) {
         image: created.User.image ?? null,
       },
     };
+
+    // Broadcast new pulse to public feed for real-time updates
+    if (type === 'PUBLIC_THREAD') {
+      try {
+        await pusherServer.trigger('public-pulse-feed', 'new-pulse', {
+          conversationId: created.id,
+          userId: created.userId,
+          title: created.title,
+          createdAt: toIsoString(created.createdAt),
+        });
+        console.log(LOG_PREFIX, `Broadcasted new pulse to public feed: ${created.id}`);
+      } catch (pusherError) {
+        // Don't fail the request if Pusher fails - just log it
+        console.error(LOG_PREFIX, 'Failed to broadcast new pulse:', pusherError);
+      }
+    }
 
     const validated = ConversationAdminResponseSchema.safeParse(dto);
     if (!validated.success) {

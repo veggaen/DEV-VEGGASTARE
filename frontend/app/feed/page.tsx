@@ -26,7 +26,8 @@ import {
 import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useViewTracking } from '@/hooks/useViewTracking';
-import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import usePusher from '@/hooks/usePusher';
+import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2, FiRefreshCw } from 'react-icons/fi';
 import { PulseHeart, PulseFlat, PulsePositive } from '@/components/uicustom/icons/PulseIcons';
 import { pulseLabels } from '@/lib/pulse-labels';
 import { formatDistanceToNowStrict } from 'date-fns';
@@ -34,6 +35,7 @@ import { PollDisplay } from '@/components/uicustom/chats/poll-display';
 import { DiscoverPeople } from '@/components/uicustom/social/DiscoverPeople';
 import { PulseDetailModal } from '@/components/uicustom/pulse/PulseDetailModal';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface User {
   id: string;
@@ -115,8 +117,13 @@ const FeedPage: React.FC = () => {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
-  const [sortBy, setSortBy] = useState<SortType>('reach');
+  const [sortBy, setSortBy] = useState<SortType>('recent');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  
+  // Real-time new pulses state
+  const [newPulsesCount, setNewPulsesCount] = useState(0);
+  const [isLoadingNew, setIsLoadingNew] = useState(false);
+  const latestPulseId = useRef<string | null>(null);
 
   // Modal state - read from URL for shareable links
   const [selectedPulseId, setSelectedPulseId] = useState<string | null>(null);
@@ -160,7 +167,7 @@ const FeedPage: React.FC = () => {
   const [replyPermission, setReplyPermission] = useState<ReplyPermission>('EVERYONE');
 
   // Fetch feed items
-  const fetchFeed = useCallback(async () => {
+  const fetchFeed = useCallback(async (resetNewCount = true) => {
     setLoading(true);
     try {
       let url = `/api/conversations?filter=public&sort=${sortBy}&limit=50`;
@@ -184,15 +191,46 @@ const FeedPage: React.FC = () => {
       }
       
       setItems(feedItems);
+      
+      // Track latest pulse ID for new pulse detection
+      if (feedItems.length > 0) {
+        latestPulseId.current = feedItems[0].id;
+      }
+      
+      // Reset new pulses count
+      if (resetNewCount) {
+        setNewPulsesCount(0);
+      }
     } catch (error) {
       console.error('Failed to fetch feed:', error);
     } finally {
       setLoading(false);
+      setIsLoadingNew(false);
     }
   }, [filter, sortBy, tagFilter]);
 
   useEffect(() => {
     fetchFeed();
+  }, [fetchFeed]);
+  
+  // Subscribe to real-time new pulse events
+  usePusher<{ conversationId: string; userId: string }>(
+    'public-pulse-feed',
+    'new-pulse',
+    useCallback((data) => {
+      // Only count if it's a new pulse (not from current user)
+      if (data.conversationId !== latestPulseId.current) {
+        setNewPulsesCount(prev => prev + 1);
+      }
+    }, [])
+  );
+  
+  // Load new pulses handler
+  const loadNewPulses = useCallback(async () => {
+    setIsLoadingNew(true);
+    await fetchFeed(true);
+    // Scroll to top smoothly
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [fetchFeed]);
 
   const trendingTags = useMemo(() => {
@@ -385,6 +423,31 @@ const FeedPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* New pulses banner */}
+      <AnimatePresence>
+        {newPulsesCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-50"
+          >
+            <Button
+              onClick={loadNewPulses}
+              disabled={isLoadingNew}
+              className="rounded-full shadow-lg bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 flex items-center gap-2"
+            >
+              {isLoadingNew ? (
+                <FiRefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <FiRefreshCw className="h-4 w-4" />
+              )}
+              {newPulsesCount} new pulse{newPulsesCount > 1 ? 's' : ''} — click to load
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6">

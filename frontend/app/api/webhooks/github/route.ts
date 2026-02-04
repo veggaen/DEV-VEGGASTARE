@@ -8,30 +8,17 @@ const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET;
  * Verify GitHub webhook signature
  */
 function verifySignature(payload: string, signature: string | null): boolean {
-  if (!GITHUB_WEBHOOK_SECRET) {
-    console.error("[GITHUB_WEBHOOK] GITHUB_WEBHOOK_SECRET env var is not set!");
-    return false;
-  }
-  
-  if (!signature) {
-    console.error("[GITHUB_WEBHOOK] No signature provided in request");
+  if (!GITHUB_WEBHOOK_SECRET || !signature) {
+    console.error("[GITHUB_WEBHOOK] Missing secret or signature");
     return false;
   }
 
   const hmac = crypto.createHmac("sha256", GITHUB_WEBHOOK_SECRET);
   const digest = "sha256=" + hmac.update(payload).digest("hex");
   
-  // Debug logging (first 10 chars only for security)
-  console.log("[GITHUB_WEBHOOK] Signature check:", {
-    receivedPrefix: signature.substring(0, 17),
-    computedPrefix: digest.substring(0, 17),
-    secretLength: GITHUB_WEBHOOK_SECRET.length,
-  });
-  
   try {
     return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature));
-  } catch (e) {
-    console.error("[GITHUB_WEBHOOK] Signature comparison failed:", e);
+  } catch {
     return false;
   }
 }
@@ -147,20 +134,12 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get("x-hub-signature-256");
     const event = request.headers.get("x-github-event");
 
-    console.log("[GITHUB_WEBHOOK] Received request:", {
-      event,
-      hasSignature: !!signature,
-      payloadLength: payload.length,
-      hasSecret: !!GITHUB_WEBHOOK_SECRET,
-    });
-
     // Verify webhook signature in production
     if (process.env.NODE_ENV === "production") {
       if (!verifySignature(payload, signature)) {
-        console.error("[GITHUB_WEBHOOK] Invalid signature - rejecting request");
+        console.error("[GITHUB_WEBHOOK] Invalid signature");
         return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
       }
-      console.log("[GITHUB_WEBHOOK] Signature verified successfully");
     }
 
     // Only process push events
