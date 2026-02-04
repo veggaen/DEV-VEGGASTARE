@@ -60,7 +60,7 @@ export const ACCESS_GATE_CONFIG = {
   password: GATE_PASSWORD_HARDCODED,
   cookieName: 'veggastare_access',
   // Important: NextAuth/Auth.js OAuth callbacks and webhooks must not be gated.
-  bypassRoutes: ['/gate', '/api/access-gate', '/api/auth', '/api/webhooks', '/privacy', '/terms', '/info'],
+  bypassRoutes: ['/gate', '/api/access-gate', '/api/auth', '/api/webhooks', '/privacy', '/terms', '/info', '/poll-test'],
 };
 
 // SEO configuration

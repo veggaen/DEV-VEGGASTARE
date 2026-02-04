@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "seed:reach-poll": "npx ts-node --project tsconfig.json scripts/seed-reach-poll.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^1.2.1",

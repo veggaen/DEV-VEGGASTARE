@@ -10,6 +10,7 @@ export const publicRoutes = [
   "/gate", // ✅ Access gate page (must be public!)
   "/products", // ✅ NEW — allow listing
   "/pulse", // ✅ Public Pulse page (anyone can view, only logged-in can post)
+  "/poll-test", // ✅ Poll test page for development
   "/info",
   "/privacy", // ✅ Privacy page is public
   "/terms", // ✅ Sales terms page (required for Vipps)

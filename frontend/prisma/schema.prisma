@@ -125,6 +125,7 @@ model Conversation {
   ConversationView       ConversationView[]
   Message                Message[]
   Poll                   Poll?
+  AdvancedPoll           AdvancedPoll?
   Pulse                  Pulse[]
 
   @@index([userId])
@@ -756,6 +757,10 @@ model User {
   DownloadToken                                                   DownloadToken[]
   CategoriesCreated                                               Category[]                    @relation("CategoryCreator")
   Address                                                         Address[]
+  // Advanced Poll System relations
+  AdvancedPolls                                                   AdvancedPoll[]
+  PollResponses                                                   PollResponse[]
+  PollTemplates                                                   PollTemplate[]
 }
 
 model VerificationToken {
@@ -1239,6 +1244,179 @@ enum AdminTargetType {
   ORDER
   CONVERSATION
   WAREHOUSE
+  POLL
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADVANCED POLL SYSTEM - Multi-question surveys with slider, images, analytics
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AdvancedPoll {
+  id                String             @id @default(cuid())
+  title             String
+  description       String?
+  type              AdvancedPollType   @default(SURVEY)
+  creatorId         String
+  conversationId    String?            @unique
+  isAnonymous       Boolean            @default(false)
+  allowPartial      Boolean            @default(true)
+  requiresAuth      Boolean            @default(true)
+  expiresAt         DateTime?
+  publishedAt       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  // Relations
+  Creator           User               @relation(fields: [creatorId], references: [id])
+  Conversation      Conversation?      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  Questions         PollQuestion[]
+  Responses         PollResponse[]
+  Templates         PollTemplate[]
+  
+  // Analytics cache
+  totalResponses    Int                @default(0)
+  avgCompletionPct  Float              @default(0)
+  
+  @@index([creatorId])
+  @@index([conversationId])
+  @@index([type])
+}
+
+enum AdvancedPollType {
+  SIMPLE
+  SURVEY
+  QUIZ
+  FEEDBACK
+  REACH_ASSESSMENT
+}
+
+model PollQuestion {
+  id                String              @id @default(cuid())
+  advancedPollId    String
+  parentQuestionId  String?
+  text              String
+  description       String?
+  type              PollQuestionType    @default(SINGLE_CHOICE)
+  order             Int                 @default(0)
+  isRequired        Boolean             @default(true)
+  allowImages       Boolean             @default(false)
+  allowComments     Boolean             @default(false)
+  sliderConfig      Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  AdvancedPoll      AdvancedPoll        @relation(fields: [advancedPollId], references: [id], onDelete: Cascade)
+  ParentQuestion    PollQuestion?       @relation("NestedQuestions", fields: [parentQuestionId], references: [id])
+  ChildQuestions    PollQuestion[]      @relation("NestedQuestions")
+  Options           PollQuestionOption[]
+  Answers           PollAnswer[]
+  
+  @@index([advancedPollId])
+  @@index([parentQuestionId])
+}
+
+enum PollQuestionType {
+  SINGLE_CHOICE
+  MULTI_CHOICE
+  SLIDER
+  SCALE
+  TEXT
+  NESTED
+  RANKING
+  UI_ARRANGE
+  IMAGE_UPLOAD
+  TREE
+}
+
+model PollQuestionOption {
+  id              String         @id @default(cuid())
+  questionId      String
+  text            String
+  order           Int            @default(0)
+  value           Int?
+  imageUrl        String?
+  
+  Question        PollQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  Answers         PollAnswer[]
+  
+  @@index([questionId])
+}
+
+model PollResponse {
+  id                String         @id @default(cuid())
+  advancedPollId    String
+  userId            String?
+  sessionId         String?
+  completionPct     Float          @default(0)
+  startedAt         DateTime       @default(now())
+  completedAt       DateTime?
+  ipHash            String?
+  userAgent         String?
+  responseQuality   Float          @default(1.0)
+  
+  AdvancedPoll      AdvancedPoll   @relation(fields: [advancedPollId], references: [id], onDelete: Cascade)
+  User              User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  Answers           PollAnswer[]
+  
+  @@unique([advancedPollId, userId])
+  @@index([advancedPollId])
+  @@index([userId])
+}
+
+model PollAnswer {
+  id              String              @id @default(cuid())
+  responseId      String
+  questionId      String
+  optionId        String?
+  sliderValue     Float?
+  scaleValue      Int?
+  textValue       String?
+  comment         String?
+  createdAt       DateTime            @default(now())
+  
+  Response        PollResponse        @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  Question        PollQuestion        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  Option          PollQuestionOption? @relation(fields: [optionId], references: [id], onDelete: SetNull)
+  Images          PollAnswerImage[]
+  
+  @@unique([responseId, questionId])
+  @@index([responseId])
+  @@index([questionId])
+}
+
+model PollAnswerImage {
+  id          String     @id @default(cuid())
+  answerId    String
+  url         String
+  caption     String?
+  order       Int        @default(0)
+  width       Int?
+  height      Int?
+  aspectRatio String?
+  createdAt   DateTime   @default(now())
+  
+  Answer      PollAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  
+  @@index([answerId])
+}
+
+model PollTemplate {
+  id              String         @id @default(cuid())
+  name            String
+  description     String?
+  structure       Json
+  category        String?
+  isPublic        Boolean        @default(false)
+  usageCount      Int            @default(0)
+  creatorId       String?
+  advancedPollId  String?
+  createdAt       DateTime       @default(now())
+  
+  Creator         User?          @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  AdvancedPoll    AdvancedPoll?  @relation(fields: [advancedPollId], references: [id], onDelete: SetNull)
+  
+  @@index([category])
+  @@index([isPublic])
 }
 
 enum UserRole {

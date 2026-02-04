@@ -54,3 +54,71 @@ This project is licensed under the [MIT License](LICENSE.md) - see the file for 
 ### Contact
 
 For more information, please contact [Project Contact Information].
+---
+
+## True Reach™ - The 7 Pillars Metric System
+
+VeggaStare's proprietary metric system for measuring authentic social impact and engagement quality.
+
+### Overview
+
+Unlike vanity metrics (follower counts, raw views), True Reach measures **actual value creation** through a 7-pillar framework inspired by:
+
+- **OSI Model's 7 Layers** - Conceptual layering from physical to application
+- **Brian Solis' 6 Pillars of Social Commerce** - Psychological engagement drivers
+- **Forbes' 6 Essential Pillars for Social Media Strategy** - Battle-tested agency tactics
+
+### The 7 Pillars
+
+| # | Pillar | Weight | Description |
+|---|--------|--------|-------------|
+| 1 | **Visibility** | 18% | Unique exposures deduped across sessions |
+| 2 | **Engagement Depth** | 25% | Quality interactions (saves, comments, dwell time) |
+| 3 | **Conversion Impact** | 18% | Marketplace actions driven (clicks, purchases) |
+| 4 | **Loyalty** | 14% | Repeat engagers who interact consistently |
+| 5 | **Growth** | 10% | Organic expansion from posts |
+| 6 | **Recall** | 5% | Predicted return rate and stickiness |
+| 7 | **Velocity** | 10% | Realtime engagement momentum |
+
+### User Verification Tiers
+
+Views and poll responses are weighted by user verification level:
+
+| Tier | Multiplier | Requirements |
+|------|------------|--------------|
+| Anonymous | 0.10x | Not logged in |
+| Web2 Basic | 0.40x | Email verified |
+| Social Verified | 0.70x | Google OAuth |
+| Multi-Social | 0.75x | 2+ OAuth providers |
+| Payment Verified | 0.95x | Web2 + Web3 payment |
+| Fully Verified | 1.20x | All verifications |
+
+### Anti-Gaming Mechanisms
+
+- **Dwell Time**: Minimum 500ms on-screen to count
+- **Deduplication**: Per-user, per-content, 24-hour window
+- **Burst Detection**: Flags sudden engagement spikes
+- **Diminishing Returns**: Repeat views count 0.05x-0.2x
+
+### Key Files
+
+- `lib/view-strength.ts` - View strength calculation
+- `lib/data/reach-audit-poll-questions.ts` - Community feedback poll
+- `docs/REACH_7_PILLARS_SPECIFICATION.md` - Full specification
+
+### Formula
+
+```typescript
+const trueReachScore = 
+  (visibility * 0.18) +
+  (engagementDepth * 0.25) +
+  (conversionImpact * 0.18) +
+  (loyalty * 0.14) +
+  (growth * 0.10) +
+  (recall * 0.05) +
+  (velocity * 0.10);
+```
+
+Each pillar is normalized to 0-100, resulting in a final score of 0-100.
+
+---
