@@ -132,10 +132,24 @@ const FeedPage: React.FC = () => {
   // Modal state - read from URL for shareable links
   const [selectedPulseId, setSelectedPulseId] = useState<string | null>(null);
 
-  // Sync modal state with URL
+  // Sync filter and modal state with URL for shareable links
   useEffect(() => {
     const pulseParam = searchParams.get('pulse');
     setSelectedPulseId(pulseParam);
+    
+    // Check for filter param (?filter=polls makes link shareable)
+    const filterParam = searchParams.get('filter') as FilterType | null;
+    if (filterParam && ['all', 'polls', 'trending'].includes(filterParam)) {
+      setFilter(filterParam);
+    }
+    
+    // Check for poll param (?poll=ID opens poll taker modal)
+    const pollParam = searchParams.get('poll');
+    if (pollParam) {
+      setSelectedAdvancedPollId(pollParam);
+      // Also set filter to polls for context
+      setFilter('polls');
+    }
   }, [searchParams]);
 
   // Open pulse modal
@@ -153,6 +167,19 @@ const FeedPage: React.FC = () => {
     // Remove pulse param from URL
     const url = new URL(window.location.href);
     url.searchParams.delete('pulse');
+    window.history.pushState({}, '', url.toString());
+  };
+
+  // Change filter with URL update for shareable links
+  const changeFilter = (newFilter: FilterType) => {
+    setFilter(newFilter);
+    // Update URL for shareable links (e.g. /feed?filter=polls)
+    const url = new URL(window.location.href);
+    if (newFilter === 'all') {
+      url.searchParams.delete('filter');
+    } else {
+      url.searchParams.set('filter', newFilter);
+    }
     window.history.pushState({}, '', url.toString());
   };
 
@@ -405,7 +432,7 @@ const FeedPage: React.FC = () => {
             <Button
               variant={filter === 'all' ? 'secondary' : 'ghost'}
               size="sm"
-              onClick={() => setFilter('all')}
+              onClick={() => changeFilter('all')}
               className="h-8"
             >
               All
@@ -413,7 +440,7 @@ const FeedPage: React.FC = () => {
             <Button
               variant={filter === 'polls' ? 'secondary' : 'ghost'}
               size="sm"
-              onClick={() => setFilter('polls')}
+              onClick={() => changeFilter('polls')}
               className="h-8"
             >
               <FiBarChart2 className="h-4 w-4 mr-1" /> Polls
@@ -421,7 +448,7 @@ const FeedPage: React.FC = () => {
             <Button
               variant={filter === 'trending' ? 'secondary' : 'ghost'}
               size="sm"
-              onClick={() => setFilter('trending')}
+              onClick={() => changeFilter('trending')}
               className="h-8"
             >
               <FiTrendingUp className="h-4 w-4 mr-1" /> Trending
@@ -501,35 +528,121 @@ const FeedPage: React.FC = () => {
               {filter === 'polls' ? (
                 // Poll-focused compose
                 <div className="p-4 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20">
-                      <Target className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Create a Poll</h3>
-                      <p className="text-sm text-muted-foreground">Pulse a survey, quiz, or feedback form to everyone</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setIncludePoll(true)}
-                      className="h-auto py-4 flex flex-col gap-2"
-                    >
-                      <FiBarChart2 className="h-6 w-6" />
-                      <span className="font-medium">Quick Poll</span>
-                      <span className="text-xs text-muted-foreground">Simple yes/no or options</span>
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      onClick={() => setShowPollBuilder(true)}
-                      className="h-auto py-4 flex flex-col gap-2 border-amber-500/30 hover:border-amber-500/50 hover:bg-amber-500/5"
-                    >
-                      <Zap className="h-6 w-6 text-amber-500" />
-                      <span className="font-medium">Advanced Poll</span>
-                      <span className="text-xs text-muted-foreground">Surveys, quizzes, assessments</span>
-                    </Button>
-                  </div>
+                  {!includePoll ? (
+                    // Show poll type selection
+                    <>
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20">
+                          <Target className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">Create a Poll</h3>
+                          <p className="text-sm text-muted-foreground">Pulse a survey, quiz, or feedback form to everyone</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setIncludePoll(true)}
+                          className="h-auto py-4 flex flex-col gap-2"
+                        >
+                          <FiBarChart2 className="h-6 w-6" />
+                          <span className="font-medium">Quick Poll</span>
+                          <span className="text-xs text-muted-foreground">Simple yes/no or options</span>
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={() => setShowPollBuilder(true)}
+                          className="h-auto py-4 flex flex-col gap-2 border-amber-500/30 hover:border-amber-500/50 hover:bg-amber-500/5"
+                        >
+                          <Zap className="h-6 w-6 text-amber-500" />
+                          <span className="font-medium">Advanced Poll</span>
+                          <span className="text-xs text-muted-foreground">Surveys, quizzes, assessments</span>
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    // Show inline quick poll composer
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-blue-500/20">
+                            <FiBarChart2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <h3 className="font-semibold">Quick Poll</h3>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => setIncludePoll(false)}>
+                          <FiX className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex gap-3">
+                          <Avatar className="h-10 w-10 shrink-0">
+                            <AvatarImage src={currentUser.image || undefined} />
+                            <AvatarFallback>{currentUser.name?.[0] || '?'}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 space-y-2">
+                            <Textarea
+                              value={composeText}
+                              onChange={(e) => setComposeText(e.target.value)}
+                              placeholder="Add a message with your poll (optional)..."
+                              className="min-h-[50px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0 text-base"
+                              rows={1}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
+                          <Input
+                            value={pollQuestion}
+                            onChange={(e) => setPollQuestion(e.target.value)}
+                            placeholder="Ask a question..."
+                            className="font-medium"
+                          />
+                          {pollOptions.map((opt, i) => (
+                            <div key={i} className="flex gap-2">
+                              <Input
+                                value={opt}
+                                onChange={(e) => updatePollOption(i, e.target.value)}
+                                placeholder={`Option ${i + 1}`}
+                                className="flex-1"
+                              />
+                              {pollOptions.length > 2 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removePollOption(i)}
+                                  className="shrink-0"
+                                >
+                                  <FiX className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          {pollOptions.length < 6 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={addPollOption}
+                              className="text-muted-foreground"
+                            >
+                              <FiPlus className="h-4 w-4 mr-1" /> Add option
+                            </Button>
+                          )}
+                        </div>
+                        <div className="flex justify-end">
+                          <Button
+                            onClick={handlePost}
+                            disabled={isSubmitting || !pollQuestion.trim()}
+                            className="rounded-full px-4"
+                          >
+                            {isSubmitting ? <Spinner /> : <><PulsePositive className="h-4 w-4 mr-1" /> Pulse Poll</>}
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 // Regular compose
@@ -776,10 +889,16 @@ const FeedPage: React.FC = () => {
                   <Rocket className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
                   <h3 className="font-semibold text-lg mb-2">No polls yet</h3>
                   <p className="text-muted-foreground mb-4">Be the first to create a poll and pulse it to everyone!</p>
-                  <Button onClick={() => setShowPollBuilder(true)} className="gap-2">
-                    <Zap className="h-4 w-4" />
-                    Create Your First Poll
-                  </Button>
+                  <div className="flex gap-2 justify-center">
+                    <Button variant="outline" onClick={() => setIncludePoll(true)} className="gap-2">
+                      <FiBarChart2 className="h-4 w-4" />
+                      Quick Poll
+                    </Button>
+                    <Button onClick={() => setShowPollBuilder(true)} className="gap-2">
+                      <Zap className="h-4 w-4" />
+                      Advanced Poll
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 advancedPolls.map((poll) => (
@@ -787,6 +906,17 @@ const FeedPage: React.FC = () => {
                     key={poll.id}
                     poll={poll}
                     onClick={() => setSelectedAdvancedPollId(poll.id)}
+                    isAdmin={currentUser?.role === 'ADMIN'}
+                    isOwner={currentUser?.id === poll.creator.id}
+                    onDelete={async () => {
+                      const res = await fetch(`/api/advanced-polls/${poll.id}`, { method: 'DELETE' });
+                      if (!res.ok) throw new Error('Failed to delete');
+                      setAdvancedPolls(prev => prev.filter(p => p.id !== poll.id));
+                    }}
+                    onEdit={() => {
+                      // TODO: Open edit modal with poll data
+                      console.log('Edit poll:', poll.id);
+                    }}
                   />
                 ))
               )

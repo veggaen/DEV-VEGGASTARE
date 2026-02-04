@@ -65,20 +65,39 @@ VeggaStare's proprietary metric system for measuring authentic social impact and
 Unlike vanity metrics (follower counts, raw views), True Reach measures **actual value creation** through a 7-pillar framework inspired by:
 
 - **OSI Model's 7 Layers** - Conceptual layering from physical to application
-- **Brian Solis' 6 Pillars of Social Commerce** - Psychological engagement drivers
+- **Brian Solis' 6 Pillars of Social Commerce** - Psychological engagement drivers (Social Proof, Authority, Scarcity, Liking, Consistency, Reciprocity)
 - **Forbes' 6 Essential Pillars for Social Media Strategy** - Battle-tested agency tactics
+- **6 Pillars of Killer Content** - Relevance, Truth, Passion, Humanity, Surprise, Originality
 
-### The 7 Pillars
+### The 7 Pillars (Stacked Multiplier Model)
 
-| # | Pillar | Weight | Description |
-|---|--------|--------|-------------|
-| 1 | **Visibility** | 18% | Unique exposures deduped across sessions |
-| 2 | **Engagement Depth** | 25% | Quality interactions (saves, comments, dwell time) |
-| 3 | **Conversion Impact** | 18% | Marketplace actions driven (clicks, purchases) |
-| 4 | **Loyalty** | 14% | Repeat engagers who interact consistently |
-| 5 | **Growth** | 10% | Organic expansion from posts |
-| 6 | **Recall** | 5% | Predicted return rate and stickiness |
-| 7 | **Velocity** | 10% | Realtime engagement momentum |
+Each layer compounds upon the one below it. This creates **exponential reach potential** when all layers are optimized.
+
+| Layer | Pillar | Weight | Multiplier Effect | Description |
+|-------|--------|--------|-------------------|-------------|
+| 1 | **Foundation & Discovery** | 18% | Baseline | SEO, platform-native discoverability, SSR-optimized pages |
+| 2 | **Killer Content** | 25% | 2–5× engagement | Relevance, authenticity, surprise factor, creator stories |
+| 3 | **Psychological Drivers** | 18% | Trust + urgency | Solis 6 pillars: Social Proof, Scarcity, Authority, Liking |
+| 4 | **Community & Belonging** | 14% | Retention + spread | Real relationships, wallet-gated channels, fan groups |
+| 5 | **Amplification Tactics** | 10% | 5–20× impressions | Paid boosts, influencers, referral rewards, viral contests |
+| 6 | **Analytics & Iteration** | 5% | Efficiency compound | Real-time data → fast pivots, Prisma + charts + SWR |
+| 7 | **Realtime Pulse & Network Effects** | 10% | 10–100×+ exponential | Live drops, viral loops, Web3 flywheel, scheduled "Pulses" |
+
+### The 7th Pillar: Realtime Pulse & Network Effects 🚀
+
+**Definition:** A timed, high-intensity, multi-platform content/product release event ("Pulse") that is live, social, and incentivized, engineered to trigger network effects and self-sustaining virality.
+
+**Key Mechanics:**
+- **Pulse Scheduler** → Creators schedule drops with countdown timers
+- **Universal Video Player** → YouTube, Twitch, Vimeo, HLS streams
+- **Live Realtime Layer** → Live sales counter, buyer avatars, live chat, "Someone just bought X" notifications
+- **Web3 Flywheel** → Auto-referral links, commission/NFT badges for sharing within first 30-60 min
+- **Cross-platform Blast** → Auto-posts teaser + countdown to X, Instagram, TikTok, Telegram, Discord
+
+**Realistic Outcomes (based on Friend.tech, Pump.fun, Gumroad live drops):**
+- One well-executed Pulse → 30–150× normal daily reach in 2–4 hours
+- Creates "I was there" FOMO → massive social proof
+- Referral loop often turns 1 buyer into 4–12 new users
 
 ### User Verification Tiers
 
@@ -87,28 +106,49 @@ Views and poll responses are weighted by user verification level:
 | Tier | Multiplier | Requirements |
 |------|------------|--------------|
 | Anonymous | 0.10x | Not logged in |
-| Web2 Basic | 0.40x | Email verified |
+| Wallet Only | 0.30x | Web3 wallet connected, no verification |
+| Web2 Basic | 0.40x | Email verified, no payment |
+| Web3 Basic | 0.45x | Wallet + signed message |
+| Social Basic | 0.50x | Discord/GitHub OAuth |
 | Social Verified | 0.70x | Google OAuth |
-| Multi-Social | 0.75x | 2+ OAuth providers |
-| Payment Verified | 0.95x | Web2 + Web3 payment |
-| Fully Verified | 1.20x | All verifications |
+| Multi-Social | 0.75x | 2+ OAuth providers (cross-verified) |
+| Web2 Payment | 0.85x | Verified payment card |
+| Web3 Verified | 0.90x | Google + verified wallet |
+| Web3 Payment | 0.92x | Crypto purchase completed |
+| Payment Verified | 0.95x | Web2 AND Web3 payment verified |
+| Phone Verified | 1.00x | Phone number verified |
+| Fully Verified | 1.20x | All verifications complete |
+
+### Brian Solis' 6 Pillars Integration
+
+| Pillar | Definition | VeggaStare Implementation |
+|--------|------------|---------------------------|
+| **Social Proof** | Behaviors guided by popularity cues | Top-seller rankings, user reviews, share counts, live buyer notifications |
+| **Authority** | Trust in expert recommendations | Verified seller badges, creator verification, expert endorsements |
+| **Scarcity** | Limited availability increases value | Limited editions, flash sales, countdown timers, "Only X left" |
+| **Liking** | Preference for relatable entities | Peer recommendations, community features, relatable creator profiles |
+| **Consistency** | Alignment with past behaviors | Repeat engagement rewards, familiar UI patterns, loyalty points |
+| **Reciprocity** | Urge to repay favors | Free samples, referral rewards, community giveaways |
 
 ### Anti-Gaming Mechanisms
 
-- **Dwell Time**: Minimum 500ms on-screen to count
+- **Dwell Time**: Minimum 500ms on-screen to count as view
 - **Deduplication**: Per-user, per-content, 24-hour window
-- **Burst Detection**: Flags sudden engagement spikes
+- **Burst Detection**: Flags sudden unnatural engagement spikes
 - **Diminishing Returns**: Repeat views count 0.05x-0.2x
+- **IP Fingerprinting**: Validates unique viewers
+- **Verification Weighting**: Anonymous views worth 10% of fully verified
 
 ### Key Files
 
-- `lib/view-strength.ts` - View strength calculation
-- `lib/data/reach-audit-poll-questions.ts` - Community feedback poll
-- `docs/REACH_7_PILLARS_SPECIFICATION.md` - Full specification
+- `lib/view-strength.ts` - View strength calculation with verification tiers
+- `lib/data/reach-audit-poll-questions.ts` - Community feedback poll questions
+- `docs/REACH_7_PILLARS_SPECIFICATION.md` - Full technical specification
 
 ### Formula
 
 ```typescript
+// Each pillar normalized to 0-100, then weighted
 const trueReachScore = 
   (visibility * 0.18) +
   (engagementDepth * 0.25) +
@@ -117,8 +157,9 @@ const trueReachScore =
   (growth * 0.10) +
   (recall * 0.05) +
   (velocity * 0.10);
-```
 
-Each pillar is normalized to 0-100, resulting in a final score of 0-100.
+// Then multiplied by verification tier for poll/view weighting
+const weightedScore = trueReachScore * VERIFICATION_TIER_MULTIPLIERS[user.verificationTier];
+```
 
 ---

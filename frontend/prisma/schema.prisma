@@ -1343,16 +1343,27 @@ model PollQuestionOption {
 }
 
 model PollResponse {
-  id                String         @id @default(cuid())
+  id                String               @id @default(cuid())
   advancedPollId    String
   userId            String?
   sessionId         String?
-  completionPct     Float          @default(0)
-  startedAt         DateTime       @default(now())
+  completionPct     Float                @default(0)
+  startedAt         DateTime             @default(now())
   completedAt       DateTime?
   ipHash            String?
   userAgent         String?
-  responseQuality   Float          @default(1.0)
+  responseQuality   Float                @default(1.0)
+  
+  // ─── Verification-Weighted Voting ───────────────────────────────────────────
+  // User's auth level at time of response (determines vote power)
+  verificationTier  UserVerificationTier @default(ANONYMOUS)
+  // Multiplier based on tier: ANONYMOUS=0.1, FULLY_VERIFIED=1.2
+  tierMultiplier    Float                @default(0.1)
+  // Partial completion penalty: completionPct < 100% reduces weight
+  completionMultiplier Float             @default(1.0)
+  // Final weighted value = tierMultiplier * completionMultiplier * responseQuality
+  weightedValue     Float                @default(0.1)
+  // ────────────────────────────────────────────────────────────────────────────
   
   AdvancedPoll      AdvancedPoll   @relation(fields: [advancedPollId], references: [id], onDelete: Cascade)
   User              User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1361,6 +1372,7 @@ model PollResponse {
   @@unique([advancedPollId, userId])
   @@index([advancedPollId])
   @@index([userId])
+  @@index([verificationTier])
 }
 
 model PollAnswer {

@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { useRef, useState, useTransition, useEffect, useCallback, DragEvent, ClipboardEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
+import { useSearchParams } from "next/navigation";
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MyAuthSettingsSchema } from '@/schemas';
@@ -50,6 +51,7 @@ ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, 
 export default function SettingsPage() {
   const reduceMotion = useReducedMotion();
   const user = useCurrentUser();
+  const searchParams = useSearchParams();
   const { prefs, setPrefs, resetPrefs } = useUiPreferences();
   const formRef = useRef<HTMLFormElement>(null);
   const { update } = useSession();
@@ -60,6 +62,14 @@ export default function SettingsPage() {
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
   const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'notifications' | 'privacy' | 'appearance'>('profile');
+  
+  // Read section from URL params (e.g. /settings?section=notifications)
+  useEffect(() => {
+    const sectionParam = searchParams.get('section');
+    if (sectionParam && ['profile', 'account', 'security', 'notifications', 'privacy', 'appearance'].includes(sectionParam)) {
+      setActiveSection(sectionParam as typeof activeSection);
+    }
+  }, [searchParams]);
   
   // Profile editing state - ORIGINAL values from server
   const [originalData, setOriginalData] = useState<{

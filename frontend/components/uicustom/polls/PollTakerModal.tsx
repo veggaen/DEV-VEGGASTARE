@@ -22,6 +22,10 @@ import {
 } from "@/components/ui/tooltip";
 import { SliderQuestion } from "@/components/uicustom/polls/SliderQuestion";
 import { ChoiceQuestion } from "@/components/uicustom/polls/ChoiceQuestion";
+import { ShapeMatchQuestion, SHAPE_MATCH_PRESETS } from "@/components/uicustom/polls/ShapeMatchQuestion";
+import { RankingQuestion } from "@/components/uicustom/polls/RankingQuestion";
+import { UIArrangeQuestion, UI_ARRANGE_PRESETS } from "@/components/uicustom/polls/UIArrangeQuestion";
+import { NestedQuestionComponent, NESTED_QUESTION_PRESETS } from "@/components/uicustom/polls/NestedQuestionComponent";
 import {
   X,
   ChevronLeft,
@@ -37,6 +41,10 @@ import {
   Layers,
   TrendingUp,
   Crown,
+  Shapes,
+  GripVertical,
+  GitBranch,
+  LayoutGrid,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -505,6 +513,67 @@ function QuestionCard({
             onChange={(v) => handleValueChange(v as string | string[])}
             multiSelect={question.type === "MULTI_CHOICE"}
             variant="card"
+          />
+        )}
+
+        {question.type === "SHAPE_MATCH" && (
+          <ShapeMatchQuestion
+            questionId={question.id}
+            questionText=""
+            config={SHAPE_MATCH_PRESETS.antiBot}
+            onChange={(placements) => {
+              // Count correct placements
+              const correctCount = Object.values(placements).filter(Boolean).length;
+              handleValueChange(correctCount);
+            }}
+            onComplete={(isCorrect) => {
+              handleValueChange(isCorrect ? 100 : 0);
+            }}
+          />
+        )}
+
+        {question.type === "RANKING" && (
+          <RankingQuestion
+            questionId={question.id}
+            questionText=""
+            options={question.options.map((opt) => ({
+              id: opt.id,
+              label: opt.text,
+            }))}
+            value={answer?.value as string[] | undefined}
+            onChange={(v) => handleValueChange(v)}
+            showMedals={true}
+            showRankNumbers={true}
+          />
+        )}
+
+        {question.type === "UI_ARRANGE" && (
+          <UIArrangeQuestion
+            questionId={question.id}
+            questionText=""
+            gridSize={{ cols: 6, rows: 4 }}
+            boxes={[...UI_ARRANGE_PRESETS.dashboardLayout.boxes]}
+            dropZones={[...UI_ARRANGE_PRESETS.dashboardLayout.dropZones]}
+            onChange={(result) => {
+              handleValueChange(result.accuracy ?? 100);
+            }}
+          />
+        )}
+
+        {question.type === "NESTED" && (
+          <NestedQuestionComponent
+            question={{
+              id: question.id,
+              text: question.text,
+              type: "choice",
+              options: question.options.map((opt) => ({
+                id: opt.id,
+                text: opt.text,
+              })),
+            }}
+            onChange={(result) => {
+              handleValueChange(result.allAnswered ? 100 : 0);
+            }}
           />
         )}
 

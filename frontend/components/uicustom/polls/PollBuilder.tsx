@@ -20,6 +20,10 @@ import {
   Type,
   Image as ImageIcon,
   Hash,
+  Upload,
+  Shapes,
+  GitBranch,
+  LayoutGrid,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,9 +51,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { PollImportModal, ImportedPoll } from "@/components/uicustom/polls/PollImportModal";
 
 // Types
-type QuestionType = "SINGLE_CHOICE" | "MULTI_CHOICE" | "SLIDER" | "SCALE" | "TEXT";
+type QuestionType = "SINGLE_CHOICE" | "MULTI_CHOICE" | "SLIDER" | "SCALE" | "TEXT" | "RANKING" | "SHAPE_MATCH" | "UI_ARRANGE" | "NESTED";
 type PollType = "SIMPLE" | "SURVEY" | "QUIZ" | "FEEDBACK" | "REACH_ASSESSMENT";
 
 interface SliderConfig {
@@ -113,6 +118,10 @@ const QUESTION_TYPE_ICONS = {
   SLIDER: Sliders,
   SCALE: Hash,
   TEXT: Type,
+  RANKING: GripVertical,
+  SHAPE_MATCH: Shapes,
+  UI_ARRANGE: LayoutGrid,
+  NESTED: GitBranch,
 };
 
 // Generate unique IDs
@@ -141,6 +150,7 @@ export function PollBuilder({
   const [isImporting, setIsImporting] = useState(false);
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Add a new question
   const addQuestion = useCallback((type: QuestionType = "SINGLE_CHOICE") => {
@@ -177,6 +187,49 @@ export function PollBuilder({
         .map((q, i) => ({ ...q, order: i + 1 })),
     }));
   }, []);
+
+  // Handle import from PollImportModal
+  const handleImportFromModal = useCallback((imported: ImportedPoll) => {
+    // Map imported question types to our types
+    const typeMap: Record<string, QuestionType> = {
+      "choice": "SINGLE_CHOICE",
+      "multi-choice": "MULTI_CHOICE",
+      "text": "TEXT",
+      "slider": "SLIDER",
+      "scale": "SCALE",
+      "ranking": "RANKING",
+    };
+
+    const newQuestions: PollQuestion[] = imported.questions.map((q, i) => ({
+      id: q.id || generateId(),
+      order: data.questions.length + i + 1,
+      type: typeMap[q.type] || "TEXT",
+      questionText: q.text,
+      description: q.description,
+      required: q.required ?? true,
+      allowImages: false,
+      options: q.options?.map((opt) => ({
+        id: opt.id || generateId(),
+        text: opt.text,
+      })) || [],
+      sliderConfig: q.sliderConfig ? {
+        minValue: q.sliderConfig.min,
+        maxValue: q.sliderConfig.max,
+        step: q.sliderConfig.step,
+        minLabel: "",
+        maxLabel: "",
+        stepLabels: [],
+      } : undefined,
+    }));
+
+    setData((prev) => ({
+      ...prev,
+      title: prev.title || imported.title,
+      description: prev.description || imported.description || "",
+      type: imported.type as PollType,
+      questions: [...prev.questions, ...newQuestions],
+    }));
+  }, [data.questions.length]);
 
   // Update a question
   const updateQuestion = useCallback(
@@ -394,12 +447,14 @@ export function PollBuilder({
             Settings
           </Button>
 
-          {onPreview && (
-            <Button variant="outline" size="sm" onClick={() => onPreview(data)}>
-              <Eye className="w-4 h-4 mr-2" />
-              Preview
-            </Button>
-          )}
+          <Button 
+            variant={showPreview ? "secondary" : "outline"} 
+            size="sm" 
+            onClick={() => setShowPreview(!showPreview)}
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            {showPreview ? "Hide Preview" : "Preview"}
+          </Button>
 
           <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? (
@@ -491,6 +546,112 @@ export function PollBuilder({
                     }
                   />
                   <Label htmlFor="random">Randomize questions</Label>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Live Preview Panel */}
+      <AnimatePresence>
+        {showPreview && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="p-4 rounded-lg border bg-gradient-to-br from-violet-500/5 to-indigo-500/5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  Live Preview
+                </h3>
+                <span className="text-xs text-muted-foreground">
+                  This is how your poll will appear in the feed
+                </span>
+              </div>
+              
+              {/* Poll Card Preview */}
+              <div className="rounded-xl border bg-card shadow-sm overflow-hidden max-w-md mx-auto">
+                <div className="p-4 space-y-3">
+                  {/* Header */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+                        V
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">VeggaStare</p>
+                        <p className="text-xs text-muted-foreground">Just now</p>
+                      </div>
+                    </div>
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full text-xs font-medium",
+                      data.type === "SURVEY" && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+                      data.type === "QUIZ" && "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+                      data.type === "FEEDBACK" && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+                      data.type === "REACH_ASSESSMENT" && "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
+                      data.type === "SIMPLE" && "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300"
+                    )}>
+                      {data.type === "REACH_ASSESSMENT" ? "REACH" : data.type}
+                    </span>
+                  </div>
+
+                  {/* Title & Description */}
+                  <div>
+                    <h3 className="font-semibold text-base">
+                      {data.title || "Untitled Poll"}
+                    </h3>
+                    {data.description && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                        {data.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Questions Preview */}
+                  <div className="space-y-2 py-2">
+                    {data.questions.slice(0, 3).map((q, idx) => (
+                      <div 
+                        key={q.id} 
+                        className="flex items-center gap-2 text-sm text-muted-foreground"
+                      >
+                        <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-xs">
+                          {idx + 1}
+                        </span>
+                        <span className="truncate">
+                          {q.questionText || `Question ${idx + 1}`}
+                        </span>
+                        {q.type === "SLIDER" && <Sliders className="w-3 h-3 shrink-0" />}
+                        {(q.type === "SINGLE_CHOICE" || q.type === "MULTI_CHOICE") && <List className="w-3 h-3 shrink-0" />}
+                        {q.type === "TEXT" && <Type className="w-3 h-3 shrink-0" />}
+                        {q.type === "SCALE" && <Hash className="w-3 h-3 shrink-0" />}
+                      </div>
+                    ))}
+                    {data.questions.length > 3 && (
+                      <p className="text-xs text-muted-foreground pl-7">
+                        +{data.questions.length - 3} more questions
+                      </p>
+                    )}
+                    {data.questions.length === 0 && (
+                      <p className="text-sm text-muted-foreground italic text-center py-4">
+                        Add questions to see the preview
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Stats Bar */}
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span>{data.questions.length} questions</span>
+                      <span>~{Math.max(1, data.questions.length * 30)} sec</span>
+                    </div>
+                    <Button size="sm" className="h-8 bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white">
+                      Take Poll
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -847,7 +1008,34 @@ export function PollBuilder({
             <Type className="w-4 h-4 mr-2" />
             Add Text
           </Button>
+          <Button variant="outline" onClick={() => addQuestion("RANKING")}>
+            <GripVertical className="w-4 h-4 mr-2" />
+            Add Ranking
+          </Button>
+          <Button variant="outline" onClick={() => addQuestion("SHAPE_MATCH")}>
+            <Shapes className="w-4 h-4 mr-2" />
+            Add Shape Match
+          </Button>
+          <Button variant="outline" onClick={() => addQuestion("UI_ARRANGE")}>
+            <LayoutGrid className="w-4 h-4 mr-2" />
+            Add UI Arrange
+          </Button>
+          <Button variant="outline" onClick={() => addQuestion("NESTED")}>
+            <GitBranch className="w-4 h-4 mr-2" />
+            Add Nested
+          </Button>
+          <Button variant="secondary" onClick={() => setShowImportModal(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Import Questions
+          </Button>
         </div>
+
+        {/* Import Modal */}
+        <PollImportModal
+          open={showImportModal}
+          onOpenChange={setShowImportModal}
+          onImport={handleImportFromModal}
+        />
       </div>
     </div>
   );

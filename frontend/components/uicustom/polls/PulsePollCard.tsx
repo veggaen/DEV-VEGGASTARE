@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   BarChart3,
   Clock,
   Users,
@@ -16,9 +23,16 @@ import {
   Target,
   Sparkles,
   PlayCircle,
+  MoreHorizontal,
+  Edit2,
+  Trash2,
+  Share2,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
+import { toast } from "sonner";
 
 export interface PulsePollData {
   id: string;
@@ -46,6 +60,11 @@ export interface PulsePollData {
 interface PulsePollCardProps {
   poll: PulsePollData;
   onClick: () => void;
+  isAdmin?: boolean;
+  isOwner?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onShare?: () => void;
 }
 
 const TYPE_CONFIG = {
@@ -81,10 +100,13 @@ const TYPE_CONFIG = {
   },
 };
 
-export function PulsePollCard({ poll, onClick }: PulsePollCardProps) {
+export function PulsePollCard({ poll, onClick, isAdmin, isOwner, onEdit, onDelete, onShare }: PulsePollCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const config = TYPE_CONFIG[poll.type];
   const Icon = config.icon;
+
+  const canManage = isAdmin || isOwner;
 
   const timeAgo = poll.publishedAt
     ? formatDistanceToNowStrict(new Date(poll.publishedAt), { addSuffix: true })
@@ -93,6 +115,26 @@ export function PulsePollCard({ poll, onClick }: PulsePollCardProps) {
   const hasStarted = poll.userResponse && poll.userResponse.completionPct > 0;
   const isCompleted = poll.userResponse?.completedAt != null;
   const progressPct = poll.userResponse?.completionPct || 0;
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/feed?poll=${poll.id}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied to clipboard!");
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    if (!confirm("Are you sure you want to delete this poll? This cannot be undone.")) return;
+    setIsDeleting(true);
+    try {
+      await onDelete();
+      toast.success("Poll deleted");
+    } catch (err) {
+      toast.error("Failed to delete poll");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const estimatedTime = poll.estimatedMinutes || Math.ceil(poll.questionCount * 0.5);
 
@@ -128,10 +170,56 @@ export function PulsePollCard({ poll, onClick }: PulsePollCardProps) {
             </div>
           </div>
 
-          <Badge variant="outline" className={cn("shrink-0 gap-1", config.color)}>
-            <Icon className="h-3 w-3" />
-            {config.label}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className={cn("shrink-0 gap-1", config.color)}>
+              <Icon className="h-3 w-3" />
+              {config.label}
+            </Badge>
+
+            {/* Admin/Owner Menu */}
+            {canManage && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuItem onClick={handleCopyLink}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Link
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => window.open(`/feed?poll=${poll.id}`, '_blank')}>
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open in New Tab
+                  </DropdownMenuItem>
+                  {onShare && (
+                    <DropdownMenuItem onClick={onShare}>
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Share Poll
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  {onEdit && (
+                    <DropdownMenuItem onClick={onEdit}>
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Edit Poll
+                    </DropdownMenuItem>
+                  )}
+                  {onDelete && (
+                    <DropdownMenuItem 
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {isDeleting ? "Deleting..." : "Delete Poll"}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
 
         {/* Title & Description */}
