@@ -149,7 +149,7 @@ export function DiscoverPeople() {
     <div className="rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-zinc-200/80 dark:hover:bg-card/30">
       <div className="font-semibold flex items-center gap-2 mb-3">
         <FiUsers className="h-4 w-4" />
-        Discover People
+        Find Your Rhythm
       </div>
 
       {/* Search Input */}
@@ -171,7 +171,7 @@ export function DiscoverPeople() {
           </div>
         ) : displayUsers.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-2">
-            {searchQuery.length >= 2 ? 'No users found' : 'No suggestions yet'}
+            {searchQuery.length >= 2 ? 'No rhythms found' : 'No vibes to sync yet'}
           </p>
         ) : (
           displayUsers.map((user) => {
@@ -215,12 +215,12 @@ export function DiscoverPeople() {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {/* Show reach/views instead of just followers - "reach over followers" philosophy */}
                     {user.totalViews !== undefined && user.totalViews > 0 ? (
-                      <span className="flex items-center gap-1" title="Total post views">
+                      <span className="flex items-center gap-1" title="Total pulse reach">
                         <FiTrendingUp className="h-3 w-3" />
                         {user.totalViews.toLocaleString()} reach
                       </span>
                     ) : user.followerCount !== undefined ? (
-                      <span>{user.followerCount} followers</span>
+                      <span>{user.followerCount} synced</span>
                     ) : null}
                   </div>
                 </div>
@@ -234,6 +234,7 @@ export function DiscoverPeople() {
                       e.stopPropagation();
                       handleFollow(user.id, !!isFollowing);
                     }}
+                    title={isFollowing ? 'Unsync' : 'Sync with this user'}
                   >
                     {isFollowing ? (
                       <FiUserCheck className="h-4 w-4" />
@@ -256,7 +257,7 @@ export function DiscoverPeople() {
           className="w-full mt-2 text-xs text-muted-foreground"
           onClick={() => router.push('/users')}
         >
-          View all users
+          Find more rhythms
         </Button>
       )}
     </div>

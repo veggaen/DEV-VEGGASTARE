@@ -24,8 +24,8 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const callbackUrl = searchParams.get('callbackUrl');
-  const urlError = searchParams.get('error') === 'OAuthAccountNotLinked' 
-    ? 'This email is registered with a different sign-in method. Please use email/password to log in, then link your Google account in Settings.' 
+  const urlError = searchParams.get('error') === 'OAuthAccountNotLinked'
+    ? 'This email is registered with a different sign-in method. Please use email/password to log in, then link your Google account in Settings.'
     : '';
 
   const [showTwoFactor, setShowTwoFactor] = useState(false);
@@ -45,7 +45,7 @@ export default function LoginPage() {
     console.log(`${LOG_PREFIX} onSubmit`, values);
     setError('');
     setSuccess('');
-    
+
     startTransition(() => {
       MyLoginAction(values)
         .then((data) => {
@@ -99,13 +99,13 @@ export default function LoginPage() {
             transition={{ delay: 0.2, duration: 0.5 }}
           >
             <h1 className="text-4xl xl:text-5xl font-bold text-white mb-6 leading-tight">
-              Welcome back to<br />
+              Welcome back —<br />
               <span className="text-zinc-300">
-                the Vibe
+                the Vibe&apos;s still beating
               </span>
             </h1>
             <p className="text-zinc-400 text-lg mb-12 max-w-md">
-              Connect with your community, share your pulse, and discover what&apos;s trending.
+              Sync with your community. Pulse your thoughts. Feel the ripple.
             </p>
           </motion.div>
 
@@ -117,9 +117,9 @@ export default function LoginPage() {
             transition={{ delay: 0.4, duration: 0.5 }}
           >
             {[
-              { icon: FiZap, text: 'Share your pulse with the world' },
-              { icon: FiUsers, text: 'Build your vibe community' },
-              { icon: FiShield, text: 'Your data, your control' },
+              { icon: FiZap, text: 'Pulse out — let the world feel the beat' },
+              { icon: FiUsers, text: 'Heartbeat what moves you. Vibe it wider.' },
+              { icon: FiShield, text: 'Your rhythm. Your data. Your control.' },
             ].map((feature, idx) => (
               <div key={idx} className="flex items-center gap-3 text-white">
                 <div className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center">
@@ -133,7 +133,7 @@ export default function LoginPage() {
       </motion.div>
 
       {/* Right side - Login Form */}
-      <motion.div 
+      <motion.div
         initial={reduceMotion ? undefined : { opacity: 0, x: 20 }}
         animate={reduceMotion ? undefined : { opacity: 1, x: 0 }}
         transition={{ duration: 0.5 }}
@@ -143,9 +143,9 @@ export default function LoginPage() {
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
-              Welcome Back
+              The Vibe&apos;s Still Beating
             </h1>
-            <p className="text-zinc-500 dark:text-zinc-400 mt-2">Sign in to continue to the vibe</p>
+            <p className="text-zinc-500 dark:text-zinc-400 mt-2">Sign in and sync back into the rhythm</p>
           </div>
 
           {/* Form Header */}

@@ -917,6 +917,169 @@ model UserPrivacySettings {
   User                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// ============================================
+// NOTIFICATION SYSTEM
+// ============================================
+
+model Notification {
+  id             String              @id @default(cuid())
+  userId         String              // Recipient
+  type           NotificationType
+  title          String
+  message        String
+  emoji          String?
+  preview        String?             // Short preview text
+  imageUrl       String?             // Optional image thumbnail
+  
+  // Related entities
+  actorId        String?             // User who triggered the notification
+  conversationId String?             // Related pulse/conversation
+  messageId      String?             // Related message
+  
+  // State
+  isRead         Boolean             @default(false)
+  isArchived     Boolean             @default(false)
+  readAt         DateTime?
+  
+  // Grouping (for condensed notifications)
+  groupKey       String?             // e.g., "heartbeat:conversationId" for grouping
+  groupCount     Int                 @default(1)
+  
+  // Metadata
+  metadata       Json?               // Extra data like { bpm: 100 } for hot pulse
+  
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  expiresAt      DateTime?           // Optional expiry for ephemeral notifications
+  
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([userId, type])
+  @@index([groupKey])
+}
+
+model NotificationSettings {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  
+  // Global settings
+  pushEnabled             Boolean  @default(true)
+  emailEnabled            Boolean  @default(false)
+  soundEnabled            Boolean  @default(true)
+  vibrateEnabled          Boolean  @default(true)
+  
+  // Quiet hours
+  quietHoursEnabled       Boolean  @default(false)
+  quietHoursStart         String?  // e.g., "22:00"
+  quietHoursEnd           String?  // e.g., "08:00"
+  quietHoursTimezone      String?  @default("UTC")
+  
+  // Category toggles (engagement)
+  heartbeatEnabled        Boolean  @default(true)
+  vibeEnabled             Boolean  @default(true)
+  repulseEnabled          Boolean  @default(true)
+  
+  // Category toggles (social)
+  syncEnabled             Boolean  @default(true)
+  mentionEnabled          Boolean  @default(true)
+  replyEnabled            Boolean  @default(true)
+  
+  // Category toggles (messages)
+  dmEnabled               Boolean  @default(true)
+  groupMessageEnabled     Boolean  @default(true)
+  typingIndicatorEnabled  Boolean  @default(true)
+  
+  // Category toggles (trends)
+  hotPulseEnabled         Boolean  @default(true)
+  milestoneEnabled        Boolean  @default(true)
+  
+  // Category toggles (prompts)
+  vibeCheckEnabled        Boolean  @default(false)
+  dailyDigestEnabled      Boolean  @default(false)
+  
+  // Condensing settings
+  condenseNotifications   Boolean  @default(true)
+  condenseThreshold       Int      @default(3) // Group after X similar notifications
+  
+  // Premium features
+  customSoundUrl          String?
+  
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+model NotificationMute {
+  id           String         @id @default(cuid())
+  userId       String         // User who muted
+  
+  // What's being muted (one of these will be set)
+  mutedUserId  String?        // Mute notifications from specific user
+  conversationId String?      // Mute specific conversation/pulse
+  companyId    String?        // Mute company-related notifications
+  
+  // Mute settings
+  muteType     MuteType       @default(ALL)
+  reason       String?
+  
+  // Duration
+  mutedAt      DateTime       @default(now())
+  expiresAt    DateTime?      // null = permanent, otherwise temporary
+  
+  @@unique([userId, mutedUserId])
+  @@unique([userId, conversationId])
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model UserPresence {
+  id            String         @id @default(cuid())
+  userId        String         @unique
+  status        PresenceStatus @default(OFFLINE)
+  customStatus  String?        // e.g., "Out rippling IRL"
+  lastSeen      DateTime       @default(now())
+  lastActiveAt  DateTime       @default(now())
+  
+  // Current activity
+  currentActivity String?      // e.g., "Browsing Pulses", "In conversation"
+  
+  @@index([status])
+  @@index([lastSeen])
+}
+
+enum NotificationType {
+  HEARTBEAT
+  VIBE
+  REPULSE
+  REPLY
+  SYNC
+  DM
+  GROUP_MESSAGE
+  MENTION
+  HOT_PULSE
+  MILESTONE
+  VIBE_CHECK
+  SYSTEM
+}
+
+enum MuteType {
+  ALL                // Mute all notifications
+  MESSAGES_ONLY      // Only mute message notifications
+  ENGAGEMENT_ONLY    // Only mute heartbeats/vibes/repulses
+  MENTIONS_ONLY      // Only mute mentions
+}
+
+enum PresenceStatus {
+  ONLINE      // Pulsing - actively online
+  IDLE        // Fading - away/idle
+  DND         // Quiet Mode - do not disturb
+  OFFLINE     // Offline
+  LIVE        // Live Pulsing - streaming
+  SYNCING     // Syncing - browsing quietly
+}
+
 enum ViewType {
   FIRST_VIEW
   REPEAT_VIEW

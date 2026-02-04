@@ -27,6 +27,8 @@ import { UserRole } from '@prisma/client';
 import { useUiPreferences } from '@/components/providers/ui-preferences';
 import { useEdgeStore } from '@/lib/edgestore';
 import { FancyBackground } from '@/components/uicustom/fancy-background';
+import { NotificationSettings as NotificationSettingsComponent } from '@/components/uicustom/notifications/notification-settings';
+import type { NotificationSettings as NotificationSettingsType, NotificationMute } from '@/components/uicustom/notifications/types';
 import { 
   FiUser, FiLock, FiMail, FiBell, FiShield, FiSave, 
   FiEdit2, FiX, FiCheck, FiImage, FiChevronRight, FiCamera, FiUpload,
@@ -1010,29 +1012,7 @@ export default function SettingsPage() {
               )}
 
               {activeSection === 'notifications' && (
-                <div className="space-y-6">
-                  <div className="border-b border-border dark:border-white/10 pb-4">
-                    <h2 className="text-xl font-semibold text-foreground dark:text-white">Notifications</h2>
-                    <p className="text-sm text-muted-foreground dark:text-white/50">Choose what you want to be notified about</p>
-                  </div>
-
-                  <div className="space-y-4">
-                    {[
-                      { id: 'messages', label: 'Direct Messages', description: 'Get notified when you receive a new message' },
-                      { id: 'mentions', label: 'Mentions', description: 'Get notified when someone mentions you' },
-                      { id: 'jobs', label: 'Job Updates', description: 'Updates on your job requests and applications' },
-                      { id: 'marketing', label: 'Marketing', description: 'News, updates and promotional content' },
-                    ].map((item) => (
-                      <div key={item.id} className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
-                        <div>
-                          <div className="font-medium text-foreground dark:text-white/90">{item.label}</div>
-                          <div className="text-sm text-muted-foreground dark:text-white/40">{item.description}</div>
-                        </div>
-                        <Switch defaultChecked={item.id !== 'marketing'} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <NotificationSettingsSection />
               )}
 
               {activeSection === 'privacy' && (
@@ -1467,5 +1447,123 @@ function Web3ModeToggle() {
       onCheckedChange={handleToggle}
       aria-label="Toggle Web3 mode"
     />
+  );
+}
+
+// Notification Settings Section Component
+function NotificationSettingsSection() {
+  const [settings, setSettings] = useState<NotificationSettingsType>({
+    id: "",
+    userId: "",
+    heartbeatEnabled: true,
+    vibeEnabled: true,
+    repulseEnabled: true,
+    replyEnabled: true,
+    syncEnabled: true,
+    dmEnabled: true,
+    groupMessageEnabled: true,
+    mentionEnabled: true,
+    hotPulseEnabled: true,
+    milestoneEnabled: true,
+    vibeCheckEnabled: false,
+    pushEnabled: true,
+    emailDigestEnabled: false,
+    inAppEnabled: true,
+    condenseNotifications: true,
+    condenseThreshold: 5,
+    showPreviews: true,
+    showTypingIndicators: true,
+    quietHoursEnabled: false,
+    quietHoursStart: "22:00",
+    quietHoursEnd: "08:00",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  const [mutes, setMutes] = useState<NotificationMute[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch notification settings on mount
+  useEffect(() => {
+    fetch('/api/notifications/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data && !data.error) {
+          setSettings(prev => ({ ...prev, ...data }));
+        }
+      })
+      .catch(err => console.error('Failed to fetch notification settings:', err))
+      .finally(() => setIsLoading(false));
+    
+    // Fetch mutes
+    fetch('/api/notifications/mutes')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setMutes(data);
+        }
+      })
+      .catch(err => console.error('Failed to fetch mutes:', err));
+  }, []);
+
+  const handleSettingsChange = async (changes: Partial<NotificationSettingsType>) => {
+    // Optimistic update
+    setSettings(prev => ({ ...prev, ...changes }));
+    
+    try {
+      const res = await fetch('/api/notifications/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(changes),
+      });
+      
+      if (!res.ok) {
+        toast.error('Failed to update notification settings');
+      } else {
+        toast.success('Notification settings updated');
+      }
+    } catch (err) {
+      toast.error('Failed to update notification settings');
+    }
+  };
+
+  const handleRemoveMute = async (muteId: string) => {
+    // Optimistic update
+    setMutes(prev => prev.filter(m => m.id !== muteId));
+    
+    try {
+      const res = await fetch(`/api/notifications/mutes/${muteId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!res.ok) {
+        toast.error('Failed to remove mute');
+        // Refetch mutes on error
+        const data = await fetch('/api/notifications/mutes').then(r => r.json());
+        if (Array.isArray(data)) setMutes(data);
+      } else {
+        toast.success('Mute removed');
+      }
+    } catch (err) {
+      toast.error('Failed to remove mute');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="border-b border-border dark:border-white/10 pb-4">
+        <h2 className="text-xl font-semibold text-foreground dark:text-white">Notifications</h2>
+        <p className="text-sm text-muted-foreground dark:text-white/50">
+          Customize your pulse, heartbeat, and vibe notifications
+        </p>
+      </div>
+
+      <NotificationSettingsComponent
+        settings={settings}
+        mutes={mutes}
+        onSettingsChange={handleSettingsChange}
+        onRemoveMute={handleRemoveMute}
+        isLoading={isLoading}
+      />
+    </div>
   );
 }

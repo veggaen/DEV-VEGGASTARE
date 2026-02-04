@@ -34,9 +34,9 @@ export default function InfoPage() {
                 Building a marketplace that feels alive.
               </h1>
               <p className="max-w-3xl text-pretty text-sm text-muted-foreground sm:text-base">
-                VeggaStare is my playground for fast UI motion, realtime signals, and practical marketplace workflows. I’m
-                iterating in public: shipping small, learning quickly, and steadily turning the rough edges into a system that
-                feels effortless.
+                VeggaStare is my playground for fast UI motion, realtime signals, and practical marketplace workflows. Pulse your
+                thoughts, sync with your community, and watch the ripple effect. I'm iterating in public: shipping small, learning
+                quickly, and turning rough edges into a system that feels effortless.
               </p>
             </header>
 
@@ -211,11 +211,11 @@ export default function InfoPage() {
                 <ul className="mt-3 grid grid-cols-1 gap-x-10 gap-y-2 text-sm text-muted-foreground sm:grid-cols-2">
                   {[
                     "Production hardening: stability, performance, and fewer sharp edges.",
-                    "Pulse: a high-signal realtime stream with good filtering.",
-                    "Cleaner onboarding and role/permission flows for teams.",
+                    "Pulse: a high-signal realtime stream where your rhythm ripples out.",
+                    "Sync & discover: find your vibe, align with communities that resonate.",
                     "Warehouse tooling: inventory ops, config, and an admin experience that stays fast.",
                     "Design system polish: spacing, motion, and touch-friendly patterns.",
-                    "More user control: what gets emphasized, what stays quiet.",
+                    "More user control: heartbeat what moves you, vibe it wider.",
                   ].map((item) => (
                     <li key={item} className="flex gap-2">
                       <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 flex-none rounded-full bg-foreground/25" />

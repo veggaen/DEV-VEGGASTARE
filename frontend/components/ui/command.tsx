@@ -26,7 +26,7 @@ Command.displayName = CommandPrimitive.displayName
 const CommandDialog = ({ children, ...props }: DialogProps) => {
   return (
     <Dialog {...props}>
-      <DialogContent className="overflow-hidden p-0 shadow-lg">
+      <DialogContent className="overflow-hidden p-0 shadow-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 sm:max-w-[600px] md:max-w-[650px] lg:max-w-[700px]" hideCloseButton>
         <DialogTitle className="sr-only">Command palette</DialogTitle>
         <DialogDescription className="sr-only">
           Search and run actions.
@@ -43,7 +43,7 @@ const CommandInput = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Input>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
 >(({ className, ...props }, ref) => (
-  <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+  <div className="flex items-center border-b border-zinc-200 dark:border-zinc-800 px-3" cmdk-input-wrapper="">
     <CiSearch className="mr-2 h-4 w-4 shrink-0 opacity-50" />
     <CommandPrimitive.Input
       ref={ref}

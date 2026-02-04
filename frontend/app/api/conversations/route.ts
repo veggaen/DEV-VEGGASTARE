@@ -474,7 +474,7 @@ export async function GET(req: Request) {
       include: {
         Message: {
           take: 1,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: 'asc' },  // Get FIRST message (original pulse), not last (comment)
         },
         Conversation: {
           select: {
@@ -486,7 +486,7 @@ export async function GET(req: Request) {
             },
             Message: {
               take: 1,
-              orderBy: { createdAt: 'desc' },
+              orderBy: { createdAt: 'asc' },  // Get FIRST message (original pulse), not last (comment)
             },
           },
         },
@@ -548,48 +548,48 @@ export async function GET(req: Request) {
 
       const lastMessage = conversation.Message?.[0]
         ? {
-            id: conversation.Message[0].id,
-            content: conversation.Message[0].content,
-            createdAt: toIsoString(conversation.Message[0].createdAt),
-            imageUrl: conversation.Message[0].imageUrl ?? null,
-            senderId: conversation.Message[0].senderId ?? null,
-          }
+          id: conversation.Message[0].id,
+          content: conversation.Message[0].content,
+          createdAt: toIsoString(conversation.Message[0].createdAt),
+          imageUrl: conversation.Message[0].imageUrl ?? null,
+          senderId: conversation.Message[0].senderId ?? null,
+        }
         : null;
 
       const repostOfLastMessage = conversation.Conversation?.Message?.[0]
         ? {
-            content: conversation.Conversation.Message[0].content,
-            createdAt: toIsoString(conversation.Conversation.Message[0].createdAt),
-          }
+          content: conversation.Conversation.Message[0].content,
+          createdAt: toIsoString(conversation.Conversation.Message[0].createdAt),
+        }
         : null;
 
       const repostOfConversation = conversation.Conversation
         ? {
-            id: conversation.Conversation.id,
-            title: conversation.Conversation.title,
-            createdAt: toIsoString(conversation.Conversation.createdAt),
-            User: {
-              id: conversation.Conversation.User.id,
-              name: conversation.Conversation.User.name,
-              email: conversation.Conversation.User.email ?? null,
-              image: conversation.Conversation.User.image ?? null,
-            },
-            user: {
-              id: conversation.Conversation.User.id,
-              name: conversation.Conversation.User.name,
-              email: conversation.Conversation.User.email ?? null,
-              image: conversation.Conversation.User.image ?? null,
-            },
-            lastMessage: conversation.Conversation.Message?.[0]
-              ? {
-                  id: conversation.Conversation.Message[0].id,
-                  content: conversation.Conversation.Message[0].content,
-                  createdAt: toIsoString(conversation.Conversation.Message[0].createdAt),
-                  imageUrl: conversation.Conversation.Message[0].imageUrl ?? null,
-                  senderId: conversation.Conversation.Message[0].senderId ?? null,
-                }
-              : null,
-          }
+          id: conversation.Conversation.id,
+          title: conversation.Conversation.title,
+          createdAt: toIsoString(conversation.Conversation.createdAt),
+          User: {
+            id: conversation.Conversation.User.id,
+            name: conversation.Conversation.User.name,
+            email: conversation.Conversation.User.email ?? null,
+            image: conversation.Conversation.User.image ?? null,
+          },
+          user: {
+            id: conversation.Conversation.User.id,
+            name: conversation.Conversation.User.name,
+            email: conversation.Conversation.User.email ?? null,
+            image: conversation.Conversation.User.image ?? null,
+          },
+          lastMessage: conversation.Conversation.Message?.[0]
+            ? {
+              id: conversation.Conversation.Message[0].id,
+              content: conversation.Conversation.Message[0].content,
+              createdAt: toIsoString(conversation.Conversation.Message[0].createdAt),
+              imageUrl: conversation.Conversation.Message[0].imageUrl ?? null,
+              senderId: conversation.Conversation.Message[0].senderId ?? null,
+            }
+            : null,
+        }
         : null;
 
       const dto = {

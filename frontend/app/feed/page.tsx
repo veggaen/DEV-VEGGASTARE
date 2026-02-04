@@ -404,7 +404,7 @@ const FeedPage: React.FC = () => {
                       ref={textareaRef}
                       value={composeText}
                       onChange={(e) => setComposeText(e.target.value)}
-                      placeholder="What's happening?"
+                      placeholder="Pulse your thoughts..."
                       className="min-h-[60px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0 text-base"
                       rows={2}
                     />
@@ -597,7 +597,7 @@ const FeedPage: React.FC = () => {
               </div>
             ) : items.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                <p>No posts yet. Be the first to share something!</p>
+                <p>No pulses yet. Be the first to start the vibe!</p>
               </div>
             ) : (
               items.map((item) => (
@@ -1287,7 +1287,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               <Textarea
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
-                placeholder="What's on your mind?"
+                placeholder="Pulse your thoughts..."
                 className="min-h-[120px]"
               />
             </div>

@@ -301,49 +301,50 @@ export const MyCompanyCreateForm = () => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="w-full max-w-[640px] flex flex-col justify-start items-center border-y sm:border bg-zinc-200 border-gray-300 dark:bg-gray-700 dark:border-gray-600 sm:rounded">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="w-full max-w-[640px] flex flex-col justify-start items-center border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm">
         <div className="w-full flex flex-col justify-start items-center">
-          <div>
-            <h1 className='font-bold py-4 px-6'>Create a Company</h1>
+          <div className="w-full border-b border-zinc-100 dark:border-zinc-800 p-6">
+            <h1 className='text-lg font-semibold text-zinc-900 dark:text-zinc-100'>Company Details</h1>
+            <p className='text-sm text-zinc-500 dark:text-zinc-400 mt-1'>Basic information about your company</p>
           </div>
           <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem className='w-full px-4 py-2'>
-              <FormLabel>Company Name</FormLabel>
-              <FormDescription className='px-4 py-0'>
+            <FormItem className='w-full px-6 py-4 border-b border-zinc-50 dark:border-zinc-800/50'>
+              <FormLabel className="text-zinc-900 dark:text-zinc-100">Company Name</FormLabel>
+              <FormDescription className='text-xs text-zinc-500 dark:text-zinc-400'>
                 Enter a name to use for this company.
               </FormDescription>
               <FormControl>
-                <Input {...field} placeholder="Enter company name" disabled={!user || isSubmitting} type="text" spellCheck='false' className='' />
+                <Input {...field} placeholder="Enter company name" disabled={!user || isSubmitting} type="text" spellCheck='false' className='bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700' />
               </FormControl>
               <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name="description" render={({ field }) => (
-            <FormItem className='w-full px-4 py-2'>
-              <FormLabel>Company Description</FormLabel>
-              <FormDescription className='px-4 py-0'>
+            <FormItem className='w-full px-6 py-4 border-b border-zinc-50 dark:border-zinc-800/50'>
+              <FormLabel className="text-zinc-900 dark:text-zinc-100">Company Description</FormLabel>
+              <FormDescription className='text-xs text-zinc-500 dark:text-zinc-400'>
                 Enter a description for the company.
               </FormDescription>
               <FormControl>
-                <Input {...field} placeholder="Enter company description" disabled={!user || isSubmitting} type="text" spellCheck='false' className='' />
+                <Input {...field} placeholder="Enter company description" disabled={!user || isSubmitting} type="text" spellCheck='false' className='bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700' />
               </FormControl>
               <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name='websiteUrl' render={({ field }) => (
-            <FormItem className='w-full px-4 py-2'>
-              <FormLabel>Company Website</FormLabel>
-              <FormDescription className='px-4 py-0'>
+            <FormItem className='w-full px-6 py-4 border-b border-zinc-50 dark:border-zinc-800/50'>
+              <FormLabel className="text-zinc-900 dark:text-zinc-100">Company Website</FormLabel>
+              <FormDescription className='text-xs text-zinc-500 dark:text-zinc-400'>
                 Add existing website url to your company.
               </FormDescription>
               <FormControl>
-                <Input {...field} placeholder="Enter company website url" disabled={!user || isSubmitting} type="text" spellCheck='false' className='' />
+                <Input {...field} placeholder="https://example.com" disabled={!user || isSubmitting} type="text" spellCheck='false' className='bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700' />
               </FormControl>
               <FormMessage />
             </FormItem>
           )} />
 
-          <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 px-4 py-2">
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 px-6 py-4 border-b border-zinc-50 dark:border-zinc-800/50">
             <FormField
               control={form.control}
               name="orgType"
@@ -359,7 +360,7 @@ export const MyCompanyCreateForm = () => {
                     disabled={!user || isSubmitting}
                   >
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700">
                         <SelectValue placeholder="Not specified" />
                       </SelectTrigger>
                     </FormControl>
@@ -385,8 +386,8 @@ export const MyCompanyCreateForm = () => {
               name="orgNumber"
               render={({ field }) => (
                 <FormItem className='w-full'>
-                  <FormLabel>Organization Number (optional)</FormLabel>
-                  <FormDescription className='px-4 py-0'>
+                  <FormLabel className="text-zinc-900 dark:text-zinc-100">Organization Number (optional)</FormLabel>
+                  <FormDescription className='text-xs text-zinc-500 dark:text-zinc-400'>
                     9 digits.
                   </FormDescription>
                   <FormControl>
@@ -397,6 +398,7 @@ export const MyCompanyCreateForm = () => {
                       inputMode="numeric"
                       pattern="\d*"
                       maxLength={9}
+                      className='bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700'
                     />
                   </FormControl>
                   <FormMessage />
@@ -409,10 +411,10 @@ export const MyCompanyCreateForm = () => {
             control={form.control}
             name="employmentNoticeDays"
             render={({ field }) => (
-              <FormItem className='w-full px-4 py-2'>
-                <FormLabel>Default Notice Days (optional)</FormLabel>
-                <FormDescription className='px-4 py-0'>
-                  Default: 14
+              <FormItem className='w-full px-6 py-4 border-b border-zinc-50 dark:border-zinc-800/50'>
+                <FormLabel className="text-zinc-900 dark:text-zinc-100">Default Notice Days (optional)</FormLabel>
+                <FormDescription className='text-xs text-zinc-500 dark:text-zinc-400'>
+                  Default: 14 days
                 </FormDescription>
                 <FormControl>
                   <Input
@@ -422,6 +424,7 @@ export const MyCompanyCreateForm = () => {
                     max={365}
                     disabled={!user || isSubmitting}
                     onChange={(e) => field.onChange(Number(e.target.value))}
+                    className='bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700'
                   />
                 </FormControl>
                 <FormMessage />
@@ -675,10 +678,12 @@ export const MyCompanyCreateForm = () => {
             )}
           </div>
         </div>
-        <div className='w-full px-4 py-2'>
+        <div className='w-full px-6 py-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 rounded-b-2xl'>
           <MyFormError message={error} />
           <MyFormSuccess message={success} />
-          <Button type="submit" disabled={!user || isSubmitting} className="w-full" variant="vegaEmeraldBtn">Create Company</Button>
+          <Button type="submit" disabled={!user || isSubmitting} className="w-full h-12 text-base font-medium" variant="vegaEmeraldBtn">
+            {isSubmitting ? 'Creating...' : 'Create Company'}
+          </Button>
         </div>
       </form>
     </Form>

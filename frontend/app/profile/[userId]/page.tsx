@@ -15,7 +15,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { useEdgeStore } from '@/lib/edgestore';
 import { useBannerColors, generateColorStyles } from '@/lib/color-extraction';
 import { useProfileThemeFromBanner } from '@/components/providers/profile-theme-provider';
-import { 
+import {
   FiUser, FiSettings, FiMessageCircle, FiCalendar, FiMapPin,
   FiLink, FiEdit2, FiGrid, FiActivity, FiUsers, FiCamera, FiUpload, FiX, FiTrendingUp
 } from 'react-icons/fi';
@@ -170,26 +170,30 @@ export default function ProfilePage() {
   const currentUser = useCurrentUser();
   const { edgestore } = useEdgeStore();
   const userId = params.userId as string;
-  
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<FeedItem[]>([]);
   const [activityPosts, setActivityPosts] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'posts' | 'activity' | 'reach' | 'connections'>('posts');
-  
+
   // Extract colors from banner for dynamic theming
   const { colors: bannerColors } = useBannerColors(profile?.banner);
   const themeStyles = generateColorStyles(bannerColors);
-  
+
   // Apply global page-level theme tinting from banner
   useProfileThemeFromBanner(profile?.banner);
-  
+
   // Upload states
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Preview states for save/confirm workflow
+  const [bannerPreview, setBannerPreview] = useState<{ file: File; url: string } | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<{ file: File; url: string } | null>(null);
 
   // Follow states
   const [isFollowing, setIsFollowing] = useState(false);
@@ -199,8 +203,8 @@ export default function ProfilePage() {
 
   const isOwnProfile = currentUser?.id === userId;
 
-  // Handle banner upload
-  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle banner file selection - show preview, don't upload yet
+  const handleBannerSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -217,11 +221,21 @@ export default function ProfilePage() {
       return;
     }
 
+    // Create preview URL
+    const url = URL.createObjectURL(file);
+    setBannerPreview({ file, url });
+    if (bannerInputRef.current) bannerInputRef.current.value = '';
+  };
+
+  // Confirm and upload banner
+  const confirmBannerUpload = async () => {
+    if (!bannerPreview) return;
+
     setIsUploadingBanner(true);
     try {
       // Upload to EdgeStore
-      const res = await edgestore.myPublicImages.upload({ file });
-      
+      const res = await edgestore.myPublicImages.upload({ file: bannerPreview.file });
+
       // Update user profile with new banner URL
       const updateRes = await fetch(`/api/users/${userId}`, {
         method: 'PATCH',
@@ -234,17 +248,28 @@ export default function ProfilePage() {
       // Update local state
       setProfile(prev => prev ? { ...prev, banner: res.url } : null);
       toast.success('Banner updated successfully!');
+
+      // Cleanup preview
+      URL.revokeObjectURL(bannerPreview.url);
+      setBannerPreview(null);
     } catch (err) {
       console.error('Error uploading banner:', err);
       toast.error('Failed to upload banner');
     } finally {
       setIsUploadingBanner(false);
-      if (bannerInputRef.current) bannerInputRef.current.value = '';
     }
   };
 
-  // Handle avatar upload
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Cancel banner preview
+  const cancelBannerPreview = () => {
+    if (bannerPreview) {
+      URL.revokeObjectURL(bannerPreview.url);
+      setBannerPreview(null);
+    }
+  };
+
+  // Handle avatar file selection - show preview, don't upload yet
+  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -259,10 +284,20 @@ export default function ProfilePage() {
       return;
     }
 
+    // Create preview URL
+    const url = URL.createObjectURL(file);
+    setAvatarPreview({ file, url });
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
+  };
+
+  // Confirm and upload avatar
+  const confirmAvatarUpload = async () => {
+    if (!avatarPreview) return;
+
     setIsUploadingAvatar(true);
     try {
-      const res = await edgestore.myPublicImages.upload({ file });
-      
+      const res = await edgestore.myPublicImages.upload({ file: avatarPreview.file });
+
       const updateRes = await fetch(`/api/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -273,12 +308,49 @@ export default function ProfilePage() {
 
       setProfile(prev => prev ? { ...prev, image: res.url } : null);
       toast.success('Profile picture updated successfully!');
+
+      // Cleanup preview
+      URL.revokeObjectURL(avatarPreview.url);
+      setAvatarPreview(null);
     } catch (err) {
       console.error('Error uploading avatar:', err);
       toast.error('Failed to upload profile picture');
     } finally {
       setIsUploadingAvatar(false);
-      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
+
+  // Cancel avatar preview
+  const cancelAvatarPreview = () => {
+    if (avatarPreview) {
+      URL.revokeObjectURL(avatarPreview.url);
+      setAvatarPreview(null);
+    }
+  };
+
+  // Handle paste for avatar (Ctrl+V)
+  const handleAvatarPaste = (e: React.ClipboardEvent) => {
+    if (!isOwnProfile) return;
+    const file = e.clipboardData?.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      // Create a fake event to reuse handleAvatarSelect logic
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      const fakeEvent = { target: { files: dataTransfer.files } } as React.ChangeEvent<HTMLInputElement>;
+      handleAvatarSelect(fakeEvent);
+    }
+  };
+
+  // Handle drag and drop for avatar
+  const handleAvatarDrop = (e: React.DragEvent) => {
+    if (!isOwnProfile) return;
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      const fakeEvent = { target: { files: dataTransfer.files } } as React.ChangeEvent<HTMLInputElement>;
+      handleAvatarSelect(fakeEvent);
     }
   };
 
@@ -335,7 +407,7 @@ export default function ProfilePage() {
           setFollowerCount(followData.followerCount);
           setFollowingCount(followData.followingCount);
         }
-        
+
         // Fetch user's created posts (only posts they authored)
         const postsRes = await fetch(`/api/conversations?filter=created&creatorId=${userId}&sort=recent`);
         const postsData = await postsRes.json();
@@ -380,7 +452,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div 
+    <div
       className="relative w-full"
       style={{
         ...themeStyles,
@@ -388,7 +460,7 @@ export default function ProfilePage() {
     >
       {/* Subtle gradient glow from banner colors - more subtle */}
       {bannerColors && (
-        <div 
+        <div
           className="absolute inset-x-0 top-0 h-[600px] pointer-events-none opacity-20"
           style={{
             background: `radial-gradient(ellipse 100% 100% at 50% 0%, ${bannerColors.primary}25, transparent 70%)`,
@@ -401,19 +473,42 @@ export default function ProfilePage() {
         type="file"
         accept="image/jpeg,image/png,image/gif,image/webp"
         className="hidden"
-        onChange={handleBannerUpload}
+        onChange={handleBannerSelect}
       />
       <input
         ref={avatarInputRef}
         type="file"
         accept="image/jpeg,image/png,image/gif,image/webp"
         className="hidden"
-        onChange={handleAvatarUpload}
+        onChange={handleAvatarSelect}
       />
 
       {/* Banner */}
-      <div className="relative h-44 sm:h-56 lg:h-72 w-full overflow-hidden">
-        {profile.banner ? (
+      <div 
+        className="relative h-44 sm:h-56 lg:h-72 w-full overflow-hidden"
+        onDragOver={(e) => { if (isOwnProfile) e.preventDefault(); }}
+        onDrop={(e) => {
+          if (!isOwnProfile) return;
+          e.preventDefault();
+          const file = e.dataTransfer?.files?.[0];
+          if (file && file.type.startsWith('image/')) {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            const fakeEvent = { target: { files: dataTransfer.files } } as React.ChangeEvent<HTMLInputElement>;
+            handleBannerSelect(fakeEvent);
+          }
+        }}
+      >
+        {/* Show preview if available, otherwise show current banner */}
+        {bannerPreview ? (
+          <Image
+            src={bannerPreview.url}
+            alt="Banner preview"
+            fill
+            className="object-cover"
+            priority
+          />
+        ) : profile.banner ? (
           <Image
             src={profile.banner}
             alt="Profile banner"
@@ -422,10 +517,10 @@ export default function ProfilePage() {
             priority
           />
         ) : (
-          <div 
-            className="absolute inset-0" 
+          <div
+            className="absolute inset-0"
             style={{
-              background: bannerColors 
+              background: bannerColors
                 ? `linear-gradient(135deg, ${bannerColors.primary}90, ${bannerColors.secondary}90, ${bannerColors.accent}90)`
                 : 'linear-gradient(135deg, #18181b, #27272a, #3f3f46)'
             }}
@@ -433,28 +528,56 @@ export default function ProfilePage() {
         )}
         {/* Cleaner gradient overlay - fades to page background */}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
-        
-        {/* Edit banner button (own profile only) */}
+
+        {/* Banner edit/confirm buttons (own profile only) */}
         {isOwnProfile && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => bannerInputRef.current?.click()}
-            disabled={isUploadingBanner}
-            className="absolute bottom-4 right-4 border-white/20 bg-black/40 text-white/90 hover:bg-black/60 hover:text-white backdrop-blur-md rounded-lg transition-all"
-          >
-            {isUploadingBanner ? (
+          <div className="absolute bottom-4 right-4 flex items-center gap-2">
+            {bannerPreview ? (
               <>
-                <Spinner className="h-4 w-4 mr-2" />
-                Uploading...
+                {/* Cancel preview */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={cancelBannerPreview}
+                  className="border-white/20 bg-black/40 text-white/90 hover:bg-red-600/80 hover:text-white backdrop-blur-md rounded-lg transition-all"
+                >
+                  <FiX className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                {/* Confirm/Save */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={confirmBannerUpload}
+                  disabled={isUploadingBanner}
+                  className="border-emerald-400/30 bg-emerald-600/80 text-white hover:bg-emerald-500 backdrop-blur-md rounded-lg transition-all"
+                >
+                  {isUploadingBanner ? (
+                    <>
+                      <Spinner className="h-4 w-4 mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <FiUpload className="h-4 w-4 mr-2" />
+                      Save Banner
+                    </>
+                  )}
+                </Button>
               </>
             ) : (
-              <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => bannerInputRef.current?.click()}
+                disabled={isUploadingBanner}
+                className="border-white/20 bg-black/40 text-white/90 hover:bg-black/60 hover:text-white backdrop-blur-md rounded-lg transition-all"
+              >
                 <FiCamera className="h-4 w-4 mr-2" />
                 Edit Banner
-              </>
+              </Button>
             )}
-          </Button>
+          </div>
         )}
       </div>
 
@@ -462,13 +585,21 @@ export default function ProfilePage() {
       <div className="relative mx-auto w-full max-w-4xl px-4 sm:px-6 pb-8">
         {/* Avatar and basic info */}
         <div className="relative -mt-16 sm:-mt-20 flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
-          <div className="relative">
+          {/* Avatar with paste/drag support */}
+          <div 
+            className="relative"
+            onPaste={handleAvatarPaste}
+            onDragOver={(e) => { if (isOwnProfile) e.preventDefault(); }}
+            onDrop={handleAvatarDrop}
+            tabIndex={isOwnProfile ? 0 : undefined}
+          >
             <Avatar className="h-28 w-28 sm:h-36 sm:w-36 ring-4 ring-background shadow-2xl">
-              <AvatarImage src={profile.image || undefined} className="object-cover" />
-              <AvatarFallback 
+              {/* Show preview if available, otherwise current image */}
+              <AvatarImage src={avatarPreview?.url || profile.image || undefined} className="object-cover" />
+              <AvatarFallback
                 className="text-3xl sm:text-4xl text-white font-medium"
                 style={{
-                  background: bannerColors 
+                  background: bannerColors
                     ? `linear-gradient(135deg, ${bannerColors.primary}, ${bannerColors.secondary})`
                     : 'linear-gradient(135deg, #3f3f46, #52525b)'
                 }}
@@ -476,10 +607,13 @@ export default function ProfilePage() {
                 {profile.name?.[0] || profile.email?.[0]?.toUpperCase() || profile.id?.[0]?.toUpperCase() || '?'}
               </AvatarFallback>
             </Avatar>
+            
+            {/* Camera button (always visible for own profile) */}
             {isOwnProfile && (
-              <button 
+              <button
                 onClick={() => avatarInputRef.current?.click()}
                 disabled={isUploadingAvatar}
+                title="Click to change avatar, or drag & drop / paste an image"
                 className="absolute bottom-1 right-1 h-9 w-9 rounded-full bg-background border-2 border-background shadow-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-50"
               >
                 {isUploadingAvatar ? (
@@ -487,6 +621,35 @@ export default function ProfilePage() {
                 ) : (
                   <FiCamera className="h-4 w-4" />
                 )}
+              </button>
+            )}
+
+            {/* Green checkmark confirm button (appears when preview is set) */}
+            {isOwnProfile && avatarPreview && (
+              <button
+                onClick={confirmAvatarUpload}
+                disabled={isUploadingAvatar}
+                title="Save new profile picture"
+                className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-8 w-8 rounded-full bg-emerald-500 border-2 border-background shadow-lg flex items-center justify-center text-white hover:bg-emerald-400 transition-all disabled:opacity-50 animate-in fade-in zoom-in duration-200"
+              >
+                {isUploadingAvatar ? (
+                  <Spinner className="h-4 w-4" />
+                ) : (
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            )}
+
+            {/* Cancel button (appears when preview is set) */}
+            {isOwnProfile && avatarPreview && (
+              <button
+                onClick={cancelAvatarPreview}
+                title="Cancel"
+                className="absolute -bottom-2 left-0 h-7 w-7 rounded-full bg-zinc-600 border-2 border-background shadow-lg flex items-center justify-center text-white hover:bg-red-500 transition-all animate-in fade-in zoom-in duration-200"
+              >
+                <FiX className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
@@ -505,8 +668,8 @@ export default function ProfilePage() {
               <div className="flex gap-2 shrink-0">
                 {isOwnProfile ? (
                   <Link href="/settings">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       className="rounded-lg border-border/50 bg-background/50 backdrop-blur-sm hover:bg-muted"
                     >
@@ -516,15 +679,14 @@ export default function ProfilePage() {
                   </Link>
                 ) : (
                   <>
-                    <Button 
+                    <Button
                       size="sm"
                       onClick={handleFollowToggle}
                       disabled={isFollowLoading}
-                      className={`rounded-lg transition-all ${
-                        isFollowing 
-                          ? "bg-muted hover:bg-destructive/80 text-foreground border border-border hover:text-white hover:border-destructive" 
+                      className={`rounded-lg transition-all ${isFollowing
+                          ? "bg-muted hover:bg-destructive/80 text-foreground border border-border hover:text-white hover:border-destructive"
                           : "hover:opacity-90 text-white shadow-lg"
-                      }`}
+                        }`}
                       style={!isFollowing && bannerColors ? {
                         backgroundColor: bannerColors.primary,
                         boxShadow: `0 4px 14px ${bannerColors.primary}40`,
@@ -539,7 +701,7 @@ export default function ProfilePage() {
                         </>
                       )}
                     </Button>
-                    <Button 
+                    <Button
                       variant="outline"
                       size="sm"
                       className="rounded-lg border-border/50 bg-background/50 backdrop-blur-sm hover:bg-muted"
@@ -587,45 +749,45 @@ export default function ProfilePage() {
           </div>
 
           {/* Stats Row - Cleaner horizontal layout */}
-          <div 
+          <div
             className="flex flex-wrap items-center gap-1 pt-3"
           >
             {/* Posts */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors cursor-default">
               <span className="text-base font-semibold text-foreground tabular-nums">{posts.length}</span>
-              <span className="text-sm text-muted-foreground">Posts</span>
+              <span className="text-sm text-muted-foreground">Pulses</span>
             </div>
-            
+
             <span className="text-muted-foreground/30">·</span>
-            
-            {/* Followers */}
-            <button 
+
+            {/* Synced (Followers) */}
+            <button
               onClick={() => setActiveTab('connections')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors"
             >
               <span className="text-base font-semibold text-foreground tabular-nums">{followerCount}</span>
-              <span className="text-sm text-muted-foreground">Followers</span>
+              <span className="text-sm text-muted-foreground">Synced</span>
             </button>
-            
+
             <span className="text-muted-foreground/30">·</span>
-            
-            {/* Following */}
-            <button 
+
+            {/* Syncs (Following) */}
+            <button
               onClick={() => setActiveTab('connections')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors"
             >
               <span className="text-base font-semibold text-foreground tabular-nums">{followingCount}</span>
-              <span className="text-sm text-muted-foreground">Following</span>
+              <span className="text-sm text-muted-foreground">Syncs</span>
             </button>
-            
+
             {/* Reach Badge - Prominent when available */}
             {profile.reach && profile.reach.totalViews > 0 && (
               <>
                 <span className="text-muted-foreground/30">·</span>
-                <button 
+                <button
                   onClick={() => setActiveTab('reach')}
                   className="group relative flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all"
-                  style={{ 
+                  style={{
                     backgroundColor: `${bannerColors?.primaryContrast || '#10b981'}10`,
                   }}
                   onMouseEnter={(e) => {
@@ -635,35 +797,35 @@ export default function ProfilePage() {
                     e.currentTarget.style.backgroundColor = `${bannerColors?.primaryContrast || '#10b981'}10`;
                   }}
                 >
-                  <span 
+                  <span
                     className="text-base font-semibold tabular-nums"
                     style={{ color: bannerColors?.primaryContrast || '#10b981' }}
                   >
-                    {profile.reach.totalViews >= 1000 
-                      ? `${(profile.reach.totalViews / 1000).toFixed(1)}k` 
+                    {profile.reach.totalViews >= 1000
+                      ? `${(profile.reach.totalViews / 1000).toFixed(1)}k`
                       : profile.reach.totalViews}
                   </span>
-                  <span 
+                  <span
                     className="text-sm flex items-center gap-1"
                     style={{ color: `${bannerColors?.primaryContrast || '#10b981'}cc` }}
                   >
                     <span className="relative flex h-1.5 w-1.5">
-                      <span 
+                      <span
                         className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
                         style={{ backgroundColor: bannerColors?.primaryContrast || '#10b981' }}
                       />
-                      <span 
+                      <span
                         className="relative inline-flex rounded-full h-1.5 w-1.5"
                         style={{ backgroundColor: bannerColors?.primaryContrast || '#10b981' }}
                       />
                     </span>
                     Reach
                   </span>
-                  
+
                   {/* Tooltip */}
-                  <div 
+                  <div
                     className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-xl text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl border backdrop-blur-md"
-                    style={{ 
+                    style={{
                       backgroundColor: 'rgba(0,0,0,0.85)',
                       borderColor: `${bannerColors?.primaryContrast || '#10b981'}30`,
                     }}
@@ -672,7 +834,7 @@ export default function ProfilePage() {
                       True Reach Analytics
                     </div>
                     <div className="text-muted-foreground">Click to see detailed metrics</div>
-                    <div 
+                    <div
                       className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45"
                       style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}
                     />
@@ -686,13 +848,13 @@ export default function ProfilePage() {
         {/* Tabs */}
         <div className="mt-6 pt-4">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-            <TabsList 
+            <TabsList
               className="w-full sm:w-auto bg-muted/30 border border-border/50 p-1 rounded-xl gap-1"
             >
-              <TabsTrigger 
-                value="posts" 
+              <TabsTrigger
+                value="posts"
                 className="rounded-lg data-[state=active]:shadow-sm transition-all duration-200 text-muted-foreground data-[state=active]:text-foreground"
-                style={activeTab === 'posts' ? { 
+                style={activeTab === 'posts' ? {
                   backgroundColor: bannerColors ? `${bannerColors.primary}15` : 'hsl(var(--background))',
                   color: bannerColors?.primaryLight,
                 } : undefined}
@@ -700,10 +862,10 @@ export default function ProfilePage() {
                 <FiGrid className="h-4 w-4 mr-1.5" />
                 Posts
               </TabsTrigger>
-              <TabsTrigger 
-                value="activity" 
+              <TabsTrigger
+                value="activity"
                 className="rounded-lg data-[state=active]:shadow-sm transition-all duration-200 text-muted-foreground data-[state=active]:text-foreground"
-                style={activeTab === 'activity' ? { 
+                style={activeTab === 'activity' ? {
                   backgroundColor: bannerColors ? `${bannerColors.primary}15` : 'hsl(var(--background))',
                   color: bannerColors?.primaryLight,
                 } : undefined}
@@ -711,10 +873,10 @@ export default function ProfilePage() {
                 <FiActivity className="h-4 w-4 mr-1.5" />
                 Activity
               </TabsTrigger>
-              <TabsTrigger 
-                value="reach" 
+              <TabsTrigger
+                value="reach"
                 className="rounded-lg data-[state=active]:shadow-sm transition-all duration-200 text-muted-foreground data-[state=active]:text-foreground"
-                style={activeTab === 'reach' ? { 
+                style={activeTab === 'reach' ? {
                   backgroundColor: `${bannerColors?.primaryContrast || '#10b981'}20`,
                   color: bannerColors?.primaryContrast || '#10b981',
                 } : undefined}
@@ -722,10 +884,10 @@ export default function ProfilePage() {
                 <FiTrendingUp className="h-4 w-4 mr-1.5" />
                 Reach
               </TabsTrigger>
-              <TabsTrigger 
-                value="connections" 
+              <TabsTrigger
+                value="connections"
                 className="rounded-lg data-[state=active]:shadow-sm transition-all duration-200 text-muted-foreground data-[state=active]:text-foreground"
-                style={activeTab === 'connections' ? { 
+                style={activeTab === 'connections' ? {
                   backgroundColor: bannerColors ? `${bannerColors.primary}15` : 'hsl(var(--background))',
                   color: bannerColors?.primaryLight,
                 } : undefined}
@@ -737,27 +899,27 @@ export default function ProfilePage() {
 
             <TabsContent value="posts" className="mt-6">
               {posts.length === 0 ? (
-                <div 
+                <div
                   className="rounded-2xl border p-12 text-center"
-                  style={{ 
+                  style={{
                     borderColor: 'hsl(var(--border) / 0.5)',
                     backgroundColor: 'hsl(var(--muted) / 0.3)',
                   }}
                 >
                   <FiGrid className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">No posts yet</h3>
+                  <h3 className="text-lg font-medium text-foreground mb-2">No pulses yet</h3>
                   <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-                    {isOwnProfile ? 'Share your first post on Pulse!' : 'This user hasn\'t posted anything yet'}
+                    {isOwnProfile ? 'Send your first pulse — let the world feel the beat!' : 'This user hasn\'t pulsed anything yet'}
                   </p>
                   {isOwnProfile && (
                     <Link href="/pulse">
-                      <Button 
+                      <Button
                         className="mt-4"
                         style={{
                           backgroundColor: bannerColors?.primary || '#3b82f6',
                         }}
                       >
-                        Go to Pulse
+                        Start pulsing
                       </Button>
                     </Link>
                   )}
@@ -793,7 +955,7 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <span>{post.messageCount} messages</span>
                           {post.viewCount !== undefined && post.viewCount > 0 && (
-                            <span 
+                            <span
                               className="flex items-center gap-1"
                               style={{ color: bannerColors?.primaryContrast || '#10b981' }}
                             >
@@ -806,11 +968,11 @@ export default function ProfilePage() {
                         {post.tags?.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-3">
                             {post.tags.slice(0, 3).map((tag) => (
-                              <Badge 
-                                key={tag} 
-                                variant="secondary" 
+                              <Badge
+                                key={tag}
+                                variant="secondary"
                                 className="text-[10px] text-muted-foreground px-2 py-0.5"
-                                style={{ 
+                                style={{
                                   backgroundColor: bannerColors ? `${bannerColors.primary}10` : 'hsl(var(--muted))',
                                 }}
                               >
@@ -828,9 +990,9 @@ export default function ProfilePage() {
 
             <TabsContent value="activity" className="mt-6">
               {activityPosts.length === 0 ? (
-                <div 
+                <div
                   className="rounded-2xl border p-12 text-center"
-                  style={{ 
+                  style={{
                     borderColor: 'hsl(var(--border) / 0.5)',
                     backgroundColor: 'hsl(var(--muted) / 0.3)',
                   }}
@@ -866,7 +1028,7 @@ export default function ProfilePage() {
                           e.currentTarget.style.backgroundColor = 'hsl(var(--muted) / 0.2)';
                         }}
                       >
-                        <div 
+                        <div
                           className="flex items-center gap-2 text-xs mb-2"
                           style={{ color: bannerColors?.primaryLight || 'hsl(var(--primary))' }}
                         >
@@ -883,9 +1045,9 @@ export default function ProfilePage() {
                         {post.tags?.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-3">
                             {post.tags.slice(0, 3).map((tag) => (
-                              <Badge 
-                                key={tag} 
-                                variant="secondary" 
+                              <Badge
+                                key={tag}
+                                variant="secondary"
                                 className="text-[10px] text-muted-foreground px-2 py-0.5"
                                 style={{ backgroundColor: bannerColors ? `${bannerColors.primary}10` : 'hsl(var(--muted))' }}
                               >
@@ -905,10 +1067,10 @@ export default function ProfilePage() {
               {/* True Reach Analytics - 6 Pillar System */}
               <div className="space-y-6">
                 {/* Header with Overall Score */}
-                <div 
+                <div
                   className="rounded-2xl border-2 p-6 bg-surface-1/50 shadow-sm"
-                  style={{ 
-                    borderColor: isDark 
+                  style={{
+                    borderColor: isDark
                       ? (bannerColors ? `${bannerColors.primaryContrast}35` : 'rgba(16,185,129,0.25)')
                       : (bannerColors ? `${bannerColors.primaryContrast}50` : 'rgba(16,185,129,0.35)'),
                   }}
@@ -916,9 +1078,9 @@ export default function ProfilePage() {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                       <h3 className="text-xl font-bold text-foreground flex items-center gap-3">
-                        <span 
+                        <span
                           className="flex h-10 w-10 items-center justify-center rounded-xl text-lg"
-                          style={{ 
+                          style={{
                             backgroundColor: `${bannerColors?.primaryContrast || '#10b981'}20`,
                           }}
                         >
@@ -927,22 +1089,22 @@ export default function ProfilePage() {
                         True Reach Analytics
                       </h3>
                       <p className="text-sm text-muted-foreground mt-1 max-w-lg">
-                        Real engagement metrics that matter - not vanity follower counts. 
+                        Real engagement metrics that matter - not vanity follower counts.
                         Based on 6 pillars measuring actual impact.
                       </p>
                     </div>
-                    
+
                     {/* Overall True Reach Score */}
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
                           Overall Score
                         </div>
-                        <div 
+                        <div
                           className="text-4xl font-bold tabular-nums"
                           style={{ color: bannerColors?.primaryContrast || '#10b981' }}
                         >
-                          {profile?.reach?.trueReachScore?.toFixed(0) || 
+                          {profile?.reach?.trueReachScore?.toFixed(0) ||
                             // Calculate fallback score from pillars
                             Math.round(
                               ((profile?.reach?.visibility || 0) * 0.20) +
@@ -956,7 +1118,7 @@ export default function ProfilePage() {
                         </div>
                         <div className="text-xs text-muted-foreground">/ 100</div>
                       </div>
-                      <div 
+                      <div
                         className="h-16 w-16 rounded-full flex items-center justify-center"
                         style={{
                           background: `conic-gradient(
@@ -966,7 +1128,7 @@ export default function ProfilePage() {
                         }}
                       >
                         <div className="h-12 w-12 rounded-full bg-background flex items-center justify-center">
-                          <FiTrendingUp 
+                          <FiTrendingUp
                             className="h-5 w-5"
                             style={{ color: bannerColors?.primaryContrast || '#10b981' }}
                           />
@@ -979,10 +1141,10 @@ export default function ProfilePage() {
                 {/* Main Content Grid */}
                 <div className="grid gap-6 lg:grid-cols-5">
                   {/* Radar Chart - 2 columns */}
-                  <div 
+                  <div
                     className="lg:col-span-2 rounded-2xl border-2 p-6 bg-surface-1/50 dark:bg-surface-1/30 shadow-sm"
-                    style={{ 
-                      borderColor: isDark 
+                    style={{
+                      borderColor: isDark
                         ? (bannerColors ? `${bannerColors.primary}30` : 'rgba(255,255,255,0.1)')
                         : (bannerColors ? `${bannerColors.primary}45` : 'rgba(0,0,0,0.1)'),
                     }}
@@ -992,7 +1154,7 @@ export default function ProfilePage() {
                       Pillar Distribution
                     </h4>
                     <div className="aspect-square max-w-[320px] mx-auto">
-                      <Radar 
+                      <Radar
                         data={{
                           labels: REACH_PILLARS.map(p => p.shortLabel),
                           datasets: [{
@@ -1014,23 +1176,23 @@ export default function ProfilePage() {
                         options={{
                           scales: {
                             r: {
-                              angleLines: { 
-                                color: isDark 
+                              angleLines: {
+                                color: isDark
                                   ? (bannerColors ? `${bannerColors.primaryContrast}20` : 'rgba(255,255,255,0.1)')
                                   : (bannerColors ? `${bannerColors.primaryContrast}30` : 'rgba(0,0,0,0.1)'),
                               },
-                              grid: { 
-                                color: isDark 
+                              grid: {
+                                color: isDark
                                   ? (bannerColors ? `${bannerColors.primaryContrast}15` : 'rgba(255,255,255,0.08)')
                                   : (bannerColors ? `${bannerColors.primaryContrast}20` : 'rgba(0,0,0,0.08)'),
                                 circular: true,
                               },
-                              pointLabels: { 
-                                color: isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)', 
+                              pointLabels: {
+                                color: isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
                                 font: { size: 11, weight: 500 },
                                 padding: 12,
                               },
-                              ticks: { 
+                              ticks: {
                                 display: false,
                                 stepSize: 20,
                               },
@@ -1038,7 +1200,7 @@ export default function ProfilePage() {
                               suggestedMax: 100,
                             },
                           },
-                          plugins: { 
+                          plugins: {
                             legend: { display: false },
                             tooltip: {
                               backgroundColor: isDark ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.95)',
@@ -1078,16 +1240,16 @@ export default function ProfilePage() {
                         }}
                       />
                     </div>
-                    
+
                     {/* Legend */}
                     <div className="mt-4 flex flex-wrap justify-center gap-2">
                       {REACH_PILLARS.map((pillar) => (
-                        <div 
+                        <div
                           key={pillar.key}
                           className="flex items-center gap-1.5 text-xs text-muted-foreground"
                         >
-                          <span 
-                            className="h-2 w-2 rounded-full" 
+                          <span
+                            className="h-2 w-2 rounded-full"
                             style={{ backgroundColor: pillar.color }}
                           />
                           {pillar.shortLabel}
@@ -1103,7 +1265,7 @@ export default function ProfilePage() {
                       const score = typeof value === 'number' ? value : 0;
                       const isGood = score >= 70;
                       const isMedium = score >= 40 && score < 70;
-                      
+
                       return (
                         <motion.div
                           key={pillar.key}
@@ -1113,24 +1275,24 @@ export default function ProfilePage() {
                           className="group relative rounded-xl border-2 p-4 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-md"
                           style={{
                             borderColor: isDark ? `${pillar.color}35` : `${pillar.color}50`,
-                            background: isDark 
-                              ? `linear-gradient(135deg, ${pillar.color}08, transparent)` 
+                            background: isDark
+                              ? `linear-gradient(135deg, ${pillar.color}08, transparent)`
                               : `linear-gradient(135deg, ${pillar.color}12, ${pillar.color}05)`,
                           }}
                         >
                           {/* Weight badge */}
-                          <div 
+                          <div
                             className="absolute top-3 right-3 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                            style={{ 
+                            style={{
                               backgroundColor: isDark ? `${pillar.color}25` : `${pillar.color}35`,
                               color: isDark ? pillar.color : pillar.color,
                             }}
                           >
                             {pillar.weight}%
                           </div>
-                          
+
                           <div className="flex items-start gap-3">
-                            <div 
+                            <div
                               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg"
                               style={{ backgroundColor: isDark ? `${pillar.color}15` : `${pillar.color}25` }}
                             >
@@ -1138,7 +1300,7 @@ export default function ProfilePage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-baseline gap-2">
-                                <span 
+                                <span
                                   className="text-2xl font-bold tabular-nums"
                                   style={{ color: pillar.color }}
                                 >
@@ -1151,7 +1313,7 @@ export default function ProfilePage() {
                               </div>
                             </div>
                           </div>
-                          
+
                           {/* Progress bar */}
                           <div className="mt-3 h-1.5 rounded-full bg-muted/30 dark:bg-white/5 overflow-hidden">
                             <motion.div
@@ -1162,16 +1324,16 @@ export default function ProfilePage() {
                               transition={{ duration: 0.8, delay: index * 0.1, ease: 'easeOut' }}
                             />
                           </div>
-                          
+
                           {/* Description on hover */}
                           <div className="mt-2 text-[11px] text-muted-foreground leading-relaxed line-clamp-2 group-hover:line-clamp-none transition-all">
                             {pillar.description}
                           </div>
-                          
+
                           {/* Tip badge */}
-                          <div 
+                          <div
                             className="mt-2 text-[10px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
-                            style={{ 
+                            style={{
                               backgroundColor: `${pillar.color}10`,
                               color: pillar.color,
                             }}
@@ -1186,17 +1348,17 @@ export default function ProfilePage() {
 
                 {/* Summary Stats Row */}
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <div 
+                  <div
                     className="rounded-xl border-2 p-5 transition-all duration-200 hover:scale-[1.01] bg-surface-1/30 shadow-sm hover:shadow-md"
                     style={{
-                      borderColor: isDark 
+                      borderColor: isDark
                         ? `${bannerColors?.primaryContrast || '#10b981'}35`
                         : `${bannerColors?.primaryContrast || '#10b981'}50`,
                     }}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <div 
+                        <div
                           className="text-3xl font-bold tabular-nums"
                           style={{ color: bannerColors?.primaryContrast || '#10b981' }}
                         >
@@ -1207,7 +1369,7 @@ export default function ProfilePage() {
                           People who actually saw the content
                         </p>
                       </div>
-                      <div 
+                      <div
                         className="h-12 w-12 rounded-xl flex items-center justify-center"
                         style={{ backgroundColor: isDark ? `${bannerColors?.primaryContrast || '#10b981'}15` : `${bannerColors?.primaryContrast || '#10b981'}20` }}
                       >
@@ -1219,17 +1381,17 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  <div 
+                  <div
                     className="rounded-xl border-2 p-5 transition-all duration-200 hover:scale-[1.01] bg-surface-1/30 shadow-sm hover:shadow-md"
                     style={{
-                      borderColor: isDark 
+                      borderColor: isDark
                         ? `${bannerColors?.primary || '#3b82f6'}35`
                         : `${bannerColors?.primary || '#3b82f6'}50`,
                     }}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <div 
+                        <div
                           className="text-3xl font-bold tabular-nums"
                           style={{ color: bannerColors?.primaryLight || '#3b82f6' }}
                         >
@@ -1240,7 +1402,7 @@ export default function ProfilePage() {
                           Individual people reached
                         </p>
                       </div>
-                      <div 
+                      <div
                         className="h-12 w-12 rounded-xl flex items-center justify-center"
                         style={{ backgroundColor: isDark ? `${bannerColors?.primary || '#3b82f6'}15` : `${bannerColors?.primary || '#3b82f6'}20` }}
                       >
@@ -1249,22 +1411,22 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  <div 
+                  <div
                     className="rounded-xl border-2 p-5 transition-all duration-200 hover:scale-[1.01] bg-surface-1/30 shadow-sm hover:shadow-md"
                     style={{
-                      borderColor: isDark 
+                      borderColor: isDark
                         ? `${bannerColors?.secondary || '#8b5cf6'}35`
                         : `${bannerColors?.secondary || '#8b5cf6'}50`,
                     }}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <div 
+                        <div
                           className="text-3xl font-bold tabular-nums"
-                          style={{ 
-                            color: (profile?.reach?.engagementRate || 0) >= 100 
+                          style={{
+                            color: (profile?.reach?.engagementRate || 0) >= 100
                               ? (bannerColors?.primaryContrast || '#10b981')
-                              : (profile?.reach?.engagementRate || 0) >= 50 
+                              : (profile?.reach?.engagementRate || 0) >= 50
                                 ? '#eab308'
                                 : '#ea580c'
                           }}
@@ -1273,10 +1435,10 @@ export default function ProfilePage() {
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">Engagement Rate</div>
                         <p className="text-[11px] text-muted-foreground/70 mt-2">
-                          Views ÷ Followers ratio
+                          Views ÷ Synced ratio
                         </p>
                       </div>
-                      <div 
+                      <div
                         className="h-12 w-12 rounded-xl flex items-center justify-center"
                         style={{ backgroundColor: `${bannerColors?.secondary || '#8b5cf6'}15` }}
                       >
@@ -1287,16 +1449,16 @@ export default function ProfilePage() {
                 </div>
 
                 {/* What is True Reach? Explainer */}
-                <div 
+                <div
                   className="rounded-2xl border-2 p-6 bg-surface-1/30 shadow-sm"
                   style={{
-                    borderColor: isDark 
+                    borderColor: isDark
                       ? (bannerColors ? `${bannerColors.primary}30` : 'rgba(255,255,255,0.1)')
                       : (bannerColors ? `${bannerColors.primary}45` : 'rgba(0,0,0,0.1)'),
                   }}
                 >
                   <div className="flex items-start gap-4">
-                    <div 
+                    <div
                       className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl"
                       style={{ backgroundColor: isDark ? `${bannerColors?.primaryContrast || '#10b981'}15` : `${bannerColors?.primaryContrast || '#10b981'}20` }}
                     >
@@ -1307,11 +1469,11 @@ export default function ProfilePage() {
                         What is True Reach?
                       </h4>
                       <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                        Unlike follower counts that can be inflated, <span className="font-medium" style={{ color: bannerColors?.primaryContrast || '#10b981' }}>True Reach</span> shows 
-                        how many people <em>actually</em> see and engage with content. A user with 100 followers 
-                        and 80% engagement is more influential than one with 1M followers and 0.1% engagement.
+                        Unlike sync counts that can be inflated, <span className="font-medium" style={{ color: bannerColors?.primaryContrast || '#10b981' }}>True Reach</span> shows
+                        how many people <em>actually</em> see and engage with content. A user with 100 synced
+                        and 80% engagement is more influential than one with 1M synced and 0.1% engagement.
                       </p>
-                      
+
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-xs">
                         <div className="flex items-start gap-2 p-2 rounded-lg" style={{ backgroundColor: `${bannerColors?.primaryContrast || '#10b981'}08` }}>
                           <span className="text-sm">🎯</span>
@@ -1342,20 +1504,20 @@ export default function ProfilePage() {
             </TabsContent>
 
             <TabsContent value="connections" className="mt-6">
-              <div 
+              <div
                 className="rounded-2xl border p-12 text-center"
-                style={{ 
+                style={{
                   borderColor: 'hsl(var(--border) / 0.5)',
                   backgroundColor: 'hsl(var(--muted) / 0.3)',
                 }}
               >
                 <FiUsers className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">Connections</h3>
+                <h3 className="text-lg font-medium text-foreground mb-2">Synced Rhythms</h3>
                 <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-                  {isOwnProfile ? 'Your followers and people you follow' : 'This user\'s connections'}
+                  {isOwnProfile ? 'People synced to your rhythm and rhythms you follow' : 'This user\'s synced community'}
                 </p>
                 <p className="text-muted-foreground/70 text-xs mt-4">
-                  Full connections list coming soon
+                  Full sync list coming soon
                 </p>
               </div>
             </TabsContent>
