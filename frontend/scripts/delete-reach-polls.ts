@@ -53,7 +53,16 @@ async function listAndDeleteReachPolls() {
   }
   console.log("─".repeat(60));
 
-  // Delete mode - uncomment the following to actually delete
+  // LIST-ONLY MODE (default)
+  // To delete, pass --delete flag: npx ts-node scripts/delete-reach-polls.ts --delete
+  const shouldDelete = process.argv.includes("--delete");
+  
+  if (!shouldDelete) {
+    console.log("\n📋 LIST MODE - No deletions performed.");
+    console.log("   To delete, run with: npx ts-node --transpile-only scripts/delete-reach-polls.ts --delete");
+    return;
+  }
+
   console.log("\n🗑️  Deleting all REACH_ASSESSMENT polls...\n");
   
   for (const poll of polls) {
