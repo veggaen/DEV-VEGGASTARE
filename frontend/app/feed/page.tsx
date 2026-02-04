@@ -36,7 +36,9 @@ import { DiscoverPeople } from '@/components/uicustom/social/DiscoverPeople';
 import { PulseDetailModal } from '@/components/uicustom/pulse/PulseDetailModal';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 import { PollBuilder } from '@/components/uicustom/polls/PollBuilder';
-import { Zap } from 'lucide-react';
+import { PulsePollCard, type PulsePollData } from '@/components/uicustom/polls/PulsePollCard';
+import { PollTakerModal } from '@/components/uicustom/polls/PollTakerModal';
+import { Zap, Target, Rocket, PlayCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface User {
@@ -170,6 +172,42 @@ const FeedPage: React.FC = () => {
 
   // Poll builder modal state
   const [showPollBuilder, setShowPollBuilder] = useState(false);
+
+  // Advanced polls state (for "Polls" filter)
+  const [advancedPolls, setAdvancedPolls] = useState<PulsePollData[]>([]);
+  const [loadingPolls, setLoadingPolls] = useState(false);
+  const [selectedAdvancedPollId, setSelectedAdvancedPollId] = useState<string | null>(null);
+
+  // Fetch advanced polls when filter is 'polls'
+  useEffect(() => {
+    if (filter === 'polls') {
+      const fetchPolls = async () => {
+        setLoadingPolls(true);
+        try {
+          const res = await fetch('/api/advanced-polls?pageSize=20');
+          const data = await res.json();
+          setAdvancedPolls(data.polls?.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            description: p.description,
+            type: p.type,
+            creator: p.Creator || { id: p.creatorId, name: 'Unknown', image: null },
+            questionCount: p.questions?.length || 0,
+            totalResponses: p.totalResponses || 0,
+            avgCompletionPct: p.avgCompletionPct || 0,
+            publishedAt: p.publishedAt,
+            expiresAt: p.expiresAt,
+            conversationId: p.conversationId,
+          })) || []);
+        } catch (err) {
+          console.error('Failed to fetch polls:', err);
+        } finally {
+          setLoadingPolls(false);
+        }
+      };
+      fetchPolls();
+    }
+  }, [filter]);
 
   // Fetch feed items
   const fetchFeed = useCallback(async (resetNewCount = true) => {
@@ -457,39 +495,74 @@ const FeedPage: React.FC = () => {
       {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6">
         <div className="min-w-0 space-y-4">
-          {/* Compose Box */}
+          {/* Compose Box - changes based on filter */}
           {currentUser && (
             <div className="rounded-2xl border border-border/60 bg-zinc-200/80 dark:bg-card">
-              <div className="p-4 space-y-3">
-                {/* User avatar + textarea */}
-                <div className="flex gap-3">
-                  <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarImage src={currentUser.image || undefined} />
-                    <AvatarFallback>{currentUser.name?.[0] || '?'}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 space-y-2">
-                    <Textarea
-                      ref={textareaRef}
-                      value={composeText}
-                      onChange={(e) => setComposeText(e.target.value)}
-                      placeholder="Pulse your thoughts..."
-                      className="min-h-[60px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0 text-base"
-                      rows={2}
-                    />
+              {filter === 'polls' ? (
+                // Poll-focused compose
+                <div className="p-4 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20">
+                      <Target className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">Create a Poll</h3>
+                      <p className="text-sm text-muted-foreground">Pulse a survey, quiz, or feedback form to everyone</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIncludePoll(true)}
+                      className="h-auto py-4 flex flex-col gap-2"
+                    >
+                      <FiBarChart2 className="h-6 w-6" />
+                      <span className="font-medium">Quick Poll</span>
+                      <span className="text-xs text-muted-foreground">Simple yes/no or options</span>
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => setShowPollBuilder(true)}
+                      className="h-auto py-4 flex flex-col gap-2 border-amber-500/30 hover:border-amber-500/50 hover:bg-amber-500/5"
+                    >
+                      <Zap className="h-6 w-6 text-amber-500" />
+                      <span className="font-medium">Advanced Poll</span>
+                      <span className="text-xs text-muted-foreground">Surveys, quizzes, assessments</span>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                // Regular compose
+                <div className="p-4 space-y-3">
+                  {/* User avatar + textarea */}
+                  <div className="flex gap-3">
+                    <Avatar className="h-10 w-10 shrink-0">
+                      <AvatarImage src={currentUser.image || undefined} />
+                      <AvatarFallback>{currentUser.name?.[0] || '?'}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-2">
+                      <Textarea
+                        ref={textareaRef}
+                        value={composeText}
+                        onChange={(e) => setComposeText(e.target.value)}
+                        placeholder="Pulse your thoughts..."
+                        className="min-h-[60px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0 text-base"
+                        rows={2}
+                      />
 
-                    {/* Poll input (if enabled) */}
-                    {includePoll && (
-                      <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
-                        <Input
-                          value={pollQuestion}
-                          onChange={(e) => setPollQuestion(e.target.value)}
-                          placeholder="Ask a question..."
-                          className="font-medium"
-                        />
-                        {pollOptions.map((opt, i) => (
-                          <div key={i} className="flex gap-2">
-                            <Input
-                              value={opt}
+                      {/* Poll input (if enabled) */}
+                      {includePoll && (
+                        <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
+                          <Input
+                            value={pollQuestion}
+                            onChange={(e) => setPollQuestion(e.target.value)}
+                            placeholder="Ask a question..."
+                            className="font-medium"
+                          />
+                          {pollOptions.map((opt, i) => (
+                            <div key={i} className="flex gap-2">
+                              <Input
+                                value={opt}
                               onChange={(e) => updatePollOption(i, e.target.value)}
                               placeholder={`Option ${i + 1}`}
                               className="flex-1"
@@ -686,29 +759,58 @@ const FeedPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+              )}
             </div>
           )}
 
-          {/* Feed */}
+          {/* Feed - show different content based on filter */}
           <div className="space-y-3">
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <Spinner />
-              </div>
-            ) : items.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No pulses yet. Be the first to start the vibe!</p>
-              </div>
+            {filter === 'polls' ? (
+              // Show advanced polls
+              loadingPolls ? (
+                <div className="flex justify-center py-12">
+                  <Spinner />
+                </div>
+              ) : advancedPolls.length === 0 ? (
+                <div className="text-center py-12">
+                  <Rocket className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="font-semibold text-lg mb-2">No polls yet</h3>
+                  <p className="text-muted-foreground mb-4">Be the first to create a poll and pulse it to everyone!</p>
+                  <Button onClick={() => setShowPollBuilder(true)} className="gap-2">
+                    <Zap className="h-4 w-4" />
+                    Create Your First Poll
+                  </Button>
+                </div>
+              ) : (
+                advancedPolls.map((poll) => (
+                  <PulsePollCard
+                    key={poll.id}
+                    poll={poll}
+                    onClick={() => setSelectedAdvancedPollId(poll.id)}
+                  />
+                ))
+              )
             ) : (
-              items.map((item) => (
-                <FeedCard
-                  key={item.id}
-                  item={item}
-                  onTagClick={(tag) => setTagFilter(tag)}
-                  onClick={() => openPulse(item.id)}
-                  onRefresh={fetchFeed}
-                />
-              ))
+              // Regular feed
+              loading ? (
+                <div className="flex justify-center py-12">
+                  <Spinner />
+                </div>
+              ) : items.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No pulses yet. Be the first to start the vibe!</p>
+                </div>
+              ) : (
+                items.map((item) => (
+                  <FeedCard
+                    key={item.id}
+                    item={item}
+                    onTagClick={(tag) => setTagFilter(tag)}
+                    onClick={() => openPulse(item.id)}
+                    onRefresh={fetchFeed}
+                  />
+                ))
+              )
             )}
           </div>
 
@@ -768,6 +870,36 @@ const FeedPage: React.FC = () => {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Poll Taker Modal - for taking advanced polls */}
+          <PollTakerModal
+            pollId={selectedAdvancedPollId}
+            onClose={() => setSelectedAdvancedPollId(null)}
+            onComplete={(responseId) => {
+              console.log('Poll completed:', responseId);
+              // Refresh polls list
+              if (filter === 'polls') {
+                const fetchPolls = async () => {
+                  const res = await fetch('/api/advanced-polls?pageSize=20');
+                  const data = await res.json();
+                  setAdvancedPolls(data.polls?.map((p: any) => ({
+                    id: p.id,
+                    title: p.title,
+                    description: p.description,
+                    type: p.type,
+                    creator: p.Creator || { id: p.creatorId, name: 'Unknown', image: null },
+                    questionCount: p.questions?.length || 0,
+                    totalResponses: p.totalResponses || 0,
+                    avgCompletionPct: p.avgCompletionPct || 0,
+                    publishedAt: p.publishedAt,
+                    expiresAt: p.expiresAt,
+                    conversationId: p.conversationId,
+                  })) || []);
+                };
+                fetchPolls();
+              }
+            }}
+          />
         </div>
 
         {/* Explore sidebar */}

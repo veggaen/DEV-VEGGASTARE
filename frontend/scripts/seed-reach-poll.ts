@@ -56,19 +56,20 @@ async function seedReachPoll() {
   // Create the Advanced Poll
   const poll = await prisma.advancedPoll.create({
     data: {
-      title: "How should the 'Reach' be upgraded (6→7 Pillars)",
-      description: `We're considering upgrading our Reach metric system from 6 pillars to 7. 
-      
-Currently we have: Visibility, Engagement Depth, Conversion Impact, Loyalty, Growth, and Recall.
+      title: "VeggaStare Reach System Innovation Poll",
+      description: `Shape the future of how we measure true social impact!
+
+Currently we have 6 pillars: Visibility, Engagement Depth, Conversion Impact, Loyalty, Growth, and Recall.
 
 The proposed 7th pillar is **"Realtime Pulse & Network Effects"** - measuring live engagement velocity, viral momentum, and cross-network amplification.
 
-Help us decide by sharing your thoughts on the current pillars and the proposed addition!`,
+Help us decide by sharing your thoughts on the current pillars and the proposed addition! Your voice matters.`,
       type: AdvancedPollType.REACH_ASSESSMENT,
       allowPartial: true,
       requiresAuth: false,
       isAnonymous: false,
       creatorId: adminUser.id,
+      publishedAt: new Date(),
       Questions: {
         create: [
           // Question 1: Most Important Current Pillar
