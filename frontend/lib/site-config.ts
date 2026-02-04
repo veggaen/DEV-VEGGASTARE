@@ -35,10 +35,15 @@ function parseBooleanEnv(value: string | undefined): boolean | undefined {
   return undefined;
 }
 
-function readNonEmptyEnv(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : undefined;
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔐 ACCESS GATE PASSWORD
+// ═══════════════════════════════════════════════════════════════════════════
+// IMPORTANT: This is hardcoded because Edge middleware (proxy.ts) cannot
+// reliably read server-only env vars at runtime in some deployments (Vercel).
+// To change the password, update this constant and redeploy.
+// To disable the gate entirely, set GATE_STATUS=false in your env vars.
+const GATE_PASSWORD_HARDCODED = 'MainAdc123';
+// ═══════════════════════════════════════════════════════════════════════════
 
 // Access gate configuration
 export const ACCESS_GATE_CONFIG = {
@@ -49,18 +54,10 @@ export const ACCESS_GATE_CONFIG = {
   enabled: (() => {
     const envEnabled = parseBooleanEnv(process.env.GATE_STATUS);
     const enabled = envEnabled ?? IS_PRIVATE_MODE;
-    const password =
-      readNonEmptyEnv(process.env.GATE_PASSWORD) ??
-      readNonEmptyEnv(process.env.ACCESS_GATE_PASSWORD) ??
-      'MainAdc123';
-
     // Fail-safe: never enable the gate with an empty password.
-    return enabled && password.length > 0;
+    return enabled && GATE_PASSWORD_HARDCODED.length > 0;
   })(),
-  password:
-    readNonEmptyEnv(process.env.GATE_PASSWORD) ??
-    readNonEmptyEnv(process.env.ACCESS_GATE_PASSWORD) ??
-    'MainAdc123',
+  password: GATE_PASSWORD_HARDCODED,
   cookieName: 'veggastare_access',
   // Important: NextAuth/Auth.js OAuth callbacks must not be gated.
   bypassRoutes: ['/gate', '/api/access-gate', '/api/auth', '/privacy', '/terms', '/info'],
