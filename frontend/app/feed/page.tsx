@@ -35,6 +35,8 @@ import { PollDisplay } from '@/components/uicustom/chats/poll-display';
 import { DiscoverPeople } from '@/components/uicustom/social/DiscoverPeople';
 import { PulseDetailModal } from '@/components/uicustom/pulse/PulseDetailModal';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
+import { PollBuilder } from '@/components/uicustom/polls/PollBuilder';
+import { Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface User {
@@ -165,6 +167,9 @@ const FeedPage: React.FC = () => {
   // Visibility & permissions state
   const [visibility, setVisibility] = useState<PostVisibility>('PUBLIC');
   const [replyPermission, setReplyPermission] = useState<ReplyPermission>('EVERYONE');
+
+  // Poll builder modal state
+  const [showPollBuilder, setShowPollBuilder] = useState(false);
 
   // Fetch feed items
   const fetchFeed = useCallback(async (resetNewCount = true) => {
@@ -550,15 +555,47 @@ const FeedPage: React.FC = () => {
                 {/* Action bar */}
                 <div className="flex items-center justify-between pl-13">
                   <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant={includePoll ? 'secondary' : 'ghost'}
-                      size="sm"
-                      onClick={() => setIncludePoll(!includePoll)}
-                      className="text-muted-foreground"
-                    >
-                      <FiBarChart2 className="h-4 w-4" />
-                    </Button>
+                    {/* Poll Options Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant={includePoll ? 'secondary' : 'ghost'}
+                          size="sm"
+                          className="text-muted-foreground gap-1"
+                        >
+                          <FiBarChart2 className="h-4 w-4" />
+                          <FiChevronDown className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-56">
+                        <DropdownMenuLabel className="text-xs text-muted-foreground">Add a Poll</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setIncludePoll(!includePoll);
+                          }}
+                          className="flex items-center gap-2"
+                        >
+                          <FiBarChart2 className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1">
+                            <div className="font-medium">Quick Poll</div>
+                            <div className="text-xs text-muted-foreground">Simple yes/no or multiple choice</div>
+                          </div>
+                          {includePoll && <span className="text-primary">✓</span>}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setShowPollBuilder(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <Zap className="h-4 w-4 text-amber-500" />
+                          <div className="flex-1">
+                            <div className="font-medium">Advanced Poll Builder</div>
+                            <div className="text-xs text-muted-foreground">Surveys, quizzes, assessments</div>
+                          </div>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button
                       type="button"
                       variant={showTagInput ? 'secondary' : 'ghost'}
@@ -681,6 +718,56 @@ const FeedPage: React.FC = () => {
             onClose={closePulse}
             onTagClick={(tag) => setTagFilter(tag)}
           />
+
+          {/* Advanced Poll Builder Modal */}
+          <Dialog open={showPollBuilder} onOpenChange={setShowPollBuilder}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-amber-500" />
+                  Create Advanced Poll
+                </DialogTitle>
+                <DialogDescription>
+                  Build a survey, quiz, or assessment and pulse it to your followers
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <PollBuilder
+                  onSave={async (data) => {
+                    try {
+                      // Create a pulse with the advanced poll
+                      const res = await fetch('/api/polls', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          ...data,
+                          visibility,
+                          replyPermission,
+                          pulseAsConversation: true,
+                        }),
+                      });
+                      if (!res.ok) throw new Error('Failed to create poll');
+                      const createdPoll = await res.json();
+                      
+                      // Close modal and refresh feed
+                      setShowPollBuilder(false);
+                      fetchFeed();
+                      
+                      // Optionally open the new pulse
+                      if (createdPoll.conversationId) {
+                        openPulse(createdPoll.conversationId);
+                      }
+                    } catch (error) {
+                      console.error('Failed to create advanced poll:', error);
+                    }
+                  }}
+                  onPreview={(data) => {
+                    console.log('Preview poll:', data);
+                  }}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Explore sidebar */}
