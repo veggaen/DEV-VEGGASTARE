@@ -106,9 +106,13 @@ export function NotificationDropdown({
     : filteredNotifications;
   
   const handleNotificationClick = useCallback((notification: Notification) => {
+    // Mark as read when clicked
+    if (!notification.isRead) {
+      onMarkRead?.(notification.id);
+    }
     onNotificationClick?.(notification);
     setIsOpen(false);
-  }, [onNotificationClick]);
+  }, [onNotificationClick, onMarkRead]);
   
   // Dropdown content (rendered via portal)
   const dropdownContent = (
@@ -236,9 +240,16 @@ export function NotificationDropdown({
                           key={group.key}
                           group={group}
                           onClick={() => {
+                            // Mark all unread notifications in this group as read
+                            group.notifications.forEach((n) => {
+                              if (!n.isRead) {
+                                onMarkRead?.(n.id);
+                              }
+                            });
                             if (group.notifications[0]) {
-                              handleNotificationClick(group.notifications[0]);
+                              onNotificationClick?.(group.notifications[0]);
                             }
+                            setIsOpen(false);
                           }}
                         />
                       ))
