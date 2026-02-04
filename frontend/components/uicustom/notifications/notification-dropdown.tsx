@@ -101,7 +101,7 @@ export function NotificationDropdown({
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
             className={cn(
-              "absolute right-0 top-full mt-2 z-50",
+              "absolute right-0 top-full mt-2 z-[100]",
               "w-[380px] max-w-[calc(100vw-32px)]",
               "rounded-xl",
               "bg-white dark:bg-zinc-950",

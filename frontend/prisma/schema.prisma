@@ -675,6 +675,26 @@ model TwoFactorToken {
   @@unique([email, token])
 }
 
+// Admin audit log for tracking all admin actions
+model AdminAuditLog {
+  id            String          @id @default(cuid())
+  adminId       String          // The admin who performed the action
+  action        AdminAction     // Type of action performed
+  targetType    AdminTargetType // What type of entity was affected
+  targetId      String          // ID of the affected entity
+  previousData  Json?           // Previous state (for edits)
+  newData       Json?           // New state (for edits)
+  ipAddress     String?         // IP address of the admin
+  userAgent     String?         // Browser/client info
+  reason        String?         // Optional reason for the action
+  createdAt     DateTime        @default(now())
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+  @@index([action])
+  @@index([createdAt])
+}
+
 model User {
   id                                                              String                        @id @default(cuid())
   name                                                            String?
@@ -1194,6 +1214,31 @@ enum TerminationStatus {
   REQUESTED
   CANCELLED
   FINALIZED
+}
+
+// Admin audit actions
+enum AdminAction {
+  VIEW              // Admin viewed sensitive data
+  EDIT              // Admin edited something
+  DELETE            // Admin deleted something
+  CREATE            // Admin created something
+  ROLE_CHANGE       // Changed user role
+  VERIFY            // Verified a user/company
+  SUSPEND           // Suspended user/company
+  UNSUSPEND         // Removed suspension
+  IMPERSONATE       // Viewed as another user
+  EXPORT            // Exported data
+}
+
+// What type of entity was affected by admin action
+enum AdminTargetType {
+  USER
+  COMPANY
+  EMPLOYEE
+  PRODUCT
+  ORDER
+  CONVERSATION
+  WAREHOUSE
 }
 
 enum UserRole {
