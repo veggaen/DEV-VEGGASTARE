@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ACCESS_GATE_CONFIG } from '@/lib/site-config';
+import { makeGateCookieValue } from '@/lib/access-gate-cookie';
 
-const COOKIE_NAME = 'veggastare_access';
-const CORRECT_PASSWORD = 'MainAdc123';
-const COOKIE_VALUE = 'granted_' + Buffer.from(CORRECT_PASSWORD).toString('base64').slice(0, 16);
+const COOKIE_NAME = ACCESS_GATE_CONFIG.cookieName;
+const CORRECT_PASSWORD = ACCESS_GATE_CONFIG.password;
+const COOKIE_VALUE = makeGateCookieValue(CORRECT_PASSWORD);
 
 // Routes that should NOT be protected by the access gate
-const GATE_BYPASS_ROUTES = [
-  '/gate',           // The gate page itself
-  '/api/access-gate', // The authentication API
-  '/api/auth',       // NextAuth/Auth.js (OAuth callbacks)
-  '/_next',          // Next.js internals
-  '/favicon.ico',
-  '/robots.txt',
-  '/sitemap.xml',
-];
+const GATE_BYPASS_ROUTES = ACCESS_GATE_CONFIG.bypassRoutes;
 
 export function accessGateMiddleware(request: NextRequest): NextResponse | null {
   const { pathname } = request.nextUrl;

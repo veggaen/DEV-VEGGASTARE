@@ -8,6 +8,7 @@ import {
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ACCESS_GATE_CONFIG } from "@/lib/site-config";
+import { makeGateCookieValue } from "@/lib/access-gate-cookie";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ACCESS GATE - Production testing lock
@@ -16,7 +17,7 @@ import { ACCESS_GATE_CONFIG } from "@/lib/site-config";
 const ACCESS_GATE_ENABLED = ACCESS_GATE_CONFIG.enabled;
 const CORRECT_PASSWORD = ACCESS_GATE_CONFIG.password;
 const COOKIE_NAME = ACCESS_GATE_CONFIG.cookieName;
-const COOKIE_VALUE = 'granted_' + Buffer.from(CORRECT_PASSWORD).toString('base64').slice(0, 16);
+const COOKIE_VALUE = makeGateCookieValue(CORRECT_PASSWORD);
 
 // Routes that bypass the access gate (legal pages should be accessible)
 const GATE_BYPASS_ROUTES = ACCESS_GATE_CONFIG.bypassRoutes;

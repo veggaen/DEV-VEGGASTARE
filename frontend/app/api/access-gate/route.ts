@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { ACCESS_GATE_CONFIG } from '@/lib/site-config';
+import { makeGateCookieValue } from '@/lib/access-gate-cookie';
 
 const CORRECT_PASSWORD = ACCESS_GATE_CONFIG.password;
 const COOKIE_NAME = ACCESS_GATE_CONFIG.cookieName;
 const COOKIE_DOMAIN = process.env.ACCESS_GATE_COOKIE_DOMAIN?.trim() || undefined;
 // Simple hash of the password - in production you'd use a proper secret
-const COOKIE_VALUE = 'granted_' + Buffer.from(CORRECT_PASSWORD).toString('base64').slice(0, 16);
+const COOKIE_VALUE = makeGateCookieValue(CORRECT_PASSWORD);
 
 // Brute force protection - in-memory store (resets on server restart)
 // For production, consider using Redis or a database
