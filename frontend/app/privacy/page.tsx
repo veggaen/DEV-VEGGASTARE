@@ -23,6 +23,42 @@ export default function PrivacyPage() {
     }
   };
 
+  const resetSiteData = async () => {
+    const ok = window.confirm(
+      "This will clear local storage + non-essential cookies and sign you out of the access gate. Continue?"
+    );
+    if (!ok) return;
+
+    try {
+      // Clear HTTP-only gate cookie via server.
+      await fetch("/api/access-gate", { method: "DELETE" });
+    } catch {
+      // ignore
+    }
+
+    try {
+      // Clear local app storage.
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Clear non-HTTP-only cookies.
+      const cookies = document.cookie.split(";");
+      for (const cookie of cookies) {
+        const eqPos = cookie.indexOf("=");
+        const name = (eqPos > -1 ? cookie.slice(0, eqPos) : cookie).trim();
+        if (!name) continue;
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+      }
+
+      // Also reset cookie-consent state if the banner listens for it.
+      resetCookieConsent();
+    } catch {
+      // ignore
+    }
+
+    window.location.href = "/gate?redirect=/";
+  };
+
   return (
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
       {/* Clean background - no gradient orbs */}
@@ -94,6 +130,13 @@ export default function PrivacyPage() {
 					>
 						Reset consent
 					</button>
+        <button
+          type="button"
+          onClick={resetSiteData}
+          className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          Reset site data
+        </button>
               <Link
                 href="/"
                 className="rounded-xl bg-muted/50 dark:bg-white/5 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"

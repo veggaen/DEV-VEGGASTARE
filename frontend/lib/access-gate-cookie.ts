@@ -1,5 +1,6 @@
-export function makeGateCookieValue(password: string): string {
-  const base64 = base64EncodeUtf8(password);
+export function makeGateCookieValue(password: string | undefined | null): string {
+  const safePassword = typeof password === "string" ? password : "";
+  const base64 = base64EncodeUtf8(safePassword);
   // Keep this stable across runtimes (Edge + Node)
   return `granted_${base64.slice(0, 16)}`;
 }
