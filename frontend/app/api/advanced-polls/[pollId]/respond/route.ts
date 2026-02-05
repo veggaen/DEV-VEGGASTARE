@@ -95,7 +95,19 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     // Parse request body
     const bodyResult = await parseJsonOrError(req, PollResponseCreateSchema);
     if (!bodyResult.ok) return bodyResult.response;
-    const { answers, isPartial } = bodyResult.data;
+    const { answers: rawAnswers, isPartial } = bodyResult.data;
+
+    // Validate that all questionIds exist in this poll
+    const validQuestionIds = new Set(poll.Questions.map(q => q.id));
+    const answers = rawAnswers.filter(a => validQuestionIds.has(a.questionId));
+    
+    if (answers.length === 0 && rawAnswers.length > 0) {
+      console.warn(LOG_PREFIX, `No valid answers for poll ${pollId}. Received questionIds:`, 
+        rawAnswers.map(a => a.questionId).slice(0, 5));
+      return NextResponse.json({ 
+        message: 'No valid answers provided. Question IDs do not match this poll.' 
+      }, { status: 400 });
+    }
 
     // Get IP hash and user agent for tracking
     const forwardedFor = req.headers.get('x-forwarded-for');

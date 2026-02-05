@@ -203,7 +203,8 @@ export function groupNotifications(notifications: Notification[]): NotificationG
         latestAt: notif.createdAt,
         totalCount: notif.groupCount || 1,
         actors: notif.actor ? [notif.actor] : [],
-        preview: notif.preview || notif.message,
+        // Use message as preview for system/milestone notifications to show actual content
+        preview: notif.type === "MILESTONE" ? notif.message : (notif.preview || notif.message),
       });
     }
   }

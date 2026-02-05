@@ -9,7 +9,16 @@ import { Badge } from '@/components/ui/badge';
 import { MessageInput } from '@/components/uicustom/chats/message-input';
 import { PollDisplay } from '@/components/uicustom/chats/poll-display';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { UseCurrentRole } from '@/hooks/use-current-role';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { 
   FiX, 
@@ -19,7 +28,13 @@ import {
   FiEye,
   FiExternalLink,
   FiCopy,
-  FiCheck
+  FiCheck,
+  FiBarChart2,
+  FiUsers as FiUsersIcon,
+  FiArrowRight,
+  FiMoreHorizontal,
+  FiEdit2,
+  FiTrash2,
 } from 'react-icons/fi';
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 import Pusher from 'pusher-js';
@@ -35,6 +50,14 @@ interface Message {
     name: string | null;
     image?: string | null;
   };
+}
+
+interface AdvancedPollPreview {
+  id: string;
+  title: string;
+  description?: string | null;
+  type: string;
+  totalResponses: number;
 }
 
 interface PulseData {
@@ -55,17 +78,21 @@ interface PulseData {
   repostCount?: number;
   positivePulseCount?: number;
   hasPoll?: boolean;
+  advancedPoll?: AdvancedPollPreview | null;
 }
 
 interface PulseDetailModalProps {
   pulseId: string | null;
   onClose: () => void;
   onTagClick?: (tag: string) => void;
+  advancedPoll?: AdvancedPollPreview | null;
+  onOpenPoll?: (pollId: string) => void;
 }
 
-export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailModalProps) {
+export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, onOpenPoll }: PulseDetailModalProps) {
   const router = useRouter();
   const currentUser = useCurrentUser();
+  const userRole = UseCurrentRole();
   const scrollRef = useRef<HTMLDivElement>(null);
   
   const [pulse, setPulse] = useState<PulseData | null>(null);
@@ -75,6 +102,72 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [modalHeight, setModalHeight] = useState<number | null>(null);
+  
+  // Comment edit/delete state
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  
+  // Permission checks
+  const isPlatformAdmin = userRole === 'OWNER' || userRole === 'ADMIN';
+  
+  // Check if user can manage a specific comment
+  const canManageComment = (senderId: string) => {
+    return currentUser?.id === senderId || isPlatformAdmin;
+  };
+  
+  // Handle comment edit
+  const handleEditComment = async (messageId: string) => {
+    if (!editContent.trim()) return;
+    
+    try {
+      const res = await fetch(`/api/messages/${messageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editContent.trim() }),
+      });
+      
+      if (!res.ok) throw new Error('Failed to update comment');
+      
+      // Update local state
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === messageId
+            ? { ...msg, content: editContent.trim(), editedAt: new Date().toISOString() }
+            : msg
+        )
+      );
+      
+      setEditingMessageId(null);
+      setEditContent('');
+      toast.success('Comment updated');
+    } catch (err) {
+      console.error('Edit comment failed:', err);
+      toast.error('Failed to update comment');
+    }
+  };
+  
+  // Handle comment delete
+  const handleDeleteComment = async (messageId: string) => {
+    setDeletingMessageId(messageId);
+    
+    try {
+      const res = await fetch(`/api/messages/${messageId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!res.ok) throw new Error('Failed to delete comment');
+      
+      // Remove from local state
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      toast.success('Comment deleted');
+    } catch (err) {
+      console.error('Delete comment failed:', err);
+      toast.error('Failed to delete comment');
+    } finally {
+      setDeletingMessageId(null);
+    }
+  };
 
   const { titleText, bodyText } = useMemo(() => {
     const title = pulse?.title?.trim() || '';
@@ -336,6 +429,54 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
               </div>
             </div>
 
+            {/* Advanced Poll Banner - Show when pulse has an advanced poll */}
+            {advancedPoll && (
+              <div className="border-b border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-emerald-500/10">
+                <button
+                  onClick={() => {
+                    if (onOpenPoll) {
+                      onOpenPoll(advancedPoll.id);
+                    } else {
+                      // Fallback: update URL and close modal
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('poll', advancedPoll.id);
+                      window.history.pushState({}, '', url.toString());
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                      onClose();
+                    }
+                  }}
+                  className="w-full px-5 py-3 flex items-center justify-between hover:bg-emerald-500/10 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                      <FiBarChart2 className="h-5 w-5" />
+                    </div>
+                    <div className="text-left">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-300 text-sm">
+                          {advancedPoll.type === 'REACH_ASSESSMENT' ? '🎯 ' : '📊 '}
+                          {advancedPoll.title}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                        <span className="flex items-center gap-1">
+                          <FiUsersIcon className="h-3 w-3" />
+                          {advancedPoll.totalResponses} responses
+                        </span>
+                        {advancedPoll.description && (
+                          <span className="line-clamp-1">{advancedPoll.description}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                    <span className="text-sm font-medium group-hover:underline">Take Poll</span>
+                    <FiArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </button>
+              </div>
+            )}
+
             {error ? (
               <div className="flex flex-1 min-h-0 flex-col">
                 <div className="flex-1 min-h-0 flex items-center justify-center px-6">
@@ -503,7 +644,9 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                       {messages.map((message) => (
                         <div
                           key={message.id}
-                          className="flex gap-3 rounded-xl bg-zinc-100 dark:bg-zinc-800/50 p-3 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                          className={`group flex gap-3 rounded-xl bg-zinc-100 dark:bg-zinc-800/50 p-3 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-800 ${
+                            deletingMessageId === message.id ? 'opacity-50' : ''
+                          }`}
                         >
                           <UserHoverCard
                             userId={message.sender?.id}
@@ -520,28 +663,97 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick }: PulseDetailMo
                             </Avatar>
                           </UserHoverCard>
                           <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                              <UserHoverCard
-                                userId={message.sender?.id}
-                                userName={message.sender?.name}
-                                userImage={message.sender?.image}
-                                side="bottom"
-                                align="start"
-                              >
-                                <span className="text-sm font-medium text-foreground/90 dark:text-white/90">
-                                  {message.sender?.name || 'Anonymous'}
+                            <div className="flex items-center justify-between">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                <UserHoverCard
+                                  userId={message.sender?.id}
+                                  userName={message.sender?.name}
+                                  userImage={message.sender?.image}
+                                  side="bottom"
+                                  align="start"
+                                >
+                                  <span className="text-sm font-medium text-foreground/90 dark:text-white/90">
+                                    {message.sender?.name || 'Anonymous'}
+                                  </span>
+                                </UserHoverCard>
+                                <span className="text-xs text-muted-foreground dark:text-white/40">
+                                  {formatDistanceToNowStrict(new Date(message.createdAt), { addSuffix: true })}
                                 </span>
-                              </UserHoverCard>
-                              <span className="text-xs text-muted-foreground dark:text-white/40">
-                                {formatDistanceToNowStrict(new Date(message.createdAt), { addSuffix: true })}
-                              </span>
-                              {message.editedAt && (
-                                <span className="text-xs text-muted-foreground/70 dark:text-white/30">(edited)</span>
+                                {message.editedAt && (
+                                  <span className="text-xs text-muted-foreground/70 dark:text-white/30">(edited)</span>
+                                )}
+                              </div>
+                              
+                              {/* Edit/Delete menu for comment owner or admin */}
+                              {canManageComment(message.sender?.id) && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all">
+                                      <FiMoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-40">
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setEditContent(message.content);
+                                        setEditingMessageId(message.id);
+                                      }}
+                                    >
+                                      <FiEdit2 className="h-4 w-4 mr-2" />
+                                      Edit
+                                      {isPlatformAdmin && currentUser?.id !== message.sender?.id && (
+                                        <span className="ml-auto text-[10px] px-1 py-0.5 bg-zinc-200 dark:bg-zinc-700 rounded">Admin</span>
+                                      )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => handleDeleteComment(message.id)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <FiTrash2 className="h-4 w-4 mr-2" />
+                                      Delete
+                                      {isPlatformAdmin && currentUser?.id !== message.sender?.id && (
+                                        <span className="ml-auto text-[10px] px-1 py-0.5 bg-zinc-200 dark:bg-zinc-700 rounded">Admin</span>
+                                      )}
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               )}
                             </div>
-                            <p className="mt-1 text-sm leading-relaxed text-foreground/80 dark:text-white/80 whitespace-pre-wrap break-words break-all">
-                              {message.content}
-                            </p>
+                            
+                            {/* Edit mode or display mode */}
+                            {editingMessageId === message.id ? (
+                              <div className="mt-2 space-y-2">
+                                <Textarea
+                                  value={editContent}
+                                  onChange={(e) => setEditContent(e.target.value)}
+                                  className="min-h-[60px] text-sm resize-none"
+                                  autoFocus
+                                />
+                                <div className="flex gap-2 justify-end">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setEditingMessageId(null);
+                                      setEditContent('');
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleEditComment(message.id)}
+                                    disabled={!editContent.trim()}
+                                  >
+                                    Save
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="mt-1 text-sm leading-relaxed text-foreground/80 dark:text-white/80 whitespace-pre-wrap break-words break-all">
+                                {message.content}
+                              </p>
+                            )}
                           </div>
                         </div>
                       ))}

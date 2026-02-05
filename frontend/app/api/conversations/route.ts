@@ -437,6 +437,7 @@ export async function GET(req: Request) {
         // Richard's insight: "reach count" over "follower count"
         // Sort by actual views and unique engagement, not just reply count
         orderBy = [
+          { pinnedToFeed: 'desc' },
           { isPinned: 'desc' },
           { viewCount: 'desc' },
           { uniqueRepliers: 'desc' },
@@ -447,6 +448,7 @@ export async function GET(req: Request) {
       case 'popular':
         // Most positive pulses (likes)
         orderBy = [
+          { pinnedToFeed: 'desc' },
           { isPinned: 'desc' },
           { positivePulseCount: 'desc' },
           { viewCount: 'desc' },
@@ -456,6 +458,7 @@ export async function GET(req: Request) {
       case 'discussed':
         // Most messages/comments
         orderBy = [
+          { pinnedToFeed: 'desc' },
           { isPinned: 'desc' },
           { Message: { _count: 'desc' } },
           { lastActivityAt: 'desc' },
@@ -464,6 +467,7 @@ export async function GET(req: Request) {
       case 'active':
         // Most recently active (last message/interaction)
         orderBy = [
+          { pinnedToFeed: 'desc' },
           { isPinned: 'desc' },
           { lastActivityAt: 'desc' },
         ];
@@ -471,6 +475,7 @@ export async function GET(req: Request) {
       case 'replies':
         // Most discussed (reply count)
         orderBy = [
+          { pinnedToFeed: 'desc' },
           { isPinned: 'desc' },
           { replyCount: 'desc' },
           { lastActivityAt: 'desc' },
@@ -480,6 +485,7 @@ export async function GET(req: Request) {
       default:
         // Most recently created
         orderBy = [
+          { pinnedToFeed: 'desc' },
           { isPinned: 'desc' },
           { createdAt: 'desc' },
         ];
@@ -513,6 +519,24 @@ export async function GET(req: Request) {
         Poll: {
           // Feed needs the question to show a longer preview than the truncated title.
           select: { id: true, question: true },
+        },
+        AdvancedPoll: {
+          // Include advanced polls (surveys, REACH feedback, etc.)
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            type: true,
+            totalResponses: true,
+            avgCompletionPct: true,
+          },
+        },
+        ProfilePins: {
+          // Check if pinned to any profiles - we'll filter by user later
+          select: {
+            userId: true,
+            pinnedAt: true,
+          },
         },
         _count: {
           select: { Message: true, ConversationRepost: true },
@@ -636,6 +660,8 @@ export async function GET(req: Request) {
 
         isLocked: conversation.isLocked,
         isPinned: conversation.isPinned,
+        pinnedToFeed: (conversation as any).pinnedToFeed || false,
+        pinnedToProfile: userId ? conversation.ProfilePins?.some((p: { userId: string }) => p.userId === userId) || false : false,
         replyPermission: conversation.replyPermission,
         tags: (conversation.tags as string[]) ?? [],
         type: conversation.type,
@@ -665,9 +691,25 @@ export async function GET(req: Request) {
         quoteRepostCount: (conversation as any).quoteRepostCount ?? undefined,
         hasReposted: userId ? repostedSet.has(conversation.id) : false,
 
-        hasPoll: !!conversation.Poll,
+        hasPoll: !!(conversation.Poll || conversation.AdvancedPoll),
         poll: conversation.Poll ? { id: conversation.Poll.id, question: conversation.Poll.question ?? null } : null,
         Poll: conversation.Poll ? { id: conversation.Poll.id, question: conversation.Poll.question ?? null } : null,
+        advancedPoll: conversation.AdvancedPoll ? {
+          id: conversation.AdvancedPoll.id,
+          title: conversation.AdvancedPoll.title,
+          description: conversation.AdvancedPoll.description,
+          type: conversation.AdvancedPoll.type,
+          totalResponses: conversation.AdvancedPoll.totalResponses,
+          avgCompletionPct: conversation.AdvancedPoll.avgCompletionPct,
+        } : null,
+        AdvancedPoll: conversation.AdvancedPoll ? {
+          id: conversation.AdvancedPoll.id,
+          title: conversation.AdvancedPoll.title,
+          description: conversation.AdvancedPoll.description,
+          type: conversation.AdvancedPoll.type,
+          totalResponses: conversation.AdvancedPoll.totalResponses,
+          avgCompletionPct: conversation.AdvancedPoll.avgCompletionPct,
+        } : null,
 
         positivePulseCount: conversation.positivePulseCount || 0,
         negativePulseCount: conversation.negativePulseCount || 0,

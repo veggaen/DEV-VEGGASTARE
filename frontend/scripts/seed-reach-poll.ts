@@ -165,7 +165,7 @@ const SECTION_1: QuestionData[] = [
       { label: "Payment card on file", icon: "💳" },
       { label: "Made a crypto purchase", icon: "🪙" },
       { label: "Phone number verified", icon: "📱" },
-      { label: "Twitter/X OAuth", icon: "🐦" },
+      { label: "X OAuth", icon: "𝕏" },
       { label: "LinkedIn OAuth", icon: "💼" },
     ],
   },
@@ -203,7 +203,7 @@ const SECTION_1: QuestionData[] = [
     description: "Helps us understand your expectations",
     required: false,
     options: [
-      { label: "Twitter/X", icon: "🐦" },
+      { label: "X", icon: "𝕏" },
       { label: "Instagram", icon: "📸" },
       { label: "TikTok", icon: "🎵" },
       { label: "Reddit", icon: "🤖" },

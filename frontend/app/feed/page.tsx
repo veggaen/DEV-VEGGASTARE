@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -25,9 +26,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { UseCurrentRole } from '@/hooks/use-current-role';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import usePusher from '@/hooks/usePusher';
-import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2, FiRefreshCw } from 'react-icons/fi';
+import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2, FiRefreshCw, FiFilter } from 'react-icons/fi';
+import { Pin, PinOff } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { PulseHeart, PulseFlat, PulsePositive } from '@/components/uicustom/icons/PulseIcons';
 import { pulseLabels } from '@/lib/pulse-labels';
 import { formatDistanceToNowStrict } from 'date-fns';
@@ -38,7 +42,10 @@ import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 import { PollBuilder } from '@/components/uicustom/polls/PollBuilder';
 import { PulsePollCard, type PulsePollData } from '@/components/uicustom/polls/PulsePollCard';
 import { PollTakerModal } from '@/components/uicustom/polls/PollTakerModal';
-import { Zap, Target, Rocket, PlayCircle } from 'lucide-react';
+import { ReachPollV3 } from '@/components/uicustom/polls/ReachPollV3';
+import { Zap, Target, Rocket, PlayCircle, Copy, FileUp, Download, Sparkles, Check } from 'lucide-react';
+import { PollImportModal } from '@/components/uicustom/polls/PollImportModal';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface User {
@@ -77,12 +84,30 @@ interface FeedItem {
   repostOfLastMessage?: { content: string; createdAt: string } | null;
   hasPoll?: boolean;
   poll?: { id: string; question?: string } | null;
+  advancedPoll?: {
+    id: string;
+    title: string;
+    description?: string | null;
+    type: string;
+    totalResponses: number;
+    avgCompletionPct: number;
+  } | null;
   lastMessage?: { content: string; createdAt: string } | null;
+  // Pin status
+  pinnedToFeed?: boolean;
+  pinnedToProfile?: boolean;
 }
 
 const getReplyCount = (messageCount?: number | null) => Math.max(0, (messageCount || 0) - 1);
 
-type FilterType = 'all' | 'polls' | 'trending';
+// ─────────────────────────────────────────────────────────────────────────────
+// FILTER & SORT TYPES
+// Filter: what TYPE of content to show (can be combined!)
+// Sort: how to ORDER that content
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Main content type filter
+type ContentFilter = 'all' | 'pulses' | 'polls' | 'trending';
 type PostVisibility = 'PUBLIC' | 'PARTICIPANTS' | 'ROLE_BASED';
 type ReplyPermission = 'EVERYONE' | 'PARTICIPANTS' | 'MENTIONED' | 'MODS_ONLY' | 'CREATOR_ONLY';
 
@@ -102,14 +127,68 @@ const REPLY_OPTIONS: { value: ReplyPermission; label: string; description: strin
   { value: 'CREATOR_ONLY', label: 'No Comments', description: 'Only you can post (announcement)' },
 ];
 
-// Sort options for feed
-type SortType = 'reach' | 'recent' | 'popular' | 'discussed';
-const SORT_OPTIONS: { value: SortType; label: string; description: string }[] = [
-  { value: 'reach', label: 'Top Reach', description: 'Most viewed & engaged' },
-  { value: 'recent', label: 'Latest', description: 'Newest first' },
-  { value: 'popular', label: 'Most Heartbeats', description: 'Most heartbeats' },
-  { value: 'discussed', label: 'Most Discussed', description: 'Most comments' },
+// Sort options for feed - how to order content
+type SortType = 'recent' | 'popular' | 'discussed' | 'reach';
+const SORT_OPTIONS: { value: SortType; label: string; icon: React.ReactNode; description: string }[] = [
+  { value: 'recent', label: 'Latest', icon: <FiRefreshCw className="h-4 w-4" />, description: 'Newest first' },
+  { value: 'popular', label: 'Most Heartbeats', icon: <PulseHeart className="h-4 w-4" />, description: 'Most loved' },
+  { value: 'discussed', label: 'Most Discussed', icon: <FiMessageCircle className="h-4 w-4" />, description: 'Most comments' },
+  { value: 'reach', label: 'Top Reach', icon: <Target className="h-4 w-4" />, description: 'Highest reach score' },
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TRENDING ALGORITHM
+// Calculates a "trending score" based on:
+// - Engagement velocity (engagement per hour since creation)
+// - Recency boost (newer content gets a boost)
+// - Engagement diversity (comments + heartbeats + repulses)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function calculateTrendingScore(item: FeedItem): number {
+  const now = Date.now();
+  const createdAt = new Date(item.createdAt).getTime();
+  const ageHours = Math.max(0.5, (now - createdAt) / (1000 * 60 * 60));
+  
+  // Engagement signals
+  const views = item.uniqueViewCount || 0;
+  const comments = getReplyCount(item.messageCount);
+  const heartbeats = item.positivePulseCount || 0;
+  const repulses = item.repostCount || 0;
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // WEIGHTED ENGAGEMENT SCORE (user-specified weights)
+  // Views: 40%, Comments: 30%, Heartbeats: 20%, Repulses: 10%
+  // ─────────────────────────────────────────────────────────────────────────
+  const normalizedViews = Math.min(views, 1000) / 100;       // Cap at 1000, scale to 0-10
+  const normalizedComments = Math.min(comments, 100) / 10;   // Cap at 100, scale to 0-10
+  const normalizedHeartbeats = Math.min(heartbeats, 500) / 50; // Cap at 500, scale to 0-10
+  const normalizedRepulses = Math.min(repulses, 100) / 10;   // Cap at 100, scale to 0-10
+  
+  const engagementScore = 
+    (normalizedViews * 0.40) +      // 40% weight
+    (normalizedComments * 0.30) +   // 30% weight
+    (normalizedHeartbeats * 0.20) + // 20% weight
+    (normalizedRepulses * 0.10);    // 10% weight
+  
+  // Velocity = engagement per hour (how fast it's gaining traction)
+  const velocity = engagementScore / Math.sqrt(ageHours); // Use sqrt for gentler decay
+  
+  // Recency boost (newer content gets prioritized)
+  const recencyBoost = 
+    ageHours < 1 ? 2.0 :
+    ageHours < 3 ? 1.7 :
+    ageHours < 6 ? 1.4 :
+    ageHours < 12 ? 1.2 :
+    ageHours < 24 ? 1.0 :
+    ageHours < 48 ? 0.8 :
+    0.6;
+  
+  // Base score for any content (ensures even 0-engagement content has a score)
+  const baseScore = 0.1;
+  
+  // Final trending score
+  return baseScore + (velocity * recencyBoost);
+}
 
 const FeedPage: React.FC = () => {
   const router = useRouter();
@@ -120,7 +199,7 @@ const FeedPage: React.FC = () => {
   // Feed state
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [filter, setFilter] = useState<ContentFilter>('all');
   const [sortBy, setSortBy] = useState<SortType>('recent');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   
@@ -137,10 +216,16 @@ const FeedPage: React.FC = () => {
     const pulseParam = searchParams.get('pulse');
     setSelectedPulseId(pulseParam);
     
-    // Check for filter param (?filter=polls makes link shareable)
-    const filterParam = searchParams.get('filter') as FilterType | null;
-    if (filterParam && ['all', 'polls', 'trending'].includes(filterParam)) {
+    // Check for filter param (?filter=polls or ?filter=pulses makes link shareable)
+    const filterParam = searchParams.get('filter') as ContentFilter | null;
+    if (filterParam && ['all', 'pulses', 'polls', 'trending'].includes(filterParam)) {
       setFilter(filterParam);
+    }
+    
+    // Check for sort param
+    const sortParam = searchParams.get('sort') as SortType | null;
+    if (sortParam && ['recent', 'popular', 'discussed', 'reach'].includes(sortParam)) {
+      setSortBy(sortParam);
     }
     
     // Check for poll param (?poll=ID opens poll taker modal)
@@ -171,14 +256,34 @@ const FeedPage: React.FC = () => {
   };
 
   // Change filter with URL update for shareable links
-  const changeFilter = (newFilter: FilterType) => {
+  const changeFilter = (newFilter: ContentFilter) => {
     setFilter(newFilter);
-    // Update URL for shareable links (e.g. /feed?filter=polls)
+    
+    // Clear poll composer state when navigating away from polls filter
+    // This ensures the poll being composed doesn't persist across filter changes
+    setIncludePoll(false);
+    setPollQuestion('');
+    setPollOptions(['', '']);
+    setShowPollBuilder(false);
+    
+    // Update URL for shareable links (e.g. /pulse?filter=polls)
     const url = new URL(window.location.href);
     if (newFilter === 'all') {
       url.searchParams.delete('filter');
     } else {
       url.searchParams.set('filter', newFilter);
+    }
+    window.history.pushState({}, '', url.toString());
+  };
+
+  const changeSort = (newSort: SortType) => {
+    setSortBy(newSort);
+    // Update URL for shareable links (e.g. /pulse?sort=trending)
+    const url = new URL(window.location.href);
+    if (newSort === 'recent') {
+      url.searchParams.delete('sort');
+    } else {
+      url.searchParams.set('sort', newSort);
     }
     window.history.pushState({}, '', url.toString());
   };
@@ -199,11 +304,31 @@ const FeedPage: React.FC = () => {
 
   // Poll builder modal state
   const [showPollBuilder, setShowPollBuilder] = useState(false);
+  const [showPollImport, setShowPollImport] = useState(false);
+  const [pollJsonPreview, setPollJsonPreview] = useState<string | null>(null);
+  
+  // Pending advanced poll (created but not yet pulsed)
+  const [pendingAdvancedPoll, setPendingAdvancedPoll] = useState<{
+    id: string;
+    title: string;
+    description?: string;
+    type: string;
+    questionCount: number;
+  } | null>(null);
 
   // Advanced polls state (for "Polls" filter)
   const [advancedPolls, setAdvancedPolls] = useState<PulsePollData[]>([]);
   const [loadingPolls, setLoadingPolls] = useState(false);
   const [selectedAdvancedPollId, setSelectedAdvancedPollId] = useState<string | null>(null);
+  
+  // Check if selected poll is REACH Assessment (use V2 UI)
+  // First try to find in advancedPolls, then check feed items
+  const selectedPoll = advancedPolls.find(p => p.id === selectedAdvancedPollId);
+  const selectedItemPoll = items.find(i => i.advancedPoll?.id === selectedAdvancedPollId)?.advancedPoll;
+  const isReachAuditPoll = selectedPoll?.type === 'REACH_ASSESSMENT' || 
+    selectedPoll?.title?.toLowerCase().includes('reach') ||
+    selectedItemPoll?.type === 'REACH_ASSESSMENT' ||
+    selectedItemPoll?.title?.toLowerCase().includes('reach');
 
   // Fetch advanced polls when filter is 'polls'
   useEffect(() => {
@@ -240,7 +365,8 @@ const FeedPage: React.FC = () => {
   const fetchFeed = useCallback(async (resetNewCount = true) => {
     setLoading(true);
     try {
-      let url = `/api/conversations?filter=public&sort=${sortBy}&limit=50`;
+      // Fetch all content, then filter/sort client-side for flexibility
+      let url = `/api/conversations?filter=public&sort=recent&limit=100`;
       if (tagFilter) {
         url += `&tag=${encodeURIComponent(tagFilter)}`;
       }
@@ -248,17 +374,40 @@ const FeedPage: React.FC = () => {
       const data = await res.json();
       let feedItems = (data.conversations || []) as FeedItem[];
       
-      // Client-side filter for polls
+      // ─────────────────────────────────────────────────────────────────────────
+      // CONTENT TYPE FILTER
+      // ─────────────────────────────────────────────────────────────────────────
       if (filter === 'polls') {
+        // Only show items with polls
         feedItems = feedItems.filter(item => item.hasPoll);
+      } else if (filter === 'pulses') {
+        // Only show items WITHOUT polls (regular pulses)
+        feedItems = feedItems.filter(item => !item.hasPoll);
+      } else if (filter === 'trending') {
+        // Show content sorted by trending score (no minimum threshold - show all sorted)
+        // This ensures users always see content, just prioritized by trending score
+        feedItems = [...feedItems].sort((a, b) => calculateTrendingScore(b) - calculateTrendingScore(a));
       }
+      // 'all' shows everything
       
-      // Client-side sorting for consistency
+      // ─────────────────────────────────────────────────────────────────────────
+      // SORT OPTIONS (applied after filter)
+      // ─────────────────────────────────────────────────────────────────────────
       if (sortBy === 'popular') {
+        // Most heartbeats
         feedItems = [...feedItems].sort((a, b) => (b.positivePulseCount || 0) - (a.positivePulseCount || 0));
       } else if (sortBy === 'discussed') {
+        // Most comments
         feedItems = [...feedItems].sort((a, b) => getReplyCount(b.messageCount) - getReplyCount(a.messageCount));
+      } else if (sortBy === 'reach') {
+        // Highest reach (views + engagement)
+        feedItems = [...feedItems].sort((a, b) => {
+          const reachA = (a.uniqueViewCount || 0) + (a.positivePulseCount || 0) * 2;
+          const reachB = (b.uniqueViewCount || 0) + (b.positivePulseCount || 0) * 2;
+          return reachB - reachA;
+        });
       }
+      // 'recent' is already sorted by newest first from API
       
       setItems(feedItems);
       
@@ -333,7 +482,8 @@ const FeedPage: React.FC = () => {
 
   // Handle post submission
   const handlePost = async () => {
-    if (!composeText.trim() && !pollQuestion.trim()) return;
+    // Allow submission with pending advanced poll even without text
+    if (!composeText.trim() && !pollQuestion.trim() && !pendingAdvancedPoll) return;
 
     setIsSubmitting(true);
     try {
@@ -345,8 +495,9 @@ const FeedPage: React.FC = () => {
           type: 'PUBLIC_THREAD',
           visibility,
           replyPermission,
-          initialMessage: composeText.trim() || undefined,
+          initialMessage: composeText.trim() || (pendingAdvancedPoll ? `📊 ${pendingAdvancedPoll.title}` : undefined),
           pollQuestion: includePoll && pollQuestion.trim() ? pollQuestion.trim() : undefined,
+          advancedPollId: pendingAdvancedPoll?.id, // Link the pending advanced poll
           tags,
         }),
       });
@@ -356,8 +507,8 @@ const FeedPage: React.FC = () => {
       const data = await res.json();
       const conversationId = data.id;
 
-      // Create poll if included
-      if (includePoll && pollQuestion.trim()) {
+      // Create quick poll if included (not for advanced polls)
+      if (includePoll && pollQuestion.trim() && !pendingAdvancedPoll) {
         const validOptions = pollOptions.filter(opt => opt.trim());
         if (validOptions.length >= 2) {
           await fetch('/api/polls', {
@@ -374,11 +525,21 @@ const FeedPage: React.FC = () => {
         }
       }
 
+      // Link the advanced poll to this conversation if pending
+      if (pendingAdvancedPoll) {
+        await fetch(`/api/advanced-polls/${pendingAdvancedPoll.id}/link`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ conversationId }),
+        });
+      }
+
       // Reset form
       setComposeText('');
       setIncludePoll(false);
       setPollQuestion('');
       setPollOptions(['', '']);
+      setPendingAdvancedPoll(null);
       setTags([]);
       setShowTagInput(false);
       setVisibility('PUBLIC');
@@ -423,25 +584,41 @@ const FeedPage: React.FC = () => {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-3 sm:px-6 lg:px-8">
-      {/* ─── Pulse Sub-navbar ─── */}
+      {/* ─── Flow Sub-navbar ─── */}
       <div className="border-b border-border/50 mb-5">
         <div className="flex items-center gap-3 h-11">
-          <span className="text-sm font-semibold text-foreground/80 shrink-0">Pulse</span>
+          {/* Brand link - "Flow" goes to /pulse (shows all content) */}
+          <Link
+            href="/pulse"
+            onClick={() => {
+              changeFilter('all');
+              changeSort('recent');
+            }}
+            className="text-sm font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent hover:from-emerald-400 hover:to-cyan-400 transition-all shrink-0 flex items-center gap-1.5"
+          >
+            <Zap className="h-4 w-4 text-emerald-500" />
+            Flow
+          </Link>
+          
           <div className="h-4 w-px bg-border/60" />
+          
+          {/* Content Type Filters */}
           <div className="flex items-center gap-1">
             <Button
-              variant={filter === 'all' ? 'secondary' : 'ghost'}
+              variant={filter === 'pulses' ? 'secondary' : 'ghost'}
               size="sm"
-              onClick={() => changeFilter('all')}
+              onClick={() => changeFilter('pulses')}
               className="h-8"
+              title="Only regular pulses (no polls)"
             >
-              All
+              <PulseHeart className="h-4 w-4 mr-1" /> Pulse
             </Button>
             <Button
               variant={filter === 'polls' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => changeFilter('polls')}
               className="h-8"
+              title="Only polls and surveys"
             >
               <FiBarChart2 className="h-4 w-4 mr-1" /> Polls
             </Button>
@@ -450,6 +627,7 @@ const FeedPage: React.FC = () => {
               size="sm"
               onClick={() => changeFilter('trending')}
               className="h-8"
+              title="Trending content"
             >
               <FiTrendingUp className="h-4 w-4 mr-1" /> Trending
             </Button>
@@ -457,40 +635,132 @@ const FeedPage: React.FC = () => {
 
           <div className="h-4 w-px bg-border/60" />
           
-          {/* Sort dropdown */}
+          {/* Filters dropdown with sort and additional options */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1">
-                {SORT_OPTIONS.find(s => s.value === sortBy)?.label || 'Sort'}
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5">
+                <FiFilter className="h-4 w-4" />
+                <span className="hidden sm:inline">Filters</span>
+                {sortBy !== 'recent' && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                    {SORT_OPTIONS.find(s => s.value === sortBy)?.label}
+                  </Badge>
+                )}
                 <FiChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-              <DropdownMenuSeparator />
+            <DropdownMenuContent align="start" className="w-64">
+              {/* Sort options */}
+              <DropdownMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground uppercase">
+                Sort by
+              </DropdownMenuLabel>
               {SORT_OPTIONS.map((option) => (
                 <DropdownMenuItem
                   key={option.value}
-                  onClick={() => setSortBy(option.value)}
-                  className={sortBy === option.value ? 'bg-accent' : ''}
+                  onClick={() => changeSort(option.value)}
+                  className={cn(
+                    "flex items-center gap-2 cursor-pointer",
+                    sortBy === option.value && 'bg-accent'
+                  )}
                 >
-                  <div>
+                  {option.icon}
+                  <div className="flex-1">
                     <div className="font-medium">{option.label}</div>
                     <div className="text-xs text-muted-foreground">{option.description}</div>
                   </div>
+                  {sortBy === option.value && <Check className="h-4 w-4 text-primary" />}
                 </DropdownMenuItem>
               ))}
+              
+              <DropdownMenuSeparator />
+              
+              {/* Content type quick filters */}
+              <DropdownMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground uppercase">
+                Content Type
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => changeFilter('all')}
+                className={cn("cursor-pointer", filter === 'all' && 'bg-accent')}
+              >
+                <FiGlobe className="h-4 w-4 mr-2" />
+                <span>All Content</span>
+                {filter === 'all' && <Check className="h-4 w-4 ml-auto text-primary" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => changeFilter('pulses')}
+                className={cn("cursor-pointer", filter === 'pulses' && 'bg-accent')}
+              >
+                <PulseHeart className="h-4 w-4 mr-2" />
+                <span>Pulses Only</span>
+                {filter === 'pulses' && <Check className="h-4 w-4 ml-auto text-primary" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => changeFilter('polls')}
+                className={cn("cursor-pointer", filter === 'polls' && 'bg-accent')}
+              >
+                <FiBarChart2 className="h-4 w-4 mr-2" />
+                <span>Polls Only</span>
+                {filter === 'polls' && <Check className="h-4 w-4 ml-auto text-primary" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => changeFilter('trending')}
+                className={cn("cursor-pointer", filter === 'trending' && 'bg-accent')}
+              >
+                <FiTrendingUp className="h-4 w-4 mr-2" />
+                <span>Trending Only</span>
+                {filter === 'trending' && <Check className="h-4 w-4 ml-auto text-primary" />}
+              </DropdownMenuItem>
+              
+              {/* Clear all filters */}
+              {(filter !== 'all' || sortBy !== 'recent' || tagFilter) && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      changeFilter('all');
+                      changeSort('recent');
+                      setTagFilter(null);
+                    }}
+                    className="text-muted-foreground cursor-pointer"
+                  >
+                    <FiX className="h-4 w-4 mr-2" />
+                    <span>Clear All Filters</span>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {tagFilter && (
-            <Badge variant="outline" className="ml-auto flex items-center gap-1">
-              #{tagFilter}
-              <button onClick={() => setTagFilter(null)}>
-                <FiX className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
+          {/* Active filter badges */}
+          <div className="flex items-center gap-2 ml-auto">
+            {filter !== 'all' && (
+              <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                {filter === 'pulses' && <><PulseHeart className="h-3 w-3" /> Pulses</>}
+                {filter === 'polls' && <><FiBarChart2 className="h-3 w-3" /> Polls</>}
+                {filter === 'trending' && <><FiTrendingUp className="h-3 w-3" /> Trending</>}
+                <button onClick={() => changeFilter('all')} className="ml-1 hover:text-destructive">
+                  <FiX className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {sortBy !== 'recent' && (
+              <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                {SORT_OPTIONS.find(s => s.value === sortBy)?.icon}
+                <span className="ml-1">{SORT_OPTIONS.find(s => s.value === sortBy)?.label}</span>
+                <button onClick={() => changeSort('recent')} className="ml-1 hover:text-destructive">
+                  <FiX className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {tagFilter && (
+              <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                #{tagFilter}
+                <button onClick={() => setTagFilter(null)} className="ml-1 hover:text-destructive">
+                  <FiX className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 
@@ -707,6 +977,40 @@ const FeedPage: React.FC = () => {
                       </div>
                     )}
 
+                    {/* Advanced Poll Preview (if pending) */}
+                    {pendingAdvancedPoll && (
+                      <div className="p-3 rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-amber-500/10">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-amber-500/20">
+                              <Zap className="h-5 w-5 text-amber-500" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-sm">{pendingAdvancedPoll.title}</h4>
+                              {pendingAdvancedPoll.description && (
+                                <p className="text-xs text-muted-foreground line-clamp-1">{pendingAdvancedPoll.description}</p>
+                              )}
+                              <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                  {pendingAdvancedPoll.type}
+                                </Badge>
+                                <span>{pendingAdvancedPoll.questionCount} questions</span>
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setPendingAdvancedPoll(null)}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <FiX className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Tags */}
                     {tags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
@@ -778,6 +1082,52 @@ const FeedPage: React.FC = () => {
                           <div className="flex-1">
                             <div className="font-medium">Advanced Poll Builder</div>
                             <div className="text-xs text-muted-foreground">Surveys, quizzes, assessments</div>
+                          </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setShowPollImport(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <FileUp className="h-4 w-4 text-cyan-500" />
+                          <div className="flex-1">
+                            <div className="font-medium">Import from JSON</div>
+                            <div className="text-xs text-muted-foreground">Paste JSON or use templates</div>
+                          </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-xs text-muted-foreground">Export</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            // Find the REACH poll and export it
+                            const reachPoll = advancedPolls.find(p => 
+                              p.type === 'REACH_ASSESSMENT' || p.title?.toLowerCase().includes('reach')
+                            );
+                            if (reachPoll) {
+                              try {
+                                const res = await fetch(`/api/polls/export?pollId=${reachPoll.id}`);
+                                const data = await res.json();
+                                if (data.success) {
+                                  const jsonStr = JSON.stringify(data.poll, null, 2);
+                                  await navigator.clipboard.writeText(jsonStr);
+                                  toast.success('Poll JSON copied to clipboard!', {
+                                    description: 'You can now paste it in the import dialog'
+                                  });
+                                } else {
+                                  toast.error('Failed to export poll');
+                                }
+                              } catch {
+                                toast.error('Failed to export poll');
+                              }
+                            } else {
+                              toast.info('No REACH poll found to export');
+                            }
+                          }}
+                          className="flex items-center gap-2"
+                        >
+                          <Copy className="h-4 w-4 text-emerald-500" />
+                          <div className="flex-1">
+                            <div className="font-medium">Copy REACH Poll JSON</div>
+                            <div className="text-xs text-muted-foreground">Copy to clipboard for editing</div>
                           </div>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -876,71 +1226,44 @@ const FeedPage: React.FC = () => {
             </div>
           )}
 
-          {/* Feed - show different content based on filter */}
+          {/* Feed - unified feed for all content types */}
           <div className="space-y-3">
-            {filter === 'polls' ? (
-              // Show advanced polls
-              loadingPolls ? (
-                <div className="flex justify-center py-12">
-                  <Spinner />
-                </div>
-              ) : advancedPolls.length === 0 ? (
-                <div className="text-center py-12">
-                  <Rocket className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <h3 className="font-semibold text-lg mb-2">No polls yet</h3>
-                  <p className="text-muted-foreground mb-4">Be the first to create a poll and pulse it to everyone!</p>
-                  <div className="flex gap-2 justify-center">
-                    <Button variant="outline" onClick={() => setIncludePoll(true)} className="gap-2">
-                      <FiBarChart2 className="h-4 w-4" />
-                      Quick Poll
-                    </Button>
-                    <Button onClick={() => setShowPollBuilder(true)} className="gap-2">
-                      <Zap className="h-4 w-4" />
-                      Advanced Poll
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                advancedPolls.map((poll) => (
-                  <PulsePollCard
-                    key={poll.id}
-                    poll={poll}
-                    onClick={() => setSelectedAdvancedPollId(poll.id)}
-                    isAdmin={currentUser?.role === 'ADMIN'}
-                    isOwner={currentUser?.id === poll.creator.id}
-                    onDelete={async () => {
-                      const res = await fetch(`/api/advanced-polls/${poll.id}`, { method: 'DELETE' });
-                      if (!res.ok) throw new Error('Failed to delete');
-                      setAdvancedPolls(prev => prev.filter(p => p.id !== poll.id));
-                    }}
-                    onEdit={() => {
-                      // TODO: Open edit modal with poll data
-                      console.log('Edit poll:', poll.id);
-                    }}
-                  />
-                ))
-              )
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <Spinner />
+              </div>
+            ) : items.length === 0 ? (
+              <div className="text-center py-12">
+                {filter === 'polls' ? (
+                  <>
+                    <Rocket className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                    <h3 className="font-semibold text-lg mb-2">No polls yet</h3>
+                    <p className="text-muted-foreground mb-4">Be the first to create a poll and pulse it to everyone!</p>
+                    <div className="flex gap-2 justify-center">
+                      <Button variant="outline" onClick={() => setIncludePoll(true)} className="gap-2">
+                        <FiBarChart2 className="h-4 w-4" />
+                        Quick Poll
+                      </Button>
+                      <Button onClick={() => setShowPollBuilder(true)} className="gap-2">
+                        <Zap className="h-4 w-4" />
+                        Advanced Poll
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground">No pulses yet. Be the first to start the vibe!</p>
+                )}
+              </div>
             ) : (
-              // Regular feed
-              loading ? (
-                <div className="flex justify-center py-12">
-                  <Spinner />
-                </div>
-              ) : items.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <p>No pulses yet. Be the first to start the vibe!</p>
-                </div>
-              ) : (
-                items.map((item) => (
-                  <FeedCard
-                    key={item.id}
-                    item={item}
-                    onTagClick={(tag) => setTagFilter(tag)}
-                    onClick={() => openPulse(item.id)}
-                    onRefresh={fetchFeed}
-                  />
-                ))
-              )
+              items.map((item) => (
+                <FeedCard
+                  key={item.id}
+                  item={item}
+                  onTagClick={(tag) => setTagFilter(tag)}
+                  onClick={() => openPulse(item.id)}
+                  onRefresh={fetchFeed}
+                />
+              ))
             )}
           </div>
 
@@ -949,6 +1272,15 @@ const FeedPage: React.FC = () => {
             pulseId={selectedPulseId}
             onClose={closePulse}
             onTagClick={(tag) => setTagFilter(tag)}
+            advancedPoll={items.find(i => i.id === selectedPulseId)?.advancedPoll}
+            onOpenPoll={(pollId) => {
+              closePulse();
+              setSelectedAdvancedPollId(pollId);
+              const url = new URL(window.location.href);
+              url.searchParams.set('poll', pollId);
+              url.searchParams.delete('pulse');
+              window.history.pushState({}, '', url.toString());
+            }}
           />
 
           {/* Advanced Poll Builder Modal */}
@@ -967,30 +1299,71 @@ const FeedPage: React.FC = () => {
                 <PollBuilder
                   onSave={async (data) => {
                     try {
-                      // Create a pulse with the advanced poll
-                      const res = await fetch('/api/polls', {
+                      // Transform PollBuilder data to AdvancedPollCreate format
+                      const advancedPollData = {
+                        title: data.title,
+                        description: data.description || undefined,
+                        type: data.type || 'SURVEY',
+                        isAnonymous: false,
+                        allowPartial: data.allowPartialSubmission ?? true,
+                        requiresAuth: true,
+                        expiresAt: data.expiresAt || undefined,
+                        questions: data.questions.map((q, idx) => ({
+                          text: q.questionText,
+                          description: q.description || undefined,
+                          type: q.type,
+                          order: q.order ?? idx,
+                          isRequired: q.required ?? true,
+                          allowImages: q.allowImages ?? false,
+                          allowComments: false,
+                          sliderConfig: q.sliderConfig ? {
+                            min: q.sliderConfig.minValue,
+                            max: q.sliderConfig.maxValue,
+                            step: q.sliderConfig.step,
+                            minLabel: q.sliderConfig.minLabel,
+                            maxLabel: q.sliderConfig.maxLabel,
+                          } : undefined,
+                          options: (q.options || []).map((opt, optIdx) => ({
+                            text: opt.text,
+                            order: optIdx,
+                            value: opt.value,
+                            imageUrl: opt.imageUrl,
+                          })),
+                        })),
+                      };
+
+                      // Create the advanced poll
+                      const res = await fetch('/api/advanced-polls', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          ...data,
-                          visibility,
-                          replyPermission,
-                          pulseAsConversation: true,
-                        }),
+                        body: JSON.stringify(advancedPollData),
                       });
-                      if (!res.ok) throw new Error('Failed to create poll');
+
+                      if (!res.ok) {
+                        const errorData = await res.json().catch(() => ({}));
+                        console.error('API Error:', errorData);
+                        throw new Error(errorData.message || 'Failed to create poll');
+                      }
+
                       const createdPoll = await res.json();
                       
-                      // Close modal and refresh feed
-                      setShowPollBuilder(false);
-                      fetchFeed();
+                      // Store as pending poll for preview in composer
+                      setPendingAdvancedPoll({
+                        id: createdPoll.poll?.id || createdPoll.id,
+                        title: data.title,
+                        description: data.description,
+                        type: data.type || 'SURVEY',
+                        questionCount: data.questions.length,
+                      });
                       
-                      // Optionally open the new pulse
-                      if (createdPoll.conversationId) {
-                        openPulse(createdPoll.conversationId);
-                      }
+                      // Close modal - poll will show in composer for user to add message and pulse
+                      setShowPollBuilder(false);
+                      
+                      // Switch to default filter to show composer
+                      setFilter('all');
                     } catch (error) {
                       console.error('Failed to create advanced poll:', error);
+                      alert(error instanceof Error ? error.message : 'Failed to create poll');
                     }
                   }}
                   onPreview={(data) => {
@@ -1002,31 +1375,130 @@ const FeedPage: React.FC = () => {
           </Dialog>
 
           {/* Poll Taker Modal - for taking advanced polls */}
-          <PollTakerModal
-            pollId={selectedAdvancedPollId}
-            onClose={() => setSelectedAdvancedPollId(null)}
-            onComplete={(responseId) => {
-              console.log('Poll completed:', responseId);
-              // Refresh polls list
-              if (filter === 'polls') {
-                const fetchPolls = async () => {
-                  const res = await fetch('/api/advanced-polls?pageSize=20');
+          {/* Use ReachPollV3 for REACH Assessment polls (interactive drag/drop experience), regular modal for others */}
+          {isReachAuditPoll ? (
+            <ReachPollV3
+              pollId={selectedAdvancedPollId}
+              onClose={() => setSelectedAdvancedPollId(null)}
+              onComplete={(responseId) => {
+                console.log('Poll completed:', responseId);
+                // Refresh polls list
+                if (filter === 'polls') {
+                  const fetchPolls = async () => {
+                    const res = await fetch('/api/advanced-polls?pageSize=20');
+                    const data = await res.json();
+                    setAdvancedPolls(data.polls?.map((p: any) => ({
+                      id: p.id,
+                      title: p.title,
+                      description: p.description,
+                      type: p.type,
+                      creator: p.Creator || { id: p.creatorId, name: 'Unknown', image: null },
+                      questionCount: p.questions?.length || 0,
+                      totalResponses: p.totalResponses || 0,
+                      avgCompletionPct: p.avgCompletionPct || 0,
+                      publishedAt: p.publishedAt,
+                      expiresAt: p.expiresAt,
+                      conversationId: p.conversationId,
+                    })) || []);
+                  };
+                  fetchPolls();
+                }
+              }}
+            />
+          ) : (
+            <PollTakerModal
+              pollId={selectedAdvancedPollId}
+              onClose={() => setSelectedAdvancedPollId(null)}
+              onComplete={(responseId) => {
+                console.log('Poll completed:', responseId);
+                // Refresh polls list
+                if (filter === 'polls') {
+                  const fetchPolls = async () => {
+                    const res = await fetch('/api/advanced-polls?pageSize=20');
+                    const data = await res.json();
+                    setAdvancedPolls(data.polls?.map((p: any) => ({
+                      id: p.id,
+                      title: p.title,
+                      description: p.description,
+                      type: p.type,
+                      creator: p.Creator || { id: p.creatorId, name: 'Unknown', image: null },
+                      questionCount: p.questions?.length || 0,
+                      totalResponses: p.totalResponses || 0,
+                      avgCompletionPct: p.avgCompletionPct || 0,
+                      publishedAt: p.publishedAt,
+                      expiresAt: p.expiresAt,
+                      conversationId: p.conversationId,
+                    })) || []);
+                  };
+                  fetchPolls();
+                }
+              }}
+            />
+          )}
+
+          {/* Poll Import Modal */}
+          <PollImportModal
+            open={showPollImport}
+            onOpenChange={setShowPollImport}
+            onImport={async (importedPoll) => {
+              try {
+                // Transform imported poll to our API format
+                const res = await fetch('/api/polls/import', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    pollData: {
+                      title: importedPoll.title,
+                      description: importedPoll.description,
+                      type: importedPoll.type || 'CUSTOM',
+                      questions: importedPoll.questions.map((q, i) => ({
+                        orderIndex: i + 1,
+                        text: q.text,
+                        description: q.description,
+                        type: q.type === 'choice' ? 'SINGLE_CHOICE' : 
+                              q.type === 'multi-choice' ? 'MULTI_CHOICE' :
+                              q.type === 'slider' ? 'SLIDER' :
+                              q.type === 'scale' ? 'SCALE' :
+                              q.type === 'ranking' ? 'RANKING' : 'TEXT',
+                        isRequired: q.required ?? true,
+                        sliderConfig: q.sliderConfig || q.scaleConfig,
+                        options: q.options?.map((opt, j) => ({
+                          orderIndex: j + 1,
+                          text: opt.text,
+                          value: opt.value,
+                        })),
+                      })),
+                    },
+                    draft: false,
+                    pulseOptions: {
+                      createPulse: true,
+                      pulseTitle: importedPoll.title,
+                      tags: ['poll', 'imported'],
+                    },
+                  }),
+                });
+
+                if (!res.ok) {
                   const data = await res.json();
-                  setAdvancedPolls(data.polls?.map((p: any) => ({
-                    id: p.id,
-                    title: p.title,
-                    description: p.description,
-                    type: p.type,
-                    creator: p.Creator || { id: p.creatorId, name: 'Unknown', image: null },
-                    questionCount: p.questions?.length || 0,
-                    totalResponses: p.totalResponses || 0,
-                    avgCompletionPct: p.avgCompletionPct || 0,
-                    publishedAt: p.publishedAt,
-                    expiresAt: p.expiresAt,
-                    conversationId: p.conversationId,
-                  })) || []);
-                };
-                fetchPolls();
+                  throw new Error(data.error || 'Failed to import poll');
+                }
+
+                const result = await res.json();
+                toast.success('Poll imported successfully!', {
+                  description: `Created poll with ${importedPoll.questions.length} questions`
+                });
+                
+                setShowPollImport(false);
+                fetchFeed();
+                
+                if (result.pulseId) {
+                  openPulse(result.pulseId);
+                }
+              } catch (error) {
+                console.error('Import failed:', error);
+                toast.error('Failed to import poll', {
+                  description: error instanceof Error ? error.message : 'Unknown error'
+                });
               }
             }}
           />
@@ -1151,6 +1623,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   const isPulsePage = pathname === '/pulse';
 
   const currentUser = useCurrentUser();
+  const userRole = UseCurrentRole();
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteText, setQuoteText] = useState('');
   const [isReposting, setIsReposting] = useState(false);
@@ -1167,7 +1640,15 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   
-  const isOwner = currentUser?.id === item.userId;
+  // Pin state
+  const [isPinnedToFeed, setIsPinnedToFeed] = useState(item.pinnedToFeed || false);
+  const [isPinnedToProfile, setIsPinnedToProfile] = useState(item.pinnedToProfile || false);
+  const [isPinning, setIsPinning] = useState(false);
+  
+  // Permission checks - owner of post OR platform owner/admin can manage
+  const isPostOwner = currentUser?.id === item.userId;
+  const isPlatformAdmin = userRole === 'OWNER' || userRole === 'ADMIN';
+  const canManage = isPostOwner || isPlatformAdmin;
 
   // View tracking - tracks when this post becomes visible in viewport
   const { ref: viewTrackingRef, hasTracked } = useViewTracking(item.id, {
@@ -1295,7 +1776,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
   // Handle edit pulse
   const handleEdit = async () => {
-    if (!isOwner || isEditing) return;
+    if (!canManage || isEditing) return;
     setIsEditing(true);
     try {
       const res = await fetch(`/api/conversations/${encodeURIComponent(item.id)}`, {
@@ -1311,10 +1792,12 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
         throw new Error(t || 'Failed to update pulse');
       }
       setEditOpen(false);
-      // Reload feed to show updated content
-      window.location.reload();
+      toast.success('Pulse updated');
+      // Refresh feed to show updated content
+      onRefresh();
     } catch (e) {
       console.error('Edit failed:', e);
+      toast.error('Failed to update pulse');
     } finally {
       setIsEditing(false);
     }
@@ -1322,7 +1805,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
   // Handle delete pulse
   const handleDelete = async () => {
-    if (!isOwner || isDeleting) return;
+    if (!canManage || isDeleting) return;
     setIsDeleting(true);
     try {
       const res = await fetch(`/api/conversations/${encodeURIComponent(item.id)}`, {
@@ -1333,12 +1816,61 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
         throw new Error(t || 'Failed to delete pulse');
       }
       setDeleteConfirmOpen(false);
-      // Reload feed to remove deleted item
-      window.location.reload();
+      toast.success('Pulse deleted');
+      // Refresh feed to remove deleted item
+      onRefresh();
     } catch (e) {
       console.error('Delete failed:', e);
+      toast.error('Failed to delete pulse');
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  // Handle pin/unpin to main feed (admin only)
+  const handlePinToFeed = async () => {
+    if (!isPlatformAdmin || isPinning) return;
+    setIsPinning(true);
+    try {
+      const method = isPinnedToFeed ? 'DELETE' : 'POST';
+      const res = await fetch(`/api/conversations/${encodeURIComponent(item.id)}/pin?target=feed`, {
+        method,
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        throw new Error(t || 'Failed to update pin');
+      }
+      setIsPinnedToFeed(!isPinnedToFeed);
+      toast.success(isPinnedToFeed ? 'Unpinned from feed' : 'Pinned to main feed');
+      onRefresh();
+    } catch (e) {
+      console.error('Pin to feed failed:', e);
+      toast.error('Failed to update pin');
+    } finally {
+      setIsPinning(false);
+    }
+  };
+
+  // Handle pin/unpin to user's profile
+  const handlePinToProfile = async () => {
+    if (!currentUser || isPinning) return;
+    setIsPinning(true);
+    try {
+      const method = isPinnedToProfile ? 'DELETE' : 'POST';
+      const res = await fetch(`/api/conversations/${encodeURIComponent(item.id)}/pin?target=profile`, {
+        method,
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        throw new Error(t || 'Failed to update pin');
+      }
+      setIsPinnedToProfile(!isPinnedToProfile);
+      toast.success(isPinnedToProfile ? 'Unpinned from your profile' : 'Pinned to your profile');
+    } catch (e) {
+      console.error('Pin to profile failed:', e);
+      toast.error('Failed to update pin');
+    } finally {
+      setIsPinning(false);
     }
   };
 
@@ -1370,9 +1902,21 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   return (
     <article
       ref={viewTrackingRef}
-      className="group relative cursor-pointer rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/30 p-4 sm:p-5 shadow-sm transition hover:bg-zinc-200/80 dark:hover:bg-card/50 hover:shadow-md"
+      className={cn(
+        "group relative cursor-pointer rounded-2xl border p-4 sm:p-5 shadow-sm transition hover:shadow-md",
+        isPinnedToFeed 
+          ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50 dark:hover:bg-amber-950/30" 
+          : "border-border/60 bg-zinc-100/80 dark:bg-card/30 hover:bg-zinc-200/80 dark:hover:bg-card/50"
+      )}
       onClick={onClick}
     >
+      {/* Pinned indicator */}
+      {isPinnedToFeed && (
+        <div className="absolute -top-2 left-4 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-medium shadow-sm">
+          <Pin className="h-3 w-3" />
+          Pinned
+        </div>
+      )}
       <div className="flex gap-3 items-start">
         {/* User Avatar with HoverCard */}
         <UserHoverCard
@@ -1469,11 +2013,64 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                     Don&apos;t show from this user
                   </DropdownMenuItem>
 
-                  {/* Owner-only actions */}
-                  {isOwner && (
+                  {/* Pin options */}
+                  {currentUser && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Manage</DropdownMenuLabel>
+                      <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Pin</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        disabled={isPinning}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          void handlePinToProfile();
+                        }}
+                      >
+                        {isPinnedToProfile ? (
+                          <>
+                            <PinOff className="h-4 w-4 mr-2" />
+                            Unpin from profile
+                          </>
+                        ) : (
+                          <>
+                            <Pin className="h-4 w-4 mr-2" />
+                            Pin to my profile
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                      {isPlatformAdmin && (
+                        <DropdownMenuItem
+                          disabled={isPinning}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            void handlePinToFeed();
+                          }}
+                          className={isPinnedToFeed ? 'text-amber-500' : ''}
+                        >
+                          {isPinnedToFeed ? (
+                            <>
+                              <PinOff className="h-4 w-4 mr-2" />
+                              Unpin from main feed
+                              <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Admin</Badge>
+                            </>
+                          ) : (
+                            <>
+                              <Pin className="h-4 w-4 mr-2" />
+                              Pin to main feed
+                              <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Admin</Badge>
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                      )}
+                    </>
+                  )}
+
+                  {/* Owner/Admin actions */}
+                  {canManage && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+                        {isPlatformAdmin && !isPostOwner ? 'Admin Actions' : 'Manage'}
+                      </DropdownMenuLabel>
                       <DropdownMenuItem
                         onClick={(e) => {
                           e.preventDefault();
@@ -1484,6 +2081,9 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                       >
                         <FiEdit2 className="h-4 w-4 mr-2" />
                         Edit pulse
+                        {isPlatformAdmin && !isPostOwner && (
+                          <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Admin</Badge>
+                        )}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={(e) => {
@@ -1494,6 +2094,9 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                       >
                         <FiTrash2 className="h-4 w-4 mr-2" />
                         Delete pulse
+                        {isPlatformAdmin && !isPostOwner && (
+                          <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Admin</Badge>
+                        )}
                       </DropdownMenuItem>
                     </>
                   )}
@@ -1568,11 +2171,55 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
           {/* Poll preview */}
           {item.hasPoll && (
-            <div
-              className="mt-3"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <PollDisplay conversationId={item.id} />
+            <div className="mt-3">
+              {item.advancedPoll ? (
+                // Advanced Poll - clickable card opens poll directly
+                <button
+                  className="w-full p-4 rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 hover:border-primary/50 hover:from-primary/10 hover:to-primary/20 transition-all text-left group"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Set URL param for the poll modal
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('poll', item.advancedPoll!.id);
+                    window.history.pushState({}, '', url.toString());
+                    // Dispatch a popstate event to trigger the poll modal
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      <FiBarChart2 className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-primary group-hover:text-primary/80 transition-colors">
+                          {item.advancedPoll.type === 'REACH_ASSESSMENT' ? '🎯 ' : '📊 '}
+                          {item.advancedPoll.title}
+                        </span>
+                      </div>
+                      {item.advancedPoll.description && (
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                          {item.advancedPoll.description}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <FiUsers className="h-3 w-3" />
+                          {item.advancedPoll.totalResponses} responses
+                        </span>
+                        <span className="text-primary font-medium group-hover:underline">
+                          Take this poll →
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ) : (
+                // Regular Poll - use PollDisplay (clicking opens pulse modal)
+                <div onClick={(e) => e.stopPropagation()}>
+                  <PollDisplay conversationId={item.id} />
+                </div>
+              )}
             </div>
           )}
 

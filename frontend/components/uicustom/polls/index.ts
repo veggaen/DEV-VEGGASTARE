@@ -32,7 +32,6 @@ export type { default as PollBuilderProps } from "./PollBuilder";
 export type {
   ShapeType,
   ColorType,
-  ShapeMatchResult,
 } from "./ShapeMatchQuestion";
 
 export type {

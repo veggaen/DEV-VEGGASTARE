@@ -205,7 +205,7 @@ export const SECTION_1_USER_CONTEXT: AdvancedPollQuestion[] = [
       { id: "payment_card", label: "Payment card on file", icon: "💳", description: "Financial identity verified" },
       { id: "crypto_purchase", label: "Made a crypto purchase", icon: "🪙", description: "On-chain transaction history" },
       { id: "phone", label: "Phone number verified", icon: "📱", description: "SMS verification complete" },
-      { id: "twitter", label: "Twitter/X OAuth", icon: "🐦", description: "Social identity verified" },
+      { id: "x", label: "X OAuth", icon: "𝕏", description: "Social identity verified" },
       { id: "linkedin", label: "LinkedIn OAuth", icon: "💼", description: "Professional identity verified" },
       { id: "paypal", label: "PayPal connected", icon: "🅿️", description: "🔜 Coming soon!" },
       { id: "vipps", label: "Vipps connected", icon: "💚", description: "🔜 Will be installed soon!" },

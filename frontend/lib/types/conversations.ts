@@ -84,6 +84,8 @@ export const ConversationListItemSchema = z
 
     isLocked: z.boolean(),
     isPinned: z.boolean(),
+    pinnedToFeed: z.boolean().optional(),
+    pinnedToProfile: z.boolean().optional(),
     replyPermission: ReplyPermissionSchema,
     tags: z.array(z.string()),
     type: ConversationTypeSchema,
@@ -125,6 +127,25 @@ export const ConversationListItemSchema = z
     poll: ConversationPollSummarySchema.nullable().optional(),
     // Back-compat: Prisma include uses `Poll`.
     Poll: ConversationPollSummarySchema.nullable().optional(),
+    
+    // Advanced polls (surveys, REACH feedback, etc.)
+    advancedPoll: z.object({
+      id: z.string(),
+      title: z.string(),
+      description: z.string().nullable().optional(),
+      type: z.string(),
+      totalResponses: z.number().int(),
+      avgCompletionPct: z.number(),
+    }).nullable().optional(),
+    // Back-compat: Prisma include uses `AdvancedPoll`.
+    AdvancedPoll: z.object({
+      id: z.string(),
+      title: z.string(),
+      description: z.string().nullable().optional(),
+      type: z.string(),
+      totalResponses: z.number().int(),
+      avgCompletionPct: z.number(),
+    }).nullable().optional(),
 
     positivePulseCount: z.number().int().finite(),
     negativePulseCount: z.number().int().finite(),
@@ -269,6 +290,8 @@ export const ConversationAdminResponseSchema = z
 
     isLocked: z.boolean(),
     isPinned: z.boolean(),
+    pinnedToFeed: z.boolean().optional(),
+    pinnedToProfile: z.boolean().optional(),
     replyPermission: ReplyPermissionSchema,
     tags: z.array(z.string()),
     type: ConversationTypeSchema,

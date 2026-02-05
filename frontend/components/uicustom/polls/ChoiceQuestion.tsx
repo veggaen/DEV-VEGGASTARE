@@ -294,9 +294,12 @@ export function ChoiceQuestion({
                   .map((id) => {
                     const optIndex = options.findIndex((o) => o.id === id);
                     const opt = options[optIndex];
+                    // Guard against undefined when option not found
+                    if (!opt) return id; // Fallback to showing the ID
                     const label = OPTION_LABELS[optIndex];
-                    return showLabels ? `${label}. ${opt?.text}` : opt?.text;
+                    return showLabels && label ? `${label}. ${opt.text}` : opt.text;
                   })
+                  .filter(Boolean)
                   .join(", ")}
               </span>
             </div>

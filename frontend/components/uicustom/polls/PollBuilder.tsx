@@ -70,6 +70,8 @@ interface QuestionOption {
   id: string;
   text: string;
   description?: string;
+  value?: number;
+  imageUrl?: string;
 }
 
 interface PollQuestion {

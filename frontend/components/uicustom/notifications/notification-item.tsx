@@ -168,11 +168,15 @@ export function GroupedNotificationItem({
   const config = notificationTypes[group.type];
   if (!config) return null;
   
-  const message = formatNotificationMessage(
-    group.type,
-    group.actors,
-    group.totalCount
-  );
+  // For MILESTONE type (system notifications), use the original message instead of template
+  // This preserves the actual notification content like "🚀 New Update from VeggaSystem"
+  const message = group.type === "MILESTONE" && group.preview
+    ? group.preview
+    : formatNotificationMessage(
+        group.type,
+        group.actors,
+        group.totalCount
+      );
   
   const hasUnread = group.notifications.some(n => !n.isRead);
   

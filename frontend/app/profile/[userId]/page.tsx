@@ -17,8 +17,11 @@ import { useBannerColors, generateColorStyles } from '@/lib/color-extraction';
 import { useProfileThemeFromBanner } from '@/components/providers/profile-theme-provider';
 import {
   FiUser, FiSettings, FiMessageCircle, FiCalendar, FiMapPin,
-  FiLink, FiEdit2, FiGrid, FiActivity, FiUsers, FiCamera, FiUpload, FiX, FiTrendingUp
+  FiLink, FiEdit2, FiGrid, FiActivity, FiUsers, FiCamera, FiUpload, FiX, FiTrendingUp,
+  FiRepeat, FiEye, FiBarChart2
 } from 'react-icons/fi';
+import { Pin } from 'lucide-react';
+import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import {
@@ -154,11 +157,22 @@ const REACH_PILLARS: ReachPillar[] = [
 interface FeedItem {
   id: string;
   title: string;
+  description?: string;
   type: string;
   tags: string[];
   createdAt: string;
   messageCount: number;
   viewCount?: number;
+  positivePulseCount?: number;
+  repostCount?: number;
+  uniqueViewCount?: number;
+  hasPoll?: boolean;
+  pinnedToProfile?: boolean;
+  user?: {
+    id: string;
+    name: string | null;
+    image?: string | null;
+  };
 }
 
 export default function ProfilePage() {
@@ -925,49 +939,86 @@ export default function ProfilePage() {
                   )}
                 </div>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {posts.map((post, index) => (
-                    <motion.div
+                <div className="space-y-3">
+                  {/* Sort pinned posts first */}
+                  {[...posts]
+                    .sort((a, b) => {
+                      // Pinned posts first
+                      if (a.pinnedToProfile && !b.pinnedToProfile) return -1;
+                      if (!a.pinnedToProfile && b.pinnedToProfile) return 1;
+                      // Then by date
+                      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                    })
+                    .map((post, index) => (
+                    <motion.article
                       key={post.id}
                       initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
                       animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                       transition={{ duration: 0.2, delay: index * 0.03 }}
+                      className="relative"
                     >
                       <Link
                         href={`/conversations/${post.id}`}
-                        className="group block rounded-xl border p-4 transition-all duration-200 hover:shadow-md"
+                        className="group block rounded-2xl border p-4 sm:p-5 transition-all duration-200 hover:shadow-md"
                         style={{
-                          borderColor: 'hsl(var(--border) / 0.5)',
-                          backgroundColor: 'hsl(var(--muted) / 0.2)',
+                          borderColor: post.pinnedToProfile 
+                            ? (bannerColors ? `${bannerColors.primary}50` : 'hsl(var(--primary) / 0.3)')
+                            : 'hsl(var(--border) / 0.5)',
+                          backgroundColor: post.pinnedToProfile
+                            ? (bannerColors ? `${bannerColors.primary}08` : 'hsl(var(--primary) / 0.05)')
+                            : 'hsl(var(--muted) / 0.2)',
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = bannerColors ? `${bannerColors.primary}40` : 'hsl(var(--border))';
-                          e.currentTarget.style.backgroundColor = bannerColors ? `${bannerColors.primary}08` : 'hsl(var(--muted) / 0.4)';
+                          e.currentTarget.style.borderColor = bannerColors ? `${bannerColors.primary}50` : 'hsl(var(--border))';
+                          e.currentTarget.style.backgroundColor = bannerColors ? `${bannerColors.primary}12` : 'hsl(var(--muted) / 0.4)';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = 'hsl(var(--border) / 0.5)';
-                          e.currentTarget.style.backgroundColor = 'hsl(var(--muted) / 0.2)';
+                          e.currentTarget.style.borderColor = post.pinnedToProfile 
+                            ? (bannerColors ? `${bannerColors.primary}50` : 'hsl(var(--primary) / 0.3)')
+                            : 'hsl(var(--border) / 0.5)';
+                          e.currentTarget.style.backgroundColor = post.pinnedToProfile
+                            ? (bannerColors ? `${bannerColors.primary}08` : 'hsl(var(--primary) / 0.05)')
+                            : 'hsl(var(--muted) / 0.2)';
                         }}
                       >
-                        <h4 className="font-medium text-foreground mb-2 group-hover:text-foreground/90 transition-colors line-clamp-1">
-                          {post.title || 'Untitled post'}
-                        </h4>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span>{post.messageCount} messages</span>
-                          {post.viewCount !== undefined && post.viewCount > 0 && (
-                            <span
-                              className="flex items-center gap-1"
-                              style={{ color: bannerColors?.primaryContrast || '#10b981' }}
-                            >
-                              <span className="h-1 w-1 rounded-full" style={{ backgroundColor: bannerColors?.primaryContrast || '#10b981' }} />
-                              {post.viewCount} views
-                            </span>
-                          )}
+                        {/* Pinned indicator */}
+                        {post.pinnedToProfile && (
+                          <div 
+                            className="absolute -top-2 left-4 flex items-center gap-1 px-2 py-0.5 rounded-full text-white text-[10px] font-medium shadow-sm"
+                            style={{ backgroundColor: bannerColors?.primary || '#3b82f6' }}
+                          >
+                            <Pin className="h-3 w-3" />
+                            Pinned
+                          </div>
+                        )}
+
+                        {/* Header with time */}
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                           <span>{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}</span>
+                          {post.hasPoll && (
+                            <Badge variant="secondary" className="text-[10px] gap-1" style={{ backgroundColor: bannerColors ? `${bannerColors.primary}15` : undefined }}>
+                              <FiBarChart2 className="h-3 w-3" />
+                              Poll
+                            </Badge>
+                          )}
                         </div>
+
+                        {/* Title */}
+                        <h4 className="font-medium text-foreground mb-2 group-hover:text-foreground/90 transition-colors line-clamp-2 text-[15px] leading-relaxed">
+                          {post.title || post.description || 'Untitled post'}
+                        </h4>
+
+                        {/* Description preview if different from title */}
+                        {post.description && post.description !== post.title && (
+                          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                            {post.description}
+                          </p>
+                        )}
+
+                        {/* Tags */}
                         {post.tags?.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mt-3">
-                            {post.tags.slice(0, 3).map((tag) => (
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {post.tags.slice(0, 4).map((tag) => (
                               <Badge
                                 key={tag}
                                 variant="secondary"
@@ -979,10 +1030,47 @@ export default function ProfilePage() {
                                 #{tag}
                               </Badge>
                             ))}
+                            {post.tags.length > 4 && (
+                              <span className="text-[10px] text-muted-foreground">+{post.tags.length - 4}</span>
+                            )}
                           </div>
                         )}
+
+                        {/* Stats row - like /pulse feed */}
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2 border-t border-border/30">
+                          {/* Heartbeats */}
+                          <span className="flex items-center gap-1.5 hover:text-emerald-500 transition-colors">
+                            <PulseHeart size={16} filled={(post.positivePulseCount || 0) > 0} />
+                            <span className="tabular-nums">{post.positivePulseCount || 0}</span>
+                          </span>
+
+                          {/* Comments */}
+                          <span className="flex items-center gap-1.5">
+                            <FiMessageCircle className="h-4 w-4" />
+                            <span className="tabular-nums">{Math.max(0, (post.messageCount || 0) - 1)}</span>
+                          </span>
+
+                          {/* Repulses */}
+                          {(post.repostCount || 0) > 0 && (
+                            <span className="flex items-center gap-1.5">
+                              <FiRepeat className="h-4 w-4" />
+                              <span className="tabular-nums">{post.repostCount}</span>
+                            </span>
+                          )}
+
+                          {/* Views */}
+                          {(post.viewCount || 0) > 0 && (
+                            <span 
+                              className="flex items-center gap-1.5 ml-auto"
+                              style={{ color: bannerColors?.primaryContrast || '#10b981' }}
+                            >
+                              <FiEye className="h-4 w-4" />
+                              <span className="tabular-nums">{post.viewCount}</span>
+                            </span>
+                          )}
+                        </div>
                       </Link>
-                    </motion.div>
+                    </motion.article>
                   ))}
                 </div>
               )}
@@ -1004,9 +1092,9 @@ export default function ProfilePage() {
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-3">
                   {activityPosts.map((post, index) => (
-                    <motion.div
+                    <motion.article
                       key={post.id}
                       initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
                       animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
@@ -1014,37 +1102,43 @@ export default function ProfilePage() {
                     >
                       <Link
                         href={`/conversations/${post.id}`}
-                        className="group block rounded-xl border p-4 transition-all duration-200 hover:shadow-md"
+                        className="group block rounded-2xl border p-4 sm:p-5 transition-all duration-200 hover:shadow-md"
                         style={{
                           borderColor: 'hsl(var(--border) / 0.5)',
                           backgroundColor: 'hsl(var(--muted) / 0.2)',
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = bannerColors ? `${bannerColors.primary}40` : 'hsl(var(--border))';
-                          e.currentTarget.style.backgroundColor = bannerColors ? `${bannerColors.primary}08` : 'hsl(var(--muted) / 0.4)';
+                          e.currentTarget.style.borderColor = bannerColors ? `${bannerColors.primary}50` : 'hsl(var(--border))';
+                          e.currentTarget.style.backgroundColor = bannerColors ? `${bannerColors.primary}12` : 'hsl(var(--muted) / 0.4)';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.borderColor = 'hsl(var(--border) / 0.5)';
                           e.currentTarget.style.backgroundColor = 'hsl(var(--muted) / 0.2)';
                         }}
                       >
-                        <div
-                          className="flex items-center gap-2 text-xs mb-2"
-                          style={{ color: bannerColors?.primaryLight || 'hsl(var(--primary))' }}
-                        >
-                          <FiMessageCircle className="h-3 w-3" />
-                          <span>Engaged with</span>
+                        {/* Header - engaged indicator */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div
+                            className="flex items-center gap-2 text-xs"
+                            style={{ color: bannerColors?.primaryLight || 'hsl(var(--primary))' }}
+                          >
+                            <FiMessageCircle className="h-3 w-3" />
+                            <span>Engaged with</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                          </span>
                         </div>
-                        <h4 className="font-medium text-foreground mb-2 group-hover:text-foreground/90 transition-colors line-clamp-1">
-                          {post.title || 'Untitled post'}
+
+                        {/* Title */}
+                        <h4 className="font-medium text-foreground mb-2 group-hover:text-foreground/90 transition-colors line-clamp-2 text-[15px] leading-relaxed">
+                          {post.title || post.description || 'Untitled post'}
                         </h4>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span>{post.messageCount} messages</span>
-                          <span>{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}</span>
-                        </div>
+
+                        {/* Tags */}
                         {post.tags?.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mt-3">
-                            {post.tags.slice(0, 3).map((tag) => (
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {post.tags.slice(0, 4).map((tag) => (
                               <Badge
                                 key={tag}
                                 variant="secondary"
@@ -1056,8 +1150,26 @@ export default function ProfilePage() {
                             ))}
                           </div>
                         )}
+
+                        {/* Stats row */}
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2 border-t border-border/30">
+                          <span className="flex items-center gap-1.5">
+                            <PulseHeart size={16} filled={(post.positivePulseCount || 0) > 0} />
+                            <span className="tabular-nums">{post.positivePulseCount || 0}</span>
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <FiMessageCircle className="h-4 w-4" />
+                            <span className="tabular-nums">{Math.max(0, (post.messageCount || 0) - 1)}</span>
+                          </span>
+                          {(post.viewCount || 0) > 0 && (
+                            <span className="flex items-center gap-1.5 ml-auto" style={{ color: bannerColors?.primaryContrast || '#10b981' }}>
+                              <FiEye className="h-4 w-4" />
+                              <span className="tabular-nums">{post.viewCount}</span>
+                            </span>
+                          )}
+                        </div>
                       </Link>
-                    </motion.div>
+                    </motion.article>
                   ))}
                 </div>
               )}

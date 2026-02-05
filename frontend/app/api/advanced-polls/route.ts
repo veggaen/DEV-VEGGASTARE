@@ -88,6 +88,12 @@ export async function GET(req: NextRequest) {
         updatedAt: toIsoString(poll.updatedAt),
         totalResponses: poll.totalResponses,
         avgCompletionPct: poll.avgCompletionPct,
+        // Include Creator data for display
+        Creator: poll.Creator ? {
+          id: poll.Creator.id,
+          name: poll.Creator.name,
+          image: poll.Creator.image,
+        } : null,
         questions: poll.Questions.map((q) => ({
           id: q.id,
           advancedPollId: q.advancedPollId,
