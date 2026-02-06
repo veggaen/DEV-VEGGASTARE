@@ -904,7 +904,77 @@ const FeedPage: React.FC = () => {
               {filter === 'polls' ? (
                 // Poll-focused compose
                 <div className="p-4 space-y-4">
-                  {!includePoll ? (
+                  {pendingAdvancedPoll ? (
+                    // Advanced poll composer preview (Quick Poll-style)
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20">
+                            <Zap className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <h3 className="font-semibold">Advanced Poll</h3>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPendingAdvancedPoll(null)}
+                          title="Remove pending poll"
+                        >
+                          <FiX className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex gap-3">
+                          <Avatar className="h-10 w-10 shrink-0">
+                            <AvatarImage src={currentUser.image || undefined} />
+                            <AvatarFallback>{currentUser.name?.[0] || '?'}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 space-y-2">
+                            <Textarea
+                              value={composeText}
+                              onChange={(e) => setComposeText(e.target.value)}
+                              placeholder="Add a message with your advanced poll (optional)..."
+                              className="min-h-[50px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0 text-base"
+                              rows={1}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-amber-500/10">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 rounded-lg bg-amber-500/20">
+                                <Zap className="h-5 w-5 text-amber-500" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-sm">{pendingAdvancedPoll.title}</h4>
+                                {pendingAdvancedPoll.description && (
+                                  <p className="text-xs text-muted-foreground line-clamp-1">{pendingAdvancedPoll.description}</p>
+                                )}
+                                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                    {pendingAdvancedPoll.type}
+                                  </Badge>
+                                  <span>{pendingAdvancedPoll.questionCount} questions</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <Button
+                            onClick={handlePost}
+                            disabled={isSubmitting}
+                            className="rounded-full px-4"
+                          >
+                            {isSubmitting ? <Spinner /> : <><PulsePositive className="h-4 w-4 mr-1" /> Pulse</>}
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  ) : !includePoll ? (
                     // Show poll type selection
                     <>
                       <div className="flex items-center gap-3">
@@ -1034,7 +1104,7 @@ const FeedPage: React.FC = () => {
                         ref={textareaRef}
                         value={composeText}
                         onChange={(e) => setComposeText(e.target.value)}
-                        placeholder="Pulse your thoughts..."
+                        placeholder={pendingAdvancedPoll ? "Add a message with your advanced poll (optional)..." : "Pulse your thoughts..."}
                         className="min-h-[60px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0 text-base"
                         rows={2}
                       />
@@ -1422,9 +1492,18 @@ const FeedPage: React.FC = () => {
                           sliderConfig: q.sliderConfig ? {
                             min: q.sliderConfig.minValue,
                             max: q.sliderConfig.maxValue,
-                            step: q.sliderConfig.step,
-                            minLabel: q.sliderConfig.minLabel,
-                            maxLabel: q.sliderConfig.maxLabel,
+                            steps: (() => {
+                              const labelSteps = (q.sliderConfig as any).stepLabels?.length
+                              if (labelSteps && labelSteps >= 2) return Math.min(20, labelSteps)
+                              const stepValue = typeof q.sliderConfig.step === 'number' && q.sliderConfig.step > 0 ? q.sliderConfig.step : 1
+                              const rawSteps = Math.floor((q.sliderConfig.maxValue - q.sliderConfig.minValue) / stepValue) + 1
+                              return Math.min(20, Math.max(2, rawSteps))
+                            })(),
+                            labels:
+                              (q.sliderConfig as any).stepLabels && (q.sliderConfig as any).stepLabels.length >= 2
+                                ? (q.sliderConfig as any).stepLabels.slice(0, 20)
+                                : undefined,
+                            showValue: true,
                           } : undefined,
                           options: (q.options || []).map((opt, optIdx) => ({
                             text: opt.text,
@@ -1461,9 +1540,14 @@ const FeedPage: React.FC = () => {
                       
                       // Close modal - poll will show in composer for user to add message and pulse
                       setShowPollBuilder(false);
-                      
-                      // Switch to default filter to show composer
-                      setFilter('all');
+
+                      // Reset quick poll composer state so the advanced preview is unambiguous
+                      setIncludePoll(false);
+                      setPollQuestion('');
+                      setPollOptions(['', '']);
+
+                      // Stay in the Polls composer view
+                      setFilter('polls');
                     } catch (error) {
                       console.error('Failed to create advanced poll:', error);
                       alert(error instanceof Error ? error.message : 'Failed to create poll');
