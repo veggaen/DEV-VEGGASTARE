@@ -14,22 +14,38 @@ import { Button } from '@/components/ui/button';
 import { Globe, Bitcoin, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const FIAT_OPTIONS: { value: FiatCurrency; label: string; symbol: string }[] = [
-  { value: 'USD', label: 'US Dollar', symbol: '$' },
-  { value: 'NOK', label: 'Norwegian Krone', symbol: 'kr' },
-  { value: 'EUR', label: 'Euro', symbol: '€' },
-  { value: 'GBP', label: 'British Pound', symbol: '£' },
-  { value: 'SEK', label: 'Swedish Krona', symbol: 'kr' },
-  { value: 'DKK', label: 'Danish Krone', symbol: 'kr' },
+export const FIAT_CURRENCIES: { code: FiatCurrency; name: string; symbol: string }[] = [
+  { code: 'USD', name: 'US Dollar', symbol: '$' },
+  { code: 'NOK', name: 'Norwegian Krone', symbol: 'kr' },
+  { code: 'EUR', name: 'Euro', symbol: '€' },
+  { code: 'GBP', name: 'British Pound', symbol: '£' },
+  { code: 'SEK', name: 'Swedish Krona', symbol: 'kr' },
+  { code: 'DKK', name: 'Danish Krone', symbol: 'kr' },
 ];
 
-const CRYPTO_OPTIONS: { value: CryptoCurrency; label: string; symbol: string }[] = [
-  { value: 'ETH', label: 'Ethereum', symbol: 'Ξ' },
-  { value: 'BTC', label: 'Bitcoin', symbol: '₿' },
-  { value: 'SOL', label: 'Solana', symbol: '◎' },
-  { value: 'USDC', label: 'USD Coin', symbol: '$' },
-  { value: 'NONE', label: 'No Crypto', symbol: '—' },
+export const CRYPTO_CURRENCIES: { code: CryptoCurrency; name: string; symbol: string }[] = [
+  { code: 'ETH', name: 'Ethereum', symbol: 'Ξ' },
+  { code: 'BTC', name: 'Bitcoin', symbol: '₿' },
+  { code: 'SOL', name: 'Solana', symbol: '◎' },
+  { code: 'USDC', name: 'USD Coin', symbol: '$' },
+  { code: 'NONE', name: 'No Crypto', symbol: '—' },
 ];
+
+// Convenience aliases for internal use
+const FIAT_OPTIONS = FIAT_CURRENCIES.map(c => ({ value: c.code, label: c.name, symbol: c.symbol }));
+const CRYPTO_OPTIONS = CRYPTO_CURRENCIES.map(c => ({ value: c.code, label: c.name, symbol: c.symbol }));
+
+// Hook for currency management
+export function useCurrency() {
+  const { prefs, setPrefs } = useUiPreferences();
+  
+  return {
+    currency: prefs.preferredFiatCurrency,
+    setCurrency: (code: FiatCurrency) => setPrefs({ preferredFiatCurrency: code }),
+    cryptoCurrency: prefs.preferredCryptoCurrency,
+    setCryptoCurrency: (code: CryptoCurrency) => setPrefs({ preferredCryptoCurrency: code }),
+  };
+}
 
 interface CurrencySelectorProps {
   showCrypto?: boolean;

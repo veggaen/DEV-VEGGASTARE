@@ -52,7 +52,7 @@ const DialogContent = React.forwardRef<
     >
       {/* Provide accessible title for screen readers when no visible title */}
       {accessibleTitle && (
-        <VisuallyHidden.Root asChild>
+        <VisuallyHidden.Root>
           <DialogPrimitive.Title>{accessibleTitle}</DialogPrimitive.Title>
         </VisuallyHidden.Root>
       )}

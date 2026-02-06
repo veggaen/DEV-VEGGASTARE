@@ -16,7 +16,7 @@ import { FaUser } from "react-icons/fa";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { TbHexagons } from "react-icons/tb";
-import { FiShoppingCart, FiUser } from "react-icons/fi";
+import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiSliders, FiShield, FiBell, FiLock, FiDollarSign, FiSun, FiMoon, FiMonitor, FiTrash2, FiEye, FiEyeOff, FiBellOff, FiVolume2, FiVolumeX, FiKey, FiCamera, FiEdit2, FiExternalLink } from "react-icons/fi";
 import {
 	Sheet,
 	SheetContent,
@@ -31,6 +31,7 @@ import ThemeToggleMenu from "@/components/uicustom/ThemeToggleMenu";
 import { CurrencySelector } from "@/components/uicustom/currency-selector";
 import { NotificationDropdown } from "@/components/uicustom/notifications/notification-dropdown";
 import { useNotifications } from "@/hooks/use-notifications";
+import { useUiPreferences } from "@/components/providers/ui-preferences";
 
 type NavLinkProps = {
 	href: string;
@@ -218,13 +219,13 @@ const MyTopBar = () => {
 		: { type: "tween", duration: 0.18, ease: "easeOut" };
 
 	// Simplified desktop nav - main discovery paths only
+	// Messages is now an icon in the topbar, not a text link
 	const nav: Array<{ href: string; label: string }> = [
 		{ href: "/", label: "Home" },
 		{ href: "/products", label: "Products" },
 		{ href: "/pulse", label: "Pulse" },
 		...(clientUser
 			? [
-				{ href: "/conversations", label: "Messages" },
 				{ href: "/dashboard", label: "Dashboard" },
 			]
 			: []),
@@ -475,6 +476,14 @@ const MyTopBar = () => {
 												</span>
 											)}
 										</Link>
+
+										<Link
+											href="/conversations"
+											className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+											title="Messages"
+										>
+											<FiMessageSquare className="h-[18px] w-[18px]" />
+										</Link>
 									</>
 								)}
 							</div>
@@ -618,89 +627,15 @@ const MyTopBar = () => {
 												</div>
 											)}
 
-											{/* Settings Pane */}
+											{/* Settings Pane - Lite Mode with Hover Dropdowns */}
 											{clientUser && menuPane === "settings" && (
-												<div className="p-4 space-y-4">
-													{/* Theme Section */}
-													<div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 p-4">
-														<div className="flex items-center justify-between mb-3">
-															<div className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-																Theme
-															</div>
-															<Link
-																href="/settings?tab=appearance"
-																onClick={() => setMenuOpen(false)}
-																className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
-															>
-																More options →
-															</Link>
-														</div>
-														<ThemeToggleMenu showLabel={true} />
-													</div>
-
-													{/* Currency Section */}
-													<div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 p-4">
-														<div className="flex items-center justify-between mb-3">
-															<div className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-																Currency
-															</div>
-															<Link
-																href="/settings?tab=currency"
-																onClick={() => setMenuOpen(false)}
-																className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
-															>
-																More options →
-															</Link>
-														</div>
-														<CurrencySelector showCrypto={true} variant="outline" />
-													</div>
-
-													{/* Wallet Section */}
-													{effectiveWeb3ModeEnabled && (
-														<div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 p-4">
-															<div className="flex items-center justify-between mb-3">
-																<div className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-																	Wallet
-																</div>
-																<Link
-																	href="/settings?tab=wallet"
-																	onClick={() => setMenuOpen(false)}
-																	className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
-																>
-																	Manage wallets →
-																</Link>
-															</div>
-															<div className="space-y-2">
-																<EvmWalletVerify
-																	enabled={effectiveWeb3ModeEnabled}
-																	onVerified={() => setWalletRefreshToken((t) => t + 1)}
-																/>
-																<EvmWalletList enabled={effectiveWeb3ModeEnabled} refreshToken={walletRefreshToken} />
-															</div>
-														</div>
-													)}
-
-													{/* All Settings Link */}
-													<Link
-														href="/settings"
-														onClick={() => setMenuOpen(false)}
-														className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
-													>
-														<span>All Settings</span>
-													</Link>
-
-													{/* Cookie Preferences */}
-													<button
-														type="button"
-														onClick={() => {
-															setMenuOpen(false);
-															setTimeout(() => openCookieSettings(), 0);
-														}}
-														className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-													>
-														Cookie preferences
-													</button>
-												</div>
+												<SettingsPaneLite 
+													setMenuOpen={setMenuOpen}
+													effectiveWeb3ModeEnabled={effectiveWeb3ModeEnabled}
+													walletRefreshToken={walletRefreshToken}
+													setWalletRefreshToken={setWalletRefreshToken}
+													openCookieSettings={openCookieSettings}
+												/>
 											)}
 
 											{/* Guest wallet connection */}
@@ -766,5 +701,400 @@ const MyTopBar = () => {
 		</>
 	);
 };
+
+// Settings Pane Lite Component with Hover Dropdowns
+function SettingsPaneLite({
+	setMenuOpen,
+	effectiveWeb3ModeEnabled,
+	walletRefreshToken,
+	setWalletRefreshToken,
+	openCookieSettings,
+}: {
+	setMenuOpen: (open: boolean) => void;
+	effectiveWeb3ModeEnabled: boolean;
+	walletRefreshToken: number;
+	setWalletRefreshToken: (fn: (t: number) => number) => void;
+	openCookieSettings: () => void;
+}) {
+	const { resolvedTheme, setTheme } = useTheme();
+	const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+	const clientUser = useCurrentUser();
+
+	// Settings items with quick actions on hover
+	const settingsItems = [
+		{ 
+			id: 'profile', 
+			href: '/settings?section=profile', 
+			icon: FiImage, 
+			label: 'Profile', 
+			desc: 'Avatar, banner & bio',
+			quickActions: [
+				{ id: 'view', icon: FiExternalLink, label: 'View', actionType: 'link', link: `/profile/${clientUser?.id}` },
+				{ id: 'avatar', icon: FiCamera, label: 'Avatar', actionType: 'link', link: '/settings?section=profile' },
+				{ id: 'edit', icon: FiEdit2, label: 'Edit Bio', actionType: 'link', link: '/settings?section=profile' },
+			],
+		},
+		{ 
+			id: 'account', 
+			href: '/settings?section=account', 
+			icon: FiUser, 
+			label: 'Account', 
+			desc: 'Name & email',
+			quickActions: [
+				{ id: 'edit', icon: FiEdit2, label: 'Edit Name', actionType: 'link', link: '/settings?section=account' },
+				// Only show email edit for non-OAuth users (credential-based accounts)
+				...(!clientUser?.isOAuth ? [
+					{ id: 'editEmail', icon: FiEdit2, label: 'Change Email', actionType: 'link', link: '/settings?section=account' },
+				] : []),
+			],
+		},
+		{ 
+			id: 'appearance', 
+			href: '/settings?section=appearance', 
+			icon: FiSliders, 
+			label: 'Appearance', 
+			desc: 'Theme & effects',
+			quickActions: [
+				{ id: 'light', icon: FiSun, label: 'Light', actionType: 'theme' },
+				{ id: 'dark', icon: FiMoon, label: 'Dark', actionType: 'theme' },
+				{ id: 'system', icon: FiMonitor, label: 'System', actionType: 'theme' },
+			],
+			currentValue: resolvedTheme,
+		},
+		{ 
+			id: 'currency', 
+			href: '/settings?section=currency', 
+			icon: FiDollarSign, 
+			label: 'Currency', 
+			desc: 'Display currency',
+			quickActions: [
+				{ id: 'USD', icon: () => <span className="text-sm font-medium">$</span>, label: 'USD', actionType: 'currency' },
+				{ id: 'EUR', icon: () => <span className="text-sm font-medium">€</span>, label: 'EUR', actionType: 'currency' },
+				{ id: 'GBP', icon: () => <span className="text-sm font-medium">£</span>, label: 'GBP', actionType: 'currency' },
+				{ id: 'NOK', icon: () => <span className="text-sm font-medium">kr</span>, label: 'NOK', actionType: 'currency' },
+			],
+		},
+		{ 
+			id: 'security', 
+			href: '/settings?section=security', 
+			icon: FiShield, 
+			label: 'Security', 
+			desc: 'Password & 2FA',
+			quickActions: [
+				{ id: 'password', icon: FiKey, label: 'Password', actionType: 'link', link: '/settings?section=security' },
+				{ id: '2fa', icon: FiShield, label: '2FA', actionType: 'link', link: '/settings?section=security' },
+			],
+		},
+		{ 
+			id: 'notifications', 
+			href: '/settings?section=notifications', 
+			icon: FiBell, 
+			label: 'Notifications', 
+			desc: 'Alerts & sounds',
+			quickActions: [
+				{ id: 'mute', icon: FiBellOff, label: 'Mute All', actionType: 'notification', action: 'mute' },
+				{ id: 'unmute', icon: FiVolume2, label: 'Unmute', actionType: 'notification', action: 'unmute' },
+			],
+		},
+		{ 
+			id: 'privacy', 
+			href: '/settings?section=privacy', 
+			icon: FiLock, 
+			label: 'Privacy', 
+			desc: 'Visibility & data',
+			quickActions: [
+				{ id: 'clearCookies', icon: FiTrash2, label: 'Clear Cookies', actionType: 'privacy', action: 'clearCookies' },
+				{ id: 'clearCache', icon: FiTrash2, label: 'Clear Cache', actionType: 'privacy', action: 'clearCache' },
+			],
+		},
+	];
+
+	return (
+		<div className="p-4 space-y-3">
+			{/* Quick Settings Links with Hover Dropdowns */}
+			<div className="space-y-1">
+				<div className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 px-2 mb-2">
+					Quick Access
+				</div>
+				{settingsItems.map((item) => (
+					<SettingsItemWithHover
+						key={item.id}
+						item={item}
+						isHovered={hoveredItem === item.id}
+						onHover={() => setHoveredItem(item.id)}
+						onLeave={() => setHoveredItem(null)}
+						setMenuOpen={setMenuOpen}
+					/>
+				))}
+			</div>
+
+			{/* Wallet Section */}
+			{effectiveWeb3ModeEnabled && (
+				<div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 p-3">
+					<div className="flex items-center justify-between mb-2">
+						<div className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+							Wallet
+						</div>
+						<Link
+							href="/settings?section=appearance"
+							onClick={() => setMenuOpen(false)}
+							className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
+						>
+							Manage →
+						</Link>
+					</div>
+					<div className="space-y-2">
+						<EvmWalletVerify
+							enabled={effectiveWeb3ModeEnabled}
+							onVerified={() => setWalletRefreshToken((t) => t + 1)}
+						/>
+						<EvmWalletList enabled={effectiveWeb3ModeEnabled} refreshToken={walletRefreshToken} />
+					</div>
+				</div>
+			)}
+
+			{/* All Settings & Cookie Preferences */}
+			<div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-1">
+				<Link
+					href="/settings"
+					onClick={() => setMenuOpen(false)}
+					className="flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+				>
+					All Settings
+				</Link>
+				<button
+					type="button"
+					onClick={() => {
+						setMenuOpen(false);
+						setTimeout(() => openCookieSettings(), 0);
+					}}
+					className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs text-zinc-500 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+				>
+					Cookie preferences
+				</button>
+			</div>
+		</div>
+	);
+}
+
+// Individual settings item with flip card animation
+function SettingsItemWithHover({
+	item,
+	isHovered,
+	onHover,
+	onLeave,
+	setMenuOpen,
+}: {
+	item: any;
+	isHovered: boolean;
+	onHover: () => void;
+	onLeave: () => void;
+	setMenuOpen: (open: boolean) => void;
+}) {
+	const { resolvedTheme, setTheme } = useTheme();
+	const { prefs, setPrefs } = useUiPreferences();
+	const [isClearing, setIsClearing] = useState(false);
+	
+	const hasQuickActions = item.quickActions && item.quickActions.length > 0;
+	
+	// Get current value for highlighting
+	const getCurrentValue = () => {
+		if (item.id === 'appearance') return resolvedTheme;
+		if (item.id === 'currency') return prefs.preferredFiatCurrency;
+		return null;
+	};
+	
+	// Clear non-essential cookies while preserving auth
+	const clearNonEssentialCookies = async () => {
+		setIsClearing(true);
+		try {
+			const cookies = document.cookie.split(';');
+			const essentialPrefixes = ['next-auth', 'authjs', '__Secure-', '__Host-', 'csrf'];
+			let clearedCount = 0;
+			
+			cookies.forEach(cookie => {
+				const [name] = cookie.split('=').map(c => c.trim());
+				const isEssential = essentialPrefixes.some(prefix => 
+					name.toLowerCase().startsWith(prefix.toLowerCase())
+				);
+				if (!isEssential && name) {
+					document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+					clearedCount++;
+				}
+			});
+			
+			const essentialStorage = ['veggastare:', 'next-auth', 'ui-preferences'];
+			const keysToRemove: string[] = [];
+			for (let i = 0; i < localStorage.length; i++) {
+				const key = localStorage.key(i);
+				if (key && !essentialStorage.some(prefix => key.startsWith(prefix))) {
+					keysToRemove.push(key);
+				}
+			}
+			keysToRemove.forEach(key => localStorage.removeItem(key));
+			
+			toast.success(`Cleared ${clearedCount} cookies and ${keysToRemove.length} cached items`, {
+				description: 'Your session remains active',
+			});
+		} catch (err) {
+			toast.error('Failed to clear cookies');
+		} finally {
+			setIsClearing(false);
+		}
+	};
+	
+	// Clear browser cache
+	const clearBrowserCache = async () => {
+		setIsClearing(true);
+		try {
+			if ('caches' in window) {
+				const cacheNames = await caches.keys();
+				await Promise.all(cacheNames.map(name => caches.delete(name)));
+			}
+			sessionStorage.clear();
+			toast.success('Cache cleared successfully', {
+				description: 'Page may reload to apply changes',
+			});
+			setTimeout(() => window.location.reload(), 1000);
+		} catch (err) {
+			toast.error('Failed to clear cache');
+		} finally {
+			setIsClearing(false);
+		}
+	};
+	
+	// Toggle notification mute
+	const toggleNotificationMute = async (mute: boolean) => {
+		try {
+			const res = await fetch('/api/notifications/settings', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ inAppEnabled: !mute, pushEnabled: !mute }),
+			});
+			if (res.ok) {
+				toast.success(mute ? 'Notifications muted' : 'Notifications enabled');
+			} else {
+				toast.error('Failed to update notifications');
+			}
+		} catch (err) {
+			toast.error('Failed to update notifications');
+		}
+	};
+	
+	const handleQuickAction = (action: any, e: React.MouseEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		
+		switch (action.actionType) {
+			case 'theme':
+				setTheme(action.id);
+				break;
+			case 'currency':
+				setPrefs({ preferredFiatCurrency: action.id });
+				break;
+			case 'link':
+				setMenuOpen(false);
+				window.location.href = action.link;
+				break;
+			case 'notification':
+				if (action.action === 'mute') toggleNotificationMute(true);
+				if (action.action === 'unmute') toggleNotificationMute(false);
+				break;
+			case 'privacy':
+				if (action.action === 'clearCookies') clearNonEssentialCookies();
+				if (action.action === 'clearCache') clearBrowserCache();
+				break;
+		}
+	};
+
+	// Click on front card navigates to settings
+	const handleFrontClick = () => {
+		setMenuOpen(false);
+		window.location.href = item.href;
+	};
+
+	return (
+		<div
+			className="relative h-[52px]"
+			style={{ perspective: '1000px' }}
+			onMouseEnter={onHover}
+			onMouseLeave={onLeave}
+		>
+			{/* Card container with 3D flip */}
+			<div
+				className="relative w-full h-full transition-transform duration-300 ease-out"
+				style={{ 
+					transformStyle: 'preserve-3d',
+					transform: hasQuickActions && isHovered ? 'rotateX(180deg)' : 'rotateX(0deg)',
+				}}
+			>
+				{/* Front of card - Normal view */}
+				<div
+					className="absolute inset-0 w-full h-full rounded-lg px-3 py-2 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+					style={{ backfaceVisibility: 'hidden' }}
+					onClick={handleFrontClick}
+				>
+					<div className="flex items-center gap-3 h-full">
+						<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
+							<item.icon className="h-4 w-4" />
+						</div>
+						<div className="flex-1 min-w-0">
+							<div className="font-medium text-sm text-zinc-700 dark:text-zinc-200">{item.label}</div>
+							<div className="text-[11px] text-zinc-500 dark:text-zinc-500 truncate">{item.desc}</div>
+						</div>
+						{item.currentValue && (
+							<div className="text-[10px] text-zinc-400 dark:text-zinc-600">
+								{item.currentValue}
+							</div>
+						)}
+					</div>
+				</div>
+
+				{/* Back of card - Quick actions */}
+				{hasQuickActions && (
+					<div
+						className="absolute inset-0 w-full h-full rounded-lg bg-zinc-100 dark:bg-zinc-800 px-2 py-1.5"
+						style={{ 
+							backfaceVisibility: 'hidden',
+							transform: 'rotateX(180deg)',
+						}}
+					>
+						<div className="flex items-center justify-center gap-1 h-full">
+							{item.quickActions.map((action: any) => {
+								const isActive = getCurrentValue() === action.id;
+								const IconComponent = action.icon;
+								const isDanger = action.action === 'clearCookies' || action.action === 'clearCache';
+								
+								return (
+									<button
+										key={action.id}
+										type="button"
+										disabled={isClearing}
+										onClick={(e) => handleQuickAction(action, e)}
+										className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+											isActive
+												? 'bg-emerald-500 text-white shadow-sm'
+												: isDanger
+													? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60'
+													: 'bg-white dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-600 shadow-sm'
+										} ${isClearing ? 'opacity-50 cursor-wait' : ''}`}
+										title={action.label}
+									>
+										{typeof IconComponent === 'function' ? (
+											<IconComponent className="h-3.5 w-3.5" />
+										) : (
+											<IconComponent className="h-3.5 w-3.5" />
+										)}
+										<span>{action.label}</span>
+									</button>
+								);
+							})}
+						</div>
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
 
 export default MyTopBar;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -2003,6 +2003,179 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [savedProgress, setSavedProgress] = useState<SavedProgress | null>(null);
   const [startTime] = useState(Date.now());
+  
+  // ─── Navigation History Stack ─────────────────────────────────────────────────
+  // Internal history for back/forward navigation within the poll
+  const [navHistory, setNavHistory] = useState<Array<{ screen: typeof screen; phase: number; question: number }>>([
+    { screen: "welcome", phase: 0, question: 0 }
+  ]);
+  const [navHistoryIndex, setNavHistoryIndex] = useState(0);
+
+  // Check if we can go back/forward
+  const canGoBack = navHistoryIndex > 0 || screen !== "welcome";
+  const canGoForward = navHistoryIndex < navHistory.length - 1;
+
+  // ─── Back Navigation Handler (defined first for use in useEffect) ─────────────
+  const handleBackNavigation = useCallback(() => {
+    // Navigate back based on current screen
+    if (screen === "complete") {
+      // From complete → last question
+      const lastPhase = PHASES.length - 1;
+      const lastQuestion = PHASES[lastPhase].questions.length - 1;
+      setScreen("question");
+      setCurrentPhase(lastPhase);
+      setCurrentQuestion(lastQuestion);
+    } else if (screen === "question") {
+      if (currentQuestion > 0) {
+        // Previous question in same phase
+        setCurrentQuestion(currentQuestion - 1);
+      } else if (currentPhase > 0) {
+        // Previous phase's last question
+        const newPhase = currentPhase - 1;
+        setCurrentPhase(newPhase);
+        setCurrentQuestion(PHASES[newPhase].questions.length - 1);
+      } else {
+        // First question of first phase → phase select
+        setScreen("phase-select");
+      }
+    } else if (screen === "phase-select") {
+      // Phase select → welcome
+      setScreen("welcome");
+    } else if (screen === "welcome") {
+      // Welcome → close modal
+      onClose();
+    }
+  }, [screen, currentPhase, currentQuestion, onClose]);
+
+  // ─── Add to Navigation History (defined first for use by other handlers) ─────
+  const pushToNavHistory = useCallback((newScreen: typeof screen, phase: number, question: number) => {
+    setNavHistory(prev => {
+      // Remove any forward history when navigating to new location
+      const newHistory = prev.slice(0, navHistoryIndex + 1);
+      newHistory.push({ screen: newScreen, phase, question });
+      return newHistory;
+    });
+    setNavHistoryIndex(prev => prev + 1);
+  }, [navHistoryIndex]);
+
+  // ─── Forward Navigation Handler (history-based) ─────────────────────────────
+  const handleForwardNavigation = useCallback(() => {
+    if (navHistoryIndex < navHistory.length - 1) {
+      const nextState = navHistory[navHistoryIndex + 1];
+      setNavHistoryIndex(navHistoryIndex + 1);
+      setScreen(nextState.screen);
+      setCurrentPhase(nextState.phase);
+      setCurrentQuestion(nextState.question);
+    }
+  }, [navHistory, navHistoryIndex]);
+
+  // ─── Forward Button Handler (Mouse 4 - goes to NEXT question) ───────────────
+  const handleForwardButton = useCallback(() => {
+    if (showResumePrompt && savedProgress) {
+      // If showing resume prompt, forward = continue where left off
+      // Restore answers and find first unanswered question
+      setAnswers(savedProgress.answers);
+      setShowResumePrompt(false);
+      
+      // Find the FIRST unanswered question
+      let targetPhase = 0;
+      let targetQuestion = 0;
+      let foundUnanswered = false;
+      
+      for (let p = 0; p < PHASES.length && !foundUnanswered; p++) {
+        for (let q = 0; q < PHASES[p].questions.length; q++) {
+          const questionId = PHASES[p].questions[q].id;
+          const answer = savedProgress.answers[questionId];
+          if (answer === undefined || answer === null || answer === "") {
+            targetPhase = p;
+            targetQuestion = q;
+            foundUnanswered = true;
+            break;
+          }
+        }
+      }
+      
+      if (!foundUnanswered) {
+        setScreen("complete");
+      } else {
+        setScreen("question");
+        setCurrentPhase(targetPhase);
+        setCurrentQuestion(targetQuestion);
+        pushToNavHistory("question", targetPhase, targetQuestion);
+      }
+      return;
+    }
+    
+    if (screen === "welcome") {
+      // From welcome → go to first question
+      setScreen("question");
+      setCurrentPhase(0);
+      setCurrentQuestion(0);
+      pushToNavHistory("question", 0, 0);
+    } else if (screen === "phase-select") {
+      // From phase-select → go to current phase's first question
+      setScreen("question");
+      setCurrentQuestion(0);
+      pushToNavHistory("question", currentPhase, 0);
+    } else if (screen === "question") {
+      // From question → go to next question
+      if (currentQuestion < (PHASES[currentPhase]?.questions.length ?? 1) - 1) {
+        const newQuestion = currentQuestion + 1;
+        setCurrentQuestion(newQuestion);
+        pushToNavHistory("question", currentPhase, newQuestion);
+      } else if (currentPhase < PHASES.length - 1) {
+        // Next phase
+        const newPhase = currentPhase + 1;
+        setCurrentPhase(newPhase);
+        setCurrentQuestion(0);
+        pushToNavHistory("question", newPhase, 0);
+      } else {
+        // Last question → complete
+        setScreen("complete");
+        pushToNavHistory("complete", currentPhase, currentQuestion);
+      }
+    }
+    // On complete screen, forward does nothing (user should submit)
+  }, [screen, showResumePrompt, savedProgress, currentPhase, currentQuestion, pushToNavHistory]);
+
+  // ─── Mouse Button Navigation (Mouse 4 = Forward, Mouse 5 = Back) ──────────────
+  useEffect(() => {
+    if (!pollId) return;
+    
+    const handleMouseButton = (event: MouseEvent) => {
+      // Button 3 = Back (Mouse 5 / rear thumb button)
+      // Button 4 = Forward (Mouse 4 / front thumb button)
+      
+      // Back button (button 3) - go to previous question
+      if (event.button === 3) {
+        event.preventDefault();
+        event.stopImmediatePropagation(); // Stop other window listeners
+        handleBackNavigation();
+      }
+      // Forward button (button 4) - go to next question
+      else if (event.button === 4) {
+        event.preventDefault();
+        event.stopImmediatePropagation(); // Stop other window listeners
+        handleForwardButton();
+      }
+    };
+    
+    // Use capture phase so this runs BEFORE feed page handler
+    window.addEventListener("mousedown", handleMouseButton, { capture: true });
+    
+    // Also prevent browser default navigation on these buttons
+    const preventBrowserNav = (event: MouseEvent) => {
+      if (event.button === 3 || event.button === 4) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("auxclick", preventBrowserNav);
+    
+    return () => {
+      window.removeEventListener("mousedown", handleMouseButton, { capture: true });
+      window.removeEventListener("auxclick", preventBrowserNav);
+    };
+  }, [pollId, handleBackNavigation, handleForwardButton]);
 
   useEffect(() => {
     if (pollId && !hasRestoredProgress) {
@@ -2023,17 +2196,51 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
 
   const resumeProgress = useCallback(() => {
     if (savedProgress) {
-      setScreen(savedProgress.screen === "complete" ? "question" : savedProgress.screen);
-      setCurrentPhase(savedProgress.currentPhase);
-      setCurrentQuestion(savedProgress.currentQuestion);
+      // Restore answers first
       setAnswers(savedProgress.answers);
+      
+      // Find the FIRST unanswered question across all phases
+      // This ensures user continues from the next question they need to answer
+      let targetPhase = 0;
+      let targetQuestion = 0;
+      let foundUnanswered = false;
+      
+      for (let p = 0; p < PHASES.length && !foundUnanswered; p++) {
+        for (let q = 0; q < PHASES[p].questions.length; q++) {
+          const questionId = PHASES[p].questions[q].id;
+          const answer = savedProgress.answers[questionId];
+          
+          // Check if this question is unanswered
+          if (answer === undefined || answer === null || answer === "") {
+            targetPhase = p;
+            targetQuestion = q;
+            foundUnanswered = true;
+            break;
+          }
+        }
+      }
+      
+      // If all questions are answered, go to completion screen
+      if (!foundUnanswered) {
+        setScreen("complete");
+        setCurrentPhase(PHASES.length - 1);
+        setCurrentQuestion(PHASES[PHASES.length - 1].questions.length - 1);
+        pushToNavHistory("complete", PHASES.length - 1, PHASES[PHASES.length - 1].questions.length - 1);
+      } else {
+        // Navigate to the first unanswered question
+        setScreen("question");
+        setCurrentPhase(targetPhase);
+        setCurrentQuestion(targetQuestion);
+        pushToNavHistory("question", targetPhase, targetQuestion);
+      }
     }
     setShowResumePrompt(false);
-  }, [savedProgress]);
+  }, [savedProgress, pushToNavHistory]);
 
   const startFresh = useCallback(() => {
     clearProgress();
     setShowResumePrompt(false);
+    // Stay on welcome screen - user can choose to start or select phase
   }, []);
 
   const phase = PHASES[currentPhase];
@@ -2061,34 +2268,57 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
 
   const goNext = useCallback(() => {
     if (currentQuestion < phase.questions.length - 1) {
-      setCurrentQuestion((q) => q + 1);
+      const newQuestion = currentQuestion + 1;
+      setCurrentQuestion(newQuestion);
+      pushToNavHistory("question", currentPhase, newQuestion);
     } else if (currentPhase < PHASES.length - 1) {
-      setCurrentPhase((p) => p + 1);
+      const newPhase = currentPhase + 1;
+      setCurrentPhase(newPhase);
       setCurrentQuestion(0);
+      pushToNavHistory("question", newPhase, 0);
     } else {
       setScreen("complete");
+      pushToNavHistory("complete", currentPhase, currentQuestion);
     }
-  }, [currentQuestion, currentPhase, phase?.questions.length]);
+  }, [currentQuestion, currentPhase, phase?.questions.length, pushToNavHistory]);
 
   const goPrev = useCallback(() => {
     if (currentQuestion > 0) {
-      setCurrentQuestion((q) => q - 1);
+      const newQuestion = currentQuestion - 1;
+      setCurrentQuestion(newQuestion);
+      pushToNavHistory("question", currentPhase, newQuestion);
     } else if (currentPhase > 0) {
-      setCurrentPhase((p) => p - 1);
-      setCurrentQuestion(PHASES[currentPhase - 1].questions.length - 1);
+      const newPhase = currentPhase - 1;
+      const newQuestion = PHASES[newPhase].questions.length - 1;
+      setCurrentPhase(newPhase);
+      setCurrentQuestion(newQuestion);
+      pushToNavHistory("question", newPhase, newQuestion);
     }
-  }, [currentQuestion, currentPhase]);
+  }, [currentQuestion, currentPhase, pushToNavHistory]);
 
   const goToPhase = useCallback((phaseIndex: number) => {
     // -1 means go back to welcome screen
     if (phaseIndex === -1) {
       setScreen("welcome");
+      pushToNavHistory("welcome", 0, 0);
       return;
     }
     setCurrentPhase(phaseIndex);
     setCurrentQuestion(0);
     setScreen("question");
-  }, []);
+    pushToNavHistory("question", phaseIndex, 0);
+  }, [pushToNavHistory]);
+
+  // Callbacks that push history state for screen transitions
+  const goToQuestionScreen = useCallback(() => {
+    setScreen("question");
+    pushToNavHistory("question", currentPhase, currentQuestion);
+  }, [pushToNavHistory, currentPhase, currentQuestion]);
+
+  const goToPhaseSelect = useCallback(() => {
+    setScreen("phase-select");
+    pushToNavHistory("phase-select", currentPhase, currentQuestion);
+  }, [pushToNavHistory, currentPhase, currentQuestion]);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -2163,11 +2393,25 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
     <Dialog open={!!pollId} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl w-[95vw] h-[85vh] max-h-[85vh] p-0 overflow-hidden bg-background/95 backdrop-blur-2xl border-white/10 shadow-2xl flex flex-col" hideCloseButton accessibleTitle="REACH Algorithm Research">
         <div className="flex items-center justify-between p-4 border-b border-white/10 flex-shrink-0">
-          <div className="flex items-center gap-4">
+          {/* Left side: Back button + Section info */}
+          <div className="flex items-center gap-2">
+            {/* Back Button - Always visible, closes modal on welcome screen */}
+            {!showResumePrompt && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleBackNavigation}
+                className="rounded-full h-9 w-9 hover:bg-muted"
+                title={screen === "welcome" ? "Close poll" : "Go back"}
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+            )}
+            
             {(screen === "question" || screen === "phase-select") && !showResumePrompt && (
               <>
                 {screen === "question" && (
-                  <button onClick={() => setScreen("phase-select")} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                  <button onClick={goToPhaseSelect} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${phase?.color}20` }}>
                       {phase && <phase.icon className="w-4 h-4" style={{ color: phase.color }} />}
                     </div>
@@ -2177,18 +2421,35 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
                     </div>
                   </button>
                 )}
-                <div className="hidden md:flex items-center gap-2">
-                  <div className="h-2 w-40 bg-muted rounded-full overflow-hidden">
+                <div className="hidden md:flex items-center gap-2 ml-2">
+                  <div className="h-2 w-32 bg-muted rounded-full overflow-hidden">
                     <motion.div className="h-full bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500" initial={{ width: 0 }} animate={{ width: `${overallProgress}%` }} transition={{ duration: 0.3 }} />
                   </div>
-                  <span className="text-sm text-muted-foreground">{overallProgress}%</span>
+                  <span className="text-xs text-muted-foreground">{overallProgress}%</span>
                 </div>
               </>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
-            <X className="w-4 h-4" />
-          </Button>
+          
+          {/* Right side: Forward button + Close button */}
+          <div className="flex items-center gap-1">
+            {/* Forward Button - Goes to next question (same as Mouse 4) */}
+            {!showResumePrompt && screen !== "complete" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleForwardButton}
+                className="rounded-full h-9 w-9 hover:bg-muted"
+                title={screen === "welcome" ? "Start poll" : "Next question"}
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            )}
+            
+            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-9 w-9">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto min-h-0 relative">
@@ -2218,7 +2479,7 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
               </motion.div>
             )}
 
-            {screen === "welcome" && !showResumePrompt && <WelcomeScreen key="welcome" onStart={() => setScreen("question")} onSelectPhase={() => setScreen("phase-select")} phases={PHASES} />}
+            {screen === "welcome" && !showResumePrompt && <WelcomeScreen key="welcome" onStart={goToQuestionScreen} onSelectPhase={goToPhaseSelect} phases={PHASES} />}
             {screen === "phase-select" && !showResumePrompt && <PhaseSelector key="phase-select" phases={PHASES} currentPhase={currentPhase} completedQuestions={completedQuestions} onSelectPhase={goToPhase} />}
 
             {screen === "question" && !showResumePrompt && question && (
@@ -2237,13 +2498,13 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
                 <h3 className="text-lg font-semibold mb-2">Question not found</h3>
                 <p className="text-muted-foreground mb-6 text-sm">There was an issue loading this question.</p>
                 <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setScreen("phase-select")}>Choose Section</Button>
+                  <Button variant="outline" onClick={goToPhaseSelect}>Choose Section</Button>
                   <Button onClick={goNext}>Skip to Next <ChevronRight className="ml-1 w-4 h-4" /></Button>
                 </div>
               </motion.div>
             )}
 
-            {screen === "complete" && !showResumePrompt && <CompletionScreen key="complete" answeredCount={answeredCount} totalQuestions={totalQuestions} phases={PHASES} completedQuestions={completedQuestions} onSubmit={handleSubmit} onClose={onClose} onBackToPhases={() => setScreen("phase-select")} isSubmitting={isSubmitting} />}
+            {screen === "complete" && !showResumePrompt && <CompletionScreen key="complete" answeredCount={answeredCount} totalQuestions={totalQuestions} phases={PHASES} completedQuestions={completedQuestions} onSubmit={handleSubmit} onClose={onClose} onBackToPhases={goToPhaseSelect} isSubmitting={isSubmitting} />}
           </AnimatePresence>
         </div>
 

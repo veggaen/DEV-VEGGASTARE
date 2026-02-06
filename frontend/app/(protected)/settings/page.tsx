@@ -30,10 +30,11 @@ import { useEdgeStore } from '@/lib/edgestore';
 import { FancyBackground } from '@/components/uicustom/fancy-background';
 import { NotificationSettings as NotificationSettingsComponent } from '@/components/uicustom/notifications/notification-settings';
 import type { NotificationSettings as NotificationSettingsType, NotificationMute } from '@/components/uicustom/notifications/types';
+import { CurrencySelector, useCurrency, FIAT_CURRENCIES, CRYPTO_CURRENCIES } from '@/components/uicustom/currency-selector';
 import { 
   FiUser, FiLock, FiMail, FiBell, FiShield, FiSave, 
   FiEdit2, FiX, FiCheck, FiImage, FiChevronRight, FiCamera, FiUpload,
-  FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity, FiSliders
+  FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity, FiSliders, FiDollarSign
 } from 'react-icons/fi';
 import {
   Chart as ChartJS,
@@ -61,12 +62,12 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
-  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'notifications' | 'privacy' | 'appearance'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'notifications' | 'privacy' | 'appearance' | 'currency'>('profile');
   
   // Read section from URL params (e.g. /settings?section=notifications)
   useEffect(() => {
     const sectionParam = searchParams.get('section');
-    if (sectionParam && ['profile', 'account', 'security', 'notifications', 'privacy', 'appearance'].includes(sectionParam)) {
+    if (sectionParam && ['profile', 'account', 'security', 'notifications', 'privacy', 'appearance', 'currency'].includes(sectionParam)) {
       setActiveSection(sectionParam as typeof activeSection);
     }
   }, [searchParams]);
@@ -347,6 +348,7 @@ export default function SettingsPage() {
     { id: 'profile', label: 'Profile', icon: FiImage, description: 'Avatar, banner & bio' },
     { id: 'account', label: 'Account', icon: FiUser, description: 'Manage your account details' },
     { id: 'appearance', label: 'Appearance', icon: FiSliders, description: 'Theme, effects & animations' },
+    { id: 'currency', label: 'Currency', icon: FiDollarSign, description: 'Display currency & crypto' },
     { id: 'security', label: 'Security', icon: FiShield, description: 'Password and authentication' },
     { id: 'notifications', label: 'Notifications', icon: FiBell, description: 'Email and push notifications' },
     { id: 'privacy', label: 'Privacy', icon: FiLock, description: 'Control your data and visibility' },
@@ -878,13 +880,16 @@ export default function SettingsPage() {
                               <Input
                                 {...field}
                                 type="email"
-                                disabled={isPending || !isEditing}
+                                disabled={isPending || !isEditing || user?.isOAuth}
                                 placeholder={user?.email || 'Enter your email'}
                                 className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
                               />
                             </FormControl>
                             <FormDescription className="text-muted-foreground dark:text-white/40">
-                              This is the email used for notifications and login
+                              {user?.isOAuth 
+                                ? 'Email is managed by your sign-in provider (Google, etc.)'
+                                : 'This is the email used for notifications and login'
+                              }
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -1031,6 +1036,10 @@ export default function SettingsPage() {
 
               {activeSection === 'appearance' && (
                 <AppearanceSettings />
+              )}
+
+              {activeSection === 'currency' && (
+                <CurrencySettings />
               )}
             </div>
           </div>
@@ -1574,6 +1583,88 @@ function NotificationSettingsSection() {
         onRemoveMute={handleRemoveMute}
         isLoading={isLoading}
       />
+    </div>
+  );
+}
+
+// Currency Settings Component
+function CurrencySettings() {
+  const { currency, setCurrency, cryptoCurrency, setCryptoCurrency } = useCurrency();
+  
+  return (
+    <div className="space-y-6">
+      <div className="border-b border-border dark:border-white/10 pb-4">
+        <h2 className="text-xl font-semibold text-foreground dark:text-white">Currency</h2>
+        <p className="text-sm text-muted-foreground dark:text-white/50">Choose how prices are displayed across the platform</p>
+      </div>
+
+      {/* Fiat Currency */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Display Currency</h3>
+        <p className="text-sm text-muted-foreground dark:text-white/40 mb-3">
+          Primary currency for displaying prices
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {FIAT_CURRENCIES.map((curr) => (
+            <button
+              key={curr.code}
+              onClick={() => setCurrency(curr.code)}
+              className={`p-4 rounded-xl border-2 text-left transition-all ${
+                currency === curr.code
+                  ? 'border-emerald-500 bg-emerald-500/20 dark:bg-emerald-500/10 ring-2 ring-emerald-500/40 dark:ring-emerald-500/30 shadow-lg shadow-emerald-500/20'
+                  : 'border-zinc-200 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 bg-white dark:bg-white/5 shadow-sm'
+              }`}
+            >
+              <div className="text-2xl mb-2">{curr.symbol}</div>
+              <div className="font-medium text-foreground dark:text-white/90">{curr.code}</div>
+              <div className="text-xs text-muted-foreground dark:text-white/40">{curr.name}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Crypto Currency */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Crypto Currency</h3>
+        <p className="text-sm text-muted-foreground dark:text-white/40 mb-3">
+          Secondary currency for crypto price display
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {CRYPTO_CURRENCIES.map((curr) => (
+            <button
+              key={curr.code}
+              onClick={() => setCryptoCurrency(curr.code)}
+              className={`p-4 rounded-xl border-2 text-left transition-all ${
+                cryptoCurrency === curr.code
+                  ? 'border-emerald-500 bg-emerald-500/20 dark:bg-emerald-500/10 ring-2 ring-emerald-500/40 dark:ring-emerald-500/30 shadow-lg shadow-emerald-500/20'
+                  : 'border-zinc-200 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 bg-white dark:bg-white/5 shadow-sm'
+              }`}
+            >
+              <div className="text-2xl mb-2">{curr.symbol}</div>
+              <div className="font-medium text-foreground dark:text-white/90">{curr.code}</div>
+              <div className="text-xs text-muted-foreground dark:text-white/40">{curr.name}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Quick Preview */}
+      <div className="pt-4 border-t border-border dark:border-white/10">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider mb-3">Preview</h3>
+        <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground dark:text-white/60">Example price:</span>
+            <div className="text-right">
+              <div className="font-bold text-foreground dark:text-white">
+                {FIAT_CURRENCIES.find(c => c.code === currency)?.symbol}99.99
+              </div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">
+                ≈ {CRYPTO_CURRENCIES.find(c => c.code === cryptoCurrency)?.symbol}0.025
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

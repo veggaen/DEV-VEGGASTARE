@@ -229,31 +229,53 @@ const FeedPage: React.FC = () => {
     }
     
     // Check for poll param (?poll=ID opens poll taker modal)
+    // But don't reopen if we just closed (prevents race with close action)
     const pollParam = searchParams.get('poll');
-    if (pollParam) {
+    if (pollParam && !justClosedPoll.current) {
       setSelectedAdvancedPollId(pollParam);
-      // Also set filter to polls for context
-      setFilter('polls');
+      lastOpenedPollId.current = pollParam; // Track for mouse nav
+      // Don't change filter - user should stay on whatever feed they were viewing
     }
   }, [searchParams]);
 
-  // Open pulse modal
-  const openPulse = (pulseId: string) => {
-    setSelectedPulseId(pulseId);
-    // Update URL without navigation for shareable links
-    const url = new URL(window.location.href);
-    url.searchParams.set('pulse', pulseId);
-    window.history.pushState({}, '', url.toString());
-  };
+  // Handle browser back/forward navigation (popstate) to sync filter state with URL
+  // This is needed because searchParams doesn't react to pushState/popstate
+  useEffect(() => {
+    const handlePopState = () => {
+      const url = new URL(window.location.href);
+      
+      // Sync filter
+      const filterParam = url.searchParams.get('filter') as ContentFilter | null;
+      if (filterParam && ['all', 'pulses', 'polls', 'trending'].includes(filterParam)) {
+        setFilter(filterParam);
+      } else {
+        setFilter('all'); // Default to 'all' if no filter param
+      }
+      
+      // Sync sort
+      const sortParam = url.searchParams.get('sort') as SortType | null;
+      if (sortParam && ['recent', 'popular', 'discussed', 'reach'].includes(sortParam)) {
+        setSortBy(sortParam);
+      } else {
+        setSortBy('recent'); // Default to 'recent' if no sort param
+      }
+      
+      // Sync pulse modal
+      const pulseParam = url.searchParams.get('pulse');
+      setSelectedPulseId(pulseParam);
+      
+      // Sync poll modal (but respect justClosedPoll flag)
+      const pollParam = url.searchParams.get('poll');
+      if (pollParam && !justClosedPoll.current) {
+        setSelectedAdvancedPollId(pollParam);
+      } else if (!pollParam) {
+        setSelectedAdvancedPollId(null);
+      }
+    };
 
-  // Close pulse modal
-  const closePulse = () => {
-    setSelectedPulseId(null);
-    // Remove pulse param from URL
-    const url = new URL(window.location.href);
-    url.searchParams.delete('pulse');
-    window.history.pushState({}, '', url.toString());
-  };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Change filter with URL update for shareable links
   const changeFilter = (newFilter: ContentFilter) => {
@@ -320,6 +342,90 @@ const FeedPage: React.FC = () => {
   const [advancedPolls, setAdvancedPolls] = useState<PulsePollData[]>([]);
   const [loadingPolls, setLoadingPolls] = useState(false);
   const [selectedAdvancedPollId, setSelectedAdvancedPollId] = useState<string | null>(null);
+  
+  // Track last opened pulse/poll for mouse navigation
+  const lastOpenedPulseId = useRef<string | null>(null);
+  const lastOpenedPollId = useRef<string | null>(null);
+  // Flag to prevent immediate reopen after closing
+  const justClosedPoll = useRef(false);
+
+  // Open pulse modal
+  const openPulse = useCallback((pulseId: string) => {
+    setSelectedPulseId(pulseId);
+    lastOpenedPulseId.current = pulseId;
+    const url = new URL(window.location.href);
+    url.searchParams.set('pulse', pulseId);
+    window.history.pushState({}, '', url.toString());
+  }, []);
+
+  // Close pulse modal
+  const closePulse = useCallback(() => {
+    setSelectedPulseId(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('pulse');
+    window.history.pushState({}, '', url.toString());
+  }, []);
+
+  // Open poll modal
+  const openPoll = useCallback((pollId: string) => {
+    setSelectedAdvancedPollId(pollId);
+    lastOpenedPollId.current = pollId;
+    const url = new URL(window.location.href);
+    url.searchParams.set('poll', pollId);
+    window.history.pushState({}, '', url.toString());
+  }, []);
+
+  // Close poll modal
+  const closePoll = useCallback(() => {
+    setSelectedAdvancedPollId(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('poll');
+    window.history.replaceState({}, '', url.toString());
+    // Prevent immediate reopen from mouse handler
+    justClosedPoll.current = true;
+    setTimeout(() => {
+      justClosedPoll.current = false;
+    }, 200);
+  }, []);
+
+  // ─── Mouse Button Navigation (Mouse 3 = Back, Mouse 4 = Forward) ────────────
+  useEffect(() => {
+    const handleMouseButton = (event: MouseEvent) => {
+      // Only handle if no poll modal is open (poll has its own mouse handling)
+      // Also skip if we just closed a poll (prevents race conditions)
+      if (selectedAdvancedPollId || justClosedPoll.current) return;
+      
+      // Back button (button 3) - close any open modal
+      if (event.button === 3) {
+        if (selectedPulseId) {
+          event.preventDefault();
+          event.stopPropagation();
+          closePulse();
+        }
+      }
+      // Forward button (button 4) - reopen last closed modal
+      else if (event.button === 4) {
+        // If nothing is open, try to reopen last opened
+        if (!selectedPulseId && !selectedAdvancedPollId) {
+          event.preventDefault();
+          event.stopPropagation();
+          
+          // Prefer reopening poll if it was last opened, otherwise pulse
+          if (lastOpenedPollId.current) {
+            openPoll(lastOpenedPollId.current);
+          } else if (lastOpenedPulseId.current) {
+            openPulse(lastOpenedPulseId.current);
+          }
+        }
+      }
+    };
+
+    window.addEventListener("mousedown", handleMouseButton);
+    
+    return () => {
+      window.removeEventListener("mousedown", handleMouseButton);
+    };
+  }, [selectedPulseId, selectedAdvancedPollId, closePulse, openPoll, openPulse]);
   
   // Check if selected poll is REACH Assessment (use V2 UI)
   // First try to find in advancedPolls, then check feed items
@@ -1262,6 +1368,7 @@ const FeedPage: React.FC = () => {
                   onTagClick={(tag) => setTagFilter(tag)}
                   onClick={() => openPulse(item.id)}
                   onRefresh={fetchFeed}
+                  onOpenPoll={openPoll}
                 />
               ))
             )}
@@ -1275,11 +1382,7 @@ const FeedPage: React.FC = () => {
             advancedPoll={items.find(i => i.id === selectedPulseId)?.advancedPoll}
             onOpenPoll={(pollId) => {
               closePulse();
-              setSelectedAdvancedPollId(pollId);
-              const url = new URL(window.location.href);
-              url.searchParams.set('poll', pollId);
-              url.searchParams.delete('pulse');
-              window.history.pushState({}, '', url.toString());
+              openPoll(pollId);
             }}
           />
 
@@ -1379,7 +1482,7 @@ const FeedPage: React.FC = () => {
           {isReachAuditPoll ? (
             <ReachPollV3
               pollId={selectedAdvancedPollId}
-              onClose={() => setSelectedAdvancedPollId(null)}
+              onClose={closePoll}
               onComplete={(responseId) => {
                 console.log('Poll completed:', responseId);
                 // Refresh polls list
@@ -1408,7 +1511,7 @@ const FeedPage: React.FC = () => {
           ) : (
             <PollTakerModal
               pollId={selectedAdvancedPollId}
-              onClose={() => setSelectedAdvancedPollId(null)}
+              onClose={closePoll}
               onComplete={(responseId) => {
                 console.log('Poll completed:', responseId);
                 // Refresh polls list
@@ -1615,9 +1718,10 @@ interface FeedCardProps {
   onTagClick: (tag: string) => void;
   onClick: () => void;
   onRefresh: () => void;
+  onOpenPoll?: (pollId: string) => void;
 }
 
-const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefresh }) => {
+const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefresh, onOpenPoll }) => {
   const timeAgo = formatDistanceToNowStrict(new Date(item.createdAt), { addSuffix: true });
   const pathname = usePathname();
   const isPulsePage = pathname === '/pulse';
@@ -2178,12 +2282,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                   className="w-full p-4 rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 hover:border-primary/50 hover:from-primary/10 hover:to-primary/20 transition-all text-left group"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Set URL param for the poll modal
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('poll', item.advancedPoll!.id);
-                    window.history.pushState({}, '', url.toString());
-                    // Dispatch a popstate event to trigger the poll modal
-                    window.dispatchEvent(new PopStateEvent('popstate'));
+                    onOpenPoll?.(item.advancedPoll!.id);
                   }}
                 >
                   <div className="flex items-start gap-3">

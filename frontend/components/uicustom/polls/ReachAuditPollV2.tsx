@@ -1535,7 +1535,7 @@ export function ReachAuditPollV2({ pollId, onClose, onComplete }: ReachAuditPoll
 
   return (
     <Dialog open={!!pollId} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] p-0 overflow-hidden bg-background/95 backdrop-blur-xl border-border/50">
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] p-0 overflow-hidden bg-background/95 backdrop-blur-xl border-border/50" accessibleTitle="REACH Feedback Poll">
         {/* Top bar */}
         <div className="flex items-center justify-between p-4 border-b border-border/50">
           <div className="flex items-center gap-3">

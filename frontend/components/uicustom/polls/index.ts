@@ -1,56 +1,51 @@
-// Advanced Poll System Components - Industrial Grade
-// Export all poll-related components for easy imports
+// Enhanced Poll Components - Export Index
+// Created for improved navigation, comments, and results display
 
-// Core Question Types
-export { SliderQuestion } from "./SliderQuestion";
-export { ChoiceQuestion } from "./ChoiceQuestion";
-export { ImagePasteInput } from "./ImagePasteInput";
+// ─── Core Components ──────────────────────────────────────────────────────────
 
-// Advanced Interactive Question Types
-export { ShapeMatchQuestion, SHAPE_MATCH_PRESETS } from "./ShapeMatchQuestion";
-export { RankingQuestion } from "./RankingQuestion";
-export { UIArrangeQuestion, UI_ARRANGE_PRESETS } from "./UIArrangeQuestion";
-export { NestedQuestionComponent, NESTED_QUESTION_PRESETS } from "./NestedQuestionComponent";
+// Navigation Bar - Draggable taskbar-style navigation
+export { 
+  PollNavigationBar, 
+  type BarPosition 
+} from "./PollNavigationBar";
 
-// Poll Display & Builder Components
-export { AdvancedPollDisplay } from "./AdvancedPollDisplay";
-export { PollAnalyticsCarousel } from "./PollAnalyticsCarousel";
-export { PollBuilder } from "./PollBuilder";
-export { PollTakerModal } from "./PollTakerModal";
-export { PulsePollCard } from "./PulsePollCard";
-export { PollImportModal } from "./PollImportModal";
+// Results Display - Charts, text aggregation, public/realtime options
+export { 
+  PollResultsDisplay,
+  type DisplayMode,
+  type ChoiceResponse,
+  type SliderResponse,
+  type TextResponse,
+  type QuestionResult,
+  type SectionResult,
+  type PollResultsProps,
+} from "./PollResultsDisplay";
 
-// Re-export types
-export type { default as SliderQuestionProps } from "./SliderQuestion";
-export type { default as ChoiceQuestionProps } from "./ChoiceQuestion";
-export type { default as ImagePasteInputProps } from "./ImagePasteInput";
-export type { default as AdvancedPollDisplayProps } from "./AdvancedPollDisplay";
-export type { default as PollAnalyticsCarouselProps } from "./PollAnalyticsCarousel";
-export type { default as PollBuilderProps } from "./PollBuilder";
+// Comment Button - Prominent + icon for adding comments
+export { 
+  QuestionCommentButton,
+  InlineCommentButton,
+  FloatingCommentButton,
+} from "./QuestionCommentButton";
 
-// Advanced type exports
-export type {
-  ShapeType,
-  ColorType,
-} from "./ShapeMatchQuestion";
+// Enhanced Wrapper - Integrates all features
+export { 
+  EnhancedPollWrapper,
+  type EnhancedPollWrapperProps,
+} from "./EnhancedPollWrapper";
 
-export type {
-  RankingOption,
-} from "./RankingQuestion";
+// ─── Existing Components ──────────────────────────────────────────────────────
 
-export type {
-  ArrangeBox,
-  DropZone,
-  ArrangeResult,
-} from "./UIArrangeQuestion";
+// Re-export existing poll components for convenience
+export { default as AdvancedPollDisplay } from "./AdvancedPollDisplay";
+export { default as ReachPollV3 } from "./ReachPollV3";
+export { default as SliderQuestion } from "./SliderQuestion";
+export { default as ChoiceQuestion } from "./ChoiceQuestion";
+export { default as ImagePasteInput } from "./ImagePasteInput";
 
-export type {
-  NestedQuestion,
-  NestedQuestionAnswer,
-  NestedQuestionResult,
-} from "./NestedQuestionComponent";
-
-export type {
-  ImportedQuestion,
-  ImportedPoll,
-} from "./PollImportModal";
+// Interactive components
+export { DragToSort } from "./interactive/DragToSort";
+export { DragToZone } from "./interactive/DragToZone";
+export { VisualSlider } from "./interactive/VisualSlider";
+export { WeightAdjuster } from "./interactive/WeightAdjuster";
+export { BranchingChoice } from "./interactive/BranchingChoice";

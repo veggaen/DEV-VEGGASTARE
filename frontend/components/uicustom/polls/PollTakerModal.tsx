@@ -255,7 +255,7 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
 
   return (
     <Dialog open={!!pollId} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden" accessibleTitle={poll?.title || "Poll"}>
         <TooltipProvider>
           {loading ? (
             <div className="flex items-center justify-center p-12">
