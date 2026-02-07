@@ -39,6 +39,7 @@ import {
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 import Pusher from 'pusher-js';
 import Spinner from '@/components/uicustom/spinner';
+import RichTextContent from '@/components/uicustom/pulse/RichTextContent';
 
 interface Message {
   id: string;
@@ -553,9 +554,12 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                               </p>
                             )}
                             {bodyText && (
-                              <p className="text-[15px] leading-relaxed text-foreground/80 dark:text-white/80 whitespace-pre-wrap break-words">
-                                {bodyText}
-                              </p>
+                              <RichTextContent
+                                content={bodyText}
+                                className="text-[15px] leading-relaxed text-foreground/80 dark:text-white/80"
+                                embedYouTube={true}
+                                maxYouTubeEmbeds={3}
+                              />
                             )}
                           </div>
 
@@ -750,9 +754,12 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                                 </div>
                               </div>
                             ) : (
-                              <p className="mt-1 text-sm leading-relaxed text-foreground/80 dark:text-white/80 whitespace-pre-wrap break-words break-all">
-                                {message.content}
-                              </p>
+                              <RichTextContent
+                                content={message.content}
+                                className="mt-1 text-sm leading-relaxed text-foreground/80 dark:text-white/80"
+                                embedYouTube={true}
+                                maxYouTubeEmbeds={1}
+                              />
                             )}
                           </div>
                         </div>

@@ -38,6 +38,7 @@ import { formatDistanceToNowStrict } from 'date-fns';
 import { PollDisplay } from '@/components/uicustom/chats/poll-display';
 import { DiscoverPeople } from '@/components/uicustom/social/DiscoverPeople';
 import { PulseDetailModal } from '@/components/uicustom/pulse/PulseDetailModal';
+import RichTextContent from '@/components/uicustom/pulse/RichTextContent';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 import { PollBuilder } from '@/components/uicustom/polls/PollBuilder';
 import { PulsePollCard, type PulsePollData } from '@/components/uicustom/polls/PulsePollCard';
@@ -2087,6 +2088,17 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
           (titleText !== descriptionText && !descriptionText.startsWith(titleText)))
     );
 
+  // Handle click - ignore if user is selecting text
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Check if user has selected any text
+    const selection = window.getSelection();
+    if (selection && selection.toString().trim().length > 0) {
+      // User is selecting text, don't open modal
+      return;
+    }
+    onClick();
+  };
+
   return (
     <article
       ref={viewTrackingRef}
@@ -2096,7 +2108,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
           ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50 dark:hover:bg-amber-950/30" 
           : "border-border/60 bg-zinc-100/80 dark:bg-card/30 hover:bg-zinc-200/80 dark:hover:bg-card/50"
       )}
-      onClick={onClick}
+      onClick={handleCardClick}
     >
       {/* Pinned indicator */}
       {isPinnedToFeed && (
@@ -2330,22 +2342,22 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               )}
 
               {isPulsePage ? (
-                <p className="text-[15px] leading-relaxed text-foreground/90 whitespace-pre-wrap break-words">
-                  {rawPreviewText}
-                </p>
+                <RichTextContent
+                  content={rawPreviewText}
+                  className="text-[15px] leading-relaxed text-foreground/90"
+                  onTagClick={onTagClick}
+                  embedYouTube={true}
+                  maxYouTubeEmbeds={2}
+                />
               ) : (
                 <>
-                  <p
+                  <RichTextContent
+                    content={previewText}
                     className="text-[15px] leading-relaxed text-foreground/90"
-                    style={{
-                      display: '-webkit-box',
-                      WebkitBoxOrient: 'vertical',
-                      WebkitLineClamp: 10,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {previewText}
-                  </p>
+                    onTagClick={onTagClick}
+                    embedYouTube={true}
+                    maxYouTubeEmbeds={1}
+                  />
 
                   {showReadMore && (
                     <div className="text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors">
