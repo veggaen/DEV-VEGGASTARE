@@ -87,7 +87,7 @@ export function AddressAutocomplete({
       }
     } catch (err) {
       console.error('[AddressAutocomplete] Error:', err);
-      setError('Could not load suggestions');
+      setError(err instanceof Error ? err.message : 'Could not load suggestions');
       setSuggestions([]);
     } finally {
       setIsLoading(false);

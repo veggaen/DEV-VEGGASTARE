@@ -148,7 +148,8 @@ export function AddressInput({
       setShowSuggestions(unique.length > 0);
     } catch (err) {
       console.error('[AddressInput] Search error:', err);
-      setLookupError('Address suggestions failed to load in this environment');
+      const message = err instanceof Error ? err.message : 'Address suggestions failed to load';
+      setLookupError(message);
       setSuggestions([]);
     } finally {
       setIsLoading(false);
