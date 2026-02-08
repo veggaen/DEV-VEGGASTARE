@@ -18,8 +18,8 @@ export const dynamic = 'force-dynamic';
 const BRING_API_URL = 'https://api.bring.com/address/api';
 
 function getBringCredentials(): { uid: string; key: string; hasCredentials: boolean } {
-  const uid = process.env.MYBRING_API_UID || process.env.BRING_API_UID || '';
-  const key = process.env.MYBRING_API_KEY || process.env.BRING_API_KEY || '';
+  const uid = process.env.MYBRING_API_UID || process.env.BRING_API_UID || process.env.BRING_SHIPPING_API_UID || '';
+  const key = process.env.MYBRING_API_KEY || process.env.BRING_API_KEY || process.env.BRING_SHIPPING_API_KEY || '';
   return { uid, key, hasCredentials: Boolean(uid && key) };
 }
 
