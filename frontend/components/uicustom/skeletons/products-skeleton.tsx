@@ -1,38 +1,48 @@
-import Image from 'next/image';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { HiOutlineCog6Tooth } from "react-icons/hi2";
-
+/**
+ * Skeleton shown inside /products page.tsx while the first batch of products
+ * is fetching. Structurally mirrors the real ProductCard so the transition
+ * from skeleton → real content is seamless with zero layout shift.
+ */
 export default function ProductsSkeleton() {
-  const placeholderItems = Array.from({ length: 10 });
-
   return (
-    <div className="w-full space-y-4">
-      <div className='flex flex-col justify-center items-center'>
-      </div>
-      <div className="grid py-6 px-2 md:px-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-        {placeholderItems.map((_, idx) => (
-          <div key={idx} className="flex flex-col rounded overflow-hidden p-2 bg-white dark:bg-gray-800 animate-pulse">
-            <div className="relative w-full aspect-w-1 aspect-h-1">
-              <AspectRatio ratio={1 / 1}>
-                <Image src="/loading.webp" alt="Loading..." sizes="100%" width={500} height={500} className="object-fill rounded" />
-              </AspectRatio>
-            </div>
-            <div className="p-2 pt-4 flex flex-col justify-between flex-grow">
-              <div>
-                <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-1/2 mb-1"></div>
-                <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-5/6 mb-1"></div>
-                <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-1/2"></div>
-              </div>
-              <div className="flex justify-between items-center my-2 sm:mt-4 gap-2">
-                <HiOutlineCog6Tooth className="h-5 w-5 text-gray-500" />
-                <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-1/4"></div>
-              </div>
-              <div className="h-8 bg-zinc-200 dark:bg-zinc-700 rounded w-full"></div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 3xl:grid-cols-5 4xl:grid-cols-5 gap-2 md:gap-3">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div
+          key={i}
+          className="flex flex-col overflow-hidden rounded-lg border border-black/10 dark:border-white/10 bg-white/35 dark:bg-white/[0.02]"
+        >
+          {/* Image area — 1:1 matching ProductCard carousel */}
+          <div className="relative">
+            <div className="aspect-square bg-muted/50 animate-pulse" />
+            {/* Category badge placeholder */}
+            <div className="absolute left-3 bottom-3">
+              <div className="h-5 w-16 rounded-sm bg-black/20 animate-pulse" />
             </div>
           </div>
-        ))}
-      </div>
+
+          {/* Content area — mirrors ProductCard p-3 md:p-4 */}
+          <div className="p-3 md:p-4 flex flex-col gap-2 flex-grow">
+            {/* Title */}
+            <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
+            {/* Description */}
+            <div className="h-3 w-full rounded bg-muted/70 animate-pulse" />
+            {/* Seller line */}
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-10 rounded bg-muted/50 animate-pulse" />
+              <div className="h-3 w-20 rounded bg-muted/60 animate-pulse" />
+            </div>
+
+            {/* Price + star row */}
+            <div className="mt-auto flex items-center justify-between gap-3">
+              <div className="h-4 w-4 rounded bg-muted/40 animate-pulse" />
+              <div className="h-4 w-16 rounded bg-muted/60 animate-pulse" />
+            </div>
+
+            {/* View button */}
+            <div className="h-9 w-full rounded-md bg-muted/50 animate-pulse" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
