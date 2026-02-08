@@ -204,6 +204,13 @@ const FeedPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortType>('recent');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   
+  // Cursor-based pagination state
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const PAGE_SIZE = 25;
+  
   // Real-time new pulses state
   const [newPulsesCount, setNewPulsesCount] = useState(0);
   const [isLoadingNew, setIsLoadingNew] = useState(false);
@@ -468,58 +475,59 @@ const FeedPage: React.FC = () => {
     }
   }, [filter]);
 
-  // Fetch feed items
-  const fetchFeed = useCallback(async (resetNewCount = true) => {
-    setLoading(true);
+  // Fetch feed items (supports cursor pagination)
+  const fetchFeed = useCallback(async (resetNewCount = true, cursor?: string) => {
+    const isFirstPage = !cursor;
+    if (isFirstPage) {
+      setLoading(true);
+    } else {
+      setIsFetchingMore(true);
+    }
+    
     try {
-      // Fetch all content, then filter/sort client-side for flexibility
-      let url = `/api/conversations?filter=public&sort=recent&limit=100`;
+      // Map client sort to API sort param (server handles sorting)
+      const apiSort = sortBy === 'popular' ? 'popular'
+        : sortBy === 'discussed' ? 'discussed'
+        : sortBy === 'reach' ? 'reach'
+        : 'recent';
+      
+      let url = `/api/conversations?filter=public&sort=${apiSort}&limit=${PAGE_SIZE}`;
       if (tagFilter) {
         url += `&tag=${encodeURIComponent(tagFilter)}`;
       }
+      if (cursor) {
+        url += `&cursor=${encodeURIComponent(cursor)}`;
+      }
+      
       const res = await fetch(url);
       const data = await res.json();
       let feedItems = (data.conversations || []) as FeedItem[];
+      const serverCursor = data.nextCursor || null;
       
       // ─────────────────────────────────────────────────────────────────────────
-      // CONTENT TYPE FILTER
+      // CLIENT-SIDE CONTENT TYPE FILTER (poll vs pulse distinction is client-side)
       // ─────────────────────────────────────────────────────────────────────────
       if (filter === 'polls') {
-        // Only show items with polls
         feedItems = feedItems.filter(item => item.hasPoll);
       } else if (filter === 'pulses') {
-        // Only show items WITHOUT polls (regular pulses)
         feedItems = feedItems.filter(item => !item.hasPoll);
       } else if (filter === 'trending') {
-        // Show content sorted by trending score (no minimum threshold - show all sorted)
-        // This ensures users always see content, just prioritized by trending score
         feedItems = [...feedItems].sort((a, b) => calculateTrendingScore(b) - calculateTrendingScore(a));
       }
-      // 'all' shows everything
+      // 'all' shows everything — server already sorted
       
-      // ─────────────────────────────────────────────────────────────────────────
-      // SORT OPTIONS (applied after filter)
-      // ─────────────────────────────────────────────────────────────────────────
-      if (sortBy === 'popular') {
-        // Most heartbeats
-        feedItems = [...feedItems].sort((a, b) => (b.positivePulseCount || 0) - (a.positivePulseCount || 0));
-      } else if (sortBy === 'discussed') {
-        // Most comments
-        feedItems = [...feedItems].sort((a, b) => getReplyCount(b.messageCount) - getReplyCount(a.messageCount));
-      } else if (sortBy === 'reach') {
-        // Highest reach (views + engagement)
-        feedItems = [...feedItems].sort((a, b) => {
-          const reachA = (a.uniqueViewCount || 0) + (a.positivePulseCount || 0) * 2;
-          const reachB = (b.uniqueViewCount || 0) + (b.positivePulseCount || 0) * 2;
-          return reachB - reachA;
-        });
+      if (isFirstPage) {
+        setItems(feedItems);
+      } else {
+        setItems(prev => [...prev, ...feedItems]);
       }
-      // 'recent' is already sorted by newest first from API
       
-      setItems(feedItems);
+      // Update pagination state
+      setNextCursor(serverCursor);
+      setHasMore(serverCursor !== null);
       
       // Track latest pulse ID for new pulse detection
-      if (feedItems.length > 0) {
+      if (isFirstPage && feedItems.length > 0) {
         latestPulseId.current = feedItems[0].id;
       }
       
@@ -531,9 +539,34 @@ const FeedPage: React.FC = () => {
       console.error('Failed to fetch feed:', error);
     } finally {
       setLoading(false);
+      setIsFetchingMore(false);
       setIsLoadingNew(false);
     }
   }, [filter, sortBy, tagFilter]);
+
+  // Load more items (next page)
+  const loadMore = useCallback(() => {
+    if (isFetchingMore || !hasMore || !nextCursor) return;
+    fetchFeed(false, nextCursor);
+  }, [fetchFeed, isFetchingMore, hasMore, nextCursor]);
+
+  // Infinite scroll via IntersectionObserver
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: '400px' } // Pre-fetch 400px before visible
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   useEffect(() => {
     fetchFeed();
@@ -554,6 +587,8 @@ const FeedPage: React.FC = () => {
   // Load new pulses handler
   const loadNewPulses = useCallback(async () => {
     setIsLoadingNew(true);
+    setNextCursor(null);
+    setHasMore(true);
     await fetchFeed(true);
     // Scroll to top smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1432,16 +1467,31 @@ const FeedPage: React.FC = () => {
                 )}
               </div>
             ) : (
-              items.map((item) => (
-                <FeedCard
-                  key={item.id}
-                  item={item}
-                  onTagClick={(tag) => setTagFilter(tag)}
-                  onClick={() => openPulse(item.id)}
-                  onRefresh={fetchFeed}
-                  onOpenPoll={openPoll}
-                />
-              ))
+              <>
+                {items.map((item) => (
+                  <FeedCard
+                    key={item.id}
+                    item={item}
+                    onTagClick={(tag) => setTagFilter(tag)}
+                    onClick={() => openPulse(item.id)}
+                    onRefresh={fetchFeed}
+                    onOpenPoll={openPoll}
+                  />
+                ))}
+
+                {/* Infinite scroll sentinel */}
+                <div ref={loadMoreRef} className="h-1" />
+                {isFetchingMore && (
+                  <div className="flex justify-center py-6">
+                    <Spinner />
+                  </div>
+                )}
+                {!hasMore && items.length > 0 && (
+                  <p className="text-center text-sm text-muted-foreground py-6">
+                    You&apos;ve reached the end of the feed
+                  </p>
+                )}
+              </>
             )}
           </div>
 

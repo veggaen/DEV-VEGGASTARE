@@ -20,6 +20,7 @@ import MyTopBar from "@/components/uicustom/topbar";
 import SiteFooter from "@/components/uicustom/site-footer";
 import DevBanner from "@/components/uicustom/dev-banner";
 import CookieBanner from "@/components/uicustom/cookie-banner";
+import ImpersonationBanner from "@/components/uicustom/ImpersonationBanner";
 
 export default function AppProviders({
   session,
@@ -62,6 +63,7 @@ export default function AppProviders({
                 <CurrencyRatesProvider>
                   <Web3Providers>
                     <MyTopBar />
+                    <ImpersonationBanner />
                     <div className={`flex flex-1 flex-col min-h-0 ${isProductsRoute ? 'overflow-hidden' : 'overflow-auto'}`}>
                       <main className="flex flex-1 flex-col min-h-0 pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]">
                         {children}

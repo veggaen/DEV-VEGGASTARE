@@ -95,13 +95,34 @@ export async function GET(
 
     const { uid: bringApiUid, key: bringApiKey, hasCredentials } = getBringCredentials();
 
+    // Diagnostic: debug action returns credential status (non-sensitive)
+    if (actionPath === 'debug') {
+      return jsonNoStore({
+        hasCredentials,
+        uidSource: process.env.MYBRING_API_UID ? 'MYBRING_API_UID' 
+          : process.env.BRING_API_UID ? 'BRING_API_UID' 
+          : process.env.BRING_SHIPPING_API_UID ? 'BRING_SHIPPING_API_UID' 
+          : 'NONE',
+        keySource: process.env.MYBRING_API_KEY ? 'MYBRING_API_KEY' 
+          : process.env.BRING_API_KEY ? 'BRING_API_KEY' 
+          : process.env.BRING_SHIPPING_API_KEY ? 'BRING_SHIPPING_API_KEY' 
+          : 'NONE',
+        env: process.env.NODE_ENV,
+        // Show length only (not the actual values)
+        uidLength: getBringCredentials().uid.length,
+        keyLength: getBringCredentials().key.length,
+      });
+    }
+
     // Check if Bring API is configured
     if (!hasCredentials) {
       console.warn('[bring-address] API credentials not configured');
       console.warn('[bring-address] MYBRING_API_UID exists:', Boolean(process.env.MYBRING_API_UID));
       console.warn('[bring-address] BRING_API_UID exists:', Boolean(process.env.BRING_API_UID));
+      console.warn('[bring-address] BRING_SHIPPING_API_UID exists:', Boolean(process.env.BRING_SHIPPING_API_UID));
       console.warn('[bring-address] MYBRING_API_KEY exists:', Boolean(process.env.MYBRING_API_KEY));
       console.warn('[bring-address] BRING_API_KEY exists:', Boolean(process.env.BRING_API_KEY));
+      console.warn('[bring-address] BRING_SHIPPING_API_KEY exists:', Boolean(process.env.BRING_SHIPPING_API_KEY));
       // Return empty results instead of error to not break the UI
       return jsonNoStore({
         suggestions: [],

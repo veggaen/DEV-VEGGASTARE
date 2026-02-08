@@ -15,6 +15,10 @@ export type ExtendedUser = DefaultSession['user'] & {
     isOAuth: boolean;
     employee?: Employee[];
   	web3ModeEnabled: boolean;
+    /** Impersonation – present when an OWNER is viewing as another user */
+    isImpersonating?: boolean;
+    impersonatingFromId?: string;
+    impersonatingFromName?: string;
 }
 
 declare module "next-auth" {

@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { 
   FiUser, FiArrowLeft, FiSave, FiMail, FiCalendar, FiShield,
   FiCheckCircle, FiImage, FiCamera, FiX, FiLoader, FiBriefcase,
-  FiPhone, FiGlobe, FiStar, FiAlertTriangle
+  FiPhone, FiGlobe, FiStar, FiAlertTriangle, FiEye
 } from 'react-icons/fi';
 import { FaDiscord, FaGithub, FaGoogle } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
@@ -98,6 +98,7 @@ export default function AdminUserEditPage() {
   });
   const [reason, setReason] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  const [impersonating, setImpersonating] = useState(false);
 
   // Image upload states
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -221,6 +222,41 @@ export default function AdminUserEditPage() {
     }
   };
 
+  const handleImpersonate = async () => {
+    if (!confirm(`Swap to ${user?.name || user?.email}'s account? Your session will switch to view the site as this user. All actions are logged.`)) {
+      return;
+    }
+
+    setImpersonating(true);
+    try {
+      const res = await fetch('/api/admin/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: userId,
+          reason: `Admin swap from user detail page`,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to start impersonation');
+        return;
+      }
+
+      toast.success(data.message || 'Session swapped');
+
+      // Navigate to home so the impersonated session takes effect
+      router.push('/');
+      router.refresh();
+    } catch (error) {
+      toast.error('Failed to start impersonation');
+      console.error(error);
+    } finally {
+      setImpersonating(false);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -287,11 +323,29 @@ export default function AdminUserEditPage() {
               </p>
             </div>
           </div>
-          <Button
-            onClick={handleSave}
-            disabled={!hasChanges || saving}
-            className="bg-emerald-600 hover:bg-emerald-700"
-          >
+          <div className="flex items-center gap-2">
+            {/* Impersonate button — OWNER only, not on own profile */}
+            {session?.user?.role === 'OWNER' && !isOwnProfile && (
+              <Button
+                onClick={handleImpersonate}
+                disabled={impersonating}
+                variant="outline"
+                className="border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                title="View the site as this user"
+              >
+                {impersonating ? (
+                  <FiLoader className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <FiEye className="h-4 w-4 mr-2" />
+                )}
+                Swap Account
+              </Button>
+            )}
+            <Button
+              onClick={handleSave}
+              disabled={!hasChanges || saving}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
             {saving ? (
               <FiLoader className="h-4 w-4 mr-2 animate-spin" />
             ) : (
@@ -299,6 +353,7 @@ export default function AdminUserEditPage() {
             )}
             Save Changes
           </Button>
+          </div>
         </div>
 
         {/* Banner & Avatar Section */}

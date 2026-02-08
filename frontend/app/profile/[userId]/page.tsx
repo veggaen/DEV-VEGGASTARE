@@ -368,6 +368,61 @@ export default function ProfilePage() {
     }
   };
 
+  // Handle message - find or create DM conversation with this user
+  const [isStartingChat, setIsStartingChat] = useState(false);
+  const handleMessage = async () => {
+    if (!currentUser) {
+      toast.error('Please sign in to send messages');
+      return;
+    }
+
+    // Guard against messaging system accounts
+    if (userId.startsWith('system-') || profile?.name?.toLowerCase().includes('system')) {
+      toast.error('System accounts cannot receive messages');
+      return;
+    }
+
+    setIsStartingChat(true);
+    try {
+      // Try to find existing DM conversation first
+      const existingRes = await fetch(`/api/conversations?filter=dm&participantId=${encodeURIComponent(userId)}`);
+      if (existingRes.ok) {
+        const existingData = await existingRes.json();
+        const existingDm = (existingData.conversations || []).find(
+          (c: { type: string }) => c.type === 'PRIVATE_DM'
+        );
+        if (existingDm) {
+          router.push(`/conversations/${existingDm.id}`);
+          return;
+        }
+      }
+
+      // No existing DM — create a new one
+      const res = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'PRIVATE_DM',
+          participants: [userId],
+          title: `Chat with ${profile?.name || 'User'}`,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to start conversation');
+      }
+
+      const conversation = await res.json();
+      router.push(`/conversations/${conversation.id}`);
+    } catch (err) {
+      console.error('Failed to start conversation:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to start conversation');
+    } finally {
+      setIsStartingChat(false);
+    }
+  };
+
   // Handle follow/unfollow
   const handleFollowToggle = async () => {
     if (!currentUser) {
@@ -718,9 +773,16 @@ export default function ProfilePage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={handleMessage}
+                      disabled={isStartingChat}
                       className="rounded-lg border-border/50 bg-background/50 backdrop-blur-sm hover:bg-muted"
+                      title={`Message ${profile.name || 'this user'}`}
                     >
-                      <FiMessageCircle className="h-4 w-4" />
+                      {isStartingChat ? (
+                        <Spinner className="h-4 w-4" />
+                      ) : (
+                        <FiMessageCircle className="h-4 w-4" />
+                      )}
                     </Button>
                   </>
                 )}

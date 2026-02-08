@@ -37,7 +37,7 @@ import {
   FiTrash2,
 } from 'react-icons/fi';
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
-import Pusher from 'pusher-js';
+import usePusher from '@/hooks/usePusher';
 import Spinner from '@/components/uicustom/spinner';
 import RichTextContent from '@/components/uicustom/pulse/RichTextContent';
 
@@ -254,25 +254,24 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
     }
   }, [pulseId, fetchPulseData]);
 
-  // Real-time updates via Pusher
-  useEffect(() => {
-    if (!pulseId) return;
+  // Real-time updates via shared Pusher singleton
+  const channelName = pulseId ? `ConversationChannel_${pulseId}` : '';
 
-    const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-      forceTLS: true,
-    });
-
-    const channel = pusherClient.subscribe(`ConversationChannel_${pulseId}`);
-
-    channel.bind('new-message', (data: { message: Message }) => {
+  usePusher<{ message: Message }>(
+    channelName,
+    'new-message',
+    useCallback((data) => {
       setMessages(prev => [...prev, data.message]);
       setTimeout(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
       }, 100);
-    });
+    }, [])
+  );
 
-    channel.bind('edit-message', (data: { messageId: string; content: string; editedAt: string }) => {
+  usePusher<{ messageId: string; content: string; editedAt: string }>(
+    channelName,
+    'edit-message',
+    useCallback((data) => {
       setMessages(prev =>
         prev.map(msg =>
           msg.id === data.messageId
@@ -280,18 +279,16 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
             : msg
         )
       );
-    });
+    }, [])
+  );
 
-    channel.bind('delete-message', (data: { messageId: string }) => {
+  usePusher<{ messageId: string }>(
+    channelName,
+    'delete-message',
+    useCallback((data) => {
       setMessages(prev => prev.filter(msg => msg.id !== data.messageId));
-    });
-
-    return () => {
-      channel.unbind_all();
-      pusherClient.unsubscribe(`ConversationChannel_${pulseId}`);
-      pusherClient.disconnect();
-    };
-  }, [pulseId]);
+    }, [])
+  );
 
   const handleMessageSent = () => {
     setTimeout(() => {

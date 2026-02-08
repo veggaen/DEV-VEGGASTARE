@@ -17,7 +17,7 @@ if (!pusherClient) {
 
 const usePusher = <T = unknown>(channelName: string, eventName: string, callback: (data: T) => void): void => {
   useEffect(() => {
-    if (!pusherClient) return;
+    if (!pusherClient || !channelName) return;
     console.log(`${LOG_PREFIX} Subscribing to channel ${channelName} and event ${eventName}`);
     const channel = pusherClient.subscribe(channelName);
     channel.bind(eventName, callback);

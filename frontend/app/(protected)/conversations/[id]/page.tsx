@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Pusher from 'pusher-js';
+import usePusher from '@/hooks/usePusher';
 import { motion, useReducedMotion } from 'framer-motion';
 import { MessageInput } from '@/components/uicustom/chats/message-input';
 import { MessageList } from '@/components/uicustom/chats/message-list';
@@ -81,36 +81,20 @@ export default function ConversationPage() {
     }
   }, [conversation?.type, conversationId, router]);
 
-  // Pusher real-time updates
-  useEffect(() => {
-    if (!conversationId) return;
+  // Pusher real-time updates via shared singleton
+  const channelName = conversationId ? `ConversationChannel_${conversationId}` : '';
 
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+  usePusher<{ message?: any; conversationId?: string }>(channelName, 'new-message', useCallback((data: any) => {
+    const newMessage = data.message || data;
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === newMessage.id)) return prev;
+      return [...prev, newMessage];
     });
+  }, []));
 
-    // Subscribe to the correct channel that backend triggers
-    const channel = pusher.subscribe(`ConversationChannel_${conversationId}`);
-    
-    channel.bind('new-message', (data: any) => {
-      // Backend sends { conversationId, message: {...} }
-      const newMessage = data.message || data;
-      setMessages((prev) => {
-        // Avoid duplicates
-        if (prev.some((m) => m.id === newMessage.id)) return prev;
-        return [...prev, newMessage];
-      });
-    });
-
-    channel.bind('message-deleted', (data: { messageId: string }) => {
-      setMessages((prev) => prev.filter((m) => m.id !== data.messageId));
-    });
-
-    return () => {
-      channel.unbind_all();
-      pusher.unsubscribe(`ConversationChannel_${conversationId}`);
-    };
-  }, [conversationId]);
+  usePusher<{ messageId: string }>(channelName, 'message-deleted', useCallback((data) => {
+    setMessages((prev) => prev.filter((m) => m.id !== data.messageId));
+  }, []));
 
   const handleCancelDeletion = async () => {
     if (!conversationId) return;

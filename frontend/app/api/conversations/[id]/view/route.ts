@@ -85,6 +85,21 @@ export async function POST(
       return NextResponse.json({ message: 'Conversation not found' }, { status: 404 });
     }
 
+    // Only allow view tracking on public conversations, or for participants of private ones
+    if (conversation.visibility !== 'PUBLIC') {
+      if (!userId) {
+        return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+      }
+      // Check if user is a participant
+      const isParticipant = await dbPrisma.conversationParticipant.findFirst({
+        where: { conversationId, userId },
+        select: { id: true },
+      });
+      if (!isParticipant) {
+        return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     // Get user data for verification tier calculation (if logged in)
     // Note: These fields may not exist in older databases - we'll handle gracefully
     let user: {

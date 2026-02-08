@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
+import { cookies } from "next/headers"
 
 import { dbPrisma } from "@/lib/db"
 import authConfig from "@/auth.config"
@@ -176,6 +177,13 @@ export const {
 			if (session.user) {
 				session.user.web3ModeEnabled = token.web3ModeEnabled as boolean;
 			}
+
+          // Pass impersonation info through to the session
+          if (session.user) {
+            session.user.isImpersonating = token.isImpersonating as boolean || false;
+            session.user.impersonatingFromId = token.impersonatingFromId as string | undefined;
+            session.user.impersonatingFromName = token.impersonatingFromName as string | undefined;
+          }
           
           //console.log(`${LOG_PREFIX} callbacks.session: `,{session, sessionToken: token})
           return session
@@ -183,6 +191,48 @@ export const {
         async jwt({ token, user, account, profile, isNewUser }) {
 
           if (!token.sub) return token;
+
+          // ── Impersonation check ──────────────────────────────────────
+          // If the OWNER has started an impersonation session, the JWT
+          // callback swaps the token to represent the target user while
+          // preserving the owner's original identity in extra fields.
+          try {
+            const cookieStore = await cookies();
+            const impersonateOwnerId  = cookieStore.get('x-impersonate-owner-id')?.value;
+            const impersonateOwnerName = cookieStore.get('x-impersonate-owner-name')?.value;
+            const impersonateTargetId = cookieStore.get('x-impersonate-target-id')?.value;
+
+            if (impersonateOwnerId && impersonateTargetId) {
+              // Load the target user
+              const targetUser = await getUserById(impersonateTargetId);
+              if (targetUser) {
+                const targetAccount = await getAccountByUserId(targetUser.id);
+                
+                // Swap the token to represent the target user
+                token.sub = targetUser.id;
+                token.isTwoFactorEnabled = targetUser.isTwoFactorEnabled;
+                token.referredBy = targetUser.referredBy;
+                token.role = targetUser.role;
+                token.name = targetUser.name;
+                token.email = targetUser.email;
+                token.image = targetUser.image;
+                token.isOAuth = !!targetAccount;
+                token.web3ModeEnabled = targetUser.web3ModeEnabled;
+
+                // Attach impersonation metadata so the session knows
+                token.isImpersonating = true;
+                token.impersonatingFromId = impersonateOwnerId;
+                token.impersonatingFromName = impersonateOwnerName || 'Owner';
+
+                return token;
+              }
+            }
+          } catch {
+            // cookies() can throw in edge cases (e.g. during build);
+            // fall through to normal flow
+          }
+
+          // ── Normal flow ──────────────────────────────────────────────
           const existingUser = await getUserById(token.sub);
           if (!existingUser) return token;
           const existingAccount = await getAccountByUserId(existingUser.id);
@@ -195,6 +245,11 @@ export const {
           token.image = existingUser.image;
           token.isOAuth = !!existingAccount;
 			token.web3ModeEnabled = existingUser.web3ModeEnabled;
+
+          // Clear impersonation flags in normal mode
+          token.isImpersonating = false;
+          token.impersonatingFromId = undefined;
+          token.impersonatingFromName = undefined;
           
           /* const logResponse = token.email // shortens the response, remove */
           /* console.log(`${LOG_PREFIX} callbacks.jwt.token: `,{logResponse}) */

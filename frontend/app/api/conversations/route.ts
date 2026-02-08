@@ -154,6 +154,30 @@ export async function POST(req: Request) {
     }
 
     const conversationType = type ?? 'PRIVATE_DM';
+    
+    // ─── Duplicate DM detection ─────────────────────────────────────────────
+    // Prevent creating multiple DMs with the same person
+    if (conversationType === 'PRIVATE_DM' && allParticipants.length === 2) {
+      const otherUserId = allParticipants.find(id => id !== userId)!;
+      const existingDm = await dbPrisma.conversation.findFirst({
+        where: {
+          type: 'PRIVATE_DM',
+          AND: [
+            { participants: { has: userId } },
+            { participants: { has: otherUserId } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (existingDm) {
+        return NextResponse.json(
+          { id: existingDm.id, message: 'Existing conversation found', existing: true },
+          { status: 200 }
+        );
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
+    
     console.log(LOG_PREFIX, `Creating ${conversationType} conversation: "${finalTitle}" with ${allParticipants.length} participants`);
 
     const conversation = await dbPrisma.conversation.create({
