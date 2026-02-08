@@ -34,6 +34,8 @@ export type BringAddressSuggestion = z.infer<typeof BringAddressSuggestionSchema
  */
 export const BringAddressResponseSchema = z.object({
   suggestions: z.array(BringAddressSuggestionSchema),
+  error: z.string().optional(),
+  status: z.number().optional(),
 });
 
 /**
@@ -176,7 +178,7 @@ export async function searchAddresses(
     clearTimeout(debounceTimer);
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     debounceTimer = setTimeout(async () => {
       try {
         // If we have cached results for this base query, use them and filter client-side
@@ -199,7 +201,7 @@ export async function searchAddresses(
           if (base === lastBaseQuery && lastGoodResults.length > 0) {
             resolve(filterSuggestions(lastGoodResults, filter, letterFilter));
           } else {
-            resolve([]);
+            reject(new Error(`Bring address search failed (${response.status})`));
           }
           return;
         }
@@ -210,6 +212,20 @@ export async function searchAddresses(
         if (!result.success) {
           console.warn('[bring-address] Invalid response:', result.error);
           resolve([]);
+          return;
+        }
+
+        if (result.data.error) {
+          console.warn('[bring-address] API error payload:', {
+            status: result.data.status,
+            error: result.data.error,
+          });
+          // If we have cached results for the same base query, fall back gracefully.
+          if (base === lastBaseQuery && lastGoodResults.length > 0) {
+            resolve(filterSuggestions(lastGoodResults, filter, letterFilter));
+            return;
+          }
+          reject(new Error(result.data.error));
           return;
         }
 
@@ -230,7 +246,7 @@ export async function searchAddresses(
         if (base === lastBaseQuery && lastGoodResults.length > 0) {
           resolve(filterSuggestions(lastGoodResults, filter, letterFilter));
         } else {
-          resolve([]);
+          reject(error instanceof Error ? error : new Error('Bring address search failed'));
         }
       }
     }, DEBOUNCE_MS);

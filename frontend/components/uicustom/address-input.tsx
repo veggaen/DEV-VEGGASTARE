@@ -102,6 +102,7 @@ export function AddressInput({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -130,6 +131,7 @@ export function AddressInput({
   const handleSearchChange = useCallback(async (searchQuery: string) => {
     setQuery(searchQuery);
     setSelectedIndex(-1);
+    setLookupError(null);
 
     if (searchQuery.length < 3) {
       setSuggestions([]);
@@ -146,6 +148,7 @@ export function AddressInput({
       setShowSuggestions(unique.length > 0);
     } catch (err) {
       console.error('[AddressInput] Search error:', err);
+      setLookupError('Address suggestions failed to load in this environment');
       setSuggestions([]);
     } finally {
       setIsLoading(false);
@@ -310,6 +313,12 @@ export function AddressInput({
           </div>
         )}
       </div>
+
+      {(lookupError || error) && (
+        <p className="text-xs text-amber-500/90">
+          {error || lookupError}
+        </p>
+      )}
 
       {/* Address summary with expand button */}
       {hasCompleteAddress && (

@@ -103,13 +103,19 @@ export async function GET(
       console.warn('[bring-address] MYBRING_API_KEY exists:', Boolean(process.env.MYBRING_API_KEY));
       console.warn('[bring-address] BRING_API_KEY exists:', Boolean(process.env.BRING_API_KEY));
       // Return empty results instead of error to not break the UI
-      return jsonNoStore({ suggestions: [], postal_codes: [] });
+      return jsonNoStore({
+        suggestions: [],
+        postal_codes: [],
+        error: 'Bring API credentials missing in production runtime',
+      });
     }
 
     const headers: HeadersInit = {
       'Accept': 'application/json',
       'X-MyBring-API-Uid': bringApiUid,
       'X-MyBring-API-Key': bringApiKey,
+      // Many Bring APIs expect a client URL identifier. Safe to include.
+      'X-Bring-Client-URL': request.nextUrl.origin,
     };
 
     switch (actionPath) {
@@ -137,8 +143,13 @@ export async function GET(
         });
         
         if (!response.ok) {
-          console.error('[bring-address] Search API error:', response.status);
-          return jsonNoStore({ suggestions: [] });
+          const errorText = await response.text().catch(() => '');
+          console.error('[bring-address] Search API error:', response.status, errorText);
+          return jsonNoStore({
+            suggestions: [],
+            error: `Bring Address API error (${response.status})`,
+            status: response.status,
+          });
         }
 
         const data = await response.json();
@@ -202,8 +213,13 @@ export async function GET(
         });
         
         if (!response.ok) {
-          console.error('[bring-address] Postal code API error:', response.status);
-          return jsonNoStore({ postal_codes: [] });
+          const errorText = await response.text().catch(() => '');
+          console.error('[bring-address] Postal code API error:', response.status, errorText);
+          return jsonNoStore({
+            postal_codes: [],
+            error: `Bring Address API error (${response.status})`,
+            status: response.status,
+          });
         }
 
         const data = await response.json();
@@ -254,7 +270,7 @@ export async function GET(
         
         if (!response.ok) {
           // Validation endpoint may return 404 for invalid addresses
-          return jsonNoStore({ valid: false });
+          return jsonNoStore({ valid: false, status: response.status });
         }
 
         const data = await response.json();
