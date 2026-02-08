@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // Bring Address API - https://developer.bring.com/api/address/
 // Base URL: https://api.bring.com/address
 // Rate limit: 120 requests/second
 
 const BRING_ADDRESS_API = "https://api.bring.com/address/api";
-// Support both legacy and current env var names
-const BRING_API_UID = process.env.MYBRING_API_UID || process.env.BRING_API_UID || "";
-const BRING_API_KEY = process.env.MYBRING_API_KEY || process.env.BRING_API_KEY || "";
+
+function getBringCredentials(): { uid: string; key: string; hasCredentials: boolean } {
+  const uid = process.env.MYBRING_API_UID || process.env.BRING_API_UID || "";
+  const key = process.env.MYBRING_API_KEY || process.env.BRING_API_KEY || "";
+  return { uid, key, hasCredentials: Boolean(uid && key) };
+}
+
+function jsonNoStore(body: unknown, init?: Parameters<typeof NextResponse.json>[1]) {
+  const headers = new Headers(init?.headers);
+  headers.set('Cache-Control', 'no-store, max-age=0');
+  return NextResponse.json(body, { ...init, headers });
+}
 
 interface AddressSuggestion {
   addressId?: string;
@@ -82,9 +94,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ suggestions: [] });
   }
 
+  const { uid: bringApiUid, key: bringApiKey, hasCredentials } = getBringCredentials();
+
   // Check if API credentials are configured
-  if (!BRING_API_UID || !BRING_API_KEY) {
+  if (!hasCredentials) {
     console.warn("[bring-address] API credentials not configured, using public endpoint");
+    console.warn("[bring-address] MYBRING_API_UID exists:", Boolean(process.env.MYBRING_API_UID));
+    console.warn("[bring-address] BRING_API_UID exists:", Boolean(process.env.BRING_API_UID));
+    console.warn("[bring-address] MYBRING_API_KEY exists:", Boolean(process.env.MYBRING_API_KEY));
+    console.warn("[bring-address] BRING_API_KEY exists:", Boolean(process.env.BRING_API_KEY));
   }
 
   try {
@@ -123,9 +141,9 @@ export async function GET(request: NextRequest) {
     };
 
     // Add authentication if available
-    if (BRING_API_UID && BRING_API_KEY) {
-      headers["X-MyBring-API-Uid"] = BRING_API_UID;
-      headers["X-MyBring-API-Key"] = BRING_API_KEY;
+    if (bringApiUid && bringApiKey) {
+      headers["X-MyBring-API-Uid"] = bringApiUid;
+      headers["X-MyBring-API-Key"] = bringApiKey;
     }
 
     const url = params.toString() 
@@ -133,24 +151,38 @@ export async function GET(request: NextRequest) {
       : endpoint;
 
     console.log("[bring-address] Fetching:", url);
+    console.log("[bring-address] Has credentials:", hasCredentials);
     
     const response = await fetch(url, {
       method: "GET",
       headers,
+      cache: 'no-store',
+      next: { revalidate: 0 },
     });
+
+    console.log("[bring-address] Response status:", response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("[bring-address] API error:", response.status, errorText);
       
-      // Return empty suggestions on error rather than failing
-      return NextResponse.json({ 
+      // Return empty suggestions on error with more detail
+      const errorMessage = response.status === 429 
+        ? "Rate limit exceeded" 
+        : response.status === 401 
+          ? "Authentication failed - check API credentials"
+          : response.status === 403
+            ? "Access forbidden - API may require whitelisted IP"
+            : `Address lookup failed (${response.status})`;
+      
+      return jsonNoStore({ 
         suggestions: [],
-        error: response.status === 429 
-          ? "Rate limit exceeded" 
-          : response.status === 401 
-            ? "Authentication failed - check API credentials"
-            : "Address lookup failed"
+        error: errorMessage,
+        debug: process.env.NODE_ENV === 'development' ? {
+          status: response.status,
+          hasCredentials,
+          endpoint: url.split('?')[0],
+        } : undefined,
       });
     }
 
@@ -207,10 +239,10 @@ export async function GET(request: NextRequest) {
     });
 
     console.log("[bring-address] Found", formatted.length, "suggestions");
-    return NextResponse.json({ suggestions: formatted });
+    return jsonNoStore({ suggestions: formatted });
   } catch (error) {
     console.error("[bring-address] Error:", error);
-    return NextResponse.json({ 
+    return jsonNoStore({ 
       suggestions: [],
       error: "Failed to fetch address suggestions"
     });

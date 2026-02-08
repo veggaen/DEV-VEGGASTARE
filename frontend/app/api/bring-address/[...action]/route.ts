@@ -11,11 +11,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // Bring API configuration
 const BRING_API_URL = 'https://api.bring.com/address/api';
-// Support both legacy and current env var names
-const BRING_API_UID = process.env.MYBRING_API_UID || process.env.BRING_API_UID || '';
-const BRING_API_KEY = process.env.MYBRING_API_KEY || process.env.BRING_API_KEY || '';
+
+function getBringCredentials(): { uid: string; key: string; hasCredentials: boolean } {
+  const uid = process.env.MYBRING_API_UID || process.env.BRING_API_UID || '';
+  const key = process.env.MYBRING_API_KEY || process.env.BRING_API_KEY || '';
+  return { uid, key, hasCredentials: Boolean(uid && key) };
+}
+
+function jsonNoStore(body: unknown, init?: Parameters<typeof NextResponse.json>[1]) {
+  const headers = new Headers(init?.headers);
+  headers.set('Cache-Control', 'no-store, max-age=0');
+  return NextResponse.json(body, { ...init, headers });
+}
 
 // Rate limiting (simple in-memory, per-IP)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -81,17 +93,23 @@ export async function GET(
     // Bring endpoints use lowercase country codes in the URL path.
     const normalizeCountry = (country: string) => country.toLowerCase();
 
+    const { uid: bringApiUid, key: bringApiKey, hasCredentials } = getBringCredentials();
+
     // Check if Bring API is configured
-    if (!BRING_API_UID || !BRING_API_KEY) {
+    if (!hasCredentials) {
       console.warn('[bring-address] API credentials not configured');
+      console.warn('[bring-address] MYBRING_API_UID exists:', Boolean(process.env.MYBRING_API_UID));
+      console.warn('[bring-address] BRING_API_UID exists:', Boolean(process.env.BRING_API_UID));
+      console.warn('[bring-address] MYBRING_API_KEY exists:', Boolean(process.env.MYBRING_API_KEY));
+      console.warn('[bring-address] BRING_API_KEY exists:', Boolean(process.env.BRING_API_KEY));
       // Return empty results instead of error to not break the UI
-      return NextResponse.json({ suggestions: [], postal_codes: [] });
+      return jsonNoStore({ suggestions: [], postal_codes: [] });
     }
 
     const headers: HeadersInit = {
       'Accept': 'application/json',
-      'X-MyBring-API-Uid': BRING_API_UID,
-      'X-MyBring-API-Key': BRING_API_KEY,
+      'X-MyBring-API-Uid': bringApiUid,
+      'X-MyBring-API-Key': bringApiKey,
     };
 
     switch (actionPath) {
@@ -112,11 +130,15 @@ export async function GET(
         // https://developer.bring.com/api/address/#get-address-suggestions-get
         const url = `${BRING_API_URL}/${normalizeCountry(query.data.country)}/addresses/suggestions?q=${encodeURIComponent(query.data.q)}`;
         
-        const response = await fetch(url, { headers });
+        const response = await fetch(url, {
+          headers,
+          cache: 'no-store',
+          next: { revalidate: 0 },
+        });
         
         if (!response.ok) {
           console.error('[bring-address] Search API error:', response.status);
-          return NextResponse.json({ suggestions: [] });
+          return jsonNoStore({ suggestions: [] });
         }
 
         const data = await response.json();
@@ -154,7 +176,7 @@ export async function GET(
           };
         });
 
-        return NextResponse.json({ suggestions });
+        return jsonNoStore({ suggestions });
       }
 
       case 'postal-code': {
@@ -173,11 +195,15 @@ export async function GET(
         // Bring's postal code lookup endpoint
         const url = `${BRING_API_URL}/${normalizeCountry(query.data.country)}/postal-codes/${query.data.postalCode}`;
         
-        const response = await fetch(url, { headers });
+        const response = await fetch(url, {
+          headers,
+          cache: 'no-store',
+          next: { revalidate: 0 },
+        });
         
         if (!response.ok) {
           console.error('[bring-address] Postal code API error:', response.status);
-          return NextResponse.json({ postal_codes: [] });
+          return jsonNoStore({ postal_codes: [] });
         }
 
         const data = await response.json();
@@ -197,7 +223,7 @@ export async function GET(
             longitude: item.longitude || '',
           }));
 
-        return NextResponse.json({ postal_codes: formatted });
+        return jsonNoStore({ postal_codes: formatted });
       }
 
       case 'validate': {
@@ -220,20 +246,24 @@ export async function GET(
         const url = new URL(`${BRING_API_URL}/${normalizeCountry(query.data.country)}/validation`);
         url.searchParams.set('address', `${query.data.street}, ${query.data.postal_code} ${query.data.city}`);
 
-        const response = await fetch(url.toString(), { headers });
+        const response = await fetch(url.toString(), {
+          headers,
+          cache: 'no-store',
+          next: { revalidate: 0 },
+        });
         
         if (!response.ok) {
           // Validation endpoint may return 404 for invalid addresses
-          return NextResponse.json({ valid: false });
+          return jsonNoStore({ valid: false });
         }
 
         const data = await response.json();
 
         if (!data?.valid) {
-          return NextResponse.json({ valid: false });
+          return jsonNoStore({ valid: false });
         }
 
-        return NextResponse.json({
+        return jsonNoStore({
           valid: true,
           street: data?.address?.street_name || data?.address?.streetName || query.data.street,
           postal_code: data?.address?.postal_code || data?.address?.postalCode || query.data.postal_code,
@@ -244,14 +274,14 @@ export async function GET(
       }
 
       default:
-        return NextResponse.json(
+        return jsonNoStore(
           { error: 'Unknown action. Use: search, postal-code, or validate' },
           { status: 400 }
         );
     }
   } catch (error) {
     console.error('[bring-address] Unexpected error:', error);
-    return NextResponse.json(
+    return jsonNoStore(
       { error: 'Internal server error' },
       { status: 500 }
     );
