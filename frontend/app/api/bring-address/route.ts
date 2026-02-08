@@ -98,11 +98,7 @@ export async function GET(request: NextRequest) {
 
   // Check if API credentials are configured
   if (!hasCredentials) {
-    console.warn("[bring-address] API credentials not configured, using public endpoint");
-    console.warn("[bring-address] MYBRING_API_UID exists:", Boolean(process.env.MYBRING_API_UID));
-    console.warn("[bring-address] BRING_API_UID exists:", Boolean(process.env.BRING_API_UID));
-    console.warn("[bring-address] MYBRING_API_KEY exists:", Boolean(process.env.MYBRING_API_KEY));
-    console.warn("[bring-address] BRING_API_KEY exists:", Boolean(process.env.BRING_API_KEY));
+    console.warn("[bring-address] API credentials not configured");
   }
 
   try {
@@ -150,9 +146,6 @@ export async function GET(request: NextRequest) {
       ? `${endpoint}?${params.toString()}`
       : endpoint;
 
-    console.log("[bring-address] Fetching:", url);
-    console.log("[bring-address] Has credentials:", hasCredentials);
-    
     const response = await fetch(url, {
       method: "GET",
       headers,
@@ -160,29 +153,17 @@ export async function GET(request: NextRequest) {
       next: { revalidate: 0 },
     });
 
-    console.log("[bring-address] Response status:", response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
       console.error("[bring-address] API error:", response.status, errorText);
       
-      // Return empty suggestions on error with more detail
-      const errorMessage = response.status === 429 
-        ? "Rate limit exceeded" 
-        : response.status === 401 
-          ? "Authentication failed - check API credentials"
-          : response.status === 403
-            ? "Access forbidden - API may require whitelisted IP"
-            : `Address lookup failed (${response.status})`;
-      
       return jsonNoStore({ 
         suggestions: [],
-        error: errorMessage,
-        debug: process.env.NODE_ENV === 'development' ? {
-          status: response.status,
-          hasCredentials,
-          endpoint: url.split('?')[0],
-        } : undefined,
+        error: response.status === 429 
+          ? "Rate limit exceeded" 
+          : response.status === 401 
+            ? "Authentication failed"
+            : "Address lookup failed",
       });
     }
 
