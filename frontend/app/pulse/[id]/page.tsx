@@ -32,13 +32,13 @@ async function getPulse(id: string) {
         User: {
           select: { id: true, name: true, image: true },
         },
-        Messages: {
+        Message: {
           take: 1,
           orderBy: { createdAt: 'asc' },
           select: { content: true },
         },
         _count: {
-          select: { Messages: true },
+          select: { Message: true },
         },
       },
     });
@@ -59,7 +59,7 @@ export async function generateMetadata({ params }: PulsePageProps): Promise<Meta
 
   const authorName = pulse.User?.name || 'Anonymous';
   const content = pulse.description?.trim()
-    || pulse.Messages?.[0]?.content?.trim()
+    || pulse.Message?.[0]?.content?.trim()
     || pulse.title?.trim()
     || '';
   const preview = content.length > 160 ? `${content.slice(0, 157)}…` : content;

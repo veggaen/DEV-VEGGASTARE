@@ -78,7 +78,7 @@ export async function POST(
     // Check if conversation exists
     const conversation = await dbPrisma.conversation.findUnique({
       where: { id: conversationId },
-      select: { id: true, visibility: true },
+      select: { id: true, visibility: true, participants: true },
     });
 
     if (!conversation) {
@@ -90,12 +90,8 @@ export async function POST(
       if (!userId) {
         return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
       }
-      // Check if user is a participant
-      const isParticipant = await dbPrisma.conversationParticipant.findFirst({
-        where: { conversationId, userId },
-        select: { id: true },
-      });
-      if (!isParticipant) {
+      // Check if user is a participant (participants is a String[] on the Conversation model)
+      if (!conversation.participants.includes(userId)) {
         return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
       }
     }
