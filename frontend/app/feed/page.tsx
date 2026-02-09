@@ -904,6 +904,21 @@ const FeedPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6">
         <div className="min-w-0 space-y-4">
           {/* Compose Box - changes based on filter */}
+          {!currentUser && (
+            <div
+              onClick={() => router.push('/auth/login')}
+              className="rounded-2xl border border-border/60 bg-zinc-200/80 dark:bg-card p-4 cursor-pointer hover:border-primary/40 transition-colors"
+            >
+              <div className="flex gap-3 items-center">
+                <div className="h-10 w-10 shrink-0 rounded-full bg-muted flex items-center justify-center">
+                  <FiMessageCircle className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="flex-1 py-2.5 px-4 rounded-full bg-muted/60 text-muted-foreground text-sm">
+                  Sign in to pulse your thoughts...
+                </div>
+              </div>
+            </div>
+          )}
           {currentUser && (
             <div className="rounded-2xl border border-border/60 bg-zinc-200/80 dark:bg-card">
               {filter === 'polls' ? (
