@@ -21,13 +21,14 @@ export default function InterceptedPulsePage() {
   const pulseId = params.id
 
   const handleClose = useCallback(() => {
-    router.push('/pulse')
+    router.back()
   }, [router])
 
   const handleTagClick = useCallback(
     (tag: string) => {
-      // Navigate to flow with tag filter applied
-      router.push(`/pulse?filter=all&tag=${encodeURIComponent(tag)}`)
+      // Close modal then navigate to flow with tag filter
+      router.back()
+      setTimeout(() => router.push(`/pulse?filter=all&tag=${encodeURIComponent(tag)}`), 50)
     },
     [router],
   )

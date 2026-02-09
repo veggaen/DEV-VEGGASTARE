@@ -195,7 +195,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
   return (
     <section className="mt-2">
       {/* Divider */}
-      <div className="relative mb-6">
+      <div className="relative mb-4">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-border/50" />
         </div>
@@ -215,7 +215,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-10">
+        <div className="flex justify-center py-4">
           <Spinner />
         </div>
       ) : (
@@ -349,9 +349,9 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
           ))}
 
           {messages.length === 0 && !loading && (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                <FiMessageCircle className="h-6 w-6 text-muted-foreground" />
+            <div className="flex flex-col items-center justify-center py-4 text-center">
+              <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                <FiMessageCircle className="h-5 w-5 text-muted-foreground" />
               </div>
               <p className="text-sm text-muted-foreground">
                 Be the first to drop a vibe
@@ -362,7 +362,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
       )}
 
       {/* Message input */}
-      <div className="mt-6 rounded-xl border bg-card p-4">
+      <div className="mt-4 rounded-xl bg-muted/30 p-3">
         {currentUser ? (
           <MessageInput
             conversationId={pulseId}

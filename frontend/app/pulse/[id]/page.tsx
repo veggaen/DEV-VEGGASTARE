@@ -145,9 +145,9 @@ export default async function PulsePage({ params }: PulsePageProps) {
       </nav>
 
       {/* ── Main article ─────────────────────────────────────────────────── */}
-      <article className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <article className="max-w-2xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
         {/* Author row */}
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-5">
           <div className="relative">
             {author?.image ? (
               <img
@@ -175,21 +175,21 @@ export default async function PulsePage({ params }: PulsePageProps) {
 
         {/* Title */}
         {pulse.title && (
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-4 leading-snug">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3 leading-snug">
             {pulse.title}
           </h1>
         )}
 
         {/* Description / root content */}
         {(pulse.description || firstMessage?.content) && (
-          <div className="text-base sm:text-lg leading-relaxed text-foreground/90 mb-6 whitespace-pre-wrap">
+          <div className="text-base sm:text-lg leading-relaxed text-foreground/90 mb-4 whitespace-pre-wrap">
             {pulse.description || firstMessage?.content}
           </div>
         )}
 
         {/* Tags */}
         {pulse.tags && pulse.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-8">
+          <div className="flex flex-wrap gap-2 mb-5">
             {pulse.tags.map((tag) => (
               <Link
                 key={tag}
@@ -224,7 +224,7 @@ export default async function PulsePage({ params }: PulsePageProps) {
         )}
 
         {/* ── Stats bar ──────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-5 text-sm text-muted-foreground border-y border-border/50 py-3.5 mb-8">
+        <div className="flex items-center gap-5 text-sm text-muted-foreground border-y border-border/50 py-3 mb-4">
           {totalReplies > 0 && (
             <span className="flex items-center gap-1.5">
               <FiMessageCircle className="w-4 h-4" />

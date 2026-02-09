@@ -297,8 +297,8 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
   };
 
   const openFullPage = () => {
-    router.push(`/pulse/${pulseId}`);
-    onClose();
+    // Hard navigation bypasses the intercepting route, landing on the standalone page
+    window.location.href = `/pulse/${pulseId}`;
   };
 
   const copyLink = async () => {
