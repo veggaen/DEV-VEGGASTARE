@@ -35,8 +35,8 @@ export async function GET() {
 
 	const isDev = process.env.NODE_ENV !== "production";
 	const selectedDatabaseUrl = isDev
-		? process.env.DATABASE_URL_DEV ?? process.env.DATABASE_URL
-		: process.env.DATABASE_URL;
+		? process.env.DATABASE_URL_MAINDEV ?? process.env.DATABASE_URL_MAINLIVE
+		: process.env.DATABASE_URL_MAINLIVE;
 	const isPrivileged = role === UserRole.OWNER || role === UserRole.ADMIN;
 	if (!isDev && !isPrivileged) {
 		return NextResponse.json({ message: "Forbidden" }, { status: 403 });

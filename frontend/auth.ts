@@ -23,7 +23,7 @@ console.log(LOG_PREFIX, 'Auth config:', {
   hasAuthUrl: !!authUrl,
   authUrl: authUrl || '(not set)',
   nodeEnv: process.env.NODE_ENV,
-  hasDatabase: !!process.env.DATABASE_URL,
+  hasDatabase: !!process.env.DATABASE_URL_MAINLIVE,
 })
 
 if (!isDev && !authSecret) {

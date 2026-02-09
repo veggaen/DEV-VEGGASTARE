@@ -26,16 +26,16 @@ const SYSTEM_ACCOUNT = {
 
 // Check for --dev flag to use DEV database
 const useDevDb = process.argv.includes('--dev');
-const DEV_DB_URL = process.env.DATABASE_URL_DEV!;
+const DEV_DB_URL = process.env.DATABASE_URL_MAINDEV!;
 
-const connectionString = useDevDb ? DEV_DB_URL : process.env.DATABASE_URL!;
+const connectionString = useDevDb ? DEV_DB_URL : process.env.DATABASE_URL_MAINLIVE!;
 const adapter = new PrismaPg({ connectionString, ssl: { rejectUnauthorized: false } })
 const prisma = new PrismaClient({ adapter });
 
 if (useDevDb) {
   console.log("🔧 Using DEV database (ep-wild-boat)\n");
 } else {
-  console.log("🔧 Using PROD database (from DATABASE_URL)\n");
+  console.log("🔧 Using PROD database (from DATABASE_URL_MAINLIVE)\n");
 }
 
 const POLL_DESCRIPTION = `

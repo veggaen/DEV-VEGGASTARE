@@ -14,7 +14,7 @@ const unsplash = createApi({
   fetch: nodeFetch.default as unknown as typeof fetch,
 });
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL!, ssl: { rejectUnauthorized: false } })
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL_MAINLIVE!, ssl: { rejectUnauthorized: false } })
 const prisma = new PrismaClient({ adapter });
 
 async function getUnsplashImage(query: string): Promise<string> {

@@ -90,7 +90,7 @@ const init = async (): Promise<void> => {
       console.error(LOG_PREFIX, 'Prisma failed to initialize/connect. Continuing without DB.', err);
     }
   } else {
-    console.log(LOG_PREFIX, 'DATABASE_URL_NEON missing: skipping Prisma connection (shipping demo mode).');
+    console.log(LOG_PREFIX, 'DATABASE_URL_MAINLIVE missing: skipping Prisma connection (shipping demo mode).');
   }
 
   registerRoutes(server, dbbPrisma);

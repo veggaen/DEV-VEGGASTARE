@@ -9,15 +9,12 @@ import 'dotenv/config'
 import { execSync } from 'child_process';
 import path from 'path';
 
-const DEV_DB_URL = process.env.DATABASE_URL_DEV!;
+const DEV_DB_URL = process.env.DATABASE_URL_MAINDEV!;
 
-console.log("🔄 Syncing DEV database (ep-wild-boat) with Prisma schema...\n");
+console.log("🔄 Syncing MainDev database with Prisma schema...\n");
 
 try {
-  // We need to temporarily override the DATABASE_URL in the schema
-  // Since prisma.config.ts loads .env and uses DATABASE_URL, we'll use a workaround
-  
-  // Create a temporary env override
+  // Override DATABASE_URL_MAINLIVE so prisma.config.ts picks up the dev URL
   const schemaPath = path.join(__dirname, '..', 'prisma', 'schema.prisma');
   
   execSync(
@@ -26,8 +23,7 @@ try {
       stdio: 'inherit',
       env: {
         ...process.env,
-        DATABASE_URL: DEV_DB_URL,
-        DIRECT_URL: DEV_DB_URL.replace('-pooler', ''),
+        DATABASE_URL_MAINLIVE: DEV_DB_URL,
       },
       cwd: path.join(__dirname, '..'),
     }

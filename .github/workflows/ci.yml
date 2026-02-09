@@ -42,8 +42,7 @@ jobs:
       # Stub env vars that are required at build time but are secrets in prod
       - name: Build Next.js
         env:
-          DATABASE_URL: "postgresql://stub:stub@localhost:5432/stub"
-          DIRECT_URL: "postgresql://stub:stub@localhost:5432/stub"
+          DATABASE_URL_MAINLIVE: "postgresql://stub:stub@localhost:5432/stub"
           AUTH_SECRET: "ci-build-stub-secret-not-real"
           AUTH_URL: "http://localhost:3000"
           NEXT_PUBLIC_APP_URL: "http://localhost:3000"

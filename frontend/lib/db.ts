@@ -20,8 +20,8 @@ declare global {
 // Select database URL: prefer DEV in non-production
 const selectedDatabaseUrl =
     process.env.NODE_ENV !== 'production'
-        ? process.env.DATABASE_URL_DEV ?? process.env.DATABASE_URL
-        : process.env.DATABASE_URL
+        ? process.env.DATABASE_URL_MAINDEV ?? process.env.DATABASE_URL_MAINLIVE
+        : process.env.DATABASE_URL_MAINLIVE
 
 const shouldLogQueries = isTruthy(process.env.PRISMA_LOG_QUERIES)
 

@@ -2,18 +2,18 @@ import 'dotenv/config'
 import { execSync } from 'child_process';
 
 // Push schema to the DEV database directly
-const DEV_DB_URL = process.env.DATABASE_URL_DEV!;
+const DEV_DB_URL = process.env.DATABASE_URL_MAINDEV!;
 
-console.log("Pushing schema to DEV database (ep-wild-boat)...");
+console.log("Pushing schema to MainDev database...");
 
-// Set DATABASE_URL temporarily and run prisma db push
-process.env.DATABASE_URL = DEV_DB_URL;
+// Override DATABASE_URL_MAINLIVE so prisma.config.ts picks up the dev URL
+process.env.DATABASE_URL_MAINLIVE = DEV_DB_URL;
 
 execSync('npx prisma db push --accept-data-loss --skip-generate', {
   stdio: 'inherit',
   env: {
     ...process.env,
-    DATABASE_URL: DEV_DB_URL,
+    DATABASE_URL_MAINLIVE: DEV_DB_URL,
   },
   cwd: process.cwd(),
 });

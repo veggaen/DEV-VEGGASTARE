@@ -8,10 +8,10 @@ import 'dotenv/config'
 import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
-const DEV_DB_URL = process.env.DATABASE_URL_DEV!
+const DEV_DB_URL = process.env.DATABASE_URL_MAINDEV!
 
 const useDevDb = process.argv.includes('--dev')
-const connectionString = useDevDb ? DEV_DB_URL : process.env.DATABASE_URL!
+const connectionString = useDevDb ? DEV_DB_URL : process.env.DATABASE_URL_MAINLIVE!
 
 if (useDevDb) {
     console.log("🔧 Using DEV database (ep-wild-boat)\n")

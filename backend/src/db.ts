@@ -39,14 +39,14 @@ declare global {
 	var prismaBackend: PrismaClient | undefined;
 }
 
-const tunedDatabaseUrl = buildPrismaUrlWithPoolTuning(process.env.DATABASE_URL_NEON);
+const tunedDatabaseUrl = buildPrismaUrlWithPoolTuning(process.env.DATABASE_URL_MAINLIVE);
 const shouldLogQueries = isTruthy(process.env.PRISMA_LOG_QUERIES);
 
 export const isDbConfigured = Boolean(tunedDatabaseUrl);
 
 function createMissingDbClient(): PrismaClient {
 	const error = new Error(
-		"DATABASE_URL_NEON is not set. Backend is running in shipping-demo mode (no DB)."
+		"DATABASE_URL_MAINLIVE is not set. Backend is running in shipping-demo mode (no DB)."
 	);
 	const proxy = new Proxy(
 		{},

@@ -78,7 +78,7 @@ const registerRoutes = (server: Server, prisma: PrismaClient): void => {
     handler: async (request, h) => {
       if (!isDbConfigured) {
         return h
-          .response({ error: 'DATABASE_URL_NEON not set (DB disabled). Warehouse updates unavailable.' })
+          .response({ error: 'DATABASE_URL_MAINLIVE not set (DB disabled). Warehouse updates unavailable.' })
           .code(503);
       }
 
