@@ -147,7 +147,7 @@ export async function POST(
     try {
       const repostStrength = calculateEngagementStrength({
         eventType: 'REPULSE',
-        verificationTier: 'EMAIL_VERIFIED', // Auth'd user minimum
+        verificationTier: 'WEB2_BASIC', // Auth'd user minimum
         priorEventCount: 0,
         threadDepth: 0,
         totalParticipants: 1,
