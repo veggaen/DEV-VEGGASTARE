@@ -93,9 +93,6 @@ interface ShippingDisplayProps {
   userDistanceKm?: number;
 }
 
-// Maximum distance in km for showing local warehouse pickup option
-const LOCAL_PICKUP_MAX_DISTANCE_KM = 25;
-
 const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, userDistanceKm }: ShippingDisplayProps) => {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [expandedDetails, setExpandedDetails] = useState<boolean>(false);
@@ -146,10 +143,8 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
   const options = Array.isArray(shippingResponse?.options) ? shippingResponse.options : null;
   const consignments = Array.isArray(shippingResponse?.consignments) ? shippingResponse.consignments : [];
 
-  // Check if local warehouse pickup is available (user is within threshold distance)
-  const showLocalPickup = warehouse && 
-    typeof userDistanceKm === 'number' && 
-    userDistanceKm <= LOCAL_PICKUP_MAX_DISTANCE_KM;
+  // Always show local warehouse pickup if warehouse info is available
+  const showLocalPickup = !!warehouse;
 
   // Flatten all products from consignments for easier rendering
   const allProducts: { product: Product; consignmentId?: string }[] = [];
@@ -245,77 +240,6 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
         Shipping Options ({totalOptions})
       </div>
 
-      {/* Local Warehouse Pickup Option - shown first if available */}
-      {showLocalPickup && warehouse && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0 }}
-        >
-          <button
-            onClick={() => setSelectedIndex(-1)} // Use -1 to indicate local pickup
-            className={cn(
-              'w-full text-left rounded-xl border transition-all duration-200 overflow-hidden',
-              selectedIndex === -1
-                ? 'border-emerald-500 ring-1 ring-emerald-500/20 shadow-sm'
-                : 'border-border hover:border-emerald-500/50'
-            )}
-          >
-            <div className="p-4">
-              <div className="flex items-start gap-3">
-                {/* Icon */}
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 dark:from-emerald-500/30 dark:to-teal-500/30 flex items-center justify-center shrink-0">
-                  <FiMapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 className="font-semibold text-foreground text-sm leading-tight">
-                        Pickup at Warehouse
-                      </h4>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 uppercase">
-                          Free
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 uppercase">
-                          <FiMapPin className="h-2.5 w-2.5" />
-                          {userDistanceKm?.toFixed(1)} km away
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Price - FREE */}
-                    <div className="text-right shrink-0">
-                      <div className="font-bold text-emerald-600 dark:text-emerald-400">
-                        FREE
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">Save shipping</div>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Pick up your order at {warehouse.postalCode}{warehouse.city ? ` ${warehouse.city}` : ''}
-                    {warehouse.address ? ` - ${warehouse.address}` : ''}
-                  </p>
-                </div>
-
-                {/* Selection indicator */}
-                <div className={cn(
-                  'h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
-                  selectedIndex === -1
-                    ? 'border-emerald-500 bg-emerald-500'
-                    : 'border-muted-foreground/30'
-                )}>
-                  {selectedIndex === -1 && <FiCheck className="h-3.5 w-3.5 text-white" />}
-                </div>
-              </div>
-            </div>
-          </button>
-        </motion.div>
-      )}
-
       {allProducts.map(({ product, consignmentId }, idx) => {
         const guiInfo = product.guiInformation!;
         const priceInfo = product.price?.listPrice;
@@ -330,7 +254,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
             key={`${consignmentId || 'c'}-${idx}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: (showLocalPickup ? idx + 1 : idx) * 0.05 }}
+            transition={{ delay: idx * 0.05 }}
           >
             <button
               onClick={() => setSelectedIndex(idx)}
@@ -456,6 +380,79 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
           </motion.div>
         );
       })}
+
+      {/* Local Warehouse Pickup Option - shown last as alternative */}
+      {showLocalPickup && warehouse && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: allProducts.length * 0.05 }}
+        >
+          <button
+            onClick={() => setSelectedIndex(-1)} // Use -1 to indicate local pickup
+            className={cn(
+              'w-full text-left rounded-xl border transition-all duration-200 overflow-hidden',
+              selectedIndex === -1
+                ? 'border-emerald-500 ring-1 ring-emerald-500/20 shadow-sm'
+                : 'border-border hover:border-emerald-500/50'
+            )}
+          >
+            <div className="p-4">
+              <div className="flex items-start gap-3">
+                {/* Icon */}
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 dark:from-emerald-500/30 dark:to-teal-500/30 flex items-center justify-center shrink-0">
+                  <FiMapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 className="font-semibold text-foreground text-sm leading-tight">
+                        Pickup at Warehouse
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 uppercase">
+                          Free
+                        </span>
+                        {typeof userDistanceKm === 'number' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 uppercase">
+                            <FiMapPin className="h-2.5 w-2.5" />
+                            {userDistanceKm.toFixed(1)} km away
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Price - FREE */}
+                    <div className="text-right shrink-0">
+                      <div className="font-bold text-emerald-600 dark:text-emerald-400">
+                        FREE
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">Save shipping</div>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Pick up your order at {warehouse.postalCode}{warehouse.city ? ` ${warehouse.city}` : ''}
+                    {warehouse.address ? ` - ${warehouse.address}` : ''}
+                  </p>
+                </div>
+
+                {/* Selection indicator */}
+                <div className={cn(
+                  'h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
+                  selectedIndex === -1
+                    ? 'border-emerald-500 bg-emerald-500'
+                    : 'border-muted-foreground/30'
+                )}>
+                  {selectedIndex === -1 && <FiCheck className="h-3.5 w-3.5 text-white" />}
+                </div>
+              </div>
+            </div>
+          </button>
+        </motion.div>
+      )}
 
       {/* Show more details toggle */}
       {allProducts.length > 0 && allProducts[selectedIndex] && (

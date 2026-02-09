@@ -230,6 +230,13 @@ const FeedPage: React.FC = () => {
       setSortBy(sortParam);
     }
     
+    // Check for open param (?open=ID auto-opens pulse modal from standalone page)
+    const openParam = searchParams.get('open');
+    if (openParam) {
+      // Navigate to the pulse to open the modal, removing the ?open param
+      router.replace(`/pulse/${openParam}`, { scroll: false });
+    }
+    
     // Check for poll param (?poll=ID opens poll taker modal)
     // But don't reopen if we just closed (prevents race with close action)
     const pollParam = searchParams.get('poll');
@@ -238,7 +245,7 @@ const FeedPage: React.FC = () => {
       lastOpenedPollId.current = pollParam; // Track for mouse nav
       // Don't change filter - user should stay on whatever feed they were viewing
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   // Handle browser back/forward navigation (popstate) to sync filter state with URL
   // This is needed because searchParams doesn't react to pushState/popstate

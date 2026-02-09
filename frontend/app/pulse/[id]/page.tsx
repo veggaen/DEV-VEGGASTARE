@@ -325,13 +325,13 @@ export default async function PulsePage({ params }: PulsePageProps) {
         {/* ── CTA ────────────────────────────────────────────────────────── */}
         <div className="text-center py-8 border-t border-border/40">
           <p className="text-sm text-muted-foreground mb-4">
-            Join the conversation, react, and reply in the live feed
+            Join the conversation, react, and reply in the live flow
           </p>
           <Link
-            href="/pulse"
+            href={`/pulse?open=${id}`}
             className="inline-flex items-center gap-2 px-7 py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 transition-all active:scale-95"
           >
-            Open in Pulse Feed
+            Open in Pulse Flow
             <FiArrowLeft className="w-4 h-4 rotate-180" />
           </Link>
         </div>
