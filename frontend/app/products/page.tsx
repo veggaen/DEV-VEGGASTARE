@@ -50,9 +50,8 @@ const ProductCard = React.memo(
 										<Image
 											src={image}
 											alt={product.title}
-											sizes="100%"
-											width={600}
-											height={600}
+											fill
+											sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
 											priority={Boolean(priority && idx === 0)}
 											className="object-cover"
 										/>

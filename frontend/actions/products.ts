@@ -7,7 +7,7 @@ import { Prisma } from "@/generated/prisma/browser";
 import { z } from "zod";
 import { createSlug } from "@/lib/category-utils";
 
-type CreateProductResult = { error: string } | { success: string };
+type CreateProductResult = { error: string } | { success: string; productId: string };
 type UpdateProductResult = { error: string } | { success: string };
 
 const ProductAcceptedTokenInputSchema = z
@@ -165,7 +165,7 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
 
     // Skip warehouse/inventory setup for digital-only products
     if (!needsShipping || cleanedPostalCodes.length === 0) {
-      return { success: 'Product created successfully.' };
+      return { success: 'Product created successfully.', productId: product.id };
     }
 
     const quantityPerWarehouse = Math.floor(validatedData.quantity / cleanedPostalCodes.length);
@@ -207,7 +207,7 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
       console.log('Inventory created: ', inventory);
     }
 
-    return { success: "Product created successfully with inventory distributed among warehouses." };
+    return { success: "Product created successfully with inventory distributed among warehouses.", productId: product.id };
   } catch (error) {
     console.error('Error creating product: ', error);
     return { error: "Failed to create product." };

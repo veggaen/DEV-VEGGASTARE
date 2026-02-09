@@ -672,6 +672,8 @@ export const MyProductCreationForm = () => {
       if ('success' in data) {
         setSuccess(data.success);
         handleReset();
+        // Redirect to the newly created product page
+        router.push(`/products/${data.productId}`);
       }
     } catch (e) {
       console.error(MyLogPrefix, 'Create product failed:', e);
