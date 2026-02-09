@@ -147,11 +147,9 @@ export async function POST(
     try {
       const repostStrength = calculateEngagementStrength({
         eventType: 'REPULSE',
-        verificationTier: 'WEB2_BASIC', // Auth'd user minimum
-        priorEventCount: 0,
+        verificationTier: 'WEB2_BASIC',
+        previousActionCount: 0,
         threadDepth: 0,
-        totalParticipants: 1,
-        uniqueParticipants: 1,
       });
 
       // Record an EngagementEvent on the ORIGINAL pulse
