@@ -8,6 +8,8 @@ import {
   ConversationRepostDeleteResponseSchema,
   ConversationRepostPostResponseSchema,
 } from '@/lib/types/conversations';
+import { propagateEcho } from '@/lib/reach/echo-propagation';
+import { calculateEngagementStrength } from '@/lib/reach/engagement-strength';
 
 const LOG_PREFIX = '[api/conversations/[id]/repost]';
 
@@ -140,6 +142,46 @@ export async function POST(
         lastActivityAt: new Date(),
       },
     });
+
+    // --- Reach: Record repost engagement on the original pulse & trigger echo ---
+    try {
+      const repostStrength = calculateEngagementStrength({
+        eventType: 'SHARE',
+        verificationTier: 'EMAIL_VERIFIED', // Auth'd user minimum
+        priorEventCount: 0,
+        threadDepth: 0,
+        totalParticipants: 1,
+        uniqueParticipants: 1,
+      });
+
+      // Record an EngagementEvent on the ORIGINAL pulse
+      await dbPrisma.engagementEvent.create({
+        data: {
+          conversationId,
+          userId,
+          eventType: 'SHARE',
+          strength: repostStrength.strength,
+          pillar: 'engagement',
+          metadata: { mode: 'quote_repost', childPulseId: quoteConversation.id },
+        },
+      });
+
+      // Bump the original pulse's reach
+      await dbPrisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+          reachLifetime: { increment: repostStrength.strength },
+          reachMomentum: { increment: repostStrength.strength },
+          pillarEngagement: { increment: repostStrength.strength * 0.1 },
+        },
+      });
+
+      // Seed echo propagation from the new child pulse
+      await propagateEcho(quoteConversation.id, repostStrength.strength);
+    } catch (echoErr) {
+      // Non-fatal: log and continue
+      console.error(LOG_PREFIX, 'Echo propagation failed:', echoErr);
+    }
 
     const payload = { reposted: true as const, mode: 'quote' as const, conversationId: quoteConversation.id };
     const validated = ConversationRepostPostResponseSchema.safeParse(payload);

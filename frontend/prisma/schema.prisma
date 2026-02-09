@@ -65,6 +65,12 @@ model Company {
   employmentNoticeDays         Int                   @default(14)
   orgNumber                    String?               @unique
   orgType                      CompanyOrgType?
+  // ─── Company Reach ─────────────────────────────────────────────
+  reachLifetime                Float                 @default(0)
+  reachMomentum                Float                 @default(0)
+  lastMomentumDecay            DateTime?
+  employeePulseBonus           Float                 @default(0)
+
   User_Company_creatorIdToUser User                  @relation("Company_creatorIdToUser", fields: [creatorId], references: [id])
   User_Company_ownerIdToUser   User                  @relation("Company_ownerIdToUser", fields: [ownerId], references: [id])
   Conversation                 Conversation[]
@@ -115,6 +121,23 @@ model Conversation {
   negativePulseCount     Int                    @default(0)
   positivePulseCount     Int                    @default(0)
   reachScore             Float                  @default(0)
+  // ─── Dual Reach: Lifetime + Momentum ─────────────────────────────
+  reachLifetime          Float                  @default(0)
+  reachMomentum          Float                  @default(0)
+  lastMomentumDecay      DateTime?
+  // 7-Pillar breakdown (each 0-100 normalized)
+  pillarVisibility       Float                  @default(0)
+  pillarEngagement       Float                  @default(0)
+  pillarConversion       Float                  @default(0)
+  pillarLoyalty          Float                  @default(0)
+  pillarGrowth           Float                  @default(0)
+  pillarRecall           Float                  @default(0)
+  pillarVelocity         Float                  @default(0)
+  // Echo propagation  
+  echoInbound            Float                  @default(0)
+  echoOutbound           Float                  @default(0)
+  resonanceMultiplier    Float                  @default(1.0)
+  resonanceExpiresAt     DateTime?
   repulseCount           Int                    @default(0)
   uniqueIpCount          Int                    @default(0)
   // Pin to main feed (admin only)
@@ -132,6 +155,7 @@ model Conversation {
   AdvancedPoll           AdvancedPoll?
   Pulse                  Pulse[]
   ProfilePins            ProfilePin[]
+  PulseProductLinks      PulseProductLink[]
 
   @@index([userId])
   @@index([type])
@@ -558,6 +582,14 @@ model Product {
   freeShippingEnabled  Boolean                @default(false)
   freeShippingThreshold Float?               // null = no threshold (always free if enabled)
   
+  // ─── Product Reach ─────────────────────────────────────────────
+  reachLifetime        Float                  @default(0)
+  reachMomentum        Float                  @default(0)
+  lastMomentumDecay    DateTime?
+  viewCount            Int                    @default(0)
+  uniqueViewCount      Int                    @default(0)
+  pulseViewEcho        Float                  @default(0)
+
   CartItem             CartItem[]
   Inventory            Inventory[]
   Company              Company?               @relation(fields: [companyId], references: [id])
@@ -568,6 +600,7 @@ model Product {
   ShippingDetails      ShippingDetails[]
   OrderItem            OrderItem[]
   DigitalAsset         DigitalAsset?          @relation(fields: [digitalAssetId], references: [id])
+  PulseProductLinks    PulseProductLink[]
   
   // New many-to-many categories/tags
   categories           ProductCategory[]
@@ -579,6 +612,7 @@ model Product {
   @@index([createdAt])
   @@index([category, price])
   @@index([productType])
+  @@index([reachMomentum])
 }
 
 // Digital asset storage for downloadable products
@@ -793,6 +827,11 @@ model User {
   siteNoticeDismissedVersion                                      Int                           @default(0)
   verificationScore                                               Int                           @default(0)
   verificationTier                                                UserVerificationTier          @default(ANONYMOUS)
+  // ─── User-Level Reach (materialized aggregate) ─────────────────
+  reachLifetime                                                   Float                         @default(0)
+  reachMomentum                                                   Float                         @default(0)
+  lastMomentumDecay                                               DateTime?
+
   Account                                                         Account[]
   Cart                                                            Cart?
   Company_Company_creatorIdToUser                                 Company[]                     @relation("Company_creatorIdToUser")
@@ -1535,6 +1574,138 @@ model ReachFeedback {
   
   @@index([ipHash])
   @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Reach 7-Pillar System: New Models ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Engagement events — the structured ledger for all non-view interactions.
+/// Feeds into Pillar 2 (Engagement Depth), Pillar 4 (Loyalty), Pillar 6 (Recall).
+model EngagementEvent {
+  id              String           @id @default(cuid())
+  conversationId  String?          // Pulse context
+  productId       String?          // Product context
+  companyId       String?          // Company context
+  userId          String?          // Who performed the action (null = anonymous)
+  ipHash          String?
+  sessionId       String?          // Anonymous session hash
+
+  eventType       EngagementType   // What happened
+  strength        Float            @default(0)   // Calculated strength
+  details         Json?            // {element, durationMs, scrollDepth, hoverTarget, ...}
+  referrer        String?
+
+  createdAt       DateTime         @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([productId, createdAt])
+  @@index([userId, createdAt])
+  @@index([eventType])
+  @@index([sessionId])
+}
+
+enum EngagementType {
+  // Pillar 2: Engagement Depth
+  CLICK               // Click on element (comment, link, image)
+  HOVER_DEEP_READ     // Hover >3s over content section
+  SCROLL_DEPTH        // Scroll >75% of content  
+  DWELL_TIME          // Active time on page (tab focused)
+  SAVE_BOOKMARK       // Save/bookmark content
+  COPY_TEXT           // Copy text from content
+  COMMENT_SHORT       // Short vibe/comment (<50 chars)
+  COMMENT_LONG        // Substantive comment (>50 chars)
+  COMMENT_THREAD      // Reply in a thread (depth >1)
+  HEARTBEAT           // Pulse/like on a vibe
+  REPULSE             // Repost/repulse 
+  SHARE_EXTERNAL      // Share to external platform
+  
+  // Pillar 3: Conversion Impact
+  PRODUCT_VIEW        // Viewed a product page
+  PRODUCT_CLICK       // Clicked product from pulse
+  ADD_TO_CART         // Added item to cart
+  PURCHASE            // Completed purchase
+  PROFILE_FOLLOW      // Followed a user from content
+  
+  // Pillar 6: Recall (return signals)
+  RETURN_VISIT        // Revisited after >1h
+  TAB_REFOCUS         // Returned to tab after switching away
+}
+
+/// Echo propagation edges — tracks how reach flows through repulse chains.
+/// The "Origin Echo" mechanic: when B repulses A's pulse, and C views B's repulse,
+/// 15-30% of that view strength flows back to A's original pulse.
+model EchoEdge {
+  id               String   @id @default(cuid())
+  parentPulseId    String   // Original pulse receiving echo credit
+  childPulseId     String   // Repulse/child that generated the echo
+  depth            Int      @default(1)   // 1 = direct child, 2 = grandchild, etc.
+  echoStrength     Float    @default(0)   // Accumulated echo credit flowing to parent
+  uniqueEngagers   Int      @default(0)   // Unique people on child (anti-gaming: need >3)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([parentPulseId, childPulseId])
+  @@index([parentPulseId])
+  @@index([childPulseId])
+}
+
+/// Links between pulses and products (shoppable embeds).
+/// When a pulse mentions/embeds a product, interactions flow between them.
+model PulseProductLink {
+  id             String       @id @default(cuid())
+  conversationId String
+  productId      String
+  weight         Float        @default(1.0) // Prominence weight
+  createdAt      DateTime     @default(now())
+
+  Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  Product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, productId])
+  @@index([conversationId])
+  @@index([productId])
+}
+
+/// Daily rollup for fast analytics and pillar computation.
+/// Aggregated by cron; prevents heavy queries on raw event tables.
+model DailyReachRollup {
+  id              String   @id @default(cuid())
+  conversationId  String?
+  productId       String?
+  companyId       String?
+  userId          String?  // For user-level aggregation
+  date            DateTime @db.Date
+
+  // Pillar deltas for the day
+  dVisibility     Float    @default(0) // Delta visibility
+  dEngagement     Float    @default(0) // Delta engagement depth
+  dConversion     Float    @default(0) // Delta conversion impact
+  dLoyalty        Float    @default(0) // Delta loyalty
+  dGrowth         Float    @default(0) // Delta growth
+  dRecall         Float    @default(0) // Delta recall
+  dVelocity       Float    @default(0) // Delta velocity
+
+  // Aggregates
+  totalViews      Int      @default(0)
+  uniqueViewers   Int      @default(0)
+  totalEngagements Int     @default(0)
+  uniqueEngagers  Int      @default(0)
+  echoIn          Float    @default(0)
+  echoOut         Float    @default(0)
+  addedLifetime   Float    @default(0)
+  addedMomentum   Float    @default(0)
+  breadthRatio    Float    @default(0) // unique/total for anti-gaming
+
+  createdAt       DateTime @default(now())
+
+  @@unique([conversationId, date])
+  @@unique([productId, date])
+  @@unique([companyId, date])
+  @@unique([userId, date])
+  @@index([date])
+  @@index([conversationId])
+  @@index([userId])
 }
 
 enum UserRole {

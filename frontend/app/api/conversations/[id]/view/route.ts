@@ -269,11 +269,14 @@ export async function POST(
         },
       });
 
-      // Update conversation aggregates
+      // Update conversation aggregates (legacy + new dual reach)
       const updateData: Record<string, unknown> = {
         viewCount: { increment: 1 },
         lastActivityAt: new Date(),
         reachScore: { increment: strength },
+        reachLifetime: { increment: strength },
+        reachMomentum: { increment: strength },
+        pillarVisibility: { increment: strength * 0.1 }, // Incremental pillar contribution
         loggedInViewCount: { increment: 1 },
       };
 
@@ -288,7 +291,7 @@ export async function POST(
       const updatedConversation = await dbPrisma.conversation.update({
         where: { id: conversationId },
         data: updateData,
-        select: { viewCount: true, uniqueViewCount: true },
+        select: { viewCount: true, uniqueViewCount: true, reachMomentum: true },
       });
 
       // Broadcast real-time view count update
@@ -370,11 +373,14 @@ export async function POST(
         },
       });
 
-      // Update conversation aggregates
+      // Update conversation aggregates (legacy + new dual reach)
       const updateData: Record<string, unknown> = {
         viewCount: { increment: 1 },
         lastActivityAt: new Date(),
         reachScore: { increment: anonymousStrength.strength },
+        reachLifetime: { increment: anonymousStrength.strength },
+        reachMomentum: { increment: anonymousStrength.strength },
+        pillarVisibility: { increment: anonymousStrength.strength * 0.1 },
         anonymousViewCount: { increment: 1 },
       };
 
@@ -385,7 +391,7 @@ export async function POST(
       const updatedConversation = await dbPrisma.conversation.update({
         where: { id: conversationId },
         data: updateData,
-        select: { viewCount: true, uniqueViewCount: true },
+        select: { viewCount: true, uniqueViewCount: true, reachMomentum: true },
       });
 
       // Broadcast real-time view count update
