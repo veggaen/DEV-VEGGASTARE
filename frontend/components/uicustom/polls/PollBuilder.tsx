@@ -571,7 +571,7 @@ export function PollBuilder({
                   Live Preview
                 </h3>
                 <span className="text-xs text-muted-foreground">
-                  This is how your poll will appear in the feed
+                  This is how your poll will appear in the flow
                 </span>
               </div>
               

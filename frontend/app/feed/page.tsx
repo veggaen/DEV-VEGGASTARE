@@ -1479,7 +1479,7 @@ const FeedPage: React.FC = () => {
                 )}
                 {!hasMore && items.length > 0 && (
                   <p className="text-center text-sm text-muted-foreground py-6">
-                    You&apos;ve reached the end of the feed
+                    You&apos;ve reached the end of the flow
                   </p>
                 )}
               </>

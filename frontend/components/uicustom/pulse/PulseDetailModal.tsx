@@ -297,7 +297,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
   };
 
   const openFullPage = () => {
-    router.push(`/conversations/${pulseId}`);
+    router.push(`/pulse/${pulseId}`);
     onClose();
   };
 

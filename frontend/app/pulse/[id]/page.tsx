@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { dbPrisma } from '@/lib/db';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { FiArrowLeft, FiMessageCircle, FiEye, FiRepeat, FiTrendingUp } from 'react-icons/fi';
+import { PulseVibesSection } from '@/components/uicustom/pulse/PulseVibesSection';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /pulse/[id] — Full standalone pulse page (hard navigation / SEO)
@@ -43,16 +44,12 @@ async function getPulse(id: string) {
           select: { id: true, name: true, image: true },
         },
         Message: {
-          take: 12,
+          take: 1, // only need root message for body text
           orderBy: { createdAt: 'asc' },
           select: {
             id: true,
             content: true,
             createdAt: true,
-            editedAt: true,
-            User: {
-              select: { id: true, name: true, image: true },
-            },
           },
         },
         AdvancedPoll: {
@@ -127,9 +124,7 @@ export default async function PulsePage({ params }: PulsePageProps) {
   const authorName = author?.name || 'Anonymous';
   const authorInitial = authorName.charAt(0).toUpperCase();
   const firstMessage = pulse.Message?.[0];
-  const replyMessages = pulse.Message?.slice(1) || [];
   const totalReplies = pulse._count.Message - 1; // exclude root message
-  const moreReplies = totalReplies - replyMessages.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
@@ -141,7 +136,7 @@ export default async function PulsePage({ params }: PulsePageProps) {
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
           >
             <FiArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            Back to Feed
+            Back to Flow
           </Link>
           <span className="text-xs font-medium tracking-wider uppercase text-muted-foreground/60">
             Pulse
@@ -261,80 +256,8 @@ export default async function PulsePage({ params }: PulsePageProps) {
           )}
         </div>
 
-        {/* ── Reply thread ───────────────────────────────────────────────── */}
-        {replyMessages.length > 0 && (
-          <section className="mb-10">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-5">
-              Conversation
-            </h2>
-            <div className="space-y-1">
-              {replyMessages.map((msg, idx) => {
-                const sender = msg.User;
-                const senderName = sender?.name || 'Anonymous';
-                const senderInitial = senderName.charAt(0).toUpperCase();
-                const isLast = idx === replyMessages.length - 1;
-
-                return (
-                  <div key={msg.id} className="relative flex gap-3 group">
-                    {/* Thread line */}
-                    {!isLast && (
-                      <div className="absolute left-[18px] top-10 bottom-0 w-px bg-border/60" />
-                    )}
-
-                    {/* Avatar */}
-                    <div className="relative flex-shrink-0 pt-1">
-                      {sender?.image ? (
-                        <img
-                          src={sender.image}
-                          alt={senderName}
-                          className="w-9 h-9 rounded-full object-cover ring-1 ring-border"
-                        />
-                      ) : (
-                        <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground ring-1 ring-border">
-                          {senderInitial}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 pb-5">
-                      <div className="flex items-baseline gap-2 mb-0.5">
-                        <span className="font-semibold text-sm">{senderName}</span>
-                        <time className="text-xs text-muted-foreground">
-                          {formatDistanceToNowStrict(new Date(msg.createdAt), { addSuffix: true })}
-                        </time>
-                        {msg.editedAt && (
-                          <span className="text-xs text-muted-foreground italic">(edited)</span>
-                        )}
-                      </div>
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {moreReplies > 0 && (
-              <p className="text-center text-sm text-muted-foreground mt-4">
-                + {moreReplies} more {moreReplies === 1 ? 'reply' : 'replies'}
-              </p>
-            )}
-          </section>
-        )}
-
-        {/* ── CTA ────────────────────────────────────────────────────────── */}
-        <div className="text-center py-8 border-t border-border/40">
-          <p className="text-sm text-muted-foreground mb-4">
-            Join the conversation, react, and reply in the live flow
-          </p>
-          <Link
-            href={`/pulse?open=${id}`}
-            className="inline-flex items-center gap-2 px-7 py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 transition-all active:scale-95"
-          >
-            Open in Pulse Flow
-            <FiArrowLeft className="w-4 h-4 rotate-180" />
-          </Link>
-        </div>
+        {/* ── Live vibes / conversation ─────────────────────────────────── */}
+        <PulseVibesSection pulseId={id} />
       </article>
     </div>
   );

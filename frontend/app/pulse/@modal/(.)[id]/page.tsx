@@ -6,7 +6,7 @@
  * This page is rendered by the @modal parallel slot when the user
  * soft-navigates (clicks) from /pulse to /pulse/[id].
  *
- * The feed stays mounted in the {children} slot behind this overlay.
+ * The flow stays mounted in the {children} slot behind this overlay.
  * On hard navigation (direct link / refresh), this file is NOT used —
  * the full [id]/page.tsx renders instead.
  */
@@ -21,21 +21,20 @@ export default function InterceptedPulsePage() {
   const pulseId = params.id
 
   const handleClose = useCallback(() => {
-    router.back()
+    router.push('/pulse')
   }, [router])
 
   const handleTagClick = useCallback(
     (tag: string) => {
-      // Navigate back to feed with tag filter applied
-      // The feed reads ?tag= from searchParams
-      router.back()
+      // Navigate to flow with tag filter applied
+      router.push(`/pulse?filter=all&tag=${encodeURIComponent(tag)}`)
     },
     [router],
   )
 
   const handleOpenPoll = useCallback(
     (pollId: string) => {
-      // Close pulse modal and open poll on the feed
+      // Close pulse modal and open poll on the flow
       router.replace(`/pulse?poll=${encodeURIComponent(pollId)}`)
     },
     [router],
