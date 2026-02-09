@@ -103,7 +103,8 @@ export async function POST(req: Request) {
       },
     });
 
-    // Trigger a Pusher event after message creation
+    // Trigger a Pusher event after message creation (include sender info so
+    // real-time listeners can render the author name immediately)
     await pusherServer.trigger(`ConversationChannel_${conversationId}`, 'new-message', {
       conversationId,
       message: {
@@ -112,6 +113,11 @@ export async function POST(req: Request) {
         imageUrl: message.imageUrl,
         senderId: message.senderId,
         createdAt: message.createdAt,
+        heartbeatCount: 0,
+        hasHeartbeated: false,
+        sender: message.User
+          ? { id: message.User.id, name: message.User.name, image: message.User.image ?? null }
+          : null,
       },
     });
     console.log(LOG_PREFIX, 'POST(3/3) - message successfully created, triggering pusher event...', `ConversationChannel_${conversationId} - new-message`);
@@ -207,7 +213,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: 'You do not have permission to view this conversation' }, { status: 403 });
     }
 
-    // Fetch the messages with sender info
+    // Fetch the messages with sender info + heartbeat count
     const messages = await dbPrisma.message.findMany({
       where: { conversationId },
       orderBy: { createdAt: 'asc' },
@@ -217,6 +223,19 @@ export async function GET(req: Request) {
         },
       },
     });
+
+    // If logged-in, fetch which messages the user has heartbeated
+    const heartbeatedMessageIds = new Set<string>();
+    if (userId) {
+      const userPulses = await dbPrisma.messagePulse.findMany({
+        where: {
+          messageId: { in: messages.map((m) => m.id) },
+          userId,
+        },
+        select: { messageId: true },
+      });
+      for (const p of userPulses) heartbeatedMessageIds.add(p.messageId);
+    }
 
     // Fetch users who are participants in the conversation
     const participantIds = conversation.participants as string[];
@@ -245,6 +264,8 @@ export async function GET(req: Request) {
         conversationId: m.conversationId,
         createdAt: m.createdAt,
         editedAt: m.editedAt ?? null,
+        heartbeatCount: m.heartbeatCount ?? 0,
+        hasHeartbeated: heartbeatedMessageIds.has(m.id),
         User: m.User
           ? {
               id: m.User.id,

@@ -29,7 +29,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { UseCurrentRole } from '@/hooks/use-current-role';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import usePusher from '@/hooks/usePusher';
-import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2, FiRefreshCw, FiFilter } from 'react-icons/fi';
+import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2, FiRefreshCw, FiFilter, FiEye } from 'react-icons/fi';
 import { Pin, PinOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PulseHeart, PulseFlat, PulsePositive } from '@/components/uicustom/icons/PulseIcons';
@@ -2570,7 +2570,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className="flex items-center gap-1 cursor-default">
-                      <FiTrendingUp className="h-4 w-4" />
+                      <FiEye className="h-4 w-4" />
                       {Math.max(localViewCount, item.uniqueViewCount || 0)}
                     </span>
                   </TooltipTrigger>

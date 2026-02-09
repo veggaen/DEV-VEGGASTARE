@@ -18,6 +18,10 @@ export const MessageResponseSchema = z
     createdAt: z.union([z.string().min(1), z.date()]),
     editedAt: z.union([z.string().min(1), z.date()]).nullable().optional(),
 
+    // Vibe heartbeat stats
+    heartbeatCount: z.number().int().finite().optional(),
+    hasHeartbeated: z.boolean().optional(),
+
     // Back-compat (existing API includes `User`)
     User: MessageUserSummarySchema.nullable().optional(),
 

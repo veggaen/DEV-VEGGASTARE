@@ -34,12 +34,15 @@ import {
   FiEdit2,
   FiTrash2,
 } from 'react-icons/fi';
+import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 
 interface Message {
   id: string;
   content: string;
   createdAt: string;
   editedAt?: string;
+  heartbeatCount?: number;
+  hasHeartbeated?: boolean;
   sender: {
     id: string;
     name: string | null;
@@ -65,6 +68,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const [pulsingVibeId, setPulsingVibeId] = useState<string | null>(null);
 
   const isPlatformAdmin = userRole === 'OWNER' || userRole === 'ADMIN';
   const canManageComment = (senderId: string) =>
@@ -143,6 +147,21 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
     }, []),
   );
 
+  // Real-time vibe heartbeat updates
+  usePusher<{ messageId: string; heartbeatCount: number }>(
+    channelName,
+    'vibe-heartbeat-update',
+    useCallback((data) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === data.messageId
+            ? { ...msg, heartbeatCount: data.heartbeatCount }
+            : msg
+        ),
+      );
+    }, []),
+  );
+
   // ── Edit / Delete handlers ───────────────────────────────────────────
   const handleEditComment = async (messageId: string) => {
     if (!editContent.trim()) return;
@@ -162,9 +181,9 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
       );
       setEditingMessageId(null);
       setEditContent('');
-      toast.success('Comment updated');
+      toast.success('Vibe updated');
     } catch {
-      toast.error('Failed to update comment');
+      toast.error('Failed to update vibe');
     }
   };
 
@@ -172,13 +191,61 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
     setDeletingMessageId(messageId);
     try {
       const res = await fetch(`/api/messages/${messageId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete comment');
+      if (!res.ok) throw new Error('Failed to delete vibe');
       setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
-      toast.success('Comment deleted');
+      toast.success('Vibe deleted');
     } catch {
-      toast.error('Failed to delete comment');
+      toast.error('Failed to delete vibe');
     } finally {
       setDeletingMessageId(null);
+    }
+  };
+
+  // Handle vibe heartbeat toggle
+  const handleVibeHeartbeat = async (messageId: string) => {
+    if (!currentUser) return;
+    setPulsingVibeId(messageId);
+
+    // Optimistic update
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId
+          ? {
+              ...msg,
+              hasHeartbeated: !msg.hasHeartbeated,
+              heartbeatCount: (msg.heartbeatCount ?? 0) + (msg.hasHeartbeated ? -1 : 1),
+            }
+          : msg
+      )
+    );
+
+    try {
+      const res = await fetch(`/api/messages/${messageId}/pulse`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to toggle heartbeat');
+      const data = await res.json();
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, heartbeatCount: data.heartbeatCount, hasHeartbeated: data.heartbeated }
+            : msg
+        )
+      );
+    } catch {
+      // Revert optimistic update
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? {
+                ...msg,
+                hasHeartbeated: !msg.hasHeartbeated,
+                heartbeatCount: (msg.heartbeatCount ?? 0) + (msg.hasHeartbeated ? 1 : -1),
+              }
+            : msg
+        )
+      );
+      toast.error('Failed to heartbeat vibe');
+    } finally {
+      setPulsingVibeId(null);
     }
   };
 
@@ -344,6 +411,27 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
                     maxYouTubeEmbeds={1}
                   />
                 )}
+
+                {/* Vibe stats — heartbeat */}
+                <div className="mt-2 flex items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={!currentUser || pulsingVibeId === message.id}
+                    onClick={() => void handleVibeHeartbeat(message.id)}
+                    className={`flex items-center gap-1 text-xs transition-all hover:text-red-500 group ${
+                      message.hasHeartbeated ? 'text-red-500' : 'text-muted-foreground'
+                    }`}
+                  >
+                    <PulseHeart
+                      size={14}
+                      filled={!!message.hasHeartbeated}
+                      className={`transition-transform ${message.hasHeartbeated ? 'scale-110' : 'group-hover:scale-105'}`}
+                    />
+                    {(message.heartbeatCount ?? 0) > 0 && (
+                      <span className="tabular-nums">{message.heartbeatCount}</span>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           ))}

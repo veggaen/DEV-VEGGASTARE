@@ -10,6 +10,7 @@
 import { useState, useCallback } from 'react';
 import usePusher from '@/hooks/usePusher';
 import { FiMessageCircle, FiEye, FiRepeat, FiTrendingUp } from 'react-icons/fi';
+import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 
 interface PulseStatsBarProps {
   pulseId: string;
@@ -75,20 +76,32 @@ export function PulseStatsBar({ pulseId, initialStats }: PulseStatsBarProps) {
     }, [])
   );
 
-  const totalReplies = stats.messageCount - 1; // exclude root message
+  // Subscribe to repost count updates
+  usePusher<{ conversationId: string; repostCount: number }>(
+    channelName,
+    'repost-update',
+    useCallback((data) => {
+      setStats(prev => ({
+        ...prev,
+        repulseCount: data.repostCount,
+      }));
+    }, [])
+  );
+
+  const totalVibes = stats.messageCount - 1; // exclude root message
 
   return (
     <div className="flex items-center gap-5 text-sm text-muted-foreground border-y border-border/50 py-3 mb-4">
-      {totalReplies > 0 && (
-        <span className="flex items-center gap-1.5">
-          <FiMessageCircle className="w-4 h-4" />
-          {totalReplies} {totalReplies === 1 ? 'reply' : 'replies'}
+      {stats.positivePulseCount > 0 && (
+        <span className="flex items-center gap-1.5 text-red-500 dark:text-red-400">
+          <PulseHeart size={16} filled />
+          {stats.positivePulseCount}
         </span>
       )}
-      {stats.viewCount > 0 && (
+      {totalVibes > 0 && (
         <span className="flex items-center gap-1.5">
-          <FiEye className="w-4 h-4" />
-          {stats.viewCount.toLocaleString()} views
+          <FiMessageCircle className="w-4 h-4" />
+          {totalVibes} {totalVibes === 1 ? 'vibe' : 'vibes'}
         </span>
       )}
       {stats.repulseCount > 0 && (
@@ -97,9 +110,10 @@ export function PulseStatsBar({ pulseId, initialStats }: PulseStatsBarProps) {
           {stats.repulseCount} repulses
         </span>
       )}
-      {stats.positivePulseCount > 0 && (
+      {stats.viewCount > 0 && (
         <span className="flex items-center gap-1.5">
-          ❤️ {stats.positivePulseCount}
+          <FiEye className="w-4 h-4" />
+          {stats.viewCount.toLocaleString()} views
         </span>
       )}
       {stats.reachScore > 0 && (
