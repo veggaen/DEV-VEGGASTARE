@@ -458,14 +458,14 @@ export async function GET(req: Request) {
 
     switch (sort) {
       case 'reach':
-        // Richard's insight: "reach count" over "follower count"
-        // Sort by actual views and unique engagement, not just reply count
+        // 7-Pillar Reach: sort by momentum (decaying score reflecting current vitality)
+        // Falls back to viewCount for older pulses without momentum data
         orderBy = [
           { pinnedToFeed: 'desc' },
           { isPinned: 'desc' },
+          { reachMomentum: 'desc' },
           { viewCount: 'desc' },
           { uniqueRepliers: 'desc' },
-          { ConversationRepost: { _count: 'desc' } },
           { lastActivityAt: 'desc' },
         ];
         break;

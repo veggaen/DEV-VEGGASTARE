@@ -6,6 +6,7 @@ import { formatDistanceToNowStrict } from 'date-fns';
 import { FiArrowLeft, FiTrendingUp } from 'react-icons/fi';
 import { PulseVibesSection } from '@/components/uicustom/pulse/PulseVibesSection';
 import { PulseStatsBar } from '@/components/uicustom/pulse/PulseStatsBar';
+import { PulseReachTracker } from '@/components/uicustom/pulse/PulseReachTracker';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /pulse/[id] — Full standalone pulse page (hard navigation / SEO)
@@ -41,6 +42,7 @@ async function getPulse(id: string) {
         repulseCount: true,
         positivePulseCount: true,
         reachScore: true,
+        reachMomentum: true,
         User: {
           select: { id: true, name: true, image: true },
         },
@@ -232,11 +234,15 @@ export default async function PulsePage({ params }: PulsePageProps) {
             repulseCount: pulse.repulseCount ?? 0,
             positivePulseCount: pulse.positivePulseCount ?? 0,
             reachScore: pulse.reachScore ?? 0,
+            reachMomentum: pulse.reachMomentum ?? 0,
           }}
         />
 
         {/* ── Live vibes / conversation ─────────────────────────────────── */}
         <PulseVibesSection pulseId={id} />
+
+        {/* ── Reach tracking (invisible, behavioral) ───────────────────── */}
+        <PulseReachTracker conversationId={id} />
       </article>
     </div>
   );

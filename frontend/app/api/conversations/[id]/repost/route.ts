@@ -146,7 +146,7 @@ export async function POST(
     // --- Reach: Record repost engagement on the original pulse & trigger echo ---
     try {
       const repostStrength = calculateEngagementStrength({
-        eventType: 'SHARE',
+        eventType: 'REPULSE',
         verificationTier: 'EMAIL_VERIFIED', // Auth'd user minimum
         priorEventCount: 0,
         threadDepth: 0,
@@ -159,10 +159,9 @@ export async function POST(
         data: {
           conversationId,
           userId,
-          eventType: 'SHARE',
+          eventType: 'REPULSE',
           strength: repostStrength.strength,
-          pillar: 'engagement',
-          metadata: { mode: 'quote_repost', childPulseId: quoteConversation.id },
+          details: { mode: 'quote_repost', childPulseId: quoteConversation.id },
         },
       });
 

@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/reach-decay",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

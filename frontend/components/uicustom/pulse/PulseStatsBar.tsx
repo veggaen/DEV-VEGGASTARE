@@ -9,7 +9,7 @@
 
 import { useState, useCallback } from 'react';
 import usePusher from '@/hooks/usePusher';
-import { FiMessageCircle, FiEye, FiRepeat, FiTrendingUp } from 'react-icons/fi';
+import { FiMessageCircle, FiEye, FiRepeat, FiTrendingUp, FiZap } from 'react-icons/fi';
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 
 interface PulseStatsBarProps {
@@ -20,6 +20,7 @@ interface PulseStatsBarProps {
     repulseCount: number;
     positivePulseCount: number;
     reachScore: number;
+    reachMomentum?: number;
   };
 }
 
@@ -117,9 +118,15 @@ export function PulseStatsBar({ pulseId, initialStats }: PulseStatsBarProps) {
         </span>
       )}
       {stats.reachScore > 0 && (
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center gap-1.5" title={`Lifetime: ${Math.round(stats.reachScore)} • Momentum: ${Math.round(stats.reachMomentum ?? 0)}`}>
           <FiTrendingUp className="w-4 h-4 text-amber-500" />
           {Math.round(stats.reachScore)} reach
+          {(stats.reachMomentum ?? 0) > 0 && (
+            <span className="flex items-center gap-0.5 text-xs text-emerald-500">
+              <FiZap className="w-3 h-3" />
+              {Math.round(stats.reachMomentum!)}
+            </span>
+          )}
         </span>
       )}
     </div>
