@@ -71,6 +71,13 @@ export class LiveBringProvider implements BringProvider {
 
     // Shipping Guide API v2 expects consignments[] payload.
     // According to Bring docs: customerNumber must be INSIDE the products array for pricing
+    // Request multiple products to show more shipping options:
+    // - 5800: Pickup Parcel (Hentepakke) - collect at post office/pickup point
+    // - 5600: Home Delivery Parcel (Hjemlevering) - delivery to door
+    // - PA_DOREN: Door delivery alternative
+    // - SERVICEPAKKE: General service package
+    const productIds = ['5800', '5600', 'PA_DOREN', 'SERVICEPAKKE'];
+    
     const body = {
       language: req.language ?? 'en',
       withPrice: true,
@@ -84,13 +91,11 @@ export class LiveBringProvider implements BringProvider {
       consignments: [
         {
           id: '1',
-          // Product with customerNumber for pricing - using 5800 (Pickup Parcel) as default
-          products: [
-            {
-              id: '5800',
-              ...(req.customerNumber ? { customerNumber: req.customerNumber } : {}),
-            },
-          ],
+          // Request multiple products for variety of shipping options
+          products: productIds.map((id) => ({
+            id,
+            ...(req.customerNumber ? { customerNumber: req.customerNumber } : {}),
+          })),
           additionalServices: [],
           fromCountryCode: req.fromCountryCode,
           toCountryCode: req.toCountryCode,

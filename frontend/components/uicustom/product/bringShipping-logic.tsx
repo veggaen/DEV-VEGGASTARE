@@ -74,10 +74,21 @@ interface ShippingRequestData {
     packages: PackageSpecification[]; // Assuming it's an array of package specifications
 }
 
+interface WarehouseInfo {
+  postalCode: string;
+  city?: string;
+  address?: string;
+  distanceKm?: number;
+}
+
 // Update the MyBringShippingLogicProps interface to use ShippingRequestData
 interface MyBringShippingLogicProps {
     shippingDetailsFromUser: ShippingRequestData; // Now using the detailed type
     toPostalCode: string;
+    /** Warehouse details for local pickup option */
+    warehouse?: WarehouseInfo;
+    /** User's distance from warehouse in km */
+    userDistanceKm?: number;
 }
 
 interface ShippingErrorState {
@@ -86,7 +97,7 @@ interface ShippingErrorState {
 }
 
 const LOG_PREFIX = '[frontend/components/uicustom/product/bringShipping-logic.tsx]'
-export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ shippingDetailsFromUser, toPostalCode }) => {
+export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ shippingDetailsFromUser, toPostalCode, warehouse, userDistanceKm }) => {
   const [shippingResponse, setShippingResponse] = useState<ShippingDetails | null>(null);
   const [error, setError] = useState<ShippingErrorState | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -169,7 +180,12 @@ export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ ship
   return (
     <div>
       {shippingResponse ? (
-        <MyShippingDetailsDisplay shippingResponse={shippingResponse} toPostalCode={toPostalCode} />
+        <MyShippingDetailsDisplay 
+          shippingResponse={shippingResponse} 
+          toPostalCode={toPostalCode}
+          warehouse={warehouse}
+          userDistanceKm={userDistanceKm}
+        />
       ) : (
         <div className="text-sm text-muted-foreground">
           Enter your postal code to see shipping options

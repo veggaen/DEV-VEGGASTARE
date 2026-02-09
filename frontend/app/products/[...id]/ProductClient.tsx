@@ -1250,9 +1250,12 @@ function ProductDetails({ product }: { product: Product }) {
     return inventory.reduce((m, it) => (it.stock > m ? it.stock : m), 0);
   }, [closestWarehouse, product.inventory]);
 
+  // State for user's distance to closest warehouse
+  const [userDistanceToWarehouseKm, setUserDistanceToWarehouseKm] = useState<number | undefined>(undefined);
+
   // Find closest warehouse from user geolocation
   const resolveClosestWarehouse = useCallback(
-    async (userLat: number, userLon: number) => {
+    async (userLat: number, userLon: number): Promise<{ warehouse: WarehouseLocation; distanceKm: number } | null> => {
       if (!warehouseLocations.length) return null;
       let closest = warehouseLocations[0];
       let min = Number.MAX_VALUE;
@@ -1270,7 +1273,7 @@ function ProductDetails({ product }: { product: Product }) {
           // ignore failed lookups
         }
       }
-      return closest;
+      return { warehouse: closest, distanceKm: min === Number.MAX_VALUE ? 999 : min };
     },
     [warehouseLocations]
   );
@@ -1301,8 +1304,11 @@ function ProductDetails({ product }: { product: Product }) {
         // Ignore city lookup errors
       }
       
-      const closest = await resolveClosestWarehouse(latitude, longitude);
-      if (closest) setClosestWarehouse(closest);
+      const result = await resolveClosestWarehouse(latitude, longitude);
+      if (result) {
+        setClosestWarehouse(result.warehouse);
+        setUserDistanceToWarehouseKm(result.distanceKm);
+      }
       setHasFetchedLocation(true);
       return true;
     } catch (e: any) {
@@ -1643,8 +1649,11 @@ function ProductDetails({ product }: { product: Product }) {
                                 const lat = parseFloat(suggestion.latitude);
                                 const lon = parseFloat(suggestion.longitude);
                                 if (!isNaN(lat) && !isNaN(lon)) {
-                                  const closest = await resolveClosestWarehouse(lat, lon);
-                                  if (closest) setClosestWarehouse(closest);
+                                  const result = await resolveClosestWarehouse(lat, lon);
+                                  if (result) {
+                                    setClosestWarehouse(result.warehouse);
+                                    setUserDistanceToWarehouseKm(result.distanceKm);
+                                  }
                                 }
                               }
                               setHasFetchedLocation(true);
@@ -1711,6 +1720,12 @@ function ProductDetails({ product }: { product: Product }) {
                       fromPostalCode={closestWarehouse?.postalCode || product.shipFromPostalId}
                       toPostalCode={userPostalCode}
                       productSpecifications={specs}
+                      warehouse={closestWarehouse ? {
+                        postalCode: closestWarehouse.postalCode,
+                        city: userCity || undefined,
+                        distanceKm: userDistanceToWarehouseKm,
+                      } : undefined}
+                      userDistanceKm={userDistanceToWarehouseKm}
                     />
                   </div>
                 </motion.div>
