@@ -601,7 +601,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                           {/* Stats bar */}
                           <div className="mt-4 flex flex-wrap items-center gap-5 text-sm">
                             {/* Heartbeats (likes) */}
-                            <div className="flex items-center gap-2 text-emerald-500 dark:text-emerald-400">
+                            <div className="flex items-center gap-2 text-red-500 dark:text-red-400">
                               <PulseHeart size={16} filled={(pulse.positivePulseCount || 0) > 0} />
                               <span>{pulse.positivePulseCount || 0}</span>
                             </div>

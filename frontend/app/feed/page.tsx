@@ -2474,8 +2474,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               type="button"
               disabled={!currentUser || isPulsing}
               onClick={() => void handlePulse('POSITIVE')}
-              className={`flex items-center gap-1.5 transition-all hover:text-emerald-500 group ${
-                localPulse === 'POSITIVE' ? 'text-emerald-500' : ''
+              className={`flex items-center gap-1.5 transition-all hover:text-red-500 group ${
+                localPulse === 'POSITIVE' ? 'text-red-500' : ''
               }`}
               title={pulseLabels.heartbeatVerb}
             >
