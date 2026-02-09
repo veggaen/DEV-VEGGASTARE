@@ -1,4 +1,5 @@
 import { dbPrisma } from '@/lib/db';
+import { pusherServer } from '@/lib/pusher';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
@@ -9,6 +10,22 @@ import {
 } from '@/lib/types/conversations';
 
 const LOG_PREFIX = '[api/conversations/[id]/repost]';
+
+/**
+ * Broadcast repost count update via Pusher (fire-and-forget)
+ */
+async function broadcastRepostUpdate(conversationId: string) {
+  const repostCount = await dbPrisma.conversationRepost.count({
+    where: { conversationId },
+  });
+  
+  pusherServer.trigger(`ConversationChannel_${conversationId}`, 'repost-update', {
+    conversationId,
+    repostCount,
+  }).catch((err) => {
+    console.error(`${LOG_PREFIX} Pusher broadcast failed:`, err);
+  });
+}
 const isDev = process.env.NODE_ENV !== 'production';
 
 const postBodySchema = z
@@ -71,6 +88,9 @@ export async function POST(
         create: { conversationId, userId },
         update: {},
       });
+
+      // Broadcast real-time repost count update
+      broadcastRepostUpdate(conversationId);
 
       const payload = { reposted: true as const, mode: 'repost' as const };
       const validated = ConversationRepostPostResponseSchema.safeParse(payload);
@@ -162,6 +182,9 @@ export async function DELETE(
     await dbPrisma.conversationRepost.delete({
       where: { conversationId_userId: { conversationId, userId } },
     });
+
+    // Broadcast real-time repost count update
+    broadcastRepostUpdate(conversationId);
 
     const payload = { reposted: false as const };
     const validated = ConversationRepostDeleteResponseSchema.safeParse(payload);

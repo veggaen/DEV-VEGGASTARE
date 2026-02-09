@@ -1853,6 +1853,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   const [localPulse, setLocalPulse] = useState<'POSITIVE' | 'NEGATIVE' | null>(item.userPulse || null);
   const [localPositiveCount, setLocalPositiveCount] = useState(item.positivePulseCount || 0);
   const [localViewCount, setLocalViewCount] = useState(item.viewCount || 0);
+  const [localMessageCount, setLocalMessageCount] = useState(item.messageCount || 0);
+  const [localRepostCount, setLocalRepostCount] = useState(item.repostCount || 0);
   
   // Edit/Delete state
   const [editOpen, setEditOpen] = useState(false);
@@ -1891,6 +1893,33 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     'pulse-stats-update',
     useCallback((data) => {
       setLocalPositiveCount(data.positivePulseCount);
+    }, [])
+  );
+
+  // Real-time comment count updates (when someone adds a comment)
+  usePusher<{ message?: unknown; conversationId?: string }>(
+    `ConversationChannel_${item.id}`,
+    'new-message',
+    useCallback(() => {
+      setLocalMessageCount(c => c + 1);
+    }, [])
+  );
+
+  // Real-time view count updates
+  usePusher<{ conversationId: string; viewCount: number; uniqueViewCount: number }>(
+    `ConversationChannel_${item.id}`,
+    'view-update',
+    useCallback((data) => {
+      setLocalViewCount(data.viewCount);
+    }, [])
+  );
+
+  // Real-time repost count updates
+  usePusher<{ conversationId: string; repostCount: number }>(
+    `ConversationChannel_${item.id}`,
+    'repost-update',
+    useCallback((data) => {
+      setLocalRepostCount(data.repostCount);
     }, [])
   );
 
@@ -2118,7 +2147,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
       : rawPreviewText;
   const showReadMore = rawPreviewText.length > MAX_PREVIEW_CHARS;
 
-  const replyCount = getReplyCount(item.messageCount);
+  const replyCount = getReplyCount(localMessageCount);
 
   const titleText = (item.title || '').trim();
   const descriptionText = (item.description || '').trim();
@@ -2502,7 +2531,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
             </span>
             <span className={`flex items-center gap-1 ${item.hasReposted ? 'text-cyan-500' : ''}`}>
               <FiRepeat className="h-4 w-4" />
-              {item.repostCount || 0}
+              {localRepostCount}
             </span>
             {(localViewCount > 0 || (item.uniqueViewCount !== undefined && item.uniqueViewCount > 0)) && (
               <span className="flex items-center gap-1" title={hasTracked ? 'View tracked' : 'Views'}>

@@ -63,6 +63,18 @@ export function PulseStatsBar({ pulseId, initialStats }: PulseStatsBarProps) {
     }, [])
   );
 
+  // Subscribe to view count updates
+  usePusher<{ conversationId: string; viewCount: number; uniqueViewCount: number }>(
+    channelName,
+    'view-update',
+    useCallback((data) => {
+      setStats(prev => ({
+        ...prev,
+        viewCount: data.viewCount,
+      }));
+    }, [])
+  );
+
   const totalReplies = stats.messageCount - 1; // exclude root message
 
   return (

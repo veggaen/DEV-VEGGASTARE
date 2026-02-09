@@ -1,4 +1,5 @@
 import { dbPrisma } from '@/lib/db';
+import { pusherServer } from '@/lib/pusher';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
@@ -13,6 +14,19 @@ import { ConversationViewPostResponseSchema } from '@/lib/types/conversations';
 
 const LOG_PREFIX = '[api/conversations/[id]/view]';
 const isDev = process.env.NODE_ENV !== 'production';
+
+/**
+ * Broadcast view count update via Pusher (fire-and-forget)
+ */
+function broadcastViewUpdate(conversationId: string, viewCount: number, uniqueViewCount: number) {
+  pusherServer.trigger(`ConversationChannel_${conversationId}`, 'view-update', {
+    conversationId,
+    viewCount,
+    uniqueViewCount,
+  }).catch((err) => {
+    console.error(`${LOG_PREFIX} Pusher broadcast failed:`, err);
+  });
+}
 
 /**
  * Hash IP address for privacy while maintaining uniqueness tracking
@@ -271,10 +285,14 @@ export async function POST(
         updateData.uniqueViewCount = { increment: 1 };
       }
 
-      await dbPrisma.conversation.update({
+      const updatedConversation = await dbPrisma.conversation.update({
         where: { id: conversationId },
         data: updateData,
+        select: { viewCount: true, uniqueViewCount: true },
       });
+
+      // Broadcast real-time view count update
+      broadcastViewUpdate(conversationId, updatedConversation.viewCount, updatedConversation.uniqueViewCount);
 
       console.log(
         LOG_PREFIX,
@@ -364,10 +382,14 @@ export async function POST(
         updateData.uniqueIpCount = { increment: 1 };
       }
 
-      await dbPrisma.conversation.update({
+      const updatedConversation = await dbPrisma.conversation.update({
         where: { id: conversationId },
         data: updateData,
+        select: { viewCount: true, uniqueViewCount: true },
       });
+
+      // Broadcast real-time view count update
+      broadcastViewUpdate(conversationId, updatedConversation.viewCount, updatedConversation.uniqueViewCount);
 
       console.log(
         LOG_PREFIX,

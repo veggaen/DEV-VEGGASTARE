@@ -302,6 +302,31 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
     }, [])
   );
 
+  // Real-time view count updates
+  usePusher<{ conversationId: string; viewCount: number; uniqueViewCount: number }>(
+    channelName,
+    'view-update',
+    useCallback((data) => {
+      setPulse(prev => prev ? {
+        ...prev,
+        viewCount: data.viewCount,
+        uniqueViewCount: data.uniqueViewCount,
+      } : prev);
+    }, [])
+  );
+
+  // Real-time repost count updates
+  usePusher<{ conversationId: string; repostCount: number }>(
+    channelName,
+    'repost-update',
+    useCallback((data) => {
+      setPulse(prev => prev ? {
+        ...prev,
+        repostCount: data.repostCount,
+      } : prev);
+    }, [])
+  );
+
   const handleMessageSent = () => {
     setTimeout(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
