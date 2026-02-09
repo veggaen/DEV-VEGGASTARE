@@ -1,4 +1,5 @@
 import { dbPrisma } from '@/lib/db';
+import { pusherServer } from '@/lib/pusher';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
@@ -155,6 +156,16 @@ export async function POST(
       `${LOG_PREFIX} Pulse ${action}: conversation=${conversationId} user=${userId} type=${type} ` +
       `positive=${updatedConversation.positivePulseCount} negative=${updatedConversation.negativePulseCount}`
     );
+
+    // Broadcast real-time stats update to viewers of this pulse
+    // Uses fire-and-forget pattern for performance (don't await)
+    pusherServer.trigger(`ConversationChannel_${conversationId}`, 'pulse-stats-update', {
+      conversationId,
+      positivePulseCount: updatedConversation.positivePulseCount,
+      negativePulseCount: updatedConversation.negativePulseCount,
+    }).catch((err) => {
+      console.error(`${LOG_PREFIX} Pusher broadcast failed:`, err);
+    });
 
     const payload = {
       action,

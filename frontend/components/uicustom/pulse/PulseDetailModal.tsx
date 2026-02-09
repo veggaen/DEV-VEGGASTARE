@@ -290,6 +290,18 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
     }, [])
   );
 
+  // Real-time reaction count updates
+  usePusher<{ conversationId: string; positivePulseCount: number; negativePulseCount: number }>(
+    channelName,
+    'pulse-stats-update',
+    useCallback((data) => {
+      setPulse(prev => prev ? {
+        ...prev,
+        positivePulseCount: data.positivePulseCount,
+      } : prev);
+    }, [])
+  );
+
   const handleMessageSent = () => {
     setTimeout(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });

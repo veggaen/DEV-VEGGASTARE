@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { dbPrisma } from '@/lib/db';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { FiArrowLeft, FiMessageCircle, FiEye, FiRepeat, FiTrendingUp } from 'react-icons/fi';
+import { FiArrowLeft, FiTrendingUp } from 'react-icons/fi';
 import { PulseVibesSection } from '@/components/uicustom/pulse/PulseVibesSection';
+import { PulseStatsBar } from '@/components/uicustom/pulse/PulseStatsBar';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /pulse/[id] — Full standalone pulse page (hard navigation / SEO)
@@ -124,7 +125,6 @@ export default async function PulsePage({ params }: PulsePageProps) {
   const authorName = author?.name || 'Anonymous';
   const authorInitial = authorName.charAt(0).toUpperCase();
   const firstMessage = pulse.Message?.[0];
-  const totalReplies = pulse._count.Message - 1; // exclude root message
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
@@ -223,38 +223,17 @@ export default async function PulsePage({ params }: PulsePageProps) {
           </div>
         )}
 
-        {/* ── Stats bar ──────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-5 text-sm text-muted-foreground border-y border-border/50 py-3 mb-4">
-          {totalReplies > 0 && (
-            <span className="flex items-center gap-1.5">
-              <FiMessageCircle className="w-4 h-4" />
-              {totalReplies} {totalReplies === 1 ? 'reply' : 'replies'}
-            </span>
-          )}
-          {(pulse.viewCount ?? 0) > 0 && (
-            <span className="flex items-center gap-1.5">
-              <FiEye className="w-4 h-4" />
-              {pulse.viewCount!.toLocaleString()} views
-            </span>
-          )}
-          {(pulse.repulseCount ?? 0) > 0 && (
-            <span className="flex items-center gap-1.5">
-              <FiRepeat className="w-4 h-4" />
-              {pulse.repulseCount} repulses
-            </span>
-          )}
-          {(pulse.positivePulseCount ?? 0) > 0 && (
-            <span className="flex items-center gap-1.5">
-              ❤️ {pulse.positivePulseCount}
-            </span>
-          )}
-          {(pulse.reachScore ?? 0) > 0 && (
-            <span className="flex items-center gap-1.5">
-              <FiTrendingUp className="w-4 h-4 text-amber-500" />
-              {Math.round(pulse.reachScore!)} reach
-            </span>
-          )}
-        </div>
+        {/* ── Stats bar (real-time) ─────────────────────────────────────── */}
+        <PulseStatsBar
+          pulseId={id}
+          initialStats={{
+            messageCount: pulse._count.Message,
+            viewCount: pulse.viewCount ?? 0,
+            repulseCount: pulse.repulseCount ?? 0,
+            positivePulseCount: pulse.positivePulseCount ?? 0,
+            reachScore: pulse.reachScore ?? 0,
+          }}
+        />
 
         {/* ── Live vibes / conversation ─────────────────────────────────── */}
         <PulseVibesSection pulseId={id} />
