@@ -21,6 +21,7 @@ import SiteFooter from "@/components/uicustom/site-footer";
 import DevBanner from "@/components/uicustom/dev-banner";
 import CookieBanner from "@/components/uicustom/cookie-banner";
 import ImpersonationBanner from "@/components/uicustom/ImpersonationBanner";
+import { UpdateBanner } from "@/components/uicustom/UpdateBanner";
 
 export default function AppProviders({
   session,
@@ -62,6 +63,7 @@ export default function AppProviders({
               <FollowStateProvider>
                 <CurrencyRatesProvider>
                   <Web3Providers>
+                    <UpdateBanner />
                     <MyTopBar />
                     <ImpersonationBanner />
                     <div className={`flex flex-1 flex-col min-h-0 ${isProductsRoute ? 'overflow-hidden' : 'overflow-auto'}`}>

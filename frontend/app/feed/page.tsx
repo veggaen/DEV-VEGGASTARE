@@ -45,6 +45,7 @@ import { PollTakerModal } from '@/components/uicustom/polls/PollTakerModal';
 import { ReachPollV3 } from '@/components/uicustom/polls/ReachPollV3';
 import { Zap, Target, Rocket, PlayCircle, Copy, FileUp, Download, Sparkles, Check } from 'lucide-react';
 import { PollImportModal } from '@/components/uicustom/polls/PollImportModal';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -1905,6 +1906,15 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     }, [])
   );
 
+  // Real-time comment count updates (when someone deletes a comment)
+  usePusher<{ messageId: string }>(
+    `ConversationChannel_${item.id}`,
+    'delete-message',
+    useCallback(() => {
+      setLocalMessageCount(c => Math.max(0, c - 1));
+    }, [])
+  );
+
   // Real-time view count updates
   usePusher<{ conversationId: string; viewCount: number; uniqueViewCount: number }>(
     `ConversationChannel_${item.id}`,
@@ -2506,40 +2516,71 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
           )}
 
           {/* Stats & Actions */}
-          <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-            {/* Heartbeat button (positive) */}
-            <button
-              type="button"
-              disabled={!currentUser || isPulsing}
-              onClick={() => void handlePulse('POSITIVE')}
-              className={`flex items-center gap-1.5 transition-all hover:text-red-500 group ${
-                localPulse === 'POSITIVE' ? 'text-red-500' : ''
-              }`}
-              title={pulseLabels.heartbeatVerb}
-            >
-              <PulseHeart 
-                size={18} 
-                filled={localPulse === 'POSITIVE'}
-                className={`transition-transform ${localPulse === 'POSITIVE' ? 'scale-110' : 'group-hover:scale-105'}`}
-              />
-              {localPositiveCount > 0 && <span className="tabular-nums">{localPositiveCount}</span>}
-            </button>
-            
-            <span className="flex items-center gap-1">
-              <FiMessageCircle className="h-4 w-4" />
-              {replyCount}
-            </span>
-            <span className={`flex items-center gap-1 ${item.hasReposted ? 'text-cyan-500' : ''}`}>
-              <FiRepeat className="h-4 w-4" />
-              {localRepostCount}
-            </span>
-            {(localViewCount > 0 || (item.uniqueViewCount !== undefined && item.uniqueViewCount > 0)) && (
-              <span className="flex items-center gap-1" title={hasTracked ? 'View tracked' : 'Views'}>
-                <FiTrendingUp className="h-4 w-4" />
-                {Math.max(localViewCount, item.uniqueViewCount || 0)}
-              </span>
-            )}
-          </div>
+          <TooltipProvider delayDuration={300}>
+            <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+              {/* Heartbeat button (positive) */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={!currentUser || isPulsing}
+                    onClick={() => void handlePulse('POSITIVE')}
+                    className={`flex items-center gap-1.5 transition-all hover:text-red-500 group ${
+                      localPulse === 'POSITIVE' ? 'text-red-500' : ''
+                    }`}
+                  >
+                    <PulseHeart 
+                      size={18} 
+                      filled={localPulse === 'POSITIVE'}
+                      className={`transition-transform ${localPulse === 'POSITIVE' ? 'scale-110' : 'group-hover:scale-105'}`}
+                    />
+                    {localPositiveCount > 0 && <span className="tabular-nums">{localPositiveCount}</span>}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {localPulse === 'POSITIVE' ? 'Remove heartbeat' : pulseLabels.heartbeatVerb}
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center gap-1 cursor-default">
+                    <FiMessageCircle className="h-4 w-4" />
+                    {replyCount}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {replyCount === 1 ? '1 vibe' : `${replyCount} vibes`}
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={`flex items-center gap-1 cursor-default ${item.hasReposted ? 'text-cyan-500' : ''}`}>
+                    <FiRepeat className="h-4 w-4" />
+                    {localRepostCount}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {localRepostCount === 1 ? '1 repulse' : `${localRepostCount} repulses`}
+                </TooltipContent>
+              </Tooltip>
+
+              {(localViewCount > 0 || (item.uniqueViewCount !== undefined && item.uniqueViewCount > 0)) && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center gap-1 cursor-default">
+                      <FiTrendingUp className="h-4 w-4" />
+                      {Math.max(localViewCount, item.uniqueViewCount || 0)}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {item.uniqueViewCount ? `${item.uniqueViewCount} unique viewers` : `${localViewCount} views`}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          </TooltipProvider>
         </div>
       </div>
 

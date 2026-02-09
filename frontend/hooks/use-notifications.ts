@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import type { Notification, NotificationGroup } from "@/components/uicustom/notifications/types";
 import { groupNotifications } from "@/components/uicustom/notifications/types";
 
@@ -38,6 +38,13 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       dedupingInterval: 5000,
     }
   );
+
+  // Listen for real-time notification refresh events (triggered by Pusher in topbar)
+  useEffect(() => {
+    const handler = () => { mutate(); };
+    window.addEventListener('notification-refresh', handler);
+    return () => window.removeEventListener('notification-refresh', handler);
+  }, [mutate]);
 
   const markAsRead = useCallback(
     async (id: string) => {

@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbPrisma } from "@/lib/db";
+import { pusherServer } from "@/lib/pusher";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { parseJsonOrError } from "@/lib/api-validate";
 import { z } from "zod";
 import { CartItemResponseSchema, CartMessageResponseSchema, CartResponseSchema } from "@/lib/types/carts";
 
 const isDev = process.env.NODE_ENV !== "production";
+
+/** Fire-and-forget cart update broadcast */
+function broadcastCartUpdate(userId: string) {
+  pusherServer.trigger(`UserChannel_${userId}`, 'cart-update', { userId }).catch((err) => {
+    console.error('[api/cart] Pusher cart-update broadcast failed:', err);
+  });
+}
 
 function toCartDto(cart: {
   id: string;
@@ -153,6 +161,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
+    broadcastCartUpdate(userId);
     return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
     console.error("Error adding item to cart:", error);
@@ -217,6 +226,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       );
     }
 
+    broadcastCartUpdate(userId);
     return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
     console.error("Error updating cart item quantity:", error);
@@ -255,6 +265,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     if (!trimmed) {
       await dbPrisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+      broadcastCartUpdate(userId);
       const parsed = CartMessageResponseSchema.safeParse({ message: "Cart cleared" });
       return NextResponse.json(parsed.success ? parsed.data : { message: "Cart cleared" }, { status: 200 });
     }
@@ -282,6 +293,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     await dbPrisma.cartItem.delete({ where: { id: existingItem.id } });
 
+    broadcastCartUpdate(userId);
     const parsed = CartMessageResponseSchema.safeParse({ message: "Item removed from cart" });
     return NextResponse.json(parsed.success ? parsed.data : { message: "Item removed from cart" }, { status: 200 });
   } catch (error) {

@@ -32,6 +32,9 @@ import { CurrencySelector } from "@/components/uicustom/currency-selector";
 import { NotificationDropdown } from "@/components/uicustom/notifications/notification-dropdown";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useUiPreferences } from "@/components/providers/ui-preferences";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import usePusher from "@/hooks/usePusher";
+import { useCallback } from "react";
 
 type NavLinkProps = {
 	href: string;
@@ -75,12 +78,31 @@ const MyTopBar = () => {
 	} = useNotifications({ refreshInterval: 30000 });
 
 	// Fetch cart count for logged-in users
-	const { data: cartData } = useSWR(
+	const { data: cartData, mutate: mutateCart } = useSWR(
 		clientUser?.id ? `/api/cart/${clientUser.id}` : null,
 		fetcher,
-		{ refreshInterval: 30000, dedupingInterval: 5000 }
+		{ refreshInterval: 10000, dedupingInterval: 3000 }
 	);
 	const cartCount = cartData?.items?.reduce((sum: number, item: { quantity: number }) => sum + item.quantity, 0) || 0;
+
+	// Real-time cart updates via Pusher
+	usePusher<{ userId: string }>(
+		clientUser?.id ? `UserChannel_${clientUser.id}` : '',
+		'cart-update',
+		useCallback(() => {
+			mutateCart();
+		}, [mutateCart])
+	);
+
+	// Real-time notification updates via Pusher
+	usePusher<{ userId: string }>(
+		clientUser?.id ? `UserChannel_${clientUser.id}` : '',
+		'notification-update',
+		useCallback(() => {
+			// The notifications hook SWR will be revalidated via its own key
+			window.dispatchEvent(new CustomEvent('notification-refresh'));
+		}, [])
+	);
 	const headerRef = useRef<HTMLElement | null>(null);
 	const { resolvedTheme, setTheme } = useTheme();
 	const [menuOpen, setMenuOpen] = useState(false);
@@ -464,26 +486,38 @@ const MyTopBar = () => {
 											condensed
 										/>
 										
-										<Link
-											href="/cart"
-											className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-											title="Cart"
-										>
-											<FiShoppingCart className="h-[18px] w-[18px]" />
-											{cartCount > 0 && (
-												<span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white">
-													{cartCount > 99 ? "99+" : cartCount}
-												</span>
-											)}
-										</Link>
+										<TooltipProvider delayDuration={300}>
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<Link
+														href="/cart"
+														className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+													>
+														<FiShoppingCart className="h-[18px] w-[18px]" />
+														{cartCount > 0 && (
+															<span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white">
+																{cartCount > 99 ? "99+" : cartCount}
+															</span>
+														)}
+													</Link>
+												</TooltipTrigger>
+												<TooltipContent side="bottom">
+													{cartCount > 0 ? `${cartCount} item${cartCount !== 1 ? 's' : ''} in basket` : 'Basket'}
+												</TooltipContent>
+											</Tooltip>
 
-										<Link
-											href="/conversations"
-											className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-											title="Messages"
-										>
-											<FiMessageSquare className="h-[18px] w-[18px]" />
-										</Link>
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<Link
+														href="/conversations"
+														className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+													>
+														<FiMessageSquare className="h-[18px] w-[18px]" />
+													</Link>
+												</TooltipTrigger>
+												<TooltipContent side="bottom">Messages</TooltipContent>
+											</Tooltip>
+										</TooltipProvider>
 									</>
 								)}
 							</div>

@@ -1323,7 +1323,9 @@ function ProductDetails({ product }: { product: Product }) {
   // Cart actions
   const handleAddToCart = useCallback(async () => {
     if (!session) {
-      alert("You need to be logged in to add items to the cart");
+      toast.error('Sign in to add items to your basket', {
+        action: { label: 'Sign in', onClick: () => router.push('/auth') },
+      });
       return;
     }
     const userId = (session as any)?.user?.id;
@@ -1334,11 +1336,37 @@ function ProductDetails({ product }: { product: Product }) {
         body: JSON.stringify({ productId: product.id, quantity: 1 }),
       });
       if (!res.ok) throw new Error("Failed to add item to cart");
-      alert("Item added to cart!");
+      toast.success('Added to basket', {
+        description: product.title,
+        action: { label: 'View basket', onClick: () => router.push('/cart') },
+        duration: 4000,
+      });
     } catch {
-      alert("Failed to add item to cart");
+      toast.error('Failed to add item to basket');
     }
-  }, [session, product.id]);
+  }, [session, product.id, product.title, router]);
+
+  // Buy Now - add to cart then go straight to checkout
+  const handleBuyNow = useCallback(async () => {
+    if (!session) {
+      toast.error('Sign in to purchase items', {
+        action: { label: 'Sign in', onClick: () => router.push('/auth') },
+      });
+      return;
+    }
+    const userId = (session as any)?.user?.id;
+    try {
+      const res = await fetch(`/api/cart/${userId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id, quantity: 1 }),
+      });
+      if (!res.ok) throw new Error("Failed to add item");
+      router.push('/checkout');
+    } catch {
+      toast.error('Something went wrong. Please try again.');
+    }
+  }, [session, product.id, router]);
 
   return (
     <div className="w-full">
@@ -1500,7 +1528,7 @@ function ProductDetails({ product }: { product: Product }) {
                 },
               }}
             >
-              <Button variant="vegaBuyBtn" className="hover:shadow-md transition-shadow duration-300">
+              <Button variant="vegaBuyBtn" className="hover:shadow-md transition-shadow duration-300" onClick={handleBuyNow}>
                 Buy Now
               </Button>
             </motion.div>
