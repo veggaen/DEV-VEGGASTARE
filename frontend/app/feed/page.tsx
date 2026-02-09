@@ -1885,6 +1885,15 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     },
   });
 
+  // Real-time heartbeat updates from other users
+  usePusher<{ conversationId: string; positivePulseCount: number; negativePulseCount: number }>(
+    `ConversationChannel_${item.id}`,
+    'pulse-stats-update',
+    useCallback((data) => {
+      setLocalPositiveCount(data.positivePulseCount);
+    }, [])
+  );
+
   const isQuote = Boolean(item.repostOfConversation);
 
   const originalPreview = useMemo(() => {
