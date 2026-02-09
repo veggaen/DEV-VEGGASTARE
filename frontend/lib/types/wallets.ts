@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ChainFamily } from '@prisma/client';
+import { ChainFamily } from '@/generated/prisma/browser';
 
 const IsoDateStringSchema = z.string().min(1);
 

@@ -5,7 +5,7 @@ import { parseJsonOrError } from "@/lib/api-validate";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { getUserById } from "@/data/user";
 import { dbPrisma } from "@/lib/db";
-import { ChainFamily } from "@prisma/client";
+import { ChainFamily } from "@/generated/prisma/browser";
 import { type Address, type Hex, getAddress, verifyMessage } from "viem";
 import { WalletErrorResponseSchema, WalletVerifyResponseSchema } from "@/lib/types/wallets";
 

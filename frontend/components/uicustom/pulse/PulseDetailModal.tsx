@@ -302,7 +302,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
   };
 
   const copyLink = async () => {
-    const url = `${window.location.origin}/feed?pulse=${pulseId}`;
+    const url = `${window.location.origin}/pulse/${pulseId}`;
     await navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

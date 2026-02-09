@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { dbPrisma } from "@/lib/db";
 import { MyLibUserAuth } from "@/lib/user-auth";
-import { CompanyOrgType } from "@prisma/client";
+import { CompanyOrgType } from "@/generated/prisma/browser";
 import { CompanyRegistrationPatchResponseSchema } from "@/lib/types/company";
 
 const isDev = process.env.NODE_ENV !== 'production';

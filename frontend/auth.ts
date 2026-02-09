@@ -4,7 +4,7 @@ import { cookies } from "next/headers"
 
 import { dbPrisma } from "@/lib/db"
 import authConfig from "@/auth.config"
-import { UserRole } from "@prisma/client"
+import { UserRole } from "@/generated/prisma/browser"
 import { getUserById } from "@/data/user"
 import { getTwoFactorConfirmationByUserId } from "@/data/two-factor-confirmation"
 import { getAccountByUserId } from "./lib/account"

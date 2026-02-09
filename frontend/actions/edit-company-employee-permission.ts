@@ -3,7 +3,7 @@
 import type { ExtendedEmployee } from '@/lib/types/company-management';
 import { dbPrisma } from '@/lib/db';
 import { ExtendedUser } from '@/next-auth';
-import { Prisma, Employee } from '@prisma/client';
+import { Prisma, Employee } from '@/generated/prisma/browser';
 import { NextApiResponse } from 'next';
 import type { EmployeePermissions } from '@/lib/types/company-permissions';
 

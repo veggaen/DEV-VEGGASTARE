@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     
     // Rate limiting
     const identifier = getClientIdentifier(request, session.user.id);
-    const rateLimitResult = checkRateLimit(identifier, 'read');
+    const rateLimitResult = await checkRateLimit(identifier, 'read');
     if (!rateLimitResult.success) {
       return rateLimitedResponse(rateLimitResult);
     }

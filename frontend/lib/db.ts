@@ -1,80 +1,72 @@
 /** 
- * PRISMA database client
- * @description Prisma Database Client
+ * PRISMA database client (Prisma 7 + PrismaPg driver adapter)
+ * @description Prisma Database Client with native pg driver
 */
 
 import 'server-only'
 
-import { Prisma, PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@/generated/prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 
 function isTruthy(value: string | undefined): boolean {
     if (!value) return false
     return value === '1' || value.toLowerCase() === 'true' || value.toLowerCase() === 'yes'
 }
 
-function buildPrismaUrlWithPoolTuning(originalUrl: string | undefined): string | undefined {
-    if (!originalUrl) return undefined
-
-    try {
-        const url = new URL(originalUrl)
-        const usesPgBouncer = url.searchParams.get('pgbouncer') === 'true'
-
-        const connectionLimitEnv = process.env.PRISMA_CONNECTION_LIMIT
-        const poolTimeoutEnv = process.env.PRISMA_POOL_TIMEOUT
-        const connectTimeoutEnv = process.env.PRISMA_CONNECT_TIMEOUT
-
-        if (connectionLimitEnv) {
-            url.searchParams.set('connection_limit', connectionLimitEnv)
-        } else if (usesPgBouncer && !url.searchParams.has('connection_limit')) {
-            url.searchParams.set('connection_limit', '1')
-        }
-
-        if (poolTimeoutEnv) url.searchParams.set('pool_timeout', poolTimeoutEnv)
-        if (connectTimeoutEnv) url.searchParams.set('connect_timeout', connectTimeoutEnv)
-
-        return url.toString()
-    } catch {
-        return originalUrl
-    }
-}
-
 declare global {
-    var prisma: PrismaClient | undefined // define prisma in global namespace to avoid circular dependency issues with nextjs hotreload in dev environments.
+    var prisma: PrismaClient | undefined
 }
 
-// Optional: tune Prisma connection pool via env vars (without editing DATABASE_URL)
-// - PRISMA_CONNECTION_LIMIT=1 (recommended when using Neon pooler/pgbouncer)
-// - PRISMA_POOL_TIMEOUT=10
-// - PRISMA_CONNECT_TIMEOUT=10
-// Optional: enable query logging PRISMA_LOG_QUERIES=1
+// Select database URL: prefer DEV in non-production
 const selectedDatabaseUrl =
     process.env.NODE_ENV !== 'production'
         ? process.env.DATABASE_URL_DEV ?? process.env.DATABASE_URL
         : process.env.DATABASE_URL
 
-const tunedDatabaseUrl = buildPrismaUrlWithPoolTuning(selectedDatabaseUrl)
 const shouldLogQueries = isTruthy(process.env.PRISMA_LOG_QUERIES)
 
+// Pool tuning via env vars (pg driver native options)
+// - PRISMA_CONNECTION_LIMIT  → pg Pool `max` (default: pg default of 10)
+// - PRISMA_POOL_TIMEOUT      → pg Pool `idleTimeoutMillis` in seconds
+// - PRISMA_CONNECT_TIMEOUT   → pg Pool `connectionTimeoutMillis` in seconds (default: 5s)
+const poolMax = process.env.PRISMA_CONNECTION_LIMIT
+    ? parseInt(process.env.PRISMA_CONNECTION_LIMIT, 10)
+    : undefined
+const idleTimeoutMs = process.env.PRISMA_POOL_TIMEOUT
+    ? parseInt(process.env.PRISMA_POOL_TIMEOUT, 10) * 1000
+    : undefined
+const connectTimeoutMs = process.env.PRISMA_CONNECT_TIMEOUT
+    ? parseInt(process.env.PRISMA_CONNECT_TIMEOUT, 10) * 1000
+    : 5000 // Match Prisma v6 default (pg v7 default is 0 = no timeout)
+
 function createPrismaClient(): PrismaClient {
+    const adapter = new PrismaPg({
+        connectionString: selectedDatabaseUrl,
+        // Neon requires SSL; rejectUnauthorized: false matches sslmode=require
+        ssl: { rejectUnauthorized: false },
+        ...(poolMax !== undefined && { max: poolMax }),
+        ...(idleTimeoutMs !== undefined && { idleTimeoutMillis: idleTimeoutMs }),
+        connectionTimeoutMillis: connectTimeoutMs,
+    })
+
     if (shouldLogQueries) {
-        // When query logging is enabled, we need to create a client that can emit events
-        const prisma = new PrismaClient({
-            datasources: tunedDatabaseUrl ? { db: { url: tunedDatabaseUrl } } : undefined,
-            log: [{ emit: 'event', level: 'query' }],
-        })
-
-        // Use type assertion since Prisma's types don't always match at build time
-        ;(prisma as any).$on('query', (event: Prisma.QueryEvent) => {
-            // Avoid logging params; keep logs lightweight
-            console.log('[prisma]', `${event.duration}ms`, event.query)
-        })
-
-        return prisma
+        // Use client extensions for query logging (replaces removed $on('query') API)
+        return new PrismaClient({ adapter }).$extends({
+            query: {
+                $allModels: {
+                    async $allOperations({ operation, model, args, query }) {
+                        const start = performance.now()
+                        const result = await query(args)
+                        const duration = Math.round(performance.now() - start)
+                        console.log(`[prisma] ${duration}ms ${model}.${operation}`)
+                        return result
+                    },
+                },
+            },
+        }) as unknown as PrismaClient
     }
 
-    return new PrismaClient({
-        datasources: tunedDatabaseUrl ? { db: { url: tunedDatabaseUrl } } : undefined,
-    })
+    return new PrismaClient({ adapter })
 }
 
 export const dbPrisma = globalThis.prisma ?? createPrismaClient()

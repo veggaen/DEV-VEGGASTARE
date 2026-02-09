@@ -9,7 +9,9 @@
  * To seed to DEV database: npx ts-node --transpile-only scripts/seed-reach-poll-v2.ts --dev
  */
 
-import { PrismaClient, AdvancedPollType, PollQuestionType, Prisma } from "@prisma/client";
+import 'dotenv/config'
+import { PrismaClient, AdvancedPollType, PollQuestionType, Prisma } from "@/generated/prisma/client";
+import { PrismaPg } from '@prisma/adapter-pg'
 
 // System account constants - matches lib/system-account.ts
 const SYSTEM_ACCOUNT = {
@@ -24,11 +26,11 @@ const SYSTEM_ACCOUNT = {
 
 // Check for --dev flag to use DEV database
 const useDevDb = process.argv.includes('--dev');
-const DEV_DB_URL = "postgresql://veggaen:vqeiKZ1mW8kz@ep-wild-boat-a2znlqog-pooler.eu-central-1.aws.neon.tech/mydatabase?sslmode=require";
+const DEV_DB_URL = process.env.DATABASE_URL_DEV!;
 
-const prisma = new PrismaClient(
-  useDevDb ? { datasources: { db: { url: DEV_DB_URL } } } : undefined
-);
+const connectionString = useDevDb ? DEV_DB_URL : process.env.DATABASE_URL!;
+const adapter = new PrismaPg({ connectionString, ssl: { rejectUnauthorized: false } })
+const prisma = new PrismaClient({ adapter });
 
 if (useDevDb) {
   console.log("🔧 Using DEV database (ep-wild-boat)\n");

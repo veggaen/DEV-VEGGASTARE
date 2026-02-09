@@ -4,7 +4,7 @@ import {
   ConversationVisibility, 
   ReplyPermission,
   UserRole 
-} from '@prisma/client';
+} from '@/generated/prisma/browser';
 
 const LOG_PREFIX = '[conversation-permissions]';
 

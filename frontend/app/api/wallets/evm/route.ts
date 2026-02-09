@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { getUserById } from "@/data/user";
 import { dbPrisma } from "@/lib/db";
-import { ChainFamily } from "@prisma/client";
+import { ChainFamily } from "@/generated/prisma/browser";
 import { EvmWalletListResponseSchema, WalletErrorResponseSchema } from "@/lib/types/wallets";
 
 export async function GET() {

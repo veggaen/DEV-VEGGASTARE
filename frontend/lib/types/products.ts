@@ -86,6 +86,13 @@ export const ProductSpecificationSchema = z
   })
   .strict();
 
+export const ProductFeatureSchema = z
+  .object({
+    text: z.string().min(1),
+    key: z.string().optional(),
+    icon: z.string().optional(),
+  });
+
 export const ProductDetailsResponseSchema = z
   .object({
     id: z.string().min(1),
@@ -98,6 +105,7 @@ export const ProductDetailsResponseSchema = z
     condition: z.string().min(1),
     image: z.array(z.string()),
     specifications: z.array(ProductSpecificationSchema).nullable(),
+    features: z.array(ProductFeatureSchema).nullable().optional(),
     userId: z.string().min(1),
     companyId: z.string().nullable(),
     acceptedTokens: z

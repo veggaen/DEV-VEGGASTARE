@@ -1,6 +1,6 @@
 import { fetchUserEmployeePermissions } from '@/actions/user-company-permissions';
 import { useState, useEffect } from 'react';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@/generated/prisma/browser';
 
 type JsonValue = Prisma.JsonValue;
 type JsonObject = Prisma.JsonObject;

@@ -8,9 +8,12 @@
  * For production, make sure DATABASE_URL points to your production database.
  */
 
-import { PrismaClient } from "@prisma/client";
+import 'dotenv/config'
+import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaPg } from '@prisma/adapter-pg'
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL!, ssl: { rejectUnauthorized: false } })
+const prisma = new PrismaClient({ adapter });
 
 async function listAndDeleteReachPolls() {
   console.log("🔍 Searching for REACH_ASSESSMENT polls...\n");

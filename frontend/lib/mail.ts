@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { SecurityActionType } from '@prisma/client';
+import { SecurityActionType } from '@/generated/prisma/browser';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 // Simplified environment detection (no trailing slash; callers add leading '/')

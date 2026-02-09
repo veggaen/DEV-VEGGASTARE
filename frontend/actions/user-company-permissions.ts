@@ -2,7 +2,7 @@
 
 import { dbPrisma } from '@/lib/db';
 import { ExtendedUser } from '@/next-auth';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@/generated/prisma/browser';
 
 type PermissionsResult = Prisma.JsonValue | Response;
 

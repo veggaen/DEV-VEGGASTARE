@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { z } from 'zod';
-import { PollQuestionType } from '@prisma/client';
+import { PollQuestionType } from '@/generated/prisma/browser';
 
 const LOG_PREFIX = '[api/polls/import]';
 

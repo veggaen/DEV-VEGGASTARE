@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect, startTransition } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { EmployeeRole, User, UserRole } from '@prisma/client';
+import { EmployeeRole, User, UserRole } from '@/generated/prisma/browser';
 import { employeeSchema } from '@/schemas';
 import { MyAddEmployeeAction } from '@/actions/create-company-employee';
 import { useCurrentUser } from '@/hooks/use-current-user';

@@ -9,9 +9,12 @@
  * ⚡ PARTIAL COMPLETION ENABLED - Users don't need to complete all questions!
  */
 
-import { PrismaClient, AdvancedPollType, PollQuestionType, Prisma } from "@prisma/client";
+import 'dotenv/config'
+import { PrismaClient, AdvancedPollType, PollQuestionType, Prisma } from "@/generated/prisma/client";
+import { PrismaPg } from '@prisma/adapter-pg'
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL!, ssl: { rejectUnauthorized: false } })
+const prisma = new PrismaClient({ adapter });
 
 const POLL_DESCRIPTION = `
 🚀 Welcome to the VeggaStare REACH System Comprehensive Audit!

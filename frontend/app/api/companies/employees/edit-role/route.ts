@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { EmployeeRole } from '@prisma/client';
+import { EmployeeRole } from '@/generated/prisma/browser';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { editEmployeeRoleAction } from '@/actions/edit-employee-role';
 import { CompanyEmployeeResponseSchema } from '@/lib/types/company';

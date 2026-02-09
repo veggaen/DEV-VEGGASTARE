@@ -1,7 +1,7 @@
 'use server';
 
 import { dbPrisma } from '@/lib/db';
-import { EmployeeRole } from '@prisma/client';
+import { EmployeeRole } from '@/generated/prisma/browser';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { z } from 'zod';
 

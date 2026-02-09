@@ -1,11 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 model Account {
@@ -47,6 +46,7 @@ model CartItem {
   Product   Product  @relation(fields: [productId], references: [id])
 
   @@unique([productId, cartId])
+  @@index([cartId])
 }
 
 model Company {
@@ -268,6 +268,8 @@ model Inventory {
   WarehouseLocation WarehouseLocation @relation(fields: [warehouseId], references: [id])
 
   @@unique([id, version])
+  @@index([warehouseId])
+  @@index([productId])
 }
 
 model JobRequest {
@@ -417,6 +419,8 @@ model Poll {
   updatedAt      DateTime     @updatedAt
   Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   PollOption     PollOption[]
+
+  @@index([creatorId])
 }
 
 model PollOption {
@@ -427,6 +431,8 @@ model PollOption {
   createdAt DateTime   @default(now())
   Poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
   PollVote  PollVote[]
+
+  @@index([pollId])
 }
 
 model PollVote {
@@ -437,6 +443,7 @@ model PollVote {
   PollOption PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
 
   @@unique([optionId, userId])
+  @@index([userId])
 }
 
 // Category/Tag system for products - supports multiple tags per product
@@ -492,6 +499,7 @@ model Product {
   shipFromPostalId     String
   image                String[]
   specifications       Json?
+  features             Json?                  // Product features/highlights (array of {text} or {key,value})
   condition            ProductCondition       @default(NEW)
   userId               String
   companyId            String?
@@ -637,6 +645,9 @@ model Review {
   updatedAt  DateTime @updatedAt
   Product    Product  @relation(fields: [productId], references: [id])
   User       User     @relation(fields: [userId], references: [id])
+
+  @@index([productId])
+  @@index([userId])
 }
 
 model Sale {
@@ -812,6 +823,9 @@ model Wallet {
   Product        Product[]
   Company        Company?    @relation(fields: [ownerCompanyId], references: [id])
   User           User?       @relation(fields: [ownerUserId], references: [id])
+
+  @@index([ownerUserId])
+  @@index([ownerCompanyId])
 }
 
 model WalletVerificationChallenge {
@@ -850,6 +864,7 @@ model WarehouseLocation {
   User         User?       @relation(fields: [userId], references: [id])
 
   @@unique([companyId, postalCode])
+  @@index([userId])
 }
 
 // User saved addresses (home, work, etc.)

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Company, Employee } from '@prisma/client'; // Assuming you have these types
+import { Company, Employee } from '@/generated/prisma/browser'; // Assuming you have these types
 import { useCurrentUser } from '@/hooks/use-current-user';
 import Image from 'next/image';
 import Link from 'next/link';

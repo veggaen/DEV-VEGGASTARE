@@ -2,7 +2,7 @@
 
 import { cache } from 'react';
 import { dbPrisma } from '@/lib/db';
-import { Product as PrismaProduct } from '@prisma/client';
+import { Product as PrismaProduct } from '@/generated/prisma/browser';
 
 // Define the Specification type based on your actual data structure
 interface Specification {

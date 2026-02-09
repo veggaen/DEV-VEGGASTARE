@@ -9,7 +9,7 @@ import { getTwoFactortokenByEmail } from "@/data/two-factor-token";
 import { dbPrisma } from "@/lib/db";
 import { sendTwoFactorTokenEmail } from "@/lib/mail";
 import { generateTwoFactorToken } from "@/lib/tokens";
-import { ChainFamily } from "@prisma/client";
+import { ChainFamily } from "@/generated/prisma/browser";
 import { getAddress } from "viem";
 import {
 	WalletChallengeCreatedResponseSchema,

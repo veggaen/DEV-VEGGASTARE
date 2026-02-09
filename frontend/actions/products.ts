@@ -3,7 +3,7 @@
 import { auth } from '@/auth';
 import { dbPrisma } from "@/lib/db";
 import { MyProductCreateSchema, type CategoryTag } from "@/schemas";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/browser";
 import { z } from "zod";
 import { createSlug } from "@/lib/category-utils";
 
@@ -27,6 +27,14 @@ const SpecificationInputSchema = z
   })
   .strict();
 
+const FeatureInputSchema = z
+  .object({
+    text: z.string().min(1).max(500),
+    key: z.string().max(100).optional(),
+    icon: z.string().max(50).optional(),
+  })
+  .strict();
+
 const ProductUpdatePatchSchema = z
   .object({
     title: z.string().trim().min(1).max(200).optional(),
@@ -40,6 +48,7 @@ const ProductUpdatePatchSchema = z
     shipFromPostalId: z.string().trim().min(0).max(2000).optional(),
     image: z.array(z.string().trim().min(1).max(4000)).max(20).optional(),
     specifications: z.array(SpecificationInputSchema).max(200).optional(),
+    features: z.array(FeatureInputSchema).max(50).optional(),
     acceptedTokens: z.array(ProductAcceptedTokenInputSchema).optional(),
   })
   .strict();
@@ -132,6 +141,7 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
         shipFromPostalId: validatedData.shipFromPostalId ?? cleanedPostalCodes.join(', '),
         image: validatedData.image,
         specifications: validatedData.specifications ? JSON.stringify(validatedData.specifications) : Prisma.JsonNull,
+        features: validatedData.features ? JSON.stringify(validatedData.features) : Prisma.JsonNull,
         userId: validatedData.userId,
         companyId: validatedData.companyId ?? null,
         // Digital product fields
@@ -275,6 +285,11 @@ export const MyUpdateProductAction = async (
         return JSON.stringify(parsedPatch.data.specifications);
       })();
 
+      const featuresPatched = (() => {
+        if (!Array.isArray(parsedPatch.data.features)) return undefined;
+        return JSON.stringify(parsedPatch.data.features);
+      })();
+
       const shouldUpdateProduct =
         typeof parsedPatch.data.title === 'string' ||
         typeof parsedPatch.data.description === 'string' ||
@@ -286,7 +301,8 @@ export const MyUpdateProductAction = async (
         typeof parsedPatch.data.stock === 'number' ||
         typeof parsedPatch.data.shipFromPostalId === 'string' ||
         Array.isArray(parsedPatch.data.image) ||
-        typeof specificationsPatched === 'string';
+        typeof specificationsPatched === 'string' ||
+        typeof featuresPatched === 'string';
 
       if (shouldUpdateProduct) {
 
@@ -304,6 +320,7 @@ export const MyUpdateProductAction = async (
             ...(typeof parsedPatch.data.shipFromPostalId === 'string' ? { shipFromPostalId: parsedPatch.data.shipFromPostalId } : {}),
             ...(Array.isArray(parsedPatch.data.image) ? { image: parsedPatch.data.image } : {}),
             ...(typeof specificationsPatched === 'string' ? { specifications: specificationsPatched as any } : {}),
+            ...(typeof featuresPatched === 'string' ? { features: featuresPatched as any } : {}),
           },
         });
       }

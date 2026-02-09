@@ -7,7 +7,7 @@ import { getUserById } from "@/data/user";
 import { sendSecurityActionEmail, sendTwoFactorTokenEmail } from "@/lib/mail";
 import { generateSecurityActionToken, generateTwoFactorToken } from "@/lib/tokens";
 import { MyLibUserAuth } from "@/lib/user-auth";
-import { SecurityActionType } from "@prisma/client";
+import { SecurityActionType } from "@/generated/prisma/browser";
 
 export const MyRequestWeb3ModeSecurityAction = async (nextEnabled: boolean) => {
 	const sessionUser = await MyLibUserAuth();

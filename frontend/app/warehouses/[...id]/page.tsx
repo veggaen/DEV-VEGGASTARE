@@ -7,7 +7,7 @@ import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import usePusher from '@/hooks/usePusher';
 import throttle from 'lodash.throttle';
-import { Product, WarehouseLocation } from '@prisma/client';
+import { Product, WarehouseLocation } from '@/generated/prisma/browser';
 import { fetchWarehouseById } from '@/actions/fetchWarehouseById';
 import { updateWarehouseInventory } from '@/actions/updateWarehouse';
 import { useParams } from 'next/navigation';

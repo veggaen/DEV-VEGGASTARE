@@ -2,7 +2,7 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdmin, logAdminAction, ADMIN_USER_EDITABLE_FIELDS, sanitizeFields } from '@/lib/admin';
-import { AdminAction, AdminTargetType } from '@prisma/client';
+import { AdminAction, AdminTargetType } from '@/generated/prisma/browser';
 
 const LOG_PREFIX = '[api/admin/users]';
 

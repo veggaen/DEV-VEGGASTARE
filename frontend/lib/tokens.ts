@@ -5,7 +5,7 @@ import { dbPrisma } from './db';
 import { getVerificationTokenByEmail } from '@/data/verificiation-token';
 import { getPasswordResetTokenByEmail } from '@/data/password-reset-token';
 import { getTwoFactortokenByEmail } from '@/data/two-factor-token';
-import { SecurityActionType, TwoFactorToken, PasswordResetToken, VerificationToken, EmailLoginToken, SecurityActionToken } from '@prisma/client';
+import { SecurityActionType, TwoFactorToken, PasswordResetToken, VerificationToken, EmailLoginToken, SecurityActionToken } from '@/generated/prisma/browser';
 
 export const generateTwoFactorToken = async (email: string): Promise<TwoFactorToken> => {
   const token = crypto.randomInt(100_000, 1_000_000).toString();

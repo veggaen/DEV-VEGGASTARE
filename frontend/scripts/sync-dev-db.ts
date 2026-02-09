@@ -5,10 +5,11 @@
  * Run: npx ts-node --transpile-only scripts/sync-dev-db.ts
  */
 
+import 'dotenv/config'
 import { execSync } from 'child_process';
 import path from 'path';
 
-const DEV_DB_URL = "postgresql://veggaen:vqeiKZ1mW8kz@ep-wild-boat-a2znlqog-pooler.eu-central-1.aws.neon.tech/mydatabase?sslmode=require";
+const DEV_DB_URL = process.env.DATABASE_URL_DEV!;
 
 console.log("🔄 Syncing DEV database (ep-wild-boat) with Prisma schema...\n");
 

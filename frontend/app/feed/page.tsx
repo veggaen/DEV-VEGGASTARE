@@ -37,7 +37,6 @@ import { pulseLabels } from '@/lib/pulse-labels';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { PollDisplay } from '@/components/uicustom/chats/poll-display';
 import { DiscoverPeople } from '@/components/uicustom/social/DiscoverPeople';
-import { PulseDetailModal } from '@/components/uicustom/pulse/PulseDetailModal';
 import RichTextContent from '@/components/uicustom/pulse/RichTextContent';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 import { PollBuilder } from '@/components/uicustom/polls/PollBuilder';
@@ -216,14 +215,9 @@ const FeedPage: React.FC = () => {
   const [isLoadingNew, setIsLoadingNew] = useState(false);
   const latestPulseId = useRef<string | null>(null);
 
-  // Modal state - read from URL for shareable links
-  const [selectedPulseId, setSelectedPulseId] = useState<string | null>(null);
-
-  // Sync filter and modal state with URL for shareable links
+  // Sync filter/sort/poll state with URL for shareable links
+  // (Pulse modal is now handled by parallel route @modal slot — no ?pulse= param needed)
   useEffect(() => {
-    const pulseParam = searchParams.get('pulse');
-    setSelectedPulseId(pulseParam);
-    
     // Check for filter param (?filter=polls or ?filter=pulses makes link shareable)
     const filterParam = searchParams.get('filter') as ContentFilter | null;
     if (filterParam && ['all', 'pulses', 'polls', 'trending'].includes(filterParam)) {
@@ -267,10 +261,6 @@ const FeedPage: React.FC = () => {
       } else {
         setSortBy('recent'); // Default to 'recent' if no sort param
       }
-      
-      // Sync pulse modal
-      const pulseParam = url.searchParams.get('pulse');
-      setSelectedPulseId(pulseParam);
       
       // Sync poll modal (but respect justClosedPoll flag)
       const pollParam = url.searchParams.get('poll');
@@ -357,22 +347,11 @@ const FeedPage: React.FC = () => {
   // Flag to prevent immediate reopen after closing
   const justClosedPoll = useRef(false);
 
-  // Open pulse modal
+  // Open pulse — navigate to /pulse/[id] (intercepted by @modal parallel slot)
   const openPulse = useCallback((pulseId: string) => {
-    setSelectedPulseId(pulseId);
     lastOpenedPulseId.current = pulseId;
-    const url = new URL(window.location.href);
-    url.searchParams.set('pulse', pulseId);
-    window.history.pushState({}, '', url.toString());
-  }, []);
-
-  // Close pulse modal
-  const closePulse = useCallback(() => {
-    setSelectedPulseId(null);
-    const url = new URL(window.location.href);
-    url.searchParams.delete('pulse');
-    window.history.pushState({}, '', url.toString());
-  }, []);
+    router.push(`/pulse/${pulseId}`, { scroll: false });
+  }, [router]);
 
   // Open poll modal
   const openPoll = useCallback((pollId: string) => {
@@ -397,32 +376,22 @@ const FeedPage: React.FC = () => {
   }, []);
 
   // ─── Mouse Button Navigation (Mouse 3 = Back, Mouse 4 = Forward) ────────────
+  // Pulse modal is now handled by parallel route navigation (browser back/forward
+  // works natively). This handler only manages poll-related mouse navigation.
   useEffect(() => {
     const handleMouseButton = (event: MouseEvent) => {
       // Only handle if no poll modal is open (poll has its own mouse handling)
       // Also skip if we just closed a poll (prevents race conditions)
       if (selectedAdvancedPollId || justClosedPoll.current) return;
       
-      // Back button (button 3) - close any open modal
-      if (event.button === 3) {
-        if (selectedPulseId) {
-          event.preventDefault();
-          event.stopPropagation();
-          closePulse();
-        }
-      }
-      // Forward button (button 4) - reopen last closed modal
-      else if (event.button === 4) {
-        // If nothing is open, try to reopen last opened
-        if (!selectedPulseId && !selectedAdvancedPollId) {
+      // Forward button (button 4) - reopen last closed poll
+      if (event.button === 4) {
+        if (!selectedAdvancedPollId) {
           event.preventDefault();
           event.stopPropagation();
           
-          // Prefer reopening poll if it was last opened, otherwise pulse
           if (lastOpenedPollId.current) {
             openPoll(lastOpenedPollId.current);
-          } else if (lastOpenedPulseId.current) {
-            openPulse(lastOpenedPulseId.current);
           }
         }
       }
@@ -433,7 +402,7 @@ const FeedPage: React.FC = () => {
     return () => {
       window.removeEventListener("mousedown", handleMouseButton);
     };
-  }, [selectedPulseId, selectedAdvancedPollId, closePulse, openPoll, openPulse]);
+  }, [selectedAdvancedPollId, openPoll]);
   
   // Check if selected poll is REACH Assessment (use V2 UI)
   // First try to find in advancedPolls, then check feed items
@@ -1495,17 +1464,9 @@ const FeedPage: React.FC = () => {
             )}
           </div>
 
-          {/* Pulse Detail Modal */}
-          <PulseDetailModal
-            pulseId={selectedPulseId}
-            onClose={closePulse}
-            onTagClick={(tag) => setTagFilter(tag)}
-            advancedPoll={items.find(i => i.id === selectedPulseId)?.advancedPoll}
-            onOpenPoll={(pollId) => {
-              closePulse();
-              openPoll(pollId);
-            }}
-          />
+          {/* Pulse Detail Modal — now handled by @modal parallel route slot
+              in app/pulse/layout.tsx. Clicking a pulse navigates to /pulse/[id]
+              which is intercepted by @modal/(.)[id]/page.tsx */}
 
           {/* Advanced Poll Builder Modal */}
           <Dialog open={showPollBuilder} onOpenChange={setShowPollBuilder}>

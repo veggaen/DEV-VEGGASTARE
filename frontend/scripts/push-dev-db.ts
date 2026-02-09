@@ -1,7 +1,8 @@
+import 'dotenv/config'
 import { execSync } from 'child_process';
 
 // Push schema to the DEV database directly
-const DEV_DB_URL = "postgresql://veggaen:vqeiKZ1mW8kz@ep-wild-boat-a2znlqog-pooler.eu-central-1.aws.neon.tech/mydatabase?sslmode=require";
+const DEV_DB_URL = process.env.DATABASE_URL_DEV!;
 
 console.log("Pushing schema to DEV database (ep-wild-boat)...");
 

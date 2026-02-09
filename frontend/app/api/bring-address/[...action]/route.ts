@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { checkRateLimit as sharedRateLimit, rateLimitedResponse, getClientIdentifier } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,28 +28,6 @@ function jsonNoStore(body: unknown, init?: Parameters<typeof NextResponse.json>[
   const headers = new Headers(init?.headers);
   headers.set('Cache-Control', 'no-store, max-age=0');
   return NextResponse.json(body, { ...init, headers });
-}
-
-// Rate limiting (simple in-memory, per-IP)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 60; // 60 requests per minute
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  
-  if (entry.count >= RATE_LIMIT_MAX_REQUESTS) {
-    return false;
-  }
-  
-  entry.count++;
-  return true;
 }
 
 // Query parameter schemas
@@ -75,15 +54,10 @@ export async function GET(
 ) {
   try {
     // Rate limiting
-    const ip = request.headers.get('x-forwarded-for') || 
-               request.headers.get('x-real-ip') || 
-               'unknown';
-    
-    if (!checkRateLimit(ip)) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429 }
-      );
+    const ip = getClientIdentifier(request);
+    const rlResult = await sharedRateLimit(ip, 'external');
+    if (!rlResult.success) {
+      return rateLimitedResponse(rlResult);
     }
 
     const { action } = await params;

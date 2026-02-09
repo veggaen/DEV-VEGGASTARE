@@ -2,7 +2,7 @@
 
 import { dbPrisma } from '@/lib/db'; // Adjust the import according to your project structure
 import { MyLibUserAuth } from '@/lib/user-auth';
-import { JobRequest } from '@prisma/client';
+import { JobRequest } from '@/generated/prisma/browser';
 
 interface JobRequestData {
   descriptions: string[];

@@ -2,28 +2,7 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-
-// Rate limit tracking (in production, use Redis or similar)
-const downloadAttempts = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 10; // Max 10 downloads per minute per IP
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = downloadAttempts.get(ip);
-  
-  if (!entry || now > entry.resetAt) {
-    downloadAttempts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
-    return false;
-  }
-  
-  if (entry.count >= RATE_LIMIT_MAX) {
-    return true;
-  }
-  
-  entry.count++;
-  return false;
-}
+import { checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
 
 // Sanitize filename for Content-Disposition header
 function sanitizeFilename(filename: string): string {
@@ -58,11 +37,9 @@ export async function GET(
   const clientIp = forwardedFor?.split(',')[0].trim() || 'Unknown';
 
   // Rate limiting check
-  if (isRateLimited(clientIp)) {
-    return NextResponse.json(
-      { error: 'Too many download attempts. Please wait a moment.' },
-      { status: 429, headers: { 'Retry-After': '60' } }
-    );
+  const rlResult = await checkRateLimit(clientIp, 'download');
+  if (!rlResult.success) {
+    return rateLimitedResponse(rlResult);
   }
 
   try {

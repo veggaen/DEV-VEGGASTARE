@@ -1,7 +1,7 @@
 'use server'
 
 import { MyLibRoleAuth } from "@/lib/user-auth"
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/generated/prisma/browser";
 
 type AdminResult = { success: string } | { error: string };
 

@@ -2,7 +2,7 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod } from '@/generated/prisma/browser';
 import { z } from 'zod';
 import { OrderDtoSchema } from '@/lib/types/orders';
 import { sendOrderConfirmationEmail } from '@/lib/mail';

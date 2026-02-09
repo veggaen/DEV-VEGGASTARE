@@ -4,7 +4,7 @@
 import { MyRemoveEmployeeAction } from '@/actions/remove-company-employee';
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { User, UserRole } from '@prisma/client';
+import { User, UserRole } from '@/generated/prisma/browser';
 import React, { useState } from 'react';
 
 interface RemoveEmployeeButtonProps {

@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     
     // Rate limiting: analytics queries are expensive
     const identifier = getClientIdentifier(request, session.user.id);
-    const rateLimitResult = checkRateLimit(identifier, 'analytics');
+    const rateLimitResult = await checkRateLimit(identifier, 'analytics');
     if (!rateLimitResult.success) {
       return rateLimitedResponse(rateLimitResult);
     }

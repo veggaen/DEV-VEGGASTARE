@@ -9,7 +9,7 @@ import { getUserByEmail, getUserById } from '@/data/user'
 import { MyLibUserAuth } from '@/lib/user-auth'
 import { generateVerificationToken } from '@/lib/tokens'
 import { sendVerificationEmail } from '@/lib/mail'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/generated/prisma/browser'
 
 type SettingsResult = { error: string } | { success: string };
 

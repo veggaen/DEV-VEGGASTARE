@@ -2,9 +2,12 @@
  * Check if polls exist in the database
  * Run: npx ts-node --transpile-only scripts/check-polls.ts
  */
-import { PrismaClient } from "@prisma/client";
+import 'dotenv/config'
+import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaPg } from '@prisma/adapter-pg'
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL!, ssl: { rejectUnauthorized: false } })
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log("🔍 Checking for published polls...\n");

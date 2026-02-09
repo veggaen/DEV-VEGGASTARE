@@ -9,7 +9,7 @@ import {
   ConversationVisibility,
   ReplyPermission,
   Prisma
-} from '@prisma/client';
+} from '@/generated/prisma/browser';
 import { z } from 'zod';
 import {
   ConversationsListResponseSchema,

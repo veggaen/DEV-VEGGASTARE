@@ -74,10 +74,10 @@ export default function ConversationPage() {
     fetchMessages();
   }, [fetchMessages]);
 
-  // Redirect PUBLIC_THREAD to /feed?pulse=id
+  // Redirect PUBLIC_THREAD to /pulse/[id] (clean URL with parallel route modal)
   useEffect(() => {
     if (conversation?.type === 'PUBLIC_THREAD' && conversationId) {
-      router.replace(`/feed?pulse=${conversationId}`);
+      router.replace(`/pulse/${conversationId}`);
     }
   }, [conversation?.type, conversationId, router]);
 

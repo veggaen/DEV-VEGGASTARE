@@ -8,7 +8,7 @@ import {
   ADMIN_COMPANY_EDITABLE_FIELDS, 
   sanitizeFields 
 } from '@/lib/admin';
-import { AdminAction, AdminTargetType } from '@prisma/client';
+import { AdminAction, AdminTargetType } from '@/generated/prisma/browser';
 
 const LOG_PREFIX = '[api/admin/companies/[companyId]]';
 

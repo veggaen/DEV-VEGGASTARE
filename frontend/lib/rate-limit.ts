@@ -1,134 +1,225 @@
 /**
- * Simple in-memory rate limiter for API routes.
- * For production at scale, consider using Redis (e.g., @upstash/ratelimit).
- * 
- * This implementation:
- * - Uses sliding window algorithm
- * - Handles concurrent requests safely
- * - Auto-cleans expired entries
- * - Supports different limits per route type
+ * Rate limiter with optional Redis backend.
+ *
+ * - If REDIS_URL is set → distributed, survives restarts, works across replicas.
+ * - If REDIS_URL is not set → in-memory Map (same as before), good for dev/single instance.
+ *
+ * The public API is identical regardless of backend — callers don't need to know.
  */
+
+import { createClient, type RedisClientType } from "redis";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface RateLimitEntry {
   count: number;
-  resetTime: number;
+  resetTime: number; // epoch ms
 }
 
-// In-memory store (use Redis for distributed systems)
-const rateLimitStore = new Map<string, RateLimitEntry>();
-
-// Cleanup interval (every 60 seconds)
-let cleanupInterval: NodeJS.Timeout | null = null;
-
-function startCleanup() {
-  if (cleanupInterval) return;
-  cleanupInterval = setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of rateLimitStore.entries()) {
-      if (entry.resetTime < now) {
-        rateLimitStore.delete(key);
-      }
-    }
-  }, 60000);
+export interface RateLimitResult {
+  success: boolean;
+  remaining: number;
+  resetIn: number; // seconds until window resets
+  limit: number;
 }
 
 // Rate limit configurations by type
 export const RATE_LIMITS = {
-  // Auth routes - strict to prevent brute force
-  auth: { maxRequests: 5, windowMs: 60000 },       // 5 per minute
-  
-  // Write operations - moderate
-  write: { maxRequests: 30, windowMs: 60000 },     // 30 per minute
-  
-  // Read operations - lenient
-  read: { maxRequests: 100, windowMs: 60000 },     // 100 per minute
-  
-  // Analytics - very strict (expensive queries)
-  analytics: { maxRequests: 10, windowMs: 60000 }, // 10 per minute
-  
-  // Social actions (like, follow) - moderate with burst protection
-  social: { maxRequests: 60, windowMs: 60000 },    // 60 per minute
-  
-  // Message sending - prevent spam
-  message: { maxRequests: 20, windowMs: 60000 },   // 20 per minute
+  // Auth routes — strict to prevent brute force
+  auth: { maxRequests: 5, windowMs: 60_000 },
+
+  // Write operations — moderate
+  write: { maxRequests: 30, windowMs: 60_000 },
+
+  // Read operations — lenient
+  read: { maxRequests: 100, windowMs: 60_000 },
+
+  // Analytics — very strict (expensive queries)
+  analytics: { maxRequests: 10, windowMs: 60_000 },
+
+  // Social actions (like, follow) — moderate with burst protection
+  social: { maxRequests: 60, windowMs: 60_000 },
+
+  // Message sending — prevent spam
+  message: { maxRequests: 20, windowMs: 60_000 },
+
+  // Download — moderate
+  download: { maxRequests: 10, windowMs: 60_000 },
+
+  // External API proxy (bring-address etc.) — moderate
+  external: { maxRequests: 60, windowMs: 60_000 },
+
+  // Gate/brute-force — very strict
+  gate: { maxRequests: 5, windowMs: 60_000 },
 } as const;
 
 export type RateLimitType = keyof typeof RATE_LIMITS;
 
-interface RateLimitResult {
-  success: boolean;
-  remaining: number;
-  resetIn: number; // seconds until reset
-  limit: number;
+// ─────────────────────────────────────────────────────────────────────────────
+// Backend: In-Memory (fallback)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const memoryStore = new Map<string, RateLimitEntry>();
+
+let cleanupInterval: ReturnType<typeof setInterval> | null = null;
+
+function startMemoryCleanup() {
+  if (cleanupInterval) return;
+  cleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of memoryStore.entries()) {
+      if (entry.resetTime < now) {
+        memoryStore.delete(key);
+      }
+    }
+  }, 60_000);
+  // Allow the process to exit even if interval is active
+  if (cleanupInterval && typeof cleanupInterval === "object" && "unref" in cleanupInterval) {
+    (cleanupInterval as NodeJS.Timeout).unref();
+  }
 }
 
-/**
- * Check if a request should be rate limited.
- * 
- * @param identifier - Unique identifier (usually IP + userId or just IP)
- * @param type - Type of rate limit to apply
- * @returns Object with success status and limit info
- */
-export function checkRateLimit(
-  identifier: string,
-  type: RateLimitType = 'read'
-): RateLimitResult {
-  startCleanup();
-  
-  const { maxRequests, windowMs } = RATE_LIMITS[type];
+function checkMemory(key: string, maxRequests: number, windowMs: number): RateLimitResult {
+  startMemoryCleanup();
   const now = Date.now();
-  const key = `${type}:${identifier}`;
-  
-  const entry = rateLimitStore.get(key);
-  
-  // No entry or expired - create new window
+  const entry = memoryStore.get(key);
+
   if (!entry || entry.resetTime < now) {
-    rateLimitStore.set(key, {
-      count: 1,
-      resetTime: now + windowMs,
-    });
-    return {
-      success: true,
-      remaining: maxRequests - 1,
-      resetIn: Math.ceil(windowMs / 1000),
-      limit: maxRequests,
-    };
+    memoryStore.set(key, { count: 1, resetTime: now + windowMs });
+    return { success: true, remaining: maxRequests - 1, resetIn: Math.ceil(windowMs / 1000), limit: maxRequests };
   }
-  
-  // Within window - increment count
+
   entry.count += 1;
   const remaining = Math.max(0, maxRequests - entry.count);
   const resetIn = Math.ceil((entry.resetTime - now) / 1000);
-  
+
   if (entry.count > maxRequests) {
-    return {
-      success: false,
-      remaining: 0,
-      resetIn,
-      limit: maxRequests,
-    };
+    return { success: false, remaining: 0, resetIn, limit: maxRequests };
   }
-  
-  return {
-    success: true,
-    remaining,
-    resetIn,
-    limit: maxRequests,
-  };
+
+  return { success: true, remaining, resetIn, limit: maxRequests };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Backend: Redis
+// ─────────────────────────────────────────────────────────────────────────────
+
+let redisClient: RedisClientType | null = null;
+let redisReady = false;
+let redisInitPromise: Promise<void> | null = null;
+
+function getRedisUrl(): string | undefined {
+  return process.env.REDIS_URL || process.env.KV_URL;
+}
+
+async function initRedis(): Promise<void> {
+  const url = getRedisUrl();
+  if (!url) return;
+
+  try {
+    redisClient = createClient({ url }) as RedisClientType;
+
+    redisClient.on("error", (err: Error) => {
+      console.warn("[rate-limit] Redis error, falling back to in-memory:", err.message);
+      redisReady = false;
+    });
+
+    redisClient.on("ready", () => {
+      redisReady = true;
+    });
+
+    await redisClient.connect();
+    redisReady = true;
+  } catch (err) {
+    console.warn("[rate-limit] Redis connection failed, using in-memory fallback:", (err as Error).message);
+    redisClient = null;
+    redisReady = false;
+  }
+}
+
+function ensureRedis(): Promise<void> {
+  if (!getRedisUrl()) return Promise.resolve();
+  if (!redisInitPromise) {
+    redisInitPromise = initRedis();
+  }
+  return redisInitPromise;
+}
+
+async function checkRedis(key: string, maxRequests: number, windowMs: number): Promise<RateLimitResult> {
+  if (!redisClient || !redisReady) {
+    return checkMemory(key, maxRequests, windowMs);
+  }
+
+  try {
+    // Atomic increment + expiry via MULTI
+    const results = await redisClient
+      .multi()
+      .incr(key)
+      .pTTL(key)
+      .exec();
+
+    const count = (results?.[0] ?? 1) as number;
+    let ttl = (results?.[1] ?? -1) as number;
+
+    // First request in this window — set expiry
+    if (count === 1 || ttl < 0) {
+      await redisClient.pExpire(key, windowMs);
+      ttl = windowMs;
+    }
+
+    const remaining = Math.max(0, maxRequests - count);
+    const resetIn = Math.max(1, Math.ceil(ttl / 1000));
+
+    if (count > maxRequests) {
+      return { success: false, remaining: 0, resetIn, limit: maxRequests };
+    }
+
+    return { success: true, remaining, resetIn, limit: maxRequests };
+  } catch (err) {
+    console.warn("[rate-limit] Redis op failed, falling back to in-memory:", (err as Error).message);
+    return checkMemory(key, maxRequests, windowMs);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public API
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Check if a request should be rate limited.
+ *
+ * Uses Redis when REDIS_URL is set, otherwise falls back to in-memory.
+ *
+ * @param identifier - Unique key (usually IP + userId or just IP)
+ * @param type - Rate limit tier to apply
+ */
+export async function checkRateLimit(
+  identifier: string,
+  type: RateLimitType = "read"
+): Promise<RateLimitResult> {
+  const { maxRequests, windowMs } = RATE_LIMITS[type];
+  const key = `rl:${type}:${identifier}`;
+
+  if (getRedisUrl()) {
+    await ensureRedis();
+    return checkRedis(key, maxRequests, windowMs);
+  }
+
+  return checkMemory(key, maxRequests, windowMs);
 }
 
 /**
  * Get client identifier from request (IP address or fallback).
  */
 export function getClientIdentifier(request: Request, userId?: string): string {
-  // Try to get real IP from common headers
-  const forwarded = request.headers.get('x-forwarded-for');
-  const realIp = request.headers.get('x-real-ip');
-  const cfIp = request.headers.get('cf-connecting-ip');
-  
-  const ip = cfIp || realIp || forwarded?.split(',')[0]?.trim() || 'unknown';
-  
-  // Combine with userId if available for more precise limiting
+  const forwarded = request.headers.get("x-forwarded-for");
+  const realIp = request.headers.get("x-real-ip");
+  const cfIp = request.headers.get("cf-connecting-ip");
+
+  const ip = cfIp || realIp || forwarded?.split(",")[0]?.trim() || "unknown";
+
   return userId ? `${ip}:${userId}` : ip;
 }
 
@@ -137,9 +228,9 @@ export function getClientIdentifier(request: Request, userId?: string): string {
  */
 export function rateLimitHeaders(result: RateLimitResult): HeadersInit {
   return {
-    'X-RateLimit-Limit': result.limit.toString(),
-    'X-RateLimit-Remaining': result.remaining.toString(),
-    'X-RateLimit-Reset': result.resetIn.toString(),
+    "X-RateLimit-Limit": result.limit.toString(),
+    "X-RateLimit-Remaining": result.remaining.toString(),
+    "X-RateLimit-Reset": result.resetIn.toString(),
   };
 }
 
@@ -149,14 +240,14 @@ export function rateLimitHeaders(result: RateLimitResult): HeadersInit {
 export function rateLimitedResponse(result: RateLimitResult): Response {
   return new Response(
     JSON.stringify({
-      error: 'Too many requests',
+      error: "Too many requests",
       retryAfter: result.resetIn,
     }),
     {
       status: 429,
       headers: {
-        'Content-Type': 'application/json',
-        'Retry-After': result.resetIn.toString(),
+        "Content-Type": "application/json",
+        "Retry-After": result.resetIn.toString(),
         ...rateLimitHeaders(result),
       },
     }

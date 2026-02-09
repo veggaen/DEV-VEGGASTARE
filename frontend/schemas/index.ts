@@ -1,4 +1,4 @@
-import { EmployeeRole, UserRole } from '@prisma/client'
+import { EmployeeRole, UserRole } from '@/generated/prisma/browser'
 import * as z from 'zod'
 
 /**
@@ -95,6 +95,14 @@ const SpecificationSchema = z.object({
     value: z.union([z.string(), z.number()])
 });
 
+// Feature schema - supports both simple bullet points and key-value pairs
+// e.g. { text: "6 card slots" } or { key: "Slots", value: "6 card slots" }
+const FeatureSchema = z.object({
+    text: z.string().min(1),
+    key: z.string().optional(),        // Optional category/group label
+    icon: z.string().optional(),       // Optional icon identifier for future use
+});
+
 // Product condition enum values
 export const ProductConditionValues = ['NEW', 'AS_NEW', 'GOOD', 'FAIR', 'POOR'] as const;
 export type ProductConditionType = typeof ProductConditionValues[number];
@@ -138,6 +146,7 @@ export const MyProductCreateSchema = z.object({
     quantity: z.number().min(1, { message: 'Quantity must be at least 1' }),
     isPhysicalProduct: z.boolean().optional(),
     specifications: z.array(SpecificationSchema).optional(), // Optional, assuming arbitrary JSON data
+    features: z.array(FeatureSchema).max(50).optional(),     // Product features/highlights
     shippingDetails: z.array(z.object({
         method: z.string(),
         price: z.number(),

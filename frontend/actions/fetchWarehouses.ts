@@ -1,7 +1,7 @@
 'use server';
 
 import { dbPrisma } from '@/lib/db';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@/generated/prisma/browser';
 
 type WarehouseWithInventory = Prisma.WarehouseLocationGetPayload<{
   include: { Inventory: { include: { Product: true } } };

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { dbPrisma as db } from "@/lib/db";
-import { MuteType } from "@prisma/client";
+import { MuteType } from "@/generated/prisma/browser";
 
 // GET /api/notifications/mutes - Get user's muted users/conversations
 export async function GET() {

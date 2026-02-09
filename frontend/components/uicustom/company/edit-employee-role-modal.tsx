@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { EmployeeRole } from '@prisma/client';
+import { EmployeeRole } from '@/generated/prisma/browser';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogTrigger, DialogHeader, DialogContent, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { ExtendedCompany, ExtendedEmployee } from '@/lib/types/company-management';

@@ -3,7 +3,7 @@
 import * as z from 'zod';
 import { dbPrisma } from '@/lib/db';
 import { companyCreationSchema } from '@/schemas';
-import { EmployeeRole, Prisma, Product } from '@prisma/client';
+import { EmployeeRole, Prisma, Product } from '@/generated/prisma/client';
 
 type GetCompanyResult = Product[];
 type CreateCompanyResult = { error: string } | { success: string; companyId: string };

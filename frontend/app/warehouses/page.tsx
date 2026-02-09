@@ -9,7 +9,7 @@ import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import Pusher from 'pusher-js';
 import throttle from 'lodash.throttle';
-import { Product, WarehouseLocation } from '@prisma/client';
+import { Product, WarehouseLocation } from '@/generated/prisma/browser';
 
 const LOG_PREFIX = '[frontend/app/warehouses/page.tsx]';
 

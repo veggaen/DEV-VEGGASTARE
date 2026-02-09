@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { Order } from '@prisma/client';
+import { Order } from '@/generated/prisma/browser';
 
 interface extendeedOrderDetails extends Order {
   payment: {

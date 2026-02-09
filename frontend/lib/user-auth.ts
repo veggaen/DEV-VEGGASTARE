@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { ExtendedUser } from "@/next-auth";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/generated/prisma/browser";
 
 /**
  * @description Takes session async and return session.user

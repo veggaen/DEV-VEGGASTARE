@@ -1,6 +1,10 @@
-import { PrismaClient } from '@prisma/client'
-const prisma = new PrismaClient()
+import 'dotenv/config'
+import { PrismaClient } from '@/generated/prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { faker } from "@faker-js/faker";
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL!, ssl: { rejectUnauthorized: false } })
+const prisma = new PrismaClient({ adapter })
 
 // Helper to create slug
 function createSlug(name: string): string {

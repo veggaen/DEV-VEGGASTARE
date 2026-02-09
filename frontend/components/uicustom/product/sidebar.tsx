@@ -13,7 +13,7 @@ import { PriceSlider } from '@/components/ui/price-slider';
 import { cn } from '@/lib/utils';
 import { UseCurrentRole } from '@/hooks/use-current-role';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '@/generated/prisma/browser';
 
 // ─── Loading Skeleton ────────────────────────────────────────────────────────
 const FilterSkeleton = ({ count = 5 }: { count?: number }) => (

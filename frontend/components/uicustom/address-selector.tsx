@@ -41,7 +41,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { AddressLabel } from '@prisma/client';
+import type { AddressLabel } from '@/generated/prisma/browser';
 
 // =============================================================================
 // TYPES

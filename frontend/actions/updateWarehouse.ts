@@ -2,7 +2,7 @@
 
 import { dbPrisma } from '@/lib/db';
 import { MyLibRoleAuth } from '@/lib/user-auth';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '@/generated/prisma/browser';
 import { pusherServer } from '@/lib/pusher';
 
 const LOG_PREFIX = '[frontend/actions/updateWarehouse.ts]';

@@ -12,7 +12,7 @@ import { MyFormError } from '../../forms/form-error';
 import { MyFormSuccess } from '../../forms/form-sucess';
 import { MyCreateProductAction } from '@/actions/products';
 import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
-import { UserRole, WarehouseLocation } from '@prisma/client';
+import { UserRole, WarehouseLocation } from '@/generated/prisma/browser';
 import { RxCrossCircled } from "react-icons/rx";
 import { FaFileUpload, FaDownload } from "react-icons/fa";
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
@@ -76,6 +76,12 @@ interface Specification {
   placeholder?: string;
 }
 
+interface Feature {
+  text: string;
+  key?: string;   // Optional category label (e.g. "Durability", "Storage")
+  icon?: string;  // Reserved for future icon support
+}
+
 const MyLogPrefix = '[frontend/components/uicustom/forms/product-form.tsx]';
 
 export const MyProductCreationForm = () => {
@@ -94,6 +100,7 @@ export const MyProductCreationForm = () => {
   const [isPhysicalProduct, setIsPhysicalProduct] = useState<boolean>(false);
   const [isCompanyProduct, setIsCompanyProduct] = useState<boolean>(false);
   const [specifications, setSpecifications] = useState<Specification[]>([]);
+  const [features, setFeatures] = useState<Feature[]>([]);
   
   // Form restoration state
   const [hasRestoredForm, setHasRestoredForm] = useState(false);
@@ -114,6 +121,12 @@ export const MyProductCreationForm = () => {
   const shippingSpecKeys = ['Weight (g)', 'Height (cm)', 'Length (cm)', 'Width (cm)'];
   const generalSpecKeys = ['Custom', 'Material', 'Color', 'Size', 'Brand', 'Model', 'Country of Origin', 'Warranty', 'Certification'];
   const examplePlaceholders = [...shippingSpecKeys, ...generalSpecKeys];
+  
+  // Feature category presets - helps users categorize features
+  const featureCategoryPresets = [
+    'Storage', 'Design', 'Durability', 'Material', 'Comfort', 
+    'Security', 'Performance', 'Compatibility', 'Included', 'Bonus'
+  ];
   const [postalCodeInput, setPostalCodeInput] = useState('');
   const [suggestions, setSuggestions] = useState<PostalCodeDetails[]>([]);
   const [postalCodes, setPostalCodes] = useState<string[]>([]);
@@ -532,6 +545,28 @@ export const MyProductCreationForm = () => {
     setSpecifications([...specifications, newSpec]);
   };
 
+  // ── Feature handlers ──
+  const addFeature = (withCategory?: string) => {
+    setFeatures([...features, { text: '', key: withCategory || '' }]);
+  };
+
+  const updateFeature = (index: number, field: keyof Feature, value: string) => {
+    setFeatures(prev => prev.map((f, i) => i === index ? { ...f, [field]: value } : f));
+  };
+
+  const removeFeature = (index: number) => {
+    setFeatures(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const reorderFeatures = (from: number, to: number) => {
+    setFeatures(prev => {
+      const next = prev.slice();
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return next;
+    });
+  };
+
   // Helper to get specification value by key (for shipping estimates)
   const getSpecValue = (key: string): number => {
     const spec = specifications.find(s => s.key === key);
@@ -618,6 +653,18 @@ export const MyProductCreationForm = () => {
         values.specifications = formattedSpecifications;
       }
 
+      // Format features - filter out empty entries
+      const formattedFeatures = features
+        .filter(f => f.text.trim().length > 0)
+        .map(f => ({
+          text: f.text.trim(),
+          ...(f.key?.trim() ? { key: f.key.trim() } : {}),
+        }));
+      
+      if (formattedFeatures.length > 0) {
+        values.features = formattedFeatures;
+      }
+
       const data = await MyCreateProductAction(values, finalPostalCodes);
       if ('error' in data) {
         setError(data.error);
@@ -670,6 +717,7 @@ export const MyProductCreationForm = () => {
 		setUploadProgress([]);
 		setIsUploadingImages(false);
     setSpecifications([]);
+    setFeatures([]);
     setIsPhysicalProduct(false);
     setIsCompanyProduct(false);
     setPostalCodes([]);
@@ -1496,6 +1544,129 @@ export const MyProductCreationForm = () => {
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* Features - bullet-point highlights */}
+              <div className={customStyles.sectionAlt}>
+                <h3 className={customStyles.sectionTitle}>
+                  Features
+                  <span className="font-normal text-muted-foreground ml-1 normal-case tracking-normal">— product highlights</span>
+                </h3>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Add key selling points and highlights. e.g. &quot;6 card slots&quot;, &quot;Hand-stitched edges&quot;
+                </p>
+                
+                <div className="space-y-2">
+                  {features.map((feature, index) => (
+                    <div key={index} className="flex gap-2 items-start group/feature">
+                      {/* Drag handle / bullet indicator */}
+                      <div className="flex-shrink-0 pt-2.5 text-muted-foreground/50 text-xs select-none">
+                        •
+                      </div>
+                      
+                      {/* Optional category tag */}
+                      <Select
+                        value={feature.key || '_none'}
+                        onValueChange={(value) => updateFeature(index, 'key', value === '_none' ? '' : value)}
+                      >
+                        <SelectTrigger className={`${customStyles.selectTrigger} w-24 sm:w-28 flex-shrink-0 text-xs`}>
+                          <SelectValue placeholder="Category" />
+                        </SelectTrigger>
+                        <SelectContent className={customStyles.selectContent}>
+                          <SelectItem value="_none" className={customStyles.selectItem}>
+                            <span className="text-muted-foreground">No label</span>
+                          </SelectItem>
+                          {featureCategoryPresets.map((cat) => (
+                            <SelectItem key={cat} value={cat} className={customStyles.selectItem}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Feature text input */}
+                      <Input
+                        value={feature.text}
+                        onChange={(e) => updateFeature(index, 'text', e.target.value)}
+                        placeholder="e.g. 6 card slots, Hand-stitched edges..."
+                        className={`${customStyles.input} flex-1 text-sm`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addFeature();
+                          }
+                        }}
+                      />
+                      
+                      {/* Move up */}
+                      {index > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => reorderFeatures(index, index - 1)}
+                          className="flex-shrink-0 p-1.5 text-muted-foreground/40 hover:text-foreground transition-colors opacity-0 group-hover/feature:opacity-100"
+                          title="Move up"
+                        >
+                          <FiChevronLeft className="h-3.5 w-3.5 rotate-90" />
+                        </button>
+                      )}
+                      {/* Move down */}
+                      {index < features.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => reorderFeatures(index, index + 1)}
+                          className="flex-shrink-0 p-1.5 text-muted-foreground/40 hover:text-foreground transition-colors opacity-0 group-hover/feature:opacity-100"
+                          title="Move down"
+                        >
+                          <FiChevronRight className="h-3.5 w-3.5 rotate-90" />
+                        </button>
+                      )}
+                      
+                      {/* Remove */}
+                      <button
+                        type="button"
+                        onClick={() => removeFeature(index)}
+                        className="flex-shrink-0 p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
+                      >
+                        <RxCrossCircled className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {/* Add buttons */}
+                  <div className="flex gap-2 pt-1 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => addFeature()}
+                      className="text-xs text-muted-foreground hover:text-emerald-600 transition-colors"
+                    >
+                      + Add feature
+                    </button>
+                    <span className="text-muted-foreground/40">|</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Quick-add: paste multiple bullet points at once
+                        const text = prompt('Paste features (one per line):');
+                        if (text) {
+                          const lines = text.split('\n')
+                            .map(l => l.replace(/^[\s•\-\*\d.)+]+/, '').trim())
+                            .filter(l => l.length > 0);
+                          setFeatures(prev => [...prev, ...lines.map(t => ({ text: t, key: '' }))]);
+                        }
+                      }}
+                      className="text-xs text-muted-foreground hover:text-emerald-600 transition-colors"
+                    >
+                      + Paste multiple
+                    </button>
+                  </div>
+                  
+                  {/* Feature count */}
+                  {features.length > 0 && (
+                    <p className="text-[10px] text-muted-foreground/60 pt-1">
+                      {features.filter(f => f.text.trim()).length} feature{features.filter(f => f.text.trim()).length !== 1 ? 's' : ''} added
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Specifications - compact */}

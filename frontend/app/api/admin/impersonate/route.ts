@@ -2,7 +2,7 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { isOwner, logAdminAction } from '@/lib/admin';
-import { AdminAction, AdminTargetType } from '@prisma/client';
+import { AdminAction, AdminTargetType } from '@/generated/prisma/browser';
 import { cookies } from 'next/headers';
 import { encode } from 'next-auth/jwt';
 

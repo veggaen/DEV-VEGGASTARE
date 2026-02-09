@@ -323,6 +323,7 @@ function AnimatedRating() {
 }
 
 interface Specification { key: string; value: string; }
+interface Feature { text: string; key?: string; icon?: string; }
 interface WarehouseLocation { id: string; country: string; postalCode: string; countryCode?: string; }
 interface Inventory { id: string; stock: number; warehouseId: string; }
 
@@ -337,6 +338,7 @@ interface Product {
   condition: string;
   image: string[];
   specifications: Specification[] | null;
+  features: Feature[] | null;
   userId: string;
   companyId: string | null;
   acceptedTokens: Array<{
@@ -1772,6 +1774,49 @@ function ProductDetails({ product }: { product: Product }) {
           </motion.div>
         </motion.div>
       </motion.section>
+
+      {/* Features section */}
+      {product.features && product.features.length > 0 && (
+        <motion.section
+          className="mt-8 rounded-2xl bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 p-6"
+          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+          whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          <h3 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 mb-4">Features</h3>
+          
+          {/* Group features by category key */}
+          {(() => {
+            const grouped = new Map<string, Feature[]>();
+            for (const f of product.features!) {
+              const cat = f.key?.trim() || '';
+              if (!grouped.has(cat)) grouped.set(cat, []);
+              grouped.get(cat)!.push(f);
+            }
+            
+            return Array.from(grouped.entries()).map(([category, items], groupIdx) => (
+              <div key={groupIdx} className={groupIdx > 0 ? 'mt-4' : ''}>
+                {category && (
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                    {category}
+                  </h4>
+                )}
+                <ul className="space-y-2">
+                  {items.map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-3">
+                      <span className="mt-1 flex-shrink-0 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {feature.text}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ));
+          })()}
+        </motion.section>
+      )}
 
       {/* Bottom section */}
       <motion.section

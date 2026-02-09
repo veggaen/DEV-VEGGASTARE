@@ -3,7 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation'
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { User } from '@prisma/client';
+import { User } from '@/generated/prisma/browser';
 
 // Security: Validate and sanitize user-provided URLs
 function isSafeUrl(url: string): boolean {

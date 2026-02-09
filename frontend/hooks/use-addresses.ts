@@ -3,7 +3,7 @@
 
 import useSWR from 'swr';
 import { useState } from 'react';
-import type { AddressLabel } from '@prisma/client';
+import type { AddressLabel } from '@/generated/prisma/browser';
 
 // =============================================================================
 // TYPES

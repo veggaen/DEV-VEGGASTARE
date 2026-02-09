@@ -1,7 +1,7 @@
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
 import { logAdminAction } from '@/lib/admin';
-import { AdminAction, AdminTargetType } from '@prisma/client';
+import { AdminAction, AdminTargetType } from '@/generated/prisma/browser';
 import { cookies } from 'next/headers';
 
 const LOG_PREFIX = '[api/admin/impersonate/end]';

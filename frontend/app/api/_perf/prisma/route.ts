@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { dbPrisma } from "@/lib/db";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/generated/prisma/browser";
 import { NextResponse } from "next/server";
 
 function getPoolParams(urlString: string | undefined) {

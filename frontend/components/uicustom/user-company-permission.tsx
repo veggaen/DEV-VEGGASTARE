@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { fetchUserEmployeePermissions } from '@/actions/user-company-permissions';
-import { Company } from '@prisma/client';
+import { Company } from '@/generated/prisma/browser';
 
 interface UserCompanyPermissionProps {
   permissionTag: string;

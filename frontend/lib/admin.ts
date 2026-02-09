@@ -1,5 +1,5 @@
 import { dbPrisma } from '@/lib/db';
-import { UserRole, AdminAction, AdminTargetType } from '@prisma/client';
+import { UserRole, AdminAction, AdminTargetType } from '@/generated/prisma/browser';
 import { headers } from 'next/headers';
 
 /**

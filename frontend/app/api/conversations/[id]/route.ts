@@ -8,7 +8,7 @@ import {
   ConversationVisibility,
   ReplyPermission,
   DeletionVisibility
-} from '@prisma/client';
+} from '@/generated/prisma/browser';
 import { z } from 'zod';
 import {
   getReachLevel,

@@ -24,7 +24,7 @@ import { settings } from "@/actions/settings";
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { MyFormError } from '@/components/uicustom/forms/form-error';
 import { MyFormSuccess } from '@/components/uicustom/forms/form-sucess';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '@/generated/prisma/browser';
 import { useUiPreferences } from '@/components/providers/ui-preferences';
 import { useEdgeStore } from '@/lib/edgestore';
 import { FancyBackground } from '@/components/uicustom/fancy-background';

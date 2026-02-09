@@ -10,7 +10,7 @@
  * while still allowing anonymous participation at reduced weight.
  */
 
-import { UserVerificationTier } from '@prisma/client';
+import { UserVerificationTier } from '@/generated/prisma/browser';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VERIFICATION TIER MULTIPLIERS

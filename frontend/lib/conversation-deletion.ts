@@ -1,4 +1,4 @@
-import { Conversation, DeletionVisibility } from '@prisma/client';
+import { Conversation, DeletionVisibility } from '@/generated/prisma/browser';
 
 /**
  * Deletion System for Conversations

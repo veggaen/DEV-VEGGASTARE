@@ -19,7 +19,7 @@ import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { MyCreateCompanyAction } from '@/actions/create-company';
 import { companyCreationSchema } from '@/schemas';
-import { EmployeeRole, User } from '@prisma/client';
+import { EmployeeRole, User } from '@/generated/prisma/browser';
 import { useRouter } from 'next/navigation';
 
 type UIEmployee = {

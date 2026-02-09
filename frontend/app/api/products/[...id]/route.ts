@@ -34,6 +34,35 @@ function normalizeSpecifications(value: unknown): Array<{ key: string; value: st
   return normalized;
 }
 
+function normalizeFeatures(value: unknown): Array<{ text: string; key?: string; icon?: string }> | null {
+  let raw = value;
+  if (typeof raw === 'string') {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  if (!Array.isArray(raw)) return null;
+  const normalized: Array<{ text: string; key?: string; icon?: string }> = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const text = (item as any).text;
+    if (typeof text === 'string' && text.trim().length > 0) {
+      const feature: { text: string; key?: string; icon?: string } = { text };
+      if (typeof (item as any).key === 'string' && (item as any).key.trim()) {
+        feature.key = (item as any).key;
+      }
+      if (typeof (item as any).icon === 'string' && (item as any).icon.trim()) {
+        feature.icon = (item as any).icon;
+      }
+      normalized.push(feature);
+    }
+  }
+  return normalized.length > 0 ? normalized : null;
+}
+
 const paramsSchema = z.object({
   id: z.array(z.string().trim().min(1).max(200)).min(1).max(1),
 });
@@ -90,6 +119,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       condition: (product as any).condition,
       image: Array.isArray((product as any).image) ? (product as any).image : [],
       specifications: normalizeSpecifications((product as any).specifications),
+      features: normalizeFeatures((product as any).features),
       userId: (product as any).userId,
       companyId: (product as any).companyId ?? null,
       acceptedTokens: Array.isArray((product as any).ProductAcceptedToken)

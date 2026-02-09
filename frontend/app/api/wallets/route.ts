@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { dbPrisma } from "@/lib/db";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { parseJsonOrError } from "@/lib/api-validate";
-import { ChainFamily } from "@prisma/client";
+import { ChainFamily } from "@/generated/prisma/browser";
 import { z } from "zod";
 import { WalletDtoSchema } from "@/lib/types/wallets";
 

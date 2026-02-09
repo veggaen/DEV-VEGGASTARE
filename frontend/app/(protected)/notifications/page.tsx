@@ -92,7 +92,7 @@ export default function NotificationsPage() {
     
     // Navigate based on notification type
     if (notification.pulseId) {
-      router.push(`/feed?pulse=${notification.pulseId}`);
+      router.push(`/pulse/${notification.pulseId}`);
     } else if (notification.conversationId) {
       router.push(`/messages/${notification.conversationId}`);
     }
