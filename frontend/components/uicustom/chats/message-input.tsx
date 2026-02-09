@@ -17,6 +17,7 @@ interface MessageInputProps {
   initialImageUrl?: string;
   messageId?: string;
   onCancelEdit?: () => void;
+  parentId?: string | null;
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
@@ -27,6 +28,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   initialImageUrl = '',
   messageId,
   onCancelEdit,
+  parentId,
 }) => {
   const { edgestore } = useEdgeStore();
   const MAX_CHARS = 2000;
@@ -137,6 +139,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         conversationId,
         content,
         imageUrl: imageUrl || null,
+        ...(parentId ? { parentId } : {}),
       };
 
       const apiEndpoint = isEditing && messageId ? `/api/messages/${messageId}` : '/api/messages';

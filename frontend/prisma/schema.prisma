@@ -293,29 +293,50 @@ model JobRequest {
 }
 
 model Message {
-  id             String         @id @default(cuid())
+  id             String          @id @default(cuid())
   content        String
   senderId       String
   conversationId String
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   imageUrl       String?
   editedAt       DateTime?
-  mentions       String[]       @default([])
+  mentions       String[]        @default([])
   parentId       String?
-  heartbeatCount Int            @default(0)
-  Conversation   Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  User           User           @relation(fields: [senderId], references: [id])
+  heartbeatCount Int             @default(0)
+  repostCount    Int             @default(0)
+  replyCount     Int             @default(0)
+  Conversation   Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  User           User            @relation(fields: [senderId], references: [id])
+  parent         Message?        @relation("MessageReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies        Message[]       @relation("MessageReplies")
   MessagePulse   MessagePulse[]
+  MessageRepost  MessageRepost[]
 
   @@index([conversationId])
   @@index([senderId])
   @@index([conversationId, createdAt])
+  @@index([parentId])
 }
 
 /// Heartbeat reaction on an individual vibe (message) within a pulse.
 /// One heartbeat per user per message, mirroring the Pulse model for conversations.
 model MessagePulse {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  createdAt DateTime @default(now())
+  Message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+}
+
+/// Repulse (repost) on an individual vibe (message) within a pulse.
+/// One repulse per user per message.
+model MessageRepost {
   id        String   @id @default(cuid())
   messageId String
   userId    String
@@ -815,6 +836,8 @@ model User {
   ProfilePins                                                     ProfilePin[]
   // Heartbeats on individual vibes (messages)
   MessagePulse                                                    MessagePulse[]
+  // Repulses on individual vibes (messages)
+  MessageRepost                                                   MessageRepost[]
 }
 
 model VerificationToken {

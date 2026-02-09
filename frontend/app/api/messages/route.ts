@@ -18,6 +18,7 @@ const postBodySchema = z
     conversationId: z.string().min(1),
     content: z.string().trim().max(5000).optional().nullable(),
     imageUrl: z.string().trim().max(2048).optional().nullable(),
+    parentId: z.string().min(1).optional().nullable(),
   })
   .refine((val) => {
     const content = val.content?.trim() || '';
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
   const bodyResult = await parseJsonOrError(req, postBodySchema);
   if (!bodyResult.ok) return bodyResult.response;
 
-  const { conversationId, content, imageUrl } = bodyResult.data;
+  const { conversationId, content, imageUrl, parentId } = bodyResult.data;
 
   if (!userId) {
     return NextResponse.json({ message: 'Unauthorized ID' }, { status: 401 });
@@ -73,6 +74,7 @@ export async function POST(req: Request) {
         imageUrl: imageUrl ?? undefined,
         senderId: userId,
         conversationId,
+        ...(parentId ? { parentId } : {}),
       },
       include: {
         User: {
@@ -103,6 +105,14 @@ export async function POST(req: Request) {
       },
     });
 
+    // If this is a reply to another message, increment the parent's replyCount
+    if (parentId) {
+      await dbPrisma.message.update({
+        where: { id: parentId },
+        data: { replyCount: { increment: 1 } },
+      }).catch(() => { /* parent may have been deleted */ });
+    }
+
     // Trigger a Pusher event after message creation (include sender info so
     // real-time listeners can render the author name immediately)
     await pusherServer.trigger(`ConversationChannel_${conversationId}`, 'new-message', {
@@ -115,6 +125,10 @@ export async function POST(req: Request) {
         createdAt: message.createdAt,
         heartbeatCount: 0,
         hasHeartbeated: false,
+        parentId: message.parentId ?? null,
+        replyCount: 0,
+        repostCount: 0,
+        hasRepulsed: false,
         sender: message.User
           ? { id: message.User.id, name: message.User.name, image: message.User.image ?? null }
           : null,
@@ -226,6 +240,7 @@ export async function GET(req: Request) {
 
     // If logged-in, fetch which messages the user has heartbeated
     const heartbeatedMessageIds = new Set<string>();
+    const repulsedMessageIds = new Set<string>();
     if (userId) {
       const userPulses = await dbPrisma.messagePulse.findMany({
         where: {
@@ -235,6 +250,15 @@ export async function GET(req: Request) {
         select: { messageId: true },
       });
       for (const p of userPulses) heartbeatedMessageIds.add(p.messageId);
+
+      const userReposts = await dbPrisma.messageRepost.findMany({
+        where: {
+          messageId: { in: messages.map((m) => m.id) },
+          userId,
+        },
+        select: { messageId: true },
+      });
+      for (const r of userReposts) repulsedMessageIds.add(r.messageId);
     }
 
     // Fetch users who are participants in the conversation
@@ -266,6 +290,10 @@ export async function GET(req: Request) {
         editedAt: m.editedAt ?? null,
         heartbeatCount: m.heartbeatCount ?? 0,
         hasHeartbeated: heartbeatedMessageIds.has(m.id),
+        parentId: m.parentId ?? null,
+        replyCount: m.replyCount ?? 0,
+        repostCount: m.repostCount ?? 0,
+        hasRepulsed: repulsedMessageIds.has(m.id),
         User: m.User
           ? {
               id: m.User.id,

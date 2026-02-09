@@ -22,6 +22,14 @@ export const MessageResponseSchema = z
     heartbeatCount: z.number().int().finite().optional(),
     hasHeartbeated: z.boolean().optional(),
 
+    // Reply threading
+    parentId: z.string().nullable().optional(),
+    replyCount: z.number().int().finite().optional(),
+
+    // Repulse (repost) on individual vibe
+    repostCount: z.number().int().finite().optional(),
+    hasRepulsed: z.boolean().optional(),
+
     // Back-compat (existing API includes `User`)
     User: MessageUserSummarySchema.nullable().optional(),
 
