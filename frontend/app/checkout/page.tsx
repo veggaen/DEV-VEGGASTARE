@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaRegCopy } from "react-icons/fa";
 
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -98,6 +97,8 @@ export default function CheckoutPage() {
   const [showError, setShowError] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'crypto' | 'vipps' | 'klarna' | 'paypal'>('crypto');
+  const [availableFiatMethods, setAvailableFiatMethods] = useState<{ type: string; displayName: string; icon: string }[]>([]);
 
   /* shipping form */
   const [shipping, setShipping] = useState<ShippingForm>({
@@ -149,6 +150,14 @@ export default function CheckoutPage() {
     }
     loadCart();
   }, [user, loadCart, router]);
+
+  /* fetch available fiat payment methods */
+  useEffect(() => {
+    fetch("/api/payments")
+      .then((r) => (r.ok ? r.json() : { methods: [] }))
+      .then((d) => setAvailableFiatMethods(d.methods ?? []))
+      .catch(() => setAvailableFiatMethods([]));
+  }, []);
 
   /* totals */
   const subtotalUSD = useMemo(
@@ -304,6 +313,80 @@ export default function CheckoutPage() {
     } finally {
       setPaying(false);
       setConfirmOpen(false);
+    }
+  }
+
+  /* ---- Fiat payment flow ---- */
+  async function handlePayFiat() {
+    if (!isShippingValid) return;
+    try {
+      setPaying(true);
+
+      // 1. Create a PENDING order first
+      const orderRes = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          totalAmount: subtotalUSD,
+          transactionId: `fiat_${Date.now()}`,
+          method: paymentMethod.toUpperCase(),
+          commentOrder: `${items.length} items`,
+          commentPay: `Fiat payment via ${paymentMethod}`,
+          shippingName: shipping.name,
+          shippingAddress: shipping.address,
+          shippingCity: shipping.city,
+          shippingPostalCode: shipping.postalCode,
+          shippingCountry: shipping.country,
+          shippingPhone: shipping.phone,
+          shippingEmail: shipping.email,
+          items: items.map((it) => ({
+            productId: it.product.id,
+            quantity: it.quantity,
+            priceAtTime: it.product.price,
+            title: it.product.title,
+          })),
+        }),
+      });
+      if (!orderRes.ok) {
+        const errData = await orderRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to create order");
+      }
+      const { order } = await orderRes.json();
+
+      // 2. Create payment session with provider
+      const sessionRes = await fetch("/api/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          provider: paymentMethod,
+          amount: Math.round(subtotalUSD * 100), // cents/øre
+          currency: paymentMethod === "vipps" ? "NOK" : "USD",
+          returnUrl: `${window.location.origin}/order-confirmation?orderId=${order.id}`,
+        }),
+      });
+      if (!sessionRes.ok) {
+        const errData = await sessionRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to start payment");
+      }
+      const session = await sessionRes.json();
+
+      // 3. Clear cart
+      await fetch(`/api/cart/${user?.id}`, { method: "DELETE" });
+
+      // 4. Redirect to provider
+      if (session.redirectUrl) {
+        window.location.href = session.redirectUrl;
+      } else {
+        // Klarna returns clientToken for widget — for now redirect to confirmation
+        router.push(`/order-confirmation?orderId=${order.id}`);
+      }
+    } catch (e) {
+      console.error("Fiat payment failed:", e);
+      setError(`Payment via ${paymentMethod} failed. Please try again.`);
+      setShowError(true);
+    } finally {
+      setPaying(false);
     }
   }
 
@@ -530,62 +613,9 @@ export default function CheckoutPage() {
           <h2 className="text-2xl font-semibold mb-6 text-foreground">Order Summary</h2>
 
           <div className="space-y-4">
-            <div>
-              <p className="text-muted-foreground font-medium text-sm">Network:</p>
-              <p className="text-foreground">{networkLabel}</p>
-            </div>
-
-            <div>
-              <p className="text-muted-foreground font-medium text-sm">Sender Address:</p>
-              <div className="flex items-center gap-2">
-                <span className="text-foreground break-all md:max-w-none max-w-[260px] truncate font-mono text-sm">
-                  {senderAddress || "Not connected"}
-                </span>
-                {senderAddress && (
-                  <button
-                    onClick={() => navigator.clipboard.writeText(senderAddress)}
-                    className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
-                  >
-                    <FaRegCopy className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-muted-foreground font-medium text-sm">Receiver Address:</p>
-              <div className="flex items-center gap-2">
-                <span className="text-foreground break-all md:max-w-none max-w-[260px] truncate font-mono text-sm">
-                  {receiverAddress}
-                </span>
-                <button
-                  onClick={() => navigator.clipboard.writeText(receiverAddress)}
-                  className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
-                >
-                  <FaRegCopy className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
             <div className="flex justify-between">
               <span className="text-muted-foreground font-medium">Subtotal (USD):</span>
               <span className="text-foreground font-medium">${subtotalUSD.toFixed(2)}</span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="text-muted-foreground font-medium text-sm">
-                Rate ({nativeSymbol}/USD):
-              </span>
-              <span className="text-foreground font-medium">
-                {usdPerNative != null ? <>1 {nativeSymbol} = ${usdPerNative.toFixed(2)}</> : "—"}
-              </span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="text-muted-foreground font-medium">Total ({nativeSymbol}):</span>
-              <span className="text-foreground font-medium">
-                <PriceAmount usd={subtotalUSD} />
-              </span>
             </div>
 
             <hr className="border-border dark:border-white/10 my-2" />
@@ -594,62 +624,136 @@ export default function CheckoutPage() {
               <span className="text-emerald-600 dark:text-emerald-400">${subtotalUSD.toFixed(2)}</span>
             </div>
 
-            {/* Confirm & Pay */}
-            <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
-                  disabled={!isWalletReady || paying || !isShippingValid}
-                  title={!isShippingValid ? "Fill in shipping address" : undefined}
+            {/* Payment Method Selector */}
+            <div className="mt-4">
+              <p className="text-sm font-medium text-muted-foreground mb-2">Payment method</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setPaymentMethod('crypto')}
+                  className={`px-3 py-2.5 text-sm font-medium rounded-lg border transition-all ${
+                    paymentMethod === 'crypto'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-muted/30 dark:bg-white/5 text-foreground border-border dark:border-white/10 hover:border-emerald-500/50'
+                  }`}
                 >
-                  {paying ? "Processing…" : !isShippingValid ? "Fill in address" : `Pay with ${nativeSymbol}`}
-                </Button>
-              </DialogTrigger>
+                  🔗 Crypto
+                </button>
+                {availableFiatMethods.map((m) => (
+                  <button
+                    key={m.type}
+                    onClick={() => setPaymentMethod(m.type as typeof paymentMethod)}
+                    className={`px-3 py-2.5 text-sm font-medium rounded-lg border transition-all ${
+                      paymentMethod === m.type
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-muted/30 dark:bg-white/5 text-foreground border-border dark:border-white/10 hover:border-emerald-500/50'
+                    }`}
+                  >
+                    {m.icon} {m.displayName}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-              <DialogContent className="bg-surface-1 dark:bg-zinc-900 p-6 rounded-2xl max-w-md border border-border dark:border-white/10">
-                <DialogTitle className="sr-only">Confirm Payment</DialogTitle>
-                <AnimatePresence>
-                  {confirmOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 14, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -14, scale: 0.98 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <h3 className="text-xl font-bold text-foreground mb-4">Confirm Payment</h3>
-                      <div className="space-y-3 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Network</span>
-                          <span className="text-foreground">{networkLabel}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">From</span>
-                          <span className="text-foreground font-mono">{formatAddr(senderAddress)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">To</span>
-                          <span className="text-foreground font-mono">{formatAddr(receiverAddress)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Amount</span>
-                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                            <PriceAmount usd={subtotalUSD} />
-                          </span>
-                        </div>
-                      </div>
+            {/* Crypto payment details (only when crypto selected) */}
+            {paymentMethod === 'crypto' && (
+              <div className="mt-4 space-y-3 p-3 rounded-lg bg-muted/20 dark:bg-white/[0.02] border border-border/50 dark:border-white/5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Network</span>
+                  <span className="text-foreground">{networkLabel}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Rate</span>
+                  <span className="text-foreground">
+                    {usdPerNative != null ? <>1 {nativeSymbol} = ${usdPerNative.toFixed(2)}</> : "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total ({nativeSymbol})</span>
+                  <span className="text-foreground font-medium">
+                    <PriceAmount usd={subtotalUSD} />
+                  </span>
+                </div>
+              </div>
+            )}
 
-                      <Button
-                        onClick={handleConfirmPay}
-                        className="w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white"
-                        disabled={paying || !isWalletReady || !totalInNative}
+            {/* Fiat info (only when fiat selected) */}
+            {paymentMethod !== 'crypto' && (
+              <div className="mt-4 p-3 rounded-lg bg-muted/20 dark:bg-white/[0.02] border border-border/50 dark:border-white/5">
+                <p className="text-sm text-muted-foreground">
+                  You will be redirected to{' '}
+                  <span className="text-foreground font-medium capitalize">{paymentMethod}</span>
+                  {' '}to complete payment.
+                </p>
+              </div>
+            )}
+
+            {/* Pay buttons */}
+            {paymentMethod === 'crypto' ? (
+              <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                    disabled={!isWalletReady || paying || !isShippingValid}
+                    title={!isShippingValid ? "Fill in shipping address" : !isWalletReady ? "Connect wallet first" : undefined}
+                  >
+                    {paying ? "Processing…" : !isShippingValid ? "Fill in address" : `Pay with ${nativeSymbol}`}
+                  </Button>
+                </DialogTrigger>
+
+                <DialogContent className="bg-surface-1 dark:bg-zinc-900 p-6 rounded-2xl max-w-md border border-border dark:border-white/10">
+                  <DialogTitle className="sr-only">Confirm Payment</DialogTitle>
+                  <AnimatePresence>
+                    {confirmOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 14, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -14, scale: 0.98 }}
+                        transition={{ duration: 0.2 }}
                       >
-                        {paying ? "Processing…" : `Confirm & Pay`}
-                      </Button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </DialogContent>
-            </Dialog>
+                        <h3 className="text-xl font-bold text-foreground mb-4">Confirm Payment</h3>
+                        <div className="space-y-3 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Network</span>
+                            <span className="text-foreground">{networkLabel}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">From</span>
+                            <span className="text-foreground font-mono">{formatAddr(senderAddress)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">To</span>
+                            <span className="text-foreground font-mono">{formatAddr(receiverAddress)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Amount</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                              <PriceAmount usd={subtotalUSD} />
+                            </span>
+                          </div>
+                        </div>
+
+                        <Button
+                          onClick={handleConfirmPay}
+                          className="w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          disabled={paying || !isWalletReady || !totalInNative}
+                        >
+                          {paying ? "Processing…" : `Confirm & Pay`}
+                        </Button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </DialogContent>
+              </Dialog>
+            ) : (
+              <Button
+                onClick={handlePayFiat}
+                className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                disabled={paying || !isShippingValid}
+                title={!isShippingValid ? "Fill in shipping address" : undefined}
+              >
+                {paying ? "Processing…" : !isShippingValid ? "Fill in address" : `Pay with ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}`}
+              </Button>
+            )}
 
             <footer className="mt-8 text-center text-muted-foreground text-xs">
               <p>

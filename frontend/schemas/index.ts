@@ -224,6 +224,13 @@ export const employeePermissionsSchema = z.object({
     CAN_VIEW_SALES: z.boolean().default(false),
     CAN_MANAGE_PRICING: z.boolean().default(false),
     CAN_PROCESS_REFUNDS: z.boolean().default(false),
+
+    // Tax Helper
+    CAN_VIEW_TAX_REPORTS: z.boolean().default(false),
+    CAN_EDIT_TAX_DATA: z.boolean().default(false),
+    CAN_MANAGE_EXPENSES: z.boolean().default(false),
+    CAN_MANAGE_SALARIES: z.boolean().default(false),
+    CAN_COMMENT_TAX_REPORTS: z.boolean().default(false),
 });
 export const employeeSchema = z.object({
     userId: z.string().min(1, 'User ID is required'),

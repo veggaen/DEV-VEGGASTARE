@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import BannerThemeWrapper from '@/components/uicustom/banner/BannerThemeWrapper';
 import dynamic from 'next/dynamic';
-import { FiTrendingUp, FiEye, FiUsers, FiZap, FiPackage, FiMessageCircle } from 'react-icons/fi';
+import { FiTrendingUp, FiEye, FiUsers, FiZap, FiPackage, FiMessageCircle, FiDollarSign } from 'react-icons/fi';
 import type { CompanyDetailsResponse } from '@/lib/types/company';
 import type { PillarBreakdown } from '@/components/uicustom/reach/ReachRadarChart';
 import type { ReachBadge } from '@/components/uicustom/reach/ReachBadges';
@@ -16,6 +16,7 @@ import type { ReachBadge } from '@/components/uicustom/reach/ReachBadges';
 const ReachRadarChart = dynamic(() => import('@/components/uicustom/reach/ReachRadarChart'), { ssr: false });
 const MomentumTimeline = dynamic(() => import('@/components/uicustom/reach/MomentumTimeline'), { ssr: false });
 const ReachBadges = dynamic(() => import('@/components/uicustom/reach/ReachBadges'), { ssr: false });
+const TaxHelperDashboard = dynamic(() => import('@/components/uicustom/tax/TaxHelperDashboard'), { ssr: false });
 
 interface CompanyReachData {
   companyId: string;
@@ -41,7 +42,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
   const [reachData, setReachData] = useState<CompanyReachData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'overview' | 'analytics'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'analytics' | 'tax'>('overview');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -185,6 +186,17 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                 <FiTrendingUp className="inline h-4 w-4 mr-1.5" />
                 Reach Analytics
               </button>
+              <button
+                onClick={() => setActiveSection('tax')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activeSection === 'tax'
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <FiDollarSign className="inline h-4 w-4 mr-1.5" />
+                Skattehjelper
+              </button>
             </div>
 
             {activeSection === 'overview' ? (
@@ -251,7 +263,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                   </div>
                 </div>
               </>
-            ) : (
+            ) : activeSection === 'analytics' ? (
               <>
                 {/* ─── Full Analytics View ─────────────────────────── */}
                 {reachData ? (
@@ -370,7 +382,9 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                   </div>
                 )}
               </>
-            )}
+            ) : activeSection === 'tax' ? (
+              <TaxHelperDashboard companyId={companyId} />
+            ) : null}
 
             {/* Quick Actions — always visible */}
             <div className="rounded-lg border border-black/10 bg-white p-6 dark:border-white/10 dark:bg-white/[0.03]">

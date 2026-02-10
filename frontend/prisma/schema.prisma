@@ -70,6 +70,10 @@ model Company {
   reachMomentum                Float                 @default(0)
   lastMomentumDecay            DateTime?
   employeePulseBonus           Float                 @default(0)
+  // ─── Tax Helper ────────────────────────────────────────────────
+  taxHelperEnabled             TaxHelperStatus       @default(DISABLED)
+  vatRegistered                Boolean               @default(false)
+  vatNumber                    String?               @unique
 
   User_Company_creatorIdToUser User                  @relation("Company_creatorIdToUser", fields: [creatorId], references: [id])
   User_Company_ownerIdToUser   User                  @relation("Company_ownerIdToUser", fields: [ownerId], references: [id])
@@ -83,6 +87,9 @@ model Company {
   Wallet                       Wallet[]
   WarehouseLocation            WarehouseLocation[]
   DigitalAsset                 DigitalAsset[]
+  TaxReport                    TaxReport[]
+  Expense                      Expense[]
+  Purchase                     Purchase[]
 }
 
 model Conversation {
@@ -249,9 +256,11 @@ model Employee {
   permissions Json
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  jobTitle    String?
-  Company     Company      @relation(fields: [companyId], references: [id])
-  User        User         @relation(fields: [userId], references: [id])
+  jobTitle       String?
+  Company        Company          @relation(fields: [companyId], references: [id])
+  User           User             @relation(fields: [userId], references: [id])
+  SalaryPayment  SalaryPayment[]
+  WorkHourLog    WorkHourLog[]
 
   @@unique([userId, companyId])
   @@index([userId])
@@ -1314,6 +1323,8 @@ enum PaymentMethod {
   PHANTOM
   MATHWALLET
   TRUST
+  VIPPS
+  KLARNA
 }
 
 enum PaymentStatus {
@@ -1775,4 +1786,111 @@ enum StorageProvider {
   S3            // AWS S3 or compatible
   R2            // Cloudflare R2
   LOCAL         // Local storage (dev only)
+}
+
+// ─── Tax Helper ──────────────────────────────────────────────────────
+
+enum TaxHelperStatus {
+  ENABLED
+  DISABLED
+}
+
+enum ExpenseCategory {
+  OFFICE
+  TRAVEL
+  UNION_DUES
+  EQUIPMENT
+  SOFTWARE
+  MARKETING
+  INSURANCE
+  PROFESSIONAL_SERVICES
+  RENT
+  UTILITIES
+  VEHICLE
+  MEALS
+  DEBT_INTEREST
+  DEPRECIATION
+  SALARY_COST
+  EMPLOYER_NI
+  OTHER
+}
+
+model TaxReport {
+  id          String   @id @default(cuid())
+  companyId   String
+  period      String   // "2026-01" (monthly) or "2026" (annual)
+  type        String   // "monthly_preview" | "annual" | "quarterly_advance"
+  data        Json     // { grossIncome, expenses, netProfit, taxLiability, breakdowns, vatSummary }
+  comments    Json?    // [{ userId, text, createdAt }]
+  generatedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, period, type])
+  @@index([companyId, generatedAt])
+}
+
+model Expense {
+  id         String          @id @default(cuid())
+  companyId  String
+  category   ExpenseCategory
+  amount     Float
+  currency   FiatCurrency    @default(NOK)
+  date       DateTime
+  description String?
+  receiptUrl String?
+  approvedBy String?         // userId who approved
+  createdBy  String          // userId who created
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  Company    Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, date])
+  @@index([companyId, category])
+}
+
+model Purchase {
+  id        String       @id @default(cuid())
+  companyId String
+  amount    Float
+  currency  FiatCurrency @default(NOK)
+  date      DateTime
+  source    String       // "Vipps", "PayPal", "Klarna", "Bank", "Cash"
+  reference String?      // External transaction ID
+  notes     String?
+  vatAmount Float?       // VAT portion if applicable
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  Company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, date])
+}
+
+model SalaryPayment {
+  id         String   @id @default(cuid())
+  employeeId String
+  grossAmount Float
+  netAmount  Float
+  deductions Json     // { incomeTax, employeeNI, employerNI, pension?, otherDeductions? }
+  period     String   // "2026-01"
+  paidAt     DateTime
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  Employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, paidAt])
+}
+
+model WorkHourLog {
+  id         String   @id @default(cuid())
+  employeeId String
+  hours      Float
+  date       DateTime
+  type       String   // "regular" | "overtime" | "sick" | "vacation"
+  notes      String?
+  createdAt  DateTime @default(now())
+  Employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, date])
 }
