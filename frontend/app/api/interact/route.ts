@@ -186,7 +186,7 @@ export async function POST(req: Request) {
           sessionId: sessionId ?? undefined,
           eventType: event.eventType,
           strength: result.strength,
-          details: event.details ?? undefined,
+          details: event.details ? JSON.parse(JSON.stringify(event.details)) : undefined,
           referrer: headersList.get('referer') ?? undefined,
         },
       });
