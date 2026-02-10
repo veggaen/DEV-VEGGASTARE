@@ -31,7 +31,19 @@ export const UserReachSchema = z
   .object({
     totalViews: z.number().int().finite(),
     uniqueViewers: z.number().int().finite(),
-    engagementRate: z.number().int().finite(),
+    engagementRate: z.number().finite(),
+    // 7-Pillar Reach (optional — populated when data exists)
+    reachLifetime: z.number().finite().optional(),
+    reachMomentum: z.number().finite().optional(),
+    // Pillar breakdown (0-100 each)
+    visibility: z.number().finite().optional(),
+    engagementDepth: z.number().finite().optional(),
+    conversionImpact: z.number().finite().optional(),
+    loyalty: z.number().finite().optional(),
+    growth: z.number().finite().optional(),
+    recall: z.number().finite().optional(),
+    velocity: z.number().finite().optional(),
+    trueReachScore: z.number().finite().optional(),
   })
   .strict();
 

@@ -373,7 +373,7 @@ export async function POST(req: Request) {
     });
 
     for (const product of inactiveProducts) {
-      const newMomentum = product.reachLifetime * DECAY_CONFIG.DAILY_DECAY_RATE;
+      const newMomentum = product.reachMomentum * DECAY_CONFIG.PRODUCT_DAILY_DECAY_RATE;
       const floor = product.reachLifetime * DECAY_CONFIG.MOMENTUM_FLOOR_RATIO;
       await dbPrisma.product.update({
         where: { id: product.id },

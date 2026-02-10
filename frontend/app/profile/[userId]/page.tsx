@@ -18,7 +18,7 @@ import { useProfileThemeFromBanner } from '@/components/providers/profile-theme-
 import {
   FiUser, FiSettings, FiMessageCircle, FiCalendar, FiMapPin,
   FiLink, FiEdit2, FiGrid, FiActivity, FiUsers, FiCamera, FiUpload, FiX, FiTrendingUp,
-  FiRepeat, FiEye, FiBarChart2
+  FiRepeat, FiEye, FiBarChart2, FiZap
 } from 'react-icons/fi';
 import { Pin } from 'lucide-react';
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
@@ -37,6 +37,10 @@ import { Radar } from 'react-chartjs-2';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
+import dynamic from 'next/dynamic';
+const MomentumTimeline = dynamic(() => import('@/components/uicustom/reach/MomentumTimeline'), { ssr: false });
+const ReachBadgesComponent = dynamic(() => import('@/components/uicustom/reach/ReachBadges'), { ssr: false });
+
 interface UserProfile {
   id: string;
   name: string | null;
@@ -54,19 +58,23 @@ interface UserProfile {
     followers?: number;
     following?: number;
   };
-  // True Reach - 6 Pillar Analytics System
+  // True Reach - 7 Pillar Analytics System
   reach?: {
     // Core metrics
     totalViews: number;
     uniqueViewers: number;
     engagementRate: number;
-    // 6 Pillars (normalized 0-100)
-    visibility: number;       // 20% - Unique exposures deduped
-    engagementDepth: number;  // 30% - Quality interactions (saves/comments/dwell)
-    conversionImpact: number; // 20% - Marketplace actions driven
-    loyalty: number;          // 15% - Repeat engagers
+    // Dual scoring
+    reachLifetime?: number;
+    reachMomentum?: number;
+    // 7 Pillars (normalized 0-100)
+    visibility: number;       // 18% - Unique exposures deduped
+    engagementDepth: number;  // 25% - Quality interactions (saves/comments/dwell)
+    conversionImpact: number; // 18% - Marketplace actions driven
+    loyalty: number;          // 14% - Repeat engagers
     growth: number;           // 10% - Organic expansion
     recall: number;           // 5%  - Return rate/stickiness
+    velocity: number;         // 10% - Trending speed
     // Computed overall score
     trueReachScore: number;
   };
@@ -90,7 +98,7 @@ const REACH_PILLARS: ReachPillar[] = [
     key: 'visibility',
     label: 'Visibility',
     shortLabel: 'Views',
-    weight: 20,
+    weight: 18,
     icon: '👁️',
     color: '#10b981',
     description: 'Unique exposures deduped across sessions',
@@ -101,7 +109,7 @@ const REACH_PILLARS: ReachPillar[] = [
     key: 'engagementDepth',
     label: 'Engagement Depth',
     shortLabel: 'Engage',
-    weight: 30,
+    weight: 25,
     icon: '💬',
     color: '#3b82f6',
     description: 'Quality interactions beyond likes (saves, comments, dwell)',
@@ -112,7 +120,7 @@ const REACH_PILLARS: ReachPillar[] = [
     key: 'conversionImpact',
     label: 'Conversion Impact',
     shortLabel: 'Convert',
-    weight: 20,
+    weight: 18,
     icon: '🛒',
     color: '#f59e0b',
     description: 'Marketplace actions driven (clicks, purchases)',
@@ -123,7 +131,7 @@ const REACH_PILLARS: ReachPillar[] = [
     key: 'loyalty',
     label: 'Loyalty',
     shortLabel: 'Loyalty',
-    weight: 15,
+    weight: 14,
     icon: '❤️',
     color: '#ec4899',
     description: 'Repeat engagers who interact consistently',
@@ -151,6 +159,17 @@ const REACH_PILLARS: ReachPillar[] = [
     description: 'Predicted return rate and content stickiness',
     tip: 'Forward-looking: Estimates future distribution',
     antiGaming: 'Use server beacons for dwell; dedupe returns',
+  },
+  {
+    key: 'velocity',
+    label: 'Velocity',
+    shortLabel: 'Speed',
+    weight: 10,
+    icon: '⚡',
+    color: '#f97316',
+    description: 'Trending speed — how fast engagement is building',
+    tip: 'Breadth-weighted momentum delta over 1h and 24h windows',
+    antiGaming: 'Breadth clamp prevents single-source velocity spikes',
   },
 ];
 
@@ -214,6 +233,10 @@ export default function ProfilePage() {
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  // Reach analytics states
+  const [momentumTrend, setMomentumTrend] = useState<{ date: string; momentum: number; views?: number }[]>([]);
+  const [userBadges, setUserBadges] = useState<{ id: string; label: string; icon: string; tier: 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond'; description: string; earned: boolean; progress: number }[]>([]);
 
   const isOwnProfile = currentUser?.id === userId;
 
@@ -486,6 +509,18 @@ export default function ProfilePage() {
         const activityRes = await fetch(`/api/conversations?filter=participated&creatorId=${userId}&sort=recent`);
         const activityData = await activityRes.json();
         setActivityPosts(activityData.conversations || []);
+
+        // Fetch reach analytics (momentum trend + badges)
+        try {
+          const reachRes = await fetch(`/api/users/${userId}/reach`);
+          if (reachRes.ok) {
+            const reachData = await reachRes.json();
+            setMomentumTrend(reachData.momentumTrend || []);
+            setUserBadges(reachData.badges || []);
+          }
+        } catch {
+          // Non-critical — reach data is supplementary
+        }
       } catch (err) {
         console.error('Error fetching profile:', err);
         setError(err instanceof Error ? err.message : 'Failed to load profile');
@@ -1238,9 +1273,9 @@ export default function ProfilePage() {
             </TabsContent>
 
             <TabsContent value="reach" className="mt-6">
-              {/* True Reach Analytics - 6 Pillar System */}
+              {/* True Reach Analytics - 7 Pillar System */}
               <div className="space-y-6">
-                {/* Header with Overall Score */}
+                {/* Header with Overall Score + Dual Metrics */}
                 <div
                   className="rounded-2xl border-2 p-6 bg-surface-1/50 shadow-sm"
                   style={{
@@ -1281,12 +1316,13 @@ export default function ProfilePage() {
                           {profile?.reach?.trueReachScore?.toFixed(0) ||
                             // Calculate fallback score from pillars
                             Math.round(
-                              ((profile?.reach?.visibility || 0) * 0.20) +
-                              ((profile?.reach?.engagementDepth || 0) * 0.30) +
-                              ((profile?.reach?.conversionImpact || 0) * 0.20) +
-                              ((profile?.reach?.loyalty || 0) * 0.15) +
+                              ((profile?.reach?.visibility || 0) * 0.18) +
+                              ((profile?.reach?.engagementDepth || 0) * 0.25) +
+                              ((profile?.reach?.conversionImpact || 0) * 0.18) +
+                              ((profile?.reach?.loyalty || 0) * 0.14) +
                               ((profile?.reach?.growth || 0) * 0.10) +
-                              ((profile?.reach?.recall || 0) * 0.05)
+                              ((profile?.reach?.recall || 0) * 0.05) +
+                              ((profile?.reach?.velocity || 0) * 0.10)
                             ) || 0
                           }
                         </div>
@@ -1622,6 +1658,82 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
+                {/* Dual Score Cards: Momentum + Lifetime */}
+                {(profile?.reach?.reachMomentum !== undefined || profile?.reach?.reachLifetime !== undefined) && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div
+                      className="rounded-xl border-2 p-5 bg-surface-1/30 shadow-sm"
+                      style={{ borderColor: `${bannerColors?.primaryContrast || '#10b981'}40` }}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <FiZap className="h-5 w-5" style={{ color: bannerColors?.primaryContrast || '#10b981' }} />
+                        <span className="text-sm font-semibold text-foreground">Active Momentum</span>
+                      </div>
+                      <div className="text-3xl font-bold tabular-nums" style={{ color: bannerColors?.primaryContrast || '#10b981' }}>
+                        {(profile?.reach?.reachMomentum || 0).toFixed(0)}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Current trending power — decays daily without engagement
+                      </p>
+                    </div>
+                    <div
+                      className="rounded-xl border-2 p-5 bg-surface-1/30 shadow-sm"
+                      style={{ borderColor: `${bannerColors?.primaryLight || '#3b82f6'}40` }}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <FiBarChart2 className="h-5 w-5" style={{ color: bannerColors?.primaryLight || '#3b82f6' }} />
+                        <span className="text-sm font-semibold text-foreground">Lifetime Reach</span>
+                      </div>
+                      <div className="text-3xl font-bold tabular-nums" style={{ color: bannerColors?.primaryLight || '#3b82f6' }}>
+                        {(profile?.reach?.reachLifetime || 0).toFixed(0)}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Total historical impact — never decays, always growing
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Momentum Timeline (30d) */}
+                {momentumTrend.length > 0 && (
+                  <div
+                    className="rounded-2xl border-2 p-5 bg-surface-1/50 shadow-sm"
+                    style={{
+                      borderColor: isDark
+                        ? `${bannerColors?.primaryContrast || '#10b981'}25`
+                        : `${bannerColors?.primaryContrast || '#10b981'}35`,
+                    }}
+                  >
+                    <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: bannerColors?.primaryContrast || '#10b981' }} />
+                      Momentum Over Time
+                    </h4>
+                    <MomentumTimeline
+                      data={momentumTrend}
+                      accentColor={bannerColors?.primaryContrast || '#10b981'}
+                      showViews
+                      height={200}
+                    />
+                  </div>
+                )}
+
+                {/* Reach Badges */}
+                {userBadges.length > 0 && (
+                  <div
+                    className="rounded-2xl border-2 p-5 bg-surface-1/50 shadow-sm"
+                    style={{
+                      borderColor: isDark
+                        ? `${bannerColors?.primary || '#3b82f6'}25`
+                        : `${bannerColors?.primary || '#3b82f6'}35`,
+                    }}
+                  >
+                    <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                      🏆 Reach Badges
+                    </h4>
+                    <ReachBadgesComponent badges={userBadges} />
+                  </div>
+                )}
+
                 {/* What is True Reach? Explainer */}
                 <div
                   className="rounded-2xl border-2 p-6 bg-surface-1/30 shadow-sm"
@@ -1666,8 +1778,8 @@ export default function ProfilePage() {
                         <div className="flex items-start gap-2 p-2 rounded-lg" style={{ backgroundColor: `${bannerColors?.secondary || '#8b5cf6'}08` }}>
                           <span className="text-sm">⚖️</span>
                           <div>
-                            <div className="font-medium text-foreground">Weighted Scoring</div>
-                            <div className="text-muted-foreground">6 pillars with different importance levels</div>
+                            <div className="font-medium text-foreground">7-Pillar Scoring</div>
+                            <div className="text-muted-foreground">Seven pillars with different importance levels</div>
                           </div>
                         </div>
                       </div>

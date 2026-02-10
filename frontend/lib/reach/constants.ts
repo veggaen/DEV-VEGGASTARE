@@ -104,8 +104,10 @@ export const RESONANCE_CONFIG = {
 // Exponential decay applied daily if no significant activity.
 
 export const DECAY_CONFIG = {
-  /** Base decay factor per day of inactivity */
+  /** Base decay factor per day of inactivity (pulses/users/companies) */
   DAILY_DECAY_RATE: 0.96,
+  /** Product-specific decay (semi-evergreen, decays slower) */
+  PRODUCT_DAILY_DECAY_RATE: 0.97,
   /** Minimum interaction strength to count as "active" (prevents decay) */
   ACTIVITY_THRESHOLD: 0.5,
   /** Hours of inactivity before decay starts */

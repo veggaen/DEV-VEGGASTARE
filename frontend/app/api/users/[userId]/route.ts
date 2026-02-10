@@ -62,6 +62,8 @@ export async function GET(
         bio: true,
         createdAt: true,
         role: true,
+        reachLifetime: true,
+        reachMomentum: true,
         // Get follower/following counts
         followers: { select: { id: true } },
         following: { select: { id: true } },
@@ -71,6 +73,13 @@ export async function GET(
           select: {
             viewCount: true,
             uniqueViewCount: true,
+            pillarVisibility: true,
+            pillarEngagement: true,
+            pillarConversion: true,
+            pillarLoyalty: true,
+            pillarGrowth: true,
+            pillarRecall: true,
+            pillarVelocity: true,
           },
         },
       },
@@ -96,6 +105,31 @@ export async function GET(
     const engagementRate = followerCount > 0 
       ? Math.min(Math.round((totalViews / followerCount) * 100), 100000) 
       : 0;
+
+    // Calculate aggregate pillar breakdown from user's public pulses
+    const convos = user.Conversation;
+    const pulseCount = convos.length || 1;
+    const pillarAvg = (field: 'pillarVisibility' | 'pillarEngagement' | 'pillarConversion' | 'pillarLoyalty' | 'pillarGrowth' | 'pillarRecall' | 'pillarVelocity') =>
+      Math.min(100, Math.round(convos.reduce((s, c) => s + c[field], 0) / pulseCount));
+
+    const visibility = pillarAvg('pillarVisibility');
+    const engagementDepth = pillarAvg('pillarEngagement');
+    const conversionImpact = pillarAvg('pillarConversion');
+    const loyalty = pillarAvg('pillarLoyalty');
+    const growth = pillarAvg('pillarGrowth');
+    const recall = pillarAvg('pillarRecall');
+    const velocity = pillarAvg('pillarVelocity');
+
+    // Weighted True Reach Score (7-pillar)
+    const trueReachScore = Math.round(
+      visibility * 0.18 +
+      engagementDepth * 0.25 +
+      conversionImpact * 0.18 +
+      loyalty * 0.14 +
+      growth * 0.10 +
+      recall * 0.05 +
+      velocity * 0.10
+    );
 
     // Generate username from email or name
     const username = user.email?.split('@')[0] 
@@ -124,6 +158,16 @@ export async function GET(
         totalViews,
         uniqueViewers,
         engagementRate, // Higher = content actually reaches people
+        reachLifetime: user.reachLifetime,
+        reachMomentum: user.reachMomentum,
+        visibility,
+        engagementDepth,
+        conversionImpact,
+        loyalty,
+        growth,
+        recall,
+        velocity,
+        trueReachScore,
       },
     };
 
