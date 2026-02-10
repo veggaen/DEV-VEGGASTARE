@@ -1,14 +1,15 @@
 /**
- * Norwegian Tax Calculator — 2025/2026 Rules
+ * Norwegian Tax Calculator — 2025 Tax Year
  *
- * Computes estimated tax liabilities for all Norwegian company types.
+ * Computes estimated tax liabilities for all Norwegian company types
+ * and private persons. Based on confirmed Skatteetaten rates.
  * DISCLAIMER: Preview/estimation only. Not tax advice.
  */
 
 import {
   CORPORATE_TAX_RATE,
   FINANCIAL_SECTOR_TAX_RATE,
-  BRACKET_TAX_2026,
+  BRACKET_TAX_2025,
   ORDINARY_INCOME_TAX_RATE,
   NI_SELF_EMPLOYED_RATE,
   NI_EMPLOYEE_RATE,
@@ -20,14 +21,16 @@ import {
   DIVIDEND_UPLIFT_FACTOR,
   VAT_RATES,
   TAX_PROFILES,
+  TAX_YEAR,
   type CompanyOrgType,
+  type TaxEntityType,
 } from './constants';
 
 // ─── Input Types ──────────────────────────────────────────────
 
 export interface TaxCalculationInput {
-  orgType: CompanyOrgType;
-  period: string;                // "2026" or "2026-01"
+  orgType: TaxEntityType;
+  period: string;                // "2025" or "2025-01"
   grossIncome: number;           // Total revenue (ex. VAT)
   totalExpenses: number;         // Deductible business expenses
   totalSalariesPaid: number;     // Gross salaries to employees
@@ -39,6 +42,8 @@ export interface TaxCalculationInput {
   isFinancialSector?: boolean;
   vatCollected?: number;         // VAT received on sales
   vatPaid?: number;              // VAT paid on purchases
+  cryptoGains?: number;          // For PRIVATE: capital gains on crypto
+  dividendsReceived?: number;    // For PRIVATE: dividends received
 }
 
 // ─── Output Types ─────────────────────────────────────────────
@@ -78,7 +83,7 @@ export interface TaxBreakdown {
   effectiveTaxRate: number;
 
   // Meta
-  orgType: CompanyOrgType;
+  orgType: TaxEntityType;
   period: string;
   disclaimer: string;
 }
@@ -95,7 +100,7 @@ export function calculateBracketTax(income: number): {
   let total = 0;
   const details: { bracket: string; amount: number; rate: number }[] = [];
 
-  for (const bracket of BRACKET_TAX_2026) {
+  for (const bracket of BRACKET_TAX_2025) {
     if (income <= bracket.from) break;
     if (bracket.rate === 0) continue;
 
@@ -174,7 +179,7 @@ function calculateENK(input: TaxCalculationInput): TaxBreakdown {
     effectiveTaxRate: input.grossIncome > 0 ? totalTaxLiability / input.grossIncome : 0,
     orgType: 'ENK',
     period: input.period,
-    disclaimer: 'Estimat basert på 2026-regler. Ikke skatterådgivning. Kontakt Skatteetaten for endelige tall.',
+    disclaimer: `Estimate based on ${TAX_YEAR} rules. Not tax advice. Contact Skatteetaten for final figures.`,
   };
 }
 
@@ -227,7 +232,7 @@ function calculateAS(input: TaxCalculationInput): TaxBreakdown {
     effectiveTaxRate: input.grossIncome > 0 ? totalTaxLiability / input.grossIncome : 0,
     orgType: 'AS',
     period: input.period,
-    disclaimer: 'Estimat basert på 2026-regler. Ikke skatterådgivning. Kontakt Skatteetaten for endelige tall.',
+    disclaimer: `Estimate based on ${TAX_YEAR} rules. Not tax advice. Contact Skatteetaten for final figures.`,
   };
 }
 
@@ -278,7 +283,7 @@ function calculatePartnership(input: TaxCalculationInput, orgType: 'ANS' | 'DA')
     effectiveTaxRate: input.grossIncome > 0 ? totalTaxLiability / input.grossIncome : 0,
     orgType,
     period: input.period,
-    disclaimer: `Estimat for ${partners} partner(e). Basert på 2026-regler. Ikke skatterådgivning.`,
+    disclaimer: `Estimate for ${partners} partner(s). Based on ${TAX_YEAR} rules. Not tax advice.`,
   };
 }
 
@@ -316,7 +321,7 @@ function calculateSA(input: TaxCalculationInput): TaxBreakdown {
     effectiveTaxRate: input.grossIncome > 0 ? totalTaxLiability / input.grossIncome : 0,
     orgType: 'SA',
     period: input.period,
-    disclaimer: 'Estimat med fradrag for medlemsallokeringer. Basert på 2026-regler.',
+    disclaimer: `Estimate with member allocation deductions. Based on ${TAX_YEAR} rules.`,
   };
 }
 
@@ -355,17 +360,82 @@ function calculateForening(input: TaxCalculationInput): TaxBreakdown {
     effectiveTaxRate: input.grossIncome > 0 ? totalTaxLiability / input.grossIncome : 0,
     orgType: 'FORENING',
     period: input.period,
-    disclaimer: 'Foreninger er ofte skattefrie. Kun næringsinntekt beskattes. Basert på 2026-regler.',
+    disclaimer: `Associations are often tax-exempt. Only business income is taxed. Based on ${TAX_YEAR} rules.`,
+  };
+}
+
+// ─── Private Person Calculator ────────────────────────────────
+
+/**
+ * Calculate personal income tax for a private individual (no company).
+ * Covers: salary income, crypto/capital gains, and dividends received.
+ * Source: Skatteetaten — personal income tax rates.
+ */
+function calculatePrivatePerson(input: TaxCalculationInput): TaxBreakdown {
+  const salary = input.grossIncome; // Treat gross income as salary
+  const cryptoGains = input.cryptoGains ?? 0;
+  const dividendsReceived = input.dividendsReceived ?? 0;
+
+  // Minimum standard deduction on salary
+  const minDeduction = calculateMinimumDeduction(salary);
+
+  // Personal allowance
+  const personalAllowance = PERSONAL_ALLOWANCE;
+
+  // Ordinary income tax: 22% on (salary - minDeduction - personfradrag + capital gains)
+  const taxableSalaryIncome = Math.max(0, salary - minDeduction - personalAllowance);
+  const ordinaryIncomeTax = Math.round(
+    (taxableSalaryIncome + Math.max(0, cryptoGains)) * ORDINARY_INCOME_TAX_RATE
+  );
+
+  // Bracket tax on salary (personal income)
+  const { total: bracketTax, details: bracketTaxDetails } = calculateBracketTax(salary);
+
+  // National insurance: 7.6% on salary
+  const nationalInsurance = Math.round(salary * NI_EMPLOYEE_RATE);
+
+  // Dividend tax: 37.84% effective on dividends received
+  const dividendTax = Math.round(dividendsReceived * DIVIDEND_UPLIFT_FACTOR * ORDINARY_INCOME_TAX_RATE);
+
+  const totalTaxLiability = ordinaryIncomeTax + bracketTax + nationalInsurance + dividendTax;
+
+  return {
+    grossIncome: salary + cryptoGains + dividendsReceived,
+    totalExpenses: 0,
+    netProfit: salary + cryptoGains + dividendsReceived,
+    corporateTax: 0,
+    corporateTaxRate: 0,
+    ordinaryIncomeTax,
+    bracketTax,
+    bracketTaxDetails,
+    nationalInsurance,
+    personalAllowance,
+    minimumDeduction: minDeduction,
+    employerNI: 0,
+    totalEmployerCosts: 0,
+    dividendTax,
+    vatOwed: 0,
+    vatCollected: 0,
+    vatPaid: 0,
+    totalTaxLiability,
+    effectiveTaxRate: (salary + cryptoGains + dividendsReceived) > 0
+      ? totalTaxLiability / (salary + cryptoGains + dividendsReceived)
+      : 0,
+    orgType: 'PRIVATE',
+    period: input.period,
+    disclaimer: `Personal tax estimate based on ${TAX_YEAR} rules. Crypto gains taxed as capital income at 22%. Not tax advice.`,
   };
 }
 
 // ─── Main Entry Point ─────────────────────────────────────────
 
 /**
- * Calculate Norwegian tax for any company type
+ * Calculate Norwegian tax for any entity type (company or private person)
  */
 export function calculateTax(input: TaxCalculationInput): TaxBreakdown {
   switch (input.orgType) {
+    case 'PRIVATE':
+      return calculatePrivatePerson(input);
     case 'ENK':
       return calculateENK(input);
     case 'AS':
@@ -447,6 +517,6 @@ export function calculateEmployeeCost(grossSalary: number): {
 /**
  * Get tax profile info for display
  */
-export function getTaxProfile(orgType: CompanyOrgType) {
+export function getTaxProfile(orgType: TaxEntityType) {
   return TAX_PROFILES[orgType] ?? TAX_PROFILES.OTHER;
 }

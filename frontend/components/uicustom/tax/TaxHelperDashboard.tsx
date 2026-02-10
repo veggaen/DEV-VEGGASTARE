@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import dynamic from 'next/dynamic';
-import { FiDollarSign, FiTrendingUp, FiFileText, FiUsers, FiPieChart, FiAlertTriangle, FiSettings, FiPlus, FiChevronDown, FiChevronUp, FiDownload } from 'react-icons/fi';
-import { TAX_PROFILES, VAT_RATES, type CompanyOrgType } from '@/lib/tax/constants';
+import { FiDollarSign, FiTrendingUp, FiFileText, FiUsers, FiPieChart, FiAlertTriangle, FiSettings, FiPlus, FiChevronDown, FiChevronUp, FiDownload, FiExternalLink, FiInfo, FiBook } from 'react-icons/fi';
+import { TAX_PROFILES, VAT_RATES, TAX_SOURCES, TAX_YEAR, type CompanyOrgType, type TaxEntityType } from '@/lib/tax/constants';
 import type { TaxBreakdown } from '@/lib/tax/calculator';
 
 // Lazy-load Chart.js components
@@ -22,11 +22,47 @@ import {
   BarElement,
   ArcElement,
   Filler,
-  Tooltip,
+  Tooltip as ChartTooltip,
   Legend,
 } from 'chart.js';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Filler, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Filler, ChartTooltip, Legend);
+
+// ─── Tooltip Component ─────────────────────────────────────────
+
+function TaxTip({ text, sourceUrl }: { text: string; sourceUrl?: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span className="relative inline-flex items-center">
+      <button
+        type="button"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onFocus={() => setShow(true)}
+        onBlur={() => setShow(false)}
+        className="ml-1 inline-flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+        aria-label="More info"
+      >
+        <FiInfo className="h-3.5 w-3.5" />
+      </button>
+      {show && (
+        <span className="absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] leading-relaxed text-zinc-700 shadow-lg dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 min-w-[200px] max-w-[300px]">
+          {text}
+          {sourceUrl && (
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 flex items-center gap-1 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+            >
+              Skatteetaten <FiExternalLink className="h-2.5 w-2.5" />
+            </a>
+          )}
+        </span>
+      )}
+    </span>
+  );
+}
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -34,7 +70,7 @@ interface TaxDashboardData {
   company: {
     id: string;
     name: string;
-    orgType: CompanyOrgType | null;
+    orgType: CompanyOrgType | TaxEntityType | null;
     orgNumber: string | null;
     taxHelperEnabled: string;
     vatRegistered: boolean;
@@ -221,7 +257,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
               <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Tax Helper</h2>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                 Automatic tax calculations and overview based on company activity.
-                Norwegian tax rules 2026, tailored to {profile?.label ?? 'your company'}.
+                Norwegian tax rules {TAX_YEAR}, tailored to {profile?.label ?? 'your company'}.
               </p>
               {profile && (
                 <p className="mt-2 text-xs text-zinc-500">
@@ -244,7 +280,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
   if (!data) return null;
 
   const { summary, taxBreakdown: tb, expensesByCategory, monthlyTrend } = data;
-  const profile = data.company.orgType ? TAX_PROFILES[data.company.orgType as CompanyOrgType] : null;
+  const profile = data.company.orgType ? TAX_PROFILES[data.company.orgType as TaxEntityType] : null;
 
   // ─── Chart Data ─────────────────────────────────────────────
 
@@ -404,20 +440,29 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
 
                 {tb.corporateTax > 0 && (
                   <div className="flex justify-between py-1">
-                    <span className="text-zinc-600 dark:text-zinc-400">Corporate Tax ({pct(tb.corporateTaxRate)})</span>
+                    <span className="text-zinc-600 dark:text-zinc-400 flex items-center">
+                      Corporate Tax ({pct(tb.corporateTaxRate)})
+                      <TaxTip text={`${pct(tb.corporateTaxRate)} on net profit. Financial sector: 25%.`} sourceUrl={TAX_SOURCES.GENERAL_INCOME} />
+                    </span>
                     <span className="font-medium tabular-nums">{nok(tb.corporateTax)}</span>
                   </div>
                 )}
                 {tb.ordinaryIncomeTax > 0 && (
                   <div className="flex justify-between py-1">
-                    <span className="text-zinc-600 dark:text-zinc-400">Ordinary Income Tax (22%)</span>
+                    <span className="text-zinc-600 dark:text-zinc-400 flex items-center">
+                      Ordinary Income Tax (22%)
+                      <TaxTip text="Flat 22% tax on general income (alminnelig inntekt) after deductions." sourceUrl={TAX_SOURCES.GENERAL_INCOME} />
+                    </span>
                     <span className="font-medium tabular-nums">{nok(tb.ordinaryIncomeTax)}</span>
                   </div>
                 )}
                 {tb.bracketTax > 0 && (
                   <>
                     <div className="flex justify-between py-1">
-                      <span className="text-zinc-600 dark:text-zinc-400">Bracket Tax</span>
+                      <span className="text-zinc-600 dark:text-zinc-400 flex items-center">
+                        Bracket Tax
+                        <TaxTip text="Progressive tax (trinnskatt) on personal income in 5 steps: 1.7% → 4.0% → 13.7% → 16.8% → 17.8%." sourceUrl={TAX_SOURCES.BRACKET_TAX} />
+                      </span>
                       <span className="font-medium tabular-nums">{nok(tb.bracketTax)}</span>
                     </div>
                     {tb.bracketTaxDetails.map((d, i) => (
@@ -430,25 +475,37 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                 )}
                 {tb.nationalInsurance > 0 && (
                   <div className="flex justify-between py-1">
-                    <span className="text-zinc-600 dark:text-zinc-400">National Insurance</span>
+                    <span className="text-zinc-600 dark:text-zinc-400 flex items-center">
+                      National Insurance
+                      <TaxTip text="Trygdeavgift: 7.6% on salary (employees), 10.8% on business income (self-employed)." sourceUrl={TAX_SOURCES.NATIONAL_INSURANCE} />
+                    </span>
                     <span className="font-medium tabular-nums">{nok(tb.nationalInsurance)}</span>
                   </div>
                 )}
                 {tb.employerNI > 0 && (
                   <div className="flex justify-between py-1">
-                    <span className="text-zinc-600 dark:text-zinc-400">Employer NI (14.1%)</span>
+                    <span className="text-zinc-600 dark:text-zinc-400 flex items-center">
+                      Employer NI (14.1%)
+                      <TaxTip text="Arbeidsgiveravgift: 14.1% in Zone I. Reduced in zones II–V (0–10.6%)." sourceUrl={TAX_SOURCES.EMPLOYER_NI} />
+                    </span>
                     <span className="font-medium tabular-nums">{nok(tb.employerNI)}</span>
                   </div>
                 )}
                 {tb.dividendTax > 0 && (
                   <div className="flex justify-between py-1">
-                    <span className="text-zinc-600 dark:text-zinc-400">Dividend Tax (~37.84%)</span>
+                    <span className="text-zinc-600 dark:text-zinc-400 flex items-center">
+                      Dividend Tax (~37.84%)
+                      <TaxTip text="Dividends are upwardly adjusted by factor 1.72, then taxed at 22% = effective 37.84%." sourceUrl={TAX_SOURCES.DIVIDEND_UPLIFT} />
+                    </span>
                     <span className="font-medium tabular-nums">{nok(tb.dividendTax)}</span>
                   </div>
                 )}
                 {tb.personalAllowance > 0 && (
                   <div className="flex justify-between py-1 text-emerald-600 dark:text-emerald-400">
-                    <span>− Personal Allowance</span>
+                    <span className="flex items-center">
+                      − Personal Allowance
+                      <TaxTip text={`Personfradrag: NOK ${tb.personalAllowance.toLocaleString('nb-NO')} deducted from general income.`} sourceUrl={TAX_SOURCES.PERSONAL_ALLOWANCE} />
+                    </span>
                     <span className="tabular-nums">−{nok(tb.personalAllowance)}</span>
                   </div>
                 )}
@@ -493,12 +550,12 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                 <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{profile.description}</div>
               </div>
               <div className="mt-3 space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
-                <div className="flex justify-between">
-                  <span>Corporate Tax</span>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center">Corporate Tax <TaxTip text="Tax on company profits. Pass-through entities pay personal income tax instead." sourceUrl={TAX_SOURCES.GENERAL_INCOME} /></span>
                   <span className="font-medium">{profile.hasCorporateTax ? pct(profile.corporateTaxRate) : 'No (pass-through)'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Limited Liability</span>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center">Limited Liability <TaxTip text="Whether the owner's personal assets are protected from company debts." /></span>
                   <span className="font-medium">{profile.limitedLiability ? '✅ Yes' : '❌ No'}</span>
                 </div>
                 {profile.minCapital && (
@@ -507,8 +564,8 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                     <span className="font-medium">{nok(profile.minCapital)}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span>Dividend Tax</span>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center">Dividend Tax <TaxTip text="Dividends are adjusted upward by 1.72x, then taxed at 22% = ~37.84% effective rate." sourceUrl={TAX_SOURCES.DIVIDEND_UPLIFT} /></span>
                   <span className="font-medium">{profile.dividendTaxApplies ? '~37.84%' : 'N/A'}</span>
                 </div>
               </div>
@@ -611,11 +668,14 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
 
           {/* VAT Summary */}
           <div className="rounded-xl border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">VAT Rates</h3>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-2 flex items-center">
+              VAT Rates
+              <TaxTip text="Merverdiavgift (MVA). VAT registration required when turnover exceeds NOK 50,000." sourceUrl={TAX_SOURCES.VAT} />
+            </h3>
             <div className="space-y-1.5 text-xs">
               {Object.entries(VAT_RATES).map(([key, rate]) => (
                 <div key={key} className="flex justify-between text-zinc-600 dark:text-zinc-400">
-                  <span>{key === 'STANDARD' ? 'Standard' : key === 'FOOD' ? 'Food' : key === 'TRANSPORT' ? 'Transport/Hotel' : key === 'LOW' ? 'Reduced' : key === 'ZERO' ? 'Exempt' : key}</span>
+                  <span>{key === 'STANDARD' ? 'Standard' : key === 'FOOD' ? 'Food & Water' : key === 'TRANSPORT' ? 'Transport/Hotel' : key === 'CULTURE' ? 'Culture/Events' : key === 'LOW' ? 'Reduced' : key === 'ZERO' ? 'Exempt (0%)' : key}</span>
                   <span className="font-medium">{pct(rate)}</span>
                 </div>
               ))}
@@ -646,13 +706,57 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
             </div>
           </div>
 
+          {/* Official Sources & References */}
+          <div className="rounded-xl border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3 flex items-center gap-1.5">
+              <FiBook className="h-3.5 w-3.5 text-indigo-500" />
+              Official Sources
+            </h3>
+            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mb-3">
+              All tax rates are sourced from official Norwegian authorities for the {TAX_YEAR} tax year.
+            </p>
+            <div className="space-y-2 text-xs">
+              {[
+                { label: 'Skatteetaten — All Rates', url: TAX_SOURCES.ALL_RATES, desc: 'Official tax rates' },
+                { label: 'Bracket Tax (Trinnskatt)', url: TAX_SOURCES.BRACKET_TAX, desc: 'Progressive income tax' },
+                { label: 'National Insurance', url: TAX_SOURCES.NATIONAL_INSURANCE, desc: 'Trygdeavgift rates' },
+                { label: 'Employer NI Contributions', url: TAX_SOURCES.EMPLOYER_NI, desc: 'Arbeidsgiveravgift' },
+                { label: 'Dividend / Share Gains', url: TAX_SOURCES.DIVIDEND_UPLIFT, desc: 'Uplift factor 1.72x' },
+                { label: 'VAT Rates', url: TAX_SOURCES.VAT, desc: 'Merverdiavgift (MVA)' },
+                { label: 'Crypto & Virtual Assets', url: TAX_SOURCES.CRYPTO_TAX, desc: 'Tax rules for crypto' },
+                { label: 'Skatteloven (Lovdata)', url: TAX_SOURCES.SKATTELOVEN, desc: 'Tax Act full text' },
+                { label: 'MVA-loven (Lovdata)', url: TAX_SOURCES.MVA_LOVEN, desc: 'VAT Act full text' },
+                { label: 'Altinn — Business Taxes', url: TAX_SOURCES.ALTINN_TAXES, desc: 'Start & run business' },
+                { label: 'Brønnøysundregistrene', url: TAX_SOURCES.COMPANY_REGISTRATION, desc: 'Company register' },
+              ].map(src => (
+                <a
+                  key={src.url}
+                  href={src.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between rounded-lg px-2 py-1.5 -mx-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">{src.label}</div>
+                    <div className="text-[10px] text-zinc-400">{src.desc}</div>
+                  </div>
+                  <FiExternalLink className="h-3 w-3 flex-shrink-0 text-zinc-400 group-hover:text-indigo-500 ml-2" />
+                </a>
+              ))}
+            </div>
+          </div>
+
           {/* Disclaimer */}
           <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-950/20">
             <div className="flex gap-2">
               <FiAlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500 mt-0.5" />
               <p className="text-[10px] text-amber-700 dark:text-amber-300 leading-relaxed">
-                {tb.disclaimer} These figures are estimates based on recorded data and Norwegian tax rules for 2026.
-                Contact an authorized accountant or Skatteetaten (skatteetaten.no) for final calculations.
+                {tb.disclaimer} These figures are estimates based on recorded data and Norwegian tax rules for {TAX_YEAR}.
+                Contact an authorized accountant or{' '}
+                <a href={TAX_SOURCES.ALL_RATES} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-800 dark:hover:text-amber-200">
+                  Skatteetaten
+                </a>{' '}
+                for final calculations.
               </p>
             </div>
           </div>
