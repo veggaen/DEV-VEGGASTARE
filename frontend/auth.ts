@@ -8,6 +8,7 @@ import { UserRole } from "@/generated/prisma/browser"
 import { getUserById } from "@/data/user"
 import { getTwoFactorConfirmationByUserId } from "@/data/two-factor-confirmation"
 import { getAccountByUserId } from "./lib/account"
+import { recalculateVerificationTier } from "@/lib/verification-recalc"
 
 
 // Console.log PREFIX
@@ -95,6 +96,11 @@ export const {
 
       },
       async linkAccount({ user, profile, account }){
+        // Build the OAuth flag based on provider
+        const oauthFlags: Record<string, boolean> = {};
+        if (account.provider === 'google') oauthFlags.hasGoogleAuth = true;
+        if (account.provider === 'github') oauthFlags.hasGithubAuth = true;
+        if (account.provider === 'discord') oauthFlags.hasDiscordAuth = true;
 
         await dbPrisma.user.update({
           where: { id: user?.id },
@@ -102,8 +108,14 @@ export const {
             emailVerified: new Date(),
             email: user.email,
             image: profile.image,
+            ...oauthFlags,
           }
-        })
+        });
+
+        // Recalculate verification tier with the newly set flag
+        if (user?.id) {
+          await recalculateVerificationTier(user.id, oauthFlags);
+        }
       }
     },
     callbacks: {

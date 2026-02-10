@@ -3,6 +3,7 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { recalculateVerificationTier } from '@/lib/verification-recalc';
 
 /**
  * POST /api/orders/confirm
@@ -70,6 +71,17 @@ export async function POST(req: Request) {
         }),
       ] : []),
     ]);
+
+    // Set Web3 payment flag and recalculate verification tier
+    try {
+      await dbPrisma.user.update({
+        where: { id: session.id },
+        data: { hasWeb3Payment: true },
+      });
+      await recalculateVerificationTier(session.id, { hasWeb3Payment: true });
+    } catch (flagErr) {
+      console.error('[api/orders/confirm] Failed to set hasWeb3Payment flag:', flagErr);
+    }
 
     return NextResponse.json({ 
       success: true, 

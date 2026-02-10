@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { OrderDtoSchema } from '@/lib/types/orders';
 import { sendOrderConfirmationEmail } from '@/lib/mail';
 import { generateDownloadTokensForOrder } from '@/lib/download-tokens';
+import { recalculateVerificationTier } from '@/lib/verification-recalc';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -132,6 +133,20 @@ export async function POST(req: Request) {
         OrderItem: true,
       },
     });
+
+    // Set payment verification flag and recalculate tier
+    // Fiat orders are COMPLETED immediately; crypto orders are CONFIRMING (handled in /confirm)
+    if (!isCryptoPayment) {
+      try {
+        await dbPrisma.user.update({
+          where: { id: session.id },
+          data: { hasWeb2Payment: true },
+        });
+        await recalculateVerificationTier(session.id, { hasWeb2Payment: true });
+      } catch (flagErr) {
+        console.error('[api/orders] Failed to set hasWeb2Payment flag:', flagErr);
+      }
+    }
 
     // Generate download tokens for digital products
     let downloadTokens: Awaited<ReturnType<typeof generateDownloadTokensForOrder>> = [];

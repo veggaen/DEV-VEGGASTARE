@@ -31,6 +31,7 @@ import { FancyBackground } from '@/components/uicustom/fancy-background';
 import { NotificationSettings as NotificationSettingsComponent } from '@/components/uicustom/notifications/notification-settings';
 import type { NotificationSettings as NotificationSettingsType, NotificationMute } from '@/components/uicustom/notifications/types';
 import { CurrencySelector, useCurrency, FIAT_CURRENCIES, CRYPTO_CURRENCIES } from '@/components/uicustom/currency-selector';
+import { VerificationDashboard } from '@/components/uicustom/verification-dashboard';
 import { 
   FiUser, FiLock, FiMail, FiBell, FiShield, FiSave, 
   FiEdit2, FiX, FiCheck, FiImage, FiChevronRight, FiCamera, FiUpload,
@@ -62,12 +63,12 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
-  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'notifications' | 'privacy' | 'appearance' | 'currency'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'notifications' | 'privacy' | 'appearance' | 'currency' | 'verification'>('profile');
   
   // Read section from URL params (e.g. /settings?section=notifications)
   useEffect(() => {
     const sectionParam = searchParams.get('section');
-    if (sectionParam && ['profile', 'account', 'security', 'notifications', 'privacy', 'appearance', 'currency'].includes(sectionParam)) {
+    if (sectionParam && ['profile', 'account', 'security', 'notifications', 'privacy', 'appearance', 'currency', 'verification'].includes(sectionParam)) {
       setActiveSection(sectionParam as typeof activeSection);
     }
   }, [searchParams]);
@@ -350,6 +351,7 @@ export default function SettingsPage() {
     { id: 'appearance', label: 'Appearance', icon: FiSliders, description: 'Theme, effects & animations' },
     { id: 'currency', label: 'Currency', icon: FiDollarSign, description: 'Display currency & crypto' },
     { id: 'security', label: 'Security', icon: FiShield, description: 'Password and authentication' },
+    { id: 'verification', label: 'Verification', icon: FiTrendingUp, description: 'Trust level & Reach multiplier' },
     { id: 'notifications', label: 'Notifications', icon: FiBell, description: 'Email and push notifications' },
     { id: 'privacy', label: 'Privacy', icon: FiLock, description: 'Control your data and visibility' },
   ] as const;
@@ -1028,6 +1030,10 @@ export default function SettingsPage() {
 
               {activeSection === 'notifications' && (
                 <NotificationSettingsSection />
+              )}
+
+              {activeSection === 'verification' && (
+                <VerificationDashboard />
               )}
 
               {activeSection === 'privacy' && (

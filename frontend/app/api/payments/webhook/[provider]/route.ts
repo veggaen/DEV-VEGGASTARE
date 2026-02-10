@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 import { getPaymentProvider, type PaymentProviderType } from '@/lib/payments/providers';
+import { recalculateVerificationTier } from '@/lib/verification-recalc';
 
 /**
  * POST /api/payments/webhook/[provider]
@@ -64,6 +65,20 @@ export async function POST(
         ]);
 
         console.log(`[webhook/${providerType}] Order ${orderId} completed via ${providerType}`);
+
+        // Set Web2 payment flag and recalculate verification tier
+        const order = await dbPrisma.order.findUnique({ where: { id: orderId }, select: { userId: true } });
+        if (order?.userId) {
+          try {
+            await dbPrisma.user.update({
+              where: { id: order.userId },
+              data: { hasWeb2Payment: true },
+            });
+            await recalculateVerificationTier(order.userId, { hasWeb2Payment: true });
+          } catch (flagErr) {
+            console.error(`[webhook/${providerType}] Failed to set hasWeb2Payment:`, flagErr);
+          }
+        }
       }
     }
 
