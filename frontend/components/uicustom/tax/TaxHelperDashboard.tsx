@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import dynamic from 'next/dynamic';
-import { FiDollarSign, FiTrendingUp, FiFileText, FiUsers, FiPieChart, FiAlertTriangle, FiSettings, FiPlus, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiDollarSign, FiTrendingUp, FiFileText, FiUsers, FiPieChart, FiAlertTriangle, FiSettings, FiPlus, FiChevronDown, FiChevronUp, FiDownload } from 'react-icons/fi';
 import { TAX_PROFILES, VAT_RATES, type CompanyOrgType } from '@/lib/tax/constants';
 import type { TaxBreakdown } from '@/lib/tax/calculator';
 
@@ -619,6 +619,30 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                   <span className="font-medium">{pct(rate)}</span>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Tax Export */}
+          <div className="rounded-xl border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">Export Tax Data</h3>
+            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mb-3">
+              Download your tax records for Skatteetaten. Includes sales, expenses, salaries, and crypto payments with NOK conversion.
+            </p>
+            <div className="flex gap-2">
+              <a
+                href={`/api/companies/${companyId}/tax/export?format=csv&year=${new Date().getFullYear()}`}
+                download
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+              >
+                <FiDownload className="h-3.5 w-3.5" /> CSV Export
+              </a>
+              <a
+                href={`/api/companies/${companyId}/tax/export?format=json&year=${new Date().getFullYear()}`}
+                download
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-500/20 transition-colors"
+              >
+                <FiDownload className="h-3.5 w-3.5" /> JSON Export
+              </a>
             </div>
           </div>
 

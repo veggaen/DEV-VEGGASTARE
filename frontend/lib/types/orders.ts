@@ -13,6 +13,16 @@ export const PaymentDtoSchema = z
     commentPay: z.string().nullable().optional(),
     createdAt: IsoDateStringSchema,
     updatedAt: IsoDateStringSchema,
+    // Crypto on-chain data
+    chainFamily: z.string().nullable().optional(),
+    chainId: z.number().nullable().optional(),
+    tokenSymbol: z.string().nullable().optional(),
+    nativeAmount: z.string().nullable().optional(),
+    senderAddress: z.string().nullable().optional(),
+    receiverAddress: z.string().nullable().optional(),
+    blockNumber: z.number().nullable().optional(),
+    nokRateAtTime: z.number().nullable().optional(),
+    usdRateAtTime: z.number().nullable().optional(),
   })
   .strict();
 

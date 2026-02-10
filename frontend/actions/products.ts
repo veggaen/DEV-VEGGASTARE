@@ -163,6 +163,35 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
       console.log('Categories linked: ', validatedData.categories.map(c => c.name).join(', '));
     }
 
+    // Handle crypto accepted tokens
+    const rawTokens = (validatedData as any).acceptedTokens;
+    if (Array.isArray(rawTokens) && rawTokens.length > 0) {
+      for (const t of rawTokens) {
+        const parsed = ProductAcceptedTokenInputSchema.safeParse(t);
+        if (!parsed.success) continue;
+        await dbPrisma.productAcceptedToken.create({
+          data: {
+            productId: product.id,
+            family: parsed.data.family as any,
+            symbol: parsed.data.symbol.toUpperCase().trim(),
+            decimals: parsed.data.decimals,
+            tokenAddress: parsed.data.tokenAddress ?? null,
+            tokenMint: parsed.data.tokenMint ?? null,
+          },
+        });
+      }
+      console.log('Accepted tokens: ', rawTokens.map((t: any) => t.symbol).join(', '));
+    }
+
+    // Handle receiver wallet assignment
+    const receiverWalletId = (validatedData as any).receiverWalletId;
+    if (receiverWalletId && typeof receiverWalletId === 'string') {
+      await dbPrisma.product.update({
+        where: { id: product.id },
+        data: { receiverWalletId },
+      });
+    }
+
     // Skip warehouse/inventory setup for digital-only products
     if (!needsShipping || cleanedPostalCodes.length === 0) {
       return { success: 'Product created successfully.', productId: product.id };

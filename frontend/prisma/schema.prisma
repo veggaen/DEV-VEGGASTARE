@@ -467,15 +467,31 @@ model PasswordResetToken {
 }
 
 model Payment {
-  id            String        @id @default(cuid())
-  orderId       String        @unique
-  method        PaymentMethod
-  status        PaymentStatus @default(PENDING)
-  transactionId String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  commentPay    String?
-  Order         Order         @relation(fields: [orderId], references: [id])
+  id              String        @id @default(cuid())
+  orderId         String        @unique
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  transactionId   String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  commentPay      String?
+
+  // On-chain crypto payment data
+  chainFamily     ChainFamily?  // EVM or SOLANA
+  chainId         Int?          // EVM chain id (1=ETH, 369=PLS, 8453=Base…)
+  tokenSymbol     String?       // ETH, PLS, SOL, USDC…
+  nativeAmount    String?       // Amount in native token (string to avoid float precision)
+  senderAddress   String?       // Wallet that sent the payment
+  receiverAddress String?       // Wallet that received the payment
+  blockNumber     Int?          // Block the tx was confirmed in
+  nokRateAtTime   Float?        // NOK per token at tx time (for Norwegian tax)
+  usdRateAtTime   Float?        // USD per token at tx time
+
+  Order           Order         @relation(fields: [orderId], references: [id])
+
+  @@index([chainFamily])
+  @@index([senderAddress])
+  @@index([receiverAddress])
 }
 
 model Poll {
@@ -1302,6 +1318,7 @@ enum EmployeeRole {
 
 enum OrderStatus {
   PENDING
+  CONFIRMING       // tx broadcast, awaiting on-chain confirmation
   COMPLETED
   FAILED
   CANCELLED
@@ -1325,10 +1342,12 @@ enum PaymentMethod {
   TRUST
   VIPPS
   KLARNA
+  CRYPTO_NATIVE    // generic native-token crypto payment
 }
 
 enum PaymentStatus {
   PENDING
+  CONFIRMING       // tx broadcast, awaiting on-chain confirmation
   COMPLETED
   FAILED
 }

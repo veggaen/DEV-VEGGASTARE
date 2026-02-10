@@ -27,6 +27,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { saveFormState, loadFormState, clearFormState, hasPendingFormData } from '@/lib/form-persistence';
 import { CategoryTagInput } from '../../category-tag-input';
 import { AddressInput, type AddressData } from '../../../uicustom/address-input';
+import { CryptoTokenSelector, type AcceptedTokenEntry } from './crypto-token-selector';
 
 // Form persistence key
 const FORM_STORAGE_KEY = 'product-create';
@@ -102,6 +103,9 @@ export const MyProductCreationForm = () => {
   const [specifications, setSpecifications] = useState<Specification[]>([]);
   const [features, setFeatures] = useState<Feature[]>([]);
   
+  // Crypto accepted tokens state
+  const [acceptedTokens, setAcceptedTokens] = useState<AcceptedTokenEntry[]>([]);
+  
   // Form restoration state
   const [hasRestoredForm, setHasRestoredForm] = useState(false);
   const [showFileReselectionNotice, setShowFileReselectionNotice] = useState(false);
@@ -174,6 +178,8 @@ export const MyProductCreationForm = () => {
       downloadsEnabled: true,
       maxDownloads: 5,
       downloadExpiryDays: null,
+      acceptedTokens: [],
+      receiverWalletId: null,
     },
   });
 
@@ -664,6 +670,9 @@ export const MyProductCreationForm = () => {
       if (formattedFeatures.length > 0) {
         values.features = formattedFeatures;
       }
+
+      // Include accepted crypto tokens
+      values.acceptedTokens = acceptedTokens;
 
       const data = await MyCreateProductAction(values, finalPostalCodes);
       if ('error' in data) {
@@ -1310,6 +1319,13 @@ export const MyProductCreationForm = () => {
                 </div>
               </div>
             </div>
+
+            {/* Crypto Token Acceptance */}
+            <CryptoTokenSelector
+              tokens={acceptedTokens}
+              onChange={setAcceptedTokens}
+              disabled={isSubmitting}
+            />
 
             {/* Column 2: Options + Specifications */}
             <div className='flex flex-col gap-5 h-full'>

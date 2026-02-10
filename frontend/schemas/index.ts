@@ -127,6 +127,15 @@ export const CategoryTagSchema = z.object({
 export type CategoryTag = z.infer<typeof CategoryTagSchema>;
 
 // Schema for product creation 2/4
+export const AcceptedTokenSchema = z.object({
+    family: z.enum(['EVM', 'SOLANA']),
+    symbol: z.string().min(1).max(20),
+    decimals: z.number().int().min(0).max(18),
+    tokenAddress: z.string().optional().nullable(),
+    tokenMint: z.string().optional().nullable(),
+});
+export type AcceptedToken = z.infer<typeof AcceptedTokenSchema>;
+
 export const MyProductCreateSchema = z.object({
     title: z.string().min(1, { message: "Title is required" }),
     description: z.string().min(1, { message: "Description is required" }),
@@ -163,6 +172,10 @@ export const MyProductCreateSchema = z.object({
     // Shipping options
     freeShippingEnabled: z.boolean().default(false),
     freeShippingThreshold: z.number().min(0).optional().nullable(), // null = no threshold (always free)
+
+    // Crypto payment: accepted tokens for this product
+    acceptedTokens: z.array(AcceptedTokenSchema).optional().default([]),
+    receiverWalletId: z.string().optional().nullable(),
 });
 
 // Schema for product update (optional fields for updates) 3/4

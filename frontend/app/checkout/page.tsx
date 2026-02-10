@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -74,6 +74,21 @@ function receiverAddressFor(active: ReturnType<typeof useActiveNetwork>["active"
   return process.env.NEXT_PUBLIC_RECEIVER_SOL ?? "Bmm2RU2g6LGd4UFmYDp8YvUwonhkvz44D3EMkccq3FZs";
 }
 
+/** QR code URL via public API */
+function qrCodeUrl(data: string, size = 200) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}`;
+}
+
+/** Format seconds into MM:SS */
+function fmtTimer(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+/** Payment expiry timer (15 minutes) */
+const PAYMENT_TIMER_SECONDS = 15 * 60;
+
 /* ============ Page ============ */
 export default function CheckoutPage() {
   const router = useRouter();
@@ -100,6 +115,13 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'crypto' | 'vipps' | 'klarna' | 'paypal'>('crypto');
   const [availableFiatMethods, setAvailableFiatMethods] = useState<{ type: string; displayName: string; icon: string }[]>([]);
 
+  /* Crypto payment verification states */
+  const [verifyingTx, setVerifyingTx] = useState(false);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [paymentTimerActive, setPaymentTimerActive] = useState(false);
+  const [paymentTimeLeft, setPaymentTimeLeft] = useState(PAYMENT_TIMER_SECONDS);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   /* shipping form */
   const [shipping, setShipping] = useState<ShippingForm>({
     name: "",
@@ -124,6 +146,26 @@ export default function CheckoutPage() {
   const updateShipping = (field: keyof ShippingForm, value: string) => {
     setShipping((prev) => ({ ...prev, [field]: value }));
   };
+
+  /* Payment countdown timer */
+  useEffect(() => {
+    if (paymentTimerActive && paymentTimeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setPaymentTimeLeft((t) => {
+          if (t <= 1) {
+            setPaymentTimerActive(false);
+            setError("Payment window expired. Prices may have changed. Please try again.");
+            setShowError(true);
+            return 0;
+          }
+          return t - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [paymentTimerActive, paymentTimeLeft]);
 
   /* load cart (server has USD prices) */
   const loadCart = useCallback(async () => {
@@ -208,17 +250,36 @@ export default function CheckoutPage() {
 
   /* -------- Payment actions -------- */
   const recordOrder = useCallback(
-    async (txHash: string) => {
+    async (txHashValue: string, blockNum?: number) => {
       try {
+        const chainFamily = active.kind === "evm" ? "EVM" : "SOLANA";
+        const chainId = active.kind === "evm" ? active.chainId : undefined;
+        const tokenSym = nativeSymbol;
+        const usdRate = usdPerNative ?? undefined;
+        // Compute NOK rate: tokenPriceUSD / (NOK_per_USD)
+        // rates.NOK.usd = how many USD 1 NOK is worth, so 1 USD = 1/rates.NOK.usd NOK
+        const nokPerUsd = rates.NOK?.usd ? (1 / rates.NOK.usd) : undefined;
+        const nokRate = usdRate && nokPerUsd ? usdRate * nokPerUsd : undefined;
+
         const res = await fetch("/api/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             totalAmount: subtotalUSD,
-            transactionId: txHash,
-            method: "NATIVE",
+            transactionId: txHashValue,
+            method: "CRYPTO_NATIVE",
             commentOrder: `${items.length} items`,
-            commentPay: `Paid on ${networkLabel}`,
+            commentPay: `Paid ${totalInNative} ${nativeSymbol} on ${networkLabel}`,
+            // On-chain crypto data
+            chainFamily,
+            chainId,
+            tokenSymbol: tokenSym,
+            nativeAmount: totalInNative?.toString() ?? "0",
+            senderAddress,
+            receiverAddress,
+            blockNumber: blockNum ?? null,
+            nokRateAtTime: nokRate ?? null,
+            usdRateAtTime: usdRate ?? null,
             // Shipping info
             shippingName: shipping.name,
             shippingAddress: shipping.address,
@@ -240,15 +301,33 @@ export default function CheckoutPage() {
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || "Failed to record order");
         }
+        const orderData = await res.json();
         // clear cart
         await fetch(`/api/cart/${user?.id}`, { method: "DELETE" });
+        return orderData;
       } catch (e) {
         console.error("Order recording failed:", e);
         throw e;
       }
     },
-    [user?.id, items, subtotalUSD, networkLabel, shipping]
+    [user?.id, items, subtotalUSD, networkLabel, shipping, active, nativeSymbol, usdPerNative, rates, totalInNative, senderAddress, receiverAddress]
   );
+
+  /** Confirm order after on-chain verification */
+  const confirmOrder = useCallback(async (orderId: string, txId: string, blockNum?: number) => {
+    try {
+      const res = await fetch("/api/orders/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, transactionId: txId, blockNumber: blockNum }),
+      });
+      if (!res.ok) {
+        console.warn("Order confirmation failed:", await res.text());
+      }
+    } catch (e) {
+      console.error("Order confirm error:", e);
+    }
+  }, []);
 
   async function handlePayEvmNative() {
     if (!walletClient || !publicClient) throw new Error("Wallet not connected");
@@ -259,13 +338,30 @@ export default function CheckoutPage() {
     // ETH & PLS both use 18 decimals
     const value = parseUnits(totalInNative.toString(), 18);
 
+    // Start payment timer
+    setPaymentTimerActive(true);
+    setPaymentTimeLeft(PAYMENT_TIMER_SECONDS);
+
     const hash = await walletClient.sendTransaction({
       to: receiverAddress as `0x${string}`,
       value,
     });
 
-    await publicClient.waitForTransactionReceipt({ hash });
-    await recordOrder(hash);
+    setTxHash(hash);
+    setVerifyingTx(true);
+
+    // Record order as CONFIRMING
+    const orderData = await recordOrder(hash);
+
+    // Wait for on-chain confirmation
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    setVerifyingTx(false);
+    setPaymentTimerActive(false);
+
+    // Confirm order after on-chain verification
+    if (orderData?.id) {
+      await confirmOrder(orderData.id, hash, Number(receipt.blockNumber));
+    }
   }
 
   async function handlePaySolana() {
@@ -289,21 +385,42 @@ export default function CheckoutPage() {
     const { blockhash } = await connection.getRecentBlockhash();
     tx.recentBlockhash = blockhash;
 
+    // Start payment timer
+    setPaymentTimerActive(true);
+    setPaymentTimeLeft(PAYMENT_TIMER_SECONDS);
+
     const signed = await sol.signTransaction(tx);
     const sig = await connection.sendRawTransaction(signed.serialize());
-    await connection.confirmTransaction(sig, "confirmed");
 
-    await recordOrder(sig);
+    setTxHash(sig);
+    setVerifyingTx(true);
+
+    // Record order as CONFIRMING
+    const orderData = await recordOrder(sig);
+
+    // Wait for on-chain confirmation
+    await connection.confirmTransaction(sig, "confirmed");
+    setVerifyingTx(false);
+    setPaymentTimerActive(false);
+
+    // Confirm order
+    if (orderData?.id) {
+      await confirmOrder(orderData.id, sig);
+    }
   }
 
   async function handleConfirmPay() {
     try {
       setPaying(true);
+      setTxHash(null);
+      setVerifyingTx(false);
       if (active.kind === "evm") await handlePayEvmNative();
       else await handlePaySolana();
       router.push("/order-confirmation");
     } catch (e) {
       console.error("Payment failed:", e);
+      setPaymentTimerActive(false);
+      setVerifyingTx(false);
       setError(
         active.kind === "evm"
           ? "EVM payment failed. Check your wallet and try again."
@@ -689,7 +806,9 @@ export default function CheckoutPage() {
 
             {/* Pay buttons */}
             {paymentMethod === 'crypto' ? (
-              <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+              <Dialog open={confirmOpen} onOpenChange={(open) => {
+                if (!paying) setConfirmOpen(open);
+              }}>
                 <DialogTrigger asChild>
                   <Button
                     className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
@@ -700,7 +819,7 @@ export default function CheckoutPage() {
                   </Button>
                 </DialogTrigger>
 
-                <DialogContent className="bg-surface-1 dark:bg-zinc-900 p-6 rounded-2xl max-w-md border border-border dark:border-white/10">
+                <DialogContent className="bg-surface-1 dark:bg-zinc-900 p-6 rounded-2xl max-w-lg border border-border dark:border-white/10">
                   <DialogTitle className="sr-only">Confirm Payment</DialogTitle>
                   <AnimatePresence>
                     {confirmOpen && (
@@ -711,18 +830,37 @@ export default function CheckoutPage() {
                         transition={{ duration: 0.2 }}
                       >
                         <h3 className="text-xl font-bold text-foreground mb-4">Confirm Payment</h3>
-                        <div className="space-y-3 text-sm">
+
+                        {/* QR Code for receiver address */}
+                        <div className="flex flex-col items-center mb-4">
+                          <div className="bg-white p-2 rounded-lg">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={qrCodeUrl(receiverAddress, 180)}
+                              alt="Payment QR code"
+                              width={180}
+                              height={180}
+                              className="rounded"
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Scan to copy receiver address
+                          </p>
+                        </div>
+
+                        {/* Payment details */}
+                        <div className="space-y-2.5 text-sm">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Network</span>
                             <span className="text-foreground">{networkLabel}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">From</span>
-                            <span className="text-foreground font-mono">{formatAddr(senderAddress)}</span>
+                            <span className="text-foreground font-mono text-xs">{formatAddr(senderAddress)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">To</span>
-                            <span className="text-foreground font-mono">{formatAddr(receiverAddress)}</span>
+                            <span className="text-foreground font-mono text-xs">{formatAddr(receiverAddress)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Amount</span>
@@ -732,12 +870,47 @@ export default function CheckoutPage() {
                           </div>
                         </div>
 
+                        {/* Timer */}
+                        {paymentTimerActive && (
+                          <div className="mt-3 flex items-center justify-center gap-2 text-sm">
+                            <span className="text-muted-foreground">Rate locked for:</span>
+                            <span className={`font-mono font-bold ${paymentTimeLeft < 120 ? 'text-red-500' : 'text-emerald-500'}`}>
+                              {fmtTimer(paymentTimeLeft)}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Verification status */}
+                        {verifyingTx && txHash && (
+                          <div className="mt-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-500/20">
+                            <div className="flex items-center gap-2">
+                              <motion.div
+                                className="h-4 w-4 rounded-full border-2 border-blue-500 border-t-transparent"
+                                animate={{ rotate: 360 }}
+                                transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                              />
+                              <span className="text-sm text-blue-700 dark:text-blue-300">
+                                Verifying on-chain…
+                              </span>
+                            </div>
+                            <p className="text-xs text-blue-500 font-mono mt-1 truncate">
+                              TX: {txHash}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Disclaimer */}
+                        <div className="mt-3 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 text-[10px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                          ⚠️ Crypto transactions are <strong>irreversible</strong>. Double-check the network, address, and amount.
+                          For Norwegian tax: this payment will be recorded at current NOK rate for Skatteetaten compliance.
+                        </div>
+
                         <Button
                           onClick={handleConfirmPay}
-                          className="w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white"
                           disabled={paying || !isWalletReady || !totalInNative}
                         >
-                          {paying ? "Processing…" : `Confirm & Pay`}
+                          {verifyingTx ? "Verifying…" : paying ? "Processing…" : `Confirm & Pay`}
                         </Button>
                       </motion.div>
                     )}

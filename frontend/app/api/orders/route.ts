@@ -2,7 +2,7 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
-import { PaymentMethod } from '@/generated/prisma/browser';
+import { PaymentMethod, ChainFamily } from '@/generated/prisma/browser';
 import { z } from 'zod';
 import { OrderDtoSchema } from '@/lib/types/orders';
 import { sendOrderConfirmationEmail } from '@/lib/mail';
@@ -39,6 +39,16 @@ export async function POST(req: Request) {
       commentOrder: z.string().trim().max(2000).optional().nullable(),
       commentPay: z.string().trim().max(2000).optional().nullable(),
       method: z.nativeEnum(PaymentMethod).optional().nullable(),
+      // Crypto on-chain data
+      chainFamily: z.nativeEnum(ChainFamily).optional().nullable(),
+      chainId: z.coerce.number().int().optional().nullable(),
+      tokenSymbol: z.string().trim().max(20).optional().nullable(),
+      nativeAmount: z.string().trim().max(100).optional().nullable(),
+      senderAddress: z.string().trim().max(200).optional().nullable(),
+      receiverAddress: z.string().trim().max(200).optional().nullable(),
+      blockNumber: z.coerce.number().int().optional().nullable(),
+      nokRateAtTime: z.coerce.number().optional().nullable(),
+      usdRateAtTime: z.coerce.number().optional().nullable(),
       // Shipping fields
       shippingName: z.string().trim().min(2).max(200).optional().nullable(),
       shippingAddress: z.string().trim().min(3).max(500).optional().nullable(),
@@ -57,17 +67,24 @@ export async function POST(req: Request) {
 
   const { 
     totalAmount, transactionId, commentOrder, commentPay, method,
+    chainFamily, chainId, tokenSymbol, nativeAmount, senderAddress, receiverAddress, blockNumber,
+    nokRateAtTime, usdRateAtTime,
     shippingName, shippingAddress, shippingCity, shippingPostalCode, 
     shippingCountry, shippingPhone, shippingEmail, shippingMethod, shippingCost,
     items 
   } = bodyResult.data;
+
+  // Determine initial status: crypto payments start as CONFIRMING, fiat as COMPLETED
+  const isCryptoPayment = !!chainFamily || method === PaymentMethod.CRYPTO_NATIVE;
+  const initialOrderStatus = isCryptoPayment ? 'CONFIRMING' : 'COMPLETED';
+  const initialPaymentStatus = isCryptoPayment ? 'CONFIRMING' : 'COMPLETED';
 
   try {
     const order = await dbPrisma.order.create({
       data: {
         userId: session.id,
         totalAmount,
-        status: 'COMPLETED',
+        status: initialOrderStatus,
         transactionId: transactionId ?? null,
         commentOrder: commentOrder?.trim() || '',
         // Shipping info
@@ -83,9 +100,19 @@ export async function POST(req: Request) {
         Payment: {
           create: {
             commentPay: commentPay?.trim() || '',
-            method: method ?? PaymentMethod.COINBASEWALLET,
-            status: 'COMPLETED',
+            method: method ?? PaymentMethod.CRYPTO_NATIVE,
+            status: initialPaymentStatus,
             transactionId: transactionId ?? null,
+            // On-chain crypto data
+            chainFamily: chainFamily ?? null,
+            chainId: chainId ?? null,
+            tokenSymbol: tokenSymbol ?? null,
+            nativeAmount: nativeAmount ?? null,
+            senderAddress: senderAddress ?? null,
+            receiverAddress: receiverAddress ?? null,
+            blockNumber: blockNumber ?? null,
+            nokRateAtTime: nokRateAtTime ?? null,
+            usdRateAtTime: usdRateAtTime ?? null,
           },
         },
         // Create order items if provided
@@ -155,6 +182,15 @@ export async function POST(req: Request) {
           status: order.Payment.status,
           transactionId: order.Payment.transactionId ?? null,
           commentPay: order.Payment.commentPay ?? null,
+          chainFamily: order.Payment.chainFamily ?? null,
+          chainId: order.Payment.chainId ?? null,
+          tokenSymbol: order.Payment.tokenSymbol ?? null,
+          nativeAmount: order.Payment.nativeAmount ?? null,
+          senderAddress: order.Payment.senderAddress ?? null,
+          receiverAddress: order.Payment.receiverAddress ?? null,
+          blockNumber: order.Payment.blockNumber ?? null,
+          nokRateAtTime: order.Payment.nokRateAtTime ?? null,
+          usdRateAtTime: order.Payment.usdRateAtTime ?? null,
           createdAt: toIsoString(order.Payment.createdAt),
           updatedAt: toIsoString(order.Payment.updatedAt),
         }
