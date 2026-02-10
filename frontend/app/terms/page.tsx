@@ -82,7 +82,7 @@ export default function TermsPage() {
                 </li>
               </ul>
               <p className="mt-4 text-muted-foreground leading-relaxed">
-                Alle priser er oppgitt i norske kroner (NOK) inkludert merverdiavgift (MVA) der dette er påkrevd.
+                All prices are listed in Norwegian kroner (NOK) including value-added tax (VAT) where applicable.
               </p>
             </section>
 

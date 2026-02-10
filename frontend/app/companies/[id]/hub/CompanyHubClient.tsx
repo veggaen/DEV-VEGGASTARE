@@ -195,7 +195,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                 }`}
               >
                 <FiDollarSign className="inline h-4 w-4 mr-1.5" />
-                Skattehjelper
+                Tax Helper
               </button>
             </div>
 

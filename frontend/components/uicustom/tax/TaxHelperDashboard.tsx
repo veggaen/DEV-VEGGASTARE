@@ -79,23 +79,23 @@ function pct(rate: number): string {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  OFFICE: '🏢 Kontor',
-  TRAVEL: '✈️ Reise',
-  UNION_DUES: '🤝 Fagforeningskontingent',
-  EQUIPMENT: '🔧 Utstyr',
-  SOFTWARE: '💻 Programvare',
-  MARKETING: '📢 Markedsføring',
-  INSURANCE: '🛡️ Forsikring',
-  PROFESSIONAL_SERVICES: '👔 Tjenester',
-  RENT: '🏠 Husleie',
-  UTILITIES: '⚡ Strøm/Vann',
-  VEHICLE: '🚗 Kjøretøy',
-  MEALS: '🍽️ Måltider',
-  DEBT_INTEREST: '💰 Gjeldsrenter',
-  DEPRECIATION: '📉 Avskrivning',
-  SALARY_COST: '👥 Lønnskostnad',
-  EMPLOYER_NI: '🏛️ Arb.giveravgift',
-  OTHER: '📋 Annet',
+  OFFICE: '🏢 Office',
+  TRAVEL: '✈️ Travel',
+  UNION_DUES: '🤝 Union Dues',
+  EQUIPMENT: '🔧 Equipment',
+  SOFTWARE: '💻 Software',
+  MARKETING: '📢 Marketing',
+  INSURANCE: '🛡️ Insurance',
+  PROFESSIONAL_SERVICES: '👔 Professional Services',
+  RENT: '🏠 Rent',
+  UTILITIES: '⚡ Utilities',
+  VEHICLE: '🚗 Vehicle',
+  MEALS: '🍽️ Meals',
+  DEBT_INTEREST: '💰 Debt Interest',
+  DEPRECIATION: '📉 Depreciation',
+  SALARY_COST: '👥 Salary Cost',
+  EMPLOYER_NI: '🏛️ Employer NI',
+  OTHER: '📋 Other',
 };
 
 const MONTHS_NO = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -218,10 +218,10 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
               <FiDollarSign className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Skattehjelper</h2>
+              <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Tax Helper</h2>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                Automatisk skatteberegning og oversikt basert på selskapets aktivitet.
-                Norske skatteregler 2026, tilpasset {profile?.label ?? 'ditt selskap'}.
+                Automatic tax calculations and overview based on company activity.
+                Norwegian tax rules 2026, tailored to {profile?.label ?? 'your company'}.
               </p>
               {profile && (
                 <p className="mt-2 text-xs text-zinc-500">
@@ -232,7 +232,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                 onClick={handleEnableTax}
                 className="mt-4 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
               >
-                Aktiver Skattehjelper
+                Enable Tax Helper
               </button>
             </div>
           </div>
@@ -252,7 +252,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
     labels: monthlyTrend.map((_m, i) => MONTHS_NO[i]),
     datasets: [
       {
-        label: 'Inntekt',
+        label: 'Revenue',
         data: monthlyTrend.map(m => m.revenue),
         borderColor: '#10b981',
         backgroundColor: 'rgba(16,185,129,0.1)',
@@ -260,7 +260,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
         tension: 0.3,
       },
       {
-        label: 'Resultat',
+        label: 'Profit',
         data: monthlyTrend.map(m => m.profit),
         borderColor: '#6366f1',
         backgroundColor: 'rgba(99,102,241,0.1)',
@@ -289,11 +289,11 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
         <div>
           <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
             <FiDollarSign className="text-emerald-500" />
-            Skattehjelper {data.year}
+            Tax Helper {data.year}
           </h2>
           <p className="text-sm text-zinc-500">
-            {profile?.label ?? 'Selskap'} • {data.company.orgNumber ?? 'Ingen org.nr'}
-            {data.company.vatRegistered && ` • MVA: ${data.company.vatNumber ?? 'Registrert'}`}
+            {profile?.label ?? 'Company'} • {data.company.orgNumber ?? 'No org number'}
+            {data.company.vatRegistered && ` • VAT: ${data.company.vatNumber ?? 'Registered'}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -305,7 +305,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                 : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
             }`}
           >
-            🔮 Hva-hvis
+            🔮 What-If
           </button>
         </div>
       </div>
@@ -313,20 +313,20 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
       {/* What-if Mode */}
       {whatIfMode && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/20">
-          <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-2">Simuleringmodus — hva om inntekten var annerledes?</p>
+          <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-2">Simulation mode — what if your income was different?</p>
           <div className="flex gap-2">
             <input
               type="number"
               value={whatIfIncome}
               onChange={e => setWhatIfIncome(e.target.value)}
-              placeholder="Ny bruttoinntekt (NOK)"
+              placeholder="New gross income (NOK)"
               className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm dark:border-amber-800 dark:bg-zinc-900"
             />
             <button onClick={handleWhatIf} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">
-              Beregn
+              Calculate
             </button>
             <button onClick={() => { setWhatIfMode(false); fetchData(); }} className="rounded-lg bg-zinc-200 px-4 py-2 text-sm dark:bg-zinc-700">
-              Tilbakestill
+              Reset
             </button>
           </div>
         </div>
@@ -335,10 +335,10 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
       {/* Score Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: 'Bruttoinntekt', value: nok(summary.grossIncome), icon: <FiTrendingUp />, color: 'emerald' },
-          { label: 'Utgifter', value: nok(summary.totalExpenses), icon: <FiPieChart />, color: 'rose' },
-          { label: 'Estimert skatt', value: nok(tb.totalTaxLiability), icon: <FiDollarSign />, color: 'amber' },
-          { label: 'Effektiv skattesats', value: pct(tb.effectiveTaxRate), icon: <FiFileText />, color: 'indigo' },
+          { label: 'Gross Income', value: nok(summary.grossIncome), icon: <FiTrendingUp />, color: 'emerald' },
+          { label: 'Expenses', value: nok(summary.totalExpenses), icon: <FiPieChart />, color: 'rose' },
+          { label: 'Estimated Tax', value: nok(tb.totalTaxLiability), icon: <FiDollarSign />, color: 'amber' },
+          { label: 'Effective Tax Rate', value: pct(tb.effectiveTaxRate), icon: <FiFileText />, color: 'indigo' },
         ].map(card => (
           <div key={card.label} className="rounded-xl border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
             <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
@@ -356,7 +356,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
         <div className="space-y-6 lg:col-span-2">
           {/* Revenue Trend */}
           <div className="rounded-xl border border-black/10 bg-white p-6 dark:border-white/10 dark:bg-white/[0.03]">
-            <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-white">Månedlig inntekt & resultat</h3>
+            <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-white">Monthly Revenue & Profit</h3>
             <div className="h-64">
               <Line data={trendData} options={{
                 responsive: true,
@@ -383,41 +383,41 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
               onClick={() => setShowBreakdown(!showBreakdown)}
               className="flex w-full items-center justify-between text-left"
             >
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">Skatteberegning detaljert</h3>
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">Detailed Tax Breakdown</h3>
               {showBreakdown ? <FiChevronUp /> : <FiChevronDown />}
             </button>
             {showBreakdown && (
               <div className="mt-4 space-y-2 text-sm">
                 <div className="flex justify-between py-1">
-                  <span className="text-zinc-600 dark:text-zinc-400">Bruttoinntekt</span>
+                  <span className="text-zinc-600 dark:text-zinc-400">Gross Income</span>
                   <span className="font-medium tabular-nums">{nok(tb.grossIncome)}</span>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span className="text-zinc-600 dark:text-zinc-400">− Utgifter</span>
+                  <span className="text-zinc-600 dark:text-zinc-400">− Expenses</span>
                   <span className="font-medium tabular-nums text-red-500">−{nok(tb.totalExpenses)}</span>
                 </div>
                 <div className="flex justify-between border-t border-black/10 py-1 dark:border-white/10">
-                  <span className="font-medium">Nettoresultat</span>
+                  <span className="font-medium">Net Profit</span>
                   <span className="font-bold tabular-nums">{nok(tb.netProfit)}</span>
                 </div>
                 <div className="h-px bg-zinc-200 dark:bg-zinc-800" />
 
                 {tb.corporateTax > 0 && (
                   <div className="flex justify-between py-1">
-                    <span className="text-zinc-600 dark:text-zinc-400">Selskapsskatt ({pct(tb.corporateTaxRate)})</span>
+                    <span className="text-zinc-600 dark:text-zinc-400">Corporate Tax ({pct(tb.corporateTaxRate)})</span>
                     <span className="font-medium tabular-nums">{nok(tb.corporateTax)}</span>
                   </div>
                 )}
                 {tb.ordinaryIncomeTax > 0 && (
                   <div className="flex justify-between py-1">
-                    <span className="text-zinc-600 dark:text-zinc-400">Alminnelig inntektsskatt (22%)</span>
+                    <span className="text-zinc-600 dark:text-zinc-400">Ordinary Income Tax (22%)</span>
                     <span className="font-medium tabular-nums">{nok(tb.ordinaryIncomeTax)}</span>
                   </div>
                 )}
                 {tb.bracketTax > 0 && (
                   <>
                     <div className="flex justify-between py-1">
-                      <span className="text-zinc-600 dark:text-zinc-400">Trinnskatt</span>
+                      <span className="text-zinc-600 dark:text-zinc-400">Bracket Tax</span>
                       <span className="font-medium tabular-nums">{nok(tb.bracketTax)}</span>
                     </div>
                     {tb.bracketTaxDetails.map((d, i) => (
@@ -430,36 +430,36 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                 )}
                 {tb.nationalInsurance > 0 && (
                   <div className="flex justify-between py-1">
-                    <span className="text-zinc-600 dark:text-zinc-400">Trygdeavgift</span>
+                    <span className="text-zinc-600 dark:text-zinc-400">National Insurance</span>
                     <span className="font-medium tabular-nums">{nok(tb.nationalInsurance)}</span>
                   </div>
                 )}
                 {tb.employerNI > 0 && (
                   <div className="flex justify-between py-1">
-                    <span className="text-zinc-600 dark:text-zinc-400">Arbeidsgiveravgift (14.1%)</span>
+                    <span className="text-zinc-600 dark:text-zinc-400">Employer NI (14.1%)</span>
                     <span className="font-medium tabular-nums">{nok(tb.employerNI)}</span>
                   </div>
                 )}
                 {tb.dividendTax > 0 && (
                   <div className="flex justify-between py-1">
-                    <span className="text-zinc-600 dark:text-zinc-400">Utbytteskatt (~37.84%)</span>
+                    <span className="text-zinc-600 dark:text-zinc-400">Dividend Tax (~37.84%)</span>
                     <span className="font-medium tabular-nums">{nok(tb.dividendTax)}</span>
                   </div>
                 )}
                 {tb.personalAllowance > 0 && (
                   <div className="flex justify-between py-1 text-emerald-600 dark:text-emerald-400">
-                    <span>− Personfradrag</span>
+                    <span>− Personal Allowance</span>
                     <span className="tabular-nums">−{nok(tb.personalAllowance)}</span>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-black/10 pt-2 dark:border-white/10">
-                  <span className="font-bold text-zinc-900 dark:text-white">Totalt estimert skatt</span>
+                  <span className="font-bold text-zinc-900 dark:text-white">Total Estimated Tax</span>
                   <span className="font-bold text-emerald-600 tabular-nums">{nok(tb.totalTaxLiability)}</span>
                 </div>
 
                 {tb.vatOwed !== 0 && (
                   <div className="flex justify-between py-1 text-xs text-zinc-500">
-                    <span>MVA skyldig (innkrevd − utbetalt)</span>
+                    <span>VAT Owed (collected − paid)</span>
                     <span className="tabular-nums">{nok(tb.vatOwed)}</span>
                   </div>
                 )}
@@ -470,7 +470,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
           {/* Expense Breakdown Pie */}
           {expensesByCategory.length > 0 && (
             <div className="rounded-xl border border-black/10 bg-white p-6 dark:border-white/10 dark:bg-white/[0.03]">
-              <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-white">Utgifter etter kategori</h3>
+              <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-white">Expenses by Category</h3>
               <div className="mx-auto h-64 max-w-xs">
                 <Pie data={expensePieData} options={{
                   responsive: true,
@@ -487,28 +487,28 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
           {/* Tax Profile Card */}
           {profile && (
             <div className="rounded-xl border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">Din selskapstype</h3>
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">Your Company Type</h3>
               <div className="rounded-lg bg-emerald-50 p-3 dark:bg-emerald-950/20">
                 <div className="font-medium text-emerald-700 dark:text-emerald-300">{profile.label}</div>
                 <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{profile.description}</div>
               </div>
               <div className="mt-3 space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
                 <div className="flex justify-between">
-                  <span>Selskapsskatt</span>
-                  <span className="font-medium">{profile.hasCorporateTax ? pct(profile.corporateTaxRate) : 'Nei (gjennomstrømning)'}</span>
+                  <span>Corporate Tax</span>
+                  <span className="font-medium">{profile.hasCorporateTax ? pct(profile.corporateTaxRate) : 'No (pass-through)'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Begrenset ansvar</span>
-                  <span className="font-medium">{profile.limitedLiability ? '✅ Ja' : '❌ Nei'}</span>
+                  <span>Limited Liability</span>
+                  <span className="font-medium">{profile.limitedLiability ? '✅ Yes' : '❌ No'}</span>
                 </div>
                 {profile.minCapital && (
                   <div className="flex justify-between">
-                    <span>Min. kapital</span>
+                    <span>Min. Capital</span>
                     <span className="font-medium">{nok(profile.minCapital)}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span>Utbytteskatt</span>
+                  <span>Dividend Tax</span>
                   <span className="font-medium">{profile.dividendTaxApplies ? '~37.84%' : 'N/A'}</span>
                 </div>
               </div>
@@ -518,14 +518,14 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
 
           {/* Quick Stats */}
           <div className="rounded-xl border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">Oversikt {data.year}</h3>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">Overview {data.year}</h3>
             <div className="space-y-2 text-sm">
               {[
-                { label: 'Salg registrert', value: summary.saleCount },
-                { label: 'Utgiftsposter', value: summary.expenseCount },
-                { label: 'Lønnsutbetalinger', value: summary.salaryPaymentCount },
-                { label: 'Ansatte', value: summary.employeeCount },
-                { label: 'Brutto lønn utbetalt', value: nok(summary.totalSalariesGross) },
+                { label: 'Sales Recorded', value: summary.saleCount },
+                { label: 'Expense Items', value: summary.expenseCount },
+                { label: 'Salary Payments', value: summary.salaryPaymentCount },
+                { label: 'Employees', value: summary.employeeCount },
+                { label: 'Gross Salaries Paid', value: nok(summary.totalSalariesGross) },
               ].map(row => (
                 <div key={row.label} className="flex justify-between">
                   <span className="text-zinc-500">{row.label}</span>
@@ -538,12 +538,12 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
           {/* Add Expense */}
           <div className="rounded-xl border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">Utgifter</h3>
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">Expenses</h3>
               <button
                 onClick={() => setShowExpenseForm(!showExpenseForm)}
                 className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700"
               >
-                <FiPlus className="h-3 w-3" /> Legg til
+                <FiPlus className="h-3 w-3" /> Add
               </button>
             </div>
 
@@ -561,7 +561,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                 <div className="flex gap-2">
                   <input
                     type="number"
-                    placeholder="Beløp (NOK)"
+                    placeholder="Amount (NOK)"
                     value={expenseForm.amount}
                     onChange={e => setExpenseForm(f => ({ ...f, amount: e.target.value }))}
                     className="flex-1 rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
@@ -575,7 +575,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                 </div>
                 <input
                   type="text"
-                  placeholder="Beskrivelse (valgfri)"
+                  placeholder="Description (optional)"
                   value={expenseForm.description}
                   onChange={e => setExpenseForm(f => ({ ...f, description: e.target.value }))}
                   className="w-full rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
@@ -585,7 +585,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                   disabled={submitting || !expenseForm.amount}
                   className="w-full rounded-lg bg-emerald-600 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  {submitting ? 'Lagrer...' : 'Lagre utgift'}
+                  {submitting ? 'Saving...' : 'Save Expense'}
                 </button>
               </div>
             )}
@@ -604,18 +604,18 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                 </div>
               ))}
               {data.recentExpenses.length === 0 && (
-                <p className="text-xs text-zinc-400 italic">Ingen utgifter registrert ennå</p>
+                <p className="text-xs text-zinc-400 italic">No expenses recorded yet</p>
               )}
             </div>
           </div>
 
           {/* VAT Summary */}
           <div className="rounded-xl border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">MVA-satser</h3>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">VAT Rates</h3>
             <div className="space-y-1.5 text-xs">
               {Object.entries(VAT_RATES).map(([key, rate]) => (
                 <div key={key} className="flex justify-between text-zinc-600 dark:text-zinc-400">
-                  <span>{key === 'STANDARD' ? 'Standard' : key === 'FOOD' ? 'Mat' : key === 'TRANSPORT' ? 'Transport/hotell' : key === 'LOW' ? 'Redusert' : key === 'ZERO' ? 'Fritak' : key}</span>
+                  <span>{key === 'STANDARD' ? 'Standard' : key === 'FOOD' ? 'Food' : key === 'TRANSPORT' ? 'Transport/Hotel' : key === 'LOW' ? 'Reduced' : key === 'ZERO' ? 'Exempt' : key}</span>
                   <span className="font-medium">{pct(rate)}</span>
                 </div>
               ))}
@@ -627,8 +627,8 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
             <div className="flex gap-2">
               <FiAlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500 mt-0.5" />
               <p className="text-[10px] text-amber-700 dark:text-amber-300 leading-relaxed">
-                {tb.disclaimer} Tallene er estimater basert på registrerte data og norske skatteregler for 2026.
-                Kontakt autorisert regnskapsfører eller Skatteetaten (skatteetaten.no) for endelige beregninger.
+                {tb.disclaimer} These figures are estimates based on recorded data and Norwegian tax rules for 2026.
+                Contact an authorized accountant or Skatteetaten (skatteetaten.no) for final calculations.
               </p>
             </div>
           </div>
