@@ -153,7 +153,13 @@ export const {
           return true;
         },
         async session({ session, user, token }) {
-          
+          // If JWT was invalidated (user deleted or tokenVersion mismatch),
+          // clear the session so the client detects it as logged-out
+          if (!token.sub) {
+            session.user = undefined as any;
+            return session;
+          }
+
           if (token.sub && session.user) {
             session.user.id = token.sub as string;
           }; 
@@ -246,7 +252,23 @@ export const {
 
           // ── Normal flow ──────────────────────────────────────────────
           const existingUser = await getUserById(token.sub);
-          if (!existingUser) return token;
+
+          // If user was deleted (e.g. DB wipe), invalidate the session
+          if (!existingUser) {
+            if (isDev) console.log(`${LOG_PREFIX} jwt: user ${token.sub} not found — invalidating session`);
+            return { ...token, sub: undefined, email: undefined, name: undefined };
+          }
+
+          // Session versioning: if tokenVersion changed, force re-login
+          // Increment User.tokenVersion to invalidate all existing sessions
+          if (
+            typeof token.tokenVersion === 'number' &&
+            existingUser.tokenVersion !== token.tokenVersion
+          ) {
+            if (isDev) console.log(`${LOG_PREFIX} jwt: tokenVersion mismatch for ${token.sub} — forcing re-login`);
+            return { ...token, sub: undefined, email: undefined, name: undefined };
+          }
+
           const existingAccount = await getAccountByUserId(existingUser.id);
 
           token.isTwoFactorEnabled = existingUser.isTwoFactorEnabled;
@@ -256,7 +278,8 @@ export const {
           token.email = existingUser.email;
           token.image = existingUser.image;
           token.isOAuth = !!existingAccount;
-			token.web3ModeEnabled = existingUser.web3ModeEnabled;
+          token.web3ModeEnabled = existingUser.web3ModeEnabled;
+          token.tokenVersion = existingUser.tokenVersion;
 
           // Clear impersonation flags in normal mode
           token.isImpersonating = false;

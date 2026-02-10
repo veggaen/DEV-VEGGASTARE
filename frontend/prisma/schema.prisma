@@ -20,6 +20,8 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
@@ -178,6 +180,7 @@ model ConversationRepost {
   conversationId String
   userId         String
   createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   User           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -193,6 +196,8 @@ model ProfilePin {
   userId         String       // The user who pinned it (to their profile)
   pinnedAt       DateTime     @default(now())
   order          Int          @default(0) // For ordering multiple pins
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   User           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -212,6 +217,8 @@ model ConversationView {
   isLoggedIn     Boolean      @default(false)
   userAgent      String?
   viewStrength   Float        @default(1.0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   User           User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -232,6 +239,8 @@ model ViewEvent {
   referrer       String?
   sessionId      String?
   viewedAt       DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([conversationId])
   @@index([userId])
@@ -240,10 +249,12 @@ model ViewEvent {
 }
 
 model EmailLoginToken {
-  id      String   @id @default(cuid())
-  email   String
-  token   String   @unique
-  expires DateTime
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([email, token])
 }
@@ -280,6 +291,8 @@ model EmployeeTermination {
   cancelledAt                                      DateTime?
   finalizedAt                                      DateTime?
   metadata                                         Json?
+  createdAt                                        DateTime          @default(now())
+  updatedAt                                        DateTime          @updatedAt
   Company                                          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   User_EmployeeTermination_employeeUserIdToUser    User              @relation("EmployeeTermination_employeeUserIdToUser", fields: [employeeUserId], references: [id], onDelete: Cascade)
   User_EmployeeTermination_initiatedByUserIdToUser User              @relation("EmployeeTermination_initiatedByUserIdToUser", fields: [initiatedByUserId], references: [id], onDelete: Cascade)
@@ -359,6 +372,7 @@ model MessagePulse {
   messageId String
   userId    String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   Message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -374,6 +388,7 @@ model MessageRepost {
   messageId String
   userId    String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   Message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -435,6 +450,7 @@ model OrderItem {
   priceAtTime Float    // Price when ordered (prices can change)
   title       String   // Product title at time of order
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
   Order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   Product     Product  @relation(fields: [productId], references: [id])
@@ -458,10 +474,12 @@ model Package {
 }
 
 model PasswordResetToken {
-  id      String   @id @default(cuid())
-  email   String
-  token   String   @unique
-  expires DateTime
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([email, token])
 }
@@ -516,6 +534,7 @@ model PollOption {
   text      String
   order     Int        @default(0)
   createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   Poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
   PollVote  PollVote[]
 
@@ -527,6 +546,7 @@ model PollVote {
   optionId   String
   userId     String
   createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
   PollOption PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
 
   @@unique([optionId, userId])
@@ -565,6 +585,7 @@ model ProductCategory {
   productId  String
   categoryId String
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -704,6 +725,7 @@ model DownloadToken {
   revokedReason   String?
   
   createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
   
   DigitalAsset    DigitalAsset    @relation(fields: [digitalAssetId], references: [id])
   Order           Order           @relation(fields: [orderId], references: [id])
@@ -767,6 +789,7 @@ model SecurityActionToken {
   action    SecurityActionType
   expires   DateTime
   createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
   User      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([email, action])
@@ -791,16 +814,20 @@ model SpecificationsDetails {
 }
 
 model TwoFactorConfirmation {
-  id     String @id @default(cuid())
-  userId String @unique
-  User   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model TwoFactorToken {
-  id      String   @id @default(cuid())
-  email   String
-  token   String   @unique
-  expires DateTime
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([email, token])
 }
@@ -818,6 +845,7 @@ model AdminAuditLog {
   userAgent     String?         // Browser/client info
   reason        String?         // Optional reason for the action
   createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   @@index([adminId])
   @@index([targetType, targetId])
@@ -856,6 +884,8 @@ model User {
   reachLifetime                                                   Float                         @default(0)
   reachMomentum                                                   Float                         @default(0)
   lastMomentumDecay                                               DateTime?
+  // ─── Session Versioning (increment to force re-login) ─────────
+  tokenVersion                                                    Int                           @default(0)
 
   Account                                                         Account[]
   Cart                                                            Cart?
@@ -905,10 +935,12 @@ model User {
 }
 
 model VerificationToken {
-  id      String   @id @default(cuid())
-  email   String
-  token   String   @unique
-  expires DateTime
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([email, token])
 }
@@ -946,6 +978,7 @@ model WalletVerificationChallenge {
   expires       DateTime
   usedAt        DateTime?
   createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
   User          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([expires])
@@ -1002,6 +1035,7 @@ model Follow {
   followerId  String
   followingId String
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   follower    User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
   following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
 
@@ -1029,6 +1063,7 @@ model Friendship {
   userAId   String
   userBId   String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   userA     User     @relation("FriendshipsA", fields: [userAId], references: [id], onDelete: Cascade)
   userB     User     @relation("FriendshipsB", fields: [userBId], references: [id], onDelete: Cascade)
 
@@ -1196,6 +1231,8 @@ model NotificationMute {
   // Duration
   mutedAt      DateTime       @default(now())
   expiresAt    DateTime?      // null = permanent, otherwise temporary
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
   
   @@unique([userId, mutedUserId])
   @@unique([userId, conversationId])
@@ -1214,6 +1251,8 @@ model UserPresence {
   
   // Current activity
   currentActivity String?      // e.g., "Browsing Pulses", "In conversation"
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   
   @@index([status])
   @@index([lastSeen])
@@ -1485,6 +1524,8 @@ model PollQuestionOption {
   order           Int            @default(0)
   value           Int?
   imageUrl        String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   
   Question        PollQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
   Answers         PollAnswer[]
@@ -1514,6 +1555,8 @@ model PollResponse {
   // Final weighted value = tierMultiplier * completionMultiplier * responseQuality
   weightedValue     Float                @default(0.1)
   // ────────────────────────────────────────────────────────────────────────────
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
   
   AdvancedPoll      AdvancedPoll   @relation(fields: [advancedPollId], references: [id], onDelete: Cascade)
   User              User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1535,6 +1578,7 @@ model PollAnswer {
   textValue       String?
   comment         String?
   createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
   
   Response        PollResponse        @relation(fields: [responseId], references: [id], onDelete: Cascade)
   Question        PollQuestion        @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -1556,6 +1600,7 @@ model PollAnswerImage {
   height      Int?
   aspectRatio String?
   createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   
   Answer      PollAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
   
@@ -1573,6 +1618,7 @@ model PollTemplate {
   creatorId       String?
   advancedPollId  String?
   createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   
   Creator         User?          @relation(fields: [creatorId], references: [id], onDelete: SetNull)
   AdvancedPoll    AdvancedPoll?  @relation(fields: [advancedPollId], references: [id], onDelete: SetNull)
@@ -1627,6 +1673,7 @@ model EngagementEvent {
   referrer        String?
 
   createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([conversationId, createdAt])
   @@index([productId, createdAt])
@@ -1688,6 +1735,7 @@ model PulseProductLink {
   productId      String
   weight         Float        @default(1.0) // Prominence weight
   createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   Product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -1728,6 +1776,7 @@ model DailyReachRollup {
   breadthRatio    Float    @default(0) // unique/total for anti-gaming
 
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@unique([conversationId, date])
   @@unique([productId, date])
@@ -1909,6 +1958,7 @@ model WorkHourLog {
   type       String   // "regular" | "overtime" | "sick" | "vacation"
   notes      String?
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
   Employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([employeeId, date])

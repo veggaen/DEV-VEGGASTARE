@@ -1,3 +1,9 @@
+-- CreateEnum (FiatCurrency — needed by Expense and Purchase tables)
+DO $$ BEGIN
+  CREATE TYPE "FiatCurrency" AS ENUM ('USD', 'NOK', 'EUR', 'GBP');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
 -- CreateEnum
 CREATE TYPE "TaxHelperStatus" AS ENUM ('ENABLED', 'DISABLED');
 
