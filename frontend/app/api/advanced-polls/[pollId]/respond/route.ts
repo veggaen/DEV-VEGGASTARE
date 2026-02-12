@@ -78,18 +78,18 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ message: 'Poll not found' }, { status: 404 });
     }
 
+    // Check auth first — unauthenticated users get 401 so they can be redirected to login
+    const currentUser = await MyLibUserAuth();
+    if (poll.requiresAuth && !currentUser?.id) {
+      return NextResponse.json({ message: 'Authentication required for this poll' }, { status: 401 });
+    }
+
     if (!poll.publishedAt) {
       return NextResponse.json({ message: 'Poll is not published' }, { status: 400 });
     }
 
     if (poll.expiresAt && new Date(poll.expiresAt) < new Date()) {
       return NextResponse.json({ message: 'Poll has expired' }, { status: 400 });
-    }
-
-    // Check authentication requirement
-    const currentUser = await MyLibUserAuth();
-    if (poll.requiresAuth && !currentUser?.id) {
-      return NextResponse.json({ message: 'Authentication required for this poll' }, { status: 401 });
     }
 
     // Parse request body

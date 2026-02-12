@@ -23,6 +23,15 @@ const selectedDatabaseUrl =
         ? process.env.DATABASE_URL_MAINDEV ?? process.env.DATABASE_URL_MAINLIVE
         : process.env.DATABASE_URL_MAINLIVE
 
+function withLibpqCompat(url: string | undefined): string | undefined {
+    if (!url) return url
+    if (!url.includes('sslmode=')) return url
+    if (url.includes('uselibpqcompat=')) return url
+    return `${url}${url.includes('?') ? '&' : '?'}uselibpqcompat=true`
+}
+
+const normalizedDatabaseUrl = withLibpqCompat(selectedDatabaseUrl)
+
 const shouldLogQueries = isTruthy(process.env.PRISMA_LOG_QUERIES)
 
 // Pool tuning via env vars (pg driver native options)
@@ -41,7 +50,7 @@ const connectTimeoutMs = process.env.PRISMA_CONNECT_TIMEOUT
 
 function createPrismaClient(): PrismaClient {
     const adapter = new PrismaPg({
-        connectionString: selectedDatabaseUrl,
+        connectionString: normalizedDatabaseUrl,
         // Neon requires SSL; rejectUnauthorized: false matches sslmode=require
         ssl: { rejectUnauthorized: false },
         ...(poolMax !== undefined && { max: poolMax }),

@@ -1,19 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Tooltip,
   TooltipContent,
@@ -30,25 +26,29 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ArrowRight,
+  ArrowLeft,
   Target,
-  Clock,
-  Users,
-  Zap,
   Sparkles,
   Check,
-  Rocket,
   MessageSquarePlus,
-  Layers,
-  TrendingUp,
   Crown,
-  Shapes,
-  GripVertical,
-  GitBranch,
-  LayoutGrid,
+  ListChecks,
+  CheckCircle2,
+  SlidersHorizontal,
+  BarChart3,
+  FileText,
+  Send,
+  RotateCcw,
+  PartyPopper,
+  Share2,
+  Trophy,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Types for API responses
+// ─── TYPES ─────────────────────────────────────────────────────────────────
+
 interface PollOption {
   id: string;
   text: string;
@@ -60,6 +60,7 @@ interface PollOption {
 interface PollQuestion {
   id: string;
   text: string;
+  questionText?: string; // Alternative name from PollBuilder
   description?: string | null;
   type: string;
   order: number;
@@ -70,11 +71,20 @@ interface PollQuestion {
     min?: number;
     max?: number;
     step?: number;
+    steps?: number;
     labels?: string[];
     showValue?: boolean;
   } | null;
   options: PollOption[];
   childQuestions?: PollQuestion[];
+  // Quiz mode fields
+  correctAnswer?: string | string[] | null;  // optionId(s) for choice, correct order for ranking
+  explanation?: string | null;               // Why this is correct (shown after commit)
+  wrongExplanation?: string | null;          // Why they got it wrong (shown when incorrect)
+  deepExplanation?: string | null;           // Optional second-layer clarification shown on demand
+  commitRequired?: boolean;                  // Whether user must "commit" before seeing feedback (default: true for quiz)
+  trickQuestion?: boolean;                   // Marks as trick question; shows extra feedback after lock-in
+  shapeMatchPreset?: string;                 // Preset name for SHAPE_MATCH questions
 }
 
 interface PollCreator {
@@ -116,6 +126,7 @@ interface PollData {
 interface QuestionAnswer {
   value: string | string[] | number | undefined;
   comment?: string;
+  committed?: boolean; // Whether the user has "locked in" this answer
 }
 
 interface PollTakerModalProps {
@@ -124,11 +135,157 @@ interface PollTakerModalProps {
   onComplete?: (responseId: string) => void;
 }
 
-// Group questions into sections based on types or just use flat list
-function groupQuestionsIntoSections(questions: PollQuestion[]): { title: string; questions: PollQuestion[] }[] {
-  // For now, create a single section - can be enhanced to detect natural breaks
-  return [{ title: "Questions", questions }];
+// ─── SECTION GROUPING ──────────────────────────────────────────────────────
+
+interface Section {
+  id: string;
+  title: string;
+  icon: string;
+  description?: string;
+  questions: PollQuestion[];
 }
+
+type Screen = "welcome" | "section-select" | "question" | "complete" | "results";
+
+function estimateMinutes(totalQuestions: number): number {
+  return Math.max(3, Math.round(totalQuestions * 0.5));
+}
+
+function getPollTheme(type: string) {
+  switch (type) {
+    case "QUIZ":
+      return { gradient: "from-violet-500 via-purple-500 to-fuchsia-500", accent: "text-violet-500", accentLight: "text-violet-400", badge: "bg-violet-500/20 text-violet-400" };
+    case "FEEDBACK":
+      return { gradient: "from-blue-500 via-cyan-500 to-teal-500", accent: "text-blue-500", accentLight: "text-blue-400", badge: "bg-blue-500/20 text-blue-400" };
+    case "REACH_ASSESSMENT":
+      return { gradient: "from-emerald-500 via-cyan-500 to-blue-500", accent: "text-emerald-500", accentLight: "text-emerald-400", badge: "bg-emerald-500/20 text-emerald-400" };
+    default:
+      return { gradient: "from-amber-500 via-orange-500 to-red-500", accent: "text-amber-500", accentLight: "text-amber-400", badge: "bg-amber-500/20 text-amber-400" };
+  }
+}
+
+function getQuestionTypeIcon(type: string) {
+  switch (type) {
+    case "SINGLE_CHOICE": return <ListChecks className="h-3.5 w-3.5" />;
+    case "MULTI_CHOICE": return <CheckCircle2 className="h-3.5 w-3.5" />;
+    case "SLIDER": case "SCALE": return <SlidersHorizontal className="h-3.5 w-3.5" />;
+    case "RANKING": return <BarChart3 className="h-3.5 w-3.5" />;
+    case "TEXT": return <FileText className="h-3.5 w-3.5" />;
+    default: return <Target className="h-3.5 w-3.5" />;
+  }
+}
+
+function getQuestionTypeLabel(type: string) {
+  switch (type) {
+    case "SINGLE_CHOICE": return "Single choice";
+    case "MULTI_CHOICE": return "Multiple choice";
+    case "SLIDER": return "Slider";
+    case "SCALE": return "Scale";
+    case "RANKING": return "Ranking";
+    case "TEXT": return "Open text";
+    default: return type;
+  }
+}
+
+function sectionAnsweredCount(section: Section, answers: Record<string, QuestionAnswer>): number {
+  return section.questions.filter(q => answers[q.id]?.value !== undefined).length;
+}
+
+// Find all unanswered question indices across all sections
+function findUnansweredQuestions(sections: Section[], answers: Record<string, QuestionAnswer>): Array<{ sectionIdx: number; questionIdx: number; question: PollQuestion }> {
+  const unanswered: Array<{ sectionIdx: number; questionIdx: number; question: PollQuestion }> = [];
+  sections.forEach((section, sectionIdx) => {
+    section.questions.forEach((question, questionIdx) => {
+      if (answers[question.id]?.value === undefined) {
+        unanswered.push({ sectionIdx, questionIdx, question });
+      }
+    });
+  });
+  return unanswered;
+}
+
+// Calculate quiz score (correct answers / total questions with correct answers)
+function calculateQuizScore(
+  sections: Section[],
+  answers: Record<string, QuestionAnswer>
+): { correct: number; total: number; bySection: Array<{ section: Section; correct: number; total: number }> } {
+  let totalCorrect = 0;
+  let totalGraded = 0;
+  const bySection: Array<{ section: Section; correct: number; total: number }> = [];
+
+  sections.forEach((section) => {
+    let sectionCorrect = 0;
+    let sectionGraded = 0;
+
+    section.questions.forEach((question) => {
+      const answer = answers[question.id];
+      if (!answer?.value) return;
+
+      // Get correct answer (check sliderConfig for SLIDER/SCALE)
+      const sliderConfig = question.sliderConfig as { correctAnswer?: string } | null;
+      const correctAnswer = question.correctAnswer ?? sliderConfig?.correctAnswer;
+      if (!correctAnswer) return; // No correct answer defined
+
+      sectionGraded++;
+      totalGraded++;
+
+      // Check if answer is correct
+      const userAnswer = answer.value;
+
+      // RANKING: exact order
+      if (question.type === "RANKING" && Array.isArray(correctAnswer) && Array.isArray(userAnswer)) {
+        if (JSON.stringify(correctAnswer) === JSON.stringify(userAnswer)) {
+          sectionCorrect++;
+          totalCorrect++;
+        }
+        return;
+      }
+
+      // MULTI_CHOICE: same elements
+      if (Array.isArray(correctAnswer) && Array.isArray(userAnswer)) {
+        if (correctAnswer.length === userAnswer.length && correctAnswer.every(a => userAnswer.includes(a))) {
+          sectionCorrect++;
+          totalCorrect++;
+        }
+        return;
+      }
+
+      // TEXT: case-insensitive
+      if (question.type === "TEXT" && typeof correctAnswer === "string" && typeof userAnswer === "string") {
+        if (correctAnswer.trim().toLowerCase() === userAnswer.trim().toLowerCase()) {
+          sectionCorrect++;
+          totalCorrect++;
+        }
+        return;
+      }
+
+      // SLIDER/SCALE: numeric comparison
+      if ((question.type === "SLIDER" || question.type === "SCALE") && typeof correctAnswer === "string") {
+        const numCorrect = parseFloat(correctAnswer);
+        const userVal = typeof userAnswer === "number" ? userAnswer : parseFloat(String(userAnswer));
+        if (!Number.isNaN(numCorrect) && !Number.isNaN(userVal) && numCorrect === userVal) {
+          sectionCorrect++;
+          totalCorrect++;
+        }
+        return;
+      }
+
+      // SINGLE_CHOICE: string match
+      if (typeof correctAnswer === "string" && typeof userAnswer === "string") {
+        if (correctAnswer === userAnswer) {
+          sectionCorrect++;
+          totalCorrect++;
+        }
+      }
+    });
+
+    bySection.push({ section, correct: sectionCorrect, total: sectionGraded });
+  });
+
+  return { correct: totalCorrect, total: totalGraded, bySection };
+}
+
+// ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 
 export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalProps) {
   const [poll, setPoll] = useState<PollData | null>(null);
@@ -136,10 +293,18 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, QuestionAnswer>>({});
   const [showComments, setShowComments] = useState<Record<string, boolean>>({});
-  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [viewMode, setViewMode] = useState<"all" | "single">("all");
+
+  // Screen-based navigation (like ReachPollV3)
+  const [screen, setScreen] = useState<Screen>("welcome");
+  const [currentSectionIdx, setCurrentSectionIdx] = useState(0);
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authRequired, setAuthRequired] = useState(false);
+  const [missingMode, setMissingMode] = useState(false);
+  const [missingQueue, setMissingQueue] = useState<Array<{ sectionIdx: number; questionIdx: number }>>([]);
+
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Fetch poll data
   useEffect(() => {
@@ -158,8 +323,19 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
         const data = await res.json();
         setPoll(data.poll);
 
-        // Initialize answers from existing response
-        if (data.poll?.userResponse?.answers) {
+        // Initialize answers from existing response or from draft (after login return)
+        const draftKey = `poll-draft-${data.poll.id}`;
+        const draftRaw = typeof window !== "undefined" ? sessionStorage.getItem(draftKey) : null;
+        if (draftRaw) {
+          try {
+            const draft = JSON.parse(draftRaw) as Record<string, QuestionAnswer>;
+            setAnswers(draft);
+            setScreen("complete");
+            sessionStorage.removeItem(draftKey);
+          } catch {
+            /* ignore invalid draft */
+          }
+        } else if (data.poll?.userResponse?.answers) {
           const existingAnswers: Record<string, QuestionAnswer> = {};
           for (const ans of data.poll.userResponse.answers) {
             existingAnswers[ans.questionId] = {
@@ -179,233 +355,375 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
     fetchPoll();
   }, [pollId]);
 
-  // Group questions into sections
-  const sections = useMemo(() => {
-    if (!poll?.questions) return [];
-    return groupQuestionsIntoSections(poll.questions);
+  // Build sections from flat question list (auto-group into ~5-question batches)
+  const sections = useMemo((): Section[] => {
+    if (!poll?.questions?.length) return [];
+    const questions = [...poll.questions].sort((a, b) => a.order - b.order);
+    if (questions.length <= 6) {
+      return [{ id: "main", title: "Questions", icon: "📋", questions }];
+    }
+    const sectionSize = questions.length <= 12 ? 4 : questions.length <= 20 ? 5 : 6;
+    const result: Section[] = [];
+    const icons = ["📋", "🎯", "💡", "⚡", "🔍", "🏆", "📊", "🌟", "🎨", "🚀"];
+    for (let i = 0; i < questions.length; i += sectionSize) {
+      const n = result.length;
+      result.push({
+        id: `section-${n + 1}`,
+        title: `Section ${n + 1}`,
+        icon: icons[n % icons.length],
+        questions: questions.slice(i, i + sectionSize),
+      });
+    }
+    return result;
   }, [poll?.questions]);
 
-  const currentSection = sections[currentSectionIndex];
   const totalQuestions = poll?.questions?.length || 0;
-
-  // Calculate progress
+  const currentSection = sections[currentSectionIdx];
+  const currentQuestion = currentSection?.questions[currentQuestionIdx];
   const answeredCount = Object.values(answers).filter((a) => a.value !== undefined).length;
-  const progressPct = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
+  const progressPct = totalQuestions > 0 ? Math.min(100, Math.round((answeredCount / totalQuestions) * 100)) : 0;
+  const unanswered = useMemo(() => findUnansweredQuestions(sections, answers), [sections, answers]);
 
-  // Handle answer
+  // Global question number
+  const globalQuestionNumber = useMemo(() => {
+    let num = 0;
+    for (let s = 0; s < currentSectionIdx; s++) num += sections[s]?.questions.length || 0;
+    return num + currentQuestionIdx + 1;
+  }, [currentSectionIdx, currentQuestionIdx, sections]);
+
+  const theme = useMemo(() => getPollTheme(poll?.type || "SURVEY"), [poll?.type]);
+
   const handleAnswer = useCallback((questionId: string, answer: QuestionAnswer) => {
     setAnswers((prev) => ({ ...prev, [questionId]: answer }));
   }, []);
 
-  // Toggle comment
+  const handleCommit = useCallback((questionId: string) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: { ...prev[questionId], committed: true },
+    }));
+  }, []);
+
   const toggleComment = useCallback((questionId: string) => {
     setShowComments((prev) => ({ ...prev, [questionId]: !prev[questionId] }));
   }, []);
 
-  // Submit answers
+  // Navigation — one question at a time
+  const goNext = useCallback(() => {
+    if (!currentSection) return;
+
+    if (missingMode) {
+      const currentQuestionId = currentSection.questions[currentQuestionIdx]?.id;
+      const queueAfterCurrent = missingQueue.filter((item) => {
+        const queuedQuestion = sections[item.sectionIdx]?.questions[item.questionIdx];
+        if (!queuedQuestion) return false;
+        if (queuedQuestion.id === currentQuestionId) return false;
+        return answers[queuedQuestion.id]?.value === undefined;
+      });
+
+      if (queueAfterCurrent.length > 0) {
+        const nextMissing = queueAfterCurrent[0];
+        const movingForward =
+          nextMissing.sectionIdx > currentSectionIdx ||
+          (nextMissing.sectionIdx === currentSectionIdx && nextMissing.questionIdx > currentQuestionIdx);
+
+        setSlideDirection(movingForward ? 1 : -1);
+        setMissingQueue(queueAfterCurrent);
+        setCurrentSectionIdx(nextMissing.sectionIdx);
+        setCurrentQuestionIdx(nextMissing.questionIdx);
+        return;
+      }
+
+      setMissingMode(false);
+      setMissingQueue([]);
+      setScreen("complete");
+      return;
+    }
+
+    setSlideDirection(1);
+    if (currentQuestionIdx < currentSection.questions.length - 1) {
+      setCurrentQuestionIdx(currentQuestionIdx + 1);
+    } else if (currentSectionIdx < sections.length - 1) {
+      setCurrentSectionIdx(currentSectionIdx + 1);
+      setCurrentQuestionIdx(0);
+    } else {
+      setScreen("complete");
+    }
+  }, [answers, currentQuestionIdx, currentSection, currentSectionIdx, missingMode, missingQueue, sections]);
+
+  const goPrev = useCallback(() => {
+    setSlideDirection(-1);
+    if (currentQuestionIdx > 0) {
+      setCurrentQuestionIdx(currentQuestionIdx - 1);
+    } else if (currentSectionIdx > 0) {
+      const prev = sections[currentSectionIdx - 1];
+      setCurrentSectionIdx(currentSectionIdx - 1);
+      setCurrentQuestionIdx(prev.questions.length - 1);
+    } else {
+      setScreen("welcome");
+    }
+  }, [currentQuestionIdx, currentSectionIdx, sections]);
+
+  // Reset all progress
+  const resetProgress = useCallback(() => {
+    setAnswers({});
+    setShowComments({});
+    setMissingMode(false);
+    setMissingQueue([]);
+    setCurrentSectionIdx(0);
+    setCurrentQuestionIdx(0);
+    setScreen("welcome");
+  }, []);
+
+  // Keyboard + mouse-button navigation (matching ReachPollV3 approach)
+  useEffect(() => {
+    if (!pollId) return;
+    
+    const onKey = (e: KeyboardEvent) => {
+      if (screen !== "question") return;
+      // Don't navigate when user is typing in a textarea
+      if ((e.target as HTMLElement)?.tagName === "TEXTAREA") return;
+      if (e.key === "ArrowRight") { e.preventDefault(); goNext(); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); goPrev(); }
+    };
+    
+    // Mouse back/forward buttons with capture phase (runs before other handlers)
+    const onMouse = (e: MouseEvent) => {
+      if (e.button === 3) { 
+        e.preventDefault(); 
+        e.stopImmediatePropagation();
+        if (screen === "question") goPrev();
+        else if (screen === "complete") setScreen("question");
+        else if (screen === "section-select") setScreen("welcome");
+      }
+      if (e.button === 4) { 
+        e.preventDefault(); 
+        e.stopImmediatePropagation();
+        if (screen === "welcome") {
+          setCurrentSectionIdx(0);
+          setCurrentQuestionIdx(0);
+          setScreen("question");
+        } else if (screen === "section-select") {
+          setScreen("question");
+        } else if (screen === "question") {
+          goNext();
+        }
+      }
+    };
+    
+    // Prevent browser default navigation on these buttons
+    const preventBrowserNav = (e: MouseEvent) => {
+      if (e.button === 3 || e.button === 4) {
+        e.preventDefault();
+      }
+    };
+    
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onMouse, { capture: true });
+    window.addEventListener("auxclick", preventBrowserNav);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onMouse, { capture: true });
+      window.removeEventListener("auxclick", preventBrowserNav);
+    };
+  }, [pollId, screen, goNext, goPrev]);
+
+  // Submit
   const handleSubmit = async () => {
     if (!poll) return;
     setIsSubmitting(true);
-
+    setError(null);
+    setAuthRequired(false);
     try {
       const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => {
         const question = poll.questions.find((q) => q.id === questionId);
-        return {
-          questionId,
-          optionId: typeof answer.value === "string" && question?.type !== "TEXT" ? answer.value : undefined,
-          sliderValue: typeof answer.value === "number" ? answer.value : undefined,
-          textValue: question?.type === "TEXT" ? String(answer.value || "") : undefined,
-          comment: answer.comment,
-        };
-      });
-
+        const v = answer.value;
+        if (question?.type === "TEXT") {
+          return { questionId, textValue: String(v || ""), comment: answer.comment };
+        }
+        if (Array.isArray(v)) {
+          // Ranking: store as JSON array in textValue
+          return { questionId, textValue: JSON.stringify(v), comment: answer.comment };
+        }
+        if (typeof v === "number") {
+          return { questionId, sliderValue: v, comment: answer.comment };
+        }
+        if (typeof v === "string") {
+          return { questionId, optionId: v, comment: answer.comment };
+        }
+        return { questionId, comment: answer.comment };
+      }).filter((a) => a.optionId || a.sliderValue !== undefined || a.textValue);
       const res = await fetch(`/api/advanced-polls/${poll.id}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answers: formattedAnswers }),
       });
-
-      if (!res.ok) throw new Error("Failed to submit");
       const data = await res.json();
+      if (!res.ok) {
+        // Auth required — prompt sign in instead of generic error
+        const msg = data.message || "";
+        if (res.status === 401 || /authentication|auth required|sign in/i.test(msg)) {
+          setAuthRequired(true);
+          setIsSubmitting(false);
+          // Preserve answers so after login user returns to completion screen
+          if (typeof window !== "undefined" && poll?.id) {
+            sessionStorage.setItem(`poll-draft-${poll.id}`, JSON.stringify(answers));
+          }
+          return;
+        }
+        throw new Error(msg || `Submission failed (${res.status})`);
+      }
+      // Show results screen instead of closing immediately
+      setScreen("results");
+      setIsSubmitting(false);
+      if (typeof window !== "undefined" && poll?.id) {
+        sessionStorage.removeItem(`poll-draft-${poll.id}`);
+      }
       onComplete?.(data.response.id);
-      onClose();
     } catch (err) {
+      console.error("[PollTakerModal] Submit error:", err);
       setError(err instanceof Error ? err.message : "Failed to submit");
-    } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Navigate sections
-  const goToNextSection = () => {
-    if (currentSectionIndex < sections.length - 1) {
-      setCurrentSectionIndex((i) => i + 1);
-      setCurrentQuestionIndex(0);
-    }
-  };
+  const jumpToSection = useCallback((idx: number) => {
+    setSlideDirection(idx > currentSectionIdx ? 1 : -1);
+    setCurrentSectionIdx(idx);
+    setCurrentQuestionIdx(0);
+    setScreen("question");
+  }, [currentSectionIdx]);
 
-  const goToPrevSection = () => {
-    if (currentSectionIndex > 0) {
-      setCurrentSectionIndex((i) => i - 1);
-      setCurrentQuestionIndex(0);
-    }
-  };
+  // Jump to a specific question (used by CompletionScreen "Jump to missing" feature)
+  const jumpToQuestion = useCallback((sectionIdx: number, questionIdx: number) => {
+    setSlideDirection(sectionIdx > currentSectionIdx ? 1 : -1);
+    setCurrentSectionIdx(sectionIdx);
+    setCurrentQuestionIdx(questionIdx);
+    setScreen("question");
+  }, [currentSectionIdx]);
+
+  const startMissingFlow = useCallback(() => {
+    if (unanswered.length === 0) return;
+    const queue = unanswered.map((item) => ({ sectionIdx: item.sectionIdx, questionIdx: item.questionIdx }));
+    const first = queue[0];
+
+    setMissingQueue(queue);
+    setMissingMode(true);
+    jumpToQuestion(first.sectionIdx, first.questionIdx);
+  }, [jumpToQuestion, unanswered]);
+
+  const startPoll = useCallback(() => {
+    setSlideDirection(1);
+    setCurrentSectionIdx(0);
+    setCurrentQuestionIdx(0);
+    setScreen("question");
+  }, []);
 
   if (!pollId) return null;
 
   return (
     <Dialog open={!!pollId} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden" accessibleTitle={poll?.title || "Poll"}>
+      <DialogContent
+        className="max-w-3xl w-[95vw] max-h-[90vh] p-0 overflow-hidden border-zinc-800/50 bg-zinc-950/95 backdrop-blur-xl"
+        accessibleTitle={poll?.title || "Poll"}
+      >
         <TooltipProvider>
           {loading ? (
-            <div className="flex items-center justify-center p-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            <div className="flex items-center justify-center p-16">
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                <Target className="h-8 w-8 text-muted-foreground" />
+              </motion.div>
             </div>
           ) : error ? (
             <div className="p-8 text-center">
               <p className="text-destructive mb-4">{error}</p>
-              <Button variant="outline" onClick={onClose}>
-                Close
-              </Button>
+              <Button variant="outline" onClick={onClose}>Close</Button>
             </div>
           ) : poll ? (
-            <div className="flex flex-col h-[85vh]">
-              {/* Header */}
-              <div className="p-4 border-b bg-gradient-to-r from-background via-muted/20 to-background">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      {poll.type === "REACH_ASSESSMENT" ? (
-                        <Rocket className="h-6 w-6 text-amber-500" />
-                      ) : (
-                        <Target className="h-6 w-6 text-primary" />
-                      )}
-                      <DialogTitle className="text-xl font-bold">
-                        {poll.title}
-                      </DialogTitle>
-                    </div>
-                    {poll.description && (
-                      <DialogDescription className="text-sm">
-                        {poll.description}
-                      </DialogDescription>
-                    )}
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={onClose}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {/* Stats */}
-                <div className="flex flex-wrap items-center gap-2 mt-3">
-                  <Badge variant="outline" className="gap-1">
-                    <Target className="h-3 w-3" />
-                    {totalQuestions} Questions
-                  </Badge>
-                  <Badge variant="outline" className="gap-1">
-                    <Users className="h-3 w-3" />
-                    {poll.totalResponses} Responses
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "gap-1",
-                      progressPct === 100 && "border-emerald-500 text-emerald-500"
-                    )}
-                  >
-                    <TrendingUp className="h-3 w-3" />
-                    {progressPct}% Complete
-                  </Badge>
-                </div>
-
-                {/* Progress bar */}
-                <div className="mt-3 space-y-1">
-                  <Progress value={progressPct} className="h-2" />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{answeredCount} answered</span>
-                    <span>{totalQuestions - answeredCount} remaining</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Questions Area */}
-              <ScrollArea className="flex-1 p-4">
-                <AnimatePresence mode="wait">
-                  {currentSection && (
-                    <motion.div
-                      key={currentSectionIndex}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      className="space-y-4"
-                    >
-                      {/* Section header if multiple sections */}
-                      {sections.length > 1 && (
-                        <div className="mb-4">
-                          <h3 className="font-semibold text-lg flex items-center gap-2">
-                            <Layers className="h-5 w-5" />
-                            {currentSection.title}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Section {currentSectionIndex + 1} of {sections.length}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Questions */}
-                      {currentSection.questions.map((question, idx) => (
-                        <QuestionCard
-                          key={question.id}
-                          question={question}
-                          questionNumber={idx + 1}
-                          answer={answers[question.id]}
-                          onAnswer={(val) => handleAnswer(question.id, val)}
-                          showComment={showComments[question.id] || false}
-                          onToggleComment={() => toggleComment(question.id)}
-                        />
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </ScrollArea>
-
-              {/* Footer */}
-              <div className="p-4 border-t bg-muted/30 flex items-center justify-between">
-                <div className="flex gap-2">
-                  {currentSectionIndex > 0 && (
-                    <Button variant="outline" onClick={goToPrevSection}>
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Previous
-                    </Button>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  {currentSectionIndex < sections.length - 1 ? (
-                    <Button onClick={goToNextSection}>
-                      Next Section
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={isSubmitting || answeredCount === 0}
-                      className={cn(
-                        poll.type === "REACH_ASSESSMENT" &&
-                          "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
-                      )}
-                    >
-                      {isSubmitting ? (
-                        <>Submitting...</>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4 mr-1" />
-                          Submit Response
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </div>
+            <div ref={containerRef} className="flex flex-col h-[85vh]">
+              <AnimatePresence mode="wait">
+                {screen === "welcome" && (
+                  <WelcomeScreen
+                    key="welcome"
+                    poll={poll}
+                    sections={sections}
+                    theme={theme}
+                    answeredCount={answeredCount}
+                    totalQuestions={totalQuestions}
+                    onStart={startPoll}
+                    onSelectSection={() => setScreen("section-select")}
+                    onReset={resetProgress}
+                    onClose={onClose}
+                  />
+                )}
+                {screen === "section-select" && (
+                  <SectionSelectScreen
+                    key="section-select"
+                    sections={sections}
+                    answers={answers}
+                    theme={theme}
+                    onSelect={jumpToSection}
+                    onBack={() => setScreen("welcome")}
+                  />
+                )}
+                {screen === "question" && currentQuestion && (
+                  <QuestionScreen
+                    key={`q-${currentQuestion.id}`}
+                    question={currentQuestion}
+                    questionNumber={globalQuestionNumber}
+                    totalQuestions={totalQuestions}
+                    section={currentSection}
+                    sectionIdx={currentSectionIdx}
+                    sectionCount={sections.length}
+                    answer={answers[currentQuestion.id]}
+                    showComment={showComments[currentQuestion.id] || false}
+                    answeredCount={answeredCount}
+                    progressPct={progressPct}
+                    theme={theme}
+                    slideDirection={slideDirection}
+                    isFirst={currentSectionIdx === 0 && currentQuestionIdx === 0}
+                    isLast={currentSectionIdx === sections.length - 1 && currentQuestionIdx === currentSection.questions.length - 1}
+                    pollType={poll.type}
+                    onAnswer={(val) => handleAnswer(currentQuestion.id, val)}
+                    onCommit={() => handleCommit(currentQuestion.id)}
+                    onToggleComment={() => toggleComment(currentQuestion.id)}
+                    onNext={goNext}
+                    onPrev={goPrev}
+                    onSectionSelect={() => setScreen("section-select")}
+                    answers={answers}
+                  />
+                )}
+                {screen === "complete" && (
+                  <CompletionScreen
+                    key="complete"
+                    poll={poll}
+                    sections={sections}
+                    answers={answers}
+                    answeredCount={answeredCount}
+                    totalQuestions={totalQuestions}
+                    theme={theme}
+                    isSubmitting={isSubmitting}
+                    authRequired={authRequired}
+                    onSubmit={handleSubmit}
+                    onBack={() => setScreen("question")}
+                    onSelectSection={jumpToSection}
+                    onStartMissingFlow={startMissingFlow}
+                    onClose={onClose}
+                  />
+                )}
+                {screen === "results" && (
+                  <ResultsScreen
+                    key="results"
+                    poll={poll}
+                    sections={sections}
+                    answers={answers}
+                    answeredCount={answeredCount}
+                    totalQuestions={totalQuestions}
+                    theme={theme}
+                    onClose={onClose}
+                  />
+                )}
+              </AnimatePresence>
             </div>
           ) : null}
         </TooltipProvider>
@@ -414,22 +732,283 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
   );
 }
 
-// Individual question card
-function QuestionCard({
-  question,
-  questionNumber,
-  answer,
-  onAnswer,
-  showComment,
-  onToggleComment,
+// ─── WELCOME SCREEN ────────────────────────────────────────────────────────
+
+function WelcomeScreen({ poll, sections, theme, answeredCount, totalQuestions, onStart, onSelectSection, onReset, onClose }: {
+  poll: PollData;
+  sections: Section[];
+  theme: ReturnType<typeof getPollTheme>;
+  answeredCount: number;
+  totalQuestions: number;
+  onStart: () => void;
+  onSelectSection: () => void;
+  onReset: () => void;
+  onClose: () => void;
+}) {
+  const minutes = estimateMinutes(totalQuestions);
+  const hasProgress = answeredCount > 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="relative flex flex-col items-center justify-center p-8 text-center min-h-full h-full"
+    >
+      {/* Animated gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background via-zinc-900/50 to-background overflow-hidden">
+        <motion.div
+          className={cn("absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl opacity-20 bg-gradient-to-br", theme.gradient)}
+          animate={{ x: [0, 50, 0], y: [0, 30, 0], scale: [1, 1.1, 1] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-gradient-to-br from-violet-500/15 to-pink-500/15 blur-3xl"
+          animate={{ x: [0, -50, 0], y: [0, -30, 0], scale: [1, 1.2, 1] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        />
+      </div>
+
+      {/* Close */}
+      <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-3 right-3 z-20 text-muted-foreground hover:text-foreground">
+        <X className="h-4 w-4" />
+      </Button>
+
+      <div className="relative z-10 max-w-lg">
+        {/* Hero icon */}
+        <motion.div
+          className="relative mb-8 mx-auto w-fit"
+          initial={{ scale: 0, rotate: -180 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: "spring", stiffness: 100, damping: 15, delay: 0.2 }}
+        >
+          <div className={cn("w-24 h-24 rounded-3xl p-1 shadow-2xl bg-gradient-to-br", theme.gradient)}>
+            <div className="w-full h-full rounded-[20px] bg-background/80 backdrop-blur-xl flex items-center justify-center">
+              {poll.type === "QUIZ" ? <Crown className="w-12 h-12 text-violet-500" /> :
+               <Target className="w-12 h-12 text-amber-500" />}
+            </div>
+          </div>
+          <motion.div
+            className={cn("absolute -top-2 -right-2 w-8 h-8 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br", theme.gradient)}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+          >
+            <Sparkles className="w-4 h-4 text-white" />
+          </motion.div>
+        </motion.div>
+
+        {/* Title */}
+        <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}>
+          <DialogTitle className="sr-only">{poll.title}</DialogTitle>
+          <h1 className="text-2xl md:text-3xl font-extrabold mb-3">
+            <span className={cn("bg-gradient-to-r bg-clip-text text-transparent", theme.gradient)}>
+              {poll.title.replace(/^[📊🎯🚀⚡💡🔐🛡️🎨🌐📋]+\s*/, '')}
+            </span>
+          </h1>
+        </motion.div>
+
+        {/* Description excerpt */}
+        <motion.p className="text-sm text-muted-foreground max-w-md mx-auto mb-2" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
+          {poll.description ? poll.description.split('\n').filter(l => l.trim())[0]?.slice(0, 120) || "Share your insights" : "Share your insights and help shape the future"}
+        </motion.p>
+
+        <motion.p className="text-xs text-muted-foreground/70 mb-6" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.45 }}>
+          Skip ahead anytime &bull; Partial completion counts &bull; Every answer matters
+        </motion.p>
+
+        {/* Stats row */}
+        <motion.div className="flex justify-center gap-6 mb-8" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
+          {sections.length > 1 && (
+            <div className="text-center">
+              <div className={cn("text-2xl font-bold", theme.accent)}>{sections.length}</div>
+              <div className="text-xs text-muted-foreground">Sections</div>
+            </div>
+          )}
+          <div className="text-center">
+            <div className={cn("text-2xl font-bold", theme.accentLight)}>{totalQuestions}</div>
+            <div className="text-xs text-muted-foreground">Questions</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-blue-400">~{minutes}</div>
+            <div className="text-xs text-muted-foreground">Minutes</div>
+          </div>
+        </motion.div>
+
+        {poll.totalResponses > 0 && (
+          <motion.p className="text-xs text-muted-foreground/60 mb-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}>
+            {poll.totalResponses} people have already responded
+          </motion.p>
+        )}
+
+        {/* CTA buttons */}
+        <motion.div className="flex flex-col sm:flex-row gap-3 justify-center" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }}>
+          <Button
+            size="lg"
+            onClick={onStart}
+            className={cn("relative group px-8 py-6 text-base font-semibold rounded-2xl text-white shadow-2xl overflow-hidden bg-gradient-to-r", theme.gradient)}
+          >
+            <motion.span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0" animate={{ x: ["-200%", "200%"] }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} />
+            <span className="relative flex items-center gap-2">
+              {hasProgress ? "Continue" : "Start"}
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </span>
+          </Button>
+
+          {sections.length > 1 && (
+            <Button size="lg" variant="outline" onClick={onSelectSection} className="px-8 py-6 text-base font-semibold rounded-2xl border-zinc-700 hover:border-zinc-600">
+              Choose Section
+            </Button>
+          )}
+        </motion.div>
+
+        {hasProgress && (
+          <motion.div className="mt-6 flex flex-col items-center gap-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Check className="h-3.5 w-3.5 text-emerald-500" />
+              {answeredCount} of {totalQuestions} answered ({totalQuestions > 0 ? Math.min(100, Math.round((answeredCount / totalQuestions) * 100)) : 0}%)
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onReset}
+              className="text-xs text-muted-foreground hover:text-destructive"
+            >
+              <RotateCcw className="h-3 w-3 mr-1.5" />
+              Start Over
+            </Button>
+          </motion.div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── SECTION SELECT SCREEN ─────────────────────────────────────────────────
+
+function SectionSelectScreen({ sections, answers, theme, onSelect, onBack }: {
+  sections: Section[];
+  answers: Record<string, QuestionAnswer>;
+  theme: ReturnType<typeof getPollTheme>;
+  onSelect: (idx: number) => void;
+  onBack: () => void;
+}) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="flex flex-col h-full">
+      <div className="p-6 border-b border-zinc-800/50">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0"><ArrowLeft className="h-4 w-4" /></Button>
+          <div>
+            <h2 className="text-lg font-bold">Choose a Section</h2>
+            <p className="text-sm text-muted-foreground">Jump to any section</p>
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        {sections.map((section, idx) => {
+          const answered = sectionAnsweredCount(section, answers);
+          const total = section.questions.length;
+          const pct = Math.round((answered / total) * 100);
+          const isDone = pct === 100;
+          return (
+            <motion.button
+              key={section.id}
+              onClick={() => onSelect(idx)}
+              className={cn(
+                "w-full p-4 rounded-xl text-left transition-all",
+                "bg-zinc-900/50 hover:bg-zinc-800/70 border border-zinc-800/50 hover:border-zinc-700/50",
+                isDone && "border-emerald-500/30 bg-emerald-500/5"
+              )}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.05 }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{section.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-semibold truncate">{section.title}</h3>
+                    <span className="text-xs text-muted-foreground shrink-0">{answered}/{total}</span>
+                  </div>
+                  <div className="mt-2 h-1 rounded-full bg-zinc-800 overflow-hidden">
+                    <motion.div
+                      className={cn("h-full rounded-full", isDone ? "bg-emerald-500" : `bg-gradient-to-r ${theme.gradient}`)}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ delay: idx * 0.05 + 0.2, duration: 0.5 }}
+                    />
+                  </div>
+                </div>
+                {isDone && <Check className="h-5 w-5 text-emerald-500 shrink-0" />}
+              </div>
+            </motion.button>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── QUESTION SCREEN (one at a time, slide navigation) ─────────────────────
+
+function QuestionScreen({
+  question, questionNumber, totalQuestions, section, sectionIdx, sectionCount,
+  answer, showComment, answeredCount, progressPct, theme, slideDirection,
+  isFirst, isLast, pollType,
+  onAnswer, onCommit, onToggleComment, onNext, onPrev, onSectionSelect, answers,
 }: {
   question: PollQuestion;
   questionNumber: number;
+  totalQuestions: number;
+  section: Section;
+  sectionIdx: number;
+  sectionCount: number;
   answer: QuestionAnswer | undefined;
-  onAnswer: (val: QuestionAnswer) => void;
   showComment: boolean;
+  answeredCount: number;
+  progressPct: number;
+  theme: ReturnType<typeof getPollTheme>;
+  slideDirection: 1 | -1;
+  isFirst: boolean;
+  isLast: boolean;
+  pollType: PollData["type"];
+  onAnswer: (val: QuestionAnswer) => void;
+  onCommit: () => void;
   onToggleComment: () => void;
+  onNext: () => void;
+  onPrev: () => void;
+  onSectionSelect: () => void;
+  answers: Record<string, QuestionAnswer>;
 }) {
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [showDeepExplanation, setShowDeepExplanation] = useState(false);
+
+  useEffect(() => {
+    setShowExplanation(false);
+    setShowDeepExplanation(false);
+  }, [question.id]);
+  
+  // Shuffle ranking options on first display (so not defaulted to correct order).
+  // Ensure shuffled order is never identical to correct order — user must make at least one adjustment.
+  const rankingOptionsShuffled = useMemo(() => {
+    if (question.type !== "RANKING" || !question.options?.length) return question.options?.map((opt) => ({ id: opt.id, label: opt.text })) ?? [];
+    const arr = [...question.options];
+    const correctOrder = Array.isArray(question.correctAnswer) ? (question.correctAnswer as string[]) : null;
+    const idsEqual = (a: { id: string }[], b: string[] | null) =>
+      b && a.length === b.length && a.every((x, i) => x.id === b[i]);
+
+    for (let attempt = 0; attempt < 50; attempt++) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      if (!idsEqual(arr, correctOrder)) break;
+      // If by chance we got correct order, swap first two
+      [arr[0], arr[1]] = [arr[1], arr[0]];
+    }
+    return arr.map((opt) => ({ id: opt.id, label: opt.text }));
+  }, [question.id, question.type, question.correctAnswer]);
+  
   const handleValueChange = (value: string | string[] | number | undefined) => {
     onAnswer({ value, comment: answer?.comment });
   };
@@ -439,187 +1018,1206 @@ function QuestionCard({
   };
 
   const sliderConfig = question.sliderConfig || {};
+  const isAnswered = answer?.value !== undefined;
+  const isCommitted = answer?.committed === true;
+  
+  // Quiz feedback logic - determine if this question needs a commit before showing feedback
+  const isQuiz = pollType === "QUIZ";
+  // Check for correctAnswer on question level OR in sliderConfig (for SLIDER/SCALE questions)
+  const sliderCorrectAnswer = (sliderConfig as { correctAnswer?: string })?.correctAnswer;
+  const effectiveCorrectAnswer = question.correctAnswer ?? sliderCorrectAnswer;
+  const hasCorrectAnswer = effectiveCorrectAnswer !== undefined && effectiveCorrectAnswer !== null;
+  // Questions with correct answers OR quiz type need commit before showing feedback
+  const needsCommit = hasCorrectAnswer || (isQuiz && question.commitRequired !== false);
+  // Show feedback only after commit (or immediately if no commit needed)
+  const showFeedback = isAnswered && (!needsCommit || isCommitted);
+  
+  const isCorrect = useMemo(() => {
+    if (!isAnswered || !hasCorrectAnswer || !isQuiz) return null;
+    const correctAns = effectiveCorrectAnswer;
+    const userAns = answer?.value;
+    
+    // Ranking: check if EXACT order matches (must check before multi-choice)
+    if (question.type === "RANKING" && Array.isArray(correctAns) && Array.isArray(userAns)) {
+      return JSON.stringify(correctAns) === JSON.stringify(userAns);
+    }
+    
+    // Multi-choice: check if same elements (any order)
+    if (Array.isArray(correctAns) && Array.isArray(userAns)) {
+      return correctAns.length === userAns.length && correctAns.every((a) => userAns.includes(a));
+    }
+    
+    // TEXT question: exact match mode for explicitly strict prompts, otherwise case-insensitive trimmed comparison
+    if (question.type === "TEXT" && typeof correctAns === "string" && typeof userAns === "string") {
+      const prompt = (question.questionText ?? question.text ?? "").toLowerCase();
+      const description = (question.description ?? "").toLowerCase();
+      const requiresExactMatch =
+        prompt.includes("type exactly") ||
+        description.includes("case and punctuation must be exact") ||
+        description.includes("case-sensitive");
+
+      if (requiresExactMatch) {
+        return correctAns === userAns;
+      }
+
+      return correctAns.trim().toLowerCase() === userAns.trim().toLowerCase();
+    }
+    
+    // String comparison (single choice - exact ID match)
+    if (typeof correctAns === "string" && typeof userAns === "string") {
+      return correctAns === userAns;
+    }
+    
+    // Slider/scale: compare numeric value (correctAnswer stored as "6" etc.)
+    if ((question.type === "SLIDER" || question.type === "SCALE") && typeof correctAns === "string") {
+      const numCorrect = parseFloat(correctAns);
+      const userVal = typeof userAns === "number" ? userAns : parseFloat(String(userAns));
+      if (!Number.isNaN(numCorrect) && !Number.isNaN(userVal)) {
+        return numCorrect === userVal;
+      }
+    }
+    
+    return null;
+  }, [isAnswered, hasCorrectAnswer, isQuiz, effectiveCorrectAnswer, answer?.value, question.type]);
+
+  const deepRangeHelp = useMemo(() => {
+    if (isCorrect !== false) return null;
+    if (question.type !== "SLIDER" && question.type !== "SCALE") return null;
+
+    const selectedValue = typeof answer?.value === "number" ? answer.value : NaN;
+    const numericCorrect = typeof effectiveCorrectAnswer === "string" ? parseFloat(effectiveCorrectAnswer) : NaN;
+    if (Number.isNaN(selectedValue) || Number.isNaN(numericCorrect)) return null;
+
+    const min = typeof sliderConfig.min === "number" ? sliderConfig.min : 1;
+    const max = typeof sliderConfig.max === "number" ? sliderConfig.max : 10;
+    const step = typeof sliderConfig.step === "number" && sliderConfig.step > 0 ? sliderConfig.step : 1;
+
+    const formatValue = (value: number) => (Number.isInteger(value) ? `${value}` : `${value.toFixed(2).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1")}`);
+    const buildRange = (from: number, to: number) => {
+      if (to < from) return [] as number[];
+      const values: number[] = [];
+      for (let value = from; value <= to + 1e-9; value += step) {
+        values.push(Number(value.toFixed(6)));
+        if (values.length >= 30) break;
+      }
+      return values;
+    };
+
+    const expectedHighlighted = buildRange(min, numericCorrect);
+    const currentHighlighted = buildRange(min, selectedValue);
+    const remainingUnselected = selectedValue < max ? buildRange(selectedValue + step, max) : [];
+
+    return {
+      min,
+      selectedValue,
+      numericCorrect,
+      expectedHighlighted,
+      currentHighlighted,
+      remainingUnselected,
+      formatValue,
+    };
+  }, [answer?.value, effectiveCorrectAnswer, isCorrect, question.type, sliderConfig.max, sliderConfig.min, sliderConfig.step]);
+
+  const deepWordHelp = useMemo(() => {
+    if (isCorrect !== false) return null;
+    if (question.type !== "MULTI_CHOICE" && question.type !== "SINGLE_CHOICE") return null;
+
+    const prompt = (question.questionText ?? question.text ?? "").toLowerCase();
+    if (!prompt.includes("contain the word") || !prompt.includes("correct")) return null;
+
+    const normalize = (text: string) =>
+      text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter(Boolean);
+
+    const optionsWithWord = question.options
+      .filter((option) => normalize(option.text).includes("correct"))
+      .map((option) => option.text);
+
+    const optionsWithSubstringOnly = question.options
+      .filter((option) => {
+        const raw = option.text.toLowerCase();
+        const hasSubstring = raw.includes("correct");
+        const hasWholeWord = normalize(option.text).includes("correct");
+        return hasSubstring && !hasWholeWord;
+      })
+      .map((option) => option.text);
+
+    const selectedIds = Array.isArray(answer?.value)
+      ? (answer?.value as string[])
+      : typeof answer?.value === "string"
+        ? [answer.value]
+        : [];
+
+    const selectedTexts = selectedIds
+      .map((id) => question.options.find((option) => option.id === id)?.text)
+      .filter((value): value is string => Boolean(value));
+
+    if (optionsWithWord.length === 0 && optionsWithSubstringOnly.length === 0) return null;
+
+    return {
+      optionsWithWord,
+      optionsWithSubstringOnly,
+      selectedTexts,
+    };
+  }, [answer?.value, isCorrect, question.options, question.questionText, question.text, question.type]);
+
+  const dynamicWrongTip = useMemo(() => {
+    if (isCorrect !== false) return null;
+    if (question.type !== "MULTI_CHOICE" && question.type !== "SINGLE_CHOICE") return null;
+
+    const prompt = (question.questionText ?? question.text ?? "").toLowerCase();
+    if (!prompt.includes("contain the word") || !prompt.includes("correct")) return null;
+
+    const selectedIds = Array.isArray(answer?.value)
+      ? (answer.value as string[])
+      : typeof answer?.value === "string"
+        ? [answer.value]
+        : [];
+
+    if (selectedIds.length === 0) return null;
+
+    const normalize = (text: string) =>
+      text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter(Boolean);
+
+    const hasStandaloneCorrect = (text: string) => normalize(text).includes("correct");
+    const hasSubstringOnly = (text: string) => text.toLowerCase().includes("correct") && !hasStandaloneCorrect(text);
+
+    const selectedOptions = selectedIds
+      .map((id) => question.options.find((option) => option.id === id))
+      .filter((option): option is PollOption => Boolean(option));
+
+    const selectedWithWord = selectedOptions.filter((option) => hasStandaloneCorrect(option.text));
+    const selectedSubstringOnly = selectedOptions.filter((option) => hasSubstringOnly(option.text));
+    const selectedNoMatch = selectedOptions.filter((option) => !hasStandaloneCorrect(option.text) && !hasSubstringOnly(option.text));
+
+    const requiredOptions = question.options.filter((option) => hasStandaloneCorrect(option.text));
+    const missingRequired = requiredOptions.filter((option) => !selectedWithWord.some((picked) => picked.id === option.id));
+
+    if (selectedNoMatch.length > 0) {
+      const firstInvalid = selectedNoMatch[0].text;
+      const missingText = missingRequired.length > 0
+        ? ` You still needed: ${missingRequired.map((option) => `"${option.text}"`).join(", ")}.`
+        : "";
+      return `"${firstInvalid}" does not contain the standalone word "correct".${missingText}`;
+    }
+
+    if (selectedSubstringOnly.length > 0) {
+      const firstSubstringOnly = selectedSubstringOnly[0].text;
+      const missingText = missingRequired.length > 0
+        ? ` You still needed: ${missingRequired.map((option) => `"${option.text}"`).join(", ")}.`
+        : "";
+      return `"${firstSubstringOnly}" contains the letters c-o-r-r-e-c-t, but not the standalone word "correct".${missingText}`;
+    }
+
+    if (missingRequired.length > 0) {
+      return `You missed required option${missingRequired.length > 1 ? "s" : ""}: ${missingRequired.map((option) => `"${option.text}"`).join(", ")}.`;
+    }
+
+    return null;
+  }, [answer?.value, isCorrect, question.options, question.questionText, question.text, question.type]);
+
+  const deepRankingHelp = useMemo(() => {
+    if (isCorrect !== false) return null;
+    if (question.type !== "RANKING") return null;
+    if (!Array.isArray(effectiveCorrectAnswer) || !Array.isArray(answer?.value)) return null;
+
+    const expected = effectiveCorrectAnswer as string[];
+    const selected = answer.value as string[];
+    if (expected.length === 0 || selected.length !== expected.length) return null;
+
+    const correctPositions = expected.reduce((count, id, index) => count + (selected[index] === id ? 1 : 0), 0);
+    const mismatchedIndices = expected
+      .map((id, index) => ({ id, index }))
+      .filter(({ id, index }) => selected[index] !== id)
+      .map(({ index }) => index);
+
+    const ordinal = (n: number) => {
+      const mod100 = n % 100;
+      if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+      const mod10 = n % 10;
+      if (mod10 === 1) return `${n}st`;
+      if (mod10 === 2) return `${n}nd`;
+      if (mod10 === 3) return `${n}rd`;
+      return `${n}th`;
+    };
+
+    const isSingleSwap =
+      mismatchedIndices.length === 2 &&
+      selected[mismatchedIndices[0]] === expected[mismatchedIndices[1]] &&
+      selected[mismatchedIndices[1]] === expected[mismatchedIndices[0]];
+
+    if (isSingleSwap) {
+      const leftPos = mismatchedIndices[0] + 1;
+      const rightPos = mismatchedIndices[1] + 1;
+      return `Almost perfect. You got ${correctPositions} out of ${expected.length} positions right.\n\nOnly one swap is needed: switch the ${ordinal(leftPos)} and ${ordinal(rightPos)} positions.`;
+    }
+
+    return `You got ${correctPositions} out of ${expected.length} positions right.\n\nCompare each row with the target order and fix only the rows that differ.`;
+  }, [answer?.value, effectiveCorrectAnswer, isCorrect, question.type]);
+
+  const customDeepHelp = useMemo(() => {
+    if (typeof question.deepExplanation !== "string") return null;
+    const trimmed = question.deepExplanation.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }, [question.deepExplanation]);
+
+  const wrongExplanationDetail = useMemo(() => {
+    if (isCorrect !== false) return null;
+
+    if (question.type === "RANKING" && Array.isArray(effectiveCorrectAnswer) && Array.isArray(answer?.value)) {
+      const expectedIds = effectiveCorrectAnswer as string[];
+      const selectedIds = answer.value as string[];
+      if (expectedIds.length !== selectedIds.length || expectedIds.length === 0) return null;
+
+      const toText = (id: string) => question.options.find((option) => option.id === id)?.text ?? id;
+      const correctPositions = expectedIds.reduce((count, id, index) => count + (selectedIds[index] === id ? 1 : 0), 0);
+      const expectedOrder = expectedIds.map(toText).join(" → ");
+      const yourOrder = selectedIds.map(toText).join(" → ");
+
+      return `The ranking task requires a perfect top-to-bottom order. You got ${correctPositions}/${expectedIds.length} positions correct. Expected: ${expectedOrder}. Your order: ${yourOrder}.`;
+    }
+
+    if (question.type === "TEXT" && typeof effectiveCorrectAnswer === "string" && typeof answer?.value === "string") {
+      const expected = effectiveCorrectAnswer;
+      const actual = answer.value;
+
+      const issues: string[] = [];
+      const trailingSpaces = actual.length - actual.trimEnd().length;
+      const leadingSpaces = actual.length - actual.trimStart().length;
+      if (leadingSpaces > 0) issues.push(`${leadingSpaces} extra leading space${leadingSpaces > 1 ? "s" : ""}`);
+      if (trailingSpaces > 0) issues.push(`${trailingSpaces} extra trailing space${trailingSpaces > 1 ? "s" : ""}`);
+
+      if (actual.trim() === expected.trim() && actual !== expected && issues.length > 0) {
+        return `You were very close. Expected exactly "${expected}", but you entered ${issues.join(" and ")}.`;
+      }
+
+      if (actual.trim().toLowerCase() === expected.trim().toLowerCase() && actual.trim() !== expected.trim()) {
+        return `You matched the letters but not the exact casing/punctuation. Expected exactly "${expected}".`;
+      }
+
+      return `This field requires an exact match. Expected "${expected}", but your input was "${actual}".`;
+    }
+
+    return null;
+  }, [answer?.value, effectiveCorrectAnswer, isCorrect, question.options, question.type]);
+
+  const explanationContent = useMemo(() => {
+    if (isCorrect === false) {
+      return wrongExplanationDetail ?? question.wrongExplanation ?? question.explanation ?? null;
+    }
+    return question.explanation ?? null;
+  }, [isCorrect, question.explanation, question.wrongExplanation, wrongExplanationDetail]);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="p-4 rounded-xl border bg-card space-y-4"
+      initial={{ opacity: 0, x: slideDirection * 80 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: slideDirection * -80 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="flex flex-col h-full"
     >
-      {/* Question header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded">
-              Q{questionNumber}
-            </span>
-            <h3 className="font-medium">{question.text}</h3>
-            {question.isRequired && <span className="text-red-500 text-xs">*</span>}
-          </div>
-          {question.description && (
-            <p className="text-sm text-muted-foreground">{question.description}</p>
+      {/* Compact header with section + progress */}
+      <div className="px-4 pt-3 pb-2 border-b border-zinc-800/30">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          {sectionCount > 1 ? (
+            <button onClick={onSectionSelect} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <span>{section.icon}</span>
+              <span className="font-medium">{section.title}</span>
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          ) : (
+            <span className="text-xs text-muted-foreground">Questions</span>
           )}
+          <span className="text-xs text-muted-foreground">{answeredCount}/{totalQuestions}</span>
         </div>
+        <div className="h-1 rounded-full bg-zinc-800 overflow-hidden">
+          <motion.div className={cn("h-full rounded-full bg-gradient-to-r", theme.gradient)} initial={{ width: 0 }} animate={{ width: `${progressPct}%` }} transition={{ duration: 0.3 }} />
+        </div>
+      </div>
 
-        {question.allowComments && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
+      {/* Question content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-6 py-8">
+          {/* Question badge + type */}
+          <div className="flex items-center gap-2 mb-4">
+            <span className={cn("flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full", theme.badge)}>Q{questionNumber}</span>
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              {getQuestionTypeIcon(question.type)}
+              {getQuestionTypeLabel(question.type)}
+            </span>
+            {question.isRequired && <span className="text-[10px] text-red-400/80 font-medium">Required</span>}
+          </div>
+
+          <h2 className="text-xl md:text-2xl font-bold mb-2 leading-snug">{question.text}</h2>
+          {question.description && <p className="text-sm text-muted-foreground mb-6">{question.description}</p>}
+
+          {/* Question input */}
+          <div className="mt-6">
+            {(question.type === "SLIDER" || question.type === "SCALE") && (
+              <SliderQuestion
+                questionId={question.id}
+                questionText=""
+                minValue={sliderConfig.min ?? 1}
+                maxValue={sliderConfig.max ?? 7}
+                step={sliderConfig.step ?? 1}
+                minLabel={sliderConfig.labels?.[0] ?? "A"}
+                maxLabel={sliderConfig.labels?.[sliderConfig.labels?.length - 1 || 0] ?? "G"}
+                stepLabels={sliderConfig.labels}
+                value={answer?.value as number | undefined}
+                onChange={handleValueChange}
+                disabled={isCommitted}
+              />
+            )}
+
+            {(question.type === "SINGLE_CHOICE" || question.type === "MULTI_CHOICE") && (
+              <ChoiceQuestion
+                questionId={question.id}
+                questionText=""
+                options={question.options.map((opt) => ({ id: opt.id, text: opt.text }))}
+                selectedValue={
+                  question.type === "MULTI_CHOICE"
+                    ? (answer?.value as string[] | undefined)
+                    : (answer?.value as string | undefined)
+                }
+                onChange={(v) => handleValueChange(v as string | string[])}
+                multiSelect={question.type === "MULTI_CHOICE"}
+                variant="card"
+                disabled={isCommitted}
+              />
+            )}
+
+            {question.type === "SHAPE_MATCH" && (
+              <ShapeMatchQuestion
+                key={question.id}
+                questionId={question.id}
+                questionText={question.questionText || question.text || ""}
+                description={question.description ?? undefined}
+                config={SHAPE_MATCH_PRESETS[question.shapeMatchPreset as keyof typeof SHAPE_MATCH_PRESETS] || SHAPE_MATCH_PRESETS.basicShapes}
+                onChange={(placements) => { handleValueChange(Object.values(placements).filter(Boolean).length); }}
+                onComplete={(isCorrect) => { handleValueChange(isCorrect ? 100 : 0); }}
+              />
+            )}
+
+            {question.type === "RANKING" && (
+              <RankingQuestion
+                questionId={question.id}
+                questionText=""
+                options={rankingOptionsShuffled}
+                value={answer?.value as string[] | undefined}
+                onChange={(v) => handleValueChange(v)}
+                showMedals={true}
+                showRankNumbers={true}
+                disabled={isCommitted}
+              />
+            )}
+
+            {question.type === "UI_ARRANGE" && (
+              <UIArrangeQuestion
+                questionId={question.id}
+                questionText=""
+                gridSize={{ cols: 6, rows: 4 }}
+                boxes={[...UI_ARRANGE_PRESETS.dashboardLayout.boxes]}
+                dropZones={[...UI_ARRANGE_PRESETS.dashboardLayout.dropZones]}
+                onChange={(result) => { handleValueChange(result.accuracy ?? 100); }}
+              />
+            )}
+
+            {question.type === "NESTED" && (
+              <NestedQuestionComponent
+                question={{
+                  id: question.id,
+                  text: question.text,
+                  type: "choice",
+                  options: question.options.map((opt) => ({ id: opt.id, text: opt.text })),
+                }}
+                onChange={(result) => { handleValueChange(result.allAnswered ? 100 : 0); }}
+              />
+            )}
+
+            {question.type === "TEXT" && (
+              <Textarea
+                placeholder="Share your thoughts..."
+                value={(answer?.value as string) ?? ""}
+                onChange={(e) => handleValueChange(e.target.value)}
+                className="min-h-[120px] bg-zinc-900/50 border-zinc-800 focus:border-zinc-600 text-base"
+              />
+            )}
+          </div>
+
+          {/* Comment toggle */}
+          {question.allowComments && (
+            <div className="mt-4">
+              <button
                 onClick={onToggleComment}
                 className={cn(
-                  showComment && "text-emerald-500 bg-emerald-500/10"
+                  "flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border transition-colors",
+                  showComment 
+                    ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10" 
+                    : "text-muted-foreground border-zinc-700 hover:border-zinc-500 hover:text-foreground bg-zinc-800/50"
                 )}
               >
                 <MessageSquarePlus className="h-4 w-4" />
+                {showComment ? "Hide comment" : "Add a comment"}
+              </button>
+              <AnimatePresence>
+                {showComment && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                    <Textarea
+                      placeholder="Additional thoughts..."
+                      value={answer?.comment ?? ""}
+                      onChange={(e) => handleCommentChange(e.target.value)}
+                      className="mt-2 text-sm min-h-[60px] bg-zinc-900/50 border-zinc-800"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* Commit button — shown when answer is selected but not yet committed */}
+          {isAnswered && needsCommit && !isCommitted && (
+            <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
+              <Button
+                onClick={onCommit}
+                className={cn(
+                  "w-full py-5 text-base font-semibold rounded-xl text-white shadow-lg",
+                  "bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600",
+                  "hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500",
+                  "transition-all duration-200"
+                )}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <Target className="h-5 w-5" />
+                  Lock In Answer
+                </span>
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>Add comment</TooltipContent>
-          </Tooltip>
-        )}
+              <p className="text-[11px] text-center text-muted-foreground/60 mt-2">
+                Once committed, you&apos;ll see if you got it right
+              </p>
+            </motion.div>
+          )}
+
+          {/* Feedback — shown after commit (or immediately if no commit needed) */}
+          {isAnswered && showFeedback && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-3">
+              {isQuiz && isCorrect !== null ? (
+                <div className="space-y-4">
+                  {/* Main feedback card - more prominent */}
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className={cn(
+                      "flex flex-col gap-3 px-5 py-4 rounded-2xl border-2",
+                      isCorrect 
+                        ? "bg-emerald-500/15 border-emerald-500/50 shadow-lg shadow-emerald-500/10" 
+                        : "bg-red-500/15 border-red-500/50 shadow-lg shadow-red-500/10"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <motion.div
+                        initial={{ rotate: -45, scale: 0 }}
+                        animate={{ rotate: 0, scale: 1 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 15, delay: 0.1 }}
+                        className={cn(
+                          "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
+                          isCorrect ? "bg-emerald-500/30" : "bg-red-500/30"
+                        )}
+                      >
+                        {isCorrect ? (
+                          <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                        ) : (
+                          <X className="h-6 w-6 text-red-400" />
+                        )}
+                      </motion.div>
+                      <div className="flex-1">
+                        <motion.h4 
+                          initial={{ x: -10, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          transition={{ delay: 0.15 }}
+                          className={cn(
+                            "text-lg font-bold",
+                            isCorrect ? "text-emerald-400" : "text-red-400"
+                          )}
+                        >
+                          {isCorrect ? "✓ Correct!" : "✗ Incorrect"}
+                        </motion.h4>
+                      </div>
+                    </div>
+                    
+                    <motion.p 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                      className={cn(
+                        "text-sm leading-relaxed",
+                        isCorrect ? "text-emerald-300/90" : "text-red-300/90"
+                      )}
+                    >
+                      {isCorrect ? (
+                        <>
+                          {(question.type === "SLIDER" || question.type === "SCALE") && "You managed to slide it to the correct slot!"}
+                          {question.type === "RANKING" && "Great job! You arranged them correctly."}
+                          {question.type === "TEXT" && "You typed the correct answer!"}
+                          {question.type !== "SLIDER" && question.type !== "SCALE" && question.type !== "RANKING" && question.type !== "TEXT" && "You selected the right answer."}
+                          {question.trickQuestion && " Good job catching the trick question!"}
+                        </>
+                      ) : (
+                        <>
+                          {(question.type === "SLIDER" || question.type === "SCALE") && (() => {
+                            const correctAns = effectiveCorrectAnswer;
+                            const numCorrect = typeof correctAns === "string" ? parseFloat(correctAns) : NaN;
+                            const userVal = typeof answer?.value === "number" ? answer.value : NaN;
+                            if (!Number.isNaN(numCorrect) && !Number.isNaN(userVal)) {
+                              const distance = Math.abs(userVal - numCorrect);
+                              return `You were ${distance} step${distance !== 1 ? "s" : ""} away. The correct answer is ${numCorrect}.`;
+                            }
+                            return `The correct answer is ${!Number.isNaN(numCorrect) ? numCorrect : correctAns}.`;
+                          })()}
+                          {question.type === "RANKING" && "The order wasn't quite right."}
+                          {question.type === "TEXT" && `Not quite! The correct answer is "${effectiveCorrectAnswer}".`}
+                          {question.type !== "SLIDER" && question.type !== "SCALE" && question.type !== "RANKING" && question.type !== "TEXT" && "That wasn't the right choice."}
+                          {question.trickQuestion && " This was a trick question!"}
+                        </>
+                      )}
+                    </motion.p>
+
+                    {/* Show correct answer inline for choice/text questions */}
+                    {!isCorrect && hasCorrectAnswer && question.type !== "RANKING" && question.type !== "SLIDER" && question.type !== "SCALE" && question.type !== "TEXT" && (
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.25 }}
+                        className="text-sm text-muted-foreground border-t border-red-500/20 pt-3 mt-1"
+                      >
+                        <span className="text-red-300/70">Correct answer: </span>
+                        <span className="font-medium text-foreground">
+                          {(() => {
+                            const correctAns = effectiveCorrectAnswer;
+                            if (typeof correctAns === "string") {
+                              const opt = question.options.find(o => o.id === correctAns);
+                              return opt?.text || correctAns;
+                            }
+                            if (Array.isArray(correctAns)) {
+                              return correctAns.map(id => question.options.find(o => o.id === id)?.text || id).join(", ");
+                            }
+                            return "";
+                          })()}
+                        </span>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                  
+                  {/* Show wrong explanation when provided - more prominent styling */}
+                  {!isCorrect && (dynamicWrongTip || question.wrongExplanation) && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="p-4 rounded-xl bg-red-500/5 text-sm text-red-200/80 border border-red-500/20 leading-relaxed"
+                    >
+                      <span className="text-red-400 font-medium">💡 Tip: </span>
+                      {dynamicWrongTip ?? question.wrongExplanation}
+                    </motion.div>
+                  )}
+
+                  {/* Show correct ranking order when wrong */}
+                  {!isCorrect && question.type === "RANKING" && Array.isArray(effectiveCorrectAnswer) && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="p-3 rounded-lg bg-zinc-800/50 text-sm">
+                        <p className="text-xs text-muted-foreground mb-2 font-medium">
+                          It should have been: {(effectiveCorrectAnswer as string[]).map(id => question.options.find(o => o.id === id)?.text ?? id).join(" → ")}
+                        </p>
+                        <ol className="space-y-1">
+                          {(effectiveCorrectAnswer as string[]).map((id, idx) => {
+                            const opt = question.options.find(o => o.id === id);
+                            return (
+                              <li key={id} className="flex items-center gap-2 text-xs">
+                                <span className={cn(
+                                  "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold",
+                                  idx === 0 ? "bg-amber-500/20 text-amber-400" :
+                                  idx === 1 ? "bg-zinc-400/20 text-zinc-300" :
+                                  idx === 2 ? "bg-orange-600/20 text-orange-400" :
+                                  "bg-zinc-700/50 text-zinc-400"
+                                )}>
+                                  {idx + 1}
+                                </span>
+                                <span className="text-foreground">{opt?.text || id}</span>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {/* Explanation button moved outside the card for better visibility */}
+                  {explanationContent && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <button
+                        onClick={() => setShowExplanation(!showExplanation)}
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all w-full justify-center",
+                          showExplanation 
+                            ? "text-violet-300 border-violet-500/50 bg-violet-500/15"
+                            : isCorrect
+                              ? "text-emerald-300/80 hover:text-emerald-300 border-emerald-500/30 hover:border-emerald-500/50 bg-emerald-500/5 hover:bg-emerald-500/10"
+                              : "text-amber-300 hover:text-amber-200 border-amber-500/40 hover:border-amber-500/60 bg-amber-500/10 hover:bg-amber-500/15"
+                        )}
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        <span className="font-medium">
+                          {showExplanation ? "Hide explanation" : isCorrect ? "Why is this correct?" : "Why was I wrong?"}
+                        </span>
+                      </button>
+                      <AnimatePresence>
+                        {showExplanation && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-3 p-4 rounded-xl bg-zinc-800/70 text-sm text-foreground/90 border border-zinc-700/50 leading-relaxed">
+                              <span className="text-violet-400 font-medium">💡 Explanation: </span>
+                              {explanationContent}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  )}
+
+                  {showExplanation && (deepRankingHelp || customDeepHelp || deepRangeHelp || deepWordHelp) && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.35 }}
+                    >
+                      <button
+                        onClick={() => setShowDeepExplanation(!showDeepExplanation)}
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all w-full justify-center",
+                          showDeepExplanation
+                            ? "text-blue-200 border-blue-400/60 bg-blue-500/10"
+                            : "text-blue-200/90 hover:text-blue-100 border-blue-400/35 hover:border-blue-400/55 bg-blue-500/5 hover:bg-blue-500/10"
+                        )}
+                      >
+                        <AlertCircle className="h-4 w-4" />
+                        <span className="font-medium">
+                          {showDeepExplanation ? "Hide extra clarification" : "Still don’t understand?"}
+                        </span>
+                      </button>
+
+                      <AnimatePresence>
+                        {showDeepExplanation && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            {deepRankingHelp ? (
+                              <div className="mt-3 p-4 rounded-xl bg-blue-500/5 text-sm border border-blue-500/20 leading-relaxed whitespace-pre-line text-foreground/90">
+                                {deepRankingHelp}
+                              </div>
+                            ) : customDeepHelp ? (
+                              <div className="mt-3 p-4 rounded-xl bg-blue-500/5 text-sm border border-blue-500/20 leading-relaxed whitespace-pre-line text-foreground/90">
+                                {customDeepHelp}
+                              </div>
+                            ) : deepRangeHelp ? (
+                              <div className="mt-3 p-4 rounded-xl bg-blue-500/5 text-sm border border-blue-500/20 leading-relaxed space-y-2">
+                                <p className="text-blue-200 font-medium">Extra clarification — how this range selector works</p>
+                                <p className="text-foreground/90">
+                                  In this demo, selecting a value highlights a contiguous range starting from {deepRangeHelp.formatValue(deepRangeHelp.min)} up to your selected value.
+                                </p>
+                                <p className="text-foreground/90">
+                                  Correct highlighted set: {deepRangeHelp.expectedHighlighted.map(deepRangeHelp.formatValue).join(", ")}.
+                                </p>
+                                <p className="text-foreground/90">
+                                  Your selected value was {deepRangeHelp.formatValue(deepRangeHelp.selectedValue)}, which highlights: {deepRangeHelp.currentHighlighted.map(deepRangeHelp.formatValue).join(", ")}.
+                                </p>
+                                {deepRangeHelp.remainingUnselected.length > 0 && (
+                                  <p className="text-foreground/90">
+                                    Values not selected yet: {deepRangeHelp.remainingUnselected.map(deepRangeHelp.formatValue).join(", ")}.
+                                  </p>
+                                )}
+                                <p className="text-blue-100/90">
+                                  To match this question exactly, stop at {deepRangeHelp.formatValue(deepRangeHelp.numericCorrect)} and do not move past it.
+                                </p>
+                              </div>
+                            ) : deepWordHelp ? (
+                              <div className="mt-3 p-4 rounded-xl bg-blue-500/5 text-sm border border-blue-500/20 leading-relaxed space-y-2">
+                                <p className="text-blue-200 font-medium">Extra clarification — word match vs substring match</p>
+                                <p className="text-foreground/90">
+                                  This question says: select options that contain the <span className="font-semibold">word</span> “correct”.
+                                </p>
+                                <p className="text-foreground/90">
+                                  A whole-word match means “correct” appears as its own token, like: {deepWordHelp.optionsWithWord.join(", ") || "(none)"}.
+                                </p>
+                                {deepWordHelp.optionsWithSubstringOnly.length > 0 && (
+                                  <p className="text-foreground/90">
+                                    These contain the letters but not the word itself: {deepWordHelp.optionsWithSubstringOnly.join(", ")}.
+                                  </p>
+                                )}
+                                {deepWordHelp.selectedTexts.length > 0 && (
+                                  <p className="text-foreground/90">
+                                    You selected: {deepWordHelp.selectedTexts.join(", ")}.
+                                  </p>
+                                )}
+                                <p className="text-blue-100/90">
+                                  “Incorrect” is one different word; it includes the letters c-o-r-r-e-c-t, but it is not the standalone word “correct”.
+                                </p>
+                              </div>
+                            ) : null}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  Response saved
+                </div>
+              )}
+            </motion.div>
+          )}
+        </div>
       </div>
 
-      {/* Question input based on type */}
-      <div className="pt-2">
-        {(question.type === "SLIDER" || question.type === "SCALE") && (
-          <SliderQuestion
-            questionId={question.id}
-            questionText=""
-            minValue={sliderConfig.min ?? 1}
-            maxValue={sliderConfig.max ?? 7}
-            step={sliderConfig.step ?? 1}
-            minLabel={sliderConfig.labels?.[0] ?? "A"}
-            maxLabel={sliderConfig.labels?.[sliderConfig.labels?.length - 1 || 0] ?? "G"}
-            stepLabels={sliderConfig.labels}
-            value={answer?.value as number | undefined}
-            onChange={handleValueChange}
-          />
-        )}
+      {/* Navigation footer */}
+      <div className="px-4 py-3 border-t border-zinc-800/30 bg-zinc-900/50">
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
+          <Button variant="ghost" size="sm" onClick={onPrev} className="text-muted-foreground hover:text-foreground">
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Back
+          </Button>
 
-        {(question.type === "SINGLE_CHOICE" || question.type === "MULTI_CHOICE") && (
-          <ChoiceQuestion
-            questionId={question.id}
-            questionText=""
-            options={question.options.map((opt) => ({
-              id: opt.id,
-              text: opt.text,
-            }))}
-            selectedValue={
-              question.type === "MULTI_CHOICE"
-                ? (answer?.value as string[] | undefined)
-                : (answer?.value as string | undefined)
-            }
-            onChange={(v) => handleValueChange(v as string | string[])}
-            multiSelect={question.type === "MULTI_CHOICE"}
-            variant="card"
-          />
-        )}
+          {/* Question dots for current section */}
+          <div className="hidden sm:flex items-center gap-1">
+            {section.questions.map((q) => {
+              const isActive = q.id === question.id;
+              const isFilled = answers[q.id]?.value !== undefined;
+              return (
+                <div
+                  key={q.id}
+                  className={cn(
+                    "h-1.5 rounded-full transition-all duration-200",
+                    isActive ? cn("w-6 bg-gradient-to-r", theme.gradient) :
+                    isFilled ? "w-1.5 bg-emerald-500" : "w-1.5 bg-zinc-700"
+                  )}
+                />
+              );
+            })}
+          </div>
 
-        {question.type === "SHAPE_MATCH" && (
-          <ShapeMatchQuestion
-            questionId={question.id}
-            questionText=""
-            config={SHAPE_MATCH_PRESETS.antiBot}
-            onChange={(placements) => {
-              // Count correct placements
-              const correctCount = Object.values(placements).filter(Boolean).length;
-              handleValueChange(correctCount);
-            }}
-            onComplete={(isCorrect) => {
-              handleValueChange(isCorrect ? 100 : 0);
-            }}
-          />
-        )}
-
-        {question.type === "RANKING" && (
-          <RankingQuestion
-            questionId={question.id}
-            questionText=""
-            options={question.options.map((opt) => ({
-              id: opt.id,
-              label: opt.text,
-            }))}
-            value={answer?.value as string[] | undefined}
-            onChange={(v) => handleValueChange(v)}
-            showMedals={true}
-            showRankNumbers={true}
-          />
-        )}
-
-        {question.type === "UI_ARRANGE" && (
-          <UIArrangeQuestion
-            questionId={question.id}
-            questionText=""
-            gridSize={{ cols: 6, rows: 4 }}
-            boxes={[...UI_ARRANGE_PRESETS.dashboardLayout.boxes]}
-            dropZones={[...UI_ARRANGE_PRESETS.dashboardLayout.dropZones]}
-            onChange={(result) => {
-              handleValueChange(result.accuracy ?? 100);
-            }}
-          />
-        )}
-
-        {question.type === "NESTED" && (
-          <NestedQuestionComponent
-            question={{
-              id: question.id,
-              text: question.text,
-              type: "choice",
-              options: question.options.map((opt) => ({
-                id: opt.id,
-                text: opt.text,
-              })),
-            }}
-            onChange={(result) => {
-              handleValueChange(result.allAnswered ? 100 : 0);
-            }}
-          />
-        )}
-
-        {question.type === "TEXT" && (
-          <Textarea
-            placeholder="Share your thoughts..."
-            value={(answer?.value as string) ?? ""}
-            onChange={(e) => handleValueChange(e.target.value)}
-            className="min-h-[100px]"
-          />
-        )}
-      </div>
-
-      {/* Comment section */}
-      <AnimatePresence>
-        {showComment && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
+          <Button
+            size="sm"
+            onClick={onNext}
+            className={cn("font-medium", isLast ? cn("bg-gradient-to-r text-white", theme.gradient) : "bg-zinc-800 hover:bg-zinc-700 text-foreground")}
           >
-            <div className="pt-3 border-t">
-              <label className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1.5">
-                <Sparkles className="h-3 w-3" />
-                Additional feedback
-              </label>
-              <Textarea
-                placeholder="Any additional thoughts..."
-                value={answer?.comment ?? ""}
-                onChange={(e) => handleCommentChange(e.target.value)}
-                className="text-sm min-h-[60px]"
-              />
+            {isLast ? (<>Finish <CheckCircle2 className="h-4 w-4 ml-1" /></>) : (<>Next <ChevronRight className="h-4 w-4 ml-1" /></>)}
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── COMPLETION SCREEN ─────────────────────────────────────────────────────
+
+function CompletionScreen({
+  poll, sections, answers, answeredCount, totalQuestions, theme,
+  isSubmitting, authRequired, onSubmit, onBack, onSelectSection, onStartMissingFlow, onClose,
+}: {
+  poll: PollData;
+  sections: Section[];
+  answers: Record<string, QuestionAnswer>;
+  answeredCount: number;
+  totalQuestions: number;
+  theme: ReturnType<typeof getPollTheme>;
+  isSubmitting: boolean;
+  authRequired: boolean;
+  onSubmit: () => void;
+  onBack: () => void;
+  onSelectSection: (idx: number) => void;
+  onStartMissingFlow: () => void;
+  onClose: () => void;
+}) {
+  const pct = totalQuestions > 0 ? Math.min(100, Math.round((answeredCount / totalQuestions) * 100)) : 0;
+  const loginCallbackUrl = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/pulse";
+  
+  // Get unanswered questions for "Jump to missing" feature
+  const unanswered = findUnansweredQuestions(sections, answers);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-md mx-auto text-center py-8">
+          {/* Completion icon */}
+          <motion.div className="mx-auto mb-6" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200, damping: 15 }}>
+            {pct === 100 ? (
+              <div className={cn("w-20 h-20 rounded-full flex items-center justify-center mx-auto bg-gradient-to-br", theme.gradient)}>
+                <CheckCircle2 className="w-10 h-10 text-white" />
+              </div>
+            ) : (
+              <div className="relative w-20 h-20 mx-auto">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="16" fill="none" className="stroke-zinc-800" strokeWidth="3" />
+                  <circle cx="18" cy="18" r="16" fill="none" className="stroke-violet-500" strokeWidth="3" strokeDasharray={`${pct} 100`} strokeLinecap="round" />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-muted-foreground">{pct}%</span>
+              </div>
+            )}
+          </motion.div>
+
+          <h2 className="text-2xl font-bold mb-2">
+            {pct === 100 ? "All Done!" : pct > 50 ? "Almost There!" : "Ready to Submit?"}
+          </h2>
+          <p className="text-sm text-muted-foreground mb-2">
+            You&apos;ve answered {answeredCount} of {totalQuestions} questions
+            {poll.allowPartial && pct < 100 && " — partial submissions are welcome!"}
+          </p>
+          <p className="text-xs text-zinc-500 mb-6">
+            {pct}% = completion progress{poll.type === "QUIZ" ? ", not your score" : ""}
+          </p>
+
+          {/* Section breakdown */}
+          {sections.length > 1 && (
+            <div className="space-y-2 mb-8 text-left">
+              {sections.map((section, idx) => {
+                const answered = sectionAnsweredCount(section, answers);
+                const total = section.questions.length;
+                const secPct = Math.round((answered / total) * 100);
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => onSelectSection(idx)}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg transition-colors bg-zinc-900/50 hover:bg-zinc-800/70 border border-zinc-800/50"
+                  >
+                    <span>{section.icon}</span>
+                    <span className="flex-1 text-sm font-medium text-left truncate">{section.title}</span>
+                    <span className="text-xs text-muted-foreground">{answered}/{total}</span>
+                    {secPct === 100 && <Check className="h-4 w-4 text-emerald-500" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Jump to missing questions */}
+          {unanswered.length > 0 && (
+            <div className="mb-6">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={onStartMissingFlow}
+                className="w-full rounded-2xl border-amber-500/50 text-amber-200 hover:bg-amber-500/10 hover:border-amber-500"
+              >
+                <AlertCircle className="h-4 w-4 mr-2" />
+                Complete {unanswered.length} missing question{unanswered.length > 1 ? "s" : ""}
+              </Button>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-col gap-3">
+            {authRequired ? (
+              <>
+                <p className="text-sm text-amber-200/90 mb-1">Sign in to submit this poll. After signing in, you&apos;ll return here to submit.</p>
+                <Button
+                  size="lg"
+                  asChild
+                  className={cn("w-full py-6 text-base font-semibold rounded-2xl text-white bg-gradient-to-r", theme.gradient)}
+                >
+                  <Link href={`/auth/login?callbackUrl=${encodeURIComponent(loginCallbackUrl)}`}>
+                    Sign in to submit
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="lg"
+                onClick={onSubmit}
+                disabled={isSubmitting || answeredCount === 0}
+                className={cn("w-full py-6 text-base font-semibold rounded-2xl text-white bg-gradient-to-r", theme.gradient)}
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}><Target className="h-5 w-5" /></motion.div>
+                    Submitting...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2"><Send className="h-5 w-5" />Submit Response</span>
+                )}
+              </Button>
+            )}
+            <Button variant="outline" size="lg" onClick={onBack} className="w-full rounded-2xl border-zinc-700">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Go Back
+            </Button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── RESULTS SCREEN ─────────────────────────────────────────────────────────
+
+function ResultsScreen({
+  poll, sections, answers, answeredCount, totalQuestions, theme, onClose,
+}: {
+  poll: PollData;
+  sections: Section[];
+  answers: Record<string, QuestionAnswer>;
+  answeredCount: number;
+  totalQuestions: number;
+  theme: ReturnType<typeof getPollTheme>;
+  onClose: () => void;
+}) {
+  const pct = totalQuestions > 0 ? Math.min(100, Math.round((answeredCount / totalQuestions) * 100)) : 0;
+  const isQuiz = poll.type === "QUIZ";
+  
+  // Calculate quiz score
+  const quizScore = isQuiz ? calculateQuizScore(sections, answers) : null;
+  const scorePct = quizScore && quizScore.total > 0 ? Math.round((quizScore.correct / quizScore.total) * 100) : 0;
+
+  return (
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-md mx-auto text-center py-8">
+          {/* Success animation */}
+          <motion.div 
+            className="mb-6"
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
+          >
+            <div className={cn("w-24 h-24 rounded-full flex items-center justify-center mx-auto bg-gradient-to-br shadow-2xl", theme.gradient)}>
+              {isQuiz ? <Trophy className="w-12 h-12 text-white" /> : <PartyPopper className="w-12 h-12 text-white" />}
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* Answered indicator */}
-      {answer?.value !== undefined && (
-        <div className="flex items-center gap-1.5 text-xs text-emerald-500">
-          <Check className="h-3 w-3" />
-          Answered
-          {answer?.comment && <span className="text-muted-foreground">+ comment</span>}
+          {/* Confetti effect (decorative) */}
+          <motion.div className="absolute inset-0 pointer-events-none overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {[...Array(12)].map((_, i) => (
+              <motion.div
+                key={i}
+                className={cn("absolute w-3 h-3 rounded-full", i % 3 === 0 ? "bg-violet-500" : i % 3 === 1 ? "bg-amber-400" : "bg-emerald-400")}
+                initial={{ 
+                  x: "50%", 
+                  y: "30%", 
+                  scale: 0 
+                }}
+                animate={{ 
+                  x: `${20 + Math.random() * 60}%`,
+                  y: `${10 + Math.random() * 50}%`,
+                  scale: [0, 1.5, 1],
+                  opacity: [0, 1, 0]
+                }}
+                transition={{ duration: 1.5, delay: 0.2 + i * 0.1 }}
+              />
+            ))}
+          </motion.div>
+
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}>
+            <h2 className="text-3xl font-bold mb-2">
+              {isQuiz ? "Quiz Complete!" : "Thank You!"}
+            </h2>
+            <p className="text-lg text-muted-foreground mb-6">
+              {isQuiz && quizScore
+                ? `You got ${quizScore.correct} of ${quizScore.total} correct (${scorePct}%)`
+                : isQuiz 
+                  ? `You answered ${answeredCount} of ${totalQuestions} questions`
+                  : "Your feedback has been recorded"
+              }
+            </p>
+          </motion.div>
+
+          {/* Quiz Score Card - Only shown for quizzes with scored questions */}
+          {isQuiz && quizScore && quizScore.total > 0 && (
+            <motion.div 
+              className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-6 mb-6"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.35 }}
+            >
+              {/* Score gauge */}
+              <div className="flex items-center justify-center mb-4">
+                <div className="relative w-32 h-32">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      className="stroke-zinc-800"
+                      fill="none"
+                      strokeWidth="3"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path
+                      className={cn(
+                        "transition-all duration-1000 ease-out",
+                        scorePct >= 80 ? "stroke-emerald-500" : scorePct >= 60 ? "stroke-amber-500" : "stroke-red-500"
+                      )}
+                      fill="none"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeDasharray={`${scorePct}, 100`}
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className={cn(
+                      "text-3xl font-bold",
+                      scorePct >= 80 ? "text-emerald-400" : scorePct >= 60 ? "text-amber-400" : "text-red-400"
+                    )}>
+                      {scorePct}%
+                    </span>
+                    <span className="text-xs text-muted-foreground">Score</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Score breakdown */}
+              <div className="flex items-center justify-center gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-emerald-400" />
+                  <span className="text-emerald-400 font-medium">{quizScore.correct} correct</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <X className="h-4 w-4 text-red-400" />
+                  <span className="text-red-400 font-medium">{quizScore.total - quizScore.correct} wrong</span>
+                </div>
+              </div>
+
+              {/* Per-section score breakdown */}
+              {sections.length > 1 && quizScore.bySection.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-zinc-800 space-y-2">
+                  <p className="text-xs text-muted-foreground mb-2 text-left">Score by section:</p>
+                  {quizScore.bySection.map((sec, idx) => {
+                    const secPct = sec.total > 0 ? Math.round((sec.correct / sec.total) * 100) : 0;
+                    return (
+                      <div key={sec.section.id} className="flex items-center gap-2 text-sm">
+                        <span>{sections[idx]?.icon || "📋"}</span>
+                        <span className="flex-1 text-left text-muted-foreground truncate">{sections[idx]?.title}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div 
+                              className={cn(
+                                "h-full rounded-full transition-all",
+                                secPct >= 80 ? "bg-emerald-500" : secPct >= 60 ? "bg-amber-500" : "bg-red-500"
+                              )}
+                              style={{ width: `${secPct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-medium w-12 text-right">{sec.correct}/{sec.total}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Completion Summary card - Only shown for non-quizzes or quizzes without scoring */}
+          {(!isQuiz || !quizScore || quizScore.total === 0) && (
+          <motion.div 
+            className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-6 mb-6"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white">{pct}%</div>
+                <div className="text-xs text-muted-foreground">Completion</div>
+              </div>
+              <div className="w-px h-12 bg-zinc-700" />
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white">{answeredCount}</div>
+                <div className="text-xs text-muted-foreground">Answers</div>
+              </div>
+              {sections.length > 1 && (
+                <>
+                  <div className="w-px h-12 bg-zinc-700" />
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-white">{sections.length}</div>
+                    <div className="text-xs text-muted-foreground">Sections</div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Section breakdown */}
+            {sections.length > 1 && (
+              <div className="space-y-2 text-left border-t border-zinc-800 pt-4">
+                {sections.map((section) => {
+                  const answered = sectionAnsweredCount(section, answers);
+                  const total = section.questions.length;
+                  return (
+                    <div key={section.id} className="flex items-center gap-2 text-sm">
+                      <span>{section.icon}</span>
+                      <span className="flex-1 text-muted-foreground truncate">{section.title}</span>
+                      <span className={cn("font-medium", answered === total ? "text-emerald-400" : "text-muted-foreground")}>
+                        {answered}/{total}
+                      </span>
+                      {answered === total && <Check className="h-3.5 w-3.5 text-emerald-400" />}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+          )}
+
+          {/* Action buttons */}
+          <motion.div 
+            className="flex flex-col gap-3"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            <Button
+              size="lg"
+              className={cn("w-full py-6 text-base font-semibold rounded-2xl text-white bg-gradient-to-r", theme.gradient)}
+              onClick={onClose}
+            >
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5" />
+                Done
+              </span>
+            </Button>
+            
+            {/* Share option - placeholder for Pulse feature */}
+            <Button variant="outline" size="lg" className="w-full rounded-2xl border-zinc-700" onClick={() => {
+              // TODO: Integrate with Pulse/sharing
+              if (typeof navigator !== "undefined" && navigator.share) {
+                navigator.share({ title: poll.title, text: `I just completed "${poll.title}"!` }).catch(() => {});
+              }
+            }}>
+              <Share2 className="h-4 w-4 mr-2" />
+              Share Results
+            </Button>
+          </motion.div>
         </div>
-      )}
+      </div>
     </motion.div>
   );
 }

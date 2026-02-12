@@ -3,6 +3,7 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError, parseQueryOrError } from '@/lib/api-validate';
 import { z } from 'zod';
+import type { Prisma } from '@/generated/prisma/client';
 import {
   AdvancedPollCreateSchema,
   AdvancedPollSchema,
@@ -71,6 +72,36 @@ export async function GET(req: NextRequest) {
       dbPrisma.advancedPoll.count({ where }),
     ]);
 
+    const resolveQuizMeta = (
+      raw: unknown,
+      options: { id: string }[],
+    ): { correctAnswer?: string | string[] | null; explanation?: string | null; wrongExplanation?: string | null; deepExplanation?: string | null; commitRequired?: boolean; trickQuestion?: boolean } => {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+      const cfg = raw as Record<string, unknown>;
+      let correctAnswer: string | string[] | undefined;
+      if (typeof cfg.correctAnswerIndex === 'number' && options[cfg.correctAnswerIndex]) {
+        correctAnswer = options[cfg.correctAnswerIndex].id;
+      } else if (Array.isArray(cfg.correctAnswerIndices)) {
+        const ids = cfg.correctAnswerIndices
+          .filter((i): i is number => typeof i === 'number')
+          .map((i) => options[i]?.id)
+          .filter((id): id is string => !!id);
+        correctAnswer = ids.length > 0 ? ids : undefined;
+      } else if (typeof cfg.correctAnswer === 'string') {
+        correctAnswer = cfg.correctAnswer;
+      } else if (Array.isArray(cfg.correctAnswer)) {
+        correctAnswer = cfg.correctAnswer.filter((v): v is string => typeof v === 'string');
+      }
+      return {
+        correctAnswer,
+        explanation: typeof cfg.explanation === 'string' ? cfg.explanation : undefined,
+        wrongExplanation: typeof cfg.wrongExplanation === 'string' ? cfg.wrongExplanation : undefined,
+        deepExplanation: typeof cfg.deepExplanation === 'string' ? cfg.deepExplanation : undefined,
+        commitRequired: typeof cfg.commitRequired === 'boolean' ? cfg.commitRequired : undefined,
+        trickQuestion: typeof cfg.trickQuestion === 'boolean' ? cfg.trickQuestion : undefined,
+      };
+    };
+
     const dto = {
       polls: polls.map((poll) => ({
         id: poll.id,
@@ -106,6 +137,11 @@ export async function GET(req: NextRequest) {
           allowImages: q.allowImages,
           allowComments: q.allowComments,
           sliderConfig: q.sliderConfig,
+          // Quiz metadata from both sliderConfig JSON and direct columns
+          ...resolveQuizMeta(q.sliderConfig, q.Options ?? []),
+          // Direct column fields (override sliderConfig values if set)
+          ...(q.shapeMatchPreset && { shapeMatchPreset: q.shapeMatchPreset }),
+          ...(q.trickQuestion && { trickQuestion: q.trickQuestion }),
           options: q.Options.map((o) => ({
             id: o.id,
             questionId: o.questionId,
@@ -181,7 +217,53 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Create the poll with questions and options
+    const buildQuestionConfig = (q: (typeof questions)[number]): Prisma.InputJsonValue | undefined => {
+      const base = (q.sliderConfig && typeof q.sliderConfig === 'object')
+        ? { ...(q.sliderConfig as Record<string, unknown>) }
+        : {};
+      // Prefer indices—option IDs from builder don't exist in DB after create
+      if (q.correctAnswerIndex !== undefined) base.correctAnswerIndex = q.correctAnswerIndex;
+      else if (q.correctAnswerIndices !== undefined) base.correctAnswerIndices = q.correctAnswerIndices;
+      else if (q.correctAnswer !== undefined) base.correctAnswer = q.correctAnswer;
+      if (q.explanation !== undefined) base.explanation = q.explanation;
+      if (q.wrongExplanation !== undefined) base.wrongExplanation = q.wrongExplanation;
+      if (q.deepExplanation !== undefined) base.deepExplanation = q.deepExplanation;
+      if (q.commitRequired !== undefined) base.commitRequired = q.commitRequired;
+      if (q.trickQuestion !== undefined) base.trickQuestion = q.trickQuestion;
+      return Object.keys(base).length > 0 ? (base as Prisma.InputJsonValue) : undefined;
+    };
+
+    const resolveQuizMeta = (
+      raw: unknown,
+      options: { id: string }[],
+    ): { correctAnswer?: string | string[] | null; explanation?: string | null; wrongExplanation?: string | null; deepExplanation?: string | null; commitRequired?: boolean; trickQuestion?: boolean } => {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+      const cfg = raw as Record<string, unknown>;
+      let correctAnswer: string | string[] | undefined;
+      if (typeof cfg.correctAnswerIndex === 'number' && options[cfg.correctAnswerIndex]) {
+        correctAnswer = options[cfg.correctAnswerIndex].id;
+      } else if (Array.isArray(cfg.correctAnswerIndices)) {
+        const ids = cfg.correctAnswerIndices
+          .filter((i): i is number => typeof i === 'number')
+          .map((i) => options[i]?.id)
+          .filter((id): id is string => !!id);
+        correctAnswer = ids.length > 0 ? ids : undefined;
+      } else if (typeof cfg.correctAnswer === 'string') {
+        correctAnswer = cfg.correctAnswer;
+      } else if (Array.isArray(cfg.correctAnswer)) {
+        correctAnswer = cfg.correctAnswer.filter((v): v is string => typeof v === 'string');
+      }
+      return {
+        correctAnswer,
+        explanation: typeof cfg.explanation === 'string' ? cfg.explanation : undefined,
+        wrongExplanation: typeof cfg.wrongExplanation === 'string' ? cfg.wrongExplanation : undefined,
+        deepExplanation: typeof cfg.deepExplanation === 'string' ? cfg.deepExplanation : undefined,
+        commitRequired: typeof cfg.commitRequired === 'boolean' ? cfg.commitRequired : undefined,
+        trickQuestion: typeof cfg.trickQuestion === 'boolean' ? cfg.trickQuestion : undefined,
+      };
+    };
+
+    // Create the poll with questions and options (auto-publish so creators can test immediately)
     const poll = await dbPrisma.advancedPoll.create({
       data: {
         title: title.trim(),
@@ -192,17 +274,21 @@ export async function POST(req: NextRequest) {
         isAnonymous,
         allowPartial,
         requiresAuth,
+        publishedAt: new Date(),
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         Questions: {
           create: questions.map((q, qIndex) => ({
             text: q.text.trim(),
             description: q.description?.trim(),
-            type: q.type,
+            type: q.type ?? 'SINGLE_CHOICE',
             order: q.order ?? qIndex,
             isRequired: q.isRequired ?? true,
             allowImages: q.allowImages ?? false,
             allowComments: q.allowComments ?? false,
-            sliderConfig: q.sliderConfig ?? undefined,
+            sliderConfig: buildQuestionConfig(q),
+            // Quiz/assessment fields (stored directly on question, not in JSON)
+            shapeMatchPreset: q.shapeMatchPreset,
+            trickQuestion: q.trickQuestion ?? false,
             Options: q.options ? {
               create: q.options.map((o, oIndex) => ({
                 text: o.text.trim(),
@@ -240,7 +326,7 @@ export async function POST(req: NextRequest) {
       updatedAt: toIsoString(poll.updatedAt),
       totalResponses: poll.totalResponses,
       avgCompletionPct: poll.avgCompletionPct,
-      questions: poll.Questions.map((q) => ({
+      questions: (poll as any).Questions.map((q: any) => ({
         id: q.id,
         advancedPollId: q.advancedPollId,
         parentQuestionId: q.parentQuestionId,
@@ -252,7 +338,8 @@ export async function POST(req: NextRequest) {
         allowImages: q.allowImages,
         allowComments: q.allowComments,
         sliderConfig: q.sliderConfig,
-        options: q.Options.map((o) => ({
+        ...resolveQuizMeta(q.sliderConfig, q.Options ?? []),
+        options: q.Options.map((o: any) => ({
           id: o.id,
           questionId: o.questionId,
           text: o.text,

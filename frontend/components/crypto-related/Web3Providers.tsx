@@ -4,7 +4,6 @@ import React, { ReactNode, useEffect, useMemo, useRef } from "react";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { reconnect } from "@wagmi/core";
-import wagmiConfig from "./evmConfig";
 
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
@@ -14,6 +13,9 @@ import { ActiveNetworkProvider, useActiveNetwork } from "./ActiveNetworkContext"
 import { PricingProvider } from "./PricingContext";
 import { getSolanaEndpoints } from "./solanaEndpoints";
 import { WalletRuntimeProvider } from "./WalletRuntimeContext";
+
+// AppKit for polished wallet modal UX
+import { wagmiConfig, AppKitInitializer } from "./AppKitInit";
 
 /** Only changes the endpoint; keeps providers mounted so UI state persists. */
 function SolanaLayer({ children }: { children: ReactNode }) {
@@ -51,6 +53,8 @@ export default function Web3Providers({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
+        {/* Initialize AppKit modal for polished wallet UX */}
+        <AppKitInitializer />
         <ActiveNetworkProvider>
           <PricingProvider>
             <SolanaLayer>

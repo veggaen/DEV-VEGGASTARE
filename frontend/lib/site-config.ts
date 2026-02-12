@@ -38,12 +38,28 @@ function parseBooleanEnv(value: string | undefined): boolean | undefined {
 // ═══════════════════════════════════════════════════════════════════════════
 // 🔐 ACCESS GATE PASSWORD
 // ═══════════════════════════════════════════════════════════════════════════
-// IMPORTANT: This is hardcoded because Edge middleware (proxy.ts) cannot
-// reliably read server-only env vars at runtime in some deployments (Vercel).
-// To change the password, update this constant and redeploy.
+// Reads from GATE_PASSWORD env var. No hardcoded fallback.
+// Edge middleware can read env vars in Next.js 16+, so this is safe.
 // To disable the gate entirely, set GATE_STATUS=false in your env vars.
-const GATE_PASSWORD_HARDCODED = 'MainAdc123';
+const GATE_PASSWORD = process.env.GATE_PASSWORD?.trim() || '';
+if (!GATE_PASSWORD && process.env.NODE_ENV === 'production') {
+  console.error('[SECURITY] GATE_PASSWORD env var is required in production!');
+}
 // ═══════════════════════════════════════════════════════════════════════════
+
+// Cookie domain: only set on production domains, never on localhost
+const COOKIE_DOMAIN = (() => {
+  const envDomain = process.env.ACCESS_GATE_COOKIE_DOMAIN?.trim();
+  // Don't set domain on localhost — browser won't send cookies across domains
+  if (typeof window !== 'undefined' && window.location?.hostname === 'localhost') {
+    return undefined;
+  }
+  // For server-side, check NODE_ENV
+  if (process.env.NODE_ENV === 'development') {
+    return undefined;
+  }
+  return envDomain || undefined;
+})();
 
 // Access gate configuration
 export const ACCESS_GATE_CONFIG = {
@@ -55,10 +71,11 @@ export const ACCESS_GATE_CONFIG = {
     const envEnabled = parseBooleanEnv(process.env.GATE_STATUS);
     const enabled = envEnabled ?? IS_PRIVATE_MODE;
     // Fail-safe: never enable the gate with an empty password.
-    return enabled && GATE_PASSWORD_HARDCODED.length > 0;
+    return enabled && GATE_PASSWORD.length > 0;
   })(),
-  password: GATE_PASSWORD_HARDCODED,
+  password: GATE_PASSWORD,
   cookieName: 'veggastare_access',
+  cookieDomain: COOKIE_DOMAIN,
   // Important: NextAuth/Auth.js OAuth callbacks and webhooks must not be gated.
   bypassRoutes: ['/gate', '/api/access-gate', '/api/auth', '/api/webhooks', '/privacy', '/terms', '/info', '/poll-test'],
 };

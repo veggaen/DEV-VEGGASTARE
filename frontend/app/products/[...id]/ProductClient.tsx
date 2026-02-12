@@ -1175,11 +1175,11 @@ function ProductDetails({ product }: { product: Product }) {
         // Ask server for employee permissions
         const res = await fetchUserEmployeePermissions({ id: sessionUserId }, product.companyId);
         if (!alive) return;
-        if (res instanceof Response) {
+        if (!res.success) {
           setCompanyEditAllowed(false);
           return;
         }
-        const perms = (res ?? {}) as EmployeePermissions;
+        const perms = (res.permissions ?? {}) as EmployeePermissions;
         setCompanyEditAllowed(perms?.CAN_EDIT_PRODUCT_POSITION_PERMISSION === true);
       } catch {
         if (!alive) return;
@@ -1569,7 +1569,8 @@ function ProductDetails({ product }: { product: Product }) {
             </motion.div>
           </motion.div>
 
-          {/* shipping */}
+          {/* shipping - Only show for logged-in users */}
+          {session ? (
           <motion.div
             className="mt-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 overflow-hidden"
             variants={{
@@ -1733,9 +1734,9 @@ function ProductDetails({ product }: { product: Product }) {
               )}
             </div>
 
-            {/* Shipping Results */}
+            {/* Shipping Results - Only show for logged-in users */}
             <AnimatePresence mode="wait">
-              {showShippingDetails && userPostalCode && (closestWarehouse?.postalCode || product.shipFromPostalId) && (
+              {session && showShippingDetails && userPostalCode && (closestWarehouse?.postalCode || product.shipFromPostalId) && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
@@ -1760,6 +1761,29 @@ function ProductDetails({ product }: { product: Product }) {
               )}
             </AnimatePresence>
           </motion.div>
+          ) : (
+            /* Guest users - show login prompt */
+            <motion.div
+              className="mt-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 overflow-hidden"
+              variants={{
+                hidden: { opacity: 0, y: 12 },
+                show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
+              }}
+            >
+              <div className="p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-zinc-800 dark:to-zinc-700 flex items-center justify-center">
+                  <CiDeliveryTruck className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-gray-900 dark:text-white">Shipping Estimate</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    <Link href="/auth/login" className="text-emerald-600 dark:text-emerald-400 hover:underline">Sign in</Link>
+                    {" "}to see shipping costs
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* availability */}
           <motion.div

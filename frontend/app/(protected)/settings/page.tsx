@@ -32,10 +32,13 @@ import { NotificationSettings as NotificationSettingsComponent } from '@/compone
 import type { NotificationSettings as NotificationSettingsType, NotificationMute } from '@/components/uicustom/notifications/types';
 import { CurrencySelector, useCurrency, FIAT_CURRENCIES, CRYPTO_CURRENCIES } from '@/components/uicustom/currency-selector';
 import { VerificationDashboard } from '@/components/uicustom/verification-dashboard';
+import AppKitButton from '@/components/crypto-related/AppKitButton';
+import EvmWalletVerify from '@/components/crypto-related/EvmWalletVerify';
+import EvmWalletList from '@/components/crypto-related/EvmWalletList';
 import { 
   FiUser, FiLock, FiMail, FiBell, FiShield, FiSave, 
   FiEdit2, FiX, FiCheck, FiImage, FiChevronRight, FiCamera, FiUpload,
-  FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity, FiSliders, FiDollarSign
+  FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity, FiSliders, FiDollarSign, FiKey
 } from 'react-icons/fi';
 import {
   Chart as ChartJS,
@@ -63,12 +66,12 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
-  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'notifications' | 'privacy' | 'appearance' | 'currency' | 'verification'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'wallet' | 'notifications' | 'privacy' | 'appearance' | 'currency' | 'verification'>('profile');
   
   // Read section from URL params (e.g. /settings?section=notifications)
   useEffect(() => {
     const sectionParam = searchParams.get('section');
-    if (sectionParam && ['profile', 'account', 'security', 'notifications', 'privacy', 'appearance', 'currency', 'verification'].includes(sectionParam)) {
+    if (sectionParam && ['profile', 'account', 'security', 'wallet', 'notifications', 'privacy', 'appearance', 'currency', 'verification'].includes(sectionParam)) {
       setActiveSection(sectionParam as typeof activeSection);
     }
   }, [searchParams]);
@@ -351,6 +354,7 @@ export default function SettingsPage() {
     { id: 'appearance', label: 'Appearance', icon: FiSliders, description: 'Theme, effects & animations' },
     { id: 'currency', label: 'Currency', icon: FiDollarSign, description: 'Display currency & crypto' },
     { id: 'security', label: 'Security', icon: FiShield, description: 'Password and authentication' },
+    { id: 'wallet', label: 'Web3 & Wallet', icon: FiKey, description: 'Connect wallets & crypto' },
     { id: 'verification', label: 'Verification', icon: FiTrendingUp, description: 'Trust level & Reach multiplier' },
     { id: 'notifications', label: 'Notifications', icon: FiBell, description: 'Email and push notifications' },
     { id: 'privacy', label: 'Privacy', icon: FiLock, description: 'Control your data and visibility' },
@@ -1032,6 +1036,10 @@ export default function SettingsPage() {
                 <NotificationSettingsSection />
               )}
 
+              {activeSection === 'wallet' && (
+                <Web3WalletSettings />
+              )}
+
               {activeSection === 'verification' && (
                 <VerificationDashboard />
               )}
@@ -1407,6 +1415,145 @@ function AppearanceSettings() {
           Resets all appearance settings to minimal/clean defaults
         </p>
       </div>
+    </div>
+  );
+}
+
+// ─── Web3 & Wallet Settings ─────────────────────────────────────────────────
+
+function Web3WalletSettings() {
+  const user = useCurrentUser();
+  const [web3Enabled, setWeb3Enabled] = useState(false);
+  const [walletRefresh, setWalletRefresh] = useState(0);
+  const [linkingGuide, setLinkingGuide] = useState(false);
+
+  useEffect(() => {
+    if (user && (user as any).web3ModeEnabled !== undefined) {
+      setWeb3Enabled(!!(user as any).web3ModeEnabled);
+    } else {
+      try {
+        const raw = window.localStorage.getItem("veggastare:web3ModeEnabled");
+        if (raw === "true") setWeb3Enabled(true);
+      } catch { /* ignore */ }
+    }
+  }, [user]);
+
+  return (
+    <div className="space-y-6">
+      <div className="border-b border-border dark:border-white/10 pb-4">
+        <h2 className="text-xl font-semibold text-foreground dark:text-white">Web3 & Wallet</h2>
+        <p className="text-sm text-muted-foreground dark:text-white/50">
+          Connect wallets, manage crypto features, and raise your auth level
+        </p>
+      </div>
+
+      {/* How It Works */}
+      <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-500/20 dark:bg-blue-500/5">
+        <button
+          onClick={() => setLinkingGuide(prev => !prev)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <div className="flex items-center gap-2">
+            <FiInfo className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+              How wallet linking works
+            </span>
+          </div>
+          <FiChevronRight className={`h-4 w-4 text-blue-500 transition-transform ${linkingGuide ? 'rotate-90' : ''}`} />
+        </button>
+        {linkingGuide && (
+          <div className="mt-3 space-y-2 text-sm text-blue-600 dark:text-blue-300/80">
+            <p>1. <strong>Enable Web3 Mode</strong> below to unlock wallet features</p>
+            <p>2. <strong>Connect</strong> your wallet using AppKit (WalletConnect, MetaMask, etc.)</p>
+            <p>3. <strong>Verify ownership</strong> by signing a challenge message — this links the wallet to your account</p>
+            <p>4. Each verified wallet <strong>increases your trust level</strong> and unlocks features like crypto payments</p>
+            <p className="mt-2 text-xs text-blue-500 dark:text-blue-400/60">
+              A confirmation email is sent every time you link or unlink a wallet for security.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Web3 Mode Toggle */}
+      <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+        <div>
+          <div className="font-medium text-foreground dark:text-white/90">Web3 Mode</div>
+          <div className="text-sm text-muted-foreground dark:text-white/40">
+            Enable wallet connections, crypto payments, and on-chain features
+          </div>
+        </div>
+        <Web3ModeToggle />
+      </div>
+
+      {/* Wallet Connection */}
+      {web3Enabled && (
+        <div className="space-y-4">
+          {/* Connect Wallet */}
+          <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10 space-y-3">
+            <div>
+              <div className="font-medium text-foreground dark:text-white/90">Connect Wallet</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">
+                Use AppKit to connect via WalletConnect, MetaMask, Coinbase, or social login
+              </div>
+            </div>
+            <AppKitButton />
+          </div>
+
+          {/* Verify & Link */}
+          <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10 space-y-3">
+            <div>
+              <div className="font-medium text-foreground dark:text-white/90">Verify & Link Wallet</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">
+                Sign a message to prove ownership and link this wallet to your account
+              </div>
+            </div>
+            <EvmWalletVerify
+              enabled={web3Enabled}
+              onVerified={() => setWalletRefresh(prev => prev + 1)}
+            />
+          </div>
+
+          {/* Linked Wallets */}
+          <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10 space-y-3">
+            <div>
+              <div className="font-medium text-foreground dark:text-white/90">Linked Wallets</div>
+              <div className="text-sm text-muted-foreground dark:text-white/40">
+                Manage wallets linked to your account. Set a primary wallet for payments.
+              </div>
+            </div>
+            <EvmWalletList
+              enabled={web3Enabled}
+              refreshToken={walletRefresh}
+            />
+          </div>
+
+          {/* Auth Level Info */}
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+            <div className="flex items-center gap-2 mb-2">
+              <FiShield className="h-4 w-4 text-emerald-500" />
+              <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                Boost Your Trust Level
+              </span>
+            </div>
+            <p className="text-sm text-emerald-600 dark:text-emerald-300/80">
+              Linking wallets increases your verification tier and Reach multiplier.
+              Check your current level in the{' '}
+              <Link href="/settings?section=verification" className="font-medium underline underline-offset-2 hover:text-emerald-500">
+                Verification tab
+              </Link>.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!web3Enabled && (
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <FiLock className="h-8 w-8 text-zinc-300 dark:text-zinc-600" />
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Enable Web3 Mode above to connect and manage wallets
+          </p>
+        </div>
+      )}
     </div>
   );
 }

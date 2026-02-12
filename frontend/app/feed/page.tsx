@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -193,9 +193,18 @@ function calculateTrendingScore(item: FeedItem): number {
 
 const FeedPage: React.FC = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentUser = useCurrentUser();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Redirect /feed to /pulse for consistent parallel route modal behavior
+  useEffect(() => {
+    if (pathname === '/feed') {
+      const params = searchParams.toString();
+      router.replace(params ? `/pulse?${params}` : '/pulse');
+    }
+  }, [pathname, router, searchParams]);
 
   // Feed state
   const [items, setItems] = useState<FeedItem[]>([]);
@@ -358,7 +367,7 @@ const FeedPage: React.FC = () => {
   // Open pulse — navigate to /pulse/[id] (intercepted by @modal parallel slot)
   const openPulse = useCallback((pulseId: string) => {
     lastOpenedPulseId.current = pulseId;
-    router.push(`/pulse/${pulseId}`, { scroll: false });
+    router.replace(`/pulse/${pulseId}`, { scroll: false });
   }, [router]);
 
   // Open poll modal
@@ -1493,7 +1502,7 @@ const FeedPage: React.FC = () => {
 
           {/* Advanced Poll Builder Modal */}
           <Dialog open={showPollBuilder} onOpenChange={setShowPollBuilder}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto bg-zinc-950 border-zinc-800">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Zap className="h-5 w-5 text-amber-500" />
@@ -1507,11 +1516,30 @@ const FeedPage: React.FC = () => {
                 <PollBuilder
                   onSave={async (data) => {
                     try {
+                      // Map PollBuilder question types to API-supported types
+                      const mapQuestionType = (type: string): string => {
+                        // API supports: SINGLE_CHOICE, MULTI_CHOICE, SLIDER, SCALE, TEXT, NESTED, RANKING, UI_ARRANGE, IMAGE_UPLOAD, TREE, SHAPE_MATCH
+                        // No mapping needed - all types are now supported
+                        return type;
+                      };
+
+                      // Map poll types to API-supported types
+                      const mapPollType = (type: string): string => {
+                        // API supports: SIMPLE, SURVEY, QUIZ, FEEDBACK, REACH_ASSESSMENT
+                        const validTypes = ['SIMPLE', 'SURVEY', 'QUIZ', 'FEEDBACK', 'REACH_ASSESSMENT'];
+                        if (validTypes.includes(type)) return type;
+                        // Map common custom types to valid ones
+                        if (type.includes('QUIZ') || type.includes('TEST') || type.includes('MASTERY')) return 'QUIZ';
+                        if (type.includes('FEEDBACK')) return 'FEEDBACK';
+                        if (type.includes('ASSESSMENT') || type.includes('REACH')) return 'REACH_ASSESSMENT';
+                        return 'SURVEY'; // Default fallback
+                      };
+
                       // Transform PollBuilder data to AdvancedPollCreate format
                       const advancedPollData = {
                         title: data.title,
                         description: data.description || undefined,
-                        type: data.type || 'SURVEY',
+                        type: mapPollType(data.type || 'SURVEY'),
                         isAnonymous: false,
                         allowPartial: data.allowPartialSubmission ?? true,
                         requiresAuth: true,
@@ -1519,19 +1547,21 @@ const FeedPage: React.FC = () => {
                         questions: data.questions.map((q, idx) => ({
                           text: q.questionText,
                           description: q.description || undefined,
-                          type: q.type,
+                          type: mapQuestionType(q.type),
                           order: q.order ?? idx,
                           isRequired: q.required ?? true,
                           allowImages: q.allowImages ?? false,
                           allowComments: false,
                           sliderConfig: q.sliderConfig ? {
-                            min: q.sliderConfig.minValue,
-                            max: q.sliderConfig.maxValue,
+                            min: q.sliderConfig.min ?? q.sliderConfig.minValue ?? 1,
+                            max: q.sliderConfig.max ?? q.sliderConfig.maxValue ?? 10,
                             steps: (() => {
                               const labelSteps = (q.sliderConfig as any).stepLabels?.length
                               if (labelSteps && labelSteps >= 2) return Math.min(20, labelSteps)
                               const stepValue = typeof q.sliderConfig.step === 'number' && q.sliderConfig.step > 0 ? q.sliderConfig.step : 1
-                              const rawSteps = Math.floor((q.sliderConfig.maxValue - q.sliderConfig.minValue) / stepValue) + 1
+                              const minVal = q.sliderConfig.min ?? q.sliderConfig.minValue ?? 1
+                              const maxVal = q.sliderConfig.max ?? q.sliderConfig.maxValue ?? 10
+                              const rawSteps = Math.floor((maxVal - minVal) / stepValue) + 1
                               return Math.min(20, Math.max(2, rawSteps))
                             })(),
                             labels:
@@ -1540,14 +1570,39 @@ const FeedPage: React.FC = () => {
                                 : undefined,
                             showValue: true,
                           } : undefined,
+                          // Include shapeMatchPreset for SHAPE_MATCH questions
+                          ...(q.type === 'SHAPE_MATCH' && q.shapeMatchPreset && { shapeMatchPreset: q.shapeMatchPreset }),
                           options: (q.options || []).map((opt, optIdx) => ({
-                            text: opt.text,
+                            text: opt.text || 'Option',
                             order: optIdx,
                             value: opt.value,
-                            imageUrl: opt.imageUrl,
+                            imageUrl: opt.imageUrl || undefined,
                           })),
+                          // Quiz mode fields — use indices (option IDs change on create)
+                          ...(q.type === 'SINGLE_CHOICE' && typeof q.correctAnswer === 'string' && (() => {
+                            const idx = (q.options || []).findIndex(o => o.id === q.correctAnswer);
+                            return idx >= 0 ? { correctAnswerIndex: idx } : {};
+                          })()),
+                          ...(q.type === 'MULTI_CHOICE' && Array.isArray(q.correctAnswer) && (() => {
+                            const indices = (q.correctAnswer as string[]).map(id => (q.options || []).findIndex(o => o.id === id)).filter(i => i >= 0);
+                            return indices.length > 0 ? { correctAnswerIndices: indices } : {};
+                          })()),
+                          ...(q.type === 'RANKING' && Array.isArray(q.correctAnswer) && (() => {
+                            const indices = (q.correctAnswer as string[]).map(id => (q.options || []).findIndex(o => o.id === id)).filter(i => i >= 0);
+                            return indices.length > 0 ? { correctAnswerIndices: indices } : {};
+                          })()),
+                          ...(q.type === 'SLIDER' && q.correctAnswer != null && { correctAnswer: q.correctAnswer }),
+                          ...(q.type === 'SCALE' && q.correctAnswer != null && { correctAnswer: q.correctAnswer }),
+                          ...(q.type === 'TEXT' && q.correctAnswer != null && { correctAnswer: q.correctAnswer }),
+                          ...(q.explanation && { explanation: q.explanation }),
+                          ...(q.wrongExplanation && { wrongExplanation: q.wrongExplanation }),
+                          ...(q.commitRequired === false && { commitRequired: false }),
+                          ...(q.trickQuestion && { trickQuestion: q.trickQuestion }),
                         })),
                       };
+
+                      // Log request data for debugging
+                      console.log('Creating advanced poll with data:', JSON.stringify(advancedPollData, null, 2));
 
                       // Create the advanced poll
                       const res = await fetch('/api/advanced-polls', {
@@ -1559,6 +1614,9 @@ const FeedPage: React.FC = () => {
                       if (!res.ok) {
                         const errorData = await res.json().catch(() => ({}));
                         console.error('API Error:', errorData);
+                        if (errorData.issues) {
+                          console.error('Validation issues:', JSON.stringify(errorData.issues, null, 2));
+                        }
                         throw new Error(errorData.message || 'Failed to create poll');
                       }
 
@@ -2527,7 +2585,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                     onClick={() => void handlePulse('POSITIVE')}
                     className={`flex items-center gap-1.5 transition-all hover:text-red-500 group ${
                       localPulse === 'POSITIVE' ? 'text-red-500' : ''
-                    }`}
+                    } ${!currentUser ? 'opacity-60' : ''}`}
                   >
                     <PulseHeart 
                       size={18} 
@@ -2538,31 +2596,31 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  {localPulse === 'POSITIVE' ? 'Remove heartbeat' : pulseLabels.heartbeatVerb}
+                  {!currentUser ? 'Sign in to heartbeat' : localPulse === 'POSITIVE' ? 'Remove heartbeat' : pulseLabels.heartbeatVerb}
                 </TooltipContent>
               </Tooltip>
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="flex items-center gap-1 cursor-default">
+                  <span className={`flex items-center gap-1 cursor-default ${!currentUser ? 'opacity-60' : ''}`}>
                     <FiMessageCircle className="h-4 w-4" />
                     {replyCount}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  {replyCount === 1 ? '1 vibe' : `${replyCount} vibes`}
+                  {!currentUser ? 'Sign in to comment' : replyCount === 1 ? '1 vibe' : `${replyCount} vibes`}
                 </TooltipContent>
               </Tooltip>
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className={`flex items-center gap-1 cursor-default ${item.hasReposted ? 'text-cyan-500' : ''}`}>
+                  <span className={`flex items-center gap-1 cursor-default ${item.hasReposted ? 'text-cyan-500' : ''} ${!currentUser ? 'opacity-60' : ''}`}>
                     <FiRepeat className="h-4 w-4" />
                     {localRepostCount}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  {localRepostCount === 1 ? '1 repulse' : `${localRepostCount} repulses`}
+                  {!currentUser ? 'Sign in to repulse' : localRepostCount === 1 ? '1 repulse' : `${localRepostCount} repulses`}
                 </TooltipContent>
               </Tooltip>
 

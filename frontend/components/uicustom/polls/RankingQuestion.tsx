@@ -69,28 +69,18 @@ function RankingItem({
 
   const content = (
     <>
-      {/* Drag handle */}
-      <div
-        className={cn(
-          "shrink-0 touch-none cursor-grab active:cursor-grabbing",
-          disabled && "opacity-50 cursor-not-allowed"
-        )}
-        onPointerDown={(e) => !disabled && dragControls.start(e)}
-      >
-        <GripVertical className="w-5 h-5 text-muted-foreground" />
+      {/* Drag handle indicator */}
+      <div className="shrink-0 text-muted-foreground">
+        <GripVertical className="w-5 h-5" />
       </div>
 
-      {/* Rank indicator */}
+      {/* Rank indicator - always show number, with medal icon for top 3 */}
       {showRankNumbers && (
         <div className={cn(
           "w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm",
           medal ? cn(medal.bg, medal.color) : "bg-muted text-muted-foreground"
         )}>
-          {medal && MedalIcon ? (
-            <MedalIcon className="w-4 h-4" />
-          ) : (
-            index + 1
-          )}
+          {index + 1}
         </div>
       )}
 
@@ -153,11 +143,11 @@ function RankingItem({
   );
 
   const itemClasses = cn(
-    "flex items-center gap-3 select-none transition-colors",
-    variant === "cards" && "p-4 rounded-xl border bg-card hover:bg-muted/50",
-    variant === "default" && "p-3 rounded-lg border bg-card/50 hover:bg-muted/50",
-    variant === "compact" && "p-2 rounded-md bg-muted/30 hover:bg-muted/50",
-    disabled && "opacity-60"
+    "flex items-center gap-3 select-none transition-colors touch-none cursor-grab active:cursor-grabbing",
+    variant === "cards" && "p-4 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 border-none shadow-md",
+    variant === "default" && "p-3 rounded-lg bg-zinc-800/70 hover:bg-zinc-700/70 border-none shadow-sm",
+    variant === "compact" && "p-2 rounded-md bg-zinc-800/50 hover:bg-zinc-700/50 border-none",
+    disabled && "opacity-60 cursor-not-allowed"
   );
 
   return (
@@ -166,6 +156,7 @@ function RankingItem({
       dragListener={false}
       dragControls={dragControls}
       className={itemClasses}
+      onPointerDown={(e: React.PointerEvent) => !disabled && dragControls.start(e)}
       whileDrag={{
         scale: 1.02,
         boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
@@ -231,7 +222,7 @@ export function RankingQuestion({
         )}
         <p className="text-xs text-muted-foreground flex items-center gap-1">
           <GripVertical className="w-3 h-3" />
-          Drag to reorder • Top = highest priority
+          Drag items to reorder • Top = highest priority
         </p>
       </div>
 
@@ -265,27 +256,28 @@ export function RankingQuestion({
         </div>
       )}
 
-      {/* Current ranking summary */}
+      {/* Current podium summary - shows top 3 at a glance */}
       {showMedals && visibleOptions.length >= 3 && (
-        <div className="flex items-center justify-center gap-4 pt-2 border-t">
-          {visibleOptions.slice(0, 3).map((option, idx) => {
-            const medal = MEDAL_CONFIG[idx];
-            const MedalIcon = medal.icon;
-            return (
-              <div
-                key={option.id}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm",
-                  medal.bg, medal.color
-                )}
-              >
-                <MedalIcon className="w-4 h-4" />
-                <span className="font-medium truncate max-w-[100px]">
-                  {option.label}
-                </span>
-              </div>
-            );
-          })}
+        <div className="mt-4 pt-3 border-t border-zinc-800/50">
+          <p className="text-xs text-muted-foreground text-center mb-2">Your Top 3 (drag to reorder)</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+            {visibleOptions.slice(0, 3).map((option, idx) => {
+              const medal = MEDAL_CONFIG[idx];
+              const ordinals = ['1st', '2nd', '3rd'];
+              return (
+                <div
+                  key={option.id}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs",
+                    medal.bg, medal.color
+                  )}
+                >
+                  <span className="font-bold shrink-0">{ordinals[idx]}</span>
+                  <span className="font-medium">{option.label}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

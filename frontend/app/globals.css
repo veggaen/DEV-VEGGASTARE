@@ -220,6 +220,26 @@
   100% { background-position: 0% 50%; }
 }
 
+/* Collapsible animations for smooth expand/collapse */
+@keyframes collapsible-down {
+  from { height: 0; opacity: 0; }
+  to { height: var(--radix-collapsible-content-height); opacity: 1; }
+}
+
+@keyframes collapsible-up {
+  from { height: var(--radix-collapsible-content-height); opacity: 1; }
+  to { height: 0; opacity: 0; }
+}
+
+/* Apply animations to Radix Collapsible */
+[data-state="open"][data-radix-collapsible-content] {
+  animation: collapsible-down 200ms ease-out;
+}
+
+[data-state="closed"][data-radix-collapsible-content] {
+  animation: collapsible-up 200ms ease-out;
+}
+
 html,
 body {
   height: 100%;

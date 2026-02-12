@@ -21,9 +21,14 @@ const UserCompanyPermission: React.FC<UserCompanyPermissionProps> = ({ permissio
 
     // Fetch permissions for the selected company
     try {
-      const permissions = await fetchUserEmployeePermissions(currentUser, companyId);
-      console.log(`Fetched permissions for company ID ${companyId}:`, permissions);
-      onCompanySelect(companyId, permissions);
+      const res = await fetchUserEmployeePermissions(currentUser, companyId);
+      if (res.success) {
+        console.log(`Fetched permissions for company ID ${companyId}:`, res.permissions);
+        onCompanySelect(companyId, res.permissions);
+      } else {
+        console.warn(`No permissions for company ${companyId}: ${res.error}`);
+        onCompanySelect(companyId, null);
+      }
     } catch (error) {
       console.error('Error fetching permissions for the selected company:', error);
     }

@@ -6,6 +6,16 @@ import { recalculateVerificationTier } from '@/lib/verification-recalc';
 /**
  * POST /api/payments/webhook/[provider]
  * Handle payment provider webhooks (Vipps, Klarna, PayPal)
+ *
+ * SECURITY NOTE: In production, each provider's webhook signature MUST be
+ * verified before processing. Currently validates provider status via API call
+ * (getStatus) as a secondary check, but the webhook payload itself is not
+ * signature-verified.
+ *
+ * TODO (before accepting real payments):
+ * - Vipps: Verify Authorization header with webhook secret
+ * - Klarna: Verify X-Klarna-Hmac-Sha256 header
+ * - PayPal: Verify PAYPAL-TRANSMISSION-SIG with PayPal cert
  */
 export async function POST(
   req: Request,
@@ -17,6 +27,10 @@ export async function POST(
   if (!provider) {
     return NextResponse.json({ error: 'Unknown provider' }, { status: 400 });
   }
+
+  // SECURITY: Log webhook source for audit trail
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  console.log(`[webhook/${providerType}] Received from IP: ${ip}`);
 
   try {
     const body = await req.json();

@@ -17,6 +17,7 @@ export const SYSTEM_ACCOUNT = {
   // Using a data URI for a simple system robot emoji avatar
   image: "https://api.dicebear.com/7.x/bottts/svg?seed=veggasystem&backgroundColor=10b981",
   banner: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&h=400&fit=crop", // Tech/space banner
+  walletAddress: "0x018F6bF56814Dfa2543f98041e44A202b3632636" as const,
 } as const;
 
 // Check if a user is the system account

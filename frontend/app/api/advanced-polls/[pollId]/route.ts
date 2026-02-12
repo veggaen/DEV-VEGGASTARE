@@ -7,6 +7,7 @@ import {
   AdvancedPollUpdateSchema,
   AdvancedPollDetailResponseSchema,
 } from '@/lib/types/advanced-polls';
+import { fetchPollWithRawSql } from '@/lib/advanced-polls-fetch';
 
 const LOG_PREFIX = '[api/advanced-polls/[pollId]]';
 const isDev = process.env.NODE_ENV !== 'production';
@@ -17,6 +18,36 @@ const toIsoString = (value: unknown): string => {
   return new Date(String(value)).toISOString();
 };
 
+const resolveQuizMeta = (
+  raw: unknown,
+  options: { id: string }[],
+): { correctAnswer?: string | string[] | null; explanation?: string | null; wrongExplanation?: string | null; deepExplanation?: string | null; commitRequired?: boolean; trickQuestion?: boolean } => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const cfg = raw as Record<string, unknown>;
+  let correctAnswer: string | string[] | undefined;
+  if (typeof cfg.correctAnswerIndex === 'number' && options[cfg.correctAnswerIndex]) {
+    correctAnswer = options[cfg.correctAnswerIndex].id;
+  } else if (Array.isArray(cfg.correctAnswerIndices)) {
+    const ids = cfg.correctAnswerIndices
+      .filter((i): i is number => typeof i === 'number')
+      .map((i) => options[i]?.id)
+      .filter((id): id is string => !!id);
+    correctAnswer = ids.length > 0 ? ids : undefined;
+  } else if (typeof cfg.correctAnswer === 'string') {
+    correctAnswer = cfg.correctAnswer;
+  } else if (Array.isArray(cfg.correctAnswer)) {
+    correctAnswer = cfg.correctAnswer.filter((v): v is string => typeof v === 'string');
+  }
+  return {
+    correctAnswer,
+    explanation: typeof cfg.explanation === 'string' ? cfg.explanation : undefined,
+    wrongExplanation: typeof cfg.wrongExplanation === 'string' ? cfg.wrongExplanation : undefined,
+    deepExplanation: typeof cfg.deepExplanation === 'string' ? cfg.deepExplanation : undefined,
+    commitRequired: typeof cfg.commitRequired === 'boolean' ? cfg.commitRequired : undefined,
+    trickQuestion: typeof cfg.trickQuestion === 'boolean' ? cfg.trickQuestion : undefined,
+  };
+};
+
 interface RouteParams {
   params: Promise<{ pollId: string }>;
 }
@@ -25,11 +56,9 @@ interface RouteParams {
 // GET /api/advanced-polls/[pollId] - Get a single poll with user's response
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function GET(req: NextRequest, { params }: RouteParams) {
-  const { pollId } = await params;
-
+async function fetchPoll(pollId: string) {
   try {
-    const poll = await dbPrisma.advancedPoll.findUnique({
+    return await dbPrisma.advancedPoll.findUnique({
       where: { id: pollId },
       include: {
         Questions: {
@@ -50,6 +79,22 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         },
       },
     });
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
+    if (code === 'P2022') {
+      console.warn(LOG_PREFIX, 'Prisma P2022 (column mismatch), using raw SQL fallback. Run: npx prisma generate');
+      const raw = await fetchPollWithRawSql(dbPrisma, pollId);
+      return raw?.poll ?? null;
+    }
+    throw err;
+  }
+}
+
+export async function GET(req: NextRequest, { params }: RouteParams) {
+  const { pollId } = await params;
+
+  try {
+    const poll = await fetchPoll(pollId);
 
     if (!poll) {
       return NextResponse.json({ message: 'Poll not found' }, { status: 404 });
@@ -64,57 +109,77 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     // Get user's response if logged in
     let userResponse = null;
     if (currentUser?.id) {
-      const response = await dbPrisma.pollResponse.findUnique({
-        where: {
-          advancedPollId_userId: {
-            advancedPollId: pollId,
-            userId: currentUser.id,
-          },
-        },
-        include: {
-          Answers: {
-            include: {
-              Images: { orderBy: { order: 'asc' } },
+      try {
+        const response = await dbPrisma.pollResponse.findUnique({
+          where: {
+            advancedPollId_userId: {
+              advancedPollId: pollId,
+              userId: currentUser.id,
             },
           },
-        },
-      });
-
-      if (response) {
-        userResponse = {
-          id: response.id,
-          advancedPollId: response.advancedPollId,
-          userId: response.userId,
-          sessionId: response.sessionId,
-          completionPct: response.completionPct,
-          startedAt: toIsoString(response.startedAt),
-          completedAt: response.completedAt ? toIsoString(response.completedAt) : null,
-          responseQuality: response.responseQuality,
-          answers: response.Answers.map((a) => ({
-            id: a.id,
-            responseId: a.responseId,
-            questionId: a.questionId,
-            optionId: a.optionId,
-            sliderValue: a.sliderValue,
-            scaleValue: a.scaleValue,
-            textValue: a.textValue,
-            comment: a.comment,
-            images: a.Images.map((img) => ({
-              id: img.id,
-              answerId: img.answerId,
-              url: img.url,
-              caption: img.caption,
-              order: img.order,
-              width: img.width,
-              height: img.height,
-              aspectRatio: img.aspectRatio,
+          include: {
+            Answers: {
+              include: {
+                Images: { orderBy: { order: 'asc' } },
+              },
+            },
+          },
+        });
+        if (response) {
+          userResponse = {
+            id: response.id,
+            advancedPollId: response.advancedPollId,
+            userId: response.userId,
+            sessionId: response.sessionId,
+            completionPct: response.completionPct,
+            startedAt: toIsoString(response.startedAt),
+            completedAt: response.completedAt ? toIsoString(response.completedAt) : null,
+            responseQuality: response.responseQuality,
+            answers: response.Answers.map((a) => ({
+              id: a.id,
+              responseId: a.responseId,
+              questionId: a.questionId,
+              optionId: a.optionId,
+              sliderValue: a.sliderValue,
+              scaleValue: a.scaleValue,
+              textValue: a.textValue,
+              comment: a.comment,
+              images: a.Images.map((img) => ({
+                id: img.id,
+                answerId: img.answerId,
+                url: img.url,
+                caption: img.caption,
+                order: img.order,
+                width: img.width,
+                height: img.height,
+                aspectRatio: img.aspectRatio,
+              })),
             })),
-          })),
-        };
+          };
+        }
+      } catch {
+        // userResponse stays null if pollResponse fails (e.g. same P2022)
       }
     }
 
-    const mapQuestion = (q: typeof poll.Questions[0]) => ({
+    type QuestionInput = {
+      id: string;
+      advancedPollId: string;
+      parentQuestionId: string | null;
+      text: string;
+      description: string | null;
+      type: string;
+      order: number;
+      isRequired: boolean;
+      allowImages: boolean;
+      allowComments: boolean;
+      sliderConfig: unknown;
+      shapeMatchPreset?: string | null;
+      trickQuestion?: boolean;
+      Options: { id: string; questionId: string; text: string; order: number; value: number | null; imageUrl: string | null }[];
+      ChildQuestions?: QuestionInput[];
+    };
+    const mapQuestion = (q: QuestionInput): Record<string, unknown> => ({
       id: q.id,
       advancedPollId: q.advancedPollId,
       parentQuestionId: q.parentQuestionId,
@@ -126,6 +191,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       allowImages: q.allowImages,
       allowComments: q.allowComments,
       sliderConfig: q.sliderConfig,
+      ...resolveQuizMeta(q.sliderConfig, q.Options ?? []),
+      // Direct column fields (override sliderConfig values if set)
+      ...(q.shapeMatchPreset && { shapeMatchPreset: q.shapeMatchPreset }),
+      ...(q.trickQuestion && { trickQuestion: q.trickQuestion }),
       options: q.Options.map((o) => ({
         id: o.id,
         questionId: o.questionId,
@@ -134,7 +203,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         value: o.value,
         imageUrl: o.imageUrl,
       })),
-      childQuestions: (q as any).ChildQuestions?.map(mapQuestion) ?? [],
+      childQuestions: (q.ChildQuestions ?? []).map((c) => mapQuestion(c)),
     });
 
     const dto = {
@@ -255,6 +324,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         allowImages: q.allowImages,
         allowComments: q.allowComments,
         sliderConfig: q.sliderConfig,
+        ...resolveQuizMeta(q.sliderConfig, q.Options ?? []),
         options: q.Options.map((o) => ({
           id: o.id,
           questionId: o.questionId,

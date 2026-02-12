@@ -3,10 +3,12 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { dbPrisma } from '@/lib/db';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { FiArrowLeft, FiTrendingUp } from 'react-icons/fi';
+import { FiArrowLeft } from 'react-icons/fi';
 import { PulseVibesSection } from '@/components/uicustom/pulse/PulseVibesSection';
 import { PulseStatsBar } from '@/components/uicustom/pulse/PulseStatsBar';
 import { PulseReachTracker } from '@/components/uicustom/pulse/PulseReachTracker';
+import { StandalonePollCard } from '@/components/uicustom/pulse/StandalonePollCard';
+import RichTextContent from '@/components/uicustom/pulse/RichTextContent';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /pulse/[id] — Full standalone pulse page (hard navigation / SEO)
@@ -182,10 +184,15 @@ export default async function PulsePage({ params }: PulsePageProps) {
           </h1>
         )}
 
-        {/* Description / root content */}
+        {/* Description / root content with YouTube embed support */}
         {(pulse.description || firstMessage?.content) && (
-          <div className="text-base sm:text-lg leading-relaxed text-foreground/90 mb-4 whitespace-pre-wrap">
-            {pulse.description || firstMessage?.content}
+          <div className="text-base sm:text-lg leading-relaxed text-foreground/90 mb-4">
+            <RichTextContent
+              content={pulse.description || firstMessage?.content || ''}
+              embedYouTube={true}
+              maxYouTubeEmbeds={3}
+              className="whitespace-pre-wrap"
+            />
           </div>
         )}
 
@@ -204,24 +211,18 @@ export default async function PulsePage({ params }: PulsePageProps) {
           </div>
         )}
 
-        {/* Advanced Poll card */}
+        {/* Interactive Poll card - click to take the poll */}
         {pulse.AdvancedPoll && (
-          <div className="rounded-xl border bg-card p-5 mb-8 shadow-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <FiTrendingUp className="w-4 h-4 text-amber-500" />
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Poll
-              </span>
-            </div>
-            <h3 className="font-semibold mb-1">{pulse.AdvancedPoll.title}</h3>
-            {pulse.AdvancedPoll.description && (
-              <p className="text-sm text-muted-foreground mb-3">{pulse.AdvancedPoll.description}</p>
-            )}
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="capitalize">{pulse.AdvancedPoll.type.toLowerCase().replace('_', ' ')}</span>
-              <span>•</span>
-              <span>{pulse.AdvancedPoll._count.Responses} responses</span>
-            </div>
+          <div className="mb-8">
+            <StandalonePollCard
+              poll={{
+                id: pulse.AdvancedPoll.id,
+                title: pulse.AdvancedPoll.title,
+                description: pulse.AdvancedPoll.description,
+                type: pulse.AdvancedPoll.type,
+                responseCount: pulse.AdvancedPoll._count.Responses,
+              }}
+            />
           </div>
         )}
 

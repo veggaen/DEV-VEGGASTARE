@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { z } from "zod";
 
 import { parseJsonOrError } from "@/lib/api-validate";
@@ -6,10 +7,12 @@ import { MyLibUserAuth } from "@/lib/user-auth";
 import { getUserById } from "@/data/user";
 import { getTwoFactortokenByEmail } from "@/data/two-factor-token";
 import { dbPrisma } from "@/lib/db";
-import { sendTwoFactorTokenEmail } from "@/lib/mail";
+import { sendTwoFactorTokenEmail, sendWalletLinkedEmail } from "@/lib/mail";
 import { generateTwoFactorToken } from "@/lib/tokens";
 import { ChainFamily } from "@/generated/prisma/browser";
 import { WalletErrorResponseSchema, WalletOkResponseSchema, WalletTwoFactorResponseSchema } from "@/lib/types/wallets";
+import { recalculateVerificationTier } from "@/lib/verification-recalc";
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from "@/lib/rate-limit";
 
 const codeSchema = z.object({
 	code: z.string().trim().min(1).max(10).optional().nullable(),
@@ -35,7 +38,10 @@ async function requireTwoFactorIfEnabled(user: { isTwoFactorEnabled: boolean; em
 		const parsed = WalletErrorResponseSchema.safeParse(dto);
 		return { ok: false as const, response: NextResponse.json(parsed.success ? parsed.data : dto, { status: 400 }) };
 	}
-	if (twoFactorToken.token !== code) {
+	// SECURITY: constant-time comparison to prevent timing side-channel attacks
+	const codeBuffer = Buffer.from(code.padEnd(10, '0'));
+	const tokenBuffer = Buffer.from(twoFactorToken.token.padEnd(10, '0'));
+	if (!crypto.timingSafeEqual(codeBuffer, tokenBuffer)) {
 		const dto = { error: "Invalid code" };
 		const parsed = WalletErrorResponseSchema.safeParse(dto);
 		return { ok: false as const, response: NextResponse.json(parsed.success ? parsed.data : dto, { status: 400 }) };
@@ -52,6 +58,9 @@ async function requireTwoFactorIfEnabled(user: { isTwoFactorEnabled: boolean; em
 }
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ walletId: string }> }) {
+	const rl = await checkRateLimit(getClientIdentifier(req), "wallet");
+	if (!rl.success) return rateLimitedResponse(rl);
+
 	const me = await MyLibUserAuth();
 	if (!me?.id) {
 		const dto = { error: "Unauthorized" };
@@ -108,6 +117,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ walletId:
 }
 
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ walletId: string }> }) {
+	const rl = await checkRateLimit(getClientIdentifier(req), "wallet");
+	if (!rl.success) return rateLimitedResponse(rl);
+
 	const me = await MyLibUserAuth();
 	if (!me?.id) {
 		const dto = { error: "Unauthorized" };
@@ -171,6 +183,27 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ walletId
 			}
 		}
 	});
+
+	// Recalculate hasVerifiedWallet: check if user still has any verified wallets
+	const remainingVerified = await dbPrisma.wallet.count({
+		where: { ownerUserId: dbUser.id, verifiedAt: { not: null } },
+	});
+	recalculateVerificationTier(
+		dbUser.id,
+		{ hasVerifiedWallet: remainingVerified > 0 },
+		'Wallet unlinked'
+	).catch((err) => console.error('[wallet-delete] recalc failed:', err));
+
+	// Send wallet unlinked confirmation email (fire-and-forget)
+	if (dbUser.email) {
+		sendWalletLinkedEmail(dbUser.email, {
+			walletAddress: wallet.address,
+			chainFamily: 'EVM',
+			chainId: wallet.chainId,
+			action: 'unlinked',
+			userName: dbUser.name,
+		}).catch((err) => console.error('[wallet-delete] Failed to send unlinked email:', err));
+	}
 
 	const dto = { ok: true as const };
 	const parsed = WalletOkResponseSchema.safeParse(dto);

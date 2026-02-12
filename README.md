@@ -1,165 +1,164 @@
+# Veggat
 
-# Project Name: Dynamic Web Platform for Trading and Social Interaction
+> **Modern marketplace for premium digital products and services.**
 
-## Project Overview
+A full-stack Web3-enabled marketplace built with **Next.js 16**, **React 19**, and **TypeScript**. Features curated product listings, warehouse management, company dashboards, crypto P2P trading with OSRS-style inventory, social features (Pulse feed, conversations, follow/sync), an advanced poll system, and the proprietary **True Reach™** 7-pillar engagement metric.
 
-This web application aims to revolutionize how users interact with each other, manage and trade company shares, crypto assets and engage in a community-driven marketplace. With a focus on secure authentication, dynamic user roles, and an interactive social platform, this project combines the efficiency of a trading platform with the connectivity of a social network.
+**Live:** [veggat.com](https://www.veggat.com)
 
-### Core Features
-
-- **Secure Authentication System**: Email/password login, email verification, Oauth and optional 2FA.
-- **Role-Based Access Control (RBAC)**: Distinct user roles including superadmin, admin, moderator, user, and muted, with specific permissions.
-- **User and Company Profiles**: Users can create, edit, and manage personal and company profiles, including detailed company information and share management.
-- **Marketplace**: A platform for trading shares, games, codes, files, real-life products, and services.
-- **Social Interaction**: Features include a global chat, a friend system, profile commenting, and encrypted messaging.
-- **Company Management**: Share management, multi-signature actions, share splits, and company-wide messaging.
-
-### Technical Stack
-
-#### Frontend
-
-- **Next.js 15** with TypeScript for SSR, SSG, and API routes
-- **Tailwind CSS** for styling and **Next Themes** for theme management
-- **Radix UI** components for accessibility and UI flexibility
-- **React Hook Form** and **Zod** for form handling and validation
-- **Framer Motion** for animations
-
-#### Backend
-
-- **Prisma Client** for ORM and database interactions
-- **Next Auth** for authentication
-- **Bcrypt** for password and sensitive data hashing
-
-#### Development Tools
-
-- **ESLint**, **TypeScript**, **PostCSS**, **Prisma** (schema migration and management)
-- **Git** for version control, with **GitHub/GitLab** for repository hosting and collaboration
-
-### Getting Started
-
-1. **Clone the repository**: `git clone <repository-url>`
-2. **Install dependencies**: `npm install`
-3. **Setup the database**: Follow the instructions to configure your `.env` file for database connection.
-4. **Run migrations**: `npx prisma migrate dev`
-5. **Start the development server**: `npm run dev`
-
-### Contributing
-
-We welcome contributions from the community. Please read our contributing guide and submit pull requests to our repository.
-
-### License
-
-This project is licensed under the [MIT License](LICENSE.md) - see the file for details.
-
-### Contact
-
-For more information, please contact [Project Contact Information].
 ---
 
-## True Reach™ - The 7 Pillars Metric System
+## Quick Links
 
-VeggaStare's proprietary metric system for measuring authentic social impact and engagement quality.
+| Resource | Description |
+|----------|-------------|
+| [frontend/README.md](frontend/README.md) | Frontend setup, features, env vars |
+| [backend/README.md](backend/README.md) | Backend API, shipping integration, WebSocket |
+| [docs/](docs/) | Detailed specs (7 Pillars, Polls, Social, Vipps) |
+| [architecture.md](architecture.md) | System architecture & data flow |
+| [prd.md](prd.md) | Product Requirements Document |
+| [MasterContext.md](MasterContext.md) | Living context index for AI + dev onboarding |
 
-### Overview
+---
 
-Unlike vanity metrics (follower counts, raw views), True Reach measures **actual value creation** through a 7-pillar framework inspired by:
+## Tech Stack
 
-- **OSI Model's 7 Layers** - Conceptual layering from physical to application
-- **Brian Solis' 6 Pillars of Social Commerce** - Psychological engagement drivers (Social Proof, Authority, Scarcity, Liking, Consistency, Reciprocity)
-- **Forbes' 6 Essential Pillars for Social Media Strategy** - Battle-tested agency tactics
-- **6 Pillars of Killer Content** - Relevance, Truth, Passion, Humanity, Surprise, Originality
+| Layer | Technologies |
+|-------|-------------|
+| **Frontend** | Next.js 16.1.6 (Turbopack/Webpack), React 19, TypeScript, Tailwind CSS |
+| **Auth** | NextAuth v5 (beta.7), Google/GitHub/Discord OAuth, email magic links |
+| **Database** | PostgreSQL, Prisma 7.3.0 (with `@prisma/adapter-pg`) |
+| **Backend** | Hapi.js 21 (standalone API on port 3001), Socket.IO 4 (port 3002) |
+| **Web3** | Reown/WalletConnect (AppKit 1.8), wagmi 2, Solana wallet adapters |
+| **Realtime** | Pusher (events + notifications), Socket.IO (warehouse sync) |
+| **Email** | Resend (transactional emails from `veggat.com` domain) |
+| **Storage** | EdgeStore (file uploads) |
+| **Charts** | Chart.js 4 + react-chartjs-2, GSAP animations |
+| **UI** | Radix UI primitives, shadcn/ui, Lucide icons, Framer Motion |
+| **Deploy** | Vercel (frontend), Railway (backend) |
 
-### The 7 Pillars (Stacked Multiplier Model)
+---
 
-Each layer compounds upon the one below it. This creates **exponential reach potential** when all layers are optimized.
+## Project Structure
 
-| Layer | Pillar | Weight | Multiplier Effect | Description |
-|-------|--------|--------|-------------------|-------------|
-| 1 | **Foundation & Discovery** | 18% | Baseline | SEO, platform-native discoverability, SSR-optimized pages |
-| 2 | **Killer Content** | 25% | 2–5× engagement | Relevance, authenticity, surprise factor, creator stories |
-| 3 | **Psychological Drivers** | 18% | Trust + urgency | Solis 6 pillars: Social Proof, Scarcity, Authority, Liking |
-| 4 | **Community & Belonging** | 14% | Retention + spread | Real relationships, wallet-gated channels, fan groups |
-| 5 | **Amplification Tactics** | 10% | 5–20× impressions | Paid boosts, influencers, referral rewards, viral contests |
-| 6 | **Analytics & Iteration** | 5% | Efficiency compound | Real-time data → fast pivots, Prisma + charts + SWR |
-| 7 | **Realtime Pulse & Network Effects** | 10% | 10–100×+ exponential | Live drops, viral loops, Web3 flywheel, scheduled "Pulses" |
-
-### The 7th Pillar: Realtime Pulse & Network Effects 🚀
-
-**Definition:** A timed, high-intensity, multi-platform content/product release event ("Pulse") that is live, social, and incentivized, engineered to trigger network effects and self-sustaining virality.
-
-**Key Mechanics:**
-- **Pulse Scheduler** → Creators schedule drops with countdown timers
-- **Universal Video Player** → YouTube, Twitch, Vimeo, HLS streams
-- **Live Realtime Layer** → Live sales counter, buyer avatars, live chat, "Someone just bought X" notifications
-- **Web3 Flywheel** → Auto-referral links, commission/NFT badges for sharing within first 30-60 min
-- **Cross-platform Blast** → Auto-posts teaser + countdown to X, Instagram, TikTok, Telegram, Discord
-
-**Realistic Outcomes (based on Friend.tech, Pump.fun, Gumroad live drops):**
-- One well-executed Pulse → 30–150× normal daily reach in 2–4 hours
-- Creates "I was there" FOMO → massive social proof
-- Referral loop often turns 1 buyer into 4–12 new users
-
-### User Verification Tiers
-
-Views and poll responses are weighted by user verification level:
-
-| Tier | Multiplier | Requirements |
-|------|------------|--------------|
-| Anonymous | 0.10x | Not logged in |
-| Wallet Only | 0.30x | Web3 wallet connected, no verification |
-| Web2 Basic | 0.40x | Email verified, no payment |
-| Web3 Basic | 0.45x | Wallet + signed message |
-| Social Basic | 0.50x | Discord/GitHub OAuth |
-| Social Verified | 0.70x | Google OAuth |
-| Multi-Social | 0.75x | 2+ OAuth providers (cross-verified) |
-| Web2 Payment | 0.85x | Verified payment card |
-| Web3 Verified | 0.90x | Google + verified wallet |
-| Web3 Payment | 0.92x | Crypto purchase completed |
-| Payment Verified | 0.95x | Web2 AND Web3 payment verified |
-| Phone Verified | 1.00x | Phone number verified |
-| Fully Verified | 1.20x | All verifications complete |
-
-### Brian Solis' 6 Pillars Integration
-
-| Pillar | Definition | VeggaStare Implementation |
-|--------|------------|---------------------------|
-| **Social Proof** | Behaviors guided by popularity cues | Top-seller rankings, user reviews, share counts, live buyer notifications |
-| **Authority** | Trust in expert recommendations | Verified seller badges, creator verification, expert endorsements |
-| **Scarcity** | Limited availability increases value | Limited editions, flash sales, countdown timers, "Only X left" |
-| **Liking** | Preference for relatable entities | Peer recommendations, community features, relatable creator profiles |
-| **Consistency** | Alignment with past behaviors | Repeat engagement rewards, familiar UI patterns, loyalty points |
-| **Reciprocity** | Urge to repay favors | Free samples, referral rewards, community giveaways |
-
-### Anti-Gaming Mechanisms
-
-- **Dwell Time**: Minimum 500ms on-screen to count as view
-- **Deduplication**: Per-user, per-content, 24-hour window
-- **Burst Detection**: Flags sudden unnatural engagement spikes
-- **Diminishing Returns**: Repeat views count 0.05x-0.2x
-- **IP Fingerprinting**: Validates unique viewers
-- **Verification Weighting**: Anonymous views worth 10% of fully verified
-
-### Key Files
-
-- `lib/view-strength.ts` - View strength calculation with verification tiers
-- `lib/data/reach-audit-poll-questions.ts` - Community feedback poll questions
-- `docs/REACH_7_PILLARS_SPECIFICATION.md` - Full technical specification
-
-### Formula
-
-```typescript
-// Each pillar normalized to 0-100, then weighted
-const trueReachScore = 
-  (visibility * 0.18) +
-  (engagementDepth * 0.25) +
-  (conversionImpact * 0.18) +
-  (loyalty * 0.14) +
-  (growth * 0.10) +
-  (recall * 0.05) +
-  (velocity * 0.10);
-
-// Then multiplied by verification tier for poll/view weighting
-const weightedScore = trueReachScore * VERIFICATION_TIER_MULTIPLIERS[user.verificationTier];
+```
+DEV-VEGGASTARE/
+├── frontend/           # Next.js 16 full-stack app (UI + API routes + Prisma)
+│   ├── app/            # App Router pages & layouts
+│   ├── actions/        # Server actions (auth, products, companies, analytics)
+│   ├── components/     # UI components (Radix, shadcn, custom)
+│   ├── prisma/         # Prisma schema (2000+ lines, PostgreSQL)
+│   ├── lib/            # Utilities, helpers, constants
+│   ├── hooks/          # React hooks
+│   └── contexts/       # React contexts (cart, etc.)
+├── backend/            # Hapi.js Integration Core
+│   ├── src/            # Server, routes, integrations, WebSocket
+│   ├── prisma/         # Backend Prisma schema
+│   └── openapi/        # OpenAPI v1 spec (v1.yaml)
+├── docs/               # Detailed specifications & plans
+│   ├── REACH_7_PILLARS_SPECIFICATION.md
+│   ├── POLL_SYSTEM_UPGRADE_MASTER_QUERY.md
+│   ├── SOCIAL_FEATURES_PLAN.md
+│   ├── VIPPS_REQUIREMENTS.md
+│   └── integration-core.md
+├── database-backups/   # PostgreSQL snapshots
+├── architecture.md     # System architecture overview
+├── prd.md              # Product requirements
+└── MasterContext.md    # Aggregated project context
 ```
 
 ---
+
+## Getting Started
+
+### Prerequisites
+
+- **Node.js** 20+ and **npm**
+- **PostgreSQL** database (local or hosted)
+- Environment variables configured (see sub-READMEs)
+
+### Quick Start
+
+```bash
+# 1. Clone
+git clone <repository-url>
+cd DEV-VEGGASTARE
+
+# 2. Frontend
+cd frontend
+npm install
+npx prisma generate
+npx prisma migrate dev
+npm run dev              # → http://localhost:3000
+
+# 3. Backend (separate terminal)
+cd backend
+npm install
+npm run dev              # → http://localhost:3001 (API) + :3002 (WebSocket)
+```
+
+> See [frontend/README.md](frontend/README.md) and [backend/README.md](backend/README.md) for full setup details including env vars.
+
+---
+
+## Core Features
+
+### Marketplace & Commerce
+- **Product Marketplace** — Browse, search, filter, purchase curated products with multi-image galleries
+- **Company Management** — Company creation, employee roles & permissions (OWNER / ADMIN / MEMBER)
+- **Warehouse System** — Multi-warehouse inventory tracking with real-time stock updates via WebSocket
+- **Shipping Integration** — Bring/Posten live rates, postal code lookup, tracking (mock + live modes)
+- **Cart & Checkout** — Full cart system with quantity management, currency display
+
+### Web3 & Crypto Trading
+- **Wallet Connection** — Reown/WalletConnect AppKit, Coinbase Wallet, Phantom (Solana)
+- **OSRS-Style Inventory** — Drag-and-drop crypto inventory grid with item management
+- **P2P Trading** — Real-time trade windows with offer/accept/decline flow, wallet confirmation on accept
+- **VeggaSystem Bot** — Hardcoded system account for platform operations
+
+### Social & Engagement
+- **Pulse Feed** — Real-time social feed with posts, reactions, conversations (Pusher-powered)
+- **Conversations** — Direct messages, group chats, employee broadcasts
+- **Follow/Sync System** — One-way follows + mutual "sync" with UserHoverCard integration
+- **Advanced Polls** — Multi-question surveys (slider, choice, text, nested) with weighted responses
+- **True Reach™** — 7-pillar engagement scoring (see below)
+
+### Identity & Verification
+- **12-Tier Verification** — From Anonymous (0.10x) to Fully Verified (1.20x) multiplier
+- **Multi-OAuth** — Google, GitHub, Discord with cross-verification trust scoring
+- **Web3 Verification** — Wallet signature + on-chain transaction verification
+
+---
+
+## True Reach™ — The 7 Pillars
+
+| # | Pillar | Weight | What It Measures |
+|---|--------|--------|------------------|
+| 1 | **Visibility** | 18% | Unique impressions (deduplicated, 500ms min dwell) |
+| 2 | **Engagement Depth** | 25% | Quality interactions (comments×3, saves×2, shares×4) |
+| 3 | **Conversion Impact** | 18% | Content → Action pipeline (clicks, purchases) |
+| 4 | **Loyalty** | 14% | Repeat engager consistency |
+| 5 | **Growth** | 10% | Organic audience expansion |
+| 6 | **Recall** | 5% | Return rate & stickiness |
+| 7 | **Velocity** | 10% | Real-time engagement momentum & viral coefficient |
+
+> Full specification: [docs/REACH_7_PILLARS_SPECIFICATION.md](docs/REACH_7_PILLARS_SPECIFICATION.md)
+
+---
+
+## Documentation Index
+
+| Document | Purpose |
+|----------|---------|
+| [docs/NORWAY_LEGAL_COMPLIANCE.md](docs/NORWAY_LEGAL_COMPLIANCE.md) | **Master compliance doc** — GDPR, consumer law, DSA, accessibility, DPI, payments, Web3, security |
+| [docs/REACH_7_PILLARS_SPECIFICATION.md](docs/REACH_7_PILLARS_SPECIFICATION.md) | Complete True Reach™ metric spec with formulas, tiers, anti-gaming |
+| [docs/POLL_SYSTEM_UPGRADE_MASTER_QUERY.md](docs/POLL_SYSTEM_UPGRADE_MASTER_QUERY.md) | Advanced poll system design, schema, UI components |
+| [docs/SOCIAL_FEATURES_PLAN.md](docs/SOCIAL_FEATURES_PLAN.md) | Friends, followers, company chat, employee messaging |
+| [docs/VIPPS_REQUIREMENTS.md](docs/VIPPS_REQUIREMENTS.md) | Vipps payment integration checklist |
+| [docs/integration-core.md](docs/integration-core.md) | Backend Integration Core architecture rationale |
+
+---
+
+## License
+
+This project is proprietary. All rights reserved.

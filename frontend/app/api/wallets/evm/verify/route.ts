@@ -8,6 +8,9 @@ import { dbPrisma } from "@/lib/db";
 import { ChainFamily } from "@/generated/prisma/browser";
 import { type Address, type Hex, getAddress, verifyMessage } from "viem";
 import { WalletErrorResponseSchema, WalletVerifyResponseSchema } from "@/lib/types/wallets";
+import { sendWalletLinkedEmail } from "@/lib/mail";
+import { recalculateVerificationTier } from "@/lib/verification-recalc";
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from "@/lib/rate-limit";
 
 const verifyChallengeSchema = z.object({
 	challengeId: z.string().trim().min(1).max(200),
@@ -16,6 +19,10 @@ const verifyChallengeSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+	// Rate-limit wallet verification attempts
+	const rl = await checkRateLimit(getClientIdentifier(req), "wallet");
+	if (!rl.success) return rateLimitedResponse(rl);
+
 	const me = await MyLibUserAuth();
 	if (!me?.id) {
 		const dto = { error: "Unauthorized" };
@@ -134,6 +141,24 @@ export async function POST(req: NextRequest) {
 					verifiedAt: new Date(),
 				},
 			});
+
+	// Send wallet linked confirmation email (fire-and-forget)
+	if (dbUser.email) {
+		sendWalletLinkedEmail(dbUser.email, {
+			walletAddress: address,
+			chainFamily: 'EVM',
+			chainId: challenge.chainId,
+			action: 'linked',
+			userName: dbUser.name,
+		}).catch((err) => console.error('[wallet-verify] Failed to send linked email:', err));
+	}
+
+	// Recalculate verification tier (wallet linked = hasVerifiedWallet: true)
+	recalculateVerificationTier(
+		dbUser.id,
+		{ hasVerifiedWallet: true },
+		'Wallet linked'
+	).catch((err) => console.error('[wallet-verify] Failed to recalculate tier:', err));
 
 	const walletDto = {
 		id: wallet.id,

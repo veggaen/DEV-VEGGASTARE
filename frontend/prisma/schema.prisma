@@ -932,6 +932,9 @@ model User {
   MessagePulse                                                    MessagePulse[]
   // Repulses on individual vibes (messages)
   MessageRepost                                                   MessageRepost[]
+  // P2P Crypto Trades
+  TradesInitiated                                                 Trade[]                       @relation("TradesInitiated")
+  TradesReceived                                                  Trade[]                       @relation("TradesReceived")
 }
 
 model VerificationToken {
@@ -1271,6 +1274,10 @@ enum NotificationType {
   MILESTONE
   VIBE_CHECK
   SYSTEM
+  TRADE_REQUEST
+  TRADE_ACCEPTED
+  TRADE_COMPLETED
+  TRADE_CANCELLED
 }
 
 enum MuteType {
@@ -1491,6 +1498,12 @@ model PollQuestion {
   allowImages       Boolean             @default(false)
   allowComments     Boolean             @default(false)
   sliderConfig      Json?
+  // Quiz/assessment mode fields
+  correctAnswer     Json?
+  explanation       String?
+  wrongExplanation  String?
+  trickQuestion     Boolean             @default(false)
+  shapeMatchPreset  String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   
@@ -1513,6 +1526,7 @@ enum PollQuestionType {
   NESTED
   RANKING
   UI_ARRANGE
+  SHAPE_MATCH
   IMAGE_UPLOAD
   TREE
 }
@@ -1962,4 +1976,69 @@ model WorkHourLog {
   Employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([employeeId, date])
+}
+
+// ─────────────────────────────────────────────────
+// P2P Crypto Trade System
+// ─────────────────────────────────────────────────
+
+model Trade {
+  id             String      @id @default(cuid())
+  initiatorId    String      // user who sent the trade request
+  responderId    String      // user who received the trade request
+  chainId        Int?        // chain this trade is on (null = multi-chain)
+  family         ChainFamily @default(EVM)
+  status         TradeStatus @default(PENDING)
+  initiatorReady Boolean     @default(false)
+  responderReady Boolean     @default(false)
+  // Both must set ready=true, then status moves to CONFIRMING
+  // After on-chain or off-chain settlement, status moves to COMPLETED
+  completedAt    DateTime?
+  cancelledAt    DateTime?
+  cancelReason   String?
+  expiresAt      DateTime    // auto-cancel if not accepted within time
+  metadata       Json?       // extra trade context
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  Initiator      User        @relation("TradesInitiated", fields: [initiatorId], references: [id])
+  Responder      User        @relation("TradesReceived", fields: [responderId], references: [id])
+  Items          TradeItem[]
+
+  @@index([initiatorId, status])
+  @@index([responderId, status])
+  @@index([expiresAt])
+}
+
+model TradeItem {
+  id             String      @id @default(cuid())
+  tradeId        String
+  side           TradeSide   // INITIATOR or RESPONDER — who is offering this
+  tokenAddress   String      // ERC-20 contract address (or "0x0" for native ETH)
+  tokenSymbol    String      // e.g. "ETH", "USDC", "HEX"
+  tokenDecimals  Int         @default(18)
+  tokenLogoUrl   String?
+  amount         String      // BigInt string — raw wei/smallest unit
+  displayAmount  String      // human-readable e.g. "1.5"
+  chainId        Int
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  Trade          Trade       @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  @@index([tradeId, side])
+}
+
+enum TradeStatus {
+  PENDING     // request sent, awaiting acceptance
+  ACCEPTED    // responder joined, both can add items
+  CONFIRMING  // both ready, awaiting final confirm
+  COMPLETED   // trade settled
+  CANCELLED   // cancelled by either party
+  EXPIRED     // auto-expired
+}
+
+enum TradeSide {
+  INITIATOR
+  RESPONDER
 }

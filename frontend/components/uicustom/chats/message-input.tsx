@@ -171,10 +171,24 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           }
         });
       } else {
-        console.error('Error sending message');
+        // Parse error details from response
+        let errorMessage = 'Failed to send message';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          // Fallback to status text
+          errorMessage = `Error ${response.status}: ${response.statusText || 'Failed to send message'}`;
+        }
+        console.error('Error sending message:', errorMessage);
+        // Import toast at top if not already imported
+        const { toast } = await import('sonner');
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      const { toast } = await import('sonner');
+      toast.error(error instanceof Error ? error.message : 'Failed to send message');
     } finally {
       setIsSending(false);
     }

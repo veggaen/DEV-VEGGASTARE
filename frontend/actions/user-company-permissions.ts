@@ -1,24 +1,28 @@
 'use server';
 
 import { dbPrisma } from '@/lib/db';
-import { ExtendedUser } from '@/next-auth';
 import { Prisma } from '@/generated/prisma/browser';
 
-type PermissionsResult = Prisma.JsonValue | Response;
+type PermissionsResult = { 
+  success: true; 
+  permissions: Prisma.JsonValue; 
+  role: string;
+} | { 
+  success: false; 
+  error: string; 
+  permissions: null;
+};
 
 export async function fetchUserEmployeePermissions(clientUser: any, companyId: string): Promise<PermissionsResult> {
     try {
-      console.log('fetchUserEmployeePermissions() Fetching user permissions for user employee:', clientUser.id, 'for companyId: ', companyId);
-      // validate client user
-      if (!clientUser || !clientUser.id) { 
-        console.error('Permission denied: Missing client ID');
-        return new Response(JSON.stringify({ message: 'Permission denied: Missing client ID' }), {
-            status: 400,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+      // Validate inputs
+      if (!clientUser?.id) { 
+        return { success: false, error: 'Missing user ID', permissions: null };
       }
+      if (!companyId) {
+        return { success: false, error: 'Missing company ID', permissions: null };
+      }
+
       const employee = await dbPrisma.employee.findFirst({
         where: {
             userId: clientUser.id,
@@ -27,13 +31,17 @@ export async function fetchUserEmployeePermissions(clientUser: any, companyId: s
       });
       
       if (!employee) {
-        throw new Error('employee Permissions not found.');
+        // Not an employee of this company - this is valid, not an error
+        return { success: false, error: 'Not an employee', permissions: null };
       }
-      console.log('todo: remove me:', employee)
-      console.log(`Permissions SUCCESS fetched for employee ${clientUser.name}:`, employee.id);
-      return employee.permissions;
+      
+      return { 
+        success: true, 
+        permissions: employee.permissions,
+        role: employee.role,
+      };
     } catch (error) {
       console.error('Error fetching user permissions:', error);
-      throw error;
+      return { success: false, error: 'Database error', permissions: null };
     }
 }

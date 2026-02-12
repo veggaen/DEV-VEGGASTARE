@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -37,19 +37,56 @@ import {
 export interface ImportedQuestion {
   id: string;
   text: string;
-  type: "choice" | "multi-choice" | "text" | "slider" | "scale" | "ranking";
+  type: "choice" | "multi-choice" | "text" | "slider" | "scale" | "ranking" | "shape-match";
   description?: string;
   required?: boolean;
   options?: { id: string; text: string; value?: number }[];
-  sliderConfig?: { min: number; max: number; step: number; unit?: string };
-  scaleConfig?: { min: number; max: number; minLabel?: string; maxLabel?: string };
+  sliderConfig?: { 
+    min: number; 
+    max: number; 
+    step?: number; 
+    unit?: string;
+    minLabel?: string;
+    maxLabel?: string;
+    stepLabels?: string[];
+  };
+  scaleConfig?: { 
+    min: number; 
+    max: number; 
+    minLabel?: string; 
+    maxLabel?: string;
+  };
+  // Quiz mode fields
+  correctAnswer?: string | string[] | null;  // optionId(s) or correct ranking order
+  explanation?: string | null;               // Why this is correct
+  wrongExplanation?: string | null;          // Why they got it wrong
+  deepExplanation?: string | null;           // Optional second-layer clarification
+  commitRequired?: boolean;                  // Require "Lock In" before feedback
+  trickQuestion?: boolean;                   // Is this a trick question
+  shapeMatchPreset?: string | null;          // Shape match preset ID
+  shapeMatchConfig?: any | null;             // Custom shape match visual builder config
+}
+
+export interface ImportedSection {
+  id: string;
+  title: string;
+  description?: string;
+  icon?: string;
+  flow?: { type: string; id: string }[];
 }
 
 export interface ImportedPoll {
   title: string;
   description?: string;
-  type: "SIMPLE" | "SURVEY" | "QUIZ" | "FEEDBACK" | "REACH_ASSESSMENT";
+  type: string; // Accept any poll type
   questions: ImportedQuestion[];
+  sections?: ImportedSection[];
+  flow?: { type: string; id: string }[];
+  settings?: {
+    allowPartialSubmission?: boolean;
+    showProgressBar?: boolean;
+    randomizeQuestions?: boolean;
+  };
 }
 
 interface PollImportModalProps {
@@ -195,58 +232,107 @@ function parseTextFormat(text: string): ParseResult {
 }
 
 /**
- * Parse JSON format
+ * Parse JSON format - supports multiple structures including VeggaStare v2.0 flow format
  */
 function parseJSONFormat(text: string): ParseResult {
   try {
     const data = JSON.parse(text);
 
-    // Support various JSON structures
+    // Helper to normalize slider/scale config
+    const normalizeSliderConfig = (config: any) => {
+      if (!config) return undefined;
+      return {
+        min: config.min ?? config.minValue ?? 1,
+        max: config.max ?? config.maxValue ?? 10,
+        step: config.step ?? 1,
+        unit: config.unit,
+        minLabel: config.minLabel,
+        maxLabel: config.maxLabel,
+        stepLabels: config.stepLabels,
+      };
+    };
+
+    // Helper to normalize a question from any format
+    const normalizeQuestion = (q: any, i: number): ImportedQuestion => {
+      const type = mapQuestionType(q.type);
+      const sliderConfig = normalizeSliderConfig(q.sliderConfig || q.slider);
+      
+      return {
+        id: q.id || `q-${i + 1}`,
+        text: q.text || q.questionText || q.question || q.title || "",
+        type,
+        description: q.description || q.hint,
+        required: q.required ?? true,
+        options: q.options?.map((o: any, j: number) => ({
+          id: typeof o === "string" ? `opt-${j + 1}` : o.id || `opt-${j + 1}`,
+          text: typeof o === "string" ? o : o.text || o.label || "",
+          value: typeof o === "object" ? o.value : undefined,
+        })),
+        sliderConfig: type === "slider" ? sliderConfig : undefined,
+        scaleConfig: type === "scale" ? {
+          min: sliderConfig?.min ?? 1,
+          max: sliderConfig?.max ?? 10,
+          minLabel: sliderConfig?.minLabel,
+          maxLabel: sliderConfig?.maxLabel,
+        } : undefined,
+        // Quiz mode fields — preserve when present
+        correctAnswer: q.correctAnswer ?? undefined,
+        explanation: q.explanation ?? undefined,
+        wrongExplanation: q.wrongExplanation ?? undefined,
+        deepExplanation: q.deepExplanation ?? undefined,
+        commitRequired: q.commitRequired,
+        trickQuestion: q.trickQuestion,
+        shapeMatchPreset: q.shapeMatchPreset ?? undefined,
+      };
+    };
+
+    // Detect VeggaStare v2.0 flow format
+    if (data._format === "veggastare-poll-flow" && data.questions) {
+      return {
+        success: true,
+        poll: {
+          title: data.title || "Imported Poll",
+          description: data.description,
+          type: data.type || "SURVEY",
+          questions: data.questions.map(normalizeQuestion),
+          sections: data.sections?.map((s: any) => ({
+            id: s.id,
+            title: s.title,
+            description: s.description,
+            icon: s.icon,
+            flow: s.flow,
+          })),
+          flow: data.flow,
+          settings: {
+            allowPartialSubmission: data.allowPartialSubmission,
+            showProgressBar: data.showProgressBar,
+            randomizeQuestions: data.randomizeQuestions,
+          },
+        },
+      };
+    }
+
+    // Support array of questions
     if (Array.isArray(data)) {
-      // Array of questions
       return {
         success: true,
         poll: {
           title: "Imported Poll",
           type: "SURVEY",
-          questions: data.map((q, i) => ({
-            id: q.id || `q-${i + 1}`,
-            text: q.text || q.question || q.title || "",
-            type: mapQuestionType(q.type),
-            description: q.description || q.hint,
-            required: q.required ?? true,
-            options: q.options?.map((o: any, j: number) => ({
-              id: o.id || `opt-${j + 1}`,
-              text: o.text || o.label || o,
-              value: o.value,
-            })),
-          })),
+          questions: data.map(normalizeQuestion),
         },
       };
     }
 
+    // Poll object with questions array
     if (data.questions) {
-      // Poll object with questions array
       return {
         success: true,
         poll: {
           title: data.title || data.name || "Imported Poll",
           description: data.description,
           type: data.type || "SURVEY",
-          questions: data.questions.map((q: any, i: number) => ({
-            id: q.id || `q-${i + 1}`,
-            text: q.text || q.question || q.title || "",
-            type: mapQuestionType(q.type),
-            description: q.description || q.hint,
-            required: q.required ?? true,
-            options: q.options?.map((o: any, j: number) => ({
-              id: typeof o === "string" ? `opt-${j + 1}` : o.id || `opt-${j + 1}`,
-              text: typeof o === "string" ? o : o.text || o.label,
-              value: typeof o === "object" ? o.value : undefined,
-            })),
-            sliderConfig: q.sliderConfig || q.slider,
-            scaleConfig: q.scaleConfig || q.scale,
-          })),
+          questions: data.questions.map(normalizeQuestion),
         },
       };
     }
@@ -258,24 +344,37 @@ function parseJSONFormat(text: string): ParseResult {
 }
 
 function mapQuestionType(type: string): ImportedQuestion["type"] {
+  if (!type) return "text";
+  
+  const normalizedType = type.toLowerCase().replace(/_/g, "-");
+  
   const typeMap: Record<string, ImportedQuestion["type"]> = {
+    // VeggaStare uppercase formats
+    "single-choice": "choice",
+    "multi-choice": "multi-choice",
+    "slider": "slider",
+    "scale": "scale",
+    "text": "text",
+    "ranking": "ranking",
+    "shape-match": "shape-match",
+    "ui-arrange": "choice",
+    "nested": "choice",
+    // Generic formats
     "single": "choice",
     "radio": "choice",
     "select": "choice",
+    "choice": "choice",
     "multiple": "multi-choice",
     "checkbox": "multi-choice",
     "multiselect": "multi-choice",
-    "text": "text",
     "textarea": "text",
     "open": "text",
-    "slider": "slider",
     "range": "slider",
-    "scale": "scale",
     "rating": "scale",
     "rank": "ranking",
     "order": "ranking",
   };
-  return typeMap[type?.toLowerCase()] || "text";
+  return typeMap[normalizedType] || "text";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -283,6 +382,90 @@ function mapQuestionType(type: string): ImportedQuestion["type"] {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const POLL_TEMPLATES: { id: string; name: string; description: string; poll: ImportedPoll }[] = [
+  {
+    id: "verify-demo",
+    name: "Verify Poll Demo",
+    description: "Easy-to-verify test poll: slider→6, ranking→1st-4th, choice→Select me (2 sections)",
+    poll: {
+      title: "🧪 Verify Poll Demo — Test All Question Types",
+      description: "Quick demo to verify poll UX. Each question has an obvious correct answer. Sign in to submit and see results.",
+      type: "QUIZ",
+      settings: { allowPartialSubmission: true, showProgressBar: true, randomizeQuestions: false },
+      sections: [
+        { id: "v-sec1", title: "Slider & Ranking", description: "Slide to 6", icon: "📊", flow: [{ type: "QUESTION", id: "v-slider" }, { type: "QUESTION", id: "v-ranking" }] },
+        { id: "v-sec2", title: "Choice Questions", description: "Select me, select both", icon: "✓", flow: [{ type: "QUESTION", id: "v-single" }, { type: "QUESTION", id: "v-multi" }] },
+      ],
+      flow: [{ type: "SECTION", id: "v-sec1" }, { type: "SECTION", id: "v-sec2" }],
+      questions: [
+        {
+          id: "v-slider",
+          text: "Slide the slider to option 6",
+          type: "slider",
+          description: "The correct answer is 6",
+          required: true,
+          sliderConfig: {
+            min: 1,
+            max: 10,
+            step: 1,
+            minLabel: "1",
+            maxLabel: "10",
+            stepLabels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+          },
+          correctAnswer: "6",
+          explanation: "The correct answer is 6. The slider represents a scale from 1 to 10, and 6 is the target value for this question.",
+          wrongExplanation: "You may have slid too low or too high. The correct position is 6 on the scale. Try again to build accuracy.",
+        },
+        {
+          id: "v-ranking",
+          text: "Arrange these 6 items in the correct order (lowest number at top and highest number at bottom)",
+          type: "ranking",
+          description: "Drag to reorder — 1st at top, 6th at bottom. Ascending order.",
+          required: true,
+          options: [
+            { id: "v-r1", text: "Place me as top rank" },
+            { id: "v-r2", text: "Put me at second" },
+            { id: "v-r3", text: "Place me third" },
+            { id: "v-r4", text: "Place me fourth" },
+            { id: "v-r5", text: "Put me fifth" },
+            { id: "v-r6", text: "Place me sixth" },
+          ],
+          correctAnswer: ["v-r1", "v-r2", "v-r3", "v-r4", "v-r5", "v-r6"],
+          explanation: "The correct order is 1 to 6 in ascending order: 1st at the top, 6th at the bottom. This represents a priority or sequence where lower numbers rank higher.",
+          wrongExplanation: "The items should be in ascending order from 1st to 6th. The first item (Place me as top rank) must be at the top, and the last (Place me sixth) at the bottom.",
+        },
+        {
+          id: "v-single",
+          text: "Select the correct option",
+          type: "choice",
+          description: "Choose 'Select me'",
+          required: true,
+          options: [
+            { id: "v-s1", text: "Select me" },
+            { id: "v-s2", text: "Don't select me" },
+            { id: "v-s3", text: "Don't select me neither" },
+          ],
+          correctAnswer: "v-s1",
+          explanation: "The first option 'Select me' is the correct one. In single-choice questions, only one answer can be correct.",
+          wrongExplanation: "The correct option is 'Select me'. The other options are distractors. Read each option carefully before locking in.",
+        },
+        {
+          id: "v-multi",
+          text: "Select both correct options",
+          type: "multi-choice",
+          description: "Choose both 'Select me' options",
+          required: true,
+          options: [
+            { id: "v-m1", text: "Select me (A)" },
+            { id: "v-m2", text: "Select me (B)" },
+            { id: "v-m3", text: "Don't select me" },
+          ],
+          correctAnswer: ["v-m1", "v-m2"],
+          explanation: "Both 'Select me (A)' and 'Select me (B)' are correct. Multi-choice questions allow selecting multiple options — here you need both.",
+          wrongExplanation: "You need to select both 'Select me (A)' and 'Select me (B)'. Multi-choice allows multiple selections — ensure you have checked both correct options.",
+        },
+      ],
+    },
+  },
   {
     id: "customer-satisfaction",
     name: "Customer Satisfaction (NPS)",
@@ -439,19 +622,46 @@ const POLL_TEMPLATES: { id: string; name: string; description: string; poll: Imp
 // ─────────────────────────────────────────────────────────────────────────────
 
 function PollPreview({ poll }: { poll: ImportedPoll }) {
+  const hasSections = poll.sections && poll.sections.length > 0;
+  
   return (
     <div className="space-y-4 max-h-[300px] overflow-y-auto p-4 bg-muted/30 rounded-lg">
       <div>
         <h4 className="font-semibold text-lg">{poll.title}</h4>
         {poll.description && (
-          <p className="text-sm text-muted-foreground">{poll.description}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2">{poll.description}</p>
         )}
-        <span className="text-xs px-2 py-0.5 rounded bg-primary/20 text-primary">
-          {poll.type}
-        </span>
+        <div className="flex gap-2 mt-1 flex-wrap">
+          <span className="text-xs px-2 py-0.5 rounded bg-primary/20 text-primary">
+            {poll.type}
+          </span>
+          {hasSections && (
+            <span className="text-xs px-2 py-0.5 rounded bg-orange-500/20 text-orange-500">
+              {poll.sections!.length} sections
+            </span>
+          )}
+          <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-500">
+            {poll.questions.length} questions
+          </span>
+        </div>
       </div>
 
+      {/* Show sections if present */}
+      {hasSections && (
+        <div className="space-y-2">
+          <h5 className="text-xs font-semibold text-muted-foreground uppercase">Sections</h5>
+          {poll.sections!.map((s) => (
+            <div key={s.id} className="p-2 bg-background rounded border text-sm flex items-center gap-2">
+              {s.icon && <span>{s.icon}</span>}
+              <span className="font-medium">{s.title}</span>
+              {s.flow && <span className="text-xs text-muted-foreground">({s.flow.length} items)</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="space-y-3">
+        <h5 className="text-xs font-semibold text-muted-foreground uppercase">Questions</h5>
         {poll.questions.map((q, i) => (
           <div key={q.id} className="p-3 bg-background rounded-lg border">
             <div className="flex items-start gap-2">
@@ -460,12 +670,37 @@ function PollPreview({ poll }: { poll: ImportedPoll }) {
               </span>
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm">{q.text}</div>
-                <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
                   <span className="px-1.5 py-0.5 rounded bg-muted">{q.type}</span>
                   {q.required && <span className="text-red-500">Required</span>}
-                  {q.options && <span>{q.options.length} options</span>}
+                  {q.options && q.options.length > 0 && <span>{q.options.length} options</span>}
+                  {q.sliderConfig && (
+                    <span className="text-blue-400">
+                      Range: {q.sliderConfig.min}-{q.sliderConfig.max}
+                    </span>
+                  )}
+                  {q.scaleConfig && (
+                    <span className="text-purple-400">
+                      Scale: {q.scaleConfig.min}-{q.scaleConfig.max}
+                    </span>
+                  )}
                 </div>
-                {q.options && (
+                {/* Show slider labels if present */}
+                {(q.sliderConfig?.minLabel || q.sliderConfig?.maxLabel) && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {q.sliderConfig.minLabel && <span>Min: "{q.sliderConfig.minLabel}"</span>}
+                    {q.sliderConfig.minLabel && q.sliderConfig.maxLabel && <span> → </span>}
+                    {q.sliderConfig.maxLabel && <span>Max: "{q.sliderConfig.maxLabel}"</span>}
+                  </div>
+                )}
+                {(q.scaleConfig?.minLabel || q.scaleConfig?.maxLabel) && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {q.scaleConfig.minLabel && <span>Min: "{q.scaleConfig.minLabel}"</span>}
+                    {q.scaleConfig.minLabel && q.scaleConfig.maxLabel && <span> → </span>}
+                    {q.scaleConfig.maxLabel && <span>Max: "{q.scaleConfig.maxLabel}"</span>}
+                  </div>
+                )}
+                {q.options && q.options.length > 0 && (
                   <div className="mt-2 space-y-1">
                     {q.options.slice(0, 4).map((opt) => (
                       <div key={opt.id} className="text-xs text-muted-foreground flex items-center gap-1">
@@ -501,6 +736,33 @@ export function PollImportModal({ open, onOpenChange, onImport }: PollImportModa
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const autoParseTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-parse JSON as user types (debounced 400ms)
+  useEffect(() => {
+    if (activeTab !== "json" || !jsonInput.trim()) {
+      return;
+    }
+    
+    // Clear any pending parse
+    if (autoParseTimerRef.current) {
+      clearTimeout(autoParseTimerRef.current);
+    }
+    
+    setIsProcessing(true);
+    autoParseTimerRef.current = setTimeout(() => {
+      const result = parseJSONFormat(jsonInput);
+      setParseResult(result);
+      setIsProcessing(false);
+      autoParseTimerRef.current = null;
+    }, 400);
+    
+    return () => {
+      if (autoParseTimerRef.current) {
+        clearTimeout(autoParseTimerRef.current);
+      }
+    };
+  }, [jsonInput, activeTab]);
 
   const handlePaste = useCallback(() => {
     setIsProcessing(true);
@@ -510,15 +772,6 @@ export function PollImportModal({ open, onOpenChange, onImport }: PollImportModa
       setIsProcessing(false);
     }, 300);
   }, [textInput]);
-
-  const handleJSON = useCallback(() => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      const result = parseJSONFormat(jsonInput);
-      setParseResult(result);
-      setIsProcessing(false);
-    }, 300);
-  }, [jsonInput]);
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -574,7 +827,7 @@ export function PollImportModal({ open, onOpenChange, onImport }: PollImportModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-hidden flex flex-col bg-zinc-950 border-zinc-800">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileUp className="w-5 h-5" />
@@ -677,10 +930,12 @@ Range: 1-10
                 placeholder="Paste JSON here..."
                 className="min-h-[200px] font-mono text-sm"
               />
-              <Button onClick={handleJSON} disabled={!jsonInput.trim() || isProcessing}>
-                {isProcessing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Eye className="w-4 h-4 mr-2" />}
-                Preview
-              </Button>
+              {isProcessing && (
+                <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Parsing...
+                </div>
+              )}
             </TabsContent>
 
             {/* Templates tab */}

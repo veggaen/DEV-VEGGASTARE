@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children, modal }: { children: React.ReactNode; modal: React.ReactNode }) {
   const session = await auth();
 
   return (
@@ -49,8 +49,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         className={`${inter.className} myanimation transition-colors min-h-[100dvh] flex flex-col bg-background text-foreground`}
         suppressHydrationWarning={true}
       >
-      <AppProviders session={session}>{children}</AppProviders>
+      <AppProviders session={session}>
+        {children}
+        {modal}
+      </AppProviders>
       </body>
     </html>
-  ); // is this proper and good typescript? like best practice? does each part here need a '?' or is it ok like this? and its this best practices and could there be better ways?
+  );
 }

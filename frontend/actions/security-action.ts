@@ -1,5 +1,6 @@
 'use server'
 
+import crypto from "crypto";
 import { dbPrisma } from "@/lib/db";
 import { getSecurityActionTokenByToken } from "@/data/security-action-token";
 import { getTwoFactortokenByEmail } from "@/data/two-factor-token";
@@ -56,7 +57,10 @@ export const MyConfirmSecurityAction = async (token: string, code?: string | nul
 
 		const twoFactorToken = await getTwoFactortokenByEmail(dbUser.email);
 		if (!twoFactorToken) return { error: "Invalid code!" };
-		if (twoFactorToken.token !== code) return { error: "Invalid code!" };
+		// SECURITY: constant-time comparison to prevent timing side-channel attacks
+		const codeBuffer = Buffer.from(code.padEnd(10, '0'));
+		const tokenBuffer = Buffer.from(twoFactorToken.token.padEnd(10, '0'));
+		if (!crypto.timingSafeEqual(codeBuffer, tokenBuffer)) return { error: "Invalid code!" };
 
 		const twoFactorExpired = new Date(twoFactorToken.expires) < new Date();
 		if (twoFactorExpired) return { error: "Code has expired!" };

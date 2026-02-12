@@ -238,9 +238,11 @@ export function ShapeMatchQuestion({
   const [feedback, setFeedback] = useState<Record<string, "correct" | "incorrect">>({});
   const [startTime] = useState<number>(() => Date.now());
   const [isComplete, setIsComplete] = useState(false);
+  const [isReadyToConfirm, setIsReadyToConfirm] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(config.timeLimit ?? null);
   const containerRef = useRef<HTMLDivElement>(null);
   const targetRefs = useRef<Map<string, DOMRect>>(new Map());
+  const SNAP_DISTANCE_PX = 84;
 
   // Timer
   useEffect(() => {
@@ -303,8 +305,10 @@ export function ShapeMatchQuestion({
   const handleDragEnd = useCallback((shapeId: string, info: { point: { x: number; y: number } }) => {
     if (disabled || isComplete) return;
     
-    // Find which target the shape was dropped on
+    // Find which target the shape was dropped on (inside rect) or nearest target within snap distance
     let droppedTarget: string | null = null;
+    let nearestTargetId: string | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
     
     targetRefs.current.forEach((rect, targetId) => {
       if (
@@ -315,49 +319,78 @@ export function ShapeMatchQuestion({
       ) {
         droppedTarget = targetId;
       }
+
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const distance = Math.hypot(info.point.x - centerX, info.point.y - centerY);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestTargetId = targetId;
+      }
     });
+
+    if (!droppedTarget && nearestTargetId && nearestDistance <= SNAP_DISTANCE_PX) {
+      droppedTarget = nearestTargetId;
+    }
     
     if (droppedTarget) {
+      const nextPlacements = { ...placements, [shapeId]: droppedTarget };
+      setPlacements(nextPlacements);
+      onChange(nextPlacements);
+
       const isCorrect = checkPlacement(shapeId, droppedTarget);
       
       if (config.showFeedback !== false) {
         setFeedback(prev => ({ ...prev, [shapeId]: isCorrect ? "correct" : "incorrect" }));
-        
-        // Clear incorrect feedback after animation
-        if (!isCorrect) {
-          setTimeout(() => {
-            setFeedback(prev => {
-              const next = { ...prev };
-              delete next[shapeId];
-              return next;
-            });
-          }, 500);
-        }
       }
-      
-      if (isCorrect || config.allowRetry === false) {
-        const newPlacements = { ...placements, [shapeId]: droppedTarget };
-        setPlacements(newPlacements);
-        onChange(newPlacements);
-        
-        // Check if all shapes are placed
-        const allPlaced = config.shapes.every(s => newPlacements[s.id]);
-        if (allPlaced) {
-          const allCorrect = config.shapes.every(s => checkPlacement(s.id, newPlacements[s.id]));
-          setIsComplete(true);
-          onComplete?.(allCorrect, (Date.now() - startTime) / 1000);
-        }
-      }
+
+      const allPlaced = config.shapes.every(s => nextPlacements[s.id]);
+      setIsReadyToConfirm(allPlaced);
     }
     
     setActiveTarget(null);
-  }, [disabled, isComplete, placements, config, checkPlacement, onChange, onComplete, startTime]);
+  }, [disabled, isComplete, placements, checkPlacement, config.shapes, onChange]);
+
+  const handleConfirm = useCallback(() => {
+    if (disabled || isComplete) return;
+    const allPlaced = config.shapes.every((shape) => placements[shape.id]);
+    if (!allPlaced) return;
+
+    const nextFeedback: Record<string, "correct" | "incorrect"> = {};
+    config.shapes.forEach((shape) => {
+      const targetId = placements[shape.id];
+      nextFeedback[shape.id] = checkPlacement(shape.id, targetId) ? "correct" : "incorrect";
+    });
+    setFeedback(nextFeedback);
+
+    const allCorrect = config.shapes.every((shape) => checkPlacement(shape.id, placements[shape.id]));
+    setIsComplete(true);
+    setIsReadyToConfirm(false);
+    onComplete?.(allCorrect, (Date.now() - startTime) / 1000);
+  }, [checkPlacement, config.shapes, disabled, isComplete, onComplete, placements, startTime]);
+
+  const removePlacement = useCallback((shapeId: string) => {
+    if (disabled || isComplete) return;
+    setPlacements((prev) => {
+      const next = { ...prev };
+      delete next[shapeId];
+      onChange(next);
+      setIsReadyToConfirm(config.shapes.every((shape) => !!next[shape.id]));
+      return next;
+    });
+    setFeedback((prev) => {
+      const next = { ...prev };
+      delete next[shapeId];
+      return next;
+    });
+  }, [config.shapes, disabled, isComplete, onChange]);
 
   // Reset
   const handleReset = useCallback(() => {
     setPlacements({});
     setFeedback({});
     setIsComplete(false);
+    setIsReadyToConfirm(false);
     onChange({});
   }, [onChange]);
 
@@ -444,8 +477,11 @@ export function ShapeMatchQuestion({
                     animate={{ scale: 1 }}
                     className={cn(
                       "absolute inset-2 rounded-lg flex items-center justify-center",
-                      COLOR_MAP[shape.color]
+                      COLOR_MAP[shape.color],
+                      !disabled && !isComplete && "cursor-pointer hover:brightness-110"
                     )}
+                    onClick={() => removePlacement(shape.id)}
+                    title={!disabled && !isComplete ? "Click to move this shape" : undefined}
                   >
                     <ShapeSVG 
                       shape={shape.shape} 
@@ -498,17 +534,30 @@ export function ShapeMatchQuestion({
       </div>
 
       {/* Reset button */}
-      {(Object.keys(placements).length > 0 || isComplete) && config.allowRetry !== false && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleReset}
-          className="gap-2"
-        >
-          <RotateCcw className="w-4 h-4" />
-          Reset & Try Again
-        </Button>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {isReadyToConfirm && !isComplete && (
+          <Button
+            size="sm"
+            onClick={handleConfirm}
+            className="gap-2 bg-violet-600 hover:bg-violet-500 text-white"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            Confirm placements
+          </Button>
+        )}
+
+        {(Object.keys(placements).length > 0 || isComplete) && config.allowRetry !== false && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleReset}
+            className="gap-2"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reset & Try Again
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -531,6 +580,24 @@ export const SHAPE_MATCH_PRESETS = {
       { id: "t1", shape: "circle" as ShapeType, color: "blue" as ColorType, label: "Circle" },
       { id: "t2", shape: "square" as ShapeType, color: "red" as ColorType, label: "Square" },
       { id: "t3", shape: "triangle" as ShapeType, color: "green" as ColorType, label: "Triangle" },
+    ],
+    showFeedback: true,
+    allowRetry: true,
+  },
+
+  // Outline-only matching with neutral (black) target outlines
+  outlineMatch: {
+    mode: "shape-only" as const,
+    instructions: "Drag each filled shape into the matching black outline",
+    shapes: [
+      { id: "s1", shape: "circle" as ShapeType, color: "blue" as ColorType, targetId: "t1" },
+      { id: "s2", shape: "square" as ShapeType, color: "red" as ColorType, targetId: "t2" },
+      { id: "s3", shape: "triangle" as ShapeType, color: "green" as ColorType, targetId: "t3" },
+    ],
+    targets: [
+      { id: "t1", shape: "circle" as ShapeType, color: "black" as ColorType, label: "Circle Outline" },
+      { id: "t2", shape: "square" as ShapeType, color: "black" as ColorType, label: "Square Outline" },
+      { id: "t3", shape: "triangle" as ShapeType, color: "black" as ColorType, label: "Triangle Outline" },
     ],
     showFeedback: true,
     allowRetry: true,

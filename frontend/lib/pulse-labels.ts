@@ -196,6 +196,48 @@ export const notificationTypes = {
     prompt: 'Feel the pulse—share yours in 2 mins for extra ripples!',
     reminder: 'Time for your daily vibe check! How\'s your rhythm today?',
   },
+
+  // P2P Crypto Trade notifications
+  TRADE_REQUEST: {
+    type: 'TRADE_REQUEST',
+    emoji: '🤝',
+    icon: 'arrow-left-right',
+    color: 'emerald',
+    title: 'Trade Request',
+    single: '{user} wants to trade with you—open the trade window!',
+    multiple: '{count} trade requests waiting for your response.',
+    grouped: '{count} pending trade requests in your inbox.',
+  },
+  TRADE_ACCEPTED: {
+    type: 'TRADE_ACCEPTED',
+    emoji: '✅',
+    icon: 'check-circle',
+    color: 'green',
+    title: 'Trade Accepted',
+    single: '{user} accepted your trade request—add your items!',
+    multiple: '{count} trades accepted and ready for items.',
+    grouped: '{count} active trades waiting for items.',
+  },
+  TRADE_COMPLETED: {
+    type: 'TRADE_COMPLETED',
+    emoji: '🎉',
+    icon: 'party-popper',
+    color: 'amber',
+    title: 'Trade Complete',
+    single: 'Trade with {user} complete—check your wallet!',
+    multiple: '{count} trades settled successfully.',
+    grouped: '{count} trades completed—assets transferred!',
+  },
+  TRADE_CANCELLED: {
+    type: 'TRADE_CANCELLED',
+    emoji: '❌',
+    icon: 'x-circle',
+    color: 'red',
+    title: 'Trade Cancelled',
+    single: '{user} cancelled the trade.',
+    multiple: '{count} trades were cancelled.',
+    grouped: '{count} trades cancelled.',
+  },
 } as const;
 
 export type NotificationType = keyof typeof notificationTypes;
@@ -294,6 +336,13 @@ export const notificationCategories = {
     description: 'Vibe checks and engagement reminders',
     icon: 'sparkles',
     types: ['VIBE_CHECK'],
+  },
+  TRADES: {
+    id: 'trades',
+    label: 'Trades',
+    description: 'P2P crypto trade requests, accepts, and completions',
+    icon: 'arrow-left-right',
+    types: ['TRADE_REQUEST', 'TRADE_ACCEPTED', 'TRADE_COMPLETED', 'TRADE_CANCELLED'],
   },
 } as const;
 

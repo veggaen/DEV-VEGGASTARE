@@ -1,7 +1,7 @@
 /**
  * Seed Script: Create the Comprehensive REACH System Audit Poll
  * 
- * Run with: npx ts-node --transpile-only scripts/seed-reach-poll.ts
+ * Run with: npx tsx scripts/seed-reach-poll.ts
  * 
  * Contains 90+ questions across 10 sections covering all aspects of the REACH system.
  * Includes advanced question types: RANKING, UI_ARRANGE, NESTED, IMAGE_UPLOAD
@@ -10,11 +10,32 @@
  */
 
 import 'dotenv/config'
-import { PrismaClient, AdvancedPollType, PollQuestionType, Prisma } from "@/generated/prisma/client";
+import { PrismaClient } from "../generated/prisma/client";
+import { AdvancedPollType, PollQuestionType, ConversationType, ConversationVisibility } from "../generated/prisma/enums";
 import { PrismaPg } from '@prisma/adapter-pg'
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL_MAINLIVE!, ssl: { rejectUnauthorized: false } })
+// System account constants - matches lib/system-account.ts
+const SYSTEM_ACCOUNT = {
+  id: "system-vegga-official",
+  name: "VeggaSystem",
+  username: "veggasystem",
+  email: "system@veggat.com",
+} as const;
+
+// Check for --dev flag to use DEV database
+const useDevDb = process.argv.includes('--dev');
+const connectionString = useDevDb 
+  ? process.env.DATABASE_URL_MAINDEV! 
+  : process.env.DATABASE_URL_MAINLIVE!;
+
+const adapter = new PrismaPg({ connectionString, ssl: { rejectUnauthorized: false } })
 const prisma = new PrismaClient({ adapter });
+
+if (useDevDb) {
+  console.log("🔧 Using DEV database\n");
+} else {
+  console.log("🔧 Using PROD database\n");
+}
 
 const POLL_DESCRIPTION = `
 🚀 Welcome to the VeggaStare REACH System Comprehensive Audit!
@@ -1233,17 +1254,20 @@ async function seedReachAuditPoll() {
   console.log(`📊 Total questions: ${totalQuestions}`);
   console.log(`📑 Total sections: ${ALL_SECTIONS.length}`);
 
-  // Find admin user
-  const adminUser = await prisma.user.findFirst({
-    where: { role: "ADMIN" },
+  // Ensure VeggaSystem account exists
+  const systemUser = await prisma.user.upsert({
+    where: { id: SYSTEM_ACCOUNT.id },
+    update: {},
+    create: {
+      id: SYSTEM_ACCOUNT.id,
+      name: SYSTEM_ACCOUNT.name,
+      email: SYSTEM_ACCOUNT.email,
+      role: "ADMIN",
+      emailVerified: new Date(),
+    },
   });
 
-  if (!adminUser) {
-    console.error("❌ No admin user found. Please create an admin user first.");
-    process.exit(1);
-  }
-
-  console.log(`\n📝 Creating poll as user: ${adminUser.email}`);
+  console.log(`\n📝 Creating poll as user: ${systemUser.name} (${systemUser.email})`);
 
   // Check if poll already exists
   const existingPoll = await prisma.advancedPoll.findFirst({
@@ -1253,13 +1277,13 @@ async function seedReachAuditPoll() {
   if (existingPoll) {
     console.log(`\n⚠️  Poll already exists with ID: ${existingPoll.id}`);
     console.log("Delete it first to recreate:");
-    console.log("  npx ts-node --transpile-only scripts/delete-reach-polls.ts --delete");
+    console.log("  npx tsx scripts/delete-reach-polls.ts --delete");
     return existingPoll;
   }
 
   // Build all questions
   let questionOrder = 0;
-  const allQuestions: Prisma.PollQuestionCreateWithoutAdvancedPollInput[] = [];
+  const allQuestions: any[] = [];
 
   for (const section of ALL_SECTIONS) {
     console.log(`\n📋 ${section.title} (${section.questions.length} questions)`);
@@ -1268,7 +1292,7 @@ async function seedReachAuditPoll() {
       questionOrder++;
 
       // Build slider config (also used for other JSON configs)
-      let sliderConfig: Prisma.InputJsonValue | undefined = undefined;
+      let sliderConfig: any = undefined;
       if (q.type === "slider" && q.sliderLabels) {
         sliderConfig = {
           min: 1,
@@ -1276,7 +1300,7 @@ async function seedReachAuditPoll() {
           steps: q.sliderLabels.length,
           showValue: true,
           labels: q.sliderLabels,
-        } as Prisma.InputJsonValue;
+        };
       } else if (q.type === "nested" && q.followUps) {
         // Store nested config in sliderConfig field (JSON)
         sliderConfig = {
@@ -1285,18 +1309,18 @@ async function seedReachAuditPoll() {
             condition: fu.condition,
             questionCount: fu.questions?.length || 0,
           })),
-        } as Prisma.InputJsonValue;
+        };
       } else if (q.type === "ui-arrange" && q.uiElements) {
         // Store UI arrange config in sliderConfig field (JSON)
         sliderConfig = {
           type: "ui-arrange",
           elements: q.uiElements,
-        } as Prisma.InputJsonValue;
+        };
       } else if (q.type === "image-upload") {
         sliderConfig = {
           type: "image-upload",
           maxImages: q.maxImages || 3,
-        } as Prisma.InputJsonValue;
+        };
       }
 
       // Build options
@@ -1321,7 +1345,23 @@ async function seedReachAuditPoll() {
 
   console.log(`\n📊 Total questions to create: ${allQuestions.length}`);
 
-  // Create the poll
+  // First create the conversation (pulse) that will show in feed
+  console.log("\n📝 Creating conversation for feed visibility...");
+  const conversation = await prisma.conversation.create({
+    data: {
+      userId: systemUser.id,
+      type: ConversationType.PUBLIC_THREAD,
+      visibility: ConversationVisibility.PUBLIC,
+      title: "📊 VeggaStare REACH System Comprehensive Audit",
+      description: POLL_DESCRIPTION.slice(0, 500) + "...",
+      createdAt: new Date(),
+      lastActivityAt: new Date(),
+      isPinned: true, // Pin important poll
+    },
+  });
+  console.log(`✅ Conversation created: ${conversation.id}`);
+
+  // Create the poll linked to the conversation
   const poll = await prisma.advancedPoll.create({
     data: {
       title: "VeggaStare REACH System Comprehensive Audit",
@@ -1330,7 +1370,8 @@ async function seedReachAuditPoll() {
       allowPartial: true, // ⚡ PARTIAL COMPLETION ENABLED
       requiresAuth: false, // Allow anonymous (with reduced weight)
       isAnonymous: false,
-      creatorId: adminUser.id,
+      creatorId: systemUser.id,
+      conversationId: conversation.id, // Link to conversation for feed visibility
       publishedAt: new Date(),
       Questions: {
         create: allQuestions,

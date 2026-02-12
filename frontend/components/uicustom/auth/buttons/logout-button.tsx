@@ -1,17 +1,17 @@
 'use client'
 
-import { LogoutMyAction } from "@/actions/logout";
-import { signOut } from "next-auth/react"
+import { useCleanLogout } from "@/hooks/use-clean-logout";
 
 interface LoutoutButtonProps {
     children?: React.ReactNode;
 };
 const LOG_PREFIX = '[frontend/components/uicustom/auth/buttons/logout-button.tsx]'
 export const MyLogoutButton = ({children}: LoutoutButtonProps) => {
-  const onClick = () => {
-    console.log(`${LOG_PREFIX} LOGOUT Client => LogoutMyAction()`)
-    signOut()
+  const cleanLogout = useCleanLogout();
 
+  const onClick = () => {
+    console.log(`${LOG_PREFIX} LOGOUT Client => cleanLogout()`)
+    cleanLogout()
   }
 
   return (

@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import PusherClient from "pusher-js";
 
-const LOG_PREFIX = '[frontend/hooks/usePusher.js]';
+const LOG_PREFIX = '[usePusher]';
+const DEBUG_PUSHER = process.env.NEXT_PUBLIC_DEBUG_PUSHER === 'true';
 
 const P_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY;
 const P_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
@@ -15,23 +16,44 @@ if (!pusherClient) {
   });
 }
 
+// Track active subscriptions to avoid duplicate logs
+const activeSubscriptions = new Set<string>();
+
 const usePusher = <T = unknown>(channelName: string, eventName: string, callback: (data: T) => void): void => {
+  const hasLoggedRef = useRef(false);
+
   useEffect(() => {
     if (!pusherClient || !channelName) return;
-    console.log(`${LOG_PREFIX} Subscribing to channel ${channelName} and event ${eventName}`);
+    
+    const subKey = `${channelName}:${eventName}`;
+    const isNewSub = !activeSubscriptions.has(subKey);
+    
+    if (isNewSub) {
+      activeSubscriptions.add(subKey);
+      if (DEBUG_PUSHER) {
+        console.log(`${LOG_PREFIX} +${channelName}/${eventName}`);
+      }
+    }
+
     const channel = pusherClient.subscribe(channelName);
     channel.bind(eventName, callback);
 
-    channel.bind('pusher:subscription_succeeded', () => {
-      console.log(`${LOG_PREFIX} Successfully subscribed to channel ${channelName}`);
-    });
+    // Only log subscription success once per unique channel (not per event)
+    if (!hasLoggedRef.current && DEBUG_PUSHER) {
+      channel.bind('pusher:subscription_succeeded', () => {
+        if (!hasLoggedRef.current) {
+          hasLoggedRef.current = true;
+          // Only log aggregate count periodically
+        }
+      });
+    }
 
     channel.bind('pusher:subscription_error', (status: any) => {
-      console.error(`${LOG_PREFIX} Error subscribing to channel ${channelName}:`, status);
+      console.error(`${LOG_PREFIX} Error on ${channelName}:`, status);
     });
 
     return () => {
-      console.log(`${LOG_PREFIX} Unsubscribing from channel ${channelName} and event ${eventName}`);
+      activeSubscriptions.delete(subKey);
       channel.unbind(eventName, callback);
       channel.unsubscribe();
     };

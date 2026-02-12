@@ -9,8 +9,10 @@
 import { dbPrisma } from '@/lib/db';
 import { 
   determineUserVerificationTier, 
-  calculateVerificationScore 
+  calculateVerificationScore,
+  VERIFICATION_TIER_MULTIPLIERS
 } from '@/lib/view-strength';
+import { sendAuthLevelChangeEmail } from '@/lib/mail';
 
 const LOG_PREFIX = '[verification-recalc]';
 
@@ -34,12 +36,15 @@ export async function recalculateVerificationTier(
     phoneVerified: Date | null;
     emailVerified: Date | null;
     isTwoFactorEnabled: boolean;
-  }>
+  }>,
+  triggerAction?: string
 ): Promise<{ tier: string; score: number } | null> {
   try {
     const user = await dbPrisma.user.findUnique({
       where: { id: userId },
       select: {
+        name: true,
+        email: true,
         hasGoogleAuth: true,
         hasDiscordAuth: true,
         hasGithubAuth: true,
@@ -50,6 +55,8 @@ export async function recalculateVerificationTier(
         emailVerified: true,
         isTwoFactorEnabled: true,
         web3ModeEnabled: true,
+        verificationTier: true,
+        verificationScore: true,
       },
     });
 
@@ -73,6 +80,22 @@ export async function recalculateVerificationTier(
     });
 
     console.log(LOG_PREFIX, `User ${userId}: tier=${tier}, score=${score}`);
+
+    // Send email notification if tier actually changed
+    const previousTier = user.verificationTier ?? 'ANONYMOUS';
+    if (tier !== previousTier && user.email) {
+      type TierKey = keyof typeof VERIFICATION_TIER_MULTIPLIERS;
+      const multiplier = VERIFICATION_TIER_MULTIPLIERS[tier as TierKey] ?? 0.1;
+      sendAuthLevelChangeEmail(user.email, {
+        userName: user.name,
+        previousTier,
+        newTier: tier,
+        newScore: score,
+        newMultiplier: multiplier,
+        triggerAction: triggerAction ?? 'Verification recalculation',
+      }).catch((err) => console.error(LOG_PREFIX, 'Failed to send auth level email:', err));
+    }
+
     return { tier, score };
   } catch (error) {
     console.error(LOG_PREFIX, `Error recalculating for user ${userId}:`, error);

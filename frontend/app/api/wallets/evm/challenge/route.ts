@@ -16,6 +16,7 @@ import {
 	WalletErrorResponseSchema,
 	WalletTwoFactorResponseSchema,
 } from "@/lib/types/wallets";
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from "@/lib/rate-limit";
 
 const createChallengeSchema = z.object({
 	address: z.string().trim().min(1).max(256),
@@ -24,6 +25,10 @@ const createChallengeSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+	// Rate-limit wallet challenge creation (prevents spam & email bombing)
+	const rl = await checkRateLimit(getClientIdentifier(req), "wallet");
+	if (!rl.success) return rateLimitedResponse(rl);
+
 	const me = await MyLibUserAuth();
 	if (!me?.id) {
 		const dto = { error: "Unauthorized" };
@@ -63,7 +68,10 @@ export async function POST(req: NextRequest) {
 			const parsed = WalletErrorResponseSchema.safeParse(dto);
 			return NextResponse.json(parsed.success ? parsed.data : dto, { status: 400 });
 		}
-		if (twoFactorToken.token !== code) {
+		// SECURITY: constant-time comparison to prevent timing side-channel attacks
+		const codeBuffer = Buffer.from(code.padEnd(10, '0'));
+		const tokenBuffer = Buffer.from(twoFactorToken.token.padEnd(10, '0'));
+		if (!crypto.timingSafeEqual(codeBuffer, tokenBuffer)) {
 			const dto = { error: "Invalid code" };
 			const parsed = WalletErrorResponseSchema.safeParse(dto);
 			return NextResponse.json(parsed.success ? parsed.data : dto, { status: 400 });

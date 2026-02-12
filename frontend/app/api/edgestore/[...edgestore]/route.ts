@@ -36,7 +36,11 @@ const DIGITAL_PRODUCT_EXTENSIONS = [
  */
 const edgeStoreRouter = es.router({
   // Public images (product photos, logos, etc.)
-  myPublicImages: es.fileBucket(),
+  // SECURITY: Restrict to image types + 10MB max to prevent abuse
+  myPublicImages: es.fileBucket({
+    maxSize: 1024 * 1024 * 10, // 10MB max
+    accept: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'],
+  }),
   
   // Protected digital assets (downloadable products)
   // Only authenticated users can upload to this bucket

@@ -13,6 +13,7 @@ const nextConfig = {
             },
         ];
     },
+    turbopack: {},
     webpack: (config) => {
         config.externals.push("pino-pretty", "lokijs", "encoding");
 
@@ -32,6 +33,18 @@ const nextConfig = {
     },
     images: {
         remotePatterns: [
+            {
+              protocol: 'https',
+              hostname: 'picsum.photos',
+              port: '',
+              pathname: '**',
+            },
+            {
+              protocol: 'https',
+              hostname: 'api.dicebear.com',
+              port: '',
+              pathname: '**',
+            },
             {
               protocol: 'https',
               hostname: 'images.unsplash.com',

@@ -2,7 +2,6 @@ import { fetchUserEmployeePermissions } from '@/actions/user-company-permissions
 import { useState, useEffect } from 'react';
 import { Prisma } from '@/generated/prisma/browser';
 
-type JsonValue = Prisma.JsonValue;
 type JsonObject = Prisma.JsonObject;
 
 interface UsePermissionResult {
@@ -10,6 +9,7 @@ interface UsePermissionResult {
   isPermissionAvailable: boolean;
   isLoading: boolean;
   error: string;
+  role: string | null;
 }
 
 export function useCurrentUserEmployeeCheckPermission(clientUser: any, companyId: string, permissionTag: string): UsePermissionResult {
@@ -17,6 +17,7 @@ export function useCurrentUserEmployeeCheckPermission(clientUser: any, companyId
     const [isPermissionAvailable, setIsPermissionAvailable] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const [role, setRole] = useState<string | null>(null);
 
     useEffect(() => {
         const checkPermissions = async () => {
@@ -27,14 +28,16 @@ export function useCurrentUserEmployeeCheckPermission(clientUser: any, companyId
             }
 
             try {
-                const permissionsResponse: JsonValue | Response = await fetchUserEmployeePermissions(clientUser, companyId);
+                const res = await fetchUserEmployeePermissions(clientUser, companyId);
 
-                if (typeof permissionsResponse === 'object' && permissionsResponse !== null && !('status' in permissionsResponse)) {
-                    const permissionsData = permissionsResponse as JsonObject;
+                if (res.success) {
+                    const permissionsData = res.permissions as JsonObject;
                     setPermissions(permissionsData);
+                    setRole(res.role);
                     setIsPermissionAvailable(!!permissionsData?.[permissionTag]);
                 } else {
-                    setError('Invalid response type for permissions');
+                    setError(res.error);
+                    setPermissions(null);
                 }
             } catch (err) {
                 setError('Failed to fetch company or permissions');
@@ -47,5 +50,5 @@ export function useCurrentUserEmployeeCheckPermission(clientUser: any, companyId
         checkPermissions();
     }, [clientUser, companyId, permissionTag]);
 
-    return { permissions, isPermissionAvailable, isLoading, error };
+    return { permissions, isPermissionAvailable, isLoading, error, role };
 }

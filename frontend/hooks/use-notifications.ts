@@ -9,6 +9,7 @@ interface UseNotificationsOptions {
   limit?: number;
   unreadOnly?: boolean;
   refreshInterval?: number;
+  enabled?: boolean;
 }
 
 interface NotificationsResponse {
@@ -18,11 +19,14 @@ interface NotificationsResponse {
 }
 
 export function useNotifications(options: UseNotificationsOptions = {}) {
-  const { limit = 50, unreadOnly = false, refreshInterval = 30000 } = options;
+  const { limit = 50, unreadOnly = false, refreshInterval = 30000, enabled = true } = options;
 
   const queryParams = new URLSearchParams();
   if (limit) queryParams.set("limit", String(limit));
   if (unreadOnly) queryParams.set("unread", "true");
+
+  // Only fetch if enabled (user is logged in)
+  const swrKey = enabled ? `/api/notifications?${queryParams.toString()}` : null;
 
   const {
     data,
@@ -30,7 +34,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     isLoading,
     mutate,
   } = useSWR<NotificationsResponse>(
-    `/api/notifications?${queryParams.toString()}`,
+    swrKey,
     fetcher,
     {
       refreshInterval,

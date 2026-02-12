@@ -8,25 +8,19 @@ const P_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY;
 const P_SECRET = process.env.PUSHER_SECRET;
 const P_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
 
-if (!P_APP_ID || !P_KEY || !P_SECRET || !P_CLUSTER){
-
-if (!P_APP_ID){
-    console.error(`${LOG_PREFIX} Pusher environment variables not loaded. Missing PUSHER_APP_ID`);
+// Log Pusher config status ONCE
+const globalForPusherLog = globalThis as unknown as { __pusherConfigLogged?: boolean }
+if (!globalForPusherLog.__pusherConfigLogged) {
+  globalForPusherLog.__pusherConfigLogged = true
+  if (!P_APP_ID || !P_KEY || !P_SECRET || !P_CLUSTER) {
+    if (!P_APP_ID) console.error(`${LOG_PREFIX} Missing PUSHER_APP_ID`);
+    if (!P_KEY) console.error(`${LOG_PREFIX} Missing PUSHER_KEY`);
+    if (!P_SECRET) console.error(`${LOG_PREFIX} Missing PUSHER_SECRET`);
+    if (!P_CLUSTER) console.error(`${LOG_PREFIX} Missing PUSHER_CLUSTER`);
+  } else {
+    console.log(`${LOG_PREFIX} Pusher configured.`);
+  }
 }
-if (!P_KEY){
-    console.error(`${LOG_PREFIX} Pusher environment variables not loaded. Missing PUSHER_KEY`);
-}
-if (!P_SECRET){
-    console.error(`${LOG_PREFIX} Pusher environment variables not loaded. Missing PUSHER_SECRET`);
-}
-if (!P_CLUSTER){
-    console.error(`${LOG_PREFIX} Pusher environment variables not loaded. Missing PUSHER_CLUSTER`);
-}
-
-    console.error(`${LOG_PREFIX} Pusher environment variables not loaded. Missing PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET, PUSHER_CLUSTER`);
-}
-
-console.log(`${LOG_PREFIX} Pusher environment variables loaded successfully.`);
 
 const pusherServer = new PusherServer({
     appId: P_APP_ID!!,

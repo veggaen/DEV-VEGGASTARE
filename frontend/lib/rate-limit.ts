@@ -53,6 +53,12 @@ export const RATE_LIMITS = {
 
   // Gate/brute-force — very strict
   gate: { maxRequests: 5, windowMs: 60_000 },
+
+  // Wallet operations (challenge, verify, delete) — strict per-user
+  wallet: { maxRequests: 6, windowMs: 60_000 },
+
+  // Trade operations — moderate per-user
+  trade: { maxRequests: 15, windowMs: 60_000 },
 } as const;
 
 export type RateLimitType = keyof typeof RATE_LIMITS;

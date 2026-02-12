@@ -1,3 +1,5 @@
+> **Status: HISTORICAL** — This agent prompt was used to build the advanced poll system. The work described here has been executed. Kept for audit trail and reference.
+
 # AGENT PROMPT: Poll System Upgrade + First Poll Creation
 
 ## CONTEXT

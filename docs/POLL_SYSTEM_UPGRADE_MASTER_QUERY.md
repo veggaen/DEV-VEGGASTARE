@@ -1,3 +1,5 @@
+> **Status: HISTORICAL** — This spec was used to build the advanced poll system. The schema, API routes, and UI components described here have been implemented. Kept for audit trail and reference.
+
 # 🚀 POLL SYSTEM UPGRADE - MASTER QUERY FOR AGENT
 
 > **Context:** Veggat Platform (https://www.veggat.com/) - Secure premium digital marketplace with Web3 + realtime stack

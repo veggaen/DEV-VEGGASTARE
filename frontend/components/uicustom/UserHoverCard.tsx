@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useFollowState } from '@/hooks/useFollowState';
-import { CalendarDays, Users } from 'lucide-react';
+import { CalendarDays, Users, ArrowLeftRight, RefreshCw } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { useAccount, useChainId } from 'wagmi';
+import { toast } from 'sonner';
 
 interface UserHoverCardProps {
   userId: string;
@@ -42,6 +45,9 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
   align = 'start',
 }) => {
   const currentUser = useCurrentUser();
+  const router = useRouter();
+  const { isConnected: walletConnected } = useAccount();
+  const chainId = useChainId();
   const followState = useFollowState();
   const [userPreview, setUserPreview] = useState<UserPreview | null>(null);
   const [loading, setLoading] = useState(false);
@@ -155,14 +161,54 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
                   </Avatar>
                 </Link>
                 {!isOwnProfile && currentUser && (
-                  <Button
-                    size="sm"
-                    variant={isFollowing ? 'outline' : 'default'}
-                    onClick={handleFollow}
-                    className="rounded-full mb-1 relative z-30"
-                  >
-                    {isFollowing ? 'Following' : 'Follow'}
-                  </Button>
+                  <div className="flex items-center gap-1.5 mb-1 relative z-30">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!walletConnected) {
+                          toast.info('Connect your wallet to start a trade', {
+                            description: 'Enable Web3 mode in settings and connect a wallet first.',
+                            action: {
+                              label: 'Open Settings',
+                              onClick: () => router.push('/settings?section=wallet'),
+                            },
+                          });
+                          return;
+                        }
+                        try {
+                          const res = await fetch('/api/trades', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ responderId: userId, chainId }),
+                          });
+                          if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.error ?? 'Failed to create trade');
+                          }
+                          const trade = await res.json();
+                          router.push(`/trade/${trade.id}`);
+                        } catch (err: unknown) {
+                          toast.error(err instanceof Error ? err.message : 'Trade failed');
+                        }
+                      }}
+                      className="rounded-full h-8 px-2.5"
+                      title="Start trade"
+                    >
+                      <ArrowLeftRight className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={isFollowing ? 'outline' : 'default'}
+                      onClick={handleFollow}
+                      className="rounded-full"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isFollowing ? '' : 'animate-none'}`} />
+                      {isFollowing ? 'Synced' : 'Sync'}
+                    </Button>
+                  </div>
                 )}
               </div>
 

@@ -21,6 +21,7 @@ export const PollQuestionTypeSchema = z.enum([
   'NESTED',
   'RANKING',       // Drag-to-reorder options
   'UI_ARRANGE',    // Drag boxes to arrange UI elements
+  'SHAPE_MATCH',   // Drag shapes to matching targets
   'IMAGE_UPLOAD',  // Upload/paste images
   'TREE',          // Branching questions based on selection
 ]);
@@ -81,6 +82,12 @@ export const PollQuestionSchema = z.object({
   allowImages: z.boolean(),
   allowComments: z.boolean(),
   sliderConfig: SliderConfigSchema.optional().nullable(),
+  correctAnswer: z.union([z.string(), z.array(z.string())]).optional().nullable(),
+  explanation: z.string().max(4000).optional().nullable(),
+  wrongExplanation: z.string().max(4000).optional().nullable(),
+  deepExplanation: z.string().max(6000).optional().nullable(),
+  commitRequired: z.boolean().optional(),
+  trickQuestion: z.boolean().optional(),
   options: z.array(PollQuestionOptionSchema).default([]),
   // Use z.any() for childQuestions to avoid circular reference issues
   childQuestions: z.array(z.any()).optional().default([]),
@@ -95,6 +102,17 @@ export const PollQuestionCreateSchema = z.object({
   allowImages: z.boolean().default(false),
   allowComments: z.boolean().default(false),
   sliderConfig: SliderConfigSchema.optional(),
+  correctAnswer: z.union([z.string(), z.array(z.string())]).optional(),
+  /** 0-based index of correct option for SINGLE_CHOICE (option IDs change on create, so use index) */
+  correctAnswerIndex: z.number().int().min(0).optional(),
+  /** 0-based indices for MULTI_CHOICE or RANKING (correct order for ranking) */
+  correctAnswerIndices: z.array(z.number().int().min(0)).optional(),
+  explanation: z.string().trim().max(4000).optional(),
+  wrongExplanation: z.string().trim().max(4000).optional(),
+  deepExplanation: z.string().trim().max(6000).optional(),
+  commitRequired: z.boolean().optional(),
+  trickQuestion: z.boolean().optional(),
+  shapeMatchPreset: z.enum(['basicShapes', 'outlineMatch', 'colorMatch', 'antiBot', 'advanced']).optional(),
   options: z.array(PollQuestionOptionCreateSchema).optional(),
   // Use z.any() to avoid circular reference
   childQuestions: z.array(z.any()).optional(),

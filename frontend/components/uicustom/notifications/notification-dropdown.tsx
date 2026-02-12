@@ -291,6 +291,7 @@ export function NotificationDropdown({
       <NotificationBell
         count={unreadCount}
         hasUnread={unreadCount > 0}
+        hasTradeRequest={notifications.some(n => !n.isRead && n.type === 'TRADE_REQUEST')}
         onClick={() => setIsOpen(!isOpen)}
         isOpen={isOpen}
       />

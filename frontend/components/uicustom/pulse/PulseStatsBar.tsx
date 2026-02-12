@@ -89,34 +89,30 @@ export function PulseStatsBar({ pulseId, initialStats }: PulseStatsBarProps) {
     }, [])
   );
 
-  const totalVibes = stats.messageCount - 1; // exclude root message
+  const totalVibes = Math.max(0, stats.messageCount - 1); // exclude root message
 
   return (
     <div className="flex items-center gap-5 text-sm text-muted-foreground border-y border-border/50 py-3 mb-4">
-      {stats.positivePulseCount > 0 && (
-        <span className="flex items-center gap-1.5 text-red-500 dark:text-red-400">
-          <PulseHeart size={16} filled />
-          {stats.positivePulseCount}
-        </span>
-      )}
-      {totalVibes > 0 && (
-        <span className="flex items-center gap-1.5">
-          <FiMessageCircle className="w-4 h-4" />
-          {totalVibes} {totalVibes === 1 ? 'vibe' : 'vibes'}
-        </span>
-      )}
-      {stats.repulseCount > 0 && (
-        <span className="flex items-center gap-1.5">
-          <FiRepeat className="w-4 h-4" />
-          {stats.repulseCount} repulses
-        </span>
-      )}
-      {stats.viewCount > 0 && (
-        <span className="flex items-center gap-1.5">
-          <FiEye className="w-4 h-4" />
-          {stats.viewCount.toLocaleString()} views
-        </span>
-      )}
+      {/* Heartbeats - always show */}
+      <span className={`flex items-center gap-1.5 ${stats.positivePulseCount > 0 ? 'text-red-500 dark:text-red-400' : ''}`}>
+        <PulseHeart size={16} filled={stats.positivePulseCount > 0} />
+        {stats.positivePulseCount}
+      </span>
+      {/* Vibes - always show */}
+      <span className="flex items-center gap-1.5">
+        <FiMessageCircle className="w-4 h-4" />
+        {totalVibes} {totalVibes === 1 ? 'vibe' : 'vibes'}
+      </span>
+      {/* Repulses - always show */}
+      <span className="flex items-center gap-1.5">
+        <FiRepeat className="w-4 h-4" />
+        {stats.repulseCount}
+      </span>
+      {/* Views - always show */}
+      <span className="flex items-center gap-1.5">
+        <FiEye className="w-4 h-4" />
+        {stats.viewCount.toLocaleString()}
+      </span>
       {stats.reachScore > 0 && (
         <span className="flex items-center gap-1.5" title={`Lifetime: ${Math.round(stats.reachScore)} • Momentum: ${Math.round(stats.reachMomentum ?? 0)}`}>
           <FiTrendingUp className="w-4 h-4 text-amber-500" />

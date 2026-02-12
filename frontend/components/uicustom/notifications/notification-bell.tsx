@@ -7,6 +7,7 @@ import { FiBell } from "react-icons/fi";
 interface NotificationBellProps {
   count?: number;
   hasUnread?: boolean;
+  hasTradeRequest?: boolean;
   onClick?: () => void;
   isOpen?: boolean;
   className?: string;
@@ -15,6 +16,7 @@ interface NotificationBellProps {
 export function NotificationBell({ 
   count = 0, 
   hasUnread = false,
+  hasTradeRequest = false,
   onClick,
   isOpen = false,
   className 
@@ -65,15 +67,22 @@ export function NotificationBell({
               "flex items-center justify-center",
               "min-w-4 h-4 px-1",
               "rounded-full",
-              "bg-emerald-500 text-white",
+              hasTradeRequest
+                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white animate-pulse"
+                : "bg-emerald-500 text-white",
               "text-[10px] font-bold"
             )}
           >
             {count > 0 ? displayCount : ""}
             
-            {/* Pulse ring for unread notifications */}
+            {/* Pulse ring — purple/pink for trade requests, emerald otherwise */}
             {hasUnread && (
-              <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-75" />
+              <span className={cn(
+                "absolute inset-0 rounded-full animate-ping opacity-75",
+                hasTradeRequest
+                  ? "bg-gradient-to-r from-purple-500 to-pink-500"
+                  : "bg-emerald-500"
+              )} />
             )}
           </motion.span>
         )}

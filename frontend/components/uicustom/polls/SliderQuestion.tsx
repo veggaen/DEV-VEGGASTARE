@@ -41,8 +41,10 @@ export function SliderQuestion({
 }: SliderQuestionProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [hoveredStep, setHoveredStep] = useState<number | null>(null);
+  const [justClickedButton, setJustClickedButton] = useState(false); // Prevent drag override after button click
   const trackRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const initialClickPos = useRef<{ x: number; y: number } | null>(null);
   
   // Use ref to track the latest value for event handlers (avoids stale closure bug)
   const latestValueRef = useRef(value);
@@ -221,6 +223,22 @@ export function SliderQuestion({
     if (!isDragging) return;
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
+      // Skip if we just clicked a button directly (prevent override)
+      // But allow dragging if user has moved mouse significantly (> 15px)
+      if (justClickedButton) {
+        if (initialClickPos.current) {
+          const dx = Math.abs(e.clientX - initialClickPos.current.x);
+          if (dx > 15) {
+            // User is actually dragging, allow it
+            setJustClickedButton(false);
+            initialClickPos.current = null;
+          } else {
+            return; // Still just a click, ignore mousemove
+          }
+        } else {
+          return;
+        }
+      }
       if (!trackRef.current) return;
       const stepIndex = getStepFromPosition(e.clientX);
       if (stepIndex !== null) {
@@ -234,10 +252,26 @@ export function SliderQuestion({
 
     const handleGlobalMouseUp = () => {
       setIsDragging(false);
+      setJustClickedButton(false);
+      initialClickPos.current = null;
     };
 
     const handleGlobalTouchMove = (e: TouchEvent) => {
       if (!trackRef.current || e.touches.length === 0) return;
+      
+      // Check if user has moved enough to start dragging
+      if (justClickedButton && initialClickPos.current && e.touches[0]) {
+        const dx = Math.abs(e.touches[0].clientX - initialClickPos.current.x);
+        if (dx > 10) {
+          setJustClickedButton(false);
+          initialClickPos.current = null;
+        } else {
+          return; // Not enough movement yet
+        }
+      } else if (justClickedButton) {
+        return;
+      }
+      
       e.preventDefault(); // Prevent scrolling
       const stepIndex = getStepFromPosition(e.touches[0].clientX);
       if (stepIndex !== null) {
@@ -250,6 +284,8 @@ export function SliderQuestion({
 
     const handleGlobalTouchEnd = () => {
       setIsDragging(false);
+      setJustClickedButton(false);
+      initialClickPos.current = null;
     };
 
     // Add global listeners
@@ -264,7 +300,7 @@ export function SliderQuestion({
       window.removeEventListener('touchmove', handleGlobalTouchMove);
       window.removeEventListener('touchend', handleGlobalTouchEnd);
     };
-  }, [isDragging, getStepFromPosition, minValue, step, selectStep]);
+  }, [isDragging, justClickedButton, getStepFromPosition, minValue, step, selectStep]);
 
   // Calculate progress percentage
   const progressPercent = currentStepIndex !== null
@@ -309,42 +345,42 @@ export function SliderQuestion({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          onMouseDown={() => !disabled && setIsDragging(true)}
-          onMouseMove={(e) => {
-            if (isDragging && !disabled) {
-              const stepIndex = getStepFromPosition(e.clientX);
-              if (stepIndex !== null) {
-                const newValue = minValue + stepIndex * step;
-                if (newValue !== latestValueRef.current) {
-                  selectStep(stepIndex);
-                }
-              }
+          onMouseDown={(e) => {
+            if (disabled) return;
+            initialClickPos.current = { x: e.clientX, y: e.clientY };
+            setIsDragging(true);
+          }}
+          onMouseUp={() => {
+            setIsDragging(false);
+            setJustClickedButton(false);
+            initialClickPos.current = null;
+          }}
+          onMouseLeave={() => {
+            if (isDragging) {
+              // Don't stop dragging on leave - global handler takes over
             }
           }}
-          onMouseUp={() => setIsDragging(false)}
-          onMouseLeave={() => isDragging && setIsDragging(false)}
         />
 
         {/* Background Track - extends from center of first to center of last circle */}
-        <div className="absolute top-1/2 left-[calc(0.5rem+20px)] right-[calc(0.5rem+20px)] h-2 -translate-y-1/2 bg-muted dark:bg-muted/60 rounded-full pointer-events-none" />
-
-        {/* Progress Track - starts from center of first circle */}
-        <motion.div
-          className={cn(
-            "absolute top-1/2 left-[calc(0.5rem+20px)] h-2 -translate-y-1/2 rounded-full pointer-events-none origin-left",
-            colorScheme === "reach" ? "bg-gradient-to-r from-red-500 via-yellow-500 to-emerald-500" : "bg-primary"
-          )}
-          initial={false}
-          animate={{ 
-            // Width is percentage of the distance between first and last circle centers
-            width: `calc(${progressPercent}% * (100% - 0.5rem - 0.5rem - 40px) / 100%)`
-          }}
-          transition={{ 
-            type: "spring", 
-            stiffness: isDragging ? 500 : 300, 
-            damping: isDragging ? 40 : 30 
-          }}
-        />
+        <div className="absolute top-1/2 left-[calc(0.5rem+20px)] right-[calc(0.5rem+20px)] h-2 -translate-y-1/2 bg-zinc-700/60 rounded-full pointer-events-none">
+          {/* Progress Track - inside the background track for accurate percentage */}
+          <motion.div
+            className={cn(
+              "absolute top-0 left-0 h-full rounded-full",
+              colorScheme === "reach" ? "bg-gradient-to-r from-red-500 via-yellow-500 to-emerald-500" : "bg-gradient-to-r from-violet-600 to-violet-400"
+            )}
+            initial={false}
+            animate={{ 
+              width: `${progressPercent}%`
+            }}
+            transition={{ 
+              type: "spring", 
+              stiffness: isDragging ? 500 : 300, 
+              damping: isDragging ? 40 : 30 
+            }}
+          />
+        </div>
 
         {/* Step Indicators */}
         <div className="relative flex justify-between px-2 pointer-events-none">
@@ -382,12 +418,20 @@ export function SliderQuestion({
                   onMouseDown={(e) => {
                     if (disabled) return;
                     e.preventDefault();
+                    e.stopPropagation(); // Prevent track handler from firing
                     selectStep(index); // Select this step immediately
-                    setIsDragging(true); // Start drag mode
+                    setJustClickedButton(true); // Prevent mousemove from overriding
+                    initialClickPos.current = { x: e.clientX, y: e.clientY }; // Track initial position for drag detection
+                    setIsDragging(true); // Start drag mode for continued dragging
                   }}
                   onTouchStart={(e) => {
                     if (disabled) return;
+                    e.stopPropagation();
                     selectStep(index);
+                    setJustClickedButton(true);
+                    if (e.touches[0]) {
+                      initialClickPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    }
                     setIsDragging(true);
                   }}
                   onMouseEnter={() => setHoveredStep(index)}
@@ -401,14 +445,13 @@ export function SliderQuestion({
                     // Smoother transitions for colors during drag
                     "transition-[border-color,background-color,color] duration-300 ease-out",
                     isSelected
-                      ? "border-primary bg-primary text-primary-foreground shadow-lg z-10"
+                      ? "border-violet-600 bg-violet-600 text-white shadow-lg z-10 [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]"
                       : isActive
                       ? cn(
-                          "border-primary/60",
-                          getStepColor(index, true),
-                          "text-white dark:text-white"
+                          "border-violet-500/70 bg-violet-500/90",
+                          "text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.4)]"
                         )
-                      : "border-border dark:border-border/50 bg-background dark:bg-background hover:border-primary/50 text-muted-foreground",
+                      : "border-zinc-600 bg-zinc-800 hover:border-violet-500/50 text-zinc-300",
                     disabled && "pointer-events-none"
                   )}
                   whileHover={disabled ? {} : { scale: isSelected ? 1.25 : 1.1 }}

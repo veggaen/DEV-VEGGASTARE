@@ -38,7 +38,6 @@ export function DragToZone({
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeItem, setActiveItem] = useState<string | null>(null);
   const [hoveredZone, setHoveredZone] = useState<string | null>(null);
-  const [itemPositions, setItemPositions] = useState<Record<string, { x: number; y: number }>>({});
   const zoneRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Items not yet placed
@@ -135,7 +134,7 @@ export function DragToZone({
               </div>
 
               {/* Items in this zone */}
-              <div className="flex flex-wrap gap-2 justify-center">
+              <div className="flex flex-wrap gap-2 justify-center relative">
                 <AnimatePresence>
                   {zoneItems.map((item) => {
                     const isCorrect = showFeedback && isCorrectPlacement(item.id, zone.id);
@@ -152,14 +151,17 @@ export function DragToZone({
                               : "border-rose-500 bg-rose-500/10"
                             : "border-white/20 dark:border-white/10"
                         )}
+                        style={{
+                          zIndex: activeItem === item.id ? 9999 : 1,
+                        }}
                         initial={{ scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0, opacity: 0 }}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         drag
-                        dragConstraints={containerRef}
-                        dragElastic={0.1}
+                        dragSnapToOrigin
+                        dragMomentum={false}
                         onDragStart={() => setActiveItem(item.id)}
                         onDragEnd={(e, info) => {
                           setActiveItem(null);
@@ -173,6 +175,7 @@ export function DragToZone({
                             // Dropped outside any zone, remove placement
                             handleDrop(item.id, null);
                           }
+                          // If dropped back in same zone, dragSnapToOrigin handles the snap-back
                           setHoveredZone(null);
                         }}
                         layout
@@ -229,7 +232,7 @@ export function DragToZone({
           <p className="text-xs text-muted-foreground text-center mb-3">
             Items to categorize
           </p>
-          <div className="flex flex-wrap gap-3 justify-center">
+          <div className="flex flex-wrap gap-3 justify-center relative">
             {unplacedItems.map((item, idx) => (
               <motion.div
                 key={item.id}
@@ -238,16 +241,19 @@ export function DragToZone({
                   "bg-white/80 dark:bg-white/5 backdrop-blur-xl",
                   "border border-white/20 dark:border-white/10",
                   "shadow-lg shadow-black/5",
-                  activeItem === item.id && "scale-105 shadow-xl z-50"
+                  "relative"
                 )}
+                style={{
+                  zIndex: activeItem === item.id ? 9999 : 1,
+                }}
                 initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                animate={{ opacity: 1, y: 0, scale: activeItem === item.id ? 1.05 : 1 }}
                 transition={{ delay: idx * 0.05 }}
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 drag
-                dragConstraints={containerRef}
-                dragElastic={0.1}
+                dragSnapToOrigin
+                dragMomentum={false}
                 onDragStart={() => setActiveItem(item.id)}
                 onDragEnd={(e, info) => {
                   setActiveItem(null);
@@ -257,6 +263,7 @@ export function DragToZone({
                   }
                   setHoveredZone(null);
                 }}
+                layout
               >
                 <div className="flex items-center gap-2">
                   {item.icon && <span className="text-lg">{item.icon}</span>}

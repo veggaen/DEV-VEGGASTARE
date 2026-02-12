@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { motion, useReducedMotion } from "framer-motion";
-import WalletConnection from "../crypto-related/WalletAdapter"; // Your wallet UI
+import WalletConnection from "../crypto-related/WalletAdapter"; // Your wallet UI (legacy)
+import AppKitButton from "../crypto-related/AppKitButton"; // Polished AppKit wallet modal
 import NetworkSyncBridge from "@/components/crypto-related/NetworkSyncBridge";
 import { MyDialogbarNavigator } from "@/app/(protected)/_components/dialog-bar";
 import { useTheme } from "next-themes";
@@ -16,7 +17,7 @@ import { FaUser } from "react-icons/fa";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { TbHexagons } from "react-icons/tb";
-import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiSliders, FiShield, FiBell, FiLock, FiDollarSign, FiSun, FiMoon, FiMonitor, FiTrash2, FiEye, FiEyeOff, FiBellOff, FiVolume2, FiVolumeX, FiKey, FiCamera, FiEdit2, FiExternalLink } from "react-icons/fi";
+import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiSliders, FiShield, FiBell, FiLock, FiDollarSign, FiSun, FiMoon, FiMonitor, FiTrash2, FiEye, FiEyeOff, FiBellOff, FiVolume2, FiVolumeX, FiKey, FiCamera, FiEdit2, FiExternalLink, FiCopy, FiLink, FiRefreshCw, FiCheck, FiPackage } from "react-icons/fi";
 import {
 	Sheet,
 	SheetContent,
@@ -35,6 +36,10 @@ import { useUiPreferences } from "@/components/providers/ui-preferences";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import usePusher from "@/hooks/usePusher";
 import { useCallback } from "react";
+import { MiniCartDropdown } from "@/components/uicustom/mini-cart-dropdown";
+import { ChatLiteDropdown } from "@/components/uicustom/chat-lite-dropdown";
+import { useCleanLogout } from "@/hooks/use-clean-logout";
+import { useAccount, useChainId, useChains, useSwitchChain } from "wagmi";
 
 type NavLinkProps = {
 	href: string;
@@ -75,7 +80,7 @@ const MyTopBar = () => {
 		isLoading: notificationsLoading,
 		markAsRead,
 		markAllAsRead 
-	} = useNotifications({ refreshInterval: 30000 });
+	} = useNotifications({ refreshInterval: 30000, enabled: !!clientUser });
 
 	// Fetch cart count for logged-in users
 	const { data: cartData, mutate: mutateCart } = useSWR(
@@ -113,6 +118,7 @@ const MyTopBar = () => {
 	const [web3ModeEnabled, setWeb3ModeEnabled] = useState(false);
 	const [walletRefreshToken, setWalletRefreshToken] = useState(0);
 	const [menuPane, setMenuPane] = useState<"nav" | "settings">("nav");
+	const cleanLogout = useCleanLogout();
 	const collapseForProducts = pathname.startsWith("/products") && isMobile && !productsTopbarVisible;
 	const menuSwipeRef = useRef<{ x: number; y: number; t: number } | null>(null);
 	const onMenuTouchStart = (e: React.TouchEvent) => {
@@ -475,7 +481,9 @@ const MyTopBar = () => {
 											onMarkAllRead={markAllAsRead}
 											onNotificationClick={(notif) => {
 												// Navigate based on notification type
-												if (notif.conversationId) {
+												if (notif.type === 'TRADE_REQUEST' && notif.metadata?.tradeId) {
+													window.location.href = `/trade/${notif.metadata.tradeId}`;
+												} else if (notif.conversationId) {
 													window.location.href = `/conversations/${notif.conversationId}`;
 												} else if (notif.pulseId) {
 													window.location.href = `/pulse/${notif.pulseId}`;
@@ -486,38 +494,15 @@ const MyTopBar = () => {
 											condensed
 										/>
 										
-										<TooltipProvider delayDuration={300}>
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<Link
-														href="/cart"
-														className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-													>
-														<FiShoppingCart className="h-[18px] w-[18px]" />
-														{cartCount > 0 && (
-															<span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white">
-																{cartCount > 99 ? "99+" : cartCount}
-															</span>
-														)}
-													</Link>
-												</TooltipTrigger>
-												<TooltipContent side="bottom">
-													{cartCount > 0 ? `${cartCount} item${cartCount !== 1 ? 's' : ''} in basket` : 'Basket'}
-												</TooltipContent>
-											</Tooltip>
+										{/* Mini Cart Dropdown */}
+										<MiniCartDropdown
+											userId={clientUser?.id}
+											cartCount={cartCount}
+											onCartUpdate={() => mutateCart()}
+										/>
 
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<Link
-														href="/conversations"
-														className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-													>
-														<FiMessageSquare className="h-[18px] w-[18px]" />
-													</Link>
-												</TooltipTrigger>
-												<TooltipContent side="bottom">Messages</TooltipContent>
-											</Tooltip>
-										</TooltipProvider>
+										{/* Chat lite dropdown — replaces plain Messages link */}
+										<ChatLiteDropdown />
 									</>
 								)}
 							</div>
@@ -675,7 +660,8 @@ const MyTopBar = () => {
 											{/* Guest wallet connection */}
 											{!clientUser && (
 												<div className="p-4">
-													<WalletConnection mode="dialog" />
+													{/* AppKit provides polished modal with QR codes, social logins */}
+													<AppKitButton size="md" />
 												</div>
 											)}
 										</div>
@@ -685,7 +671,7 @@ const MyTopBar = () => {
 											{clientUser ? (
 												<button
 													type="button"
-													onClick={() => signOut()}
+													onClick={() => cleanLogout()}
 													className="w-full rounded-xl bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
 												>
 													Sign out
@@ -735,6 +721,86 @@ const MyTopBar = () => {
 		</>
 	);
 };
+
+// Compact wallet info shown inside the sidebar Sheet wallet section
+function SidebarWalletInfo() {
+	const { address, isConnected } = useAccount();
+	const activeChainId = useChainId();
+	const chains = useChains();
+	const { switchChain, status: switchStatus } = useSwitchChain();
+	const [copied, setCopied] = useState(false);
+
+	if (!isConnected || !address) return null;
+
+	const trimmed = `${address.slice(0, 6)}…${address.slice(-4)}`;
+	const activeChain = chains.find((c) => c.id === activeChainId);
+
+	const copyAddress = async () => {
+		try {
+			await navigator.clipboard.writeText(address);
+			setCopied(true);
+			toast.success("Address copied");
+			setTimeout(() => setCopied(false), 2000);
+		} catch {
+			toast.error("Failed to copy");
+		}
+	};
+
+	return (
+		<div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-2.5 space-y-2">
+			{/* Address row */}
+			<div className="flex items-center justify-between gap-2">
+				<div className="flex items-center gap-1.5 min-w-0">
+					<span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+					<span className="text-xs font-mono text-zinc-700 dark:text-zinc-300 truncate" title={address}>
+						{trimmed}
+					</span>
+				</div>
+				<button
+					type="button"
+					onClick={copyAddress}
+					className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors shrink-0"
+					title="Copy full address"
+				>
+					{copied ? (
+						<FiCheck className="h-3.5 w-3.5 text-emerald-500" />
+					) : (
+						<FiCopy className="h-3.5 w-3.5 text-zinc-400" />
+					)}
+				</button>
+			</div>
+
+			{/* Network row */}
+			<div className="flex items-center justify-between gap-2">
+				<span className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+					Network
+				</span>
+				<select
+					className="text-xs rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-1.5 py-0.5 text-zinc-700 dark:text-zinc-300 max-w-[140px]"
+					value={activeChainId ?? ""}
+					onChange={(e) => {
+						const id = Number(e.target.value);
+						if (id !== activeChainId) switchChain({ chainId: id });
+					}}
+					disabled={switchStatus === "pending"}
+				>
+					{chains.map((c) => (
+						<option key={c.id} value={c.id}>
+							{c.name}{switchStatus === "pending" && c.id !== activeChainId ? " …" : ""}
+						</option>
+					))}
+				</select>
+			</div>
+
+			{/* Current chain indicator */}
+			{activeChain && (
+				<div className="text-[10px] text-zinc-400 dark:text-zinc-500 text-right">
+					Chain ID: {activeChain.id}
+				</div>
+			)}
+		</div>
+	);
+}
 
 // Settings Pane Lite Component with Hover Dropdowns
 function SettingsPaneLite({
@@ -870,7 +936,7 @@ function SettingsPaneLite({
 							Wallet
 						</div>
 						<Link
-							href="/settings?section=appearance"
+							href="/settings?section=wallet"
 							onClick={() => setMenuOpen(false)}
 							className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
 						>
@@ -878,6 +944,25 @@ function SettingsPaneLite({
 						</Link>
 					</div>
 					<div className="space-y-2">
+						{/* AppKit button for polished wallet modal with QR codes & social logins */}
+						<div className="flex justify-center py-1">
+							<AppKitButton size="md" />
+						</div>
+
+						{/* Connected wallet info: address, copy, network */}
+						<SidebarWalletInfo />
+
+						{/* Inventory shortcut */}
+						<Link
+							href="/dashboard/inventory"
+							onClick={() => setMenuOpen(false)}
+							className="flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+						>
+							<FiPackage className="h-3.5 w-3.5 text-emerald-500" />
+							<span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Token Inventory</span>
+							<span className="ml-auto text-[10px] text-zinc-400">→</span>
+						</Link>
+
 						<EvmWalletVerify
 							enabled={effectiveWeb3ModeEnabled}
 							onVerified={() => setWalletRefreshToken((t) => t + 1)}

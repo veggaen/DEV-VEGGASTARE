@@ -250,32 +250,39 @@ export default function DevBanner() {
           initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0, bottom: 16 + footerLiftPx + cookieLiftPx }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="fixed inset-x-0 z-[80] px-4"
         >
-          <div ref={ref} className="mx-auto max-w-sm">
-            <div className="flex items-center gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 shadow-lg">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
-                <Construction className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  Under development
-                </p>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-500">
-                  <Link href="/info" className="underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300">
-                    Learn more
+          <div ref={ref} className="mx-auto max-w-xs">
+            <div className="relative overflow-hidden rounded-2xl border border-amber-200/50 dark:border-amber-500/20 bg-gradient-to-br from-amber-50 via-white to-orange-50 dark:from-zinc-900 dark:via-zinc-950 dark:to-amber-950/30 shadow-lg shadow-amber-500/10 dark:shadow-amber-500/5 backdrop-blur-sm">
+              {/* Subtle glow effect */}
+              <div className="absolute -top-10 -left-10 h-20 w-20 rounded-full bg-amber-400/20 blur-2xl dark:bg-amber-500/10" />
+              <div className="absolute -bottom-10 -right-10 h-20 w-20 rounded-full bg-orange-400/15 blur-2xl dark:bg-orange-500/10" />
+              
+              <div className="relative flex items-center gap-3 px-4 py-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-md shadow-amber-500/25">
+                  <Construction className="h-4 w-4 text-white" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                    Under Development
+                  </p>
+                  <Link 
+                    href="/info" 
+                    className="text-xs text-amber-700/70 dark:text-amber-300/60 hover:text-amber-800 dark:hover:text-amber-200 transition-colors"
+                  >
+                    Learn more →
                   </Link>
-                </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={dismiss}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100/80 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 transition-all hover:bg-amber-200 dark:hover:bg-amber-800/40 hover:scale-105 active:scale-95"
+                  aria-label="Dismiss"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={dismiss}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300"
-                aria-label="Dismiss"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
             </div>
           </div>
         </motion.div>

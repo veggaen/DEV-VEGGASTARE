@@ -69,6 +69,8 @@ export async function GET(request: Request) {
 }
 
 // POST /api/notifications - Create a notification (internal use)
+// SECURITY: actorId is ALWAYS set to the authenticated user to prevent IDOR.
+// Only ADMIN users can create notifications for other users.
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const {
+    let {
       userId,
       type,
       title,
@@ -91,6 +93,12 @@ export async function POST(request: Request) {
       groupKey,
       metadata,
     } = body;
+
+    // SECURITY: Prevent IDOR — non-admin users can only create notifications where
+    // actorId is themselves. They cannot impersonate other users as notification senders.
+    if ((session.user as any).role !== 'ADMIN') {
+      actorId = session.user.id;
+    }
 
     // Check if user has muted the actor
     if (actorId) {
