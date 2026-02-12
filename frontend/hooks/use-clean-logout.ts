@@ -7,6 +7,13 @@ import { useWallet as useSolWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 
 /**
+ * Module-level flag so WalletDisconnectWatcher (in Web3Providers) can
+ * distinguish "our own logout flow disconnected the wallet" from
+ * "user disconnected the wallet manually".
+ */
+export let cleanLogoutInProgress = false;
+
+/**
  * useCleanLogout — Disconnects all wallets, clears local crypto state,
  * then signs out via NextAuth. Prevents double-fire.
  */
@@ -18,6 +25,7 @@ export function useCleanLogout() {
   const cleanLogout = useCallback(async () => {
     if (busyRef.current) return;
     busyRef.current = true;
+    cleanLogoutInProgress = true;
 
     try {
       // 1. Disconnect EVM wallet (wagmi + AppKit)
@@ -59,6 +67,7 @@ export function useCleanLogout() {
       }
     } finally {
       busyRef.current = false;
+      cleanLogoutInProgress = false;
     }
   }, [evmDisconnect, solDisconnect, solConnected]);
 

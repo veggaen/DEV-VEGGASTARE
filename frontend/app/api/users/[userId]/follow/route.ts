@@ -5,6 +5,7 @@ import {
   UserFollowMutationResponseSchema,
   UserFollowStatusResponseSchema,
 } from '@/lib/types/users';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -74,6 +75,10 @@ export async function POST(
   if (!session?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // Rate limit
+  const rl = await checkRateLimit(getClientIdentifier(request, session.id), 'social');
+  if (!rl.success) return rateLimitedResponse(rl);
 
   const { userId } = await context.params;
 
@@ -146,6 +151,10 @@ export async function DELETE(
   if (!session?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // Rate limit
+  const rl = await checkRateLimit(getClientIdentifier(request, session.id), 'social');
+  if (!rl.success) return rateLimitedResponse(rl);
 
   const { userId } = await context.params;
 

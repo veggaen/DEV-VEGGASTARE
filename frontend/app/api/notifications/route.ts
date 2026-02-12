@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { dbPrisma as db } from "@/lib/db";
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 // GET /api/notifications - Fetch user notifications
 export async function GET(request: Request) {
@@ -77,6 +78,10 @@ export async function POST(request: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Rate limit
+    const rl = await checkRateLimit(getClientIdentifier(request, session.user.id), 'write');
+    if (!rl.success) return rateLimitedResponse(rl);
 
     const body = await request.json();
     let {

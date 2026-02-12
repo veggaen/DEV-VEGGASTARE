@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { parseJsonOrError, parseQueryOrError } from '@/lib/api-validate';
 import { z } from 'zod';
 import { MessageResponseSchema, MessagesGetResponseSchema } from '@/lib/types/messages';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 const LOG_PREFIX = '[frontend/app/api/messages/route.ts]'
 
@@ -36,6 +37,10 @@ export async function POST(req: Request) {
   if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
+
+  // Rate limit — prevent message spam
+  const rl = await checkRateLimit(getClientIdentifier(req, session.id), 'message');
+  if (!rl.success) return rateLimitedResponse(rl);
 
   const userId = session.id;
   const userRole = session.role;

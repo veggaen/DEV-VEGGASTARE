@@ -5,6 +5,7 @@ import {
   FriendRequestCreateResponseSchema,
   FriendRequestsListResponseSchema,
 } from '@/lib/types/friend-requests';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -100,6 +101,10 @@ export async function POST(request: NextRequest) {
   if (!session?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // Rate limit
+  const rl = await checkRateLimit(getClientIdentifier(request, session.id), 'social');
+  if (!rl.success) return rateLimitedResponse(rl);
 
   try {
     const { userId } = await request.json();

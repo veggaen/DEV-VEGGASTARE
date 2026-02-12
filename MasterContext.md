@@ -35,6 +35,8 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 11. **Payment webhooks must verify provider signatures in production.** Vipps/Klarna/PayPal each send signature headers. See `app/api/payments/webhook/[provider]/route.ts`.
 12. **GATE_PASSWORD must be set via env var.** No hardcoded fallback — set `GATE_PASSWORD` in `.env`. To disable the gate, set `GATE_STATUS=false`.
 13. **Database backups must never be committed to git.** The `.gitignore` excludes `**/database-backups/`. Never override this.
+14. **Web3 mode toggle does NOT require email verification.** Toggling `web3ModeEnabled` is a simple PATCH to `/api/settings/web3-mode`. Email verification is only required for **wallet linking** (binding a wallet address to the user account).
+15. **Unified sign-out: Web2 ↔ Web3.** `useCleanLogout` handles Web2→Web3 (disconnects wallets on sign-out). `WalletDisconnectWatcher` in `Web3Providers.tsx` handles Web3→Web2 (wallet disconnect triggers `signOut`). A `cleanLogoutInProgress` flag in `use-clean-logout.ts` prevents loops.
 
 ---
 
@@ -62,7 +64,9 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 | **Providers** | `components/providers/` | Stable | React context providers (theme, session, wagmi) |
 | **Hooks** | `hooks/` | Stable | Custom React hooks |
 | **Lib** | `lib/` | Stable | Utilities, constants, view-strength calc |
-| **Email (Resend)** | `lib/mail.ts` | Stable | All transactional emails: 2FA, password reset, verification, security actions (Web3 toggle), wallet link/unlink. Uses Resend SDK with verified `veggat.com` domain. Env: `RESEND_API_KEY` |
+| **Email (Resend)** | `lib/mail.ts` | Stable | Transactional emails: 2FA, password reset, verification, wallet link/unlink. Uses Resend SDK with verified `veggat.com` domain. Env: `RESEND_API_KEY` |
+| **Web3 Providers** | `components/crypto-related/Web3Providers.tsx` | Stable | Root Web3 provider tree (wagmi, AppKit, Solana). Includes `WalletDisconnectWatcher` for unified session sync |
+| **Clean Logout** | `hooks/use-clean-logout.ts` | Stable | Unified sign-out: disconnects EVM + Solana wallets, clears stale localStorage flags, then NextAuth `signOut()` |
 | **Schemas** | `schemas/` | Stable | Zod validation schemas |
 | **Prisma Schema** | `prisma/schema.prisma` | Active | Database models (2000+ lines) |
 
@@ -202,10 +206,22 @@ These tags can be extracted by the aggregation script at `scripts/aggregate-cont
 | `myPublicImages` file bucket had no type/size restrictions | HIGH | Added 10MB limit + image-only MIME types |
 | Payment webhook had no signature verification warning | HIGH | Added TODO + IP logging (full verification needed before real payments) |
 
+### 2026-02-12 — Web3 UX + Rate Limiting Hardening
+
+**Fixed:**
+| Issue | Fix |
+|-------|-----|
+| Web3 mode toggle required email verification (excessive friction) | Now uses simple PATCH `/api/settings/web3-mode` with Zod + rate limit. Email only for wallet linking. |
+| No unified sign-out between Web2 ↔ Web3 | Added `WalletDisconnectWatcher` in `Web3Providers.tsx` + `cleanLogoutInProgress` flag in `use-clean-logout.ts` |
+| Notifications route lacked rate limiting | Added `checkRateLimit('write')` to POST handler |
+| Friend-requests route lacked rate limiting | Added `checkRateLimit('social')` to POST handler |
+| Follow route lacked rate limiting | Added `checkRateLimit('social')` to POST and DELETE handlers |
+| Messages route lacked rate limiting | Added `checkRateLimit('message')` to POST handler |
+
 **Known remaining issues (lower priority):**
 | Issue | Severity | Status |
 |-------|----------|--------|
-| ~130 API routes lack rate limiting | HIGH | `lib/rate-limit.ts` exists, needs broader adoption |
+| ~120 API routes still lack rate limiting | HIGH | `lib/rate-limit.ts` exists, 6 more routes added this session |
 | ~15 routes use raw `request.json()` without Zod validation | MEDIUM | Should add Zod schemas |
 | Trade confirm has potential race condition (no DB transaction) | MEDIUM | Should use `$transaction` |
 | No CSRF token on API routes (mitigated by SameSite cookies) | MEDIUM | Consider Origin header check |

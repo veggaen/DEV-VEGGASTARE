@@ -1583,19 +1583,24 @@ function Web3ModeToggle() {
 
   const handleToggle = async (checked: boolean) => {
     if (user) {
-      // Logged in: update server
+      // Logged in: toggle directly (no email verification needed)
+      // Email verification is only required for wallet LINKING, not mode toggle
       setIsRequesting(true);
       try {
-        const { MyRequestWeb3ModeSecurityAction } = await import("@/actions/security-action");
-        const data = await MyRequestWeb3ModeSecurityAction(checked);
-        if (data?.error) {
-          toast.error(data.error, { position: "top-center" });
+        const res = await fetch('/api/settings/web3-mode', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: checked }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          toast.error(data.error || 'Failed to update Web3 mode', { position: "top-center" });
           return;
         }
-        if (data?.success) {
-          toast.success(data.success, { position: "top-center" });
-          setWeb3ModeEnabled(checked);
-        }
+        setWeb3ModeEnabled(checked);
+        // Sync to localStorage as well
+        try { window.localStorage.setItem("veggastare:web3ModeEnabled", String(checked)); } catch {}
+        toast.success(checked ? 'Web3 mode enabled!' : 'Web3 mode disabled.', { position: "top-center" });
       } catch {
         toast.error("Something went wrong!", { position: "top-center" });
       } finally {
