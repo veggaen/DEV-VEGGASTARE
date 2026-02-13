@@ -341,6 +341,7 @@ const FeedPage: React.FC = () => {
 
   // Poll builder modal state
   const [showPollBuilder, setShowPollBuilder] = useState(false);
+  const [aiGenerateOpen, setAiGenerateOpen] = useState(false);
   const [showPollImport, setShowPollImport] = useState(false);
   const [pollJsonPreview, setPollJsonPreview] = useState<string | null>(null);
   
@@ -1014,34 +1015,46 @@ const FeedPage: React.FC = () => {
                   ) : !includePoll ? (
                     // Show poll type selection
                     <>
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20">
-                          <Target className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      <div className="flex items-center gap-3 mb-1">
+                        <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/10">
+                          <Target className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <h3 className="font-semibold">Create a Poll</h3>
-                          <p className="text-sm text-muted-foreground">Pulse a survey, quiz, or feedback form to everyone</p>
+                          <h3 className="font-semibold text-base">Create a Poll</h3>
+                          <p className="text-xs text-muted-foreground">Choose a format to get started</p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Button 
-                          variant="outline" 
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
                           onClick={() => setIncludePoll(true)}
-                          className="h-auto py-4 flex flex-col gap-2"
+                          className="group relative flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/50 p-4 text-center transition-all hover:border-primary/30 hover:bg-primary/[0.03] hover:shadow-sm"
                         >
-                          <FiBarChart2 className="h-6 w-6" />
-                          <span className="font-medium">Quick Poll</span>
-                          <span className="text-xs text-muted-foreground">Simple yes/no or options</span>
-                        </Button>
-                        <Button 
-                          variant="outline"
+                          <div className="rounded-lg bg-blue-500/10 p-2 transition-colors group-hover:bg-blue-500/15">
+                            <FiBarChart2 className="h-5 w-5 text-blue-500" />
+                          </div>
+                          <span className="text-sm font-medium">Quick Poll</span>
+                          <span className="text-[11px] leading-tight text-muted-foreground">Yes/no or options</span>
+                        </button>
+                        <button
                           onClick={() => setShowPollBuilder(true)}
-                          className="h-auto py-4 flex flex-col gap-2 border-amber-500/30 hover:border-amber-500/50 hover:bg-amber-500/5"
+                          className="group relative flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/50 p-4 text-center transition-all hover:border-amber-500/30 hover:bg-amber-500/[0.03] hover:shadow-sm"
                         >
-                          <Zap className="h-6 w-6 text-amber-500" />
-                          <span className="font-medium">Advanced Poll</span>
-                          <span className="text-xs text-muted-foreground">Surveys, quizzes, assessments</span>
-                        </Button>
+                          <div className="rounded-lg bg-amber-500/10 p-2 transition-colors group-hover:bg-amber-500/15">
+                            <Zap className="h-5 w-5 text-amber-500" />
+                          </div>
+                          <span className="text-sm font-medium">Advanced</span>
+                          <span className="text-[11px] leading-tight text-muted-foreground">Surveys & quizzes</span>
+                        </button>
+                        <button
+                          onClick={() => { setShowPollBuilder(true); setAiGenerateOpen(true); }}
+                          className="group relative flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/50 p-4 text-center transition-all hover:border-violet-500/30 hover:bg-violet-500/[0.03] hover:shadow-sm"
+                        >
+                          <div className="rounded-lg bg-violet-500/10 p-2 transition-colors group-hover:bg-violet-500/15">
+                            <Sparkles className="h-5 w-5 text-violet-500" />
+                          </div>
+                          <span className="text-sm font-medium">AI Generate</span>
+                          <span className="text-[11px] leading-tight text-muted-foreground">Describe & build</span>
+                        </button>
                       </div>
                     </>
                   ) : (
@@ -1293,8 +1306,18 @@ const FeedPage: React.FC = () => {
                         >
                           <Zap className="h-4 w-4 text-amber-500" />
                           <div className="flex-1">
-                            <div className="font-medium">Advanced Poll Builder</div>
+                            <div className="font-medium">Advanced Builder</div>
                             <div className="text-xs text-muted-foreground">Surveys, quizzes, assessments</div>
+                          </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => { setShowPollBuilder(true); setAiGenerateOpen(true); }}
+                          className="flex items-center gap-2"
+                        >
+                          <Sparkles className="h-4 w-4 text-violet-500" />
+                          <div className="flex-1">
+                            <div className="font-medium">AI Generate</div>
+                            <div className="text-xs text-muted-foreground">Describe what you want to build</div>
                           </div>
                         </DropdownMenuItem>
                         <DropdownMenuItem
@@ -1501,19 +1524,25 @@ const FeedPage: React.FC = () => {
               which is intercepted by @modal/(.)[id]/page.tsx */}
 
           {/* Advanced Poll Builder Modal */}
-          <Dialog open={showPollBuilder} onOpenChange={setShowPollBuilder}>
+          <Dialog open={showPollBuilder} onOpenChange={(open) => { setShowPollBuilder(open); if (!open) setAiGenerateOpen(false); }}>
             <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto bg-zinc-950 border-zinc-800">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-amber-500" />
-                  Create Advanced Poll
-                </DialogTitle>
-                <DialogDescription>
-                  Build a survey, quiz, or assessment and pulse it to your followers
+              <DialogHeader className="pb-0">
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="flex items-center gap-2.5 text-lg">
+                    <div className="rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/10 p-1.5">
+                      <Zap className="h-4 w-4 text-amber-500" />
+                    </div>
+                    Poll Builder
+                  </DialogTitle>
+                </div>
+                <DialogDescription className="text-xs">
+                  Build surveys, quizzes, or assessments and pulse them to your followers
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4">
                 <PollBuilder
+                  aiGenerateOpen={aiGenerateOpen}
+                  onAiGenerateClose={() => setAiGenerateOpen(false)}
                   onSave={async (data) => {
                     try {
                       // Map PollBuilder question types to API-supported types

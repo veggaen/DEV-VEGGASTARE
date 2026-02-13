@@ -1018,6 +1018,27 @@ function QuestionScreen({
   };
 
   const sliderConfig = question.sliderConfig || {};
+  const sliderMin = typeof sliderConfig.min === "number" ? sliderConfig.min : 1;
+  const sliderMax = typeof sliderConfig.max === "number" ? sliderConfig.max : 7;
+  const sliderLabels = Array.isArray(sliderConfig.labels) && sliderConfig.labels.length >= 2 ? sliderConfig.labels : undefined;
+  const sliderStepFromConfig = typeof sliderConfig.step === "number" && sliderConfig.step > 0 ? sliderConfig.step : undefined;
+  const sliderStepFromLabels =
+    sliderLabels && sliderLabels.length > 1
+      ? (sliderMax - sliderMin) / (sliderLabels.length - 1)
+      : undefined;
+  const sliderStepFromSteps =
+    typeof sliderConfig.steps === "number" && sliderConfig.steps > 1
+      ? (sliderMax - sliderMin) / (sliderConfig.steps - 1)
+      : undefined;
+  const sliderStep =
+    (typeof sliderStepFromLabels === "number" && Number.isFinite(sliderStepFromLabels) && sliderStepFromLabels > 0
+      ? sliderStepFromLabels
+      : undefined) ??
+    sliderStepFromConfig ??
+    (typeof sliderStepFromSteps === "number" && Number.isFinite(sliderStepFromSteps) && sliderStepFromSteps > 0
+      ? sliderStepFromSteps
+      : undefined) ??
+    1;
   const isAnswered = answer?.value !== undefined;
   const isCommitted = answer?.committed === true;
   
@@ -1088,9 +1109,9 @@ function QuestionScreen({
     const numericCorrect = typeof effectiveCorrectAnswer === "string" ? parseFloat(effectiveCorrectAnswer) : NaN;
     if (Number.isNaN(selectedValue) || Number.isNaN(numericCorrect)) return null;
 
-    const min = typeof sliderConfig.min === "number" ? sliderConfig.min : 1;
-    const max = typeof sliderConfig.max === "number" ? sliderConfig.max : 10;
-    const step = typeof sliderConfig.step === "number" && sliderConfig.step > 0 ? sliderConfig.step : 1;
+    const min = sliderMin;
+    const max = sliderMax;
+    const step = sliderStep;
 
     const formatValue = (value: number) => (Number.isInteger(value) ? `${value}` : `${value.toFixed(2).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1")}`);
     const buildRange = (from: number, to: number) => {
@@ -1116,7 +1137,7 @@ function QuestionScreen({
       remainingUnselected,
       formatValue,
     };
-  }, [answer?.value, effectiveCorrectAnswer, isCorrect, question.type, sliderConfig.max, sliderConfig.min, sliderConfig.step]);
+  }, [answer?.value, effectiveCorrectAnswer, isCorrect, question.type, sliderMax, sliderMin, sliderStep]);
 
   const deepWordHelp = useMemo(() => {
     if (isCorrect !== false) return null;
@@ -1364,12 +1385,12 @@ function QuestionScreen({
               <SliderQuestion
                 questionId={question.id}
                 questionText=""
-                minValue={sliderConfig.min ?? 1}
-                maxValue={sliderConfig.max ?? 7}
-                step={sliderConfig.step ?? 1}
-                minLabel={sliderConfig.labels?.[0] ?? "A"}
-                maxLabel={sliderConfig.labels?.[sliderConfig.labels?.length - 1 || 0] ?? "G"}
-                stepLabels={sliderConfig.labels}
+                minValue={sliderMin}
+                maxValue={sliderMax}
+                step={sliderStep}
+                minLabel={sliderLabels?.[0] ?? "A"}
+                maxLabel={sliderLabels?.[sliderLabels?.length - 1 || 0] ?? "G"}
+                stepLabels={sliderLabels}
                 value={answer?.value as number | undefined}
                 onChange={handleValueChange}
                 disabled={isCommitted}

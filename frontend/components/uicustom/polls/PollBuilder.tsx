@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -80,9 +80,10 @@ import { generateREACHTemplate } from "@/components/uicustom/polls/reach-poll-te
 import { generateVerifyPollDemoTemplate } from "@/components/uicustom/polls/verify-poll-demo-template";
 import { generateFeatureExplorerTemplate } from "@/components/uicustom/polls/feature-explorer-quiz-template";
 import { generateCannaCocoQuizTemplate } from "@/components/uicustom/polls/canna-coco-quiz-template";
+import { generateTonyVeganEggsMasteryTemplate } from "@/components/uicustom/polls/tony-vegan-eggs-mastery-template";
 import { ShapeMatchVisualBuilder, ShapeMatchBuilderConfig, builderConfigToRuntime } from "@/components/uicustom/polls/ShapeMatchVisualBuilder";
 
-// Max nesting depth for sections (3 levels: section → subsection → sub-subsection)
+// Max nesting depth for sections (3 levels: section ? subsection ? sub-subsection)
 const MAX_SECTION_DEPTH = 3;
 
 // Types
@@ -174,6 +175,8 @@ interface PollBuilderProps {
   onSave: (data: PollBuilderData) => Promise<void>;
   onPreview?: (data: PollBuilderData) => void;
   className?: string;
+  aiGenerateOpen?: boolean;
+  onAiGenerateClose?: () => void;
 }
 
 // Default values
@@ -189,7 +192,7 @@ const DEFAULT_SLIDER_CONFIG: SliderConfig = {
   showValue: true,
 };
 
-// Empty starter data â€” builder starts empty, user adds questions or loads example
+// Empty starter data — builder starts empty, user adds questions or loads example
 function generateEmptyPollData(): Partial<PollBuilderData> {
   return {
     flow: [],
@@ -213,156 +216,156 @@ const QUESTION_TYPE_ICONS = {
 // Extended emoji options for section icons with categories for search
 const SECTION_EMOJI_OPTIONS: { emoji: string; keywords: string[] }[] = [
   // Business & Charts
-  { emoji: "ðŸ“Š", keywords: ["chart", "graph", "analytics", "data", "business"] },
-  { emoji: "ðŸ“ˆ", keywords: ["chart", "growth", "increase", "trending", "up"] },
-  { emoji: "ðŸ“‰", keywords: ["chart", "decline", "decrease", "down", "loss"] },
-  { emoji: "ðŸ’¹", keywords: ["chart", "stock", "money", "business"] },
-  { emoji: "ðŸ“", keywords: ["folder", "file", "document", "organize"] },
-  { emoji: "ðŸ“‚", keywords: ["folder", "open", "file", "document"] },
-  { emoji: "ðŸ“‹", keywords: ["clipboard", "list", "checklist", "task"] },
-  { emoji: "ðŸ“", keywords: ["memo", "note", "write", "document"] },
-  { emoji: "âœï¸", keywords: ["pencil", "write", "edit", "draw"] },
-  { emoji: "ðŸ—‚ï¸", keywords: ["folder", "index", "organize", "dividers"] },
-  { emoji: "ðŸ“‘", keywords: ["bookmark", "tabs", "document"] },
-  { emoji: "ðŸ—ƒï¸", keywords: ["cabinet", "file", "storage", "archive"] },
+  { emoji: "📊", keywords: ["chart", "graph", "analytics", "data", "business"] },
+  { emoji: "📈", keywords: ["chart", "growth", "increase", "trending", "up"] },
+  { emoji: "📉", keywords: ["chart", "decline", "decrease", "down", "loss"] },
+  { emoji: "💹", keywords: ["chart", "stock", "money", "business"] },
+  { emoji: "📁", keywords: ["folder", "file", "document", "organize"] },
+  { emoji: "📂", keywords: ["folder", "open", "file", "document"] },
+  { emoji: "📋", keywords: ["clipboard", "list", "checklist", "task"] },
+  { emoji: "📝", keywords: ["memo", "note", "write", "document"] },
+  { emoji: "✏️", keywords: ["pencil", "write", "edit", "draw"] },
+  { emoji: "🗂️", keywords: ["folder", "index", "organize", "dividers"] },
+  { emoji: "📑", keywords: ["bookmark", "tabs", "document"] },
+  { emoji: "🗃️", keywords: ["cabinet", "file", "storage", "archive"] },
   // Goals & Achievement
-  { emoji: "ðŸŽ¯", keywords: ["target", "goal", "aim", "focus", "bullseye"] },
-  { emoji: "ðŸš€", keywords: ["rocket", "launch", "startup", "growth", "speed"] },
-  { emoji: "âš¡", keywords: ["lightning", "fast", "energy", "power", "velocity"] },
-  { emoji: "ðŸ”¥", keywords: ["fire", "hot", "trending", "popular"] },
-  { emoji: "ðŸ’¡", keywords: ["idea", "light", "bulb", "innovation", "think"] },
-  { emoji: "ðŸŒŸ", keywords: ["star", "glow", "special", "feature"] },
-  { emoji: "â­", keywords: ["star", "favorite", "rating", "best"] },
-  { emoji: "âœ¨", keywords: ["sparkle", "magic", "new", "shine"] },
-  { emoji: "ðŸ†", keywords: ["trophy", "winner", "champion", "award"] },
-  { emoji: "ðŸ¥‡", keywords: ["gold", "first", "winner", "medal"] },
-  { emoji: "ðŸ¥ˆ", keywords: ["silver", "second", "medal"] },
-  { emoji: "ðŸ¥‰", keywords: ["bronze", "third", "medal"] },
-  { emoji: "ðŸŽ–ï¸", keywords: ["medal", "military", "honor", "award"] },
-  { emoji: "ðŸ…", keywords: ["medal", "sports", "winner", "award"] },
+  { emoji: "🎯", keywords: ["target", "goal", "aim", "focus", "bullseye"] },
+  { emoji: "🚀", keywords: ["rocket", "launch", "startup", "growth", "speed"] },
+  { emoji: "⚡", keywords: ["lightning", "fast", "energy", "power", "velocity"] },
+  { emoji: "🔥", keywords: ["fire", "hot", "trending", "popular"] },
+  { emoji: "💡", keywords: ["idea", "light", "bulb", "innovation", "think"] },
+  { emoji: "🌟", keywords: ["star", "glow", "special", "feature"] },
+  { emoji: "⭐", keywords: ["star", "favorite", "rating", "best"] },
+  { emoji: "✨", keywords: ["sparkle", "magic", "new", "shine"] },
+  { emoji: "🏆", keywords: ["trophy", "winner", "champion", "award"] },
+  { emoji: "🥇", keywords: ["gold", "first", "winner", "medal"] },
+  { emoji: "🥈", keywords: ["silver", "second", "medal"] },
+  { emoji: "🥉", keywords: ["bronze", "third", "medal"] },
+  { emoji: "🎖️", keywords: ["medal", "military", "honor", "award"] },
+  { emoji: "🏅", keywords: ["medal", "sports", "winner", "award"] },
   // Security & Privacy
-  { emoji: "ðŸ”", keywords: ["lock", "key", "secure", "private", "password"] },
-  { emoji: "ðŸ›¡ï¸", keywords: ["shield", "protect", "security", "defense"] },
-  { emoji: "ðŸ”’", keywords: ["lock", "closed", "secure", "private"] },
-  { emoji: "ðŸ”“", keywords: ["unlock", "open", "public"] },
-  { emoji: "ðŸ”‘", keywords: ["key", "access", "unlock", "password"] },
-  { emoji: "ðŸ—ï¸", keywords: ["key", "old", "vintage", "unlock"] },
+  { emoji: "🔐", keywords: ["lock", "key", "secure", "private", "password"] },
+  { emoji: "🛡️", keywords: ["shield", "protect", "security", "defense"] },
+  { emoji: "🔒", keywords: ["lock", "closed", "secure", "private"] },
+  { emoji: "🔓", keywords: ["unlock", "open", "public"] },
+  { emoji: "🔑", keywords: ["key", "access", "unlock", "password"] },
+  { emoji: "🗝️", keywords: ["key", "old", "vintage", "unlock"] },
   // People & Community
-  { emoji: "ðŸ‘¤", keywords: ["person", "user", "profile", "account"] },
-  { emoji: "ðŸ‘¥", keywords: ["people", "group", "team", "users", "community"] },
-  { emoji: "ðŸ¤", keywords: ["handshake", "deal", "partnership", "agreement"] },
-  { emoji: "ðŸ’¬", keywords: ["chat", "message", "comment", "speech", "talk"] },
-  { emoji: "ðŸ‘‹", keywords: ["wave", "hello", "hi", "welcome", "greeting"] },
-  { emoji: "ðŸ™‹", keywords: ["raise", "hand", "question", "vote"] },
-  { emoji: "ðŸ‘", keywords: ["thumbs", "up", "like", "approve", "good"] },
-  { emoji: "ðŸ‘Ž", keywords: ["thumbs", "down", "dislike", "bad"] },
-  { emoji: "ðŸ§‘â€ðŸ’»", keywords: ["developer", "coder", "programmer", "tech"] },
-  { emoji: "ðŸ‘¨â€ðŸ’¼", keywords: ["business", "man", "office", "professional"] },
-  { emoji: "ðŸ‘©â€ðŸ’¼", keywords: ["business", "woman", "office", "professional"] },
+  { emoji: "👤", keywords: ["person", "user", "profile", "account"] },
+  { emoji: "👥", keywords: ["people", "group", "team", "users", "community"] },
+  { emoji: "🤝", keywords: ["handshake", "deal", "partnership", "agreement"] },
+  { emoji: "💬", keywords: ["chat", "message", "comment", "speech", "talk"] },
+  { emoji: "👋", keywords: ["wave", "hello", "hi", "welcome", "greeting"] },
+  { emoji: "🙋", keywords: ["raise", "hand", "question", "vote"] },
+  { emoji: "👍", keywords: ["thumbs", "up", "like", "approve", "good"] },
+  { emoji: "👎", keywords: ["thumbs", "down", "dislike", "bad"] },
+  { emoji: "🧑‍💻", keywords: ["developer", "coder", "programmer", "tech"] },
+  { emoji: "👨‍💼", keywords: ["business", "man", "office", "professional"] },
+  { emoji: "👩‍💼", keywords: ["business", "woman", "office", "professional"] },
   // Creative & Design
-  { emoji: "ðŸŽ¨", keywords: ["art", "palette", "design", "creative", "color"] },
-  { emoji: "ðŸ–¼ï¸", keywords: ["picture", "frame", "image", "photo", "art"] },
-  { emoji: "ðŸŽ­", keywords: ["theater", "drama", "masks", "performance"] },
-  { emoji: "ðŸŽª", keywords: ["circus", "tent", "event", "show"] },
-  { emoji: "âœï¸", keywords: ["write", "hand", "signature", "author"] },
-  { emoji: "ðŸ–Œï¸", keywords: ["brush", "paint", "art", "design"] },
-  { emoji: "ðŸ–ï¸", keywords: ["crayon", "draw", "color", "kids"] },
+  { emoji: "🎨", keywords: ["art", "palette", "design", "creative", "color"] },
+  { emoji: "🖼️", keywords: ["picture", "frame", "image", "photo", "art"] },
+  { emoji: "🎭", keywords: ["theater", "drama", "masks", "performance"] },
+  { emoji: "🎪", keywords: ["circus", "tent", "event", "show"] },
+  { emoji: "✍️", keywords: ["write", "hand", "signature", "author"] },
+  { emoji: "🖌️", keywords: ["brush", "paint", "art", "design"] },
+  { emoji: "🖍️", keywords: ["crayon", "draw", "color", "kids"] },
   // Money & Finance
-  { emoji: "ðŸ’°", keywords: ["money", "bag", "cash", "rich", "profit"] },
-  { emoji: "ðŸ’Ž", keywords: ["diamond", "gem", "premium", "value", "luxury"] },
-  { emoji: "ðŸ’µ", keywords: ["dollar", "money", "cash", "bill"] },
-  { emoji: "ðŸ’³", keywords: ["card", "credit", "payment", "finance"] },
-  { emoji: "ðŸ¦", keywords: ["bank", "finance", "money", "institution"] },
-  { emoji: "ðŸ’¸", keywords: ["money", "fly", "spending", "expense"] },
+  { emoji: "💰", keywords: ["money", "bag", "cash", "rich", "profit"] },
+  { emoji: "💎", keywords: ["diamond", "gem", "premium", "value", "luxury"] },
+  { emoji: "💵", keywords: ["dollar", "money", "cash", "bill"] },
+  { emoji: "💳", keywords: ["card", "credit", "payment", "finance"] },
+  { emoji: "🏦", keywords: ["bank", "finance", "money", "institution"] },
+  { emoji: "💸", keywords: ["money", "fly", "spending", "expense"] },
   // Tech & Devices
-  { emoji: "ðŸŒ", keywords: ["globe", "web", "internet", "world", "global"] },
-  { emoji: "ðŸ”—", keywords: ["link", "chain", "connect", "url"] },
-  { emoji: "ðŸ“±", keywords: ["phone", "mobile", "smartphone", "app"] },
-  { emoji: "ðŸ’»", keywords: ["laptop", "computer", "device", "work"] },
-  { emoji: "ðŸ–¥ï¸", keywords: ["desktop", "computer", "monitor", "screen"] },
-  { emoji: "âŒ¨ï¸", keywords: ["keyboard", "type", "input", "computer"] },
-  { emoji: "ðŸ–±ï¸", keywords: ["mouse", "click", "computer", "pointer"] },
-  { emoji: "ðŸ”Œ", keywords: ["plug", "electric", "power", "connect"] },
-  { emoji: "ðŸ“¡", keywords: ["satellite", "signal", "broadcast", "antenna"] },
-  { emoji: "ðŸ¤–", keywords: ["robot", "ai", "bot", "automation"] },
+  { emoji: "🌐", keywords: ["globe", "web", "internet", "world", "global"] },
+  { emoji: "🔗", keywords: ["link", "chain", "connect", "url"] },
+  { emoji: "📱", keywords: ["phone", "mobile", "smartphone", "app"] },
+  { emoji: "💻", keywords: ["laptop", "computer", "device", "work"] },
+  { emoji: "🖥️", keywords: ["desktop", "computer", "monitor", "screen"] },
+  { emoji: "⌨️", keywords: ["keyboard", "type", "input", "computer"] },
+  { emoji: "🖱️", keywords: ["mouse", "click", "computer", "pointer"] },
+  { emoji: "🔌", keywords: ["plug", "electric", "power", "connect"] },
+  { emoji: "📡", keywords: ["satellite", "signal", "broadcast", "antenna"] },
+  { emoji: "🤖", keywords: ["robot", "ai", "bot", "automation"] },
   // Colors & Hearts
-  { emoji: "â¤ï¸", keywords: ["heart", "red", "love", "favorite"] },
-  { emoji: "ðŸ’™", keywords: ["heart", "blue", "love"] },
-  { emoji: "ðŸ’š", keywords: ["heart", "green", "love", "eco"] },
-  { emoji: "ðŸ’œ", keywords: ["heart", "purple", "love"] },
-  { emoji: "ðŸ§¡", keywords: ["heart", "orange", "love"] },
-  { emoji: "ðŸ’›", keywords: ["heart", "yellow", "love"] },
-  { emoji: "ðŸ¤", keywords: ["heart", "white", "love", "pure"] },
-  { emoji: "ðŸ–¤", keywords: ["heart", "black", "love", "dark"] },
-  { emoji: "ðŸ’—", keywords: ["heart", "growing", "love"] },
-  { emoji: "ðŸ’–", keywords: ["heart", "sparkle", "love"] },
+  { emoji: "❤️", keywords: ["heart", "red", "love", "favorite"] },
+  { emoji: "💙", keywords: ["heart", "blue", "love"] },
+  { emoji: "💚", keywords: ["heart", "green", "love", "eco"] },
+  { emoji: "💜", keywords: ["heart", "purple", "love"] },
+  { emoji: "🧡", keywords: ["heart", "orange", "love"] },
+  { emoji: "💛", keywords: ["heart", "yellow", "love"] },
+  { emoji: "🤍", keywords: ["heart", "white", "love", "pure"] },
+  { emoji: "🖤", keywords: ["heart", "black", "love", "dark"] },
+  { emoji: "💗", keywords: ["heart", "growing", "love"] },
+  { emoji: "💖", keywords: ["heart", "sparkle", "love"] },
   // Status & Indicators
-  { emoji: "âœ…", keywords: ["check", "done", "complete", "yes", "success"] },
-  { emoji: "âŒ", keywords: ["cross", "no", "wrong", "delete", "error"] },
-  { emoji: "âš ï¸", keywords: ["warning", "alert", "caution", "danger"] },
-  { emoji: "â„¹ï¸", keywords: ["info", "information", "help", "about"] },
-  { emoji: "â“", keywords: ["question", "help", "ask", "unknown"] },
-  { emoji: "â—", keywords: ["exclamation", "important", "alert"] },
-  { emoji: "ðŸ””", keywords: ["bell", "notification", "alert", "ring"] },
-  { emoji: "ðŸ“£", keywords: ["megaphone", "announce", "loud", "broadcast"] },
-  { emoji: "ðŸš¨", keywords: ["siren", "alert", "emergency", "warning"] },
-  { emoji: "ðŸ”´", keywords: ["red", "circle", "stop", "off"] },
-  { emoji: "ðŸŸ¢", keywords: ["green", "circle", "go", "on", "active"] },
-  { emoji: "ðŸŸ¡", keywords: ["yellow", "circle", "pending", "wait"] },
-  { emoji: "ðŸ”µ", keywords: ["blue", "circle"] },
-  { emoji: "âšª", keywords: ["white", "circle", "neutral"] },
-  { emoji: "âš«", keywords: ["black", "circle"] },
+  { emoji: "✅", keywords: ["check", "done", "complete", "yes", "success"] },
+  { emoji: "❌", keywords: ["cross", "no", "wrong", "delete", "error"] },
+  { emoji: "⚠️", keywords: ["warning", "alert", "caution", "danger"] },
+  { emoji: "ℹ️", keywords: ["info", "information", "help", "about"] },
+  { emoji: "❓", keywords: ["question", "help", "ask", "unknown"] },
+  { emoji: "❗", keywords: ["exclamation", "important", "alert"] },
+  { emoji: "🔔", keywords: ["bell", "notification", "alert", "ring"] },
+  { emoji: "📣", keywords: ["megaphone", "announce", "loud", "broadcast"] },
+  { emoji: "🚨", keywords: ["siren", "alert", "emergency", "warning"] },
+  { emoji: "🔴", keywords: ["red", "circle", "stop", "off"] },
+  { emoji: "🟢", keywords: ["green", "circle", "go", "on", "active"] },
+  { emoji: "🟡", keywords: ["yellow", "circle", "pending", "wait"] },
+  { emoji: "🔵", keywords: ["blue", "circle"] },
+  { emoji: "⚪", keywords: ["white", "circle", "neutral"] },
+  { emoji: "⚫", keywords: ["black", "circle"] },
   // Nature & Weather
-  { emoji: "ðŸŒ±", keywords: ["plant", "grow", "new", "seedling", "eco"] },
-  { emoji: "ðŸŒ¿", keywords: ["herb", "plant", "nature", "green"] },
-  { emoji: "ðŸŒ³", keywords: ["tree", "nature", "environment", "forest"] },
-  { emoji: "ðŸŒ", keywords: ["earth", "globe", "world", "planet", "europe"] },
-  { emoji: "ðŸŒž", keywords: ["sun", "sunny", "bright", "day"] },
-  { emoji: "ðŸŒ™", keywords: ["moon", "night", "dark", "sleep"] },
-  { emoji: "â˜ï¸", keywords: ["cloud", "weather", "sky"] },
-  { emoji: "â›ˆï¸", keywords: ["storm", "thunder", "rain", "weather"] },
-  { emoji: "â„ï¸", keywords: ["snow", "cold", "winter", "freeze"] },
+  { emoji: "🌱", keywords: ["plant", "grow", "new", "seedling", "eco"] },
+  { emoji: "🌿", keywords: ["herb", "plant", "nature", "green"] },
+  { emoji: "🌳", keywords: ["tree", "nature", "environment", "forest"] },
+  { emoji: "🌍", keywords: ["earth", "globe", "world", "planet", "europe"] },
+  { emoji: "🌞", keywords: ["sun", "sunny", "bright", "day"] },
+  { emoji: "🌙", keywords: ["moon", "night", "dark", "sleep"] },
+  { emoji: "☁️", keywords: ["cloud", "weather", "sky"] },
+  { emoji: "⛈️", keywords: ["storm", "thunder", "rain", "weather"] },
+  { emoji: "❄️", keywords: ["snow", "cold", "winter", "freeze"] },
   // Numbers & Symbols
-  { emoji: "1ï¸âƒ£", keywords: ["one", "first", "number", "1"] },
-  { emoji: "2ï¸âƒ£", keywords: ["two", "second", "number", "2"] },
-  { emoji: "3ï¸âƒ£", keywords: ["three", "third", "number", "3"] },
-  { emoji: "4ï¸âƒ£", keywords: ["four", "number", "4"] },
-  { emoji: "5ï¸âƒ£", keywords: ["five", "number", "5"] },
-  { emoji: "ðŸ”¢", keywords: ["number", "input", "123", "digit"] },
-  { emoji: "ðŸ”¤", keywords: ["abc", "alphabet", "letter", "text"] },
-  { emoji: "ðŸ” ", keywords: ["uppercase", "capital", "letter"] },
+  { emoji: "1️⃣", keywords: ["one", "first", "number", "1"] },
+  { emoji: "2️⃣", keywords: ["two", "second", "number", "2"] },
+  { emoji: "3️⃣", keywords: ["three", "third", "number", "3"] },
+  { emoji: "4️⃣", keywords: ["four", "number", "4"] },
+  { emoji: "5️⃣", keywords: ["five", "number", "5"] },
+  { emoji: "🔢", keywords: ["number", "input", "123", "digit"] },
+  { emoji: "🔤", keywords: ["abc", "alphabet", "letter", "text"] },
+  { emoji: "🔠", keywords: ["uppercase", "capital", "letter"] },
   // Misc & Objects
-  { emoji: "ðŸ“¦", keywords: ["box", "package", "delivery", "product"] },
-  { emoji: "ðŸŽ", keywords: ["gift", "present", "box", "surprise"] },
-  { emoji: "ðŸ§©", keywords: ["puzzle", "piece", "game", "fit"] },
-  { emoji: "ðŸ”§", keywords: ["wrench", "tool", "fix", "settings"] },
-  { emoji: "âš™ï¸", keywords: ["gear", "settings", "config", "cog"] },
-  { emoji: "ðŸ› ï¸", keywords: ["tools", "build", "construct", "hammer"] },
-  { emoji: "ðŸ§ª", keywords: ["test", "lab", "experiment", "science"] },
-  { emoji: "ðŸ”¬", keywords: ["microscope", "science", "research", "analyze"] },
-  { emoji: "ðŸ“", keywords: ["ruler", "measure", "angle", "math"] },
-  { emoji: "ðŸ“", keywords: ["ruler", "straight", "measure"] },
-  { emoji: "ðŸ ", keywords: ["house", "home", "building"] },
-  { emoji: "ðŸ¢", keywords: ["building", "office", "business", "company"] },
-  { emoji: "ðŸ­", keywords: ["factory", "industry", "manufacture"] },
-  { emoji: "ðŸŽ“", keywords: ["graduation", "education", "learn", "school"] },
-  { emoji: "ðŸ“š", keywords: ["books", "library", "study", "read"] },
-  { emoji: "ðŸ“–", keywords: ["book", "open", "read", "story"] },
-  { emoji: "ðŸ—“ï¸", keywords: ["calendar", "date", "schedule", "plan"] },
-  { emoji: "ðŸ“…", keywords: ["calendar", "date", "event"] },
-  { emoji: "â°", keywords: ["clock", "alarm", "time", "reminder"] },
-  { emoji: "â³", keywords: ["hourglass", "time", "wait", "loading"] },
-  { emoji: "ðŸ“", keywords: ["pin", "location", "map", "place"] },
-  { emoji: "ðŸ—ºï¸", keywords: ["map", "world", "location", "travel"] },
+  { emoji: "📦", keywords: ["box", "package", "delivery", "product"] },
+  { emoji: "🎁", keywords: ["gift", "present", "box", "surprise"] },
+  { emoji: "🧩", keywords: ["puzzle", "piece", "game", "fit"] },
+  { emoji: "🔧", keywords: ["wrench", "tool", "fix", "settings"] },
+  { emoji: "⚙️", keywords: ["gear", "settings", "config", "cog"] },
+  { emoji: "🛠️", keywords: ["tools", "build", "construct", "hammer"] },
+  { emoji: "🧪", keywords: ["test", "lab", "experiment", "science"] },
+  { emoji: "🔬", keywords: ["microscope", "science", "research", "analyze"] },
+  { emoji: "📐", keywords: ["ruler", "measure", "angle", "math"] },
+  { emoji: "📏", keywords: ["ruler", "straight", "measure"] },
+  { emoji: "🏠", keywords: ["house", "home", "building"] },
+  { emoji: "🏢", keywords: ["building", "office", "business", "company"] },
+  { emoji: "🏭", keywords: ["factory", "industry", "manufacture"] },
+  { emoji: "🎓", keywords: ["graduation", "education", "learn", "school"] },
+  { emoji: "📚", keywords: ["books", "library", "study", "read"] },
+  { emoji: "📖", keywords: ["book", "open", "read", "story"] },
+  { emoji: "🗓️", keywords: ["calendar", "date", "schedule", "plan"] },
+  { emoji: "📅", keywords: ["calendar", "date", "event"] },
+  { emoji: "⏰", keywords: ["clock", "alarm", "time", "reminder"] },
+  { emoji: "⏳", keywords: ["hourglass", "time", "wait", "loading"] },
+  { emoji: "📍", keywords: ["pin", "location", "map", "place"] },
+  { emoji: "🗺️", keywords: ["map", "world", "location", "travel"] },
   // Arrows & Direction
-  { emoji: "âž¡ï¸", keywords: ["arrow", "right", "next", "forward"] },
-  { emoji: "â¬…ï¸", keywords: ["arrow", "left", "back", "previous"] },
-  { emoji: "â¬†ï¸", keywords: ["arrow", "up", "increase"] },
-  { emoji: "â¬‡ï¸", keywords: ["arrow", "down", "decrease"] },
-  { emoji: "â†”ï¸", keywords: ["arrow", "horizontal", "left", "right"] },
-  { emoji: "â†•ï¸", keywords: ["arrow", "vertical", "up", "down"] },
-  { emoji: "ðŸ”„", keywords: ["refresh", "reload", "sync", "cycle"] },
-  { emoji: "ðŸ”ƒ", keywords: ["clockwise", "repeat", "cycle"] },
+  { emoji: "➡️", keywords: ["arrow", "right", "next", "forward"] },
+  { emoji: "⬅️", keywords: ["arrow", "left", "back", "previous"] },
+  { emoji: "⬆️", keywords: ["arrow", "up", "increase"] },
+  { emoji: "⬇️", keywords: ["arrow", "down", "decrease"] },
+  { emoji: "↔️", keywords: ["arrow", "horizontal", "left", "right"] },
+  { emoji: "↕️", keywords: ["arrow", "vertical", "up", "down"] },
+  { emoji: "🔄", keywords: ["refresh", "reload", "sync", "cycle"] },
+  { emoji: "🔃", keywords: ["clockwise", "repeat", "cycle"] },
 ];
 
 // Generate unique IDs
@@ -516,8 +519,8 @@ function SectionItem({
     onReorderQuestions(section.id, newOrder);
   };
 
-  // When depth === 0, SectionItem is inside parent's Reorder.Item â€” use div to avoid <li> inside <li>
-  // When depth > 0, SectionItem is direct child of Reorder.Group â€” use Reorder.Item
+  // When depth === 0, SectionItem is inside parent's Reorder.Item — use div to avoid <li> inside <li>
+  // When depth > 0, SectionItem is direct child of Reorder.Group — use Reorder.Item
   const Wrapper = depth === 0 ? "div" : Reorder.Item;
   const wrapperProps = depth > 0 ? {
     value: section.id,
@@ -527,17 +530,17 @@ function SectionItem({
     whileDrag: { scale: 1.02, boxShadow: "0 12px 32px rgba(0,0,0,0.5)", zIndex: 50 },
     transition: { type: "spring" as const, damping: 25, stiffness: 300 },
     onClick: (e: React.MouseEvent) => onElementSelect(section.id, "section", e),
-  } : { value: section.id, onClick: (e: React.MouseEvent) => onElementSelect(section.id, "section", e) };
+  } : { value: section.id, "data-section-drop-target": section.id, onClick: (e: React.MouseEvent) => onElementSelect(section.id, "section", e) };
 
   return (
     <Wrapper
       {...(wrapperProps as any)}
       className={cn(
-        "rounded-lg overflow-hidden relative border-l-4 border-l-primary/50",
+        "rounded-lg overflow-hidden relative",
         depth === 0 ? "bg-zinc-900/70" : "bg-zinc-800/50 ml-4 border-l-2 border-l-primary/30",
         isDropTarget && dropMode === "into" && "ring-2 ring-dashed ring-primary/70",
         isDropTarget && dropMode === "alongside" && "ring-2 ring-dashed ring-amber-500/70",
-        isSelected && !isDraggingQuestion && "ring-2 ring-amber-500/70 bg-amber-500/5"
+        isSelected && !isDraggingQuestion && "ring-1 ring-primary/40 bg-primary/[0.03]"
       )}
     >
       {/* Drop zone overlay when dragging a question */}
@@ -607,12 +610,12 @@ function SectionItem({
             </span>
           </div>
           <span className="text-xs text-zinc-500 hidden sm:block">
-            {sectionQuestions.length} Q{childSections.length > 0 && ` â€¢ ${childSections.length} sub`}
+            {sectionQuestions.length} Q{childSections.length > 0 && ` • ${childSections.length} sub`}
           </span>
           {/* Selection indicator */}
           {isSelected && (
-            <span className="text-[10px] text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded-full font-medium">
-              Selected
+            <span className="text-[10px] text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-full font-medium">
+              Active
             </span>
           )}
           <div className="flex items-center gap-0.5">
@@ -747,6 +750,8 @@ function SectionItem({
                 <Input
                   value={section.title}
                   onChange={(e) => onUpdate({ title: e.target.value })}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                   placeholder="Enter section title..."
                   className="h-9 text-sm bg-zinc-800/50 border-zinc-700/50 focus:border-zinc-600"
                 />
@@ -759,6 +764,8 @@ function SectionItem({
               <Textarea
                 value={section.description || ""}
                 onChange={(e) => onUpdate({ description: e.target.value })}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
                 placeholder="Optional section description..."
                 className="min-h-[60px] text-sm bg-zinc-800/50 border-zinc-700/50 focus:border-zinc-600 resize-none"
               />
@@ -952,6 +959,8 @@ function TopLevelQuestionReorderItem({
   onToggleExpand,
   onDragStart,
   onDragEnd,
+  checkDropZone,
+  onDropComplete,
   updateQuestion,
   removeQuestion,
   addOption,
@@ -963,6 +972,7 @@ function TopLevelQuestionReorderItem({
   syncedInputValue,
   handleInputMultiSelect,
   handleSyncedInputChange,
+  insertBefore,
 }: {
   question: PollQuestion;
   index: number;
@@ -971,6 +981,8 @@ function TopLevelQuestionReorderItem({
   onToggleExpand: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
+  checkDropZone: (x: number, y: number) => { sectionId: string | null; topLevel: boolean };
+  onDropComplete: (targetSectionId: string | null, isTopLevel: boolean) => void;
   updateQuestion: (id: string, u: Partial<PollQuestion>) => void;
   removeQuestion: (id: string) => void;
   addOption: (questionId: string) => void;
@@ -982,23 +994,44 @@ function TopLevelQuestionReorderItem({
   syncedInputValue: string;
   handleInputMultiSelect: (inputId: string, currentValue: string, e: React.MouseEvent) => boolean;
   handleSyncedInputChange: (newValue: string) => void;
+  insertBefore?: boolean;
 }) {
   const dragControls = useDragControls();
+  const dropTargetRef = useRef<{ sectionId: string | null; topLevel: boolean }>({ sectionId: null, topLevel: false });
   return (
     <Reorder.Item
       value={question.id}
+      data-topflow-index={index}
       dragListener={false}
       dragControls={dragControls}
       className={cn(
-        "rounded-lg overflow-hidden relative",
+        "rounded-lg overflow-hidden relative transition-[margin,padding] duration-150",
         index % 2 === 0 ? "bg-zinc-800/70 border border-zinc-700/50" : "bg-zinc-900/70 border border-zinc-800/50",
-        draggingSectionId && "opacity-50 pointer-events-none"
+        draggingSectionId && "opacity-50 pointer-events-none",
+        insertBefore && "mt-7"
       )}
       animate={{ scale: 1 }}
       whileDrag={{ scale: 0.85, boxShadow: "0 12px 40px rgba(0,0,0,0.5)", zIndex: 9999 }}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      onDragStart={() => {
+        onDragStart();
+        dropTargetRef.current = { sectionId: null, topLevel: false };
+      }}
+      onDrag={(e, info) => {
+        dropTargetRef.current = checkDropZone(info.point.x, info.point.y);
+      }}
+      onDragEnd={() => {
+        const { sectionId: targetSection, topLevel } = dropTargetRef.current;
+        if (topLevel || targetSection) {
+          onDropComplete(targetSection, topLevel);
+        }
+        onDragEnd();
+      }}
     >
+      {insertBefore && (
+        <div className="absolute -top-5 left-0 right-0 flex items-center justify-center pointer-events-none z-20">
+          <div className="px-2 py-0.5 text-[10px] rounded-full border border-primary/30 bg-zinc-900 text-primary/90">Drop here</div>
+        </div>
+      )}
       <Collapsible open={isThisExpanded} onOpenChange={onToggleExpand}>
         <div className="flex items-center gap-2 p-3 hover:bg-zinc-700/30 transition-colors group/bq">
           <div
@@ -1013,7 +1046,7 @@ function TopLevelQuestionReorderItem({
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-zinc-200 truncate">{question.questionText || "Untitled question"}</p>
             <p className="text-xs text-zinc-500">
-              {question.type.replace("_", " ")} â€¢ {question.required ? "Required" : "Optional"}
+              {question.type.replace("_", " ")} • {question.required ? "Required" : "Optional"}
             </p>
           </div>
           <span className="text-[10px] text-amber-400/70 px-1.5 py-0.5 bg-amber-500/10 rounded shrink-0">Top-level</span>
@@ -1115,7 +1148,7 @@ function TopLevelQuestionReorderItem({
                               onClick={(e) => { if (handleInputMultiSelect(inputId, opt.text, e)) e.stopPropagation(); }}
                               onChange={(e) => { isMultiSelected ? handleSyncedInputChange(e.target.value) : updateOption(question.id, opt.id, { text: e.target.value }); }}
                               placeholder={`Option ${optIdx + 1}`}
-                              className={cn("flex-1 bg-zinc-800/50 border-zinc-700/50 h-8 text-sm", isMultiSelected && "ring-2 ring-amber-500 border-amber-500")}
+                              className={cn("flex-1 bg-zinc-800/50 border-zinc-700/50 h-8 text-sm", isMultiSelected && "ring-1 ring-primary/50 border-primary/40")}
                             />
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-red-400" onClick={() => removeOption(question.id, opt.id)} disabled={question.options.length <= 2}>
                               <X className="h-3 w-3" />
@@ -1258,7 +1291,7 @@ function SectionQuestionEditor({
                   {question.questionText || "(Untitled question)"}
                 </p>
                 <p className="text-xs text-zinc-500">
-                  {question.type.replace("_", " ")} {question.required && "â€¢ Required"}
+                  {question.type.replace("_", " ")} {question.required && "• Required"}
                 </p>
               </div>
               <ChevronDown className={cn(
@@ -1354,7 +1387,7 @@ function SectionQuestionEditor({
                               }}
                               className={cn(
                                 "flex-1 bg-zinc-800/50 border-zinc-700/50 h-8 text-sm",
-                                isMultiSelected && "ring-2 ring-amber-500 border-amber-500"
+                                isMultiSelected && "ring-1 ring-primary/50 border-primary/40"
                               )}
                             />
                             <Button
@@ -1387,7 +1420,7 @@ function SectionQuestionEditor({
               </div>
             )}
 
-            {/* â”€â”€â”€ Answer (correct answer, explanation, lock-in) â”€â”€â”€ */}
+            {/* ─── Answer (correct answer, explanation, lock-in) ─── */}
             <div className="space-y-2 p-2 bg-violet-500/5 border border-violet-500/20 rounded-lg">
               <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider">Answer</span>
               
@@ -1462,9 +1495,9 @@ function SectionQuestionEditor({
                   className="bg-zinc-800/50 border-zinc-700/50 min-h-[40px] text-xs"
                 />
               </div>
-              {/* Deep Explanation — second-layer clarification */}
+              {/* Deep Explanation � second-layer clarification */}
               <div className="space-y-1">
-                <Label className="text-[10px] text-zinc-400">Deep Explanation (optional — shown on &quot;Still don&apos;t understand?&quot;)</Label>
+                <Label className="text-[10px] text-zinc-400">Deep Explanation (optional � shown on &quot;Still don&apos;t understand?&quot;)</Label>
                 <Textarea
                   value={question.deepExplanation || ""}
                   onPointerDown={(e) => e.stopPropagation()}
@@ -1710,7 +1743,7 @@ function QuestionItem({
                     {question.questionText || "(Untitled question)"}
                   </p>
                   <p className="text-xs text-zinc-500">
-                    {question.type.replace("_", " ")} â€¢{" "}
+                    {question.type.replace("_", " ")} •{" "}
                     {question.required ? "Required" : "Optional"}
                   </p>
                 </div>
@@ -1940,7 +1973,7 @@ function QuestionItem({
                               placeholder={`Option ${letter}`}
                               className={cn(
                                 "flex-1 bg-zinc-800/50 border-zinc-700/50",
-                                isMultiSelected && "ring-2 ring-amber-500 border-amber-500"
+                                isMultiSelected && "ring-1 ring-primary/50 border-primary/40"
                               )}
                             />
                             <Button
@@ -2067,7 +2100,7 @@ function QuestionItem({
 
 
 
-            {/* â”€â”€â”€ Shape Match Configuration â”€â”€â”€ */}
+            {/* ─── Shape Match Configuration ─── */}
 
             {question.type === "SHAPE_MATCH" && (
 
@@ -2152,14 +2185,14 @@ function QuestionItem({
             )}
 
 
-            {/* â”€â”€â”€ Quiz / Assessment Mode â”€â”€â”€ */}
+            {/* ─── Quiz / Assessment Mode ─── */}
             <div className="space-y-3 p-3 bg-violet-500/5 border border-violet-500/20 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-semibold text-violet-400 uppercase tracking-wider">Answer</span>
-                <span className="text-[10px] text-zinc-500">(optional â€” leave blank for opinion-based questions)</span>
+                <span className="text-[10px] text-zinc-500">(optional — leave blank for opinion-based questions)</span>
               </div>
 
-              {/* Correct Answer â€” for choice questions */}
+              {/* Correct Answer — for choice questions */}
               {(question.type === "SINGLE_CHOICE" || question.type === "MULTI_CHOICE") && question.options.length > 0 && (
                 <div className="space-y-1">
                   <Label className="text-xs text-zinc-400">Correct Answer</Label>
@@ -2211,14 +2244,14 @@ function QuestionItem({
                 </div>
               )}
 
-              {/* Correct Order â€” for ranking questions */}
+              {/* Correct Order — for ranking questions */}
               {question.type === "RANKING" && question.options.length > 0 && (
                 <div className="space-y-1">
                   <Label className="text-xs text-zinc-400">Correct Order (drag to reorder, or leave as-is)</Label>
                   <p className="text-[10px] text-zinc-500">
                     The current option order (A, B, C...) is used as the correct ranking. Rearrange options above to set the correct order.
                     {question.correctAnswer 
-                      ? " âœ“ Correct order is set." 
+                      ? " ✓ Correct order is set." 
                       : " Click below to set current order as correct."}
                   </p>
                   <Button
@@ -2262,9 +2295,9 @@ function QuestionItem({
                   className="bg-zinc-800/50 border-zinc-700/50 min-h-[60px] text-sm"
                 />
               </div>
-              {/* Deep explanation — second-layer clarification */}
+              {/* Deep explanation � second-layer clarification */}
               <div className="space-y-1">
-                <Label className="text-xs text-zinc-400">Deep Explanation (optional — shown on &quot;Still don&apos;t understand?&quot;)</Label>
+                <Label className="text-xs text-zinc-400">Deep Explanation (optional � shown on &quot;Still don&apos;t understand?&quot;)</Label>
                 <Textarea
                   value={question.deepExplanation || ""}
                   onChange={(e) => onUpdate({ deepExplanation: e.target.value || null })}
@@ -2307,6 +2340,8 @@ export function PollBuilder({
   onSave,
   onPreview,
   className,
+  aiGenerateOpen,
+  onAiGenerateClose,
 }: PollBuilderProps) {
   // Start empty unless initialData provided
   const emptyData = useMemo(() => generateEmptyPollData(), []);
@@ -2429,6 +2464,11 @@ export function PollBuilder({
   const [showPreview, setShowPreview] = useState(false);
   const [justCopied, setJustCopied] = useState(false);
   
+  // AI Generation state
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  
   // Drag-and-drop state for dragging questions and sections
   const [draggingQuestionId, setDraggingQuestionId] = useState<string | null>(null);
   const [draggingFromSectionId, setDraggingFromSectionId] = useState<string | null>(null); // Track source section
@@ -2437,6 +2477,7 @@ export function PollBuilder({
   const [dragSource, setDragSource] = useState<'workbench' | 'builder' | null>(null);
   const [dropTargetSectionId, setDropTargetSectionId] = useState<string | null>(null);
   const [dropTargetTopLevel, setDropTargetTopLevel] = useState<boolean>(false);
+  const [topLevelInsertIndex, setTopLevelInsertIndex] = useState<number | null>(null);
   // Drop mode: 'into' = add to section's questions, 'alongside' = place after section as standalone
   const [dropMode, setDropMode] = useState<'into' | 'alongside'>('into');
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -2569,9 +2610,9 @@ export function PollBuilder({
       const currentEntry = history[historyIndex];
       setHistoryIndex(newIndex);
       restoreFromHistory(entry);
-      toast.success(`â†© Undid: ${currentEntry?.description || "action"}`, {
+      toast.success(`↩ Undid: ${currentEntry?.description || "action"}`, {
         duration: 2000,
-        icon: "âª",
+        icon: "⏪",
       });
     }
   }, [historyIndex, history, restoreFromHistory]);
@@ -2584,9 +2625,9 @@ export function PollBuilder({
       const entry = history[newIndex];
       setHistoryIndex(newIndex);
       restoreFromHistory(entry);
-      toast.success(`â†ª Redid: ${entry?.description || "action"}`, {
+      toast.success(`↪ Redid: ${entry?.description || "action"}`, {
         duration: 2000,
-        icon: "â©",
+        icon: "⏩",
       });
     }
   }, [historyIndex, history, restoreFromHistory]);
@@ -2628,9 +2669,9 @@ export function PollBuilder({
           const currentEntry = history[historyIndex];
           setHistoryIndex(newIndex);
           restoreFromHistory(entry);
-          toast.success(`â†© Undid: ${currentEntry?.description || "action"}`, {
+          toast.success(`↩ Undid: ${currentEntry?.description || "action"}`, {
             duration: 2000,
-            icon: "âª",
+            icon: "⏪",
           });
         }
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
@@ -2641,9 +2682,9 @@ export function PollBuilder({
           const entry = history[newIndex];
           setHistoryIndex(newIndex);
           restoreFromHistory(entry);
-          toast.success(`â†ª Redid: ${entry?.description || "action"}`, {
+          toast.success(`↪ Redid: ${entry?.description || "action"}`, {
             duration: 2000,
-            icon: "â©",
+            icon: "⏩",
           });
         }
       }
@@ -2815,7 +2856,7 @@ export function PollBuilder({
       if (flowItem.type === "SECTION") {
         const section = data.sections.find(s => s.id === flowItem.id);
         if (section) {
-          text += `## ${section.icon || "📋"} ${section.title || "Untitled Section"}\n`;
+          text += `## ${section.icon || "??"} ${section.title || "Untitled Section"}\n`;
           if (section.description) {
             text += `${section.description}\n`;
           }
@@ -2853,7 +2894,7 @@ export function PollBuilder({
     if (q.type === "SLIDER" || q.type === "SCALE") qText += ` [${q.type}]`;
     if (q.type === "TEXT") qText += " [TEXT]";
     if (q.type === "RANKING") qText += " [RANKING]";
-    if (q.trickQuestion) qText += " 🎭";
+    if (q.trickQuestion) qText += " ??";
     qText += "\n";
     
     if (q.description) {
@@ -2865,7 +2906,7 @@ export function PollBuilder({
         const isCorrect = Array.isArray(q.correctAnswer) 
           ? q.correctAnswer.includes(opt.id) 
           : q.correctAnswer === opt.id;
-        qText += `   ${isCorrect ? "✓" : "○"} ${opt.text || "(empty)"}\n`;
+        qText += `   ${isCorrect ? "?" : "?"} ${opt.text || "(empty)"}\n`;
       }
     }
     
@@ -2954,15 +2995,15 @@ export function PollBuilder({
     input.click();
   }, []);
 
-  // Load Verify Poll Demo â€” easy-to-verify test poll (slider=6, ranking, choice)
+  // Load Verify Poll Demo — easy-to-verify test poll (slider=6, ranking, choice)
   const loadVerifyDemoTemplate = useCallback(() => {
     const template = generateVerifyPollDemoTemplate();
     setData(template);
     setTimeout(() => pushToHistoryRef.current("Loaded Verify Poll Demo"), 0);
-    toast.success("Loaded Verify Poll Demo â€” slide to 6, rank 1st-4th, select me!");
+    toast.success("Loaded Verify Poll Demo — slide to 6, rank 1st-4th, select me!");
   }, []);
 
-  // Load Feature Explorer Quiz — scored quiz testing real VeggaStare knowledge
+  // Load Feature Explorer Quiz � scored quiz testing real VeggaStare knowledge
   const loadFeatureExplorerTemplate = useCallback(() => {
     const template = generateFeatureExplorerTemplate();
     setData(template);
@@ -2970,12 +3011,20 @@ export function PollBuilder({
     toast.success("Loaded Feature Explorer Quiz (18 questions, 5 sections)!");
   }, []);
 
-  // Load Canna Coco A+B Mastery Quiz — detailed growing knowledge test
+  // Load Canna Coco A+B Mastery Quiz � detailed growing knowledge test
   const loadCannaCocoTemplate = useCallback(() => {
     const template = generateCannaCocoQuizTemplate();
     setData(template);
     setTimeout(() => pushToHistoryRef.current("Loaded Canna Coco Quiz"), 0);
     toast.success("Loaded Canna Coco A+B Mastery Test (22 questions, 6 sections)!");
+  }, []);
+
+  // Load Tony-inspired Vegan + Eggs mastery quiz
+  const loadTonyVeganEggsTemplate = useCallback(() => {
+    const template = generateTonyVeganEggsMasteryTemplate();
+    setData(template);
+    setTimeout(() => pushToHistoryRef.current("Loaded Tony Vegan+Eggs Quiz"), 0);
+    toast.success("Loaded Vegan + Eggs Mastery Quiz (22 questions, 6 sections)!");
   }, []);
 
   // Add a new question - adds to selected section if one is selected, otherwise top-level
@@ -3112,7 +3161,7 @@ export function PollBuilder({
       ? explicitParentId 
       : (selectedElementType === 'section' ? selectedElementId : null);
     
-    // ─── DEPTH LIMIT CHECK ───
+    // --- DEPTH LIMIT CHECK ---
     // Prevent nesting beyond MAX_SECTION_DEPTH levels
     if (targetParentId) {
       const getDepth = (sectionId: string, sections: PollSection[], currentDepth: number): number => {
@@ -3136,7 +3185,7 @@ export function PollBuilder({
     const getNextSectionTitle = (): string => {
       const existingSections = data.sections;
       if (existingSections.length === 0) {
-        return "Is this where I type my section title?";
+        return "Section 1";
       }
       // Find the highest "Section N" number
       let maxNum = 1;
@@ -3147,14 +3196,7 @@ export function PollBuilder({
         }
       });
       // Also check if the first placeholder exists
-      const hasFirstPlaceholder = existingSections.some(s => 
-        s.title === "Is this where I type my section title?"
-      );
-      if (hasFirstPlaceholder) {
-        return `Section ${maxNum + 1}`;
-      }
-      // Return next number (minimum 2 since first is the special placeholder)
-      return `Section ${Math.max(2, maxNum + 1)}`;
+      return `Section ${maxNum + 1}`;
     };
 
     const newSection: PollSection = {
@@ -3512,7 +3554,45 @@ export function PollBuilder({
     }
     setDropTargetSectionId(null);
     setDropTargetTopLevel(false);
+    setTopLevelInsertIndex(null);
   }, [assignQuestionToSection]);
+
+  const detectTopLevelInsertIndex = useCallback((y: number): number | null => {
+    const nodes = Array.from(document.querySelectorAll<HTMLElement>("[data-topflow-index]"));
+    if (nodes.length === 0) return null;
+
+    const items = nodes
+      .map((node) => {
+        const raw = node.getAttribute("data-topflow-index");
+        const index = raw ? parseInt(raw, 10) : -1;
+        if (index < 0) return null;
+        const rect = node.getBoundingClientRect();
+        return { index, top: rect.top, bottom: rect.bottom };
+      })
+      .filter(Boolean) as Array<{ index: number; top: number; bottom: number }>;
+
+    if (items.length === 0) return null;
+    items.sort((a, b) => a.index - b.index);
+
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (y < first.top) return 0;
+    if (y > last.bottom) return last.index + 1;
+
+    for (let i = 1; i < items.length; i++) {
+      const prev = items[i - 1];
+      const curr = items[i];
+      const midpoint = (prev.bottom + curr.top) / 2;
+      if (y >= prev.bottom && y <= curr.top) {
+        return curr.index;
+      }
+      if (y > prev.bottom - 6 && y < curr.top + 6) {
+        return curr.index;
+      }
+    }
+
+    return null;
+  }, []);
   
   // Coordinate-based drop detection - listens to mouse position while dragging
   // This allows drops even when the dragged element blocks hover events
@@ -3560,10 +3640,32 @@ export function PollBuilder({
       
       setDropTargetSectionId(foundSectionId);
       setDropTargetTopLevel(foundTopLevel);
+
+      if (!foundSectionId && !foundTopLevel && draggingFromSectionId !== null) {
+        setTopLevelInsertIndex(detectTopLevelInsertIndex(e.clientY));
+      } else {
+        setTopLevelInsertIndex(null);
+      }
     };
     
     const handleMouseUp = () => {
-      if (dropTargetTopLevel && draggingQuestionId) {
+      if (topLevelInsertIndex !== null && draggingQuestionId && draggingFromSectionId !== null && !dropTargetSectionId && !dropTargetTopLevel) {
+        setData((prev) => {
+          const newTopFlow = prev.flow.filter(f => !(f.type === 'QUESTION' && f.id === draggingQuestionId));
+          const updatedSections = prev.sections.map(s => ({
+            ...s,
+            flow: s.flow.filter(f => !(f.type === 'QUESTION' && f.id === draggingQuestionId))
+          }));
+          const insertAt = Math.max(0, Math.min(topLevelInsertIndex, newTopFlow.length));
+          const nextTopFlow = [
+            ...newTopFlow.slice(0, insertAt),
+            { type: 'QUESTION' as const, id: draggingQuestionId },
+            ...newTopFlow.slice(insertAt),
+          ];
+          return { ...prev, flow: nextTopFlow, sections: updatedSections };
+        });
+        toast.success("Question inserted into top-level!");
+      } else if (dropTargetTopLevel && draggingQuestionId) {
         // Drop the question to top-level (only if not already top-level)
         if (draggingFromSectionId !== null) {
           assignQuestionToSection(draggingQuestionId, null);
@@ -3581,6 +3683,7 @@ export function PollBuilder({
       setDraggingFromSectionId(null);
       setDropTargetSectionId(null);
       setDropTargetTopLevel(false);
+      setTopLevelInsertIndex(null);
     };
     
     document.addEventListener("mousemove", handleMouseMove);
@@ -3590,7 +3693,7 @@ export function PollBuilder({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [draggingQuestionId, draggingFromSectionId, dropTargetSectionId, dropTargetTopLevel, assignQuestionToSection]);
+  }, [draggingQuestionId, draggingFromSectionId, dropTargetSectionId, dropTargetTopLevel, topLevelInsertIndex, assignQuestionToSection, detectTopLevelInsertIndex]);
 
   // Reorder items within a section's flow
   const reorderQuestionsInSection = useCallback((sectionId: string, newOrder: string[]) => {
@@ -3689,7 +3792,7 @@ export function PollBuilder({
     });
   }, []);
 
-  // Handle import from PollImportModal â€” always clear builder first, then import
+  // Handle import from PollImportModal — always clear builder first, then import
   const handleImportFromModal = useCallback((imported: ImportedPoll) => {
     // Map imported question types to our types
     const typeMap: Record<string, QuestionType> = {
@@ -4076,6 +4179,43 @@ export function PollBuilder({
   }, [importText]);
 
   // Save poll
+  // AI Poll Generation
+  const handleAiGenerate = useCallback(async () => {
+    if (!aiPrompt.trim()) return;
+    setAiGenerating(true);
+    setAiError(null);
+    try {
+      const res = await fetch("/api/polls/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: aiPrompt.trim() }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Generation failed (${res.status})`);
+      }
+      const generated = await res.json();
+      // Merge generated data into the builder
+      setData((prev) => ({
+        ...prev,
+        title: generated.title || prev.title,
+        description: generated.description || prev.description,
+        type: generated.type || prev.type,
+        questions: generated.questions || prev.questions,
+        sections: generated.sections || prev.sections || [],
+        flow: generated.flow || prev.flow,
+      }));
+      toast.success(`Generated poll with ${generated.questions?.length || 0} questions!`);
+      setAiPrompt("");
+      onAiGenerateClose?.();
+    } catch (err: any) {
+      console.error("AI generate error:", err);
+      setAiError(err.message || "Failed to generate poll");
+    } finally {
+      setAiGenerating(false);
+    }
+  }, [aiPrompt, onAiGenerateClose]);
+
   const handleSave = useCallback(async () => {
     if (!data.title.trim()) {
       alert("Please enter a poll title");
@@ -4099,49 +4239,39 @@ export function PollBuilder({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className={cn("space-y-4", className)} onClick={clearSelection}>
-        {/* Quick Start Guide */}
-        <div className="p-3 rounded-lg bg-gradient-to-r from-zinc-900/80 to-zinc-800/50 border border-zinc-800/50">
-          <div className="flex items-start gap-3">
-            <div className="shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">?</div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-medium text-zinc-200 mb-1">Quick Guide</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs text-zinc-500">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center text-primary text-[10px] font-bold">1</span>
-                  <span>Add questions &amp; sections</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center text-primary text-[10px] font-bold">2</span>
-                  <span>Drag to reorder</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center text-primary text-[10px] font-bold">3</span>
-                  <span>Preview your poll</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center text-primary text-[10px] font-bold">4</span>
-                  <span>Save when ready</span>
-                </div>
-              </div>
+      <div className={cn("space-y-3", className)} onClick={clearSelection}>
+        {/* Quick Start Guide � compact inline stepper */}
+        <div className="flex items-center gap-4 px-3 py-2 rounded-lg bg-zinc-900/40 border border-zinc-800/40">
+          {[
+            { n: "1", label: "Add questions" },
+            { n: "2", label: "Drag to reorder" },
+            { n: "3", label: "Preview" },
+            { n: "4", label: "Save & pulse" },
+          ].map((s, i) => (
+            <div key={s.n} className="flex items-center gap-1.5 text-xs text-zinc-500">
+              {i > 0 && <span className="text-zinc-700 mr-1">&#8250;</span>}
+              <span className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">{s.n}</span>
+              <span className="hidden sm:inline whitespace-nowrap">{s.label}</span>
             </div>
-          </div>
+          ))}
         </div>
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h2 className="text-xl font-bold text-zinc-100">Poll Builder</h2>
-          <div className="flex flex-wrap gap-1.5">
-            {/* Import Dropdown */}
+        {/* Header � toolbar */}
+        <div className="flex items-center justify-between gap-3 px-1">
+          {/* Left: Import / Export */}
+          <div className="flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-zinc-200">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Import
-                  <ChevronDown className="w-3 h-3 ml-1" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-zinc-200">
+                      <Upload className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Import</TooltipContent>
+                </Tooltip>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700 min-w-[200px]">
+              <DropdownMenuContent align="start" className="bg-zinc-900 border-zinc-700 min-w-[200px]">
                 <DropdownMenuItem onClick={() => setShowImportModal(true)} className="gap-2">
                   <FileText className="w-4 h-4 text-blue-400" />
                   <div className="flex flex-col">
@@ -4159,20 +4289,18 @@ export function PollBuilder({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Export Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-zinc-200">
-                  {justCopied ? (
-                    <Check className="w-4 h-4 mr-2 text-green-500" />
-                  ) : (
-                    <Download className="w-4 h-4 mr-2" />
-                  )}
-                  {justCopied ? "Copied!" : "Export"}
-                  <ChevronDown className="w-3 h-3 ml-1" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-zinc-200">
+                      {justCopied ? <Check className="w-4 h-4 text-green-500" /> : <Download className="w-4 h-4" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{justCopied ? "Copied!" : "Export"}</TooltipContent>
+                </Tooltip>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700 min-w-[220px]">
+              <DropdownMenuContent align="start" className="bg-zinc-900 border-zinc-700 min-w-[220px]">
                 <DropdownMenuItem onClick={handleCopyJson} className="gap-2">
                   <Copy className="w-4 h-4 text-blue-400" />
                   <div className="flex flex-col">
@@ -4198,20 +4326,12 @@ export function PollBuilder({
               </DropdownMenuContent>
             </DropdownMenu>
 
-          {/* Undo/Redo Buttons */}
-          <div className="flex items-center border-l border-zinc-700 pl-2 ml-1">
+            <span className="w-px h-5 bg-zinc-800 mx-1" />
+
+            {/* Undo / Redo */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={cn(
-                    "h-8 w-8",
-                    canUndo ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-600 cursor-not-allowed"
-                  )}
-                  onClick={undo}
-                  disabled={!canUndo}
-                >
+                <Button variant="ghost" size="icon" className={cn("h-8 w-8", canUndo ? "text-zinc-500 hover:text-zinc-200" : "text-zinc-700 cursor-not-allowed")} onClick={undo} disabled={!canUndo}>
                   <Undo2 className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
@@ -4219,162 +4339,143 @@ export function PollBuilder({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={cn(
-                    "h-8 w-8",
-                    canRedo ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-600 cursor-not-allowed"
-                  )}
-                  onClick={redo}
-                  disabled={!canRedo}
-                >
+                <Button variant="ghost" size="icon" className={cn("h-8 w-8", canRedo ? "text-zinc-500 hover:text-zinc-200" : "text-zinc-700 cursor-not-allowed")} onClick={redo} disabled={!canRedo}>
                   <Redo2 className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
             </Tooltip>
+
+            <span className="w-px h-5 bg-zinc-800 mx-1" />
+
+            {/* Clear */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-red-400" onClick={() => { if (data.questions.length > 0 || data.sections.length > 0) { if (confirm("Clear the entire poll? (Ctrl+Z to undo)")) clearBuilder(); } else clearBuilder(); }}>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Clear all</TooltipContent>
+            </Tooltip>
           </div>
 
-          {/* Clear Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-zinc-400 hover:text-red-400"
-                onClick={() => {
-                  if (data.questions.length > 0 || data.sections.length > 0) {
-                    if (confirm("Are you sure you want to clear the entire poll? This action can be undone with Ctrl+Z.")) {
-                      clearBuilder();
-                    }
-                  } else {
-                    clearBuilder();
-                  }
-                }}
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Clear
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Clear all content</TooltipContent>
-          </Tooltip>
+          {/* Right: Examples, Settings, Preview, Save */}
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 text-zinc-500 hover:text-zinc-200 text-xs gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Examples</span>
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700">
+                <DropdownMenuItem onClick={loadVerifyDemoTemplate} className="gap-2">
+                  <FlaskConical className="h-4 w-4 text-emerald-400" />
+                  Verify Poll Demo
+                  <span className="text-[10px] text-zinc-500 ml-auto">Test all types</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={loadREACHTemplate} className="gap-2">
+                  <Sparkles className="h-4 w-4 text-purple-400" />
+                  Feedback & Discovery
+                  <span className="text-[10px] text-zinc-500 ml-auto">Hybrid poll</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={loadFeatureExplorerTemplate} className="gap-2">
+                  <FlaskConical className="h-4 w-4 text-amber-400" />
+                  Feature Explorer Quiz
+                  <span className="text-[10px] text-zinc-500 ml-auto">Scored quiz</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={loadCannaCocoTemplate} className="gap-2">
+                  <FlaskConical className="h-4 w-4 text-green-400" />
+                  Canna Coco Mastery
+                  <span className="text-[10px] text-zinc-500 ml-auto">22Q grow quiz</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={loadTonyVeganEggsTemplate} className="gap-2">
+                  <FlaskConical className="h-4 w-4 text-lime-400" />
+                  Vegan + Eggs Mastery
+                  <span className="text-[10px] text-zinc-500 ml-auto">22Q performance quiz</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-zinc-700" />
+                <DropdownMenuItem 
+                  onClick={() => {
+                    setData({
+                      title: "Quick Feedback Survey",
+                      description: "A simple feedback form",
+                      type: "SURVEY",
+                      allowPartialSubmission: true,
+                      showProgressBar: true,
+                      randomizeQuestions: false,
+                      expiresAt: undefined,
+                      flow: [{ type: 'QUESTION', id: 'q1' }, { type: 'QUESTION', id: 'q2' }],
+                      sections: [],
+                      questions: [
+                        { id: 'q1', type: 'SCALE', questionText: 'How satisfied are you with our service?', required: true, allowImages: false, options: [] },
+                        { id: 'q2', type: 'TEXT', questionText: 'Any additional feedback?', required: false, allowImages: false, options: [] },
+                      ],
+                    });
+                    toast.success("Loaded Quick Feedback template!");
+                  }} 
+                  className="gap-2"
+                >
+                  <FileText className="h-4 w-4 text-blue-400" />
+                  Quick Feedback
+                  <span className="text-[10px] text-zinc-500 ml-auto">Simple</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => {
+                    setData({
+                      title: "Product Preference Survey",
+                      description: "Help us understand your preferences",
+                      type: "SURVEY",
+                      allowPartialSubmission: false,
+                      showProgressBar: true,
+                      randomizeQuestions: false,
+                      expiresAt: undefined,
+                      flow: [{ type: 'QUESTION', id: 'p1' }, { type: 'QUESTION', id: 'p2' }, { type: 'QUESTION', id: 'p3' }],
+                      sections: [],
+                      questions: [
+                        { id: 'p1', type: 'SINGLE_CHOICE', questionText: 'Which product category interests you most?', required: true, allowImages: false, options: [{ id: 'o1', text: 'Electronics' }, { id: 'o2', text: 'Fashion' }, { id: 'o3', text: 'Home & Garden' }, { id: 'o4', text: 'Sports' }] },
+                        { id: 'p2', type: 'MULTI_CHOICE', questionText: 'What factors influence your purchase decisions?', required: true, allowImages: false, options: [{ id: 'o5', text: 'Price' }, { id: 'o6', text: 'Quality' }, { id: 'o7', text: 'Brand' }, { id: 'o8', text: 'Reviews' }, { id: 'o9', text: 'Sustainability' }] },
+                        { id: 'p3', type: 'SLIDER', questionText: 'Rate your shopping experience', required: false, allowImages: false, options: [], sliderConfig: { min: 1, max: 7, step: 1, minLabel: 'Poor', maxLabel: 'Excellent', showValue: true } },
+                      ],
+                    });
+                    toast.success("Loaded Product Preference template!");
+                  }} 
+                  className="gap-2"
+                >
+                  <LayoutGrid className="h-4 w-4 text-green-400" />
+                  Product Preference
+                  <span className="text-[10px] text-zinc-500 ml-auto">Poll</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Load Example Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-zinc-200">
-                <Sparkles className="w-4 h-4 mr-2" />
-                Examples
-                <ChevronDown className="w-3 h-3 ml-1" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700">
-              <DropdownMenuItem onClick={loadVerifyDemoTemplate} className="gap-2">
-                <FlaskConical className="h-4 w-4 text-emerald-400" />
-                Verify Poll Demo
-                <span className="text-[10px] text-zinc-500 ml-auto">Test all types</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={loadREACHTemplate} className="gap-2">
-                <Sparkles className="h-4 w-4 text-purple-400" />
-                Feedback & Discovery
-                <span className="text-[10px] text-zinc-500 ml-auto">Hybrid poll</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={loadFeatureExplorerTemplate} className="gap-2">
-                <FlaskConical className="h-4 w-4 text-amber-400" />
-                Feature Explorer Quiz
-                <span className="text-[10px] text-zinc-500 ml-auto">Scored quiz</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={loadCannaCocoTemplate} className="gap-2">
-                <FlaskConical className="h-4 w-4 text-green-400" />
-                Canna Coco Mastery
-                <span className="text-[10px] text-zinc-500 ml-auto">22Q grow quiz</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-zinc-700" />
-              <DropdownMenuItem 
-                onClick={() => {
-                  setData({
-                    title: "Quick Feedback Survey",
-                    description: "A simple feedback form",
-                    type: "SURVEY",
-                    allowPartialSubmission: true,
-                    showProgressBar: true,
-                    randomizeQuestions: false,
-                    expiresAt: undefined,
-                    flow: [{ type: 'QUESTION', id: 'q1' }, { type: 'QUESTION', id: 'q2' }],
-                    sections: [],
-                    questions: [
-                      { id: 'q1', type: 'SCALE', questionText: 'How satisfied are you with our service?', required: true, allowImages: false, options: [] },
-                      { id: 'q2', type: 'TEXT', questionText: 'Any additional feedback?', required: false, allowImages: false, options: [] },
-                    ],
-                  });
-                  toast.success("Loaded Quick Feedback template!");
-                }} 
-                className="gap-2"
-              >
-                <FileText className="h-4 w-4 text-blue-400" />
-                Quick Feedback
-                <span className="text-[10px] text-zinc-500 ml-auto">Simple</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => {
-                  setData({
-                    title: "Product Preference Survey",
-                    description: "Help us understand your preferences",
-                    type: "SURVEY",
-                    allowPartialSubmission: false,
-                    showProgressBar: true,
-                    randomizeQuestions: false,
-                    expiresAt: undefined,
-                    flow: [{ type: 'QUESTION', id: 'p1' }, { type: 'QUESTION', id: 'p2' }, { type: 'QUESTION', id: 'p3' }],
-                    sections: [],
-                    questions: [
-                      { id: 'p1', type: 'SINGLE_CHOICE', questionText: 'Which product category interests you most?', required: true, allowImages: false, options: [{ id: 'o1', text: 'Electronics' }, { id: 'o2', text: 'Fashion' }, { id: 'o3', text: 'Home & Garden' }, { id: 'o4', text: 'Sports' }] },
-                      { id: 'p2', type: 'MULTI_CHOICE', questionText: 'What factors influence your purchase decisions?', required: true, allowImages: false, options: [{ id: 'o5', text: 'Price' }, { id: 'o6', text: 'Quality' }, { id: 'o7', text: 'Brand' }, { id: 'o8', text: 'Reviews' }, { id: 'o9', text: 'Sustainability' }] },
-                      { id: 'p3', type: 'SLIDER', questionText: 'Rate your shopping experience', required: false, allowImages: false, options: [], sliderConfig: { min: 1, max: 7, step: 1, minLabel: 'Poor', maxLabel: 'Excellent', showValue: true } },
-                    ],
-                  });
-                  toast.success("Loaded Product Preference template!");
-                }} 
-                className="gap-2"
-              >
-                <LayoutGrid className="h-4 w-4 text-green-400" />
-                Product Preference
-                <span className="text-[10px] text-zinc-500 ml-auto">Poll</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            <span className="w-px h-5 bg-zinc-800 mx-0.5" />
 
-          <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-zinc-200" onClick={() => setShowSettings(!showSettings)}>
-            <Settings className="w-4 h-4 mr-2" />
-            Settings
-          </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className={cn("h-8 w-8", showSettings ? "text-primary" : "text-zinc-500 hover:text-zinc-200")} onClick={() => setShowSettings(!showSettings)}>
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Settings</TooltipContent>
+            </Tooltip>
 
-          <Button 
-            variant="ghost"
-            size="sm"
-            className={showPreview ? "text-primary" : "text-zinc-400 hover:text-zinc-200"}
-            onClick={() => setShowPreview(!showPreview)}
-          >
-            <Eye className="w-4 h-4 mr-2" />
-            {showPreview ? "Hide Preview" : "Preview"}
-          </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className={cn("h-8 w-8", showPreview ? "text-primary" : "text-zinc-500 hover:text-zinc-200")} onClick={() => setShowPreview(!showPreview)}>
+                  <Eye className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{showPreview ? "Hide Preview" : "Preview"}</TooltipContent>
+            </Tooltip>
 
-          <Button onClick={handleSave} disabled={isSaving} size="sm" className="bg-primary hover:bg-primary/90">
-            {isSaving ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4 mr-2" />
-                Save Poll
-              </>
-            )}
-          </Button>
+            <Button onClick={handleSave} disabled={isSaving} size="sm" className="h-8 ml-1 bg-primary hover:bg-primary/90 text-xs gap-1.5">
+              {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              {isSaving ? "Saving..." : "Save"}
+            </Button>
+          </div>
         </div>
-      </div>
 
       {/* Poll Settings */}
       <AnimatePresence>
@@ -4564,26 +4665,93 @@ export function PollBuilder({
         )}
       </AnimatePresence>
 
+      {/* AI Generate Panel */}
+      <AnimatePresence>
+        {aiGenerateOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="p-4 rounded-xl border border-violet-500/20 bg-gradient-to-b from-violet-500/5 to-transparent space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-violet-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-zinc-200">AI Generate</h4>
+                    <p className="text-[11px] text-zinc-500">Describe the poll you want to create</p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-zinc-500 hover:text-zinc-300"
+                  onClick={() => { onAiGenerateClose?.(); setAiError(null); }}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <Textarea
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder={'e.g. "Create a 10-question quiz about climate change with single choice and slider questions"'}
+                className="min-h-[80px] bg-zinc-900/60 border-zinc-800/50 focus:border-violet-500/40 text-zinc-200 text-sm resize-none placeholder:text-zinc-600"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !aiGenerating && aiPrompt.trim()) {
+                    handleAiGenerate();
+                  }
+                }}
+              />
+
+              {aiError && (
+                <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{aiError}</p>
+              )}
+
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-zinc-600">Ctrl+Enter to generate</span>
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5 bg-violet-600 hover:bg-violet-500 text-xs"
+                  disabled={aiGenerating || !aiPrompt.trim()}
+                  onClick={handleAiGenerate}
+                >
+                  {aiGenerating ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Generate Poll
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Basic Info */}
-      <div className="space-y-4 p-4 rounded-lg bg-zinc-900/50">
-        <div className="space-y-2">
-          <Label className="text-zinc-400">Poll Title *</Label>
-          <Input
-            value={data.title}
-            onChange={(e) => setData((d) => ({ ...d, title: e.target.value }))}
-            placeholder="Enter poll title..."
-            className="bg-zinc-800/50 border-zinc-700/50 focus:border-zinc-600 text-zinc-100"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-zinc-400">Description</Label>
-          <Textarea
-            value={data.description}
-            onChange={(e) => setData((d) => ({ ...d, description: e.target.value }))}
-            placeholder="Optional description..."
-            className="min-h-[80px] bg-zinc-800/50 border-zinc-700/50 focus:border-zinc-600 text-zinc-100"
-          />
-        </div>
+      <div className="space-y-3 px-1">
+        <Input
+          value={data.title}
+          onChange={(e) => setData((d) => ({ ...d, title: e.target.value }))}
+          placeholder="Poll title..."
+          className="bg-zinc-900/40 border-zinc-800/50 focus:border-zinc-600 text-zinc-100 text-lg font-semibold h-11 placeholder:text-zinc-600"
+        />
+        <Textarea
+          value={data.description}
+          onChange={(e) => setData((d) => ({ ...d, description: e.target.value }))}
+          placeholder="Add a description (optional)"
+          className="min-h-[60px] bg-zinc-900/40 border-zinc-800/50 focus:border-zinc-600 text-zinc-300 text-sm resize-none placeholder:text-zinc-600"
+        />
       </div>
 
       {/* Builder */}
@@ -4613,7 +4781,7 @@ export function PollBuilder({
             {/* Show target indicator when section is selected */}
             {selectedElementType === 'section' && selectedElementId && (
               <div className="text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 mr-1">
-                <span>â†’</span>
+                <span>→</span>
                 <span className="max-w-[100px] truncate">
                   {sectionsById.get(selectedElementId)?.title || 'Section'}
                 </span>
@@ -4626,7 +4794,7 @@ export function PollBuilder({
                   size="sm"
                   className={cn(
                     "gap-1 text-zinc-400 hover:text-zinc-200",
-                    selectedElementType === 'section' && "text-amber-400 hover:text-amber-300"
+                    selectedElementType === 'section' && "text-primary hover:text-primary/80"
                   )}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -4676,7 +4844,7 @@ export function PollBuilder({
               }}
               className={cn(
                 "gap-1 text-zinc-400 hover:text-zinc-200",
-                selectedElementType === 'section' && "text-amber-400 hover:text-amber-300"
+                selectedElementType === 'section' && "text-primary hover:text-primary/80"
               )}
             >
               <FolderPlus className="h-4 w-4" />
@@ -4799,6 +4967,7 @@ export function PollBuilder({
               className="space-y-2"
             >
             {data.flow.map((flowItem, index) => {
+              const showInsertLane = draggingFromSectionId !== null && topLevelInsertIndex === index && !dropTargetSectionId && !dropTargetTopLevel;
               if (flowItem.type === 'SECTION') {
                 const section = sectionsById.get(flowItem.id);
                 if (!section) return null;
@@ -4809,13 +4978,14 @@ export function PollBuilder({
                   <Reorder.Item
                     key={section.id}
                     value={section.id}
+                    data-topflow-index={index}
                     data-section-id={section.id}
                     data-section-merge-target
                     layout={otherSectionDragging ? "position" : true}
                     className={cn(
-                      "cursor-grab active:cursor-grabbing relative",
-                      // Highlight as merge target when another section is dragged over this one
-                      isBeingMergedOnto && "ring-2 ring-purple-500 ring-offset-2 ring-offset-zinc-900 rounded-lg"
+                      "cursor-grab active:cursor-grabbing relative transition-[margin,padding] duration-150",
+                      isBeingMergedOnto && "ring-2 ring-purple-500 ring-offset-2 ring-offset-zinc-900 rounded-lg",
+                      showInsertLane && "mt-7"
                     )}
                     whileDrag={{
                       scale: 1.02,
@@ -4862,6 +5032,11 @@ export function PollBuilder({
                       setMergeSectionTarget(null);
                     }}
                   >
+                    {showInsertLane && (
+                      <div className="absolute -top-5 left-0 right-0 flex items-center justify-center pointer-events-none z-20">
+                        <div className="px-2 py-0.5 text-[10px] rounded-full border border-primary/30 bg-zinc-900 text-primary/90">Drop here</div>
+                      </div>
+                    )}
                     {/* Section drag indicator - shows when this section is being dragged */}
                     {draggingSectionId === section.id && (
                       <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-[101] bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
@@ -4937,6 +5112,7 @@ export function PollBuilder({
                     key={question.id}
                     question={question}
                     index={index}
+                    insertBefore={showInsertLane}
                     draggingSectionId={draggingSectionId}
                     isThisExpanded={expandedQuestions.has(question.id)}
                     onToggleExpand={() => setExpandedQuestion(question.id)}
@@ -4944,7 +5120,16 @@ export function PollBuilder({
                       setDraggingQuestionId(question.id);
                       setDraggingFromSectionId(null);
                     }}
-                    onDragEnd={() => setDraggingQuestionId(null)}
+                    onDragEnd={() => {
+                      setDraggingQuestionId(null);
+                      setDropTargetSectionId(null);
+                      setDropTargetTopLevel(false);
+                      setTopLevelInsertIndex(null);
+                    }}
+                    checkDropZone={checkDropZoneForSectionQuestion}
+                    onDropComplete={(targetSectionId, isTopLevel) =>
+                      handleSectionQuestionDrop(question.id, targetSectionId, isTopLevel)
+                    }
                     updateQuestion={updateQuestion}
                     removeQuestion={removeQuestion}
                     addOption={addOption}
@@ -4960,6 +5145,11 @@ export function PollBuilder({
                 );
               }
             })}
+            {draggingFromSectionId !== null && topLevelInsertIndex === data.flow.length && !dropTargetSectionId && !dropTargetTopLevel && (
+              <div className="h-7 -mt-1 flex items-end justify-center pointer-events-none">
+                <div className="px-2 py-0.5 text-[10px] rounded-full border border-primary/30 bg-zinc-900 text-primary/90">Drop here</div>
+              </div>
+            )}
           </Reorder.Group>
           </>
         )}

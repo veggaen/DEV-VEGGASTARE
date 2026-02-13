@@ -141,46 +141,40 @@ export function PulsePollCard({ poll, onClick, isAdmin, isOwner, onEdit, onDelet
   return (
     <motion.div
       className={cn(
-        "relative rounded-2xl border border-border/60 overflow-hidden cursor-pointer",
-        "bg-gradient-to-br from-card via-card to-muted/20",
-        "hover:border-primary/40 hover:shadow-lg transition-all duration-300"
+        "group relative rounded-xl border border-border/40 overflow-hidden cursor-pointer",
+        "bg-card",
+        "hover:border-border hover:shadow-md transition-all duration-200"
       )}
-      whileHover={{ scale: 1.01 }}
-      whileTap={{ scale: 0.99 }}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.995 }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
       onClick={onClick}
     >
-      {/* Glow effect for special polls */}
-      {poll.type === "REACH_ASSESSMENT" && (
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-orange-500/5 pointer-events-none" />
-      )}
-
-      <div className="p-4 space-y-3">
+      <div className="p-5 space-y-4">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <Avatar className="h-10 w-10 shrink-0 ring-2 ring-primary/20">
+            <Avatar className="h-9 w-9 shrink-0">
               <AvatarImage src={poll.creator.image || undefined} />
-              <AvatarFallback>{poll.creator.name?.[0] || "?"}</AvatarFallback>
+              <AvatarFallback className="text-xs">{poll.creator.name?.[0] || "?"}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <div className="font-medium truncate">{poll.creator.name || "Anonymous"}</div>
-              <div className="text-xs text-muted-foreground">{timeAgo}</div>
+              <div className="text-sm font-medium truncate">{poll.creator.name || "Anonymous"}</div>
+              <div className="text-xs text-muted-foreground/70">{timeAgo}</div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className={cn("shrink-0 gap-1", config.color)}>
+            <Badge variant="outline" className={cn("shrink-0 gap-1 text-[11px] font-medium", config.color)}>
               <Icon className="h-3 w-3" />
               {config.label}
             </Badge>
 
-            {/* Admin/Owner Menu */}
             {canManage && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -223,54 +217,56 @@ export function PulsePollCard({ poll, onClick, isAdmin, isOwner, onEdit, onDelet
         </div>
 
         {/* Title & Description */}
-        <div className="space-y-1">
-          <h3 className="font-semibold text-lg leading-tight group-hover:text-primary transition-colors">
+        <div className="space-y-1.5">
+          <h3 className="font-semibold text-base leading-snug tracking-tight">
             {poll.title}
           </h3>
           {poll.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2">
+            <p className="text-sm text-muted-foreground/80 line-clamp-2 leading-relaxed">
               {poll.description}
             </p>
           )}
         </div>
 
-        {/* Stats Row */}
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <Target className="h-4 w-4" />
-            {poll.questionCount} questions
+        {/* Stats — subtle inline chips */}
+        <div className="flex items-center gap-3 text-xs text-muted-foreground/60">
+          <span className="flex items-center gap-1">
+            <Target className="h-3.5 w-3.5" />
+            {poll.questionCount} Q
           </span>
-          <span className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4" />
-            ~{estimatedTime} min
+          <span className="w-px h-3 bg-border" />
+          <span className="flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5" />
+            {estimatedTime}m
           </span>
-          <span className="flex items-center gap-1.5">
-            <Users className="h-4 w-4" />
-            {poll.totalResponses} responses
+          <span className="w-px h-3 bg-border" />
+          <span className="flex items-center gap-1">
+            <Users className="h-3.5 w-3.5" />
+            {poll.totalResponses}
           </span>
         </div>
 
         {/* User Progress or CTA */}
         {hasStarted && !isCompleted ? (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Your progress</span>
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground/70">Progress</span>
               <span className="font-medium text-primary">{Math.round(progressPct)}%</span>
             </div>
-            <Progress value={progressPct} className="h-2" />
-            <Button variant="secondary" size="sm" className="w-full gap-2">
-              <PlayCircle className="h-4 w-4" />
+            <Progress value={progressPct} className="h-1.5" />
+            <Button variant="secondary" size="sm" className="w-full gap-2 h-9 text-xs font-medium">
+              <PlayCircle className="h-3.5 w-3.5" />
               Continue
             </Button>
           </div>
         ) : isCompleted ? (
-          <div className="flex items-center justify-between">
-            <Badge variant="secondary" className="gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+          <div className="flex items-center justify-between pt-1">
+            <Badge variant="secondary" className="gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px]">
               <Sparkles className="h-3 w-3" />
               Completed
             </Badge>
-            <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground">
-              View Results <ChevronRight className="h-4 w-4" />
+            <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground h-8">
+              Results <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
         ) : (
@@ -278,23 +274,15 @@ export function PulsePollCard({ poll, onClick, isAdmin, isOwner, onEdit, onDelet
             variant="default" 
             size="sm" 
             className={cn(
-              "w-full gap-2",
+              "w-full gap-2 h-9 text-xs font-medium",
               poll.type === "REACH_ASSESSMENT" && "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
             )}
           >
-            <PlayCircle className="h-4 w-4" />
+            <PlayCircle className="h-3.5 w-3.5" />
             Start {config.label}
           </Button>
         )}
       </div>
-
-      {/* Animated arrow on hover */}
-      <motion.div
-        className="absolute right-3 top-1/2 -translate-y-1/2"
-        animate={{ x: isHovered ? 4 : 0, opacity: isHovered ? 1 : 0 }}
-      >
-        <ChevronRight className="h-5 w-5 text-primary" />
-      </motion.div>
     </motion.div>
   );
 }

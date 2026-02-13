@@ -8,6 +8,7 @@
 
 Veggat is a **two-service architecture**:
 
+0. **Ideas & inspiration** https://motion.dev/examples https://webflow.com/made-in-webflow/gsapanimation https://demos.gsap.com/explore/
 1. **Frontend** (Next.js 16) — Full-stack web app handling UI, auth, database operations, and API routes
 2. **Backend** (Hapi.js) — Integration Core handling shipping, real-time broadcasting, and third-party connectors
 
