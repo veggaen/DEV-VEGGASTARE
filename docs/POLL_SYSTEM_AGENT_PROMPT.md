@@ -1,4 +1,5 @@
 > **Status: HISTORICAL** — This agent prompt was used to build the advanced poll system. The work described here has been executed. Kept for audit trail and reference.
+> **Archive note:** This file is an implementation transcript, not an active instruction set. For current work, use `prd.md`, `architecture.md`, `MasterContext.md`, and active docs in `docs/`.
 
 # AGENT PROMPT: Poll System Upgrade + First Poll Creation
 

@@ -1,10 +1,10 @@
 # MasterContext — Veggat
 
 > Living aggregation of project-wide context for AI assistants and developer onboarding.  
-> This file serves as the single source of truth for understanding the entire codebase.
+> This file is the canonical source for architecture invariants and onboarding context.
 
 **Auto-generated sections** are marked with `<!-- @auto -->`. Manual sections are maintained by developers.  
-**Last Updated:** July 2025
+**Last Updated:** 2026-02-13
 
 ---
 

@@ -499,11 +499,11 @@ This gets you past the "postal code only" limitation quickly, while the full pla
 
 ---
 
-## ✅ Grok's Analysis: What's Correct
+## ✅ Validation Notes
 
-Grok's suggestions are **mostly accurate** with some caveats:
+The following recommendations have been reviewed and are mostly accurate, with caveats:
 
-| Suggestion | Accuracy | Notes |
+| Recommendation | Accuracy | Notes |
 |------------|----------|-------|
 | Full addresses required for Booking | ✅ Correct | Shipping Guide works with postal only, but Booking needs full address |
 | Address model schema | ✅ Correct | The fields suggested match Bring API requirements |
@@ -513,7 +513,7 @@ Grok's suggestions are **mostly accurate** with some caveats:
 | Resend integration | ✅ Correct | You already have it set up |
 | 35 char limit for address lines | ✅ Correct | Bring API limitation |
 
-**One correction**: Grok mentions "no official Node SDK" but you already have a good abstraction in `backend/src/integrations/bring/` - keep using that!
+One correction: references claiming "no official Node SDK" are not operational blockers here because this project already has a working abstraction in `backend/src/integrations/bring/`.
 
 ---
 

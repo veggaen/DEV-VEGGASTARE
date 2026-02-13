@@ -1,4 +1,5 @@
 > **Status: HISTORICAL** — This spec was used to build the advanced poll system. The schema, API routes, and UI components described here have been implemented. Kept for audit trail and reference.
+> **Non-actionable warning:** do not execute checklist items in this document as current backlog. Use `prd.md`, service READMEs, and active docs in `docs/` for current implementation work.
 
 # 🚀 POLL SYSTEM UPGRADE - MASTER QUERY FOR AGENT
 
@@ -86,6 +87,9 @@ model PollVote {
 ```
 
 ### Current 6 Pillars of Reach (TO BECOME 7)
+
+> **Deprecated snapshot:** The 6-pillar weighting block below is historical context only. Use `docs/REACH_7_PILLARS_SPECIFICATION.md` for current 7-pillar model references.
+
 ```typescript
 visibility: number;       // 20% - Unique exposures deduped
 engagementDepth: number;  // 30% - Quality interactions

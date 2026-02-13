@@ -79,6 +79,8 @@ All routes are prefixed with `/v1/`. Full spec in [openapi/v1.yaml](openapi/v1.y
 | `POST` | `/api/update` | Update warehouse inventory (legacy) |
 | `POST` | `/api/pusher/trigger` | Trigger a Pusher event |
 
+Preferred stable surface is `/v1/*`. Legacy routes under `/api/*` are retained for backward compatibility and should not be used for new integrations.
+
 ### Input Validation
 
 All request payloads are validated with Zod schemas:

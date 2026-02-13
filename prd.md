@@ -3,7 +3,7 @@
 > Living PRD for the Veggat marketplace and social platform.
 
 **Version:** 1.0  
-**Last Updated:** July 2025  
+**Last Updated:** 2026-02-13  
 **Status:** Active Development
 
 ---

@@ -2,9 +2,13 @@
 
 This document covers the complete Bring API integration for VeggaStare, including setup, testing, and production deployment.
 
+> Canonical integration path: backend `\`/v1/shipping/*\`` endpoints. Frontend wrappers are optional and should delegate to backend routes.
+
 ## 🔑 Required Environment Variables
 
-Add these to your `.env.local`:
+Set Bring credentials in `backend/.env` (backend-owned integration). Frontend only needs backend URL variables.
+
+### Backend `.env`
 
 ```bash
 # Bring API Credentials (get from MyBring: https://www.mybring.com/)
@@ -14,6 +18,13 @@ BRING_CUSTOMER_NUMBER=TESTUSER_123  # Use test number for testing!
 
 # Test Mode - ALWAYS use "true" during development
 BRING_TEST_MODE=true
+```
+
+### Frontend `.env.local`
+
+```bash
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
+NEXT_PUBLIC_WS_URL=http://localhost:3002
 ```
 
 ### Getting Your Credentials

@@ -11,7 +11,7 @@
 ```bash
 cd frontend
 npm install
-cp .env.local.example .env.local   # Configure env vars
+# Create .env.local manually using the Environment Variables section below
 npx prisma generate                # Generate Prisma client
 npx prisma migrate dev             # Apply database migrations
 npm run dev                        # → http://localhost:3000
@@ -147,7 +147,7 @@ frontend/
 - Two-tier feedback disclosure: explanation → "Still don't understand?" → deepExplanation
 - Verification-tier weighted responses (True Reach™ integration, 0.1x–1.2x)
 - Anti-gaming: IP hashing, speed checks (2s min, 30/min max), straightline detection
-- PollBuilder "Examples" dropdown with 5 templates (Verify Demo, Feedback & Discovery, Feature Explorer Quiz, Quick Feedback, Product Preference)
+- PollBuilder "Examples" dropdown with 6 templates (Verify Demo, Feedback & Discovery, Feature Explorer Quiz, Canna Coco Mastery, Quick Feedback, Product Preference)
 - Analytics dashboards for companies, products, and users
 - Chart.js radar/bar/line visualizations
 
@@ -169,6 +169,8 @@ frontend/
 | `DATABASE_URL` | PostgreSQL connection string |
 | `AUTH_SECRET` | NextAuth secret key |
 | `NEXTAUTH_URL` | App URL (`http://localhost:3000` in dev) |
+| `GATE_PASSWORD` | Gate password used by `/gate` protection |
+| `GATE_STATUS` | Gate toggle (`true` or `false`) |
 
 ### OAuth Providers
 

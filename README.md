@@ -2,6 +2,10 @@
 
 > **Modern marketplace for premium digital products and services.**
 
+**Last verified:** 2026-02-13
+
+**Documentation precedence:** when docs conflict, use `frontend/README.md` + `backend/README.md` for setup/runtime behavior, `MasterContext.md` for architecture invariants, and treat `docs/*` files marked Historical as audit-only.
+
 A full-stack Web3-enabled marketplace built with **Next.js 16**, **React 19**, and **TypeScript**. Features curated product listings, warehouse management, company dashboards, crypto P2P trading with OSRS-style inventory, social features (Pulse feed, conversations, follow/sync), an advanced poll system, and the proprietary **True Reach™** 7-pillar engagement metric.
 
 **Live:** [veggat.com](https://www.veggat.com)

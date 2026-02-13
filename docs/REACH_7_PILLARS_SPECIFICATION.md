@@ -1,6 +1,6 @@
 # The 7 Pillars of Reach™ - Complete Specification
 
-> **VeggaStare's True Reach Metric System**  
+> **Veggat True Reach Metric System**  
 > Version 2.0 - The 7-Layer Architecture
 
 ---
@@ -18,7 +18,7 @@
 
 ## Overview
 
-The VeggaStare Reach system is a **7-pillar metric framework** inspired by:
+The Veggat Reach system is a **7-pillar metric framework** inspired by:
 
 - **OSI Model's 7 Layers** - Conceptual layering from physical to application
 - **Brian Solis' 6 Pillars of Social Commerce** - Psychological engagement drivers
@@ -28,7 +28,7 @@ The VeggaStare Reach system is a **7-pillar metric framework** inspired by:
 
 ### Why 7 Pillars?
 
-Just as the OSI model provides 7 distinct layers for network communication, VeggaStare's Reach system now employs 7 distinct measurement layers that capture the full spectrum of social value creation.
+Just as the OSI model provides 7 distinct layers for network communication, Veggat's Reach system now employs 7 distinct measurement layers that capture the full spectrum of social value creation.
 
 ---
 
@@ -223,6 +223,8 @@ velocity = (engagementRate / timeDelta) × viralCoefficient × crossNetworkBonus
 
 Users are classified into verification tiers that affect their **view strength** and **poll power**:
 
+> **Alignment note:** This table is an internal expanded tier map. Product-facing docs may describe a condensed 12-tier representation for UX communication.
+
 | Tier | Multiplier | Description | Requirements |
 |------|------------|-------------|--------------|
 | `ANONYMOUS` | 0.10x | Not logged in | None |
@@ -377,4 +379,4 @@ Each pillar is normalized to 0-100, resulting in a final score of 0-100.
 
 *Document Version: 2.0*  
 *Last Updated: February 2026*  
-*Author: VeggaStare Development Team*
+*Author: Veggat Development Team*

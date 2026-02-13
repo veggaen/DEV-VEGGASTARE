@@ -32,3 +32,9 @@ These documents provide the deep technical detail behind features summarized in 
 - **Need the big picture?** Start with [architecture.md](../architecture.md) or [MasterContext.md](../MasterContext.md).
 - **Feature status?** See [prd.md](../prd.md) for the full feature matrix with status indicators.
 - **Adding a new spec?** Create it here, add it to this index, and cross-reference from prd.md.
+
+### Conflict Rule
+
+- **Active** docs override **Reference** and **Historical** docs.
+- Service READMEs (`frontend/README.md`, `backend/README.md`) override setup instructions anywhere else.
+- **Historical** docs are non-actionable implementation records unless explicitly promoted back to Active.

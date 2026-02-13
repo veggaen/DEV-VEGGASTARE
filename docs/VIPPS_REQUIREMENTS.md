@@ -32,11 +32,11 @@ Since Vipps serves consumers, you must follow [Forbrukerrådets veiledning](http
 
 ## 🔧 Implementation Tasks for VeggaStare
 
-### Legal Pages to Create:
-1. [ ] `/terms` - Sales Terms page with all required sections
-2. [ ] `/privacy` - Privacy Policy (already exists?)
-3. [ ] `/contact` - Contact page with company info
-4. [ ] Footer with org number, address, etc.
+### Legal Pages to Verify / Upgrade:
+1. [ ] Verify `/terms` contains all required sales-term sections (parties, payment, delivery, withdrawal, returns, complaints, conflict resolution)
+2. [ ] Verify `/privacy` legal adequacy for GDPR + Norway consumer context
+3. [ ] Verify `/contact` routing/content includes required company information
+4. [ ] Add/verify footer company details: legal name, org number, address, phone, email
 
 ### Features to Implement:
 1. [ ] Order confirmation emails
@@ -73,11 +73,11 @@ Since Vipps serves consumers, you must follow [Forbrukerrådets veiledning](http
 
 | Requirement | Status | Notes |
 |-------------|--------|-------|
-| Sales Terms page | ⏳ | Need to create |
-| Company info in footer | ⏳ | Need org number |
+| Sales Terms page | 🔄 | Exists, needs legal completeness verification |
+| Company info in footer | ⏳ | Add/verify legal company metadata |
 | Product prices displayed | ✅ | With currency conversion |
-| Privacy policy | ⏳ | Check if exists |
-| Contact page | ⏳ | Need to verify |
+| Privacy policy | 🔄 | Exists, needs legal review |
+| Contact page | 🔄 | Exists/routed, verify required company info |
 
 ---
 
