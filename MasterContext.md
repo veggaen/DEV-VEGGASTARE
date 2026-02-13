@@ -56,7 +56,7 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 | **Pulse (Social)** | `app/feed/`, `app/pulse/` | Active | Social feed, posts, reactions |
 | **Conversations** | `app/(protected)/` area | Active | DMs, group chats |
 | **Crypto Trading** | `components/crypto-related/` | Active | OSRS inventory, trade windows, P2P |
-| **Polls** | `app/poll-test/` | Active | Advanced multi-question polls |
+| **Polls** | `app/poll-test/`, `components/uicustom/polls/` | Active | 3 poll types (SURVEY, FEEDBACK, QUIZ), 11 question types, PollBuilder with 5 example templates, verification-weighted voting, anti-gaming, two-tier quiz feedback |
 | **Analytics** | `app/analytics/`, `actions/analytics-*.ts` | Active | Company/product/user analytics |
 | **UI Components** | `components/ui/` | Stable | shadcn/ui primitives |
 | **Custom Components** | `components/uicustom/` | Active | Composite components |

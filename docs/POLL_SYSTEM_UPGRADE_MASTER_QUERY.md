@@ -939,3 +939,111 @@ The poll system should integrate with these existing routes:
 **END OF MASTER QUERY**
 
 > This document is the complete specification for upgrading the poll system. An agent can use this to implement all features in a single comprehensive pass.
+
+---
+
+## ADDENDUM: Poll Types, Quiz Correctness Engine & Template Methodology
+
+> Added 2026-02-12 — Documents the three poll types, the quiz scoring engine, and the template design philosophy.
+
+### Poll Types
+
+The system supports three `PollType` values:
+
+| Type | Purpose | Scoring | Template |
+|------|---------|---------|----------|
+| `SURVEY` | Open-ended feedback, no right answers | No scoring | Quick Feedback, Product Preference (inline) |
+| `FEEDBACK` | Hybrid: feedback questions + "Did you know?" discovery | No scoring, but discovery questions teach features | Feedback & Discovery (reach-poll-template.ts) |
+| `QUIZ` | Scored assessment with correct answers | Per-question scoring with explanation tiers | Verify Poll Demo, Feature Explorer Quiz |
+
+### Quiz Correctness Engine
+
+Every QUIZ question can have:
+
+```typescript
+correctAnswer: string | string[]    // option ID(s) or text value
+explanation: string                  // Shown when user answers (correct or wrong)
+wrongExplanation: string             // Shown ONLY when answer is wrong
+deepExplanation: string              // "Still don't understand?" — second-tier help
+trickQuestion: boolean               // Shows 🎭 badge, warns user to read carefully
+commitRequired: boolean              // "Lock in" confirmation before reveal
+```
+
+**Two-Tier Feedback Flow:**
+1. User answers → sees `explanation` (or `wrongExplanation` if wrong)
+2. User clicks "Still don't understand?" → sees `deepExplanation`
+
+**Scoring by question type:**
+- `SINGLE_CHOICE` → `correctAnswer` = option ID
+- `MULTI_CHOICE` → `correctAnswer` = array of option IDs (exact set match)
+- `SLIDER` / `SCALE` → `correctAnswer` = string number (e.g. `"6"`)
+- `TEXT` → `correctAnswer` = exact string (case-insensitive comparison)
+- `RANKING` → `correctAnswer` = array of option IDs in correct order
+- `SHAPE_MATCH` → handled by `ShapeMatchQuestion` component internally
+
+### Verification-Weighted Voting
+
+All poll responses are weighted by the user's verification tier:
+
+| Tier | Multiplier | Requirements |
+|------|-----------|--------------|
+| Anonymous | 0.1x (10%) | No verification |
+| Email | 0.5x (50%) | Email verified |
+| Social OAuth | 0.7x (70%) | Google/GitHub/Discord |
+| Wallet | 0.9x (90%) | Crypto wallet connected |
+| Fully Verified | 1.2x (120%) | Multiple methods |
+
+Final weight = `tier × completion × responseQuality`
+
+Implementation: `frontend/lib/poll-response-weighting.ts`
+
+### Anti-Gaming Configuration
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `minTimeToFirstAnswer` | 2000ms | Prevents instant bot answers |
+| `maxAnswersPerMinute` | 30 | Rate-limits rapid-fire responses |
+| `straightlineDetection` | enabled | Flags identical answers for all questions |
+| `ipHashing` | enabled | Prevents duplicate voting (privacy-preserving) |
+
+### Template Design Philosophy
+
+**Feedback & Discovery (FEEDBACK type)**
+- Targets both new and experienced users
+- Mixes genuine feedback questions ("How easy was onboarding?") with discovery questions ("Did you know we have P2P trading?")
+- No scoring — every response is valuable
+- "Discovery Zone" section teaches features through question context
+- 28 questions, 8 sections, covers all 7 REACH pillars
+
+**Feature Explorer Quiz (QUIZ type)**
+- Scored quiz testing real VeggaStare knowledge
+- Every wrong answer teaches something ("Discovery Bonus" in wrongExplanation)
+- Uses 7 question types: SINGLE_CHOICE, MULTI_CHOICE, SLIDER, SCALE, TEXT, RANKING, SHAPE_MATCH
+- 2 trick questions with 🎭 badges
+- 18 questions, 5 sections
+- Questions cover: REACH pillars, verification tiers, anti-gaming, Web3, VeggaSystem bot, trade system, UI design
+
+**Verify Poll Demo (QUIZ type)**
+- Technical verification of ALL question types
+- Tests reading comprehension, instruction following, spatial reasoning
+- 22 questions across 6 sections
+- Includes shape match (outline + color), ranking (forward + reverse), text (exact match)
+- Deep explanations provide pedagogical follow-up for every answer
+
+### Template Files
+
+| File | Type | Questions | Sections |
+|------|------|-----------|----------|
+| `reach-poll-template.ts` | FEEDBACK | 28 | 8 |
+| `feature-explorer-quiz-template.ts` | QUIZ | 18 | 5 |
+| `verify-poll-demo-template.ts` | QUIZ | 22 | 6 |
+
+All templates export a `generate*Template(): PollBuilderData` function that creates fresh IDs on each call.
+
+### PollBuilder "Examples" Dropdown (5 entries)
+
+1. **Verify Poll Demo** — Test all types (emerald icon)
+2. **Feedback & Discovery** — Hybrid poll (purple icon)
+3. **Feature Explorer Quiz** — Scored quiz (amber icon)
+4. **Quick Feedback** — Simple 2-question survey (blue icon, inline)
+5. **Product Preference** — 3-question survey (cyan icon, inline)

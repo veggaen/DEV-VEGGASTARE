@@ -39,13 +39,14 @@ if (useDevDb) {
 }
 
 const POLL_DESCRIPTION = `
-🎯 Shape the Future of VeggaStare
+💬 Your Feedback Shapes Everything
 
-Your voice matters! Help us build a better platform by sharing 
-what features you care about most.
+Help us make VeggaStare better! Tell us what you think, 
+discover features you might not know about, and help 
+us decide what to build next.
 
 • 8 Quick Sections
-• Skip what doesn't interest you
+• Skip anything you want
 • Takes 5-10 minutes
 `.trim();
 
@@ -78,27 +79,34 @@ interface QuestionDef {
 
 const PHASES: PhaseDef[] = [
   {
-    phaseId: "about-you",
-    title: "About You",
-    subtitle: "Help us understand your perspective",
+    phaseId: "welcome",
+    title: "Welcome & You",
+    subtitle: "Tell us about yourself",
     icon: "User",
     color: "emerald",
     questions: [
       {
         localId: "role",
         type: "SINGLE_CHOICE",
-        text: "What brings you to VeggaStare?",
-        description: "Pick the one that fits best — you can do multiple things!",
+        text: "What best describes you on VeggaStare?",
+        description: "Pick the closest fit — no wrong answers!",
         required: true,
         visual: "cards",
         options: [
-          { localId: "creator", text: "I create content", icon: "🎨", description: "Posts, art, products, music" },
-          { localId: "explorer", text: "I discover & engage", icon: "🔍", description: "Browse, like, comment, share" },
-          { localId: "seller", text: "I sell things", icon: "🏪", description: "Products, services, digital items" },
-          { localId: "buyer", text: "I shop & collect", icon: "🛒", description: "Buy products, trade items" },
-          { localId: "networker", text: "I connect people", icon: "🤝", description: "Community building, collaborations" },
-          { localId: "observer", text: "Just exploring", icon: "👀", description: "New here, checking things out" },
+          { localId: "creator", text: "I create content", icon: "🎨", description: "Posts, products, art" },
+          { localId: "explorer", text: "I browse & discover", icon: "🔍", description: "Browse, like, comment" },
+          { localId: "shopper", text: "I shop & trade", icon: "🛒", description: "Buy products, trade items" },
+          { localId: "networker", text: "I connect with people", icon: "🤝", description: "Community, collaborations" },
+          { localId: "observer", text: "Just checking things out", icon: "👀", description: "New here!" },
         ],
+      },
+      {
+        localId: "familiarity",
+        type: "SLIDER",
+        text: "How familiar are you with VeggaStare?",
+        description: "Be honest — helps us tailor the experience!",
+        required: true,
+        sliderConfig: { min: 1, max: 5, minLabel: "Brand new", maxLabel: "Power user", showValue: true },
       },
       {
         localId: "contribute",
@@ -108,232 +116,328 @@ const PHASES: PhaseDef[] = [
         required: false,
         visual: "pills",
         options: [
-          { localId: "yes", text: "Yes!", icon: "✅" },
-          { localId: "no", text: "Not now", icon: "❌" },
+          { localId: "yes", text: "Yes, I'd love to!", icon: "✅" },
+          { localId: "maybe", text: "Maybe — tell me more", icon: "🤔" },
+          { localId: "no", text: "Not right now", icon: "❌" },
+        ],
+      },
+    ],
+  },
+  {
+    phaseId: "impressions",
+    title: "First Impressions",
+    subtitle: "Your experience landing on VeggaStare",
+    icon: "Sparkles",
+    color: "yellow",
+    questions: [
+      {
+        localId: "first-impression",
+        type: "SLIDER",
+        text: "What was your first impression of VeggaStare?",
+        description: "Think back to when you first landed on the site",
+        required: true,
+        sliderConfig: { min: 1, max: 7, minLabel: "Confused", maxLabel: "Impressed", showValue: true },
+      },
+      {
+        localId: "stood-out",
+        type: "MULTI_CHOICE",
+        text: "What stood out to you the most? (pick up to 3)",
+        description: "First things you noticed or explored",
+        required: false,
+        visual: "cards",
+        options: [
+          { localId: "design", text: "The design & dark theme", icon: "🎨" },
+          { localId: "marketplace", text: "The marketplace / products", icon: "🛒" },
+          { localId: "reach", text: "The REACH analytics system", icon: "📊" },
+          { localId: "web3", text: "Web3 / wallet integration", icon: "🔗" },
+          { localId: "social", text: "Social features (feed, chat)", icon: "💬" },
+          { localId: "polls", text: "The polls & voting system", icon: "🗳️" },
         ],
       },
       {
-        localId: "familiarity",
-        type: "SLIDER",
-        text: "How well do you know VeggaStare's features?",
-        description: "Be honest — there's no wrong answer!",
+        localId: "clarity",
+        type: "SINGLE_CHOICE",
+        text: "Was it clear what VeggaStare is about?",
+        description: "Could you tell what the platform does within a minute?",
         required: true,
-        sliderConfig: { min: 1, max: 5, minLabel: "Brand new", maxLabel: "Power user", showValue: true },
+        visual: "pills",
+        options: [
+          { localId: "yes", text: "Yes, totally clear", icon: "✅" },
+          { localId: "somewhat", text: "Sort of — took exploring", icon: "🤔" },
+          { localId: "not-really", text: "Not really", icon: "😕" },
+          { localId: "no", text: "No idea honestly", icon: "❓" },
+        ],
       },
     ],
   },
   {
     phaseId: "reach-pillars",
-    title: "The Reach System",
-    subtitle: "Rate what matters most to you",
+    title: "The 7 Pillars",
+    subtitle: "Rate the REACH scoring system",
     icon: "Target",
     color: "blue",
     questions: [
       {
-        localId: "pillar-visibility",
+        localId: "transparent-scoring",
         type: "SLIDER",
-        text: "How important is knowing how many people see your content?",
-        description: "Views, impressions, and reach",
+        text: "How important is a transparent scoring system to you?",
+        description: "REACH replaces hidden algorithms with 7 visible pillars: Discovery, Content, Psychology, Community, Conversion, Growth & Velocity",
         required: true,
-        sliderConfig: { min: 1, max: 5, showValue: true },
+        sliderConfig: { min: 1, max: 5, minLabel: "Don't care", maxLabel: "Essential", showValue: true },
       },
       {
-        localId: "pillar-engagement",
-        type: "SLIDER",
-        text: "How important are meaningful interactions?",
-        description: "Comments, saves, time spent — not just likes",
-        required: true,
-        sliderConfig: { min: 1, max: 5, showValue: true },
-      },
-      {
-        localId: "pillar-conversion",
-        type: "SLIDER",
-        text: "How important is turning viewers into customers?",
-        description: "Profile visits → follows, clicks → purchases",
-        required: true,
-        sliderConfig: { min: 1, max: 5, showValue: true },
-      },
-      {
-        localId: "pillar-loyalty",
-        type: "SLIDER",
-        text: "How important is having repeat supporters?",
-        description: "People who come back again and again",
-        required: true,
-        sliderConfig: { min: 1, max: 5, showValue: true },
-      },
-      {
-        localId: "pillar-growth",
-        type: "SLIDER",
-        text: "How important is organic growth from your posts?",
-        description: "New followers discovered through your content",
-        required: true,
-        sliderConfig: { min: 1, max: 5, showValue: true },
-      },
-    ],
-  },
-  {
-    phaseId: "velocity",
-    title: "Velocity & Momentum",
-    subtitle: "Should we track when content goes viral?",
-    icon: "Zap",
-    color: "amber",
-    questions: [
-      {
-        localId: "velocity-want",
+        localId: "velocity-awareness",
         type: "SINGLE_CHOICE",
-        text: "Would you like to know when your content is trending?",
-        description: "Real-time alerts when engagement spikes",
+        text: "Did you know VeggaStare already tracks Velocity (live trending)?",
+        description: "⚡ We shipped the 7th pillar! It tracks real-time momentum, engagement spikes, and viral detection.",
         required: true,
-        visual: "pills",
+        visual: "cards",
         options: [
-          { localId: "yes", text: "Yes!", icon: "✅" },
-          { localId: "no", text: "No", icon: "❌" },
+          { localId: "no-awesome", text: "No way — that's awesome!", icon: "🤯" },
+          { localId: "heard", text: "I heard of it but haven't seen it", icon: "😮" },
+          { localId: "noticed", text: "Yeah, I've noticed it", icon: "👍" },
+          { localId: "confused", text: "What does that even mean?", icon: "🤔" },
         ],
-      },
-      {
-        localId: "velocity-importance",
-        type: "SLIDER",
-        text: "How important is real-time momentum tracking?",
-        description: "See engagement as it happens, not just totals",
-        required: true,
-        sliderConfig: { min: 1, max: 5, showValue: true },
       },
       {
         localId: "velocity-features",
         type: "MULTI_CHOICE",
-        text: "Which velocity features interest you?",
-        description: "Select all that appeal to you",
+        text: "Which Velocity features sound most useful?",
+        description: "Select all that interest you — these are live or coming soon",
         required: false,
         visual: "cards",
         options: [
-          { localId: "realtime-graph", text: "Live engagement graph", icon: "📈" },
-          { localId: "trending-badge", text: "Trending badges", icon: "🔥" },
-          { localId: "viral-alerts", text: "Viral alerts", icon: "🚀" },
-          { localId: "drop-detection", text: "Drop detection", icon: "📉" },
-          { localId: "optimal-timing", text: "Best time to post", icon: "⏰" },
+          { localId: "live-graph", text: "Live engagement graphs", icon: "📈" },
+          { localId: "trending", text: "Trending badges on hot content", icon: "🔥" },
+          { localId: "viral-alert", text: "Alerts when your post goes viral", icon: "🚀" },
+          { localId: "drop-alert", text: "Notifications when engagement drops", icon: "📉" },
+          { localId: "best-time", text: "Best time to post suggestions", icon: "⏰" },
+        ],
+      },
+      {
+        localId: "pillar-rank",
+        type: "MULTI_CHOICE",
+        text: "Which REACH pillars matter most to YOU? (pick top 3)",
+        description: "These are the 7 pillars that make up your REACH score",
+        required: true,
+        visual: "cards",
+        options: [
+          { localId: "discovery", text: "Discovery — How people find you", icon: "👁️" },
+          { localId: "content", text: "Content Quality — Depth over likes", icon: "💬" },
+          { localId: "psychology", text: "Psychology — Trust & social proof", icon: "🧠" },
+          { localId: "community", text: "Community — Loyal supporters", icon: "👥" },
+          { localId: "conversion", text: "Conversion — Views → action", icon: "💳" },
+          { localId: "growth", text: "Growth — Organic followers", icon: "📈" },
         ],
       },
     ],
   },
   {
-    phaseId: "verification",
-    title: "Trust & Verification",
-    subtitle: "How should we handle bots and trust?",
+    phaseId: "discovery",
+    title: "Discovery Zone",
+    subtitle: "Did you know we have these features?",
+    icon: "Search",
+    color: "cyan",
+    questions: [
+      {
+        localId: "trading",
+        type: "SINGLE_CHOICE",
+        text: "Did you know we have OSRS-style P2P trading?",
+        description: "🎮 You can trade items with other users in a retro RuneScape-style trade window — offer, confirm, complete!",
+        required: true,
+        visual: "cards",
+        options: [
+          { localId: "amazing", text: "What?! I need to try this", icon: "🤯" },
+          { localId: "saw-it", text: "Saw it but haven't tried", icon: "😮" },
+          { localId: "traded", text: "Already traded with someone!", icon: "✅" },
+          { localId: "not-thing", text: "Not really my thing", icon: "🤷" },
+        ],
+      },
+      {
+        localId: "wallet",
+        type: "SINGLE_CHOICE",
+        text: "Did you know you can connect a crypto wallet?",
+        description: "🔗 Web3 mode lets you connect Ethereum or Solana wallets via WalletConnect. Your wallet also boosts your verification tier!",
+        required: true,
+        visual: "cards",
+        options: [
+          { localId: "check-out", text: "Didn't know — I'll check it out!", icon: "🤯" },
+          { localId: "connected", text: "Yeah, I connected mine already", icon: "👍" },
+          { localId: "no-wallet", text: "Interesting but I don't have a wallet", icon: "🤔" },
+          { localId: "not-interested", text: "Not interested in crypto stuff", icon: "❌" },
+        ],
+      },
+      {
+        localId: "vote-power",
+        type: "SINGLE_CHOICE",
+        text: "Did you know your verification level affects your vote power?",
+        description: "🔐 Verified users (email, OAuth, wallet) get stronger votes in polls. Fully verified = 120% voting power!",
+        required: true,
+        visual: "cards",
+        options: [
+          { localId: "want-verify", text: "No! I want to get verified now", icon: "🤯" },
+          { localId: "makes-sense", text: "Makes sense — less bot spam", icon: "👍" },
+          { localId: "unfair", text: "Seems unfair to anonymous users", icon: "🤔" },
+          { localId: "dont-care", text: "Don't really care about polls", icon: "😐" },
+        ],
+      },
+      {
+        localId: "veggasystem",
+        type: "SINGLE_CHOICE",
+        text: "Did you know we have a system bot called VeggaSystem?",
+        description: "🤖 @veggasystem posts changelogs, platform updates, and creates official polls like this one!",
+        required: false,
+        visual: "pills",
+        options: [
+          { localId: "cool", text: "That's cool!", icon: "😮" },
+          { localId: "seen", text: "I've seen it in the feed", icon: "👍" },
+          { localId: "missed", text: "Didn't notice", icon: "🤷" },
+        ],
+      },
+      {
+        localId: "features-use",
+        type: "MULTI_CHOICE",
+        text: "Which of these features would you actually use?",
+        description: "Check everything that sounds interesting — helps us prioritize!",
+        required: true,
+        visual: "cards",
+        options: [
+          { localId: "p2p", text: "P2P trading with friends", icon: "🎮" },
+          { localId: "web3", text: "Web3 wallet login & verification", icon: "🔗" },
+          { localId: "analytics", text: "REACH analytics on my profile", icon: "📊" },
+          { localId: "polls", text: "Creating my own polls", icon: "🗳️" },
+          { localId: "theme", text: "Dark/light theme toggle", icon: "🌙" },
+          { localId: "chat", text: "Real-time chat & messaging", icon: "💬" },
+        ],
+      },
+    ],
+  },
+  {
+    phaseId: "trust",
+    title: "Trust & Safety",
+    subtitle: "Bot prevention, privacy & moderation",
     icon: "Shield",
     color: "violet",
     questions: [
       {
-        localId: "verification-trust",
-        type: "SLIDER",
-        text: "Should verified users have more influence in polls?",
-        description: "Reduce bot/spam impact",
-        required: true,
-        sliderConfig: { min: 1, max: 5, minLabel: "No difference", maxLabel: "Much more", showValue: true },
-      },
-      {
-        localId: "verification-tiers",
+        localId: "trust-factors",
         type: "MULTI_CHOICE",
-        text: "Which verification methods feel trustworthy?",
-        description: "Select all that feel trustworthy",
-        required: false,
+        text: "What builds trust for you on a social platform?",
+        description: "Select the most important factors",
+        required: true,
         visual: "cards",
         options: [
-          { localId: "email", text: "Email verification", icon: "📧" },
-          { localId: "phone", text: "Phone verification", icon: "📱" },
-          { localId: "social", text: "Social login", icon: "🔗" },
-          { localId: "wallet", text: "Crypto wallet", icon: "🔐" },
-          { localId: "id", text: "ID verification", icon: "🪪" },
+          { localId: "transparency", text: "Transparent algorithms", icon: "🔍" },
+          { localId: "privacy", text: "Strong privacy controls", icon: "🔒" },
+          { localId: "moderation", text: "Fair content moderation", icon: "⚖️" },
+          { localId: "ownership", text: "You own your data", icon: "📦" },
+          { localId: "community", text: "Healthy community culture", icon: "🤝" },
+          { localId: "verified", text: "Verified accounts are marked", icon: "🛡️" },
         ],
       },
       {
-        localId: "verification-bots",
+        localId: "bot-aggression",
+        type: "SLIDER",
+        text: "How aggressively should we fight bots & spam?",
+        description: "More aggressive = fewer bots but possible false positives",
+        required: true,
+        sliderConfig: { min: 1, max: 5, minLabel: "Relaxed", maxLabel: "Very strict", showValue: true },
+      },
+      {
+        localId: "new-user-boost",
         type: "SINGLE_CHOICE",
-        text: "Do you worry about bots affecting content?",
+        text: "Should new users get a temporary REACH boost?",
+        description: "Help newcomers get discovered while they build their profile",
         required: true,
         visual: "pills",
         options: [
-          { localId: "very", text: "Very worried", icon: "😰" },
-          { localId: "somewhat", text: "Somewhat", icon: "🤔" },
-          { localId: "not-really", text: "Not really", icon: "😌" },
+          { localId: "yes", text: "Yes — fair start", icon: "🚀" },
+          { localId: "gradual", text: "Gradual unlock", icon: "📊" },
+          { localId: "no", text: "No — merit only", icon: "❌" },
         ],
       },
     ],
   },
   {
-    phaseId: "ux-design",
+    phaseId: "design",
     title: "Design & Experience",
-    subtitle: "How should the platform look and feel?",
+    subtitle: "How the platform looks and feels",
     icon: "Palette",
     color: "pink",
     questions: [
       {
-        localId: "chart-preference",
+        localId: "analytics-display",
         type: "SINGLE_CHOICE",
-        text: "What kind of analytics display do you prefer?",
+        text: "How do you prefer to see your analytics?",
+        description: "When checking your REACH score and engagement",
         required: true,
         visual: "cards",
         options: [
           { localId: "simple", text: "Simple numbers", icon: "📊" },
-          { localId: "charts", text: "Visual charts", icon: "📈" },
+          { localId: "charts", text: "Visual charts & graphs", icon: "📈" },
           { localId: "both", text: "Both combined", icon: "🎯" },
-          { localId: "minimal", text: "Minimal/hidden", icon: "✨" },
+          { localId: "minimal", text: "Keep it minimal", icon: "✨" },
         ],
       },
       {
-        localId: "theme-preference",
+        localId: "theme",
         type: "SINGLE_CHOICE",
-        text: "Which theme do you prefer?",
+        text: "Which theme do you use?",
+        description: "We support dark, light, and system-auto themes",
         required: false,
         visual: "pills",
         options: [
           { localId: "dark", text: "Dark mode", icon: "🌙" },
           { localId: "light", text: "Light mode", icon: "☀️" },
           { localId: "auto", text: "Auto (system)", icon: "🔄" },
+          { localId: "didnt-know", text: "Didn't know I could change it", icon: "🤷" },
         ],
       },
       {
-        localId: "mobile-importance",
+        localId: "mobile",
         type: "SLIDER",
         text: "How important is mobile experience to you?",
+        description: "Do you mainly use VeggaStare on your phone?",
         required: true,
         sliderConfig: { min: 1, max: 5, minLabel: "Desktop only", maxLabel: "Mobile first", showValue: true },
       },
     ],
   },
   {
-    phaseId: "features",
-    title: "Features & Roadmap",
-    subtitle: "What should we build next?",
+    phaseId: "roadmap",
+    title: "What's Next?",
+    subtitle: "Help us prioritize upcoming features",
     icon: "Rocket",
     color: "cyan",
     questions: [
       {
         localId: "feature-rank",
         type: "MULTI_CHOICE",
-        text: "Which features would you use most?",
-        description: "Select your top 3",
+        text: "Which upcoming features would you use most? (pick top 3)",
+        description: "Help us decide what to build first",
         required: true,
         visual: "cards",
         options: [
-          { localId: "velocity", text: "Real-time trending", icon: "⚡" },
           { localId: "scheduling", text: "Post scheduling", icon: "📅" },
-          { localId: "video", text: "Video support", icon: "🎬" },
-          { localId: "ai", text: "AI insights", icon: "🤖" },
-          { localId: "mobile", text: "Mobile app", icon: "📱" },
+          { localId: "video", text: "Video content support", icon: "🎬" },
+          { localId: "ai", text: "AI-powered insights", icon: "🤖" },
+          { localId: "mobile", text: "Native mobile app", icon: "📱" },
           { localId: "api", text: "Developer API", icon: "🔧" },
+          { localId: "monetize", text: "Creator monetization", icon: "💰" },
         ],
       },
       {
         localId: "premium",
         type: "SINGLE_CHOICE",
-        text: "Would you pay for advanced analytics?",
-        description: "Premium features like detailed history, API access",
+        text: "Would you pay for premium features?",
+        description: "Advanced analytics, API access, priority support",
         required: true,
         visual: "pills",
         options: [
-          { localId: "yes", text: "Yes", icon: "✅" },
-          { localId: "no", text: "No", icon: "❌" },
+          { localId: "yes-sub", text: "Yes, monthly", icon: "💳" },
+          { localId: "yes-once", text: "Yes, one-time", icon: "💰" },
           { localId: "maybe", text: "Maybe", icon: "🤔" },
+          { localId: "no", text: "Keep it free", icon: "🆓" },
         ],
       },
       {
@@ -345,108 +449,56 @@ const PHASES: PhaseDef[] = [
         visual: "pills",
         options: [
           { localId: "free", text: "Keep it free", icon: "🆓" },
-          { localId: "low", text: "$2-5", icon: "💵" },
-          { localId: "mid", text: "$5-10", icon: "💵💵" },
+          { localId: "low", text: "$2–5", icon: "💵" },
+          { localId: "mid", text: "$5–10", icon: "💵" },
           { localId: "high", text: "$10+", icon: "💎" },
+        ],
+      },
+      {
+        localId: "focus",
+        type: "SINGLE_CHOICE",
+        text: "What should VeggaStare focus on most?",
+        description: "Our core identity as a platform",
+        required: true,
+        visual: "cards",
+        options: [
+          { localId: "creators", text: "Creator success & tools", icon: "🎨" },
+          { localId: "discovery", text: "Content discovery & feed", icon: "🔍" },
+          { localId: "community", text: "Community & social", icon: "🤝" },
+          { localId: "innovation", text: "Innovation & unique features", icon: "🚀" },
+          { localId: "simplicity", text: "Simplicity & ease of use", icon: "✨" },
         ],
       },
     ],
   },
   {
-    phaseId: "open-feedback",
+    phaseId: "voice",
     title: "Your Voice",
-    subtitle: "Share your thoughts freely",
+    subtitle: "Open feedback — say anything!",
     icon: "MessageSquare",
     color: "orange",
     questions: [
       {
         localId: "one-change",
         type: "TEXT",
-        text: "If you could change ONE thing about VeggaStare?",
-        description: "Your most important suggestion",
+        text: "If you could change ONE thing about VeggaStare, what would it be?",
+        description: "Your most important suggestion — we read every single response!",
         required: false,
       },
       {
         localId: "daily-use",
         type: "TEXT",
-        text: "What would make you visit every day?",
-        description: "What's missing that you'd love?",
+        text: "What would make you come back every day?",
+        description: "What's the one thing that would make VeggaStare a daily habit?",
         required: false,
       },
       {
         localId: "nps",
         type: "SLIDER",
         text: "Would you recommend VeggaStare to a friend?",
-        description: "1 = Never, 5 = Absolutely!",
+        description: "Be totally honest — this helps us more than anything!",
         required: true,
-        sliderConfig: { min: 1, max: 5, showValue: true },
-      },
-    ],
-  },
-  {
-    phaseId: "trust-future",
-    title: "Trust & Future",
-    subtitle: "Building trust and shaping tomorrow",
-    icon: "Shield",
-    color: "violet",
-    questions: [
-      {
-        localId: "trust-factors",
-        type: "MULTI_CHOICE",
-        text: "What builds trust in a social platform?",
-        description: "Select the most important factors",
-        required: true,
-        visual: "cards",
-        options: [
-          { localId: "transparency", text: "Transparent algorithms", icon: "🔍" },
-          { localId: "privacy", text: "Strong privacy controls", icon: "🔒" },
-          { localId: "moderation", text: "Fair content moderation", icon: "⚖️" },
-          { localId: "ownership", text: "User data ownership", icon: "📦" },
-          { localId: "community", text: "Healthy community culture", icon: "🤝" },
-        ],
-      },
-      {
-        localId: "verification-value",
-        type: "SLIDER",
-        text: "How much do you value verified accounts?",
-        description: "Should verification affect REACH?",
-        required: true,
-        sliderConfig: { min: 1, max: 5, minLabel: "No difference", maxLabel: "Major advantage", showValue: true },
-      },
-      {
-        localId: "new-user-boost",
-        type: "SINGLE_CHOICE",
-        text: "Should new users get a temporary REACH boost?",
-        description: "Help newcomers get discovered",
-        required: true,
-        visual: "pills",
-        options: [
-          { localId: "yes", text: "Yes", icon: "🚀" },
-          { localId: "no", text: "No", icon: "❌" },
-          { localId: "gradual", text: "Gradual unlock", icon: "📊" },
-        ],
-      },
-      {
-        localId: "platform-vision",
-        type: "SINGLE_CHOICE",
-        text: "What should VeggaStare prioritize?",
-        description: "Our core focus as a platform",
-        required: true,
-        visual: "cards",
-        options: [
-          { localId: "creators", text: "Creator success", icon: "🎨" },
-          { localId: "discovery", text: "Content discovery", icon: "🔍" },
-          { localId: "community", text: "Community building", icon: "🤝" },
-          { localId: "innovation", text: "Innovation", icon: "🚀" },
-          { localId: "simplicity", text: "Simplicity", icon: "✨" },
-        ],
-      },
-      {
-        localId: "final-thoughts",
-        type: "TEXT",
-        text: "Any final thoughts on REACH or the platform?",
-        description: "Share anything we haven't asked about",
-        required: false,
+        sliderConfig: { min: 1, max: 10, minLabel: "Not likely", maxLabel: "Absolutely!", showValue: true },
       },
     ],
   },
@@ -487,26 +539,21 @@ async function main() {
   console.log(`📝 Creating poll as: ${SYSTEM_ACCOUNT.name} (${SYSTEM_ACCOUNT.id})`);
 
   // Delete existing polls with same title (and their conversations)
-  const existing = await prisma.advancedPoll.findFirst({
-    where: { title: "VeggaStare REACH Feedback" },
-  });
-
-  if (existing) {
-    console.log(`\n🗑️  Deleting existing poll: ${existing.id}`);
-    // Delete conversation first if it exists
-    if (existing.conversationId) {
-      await prisma.conversation.delete({ where: { id: existing.conversationId } }).catch(() => {});
+  // Clean up any existing polls with old or new title
+  for (const title of ["VeggaStare — Your Feedback Shapes Everything", "VeggaStare REACH Feedback"]) {
+    const existing = await prisma.advancedPoll.findFirst({ where: { title } });
+    if (existing) {
+      console.log(`\n🗑️  Deleting existing poll: ${existing.id} ("${title}")`);
+      if (existing.conversationId) {
+        await prisma.conversation.delete({ where: { id: existing.conversationId } }).catch(() => {});
+      }
+      await prisma.advancedPoll.delete({ where: { id: existing.id } }).catch(() => {});
     }
-    await prisma.advancedPoll.delete({ where: { id: existing.id } }).catch(() => {});
-  }
-  
-  // Also delete orphaned conversation with same title
-  const existingConversation = await prisma.conversation.findFirst({
-    where: { title: "VeggaStare REACH Feedback" },
-  });
-  if (existingConversation) {
-    console.log(`\n🗑️  Deleting existing conversation: ${existingConversation.id}`);
-    await prisma.conversation.delete({ where: { id: existingConversation.id } }).catch(() => {});
+    const existingConv = await prisma.conversation.findFirst({ where: { title } });
+    if (existingConv) {
+      console.log(`\n🗑️  Deleting existing conversation: ${existingConv.id}`);
+      await prisma.conversation.delete({ where: { id: existingConv.id } }).catch(() => {});
+    }
   }
 
   // Build questions with phase metadata in sliderConfig
@@ -558,8 +605,8 @@ async function main() {
   console.log("\n📝 Creating conversation for poll...");
   const conversation = await prisma.conversation.create({
     data: {
-      title: "VeggaStare REACH Feedback",
-      description: "Help us build the REACH algorithm - a new social metric to replace followers!",
+      title: "VeggaStare — Your Feedback Shapes Everything",
+      description: "Help us make VeggaStare better! Share your feedback, discover features, and help us prioritize what to build next.",
       type: "PUBLIC_THREAD",
       visibility: "PUBLIC",
       replyPermission: "EVERYONE",
@@ -572,9 +619,9 @@ async function main() {
   // Create the poll linked to the conversation
   const poll = await prisma.advancedPoll.create({
     data: {
-      title: "VeggaStare REACH Feedback",
+      title: "VeggaStare — Your Feedback Shapes Everything",
       description: POLL_DESCRIPTION,
-      type: AdvancedPollType.REACH_ASSESSMENT,
+      type: AdvancedPollType.FEEDBACK as any,
       allowPartial: true,
       requiresAuth: false,
       isAnonymous: false,
@@ -598,23 +645,20 @@ async function main() {
     data: {
       conversationId: conversation.id,
       senderId: systemUser.id,
-      content: `# 🚀 Help Shape the Future of Social Media!
+      content: `# � Your Feedback Shapes Everything
 
-We're building **REACH** - a revolutionary new metric to replace traditional follower counts.
+Hey! We want to hear from you. This feedback poll helps us:
 
-**What is REACH?**
-REACH measures your true social influence based on engagement quality, content relevance, and community connection - not just vanity metrics.
+- 🔍 Discover features you didn't know about (P2P trading, Web3 wallets, and more!)
+- 📊 Understand how you use the REACH scoring system
+- 🚀 Prioritize what to build next
+- 💡 Get your honest thoughts and ideas
 
-**Your input matters!**
-This poll will help us design an algorithm that:
-- Rewards quality content over quantity
-- Gives newcomers a fair chance
-- Prevents gaming and bot manipulation
-- Creates genuine connections
+**No right or wrong answers** — just share what you think.
 
-📊 **Take the poll above** to share your thoughts on how REACH should work!
+📊 **Take the poll above** — it takes about 5-10 minutes!
 
-*Estimated time: 10-15 minutes across 4 phases*`,
+*Your response is weighted by your verification tier (up to 120% for fully verified users)*`,
     },
   });
 

@@ -78,6 +78,8 @@ import {
 import { PollImportModal, ImportedPoll, ImportedQuestion } from "@/components/uicustom/polls/PollImportModal";
 import { generateREACHTemplate } from "@/components/uicustom/polls/reach-poll-template";
 import { generateVerifyPollDemoTemplate } from "@/components/uicustom/polls/verify-poll-demo-template";
+import { generateFeatureExplorerTemplate } from "@/components/uicustom/polls/feature-explorer-quiz-template";
+import { generateCannaCocoQuizTemplate } from "@/components/uicustom/polls/canna-coco-quiz-template";
 import { ShapeMatchVisualBuilder, ShapeMatchBuilderConfig, builderConfigToRuntime } from "@/components/uicustom/polls/ShapeMatchVisualBuilder";
 
 // Max nesting depth for sections (3 levels: section → subsection → sub-subsection)
@@ -2796,7 +2798,7 @@ export function PollBuilder({
     const template = generateREACHTemplate();
     setData(template);
     setTimeout(() => pushToHistoryRef.current("Loaded REACH Template"), 0);
-    toast.success("Loaded REACH Template (30 questions, 10 sections)!");
+    toast.success("Loaded Feedback & Discovery template (28 questions, 8 sections)!");
   }, []);
 
   // Export as human-readable text format
@@ -2958,6 +2960,22 @@ export function PollBuilder({
     setData(template);
     setTimeout(() => pushToHistoryRef.current("Loaded Verify Poll Demo"), 0);
     toast.success("Loaded Verify Poll Demo â€” slide to 6, rank 1st-4th, select me!");
+  }, []);
+
+  // Load Feature Explorer Quiz — scored quiz testing real VeggaStare knowledge
+  const loadFeatureExplorerTemplate = useCallback(() => {
+    const template = generateFeatureExplorerTemplate();
+    setData(template);
+    setTimeout(() => pushToHistoryRef.current("Loaded Feature Explorer Quiz"), 0);
+    toast.success("Loaded Feature Explorer Quiz (18 questions, 5 sections)!");
+  }, []);
+
+  // Load Canna Coco A+B Mastery Quiz — detailed growing knowledge test
+  const loadCannaCocoTemplate = useCallback(() => {
+    const template = generateCannaCocoQuizTemplate();
+    setData(template);
+    setTimeout(() => pushToHistoryRef.current("Loaded Canna Coco Quiz"), 0);
+    toast.success("Loaded Canna Coco A+B Mastery Test (22 questions, 6 sections)!");
   }, []);
 
   // Add a new question - adds to selected section if one is selected, otherwise top-level
@@ -4259,8 +4277,18 @@ export function PollBuilder({
               </DropdownMenuItem>
               <DropdownMenuItem onClick={loadREACHTemplate} className="gap-2">
                 <Sparkles className="h-4 w-4 text-purple-400" />
-                REACH Poll v2
-                <span className="text-[10px] text-zinc-500 ml-auto">Full template</span>
+                Feedback & Discovery
+                <span className="text-[10px] text-zinc-500 ml-auto">Hybrid poll</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={loadFeatureExplorerTemplate} className="gap-2">
+                <FlaskConical className="h-4 w-4 text-amber-400" />
+                Feature Explorer Quiz
+                <span className="text-[10px] text-zinc-500 ml-auto">Scored quiz</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={loadCannaCocoTemplate} className="gap-2">
+                <FlaskConical className="h-4 w-4 text-green-400" />
+                Canna Coco Mastery
+                <span className="text-[10px] text-zinc-500 ml-auto">22Q grow quiz</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-zinc-700" />
               <DropdownMenuItem 

@@ -27,7 +27,7 @@ npm run dev                        # → http://localhost:3000
 | `lint` | `eslint .` | Lint the codebase |
 | `clean` | Removes `.next/` | Clear build cache |
 | `postinstall` | `prisma generate` | Auto-generate Prisma client |
-| `seed:reach-poll` | `ts-node scripts/seed-reach-poll.ts` | Seed the True Reach™ audit poll |
+| `seed:reach-poll` | `ts-node scripts/seed-reach-poll.ts` | Seed the Feedback & Discovery poll |
 
 ---
 
@@ -142,8 +142,12 @@ frontend/
 - Trade notification system with purple blink indicator
 
 ### Polls & Analytics
-- Advanced multi-question polls (slider, choice, text, image-paste, nested)
-- Verification-tier weighted responses (True Reach™ integration)
+- Advanced multi-question polls (slider, choice, text, image-paste, ranking, shape match, UI arrange, nested)
+- Three poll types: SURVEY (open feedback), FEEDBACK (hybrid discovery), QUIZ (scored with correctness engine)
+- Two-tier feedback disclosure: explanation → "Still don't understand?" → deepExplanation
+- Verification-tier weighted responses (True Reach™ integration, 0.1x–1.2x)
+- Anti-gaming: IP hashing, speed checks (2s min, 30/min max), straightline detection
+- PollBuilder "Examples" dropdown with 5 templates (Verify Demo, Feedback & Discovery, Feature Explorer Quiz, Quick Feedback, Product Preference)
 - Analytics dashboards for companies, products, and users
 - Chart.js radar/bar/line visualizations
 

@@ -120,7 +120,7 @@ npm run dev              # → http://localhost:3001 (API) + :3002 (WebSocket)
 - **Pulse Feed** — Real-time social feed with posts, reactions, conversations (Pusher-powered)
 - **Conversations** — Direct messages, group chats, employee broadcasts
 - **Follow/Sync System** — One-way follows + mutual "sync" with UserHoverCard integration
-- **Advanced Polls** — Multi-question surveys (slider, choice, text, nested) with weighted responses
+- **Advanced Polls** — 3 types (Survey, Feedback, Quiz), 11 question types, PollBuilder with 5 templates, verification-weighted voting, two-tier quiz feedback engine
 - **True Reach™** — 7-pillar engagement scoring (see below)
 
 ### Identity & Verification

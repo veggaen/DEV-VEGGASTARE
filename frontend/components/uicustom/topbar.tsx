@@ -17,7 +17,7 @@ import { FaUser } from "react-icons/fa";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { TbHexagons } from "react-icons/tb";
-import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiSliders, FiShield, FiBell, FiLock, FiDollarSign, FiSun, FiMoon, FiMonitor, FiTrash2, FiEye, FiEyeOff, FiBellOff, FiVolume2, FiVolumeX, FiKey, FiCamera, FiEdit2, FiExternalLink, FiCopy, FiLink, FiRefreshCw, FiCheck, FiPackage } from "react-icons/fi";
+import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiSliders, FiShield, FiBell, FiLock, FiDollarSign, FiSun, FiMoon, FiMonitor, FiTrash2, FiEye, FiEyeOff, FiBellOff, FiVolume2, FiVolumeX, FiKey, FiCamera, FiEdit2, FiExternalLink, FiCopy, FiLink, FiRefreshCw, FiCheck, FiPackage, FiZap } from "react-icons/fi";
 import {
 	Sheet,
 	SheetContent,
@@ -643,6 +643,26 @@ const MyTopBar = () => {
 															<span className="ml-auto text-[10px] text-zinc-400">⌘K</span>
 														</button>
 													)}
+
+													{/* Web3 Wallet — always visible in nav pane for all users */}
+													<div className={`${clientUser ? 'mt-2' : 'mt-4'} rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden`}>
+														<div className="flex items-center gap-3 px-4 py-2 bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
+															<FiZap className="h-4 w-4 text-emerald-500" />
+															<span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Web3 Wallet</span>
+															{clientUser && effectiveWeb3ModeEnabled && (
+																<Link
+																	href="/settings?section=wallet"
+																	onClick={() => setMenuOpen(false)}
+																	className="ml-auto text-[10px] text-zinc-400 hover:text-emerald-500 transition-colors"
+																>
+																	Manage →
+																</Link>
+															)}
+														</div>
+														<div className="flex justify-center p-3">
+															<AppKitButton size="md" />
+														</div>
+													</div>
 												</div>
 											)}
 
@@ -657,13 +677,6 @@ const MyTopBar = () => {
 												/>
 											)}
 
-											{/* Guest wallet connection */}
-											{!clientUser && (
-												<div className="p-4">
-													{/* AppKit provides polished modal with QR codes, social logins */}
-													<AppKitButton size="md" />
-												</div>
-											)}
 										</div>
 
 										{/* Footer actions */}

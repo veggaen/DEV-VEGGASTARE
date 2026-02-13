@@ -1,19 +1,34 @@
 /**
- * REACH System Comprehensive Audit - Poll Template
+ * VeggaStare Feedback & Discovery Poll Template
  * 
- * This is a condensed version of the full 93-question REACH audit poll.
- * It includes representative questions from each section to demonstrate
- * all question types and poll features.
+ * A hybrid feedback poll with "Did you know?" discovery questions mixed in.
+ * Designed for both new and existing users to:
+ *   1. Give genuine feedback on the platform
+ *   2. Discover features they didn't know existed
+ *   3. Help prioritize what to build next
  * 
- * For the full poll, see: scripts/seed-reach-poll.ts
+ * 28 questions across 8 sections:
+ *   § 1 — Welcome & You (3 Qs)
+ *   § 2 — First Impressions (3 Qs)
+ *   § 3 — The 7 Pillars of REACH (4 Qs)
+ *   § 4 — Discovery Zone — "Did You Know?" (5 Qs)
+ *   § 5 — Trust & Safety (3 Qs)
+ *   § 6 — Design & Experience (3 Qs)
+ *   § 7 — What's Next? (4 Qs)
+ *   § 8 — Your Voice (3 Qs)
+ * 
+ * Type: FEEDBACK (not scored — no correctAnswer fields)
+ * Methodology: Hybrid feedback + feature discovery
+ * 
+ * Updated: 2026-02-12
+ * Reflects shipped features: Velocity pillar, verification tiers, Web3 wallets,
+ * OSRS-style P2P trading, theme toggle, poll weighted voting, VeggaSystem bot.
  */
 
 import { PollBuilderData, PollSection, PollQuestion, PollType } from "./PollBuilder";
 
-// Generate unique IDs
 const generateId = () => Math.random().toString(36).substring(2, 15);
 
-// Template question type - options without IDs, no question ids
 interface TemplateQuestion {
   order?: number;
   type: PollQuestion['type'];
@@ -25,7 +40,6 @@ interface TemplateQuestion {
   sliderConfig?: PollQuestion['sliderConfig'];
 }
 
-// Template type - no flow, sections, or IDs needed (generated at runtime)
 interface ReachPollTemplate {
   title: string;
   description: string;
@@ -37,604 +51,510 @@ interface ReachPollTemplate {
 }
 
 /**
- * Full REACH System Audit Poll Template
- * ~30 questions across 10 key sections
+ * VeggaStare Feedback & Discovery Poll — 28 questions, 8 sections
  */
 export const REACH_POLL_TEMPLATE: ReachPollTemplate = {
-  title: "🎯 VeggaStare REACH System Comprehensive Audit",
-  description: `🚀 Welcome to the VeggaStare REACH System Comprehensive Audit!
+  title: "💬 VeggaStare — Your Feedback Shapes Everything",
+  description: `Hey! Thanks for taking a few minutes to help us make VeggaStare better.
 
-Your voice shapes the future of how we measure TRUE social impact. This isn't about IF the 7 Pillars work — it's about HOW to make each one BETTER!
+This isn't a test — there are no right or wrong answers. We genuinely want to know what you think, what you've tried, and what you'd love to see next.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📊 WHAT YOU'LL HELP US IMPROVE:
+📋 WHAT'S INSIDE:
 
-   📈 The 7 Pillars — Rate & fine-tune each pillar's weight
-   🔐 Verification Tiers — How should auth affect your voice?
-   🎨 UI/UX Design — Charts, themes, animations, layouts
-   🚀 Feature Priorities — What should we build NEXT?
-   🛡️ Anti-Gaming — Bot prevention & view integrity
-   ⚡ Velocity/Pulse — Live drops & realtime momentum
-   👑 Owner Power — Should admins have boosted votes?
-   🌐 Web3 Features — Wallets, NFTs, crypto payments
-   💡 Open Innovation — YOUR wildest ideas!
+   👋 About you & first impressions
+   📊 The REACH system (our 7-pillar scoring)
+   🔍 Feature discovery — "Did you know we have this?"
+   🛡️ Trust, design & future priorities
+   💬 Open feedback — your honest thoughts
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚡ YOU DON'T NEED TO COMPLETE EVERYTHING!
+⚡ QUICK & FLEXIBLE:
 
-   🟢 Answer what interests you most
-   🟢 Skip sections you don't care about
-   🟢 Partial completion still counts!
-   🟢 Come back anytime to finish
+   🟢 ~5–10 minutes
+   🟢 Skip anything you want
+   🟢 Partial answers still count
+   🟢 Your response is weighted by verification tier
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔐 YOUR VOTE POWER (based on verification):
+🔐 YOUR VOTE POWER:
 
-   👤 Anonymous:      10% weight
+   👤 Guest:          10% weight
    📧 Email:          50% weight
    🔵 Social OAuth:   70% weight
    🔗 Wallet:         90% weight
-   ⭐ Fully Verified: 120% BONUS!
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⏱️ Time: 15-40 min (depending on how deep you go)
-❓ Questions: 30+ across all sections
-🎯 Goal: Shape VeggaStare's future TOGETHER!`,
-  type: "REACH_ASSESSMENT",
+   ⭐ Fully Verified: 120% BONUS!`,
+  type: "FEEDBACK",
   allowPartialSubmission: true,
   showProgressBar: true,
   randomizeQuestions: false,
   questions: [
     // ════════════════════════════════════════════════════════════════════════
-    // SECTION 1: USER CONTEXT
+    // SECTION 1: WELCOME & YOU  (3 questions)
     // ════════════════════════════════════════════════════════════════════════
     {
       order: 1,
       type: "SINGLE_CHOICE",
-      questionText: "How would you describe your primary role on VeggaStare?",
-      description: "Your perspective shapes how we weight different features! 🌟",
+      questionText: "What best describes you on VeggaStare?",
+      description: "Pick the closest fit — no wrong answers!",
       required: true,
       allowImages: false,
       options: [
-        { text: "🎨 Content Creator" },
-        { text: "🔍 Content Explorer" },
-        { text: "📚 Community Curator" },
-        { text: "🏪 Marketplace Seller" },
-        { text: "🛒 Smart Shopper" },
-        { text: "💎 Collector & Trader" },
-        { text: "🤝 Networker & Connector" },
-        { text: "📢 Influencer & Advocate" },
-        { text: "🚀 Builder & Contributor" },
-        { text: "👀 Curious Observer" },
+        { text: "🎨 I create content (posts, products, art)" },
+        { text: "🔍 I browse & discover new stuff" },
+        { text: "🛒 I shop & trade items" },
+        { text: "🤝 I'm here to connect with people" },
+        { text: "👀 Just checking things out — I'm new!" },
       ],
     },
     {
       order: 2,
       type: "SLIDER",
-      questionText: "How familiar are you with VeggaStare's Reach metrics?",
-      description: "Rate your understanding of the 7-pillar system",
+      questionText: "How familiar are you with VeggaStare?",
+      description: "Be honest — helps us tailor the experience!",
       required: true,
       allowImages: false,
       options: [],
       sliderConfig: {
-        minValue: 1,
-        maxValue: 7,
+        min: 1,
+        max: 5,
         step: 1,
-        minLabel: "Never seen it",
-        maxLabel: "Deep expertise",
-        stepLabels: ["Never seen", "Noticed it", "Basics", "Use regularly", "Know well", "Expert", "Deep expertise"],
+        minLabel: "Brand new",
+        maxLabel: "Power user",
+        stepLabels: ["Brand new", "Looked around", "Used a few features", "Regular user", "Power user"],
       },
     },
     {
       order: 3,
-      type: "MULTI_CHOICE",
-      questionText: "Which verification methods have you completed?",
-      description: "Select all that apply — more = stronger identity 💪",
+      type: "SINGLE_CHOICE",
+      questionText: "Would you like to help build VeggaStare?",
+      description: "We're always looking for passionate contributors!",
       required: false,
       allowImages: false,
       options: [
-        { text: "📧 Email verified" },
-        { text: "🔵 Google OAuth" },
-        { text: "⚫ GitHub OAuth" },
-        { text: "🟣 Discord OAuth" },
-        { text: "🔗 Web3 Wallet connected" },
-        { text: "💳 Payment card on file" },
-        { text: "🪙 Made a crypto purchase" },
-        { text: "📱 Phone number verified" },
+        { text: "✅ Yes, I'd love to!" },
+        { text: "🤔 Maybe — tell me more" },
+        { text: "❌ Not right now" },
       ],
     },
 
     // ════════════════════════════════════════════════════════════════════════
-    // SECTION 2: THE 6 PILLARS
+    // SECTION 2: FIRST IMPRESSIONS  (3 questions)
     // ════════════════════════════════════════════════════════════════════════
     {
       order: 4,
-      type: "SLIDER",
-      questionText: "PILLAR 1: Foundation & Discovery (👁️ 18%)",
-      description: "SEO, platform discoverability, SSR pages. How valuable is this?",
+      type: "SCALE",
+      questionText: "What was your first impression of VeggaStare?",
+      description: "Think back to when you first landed on the site",
       required: true,
       allowImages: false,
       options: [],
       sliderConfig: {
-        minValue: 1,
-        maxValue: 7,
+        min: 1,
+        max: 7,
         step: 1,
-        minLabel: "Useless",
-        maxLabel: "Essential",
-        stepLabels: ["Useless", "Low", "Some", "Neutral", "Valuable", "Very valuable", "Essential"],
+        minLabel: "Confused",
+        maxLabel: "Impressed",
+        stepLabels: ["Confused", "Meh", "Okay", "Neutral", "Interesting", "Cool!", "Impressed"],
       },
     },
     {
       order: 5,
-      type: "SLIDER",
-      questionText: "PILLAR 2: Killer Content (💬 25%)",
-      description: "Relevance, authenticity, surprise factor. How valuable?",
-      required: true,
-      allowImages: false,
-      options: [],
-      sliderConfig: {
-        minValue: 1,
-        maxValue: 7,
-        step: 1,
-        minLabel: "Useless",
-        maxLabel: "Essential",
-        stepLabels: ["Useless", "Low", "Some", "Neutral", "Valuable", "Very valuable", "Essential"],
-      },
-    },
-    {
-      order: 6,
-      type: "RANKING",
-      questionText: "Rank these content quality signals by importance",
-      description: "Drag to reorder — top = most important 🏆",
-      required: true,
+      type: "MULTI_CHOICE",
+      questionText: "What stood out to you the most? (pick up to 3)",
+      description: "First things you noticed or explored",
+      required: false,
       allowImages: false,
       options: [
-        { text: "💬 Comments received" },
-        { text: "🔖 Saves/Bookmarks" },
-        { text: "📤 Shares" },
-        { text: "⏱️ Time spent viewing (dwell)" },
-        { text: "↩️ Reply thread depth" },
-        { text: "💳 Purchase conversions" },
+        { text: "🎨 The design & dark theme" },
+        { text: "🛒 The marketplace / products" },
+        { text: "📊 The REACH analytics system" },
+        { text: "🔗 Web3 / wallet integration" },
+        { text: "💬 Social features (feed, chat)" },
+        { text: "🗳️ The polls & voting system" },
       ],
     },
     {
+      order: 6,
+      type: "SINGLE_CHOICE",
+      questionText: "Was it clear what VeggaStare is about?",
+      description: "Could you tell what the platform does within a minute?",
+      required: true,
+      allowImages: false,
+      options: [
+        { text: "✅ Yes, totally clear" },
+        { text: "🤔 Sort of — took some exploring" },
+        { text: "😕 Not really — still figuring it out" },
+        { text: "❓ No idea honestly" },
+      ],
+    },
+
+    // ════════════════════════════════════════════════════════════════════════
+    // SECTION 3: THE 7 PILLARS OF REACH  (4 questions)
+    // ════════════════════════════════════════════════════════════════════════
+    {
       order: 7,
       type: "SLIDER",
-      questionText: "PILLAR 3: Psychological Drivers (🧠 18%)",
-      description: "Social Proof, Scarcity, Authority, Liking, Consistency, Reciprocity",
+      questionText: "How important is a transparent scoring system to you?",
+      description: "REACH replaces hidden algorithms with 7 visible pillars: Discovery, Content, Psychology, Community, Conversion, Growth & Velocity",
       required: true,
       allowImages: false,
       options: [],
       sliderConfig: {
-        minValue: 1,
-        maxValue: 7,
+        min: 1,
+        max: 5,
         step: 1,
-        minLabel: "Useless",
+        minLabel: "Don't care",
         maxLabel: "Essential",
-        stepLabels: ["Useless", "Low", "Some", "Neutral", "Valuable", "Very valuable", "Essential"],
+        stepLabels: ["Don't care", "Nice to have", "Somewhat", "Important", "Essential"],
       },
     },
     {
       order: 8,
-      type: "MULTI_CHOICE",
-      questionText: "Which psychological triggers work best on YOU?",
-      description: "Be honest — helps us tune the UX! Select up to 3",
+      type: "RANKING",
+      questionText: "Rank these REACH pillars by what matters most to YOU",
+      description: "Drag to reorder — top = most important to you personally",
       required: true,
       allowImages: false,
       options: [
-        { text: "👥 Social Proof (others bought it)" },
-        { text: "⏳ Scarcity (only X left!)" },
-        { text: "🏆 Authority (expert recommends)" },
-        { text: "❤️ Liking (I trust the creator)" },
-        { text: "🔄 Consistency (I always engage)" },
-        { text: "🤝 Reciprocity (they helped me)" },
+        { text: "👁️ Discovery — How people find your content" },
+        { text: "💬 Content Quality — Engagement depth, not just likes" },
+        { text: "🧠 Psychology — Social proof, trust, authority" },
+        { text: "👥 Community — Loyal supporters & repeat visitors" },
+        { text: "💳 Conversion — Turning views into real action" },
+        { text: "📈 Growth — Organic follower increase" },
+        { text: "⚡ Velocity — Live trending & momentum" },
       ],
     },
     {
       order: 9,
-      type: "SLIDER",
-      questionText: "PILLAR 4: Community & Belonging (👥 14%)",
-      description: "Real relationships, fan groups, retention. How valuable?",
-      required: true,
-      allowImages: false,
-      options: [],
-      sliderConfig: {
-        minValue: 1,
-        maxValue: 7,
-        step: 1,
-        minLabel: "Useless",
-        maxLabel: "Essential",
-        stepLabels: ["Useless", "Low", "Some", "Neutral", "Valuable", "Very valuable", "Essential"],
-      },
-    },
-    {
-      order: 10,
       type: "SINGLE_CHOICE",
-      questionText: "Should paid promotion affect organic Reach?",
-      description: "If someone boosts a post, should it count toward their True Reach?",
+      questionText: "Did you know VeggaStare already tracks Velocity (live trending)?",
+      description: "⚡ We shipped the 7th pillar! It tracks real-time momentum, engagement spikes, and viral detection.",
       required: true,
       allowImages: false,
       options: [
-        { text: "✅ Yes, fully count it" },
-        { text: "⚖️ Yes, but reduced weight (0.5x)" },
-        { text: "📊 Separate paid vs organic scores" },
-        { text: "❌ No, only count organic" },
+        { text: "🤯 No way — that's awesome!" },
+        { text: "😮 I heard of it but haven't seen it" },
+        { text: "👍 Yeah, I've noticed it" },
+        { text: "🤔 What does that even mean?" },
+      ],
+    },
+    {
+      order: 10,
+      type: "MULTI_CHOICE",
+      questionText: "Which Velocity features sound most useful?",
+      description: "Select all that interest you — these are live or coming soon",
+      required: false,
+      allowImages: false,
+      options: [
+        { text: "📈 Live engagement graphs" },
+        { text: "🔥 Trending badges on hot content" },
+        { text: "🚀 Alerts when your post goes viral" },
+        { text: "📉 Notifications when engagement drops" },
+        { text: "⏰ Best time to post suggestions" },
       ],
     },
 
     // ════════════════════════════════════════════════════════════════════════
-    // SECTION 3: THE 7TH PILLAR - VELOCITY
+    // SECTION 4: DISCOVERY ZONE — "DID YOU KNOW?"  (5 questions)
     // ════════════════════════════════════════════════════════════════════════
     {
       order: 11,
       type: "SINGLE_CHOICE",
-      questionText: "Should we add a 7th pillar: 'Velocity / Realtime Pulse'?",
-      description: "⚡ Live momentum tracking, viral detection, scheduled 'Pulse' events",
+      questionText: "Did you know we have OSRS-style P2P trading?",
+      description: "🎮 You can trade items with other users in a retro RuneScape-style trade window — offer, confirm, complete!",
       required: true,
       allowImages: false,
       options: [
-        { text: "🚀 YES — Definitely add it!" },
-        { text: "⚙️ Yes, but make it optional" },
-        { text: "🤔 Maybe, need more details" },
-        { text: "❌ No, 6 pillars is enough" },
+        { text: "🤯 What?! That's amazing, I need to try this" },
+        { text: "😮 I saw it but haven't tried trading yet" },
+        { text: "✅ Already traded with someone!" },
+        { text: "🤷 Not really my thing" },
       ],
     },
     {
       order: 12,
-      type: "RANKING",
-      questionText: "Rank these Velocity sub-metrics by importance",
-      description: "What should we track in realtime? Drag to reorder 🏆",
+      type: "SINGLE_CHOICE",
+      questionText: "Did you know you can connect a crypto wallet?",
+      description: "🔗 Web3 mode lets you connect Ethereum or Solana wallets via WalletConnect. Your wallet also boosts your verification tier!",
       required: true,
       allowImages: false,
       options: [
-        { text: "📈 Engagement rate per hour" },
-        { text: "🔥 Viral coefficient (shares → new users)" },
-        { text: "⏰ Peak timing analysis" },
-        { text: "🌐 Cross-network mentions" },
-        { text: "📊 Trend detection alerts" },
-        { text: "📉 Momentum graph visualization" },
+        { text: "🤯 Didn't know — I'll check it out!" },
+        { text: "👍 Yeah, I connected mine already" },
+        { text: "🤔 Interesting but I don't have a wallet" },
+        { text: "❌ Not interested in crypto stuff" },
       ],
     },
     {
       order: 13,
-      type: "MULTI_CHOICE",
-      questionText: "Which PULSE event features excite you most?",
-      description: "Live drops with countdowns, chat, and rewards!",
+      type: "SINGLE_CHOICE",
+      questionText: "Did you know your verification level affects your vote power?",
+      description: "🔐 Verified users (email, OAuth, wallet) get stronger votes in polls. Fully verified = 120% voting power!",
       required: true,
       allowImages: false,
       options: [
-        { text: "⏰ Countdown timers to drops" },
-        { text: "🔥 Live sales counter" },
-        { text: "💬 Live chat during events" },
-        { text: "🔗 Referral bonus for sharing" },
-        { text: "🏆 NFT attendance badges" },
-        { text: "🎁 Mystery drops/surprises" },
+        { text: "🤯 No! I want to get verified now" },
+        { text: "👍 Makes sense — less bot spam that way" },
+        { text: "🤔 Seems unfair to anonymous users" },
+        { text: "😐 Don't really care about polls" },
       ],
     },
-
-    // ════════════════════════════════════════════════════════════════════════
-    // SECTION 4: VERIFICATION TIERS
-    // ════════════════════════════════════════════════════════════════════════
     {
       order: 14,
-      type: "SLIDER",
-      questionText: "Should VERIFIED users get a Reach boost?",
-      description: "More verification = more voting power?",
-      required: true,
+      type: "SINGLE_CHOICE",
+      questionText: "Did you know we have a system bot called VeggaSystem?",
+      description: "🤖 @veggasystem posts changelogs, platform updates, and creates official polls like this one!",
+      required: false,
       allowImages: false,
-      options: [],
-      sliderConfig: {
-        minValue: 0,
-        maxValue: 10,
-        step: 1,
-        minLabel: "No boost",
-        maxLabel: "Major advantage",
-        stepLabels: [],
-      },
+      options: [
+        { text: "😮 That's cool — gives it personality" },
+        { text: "👍 I've seen it in the feed" },
+        { text: "🤷 Didn't notice" },
+      ],
     },
     {
       order: 15,
-      type: "SINGLE_CHOICE",
-      questionText: "What should GUEST (non-authenticated) vote weight be?",
-      description: "Currently: 10% weight",
+      type: "MULTI_CHOICE",
+      questionText: "Which of these features would you actually use?",
+      description: "Check everything that sounds interesting — helps us prioritize!",
       required: true,
       allowImages: false,
       options: [
-        { text: "0% (no voice)" },
-        { text: "5% (minimal)" },
-        { text: "10% (current)" },
-        { text: "25% (fair)" },
-        { text: "50% (equal-ish)" },
-      ],
-    },
-    {
-      order: 16,
-      type: "RANKING",
-      questionText: "Rank verification methods by TRUST level",
-      description: "What gives YOU the most confidence in a user's identity?",
-      required: true,
-      allowImages: false,
-      options: [
-        { text: "📧 Email only" },
-        { text: "🔵 Google/Social OAuth" },
-        { text: "📱 Phone number verified" },
-        { text: "💳 Payment card on file" },
-        { text: "🔗 Crypto wallet signature" },
-        { text: "✅ Multi-method (2+)" },
+        { text: "🎮 P2P trading with friends" },
+        { text: "🔗 Web3 wallet login & verification" },
+        { text: "📊 REACH analytics on my profile" },
+        { text: "🗳️ Creating my own polls" },
+        { text: "🌙 Dark/light theme toggle" },
+        { text: "💬 Real-time chat & messaging" },
       ],
     },
 
     // ════════════════════════════════════════════════════════════════════════
-    // SECTION 5: ANTI-GAMING & VIEW INTEGRITY
+    // SECTION 5: TRUST & SAFETY  (3 questions)
     // ════════════════════════════════════════════════════════════════════════
     {
-      order: 17,
-      type: "SINGLE_CHOICE",
-      questionText: "How should bad actors lose their Reach?",
-      description: "When users violate guidelines, how fast should Reach decay?",
+      order: 16,
+      type: "MULTI_CHOICE",
+      questionText: "What builds trust for you on a social platform?",
+      description: "Select the most important factors",
       required: true,
       allowImages: false,
       options: [
-        { text: "🚫 Instantly to zero" },
-        { text: "📉 Gradual decay over weeks" },
-        { text: "⚠️ Only after multiple warnings" },
-        { text: "🗳️ Community decides penalty" },
-        { text: "⚖️ Proportional to offense severity" },
+        { text: "🔍 Transparent algorithms (you see how scoring works)" },
+        { text: "🔒 Strong privacy controls" },
+        { text: "⚖️ Fair content moderation" },
+        { text: "📦 You own your data" },
+        { text: "🤝 Healthy community culture" },
+        { text: "🛡️ Verified accounts are clearly marked" },
       ],
     },
     {
-      order: 18,
+      order: 17,
       type: "SLIDER",
-      questionText: "How aggressive should BOT DETECTION be?",
-      description: "Trade-off: More aggressive = fewer bots but more false positives",
+      questionText: "How aggressively should we fight bots & spam?",
+      description: "More aggressive = fewer bots but possible false positives for real users",
       required: true,
       allowImages: false,
       options: [],
       sliderConfig: {
-        minValue: 1,
-        maxValue: 7,
+        min: 1,
+        max: 5,
         step: 1,
-        minLabel: "Very relaxed",
-        maxLabel: "Very aggressive",
-        stepLabels: ["Very relaxed", "Relaxed", "Moderate", "Balanced", "Firm", "Strict", "Very aggressive"],
+        minLabel: "Relaxed",
+        maxLabel: "Very strict",
+        stepLabels: ["Relaxed", "Moderate", "Balanced", "Firm", "Very strict"],
       },
+    },
+    {
+      order: 18,
+      type: "SINGLE_CHOICE",
+      questionText: "Should new users get a temporary REACH boost?",
+      description: "Help newcomers get discovered while they build their profile",
+      required: true,
+      allowImages: false,
+      options: [
+        { text: "🚀 Yes — everyone deserves a fair start" },
+        { text: "📊 Gradual unlock — earn it over time" },
+        { text: "❌ No — should be purely merit-based" },
+      ],
     },
 
     // ════════════════════════════════════════════════════════════════════════
-    // SECTION 6: UI/UX PREFERENCES
+    // SECTION 6: DESIGN & EXPERIENCE  (3 questions)
     // ════════════════════════════════════════════════════════════════════════
     {
       order: 19,
       type: "SINGLE_CHOICE",
-      questionText: "How should Reach be DISPLAYED?",
-      description: "How do you want to see your reach score?",
+      questionText: "How do you prefer to see your analytics?",
+      description: "When checking your REACH score and engagement",
       required: true,
       allowImages: false,
       options: [
-        { text: "📊 Simple number (e.g., 847)" },
-        { text: "📈 Number + trend arrow" },
-        { text: "🏆 Rank badge (Top 10%, etc.)" },
-        { text: "🌈 Colorful level system" },
-        { text: "🕸️ Radar/spider chart" },
-        { text: "💪 All of the above" },
+        { text: "📊 Simple numbers — just show me the score" },
+        { text: "📈 Visual charts & graphs" },
+        { text: "🎯 Both combined" },
+        { text: "✨ Keep it minimal — I don't check stats" },
       ],
     },
     {
       order: 20,
       type: "SINGLE_CHOICE",
-      questionText: "What color theme do you prefer?",
-      description: "For data visualizations and charts",
+      questionText: "Which theme do you use?",
+      description: "We support dark, light, and system-auto themes",
       required: false,
       allowImages: false,
       options: [
-        { text: "🌈 Vibrant gradients" },
-        { text: "🔵 Professional blues" },
-        { text: "🌿 Nature greens" },
-        { text: "🌙 Dark mode accents" },
-        { text: "⚪ Clean minimalist" },
-        { text: "🎨 Let me customize" },
+        { text: "🌙 Dark mode always" },
+        { text: "☀️ Light mode always" },
+        { text: "🔄 Auto (follows my system)" },
+        { text: "🤷 Didn't know I could change it" },
       ],
     },
-
-    // ════════════════════════════════════════════════════════════════════════
-    // SECTION 7: WEB3 FEATURES
-    // ════════════════════════════════════════════════════════════════════════
     {
       order: 21,
       type: "SLIDER",
-      questionText: "How important are WEB3 features to you?",
-      description: "NFTs, crypto payments, wallet login, etc.",
+      questionText: "How important is mobile experience to you?",
+      description: "Do you mainly use VeggaStare on your phone?",
       required: true,
       allowImages: false,
       options: [],
       sliderConfig: {
-        minValue: 1,
-        maxValue: 7,
+        min: 1,
+        max: 5,
         step: 1,
-        minLabel: "Not at all",
-        maxLabel: "Essential",
-        stepLabels: ["Not at all", "Curious", "Nice to have", "Neutral", "Important", "Very important", "Essential"],
+        minLabel: "Desktop only",
+        maxLabel: "Mobile first",
+        stepLabels: ["Desktop only", "Mostly desktop", "Both equally", "Mostly mobile", "Mobile first"],
       },
     },
+
+    // ════════════════════════════════════════════════════════════════════════
+    // SECTION 7: WHAT'S NEXT?  (4 questions)
+    // ════════════════════════════════════════════════════════════════════════
     {
       order: 22,
-      type: "MULTI_CHOICE",
-      questionText: "Which Web3 features EXCITE you most?",
-      description: "Select all that interest you",
-      required: false,
+      type: "RANKING",
+      questionText: "Rank these upcoming features by priority",
+      description: "What should we build first? Drag to reorder — top = most wanted",
+      required: true,
       allowImages: false,
       options: [
-        { text: "🖼️ NFT Profile Pictures" },
-        { text: "🔒 Token-Gated Content" },
-        { text: "🏆 Achievement NFT Badges" },
-        { text: "💸 Crypto Tipping" },
-        { text: "🗳️ DAO Governance Voting" },
-        { text: "⛓️ On-Chain Reputation" },
-        { text: "❌ None of these" },
+        { text: "📅 Post scheduling & optimal timing" },
+        { text: "🎬 Video content support" },
+        { text: "🤖 AI-powered content insights" },
+        { text: "📱 Native mobile app" },
+        { text: "🔧 Developer API for integrations" },
+        { text: "💰 Creator monetization tools" },
       ],
     },
     {
       order: 23,
       type: "SINGLE_CHOICE",
-      questionText: "Which blockchain should be PRIMARY?",
-      description: "For NFTs, payments, and identity",
-      required: false,
-      allowImages: false,
-      options: [
-        { text: "Ξ Ethereum (most trusted)" },
-        { text: "◎ Solana (fast & cheap)" },
-        { text: "🔷 Polygon (Eth L2)" },
-        { text: "🔵 Base (Coinbase L2)" },
-        { text: "🌐 Multi-chain support" },
-        { text: "🤷 I don't care" },
-      ],
-    },
-
-    // ════════════════════════════════════════════════════════════════════════
-    // SECTION 8: FEATURE PRIORITIES
-    // ════════════════════════════════════════════════════════════════════════
-    {
-      order: 24,
-      type: "RANKING",
-      questionText: "Rank these features by PRIORITY",
-      description: "What should we build NEXT? Drag to reorder 🏆",
-      required: true,
-      allowImages: false,
-      options: [
-        { text: "⚡ Realtime Velocity Dashboard" },
-        { text: "📅 Scheduled Posts + Timing" },
-        { text: "🎬 Video Content Support" },
-        { text: "🤖 AI-Powered Insights" },
-        { text: "📱 Native Mobile App" },
-        { text: "🛒 Digital Marketplace" },
-      ],
-    },
-    {
-      order: 25,
-      type: "SLIDER",
-      questionText: "How important is a MOBILE APP?",
-      description: "Native iOS/Android app",
-      required: true,
-      allowImages: false,
-      options: [],
-      sliderConfig: {
-        minValue: 1,
-        maxValue: 7,
-        step: 1,
-        minLabel: "Not at all",
-        maxLabel: "Won't use without it",
-        stepLabels: ["Not at all", "Nice to have", "Somewhat", "Important", "Very important", "Critical", "Won't use without"],
-      },
-    },
-    {
-      order: 26,
-      type: "SINGLE_CHOICE",
-      questionText: "Would you PAY for premium features?",
-      description: "Advanced analytics, API access, priority support",
+      questionText: "Would you pay for premium features?",
+      description: "Things like advanced analytics, API access, priority support",
       required: true,
       allowImages: false,
       options: [
         { text: "💳 Yes, monthly subscription" },
         { text: "💰 Yes, one-time purchase" },
-        { text: "₿ Yes, but only crypto" },
-        { text: "🆓 No, should be free" },
+        { text: "🤔 Maybe — depends on the features" },
+        { text: "🆓 No — keep it free" },
       ],
     },
-
-    // ════════════════════════════════════════════════════════════════════════
-    // SECTION 9: COMMUNITY & SOCIAL
-    // ════════════════════════════════════════════════════════════════════════
     {
-      order: 27,
-      type: "SLIDER",
-      questionText: "How important is COMMUNITY to you on VeggaStare?",
-      description: "A = Just want metrics, G = Community is everything",
-      required: true,
+      order: 24,
+      type: "SINGLE_CHOICE",
+      questionText: "What would you pay monthly?",
+      description: "If premium analytics were available",
+      required: false,
       allowImages: false,
-      options: [],
-      sliderConfig: {
-        minValue: 1,
-        maxValue: 7,
-        step: 1,
-        minLabel: "Don't care",
-        maxLabel: "Everything",
-        stepLabels: ["Don't care", "Nice to have", "Somewhat", "Important", "Very important", "Essential", "Everything"],
-      },
+      options: [
+        { text: "🆓 Keep it free" },
+        { text: "💵 $2–5/month" },
+        { text: "💵💵 $5–10/month" },
+        { text: "💎 $10+/month" },
+      ],
     },
     {
-      order: 28,
+      order: 25,
       type: "SINGLE_CHOICE",
-      questionText: "What culture do you want VeggaStare to have?",
-      description: "The vibe of the platform",
+      questionText: "What should VeggaStare focus on most?",
+      description: "Our core identity as a platform",
       required: true,
       allowImages: false,
       options: [
-        { text: "🚀 Hustle/growth culture" },
-        { text: "🧘 Mindful/intentional" },
-        { text: "🎉 Fun/playful" },
-        { text: "📚 Educational/serious" },
-        { text: "🤝 Supportive/wholesome" },
-        { text: "🎯 Professional/business" },
+        { text: "🎨 Creator success & tools" },
+        { text: "🔍 Content discovery & feed" },
+        { text: "🤝 Community & social features" },
+        { text: "🚀 Innovation & unique features" },
+        { text: "✨ Simplicity & ease of use" },
       ],
     },
 
     // ════════════════════════════════════════════════════════════════════════
-    // SECTION 10: OPEN INNOVATION
+    // SECTION 8: YOUR VOICE  (3 questions)
     // ════════════════════════════════════════════════════════════════════════
     {
-      order: 29,
+      order: 26,
       type: "TEXT",
-      questionText: "What's the ONE feature that would make VeggaStare perfect?",
-      description: "Your killer feature request — we read every response! 💡",
+      questionText: "If you could change ONE thing about VeggaStare, what would it be?",
+      description: "Your most important suggestion — we read every single response!",
       required: false,
-      allowImages: true,
+      allowImages: false,
       options: [],
     },
     {
-      order: 30,
+      order: 27,
+      type: "TEXT",
+      questionText: "What would make you come back every day?",
+      description: "What's the one thing that would make VeggaStare a daily habit?",
+      required: false,
+      allowImages: false,
+      options: [],
+    },
+    {
+      order: 28,
       type: "SCALE",
-      questionText: "How excited are you about VeggaStare's future?",
-      description: "Be honest! Your enthusiasm helps us gauge momentum.",
+      questionText: "Would you recommend VeggaStare to a friend?",
+      description: "Be totally honest — this helps us more than anything!",
       required: true,
       allowImages: false,
       options: [],
       sliderConfig: {
-        minValue: 1,
-        maxValue: 10,
+        min: 1,
+        max: 10,
         step: 1,
-        minLabel: "Meh",
-        maxLabel: "Can't wait!",
-        stepLabels: [],
+        minLabel: "Not likely",
+        maxLabel: "Absolutely!",
+        stepLabels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
       },
     },
   ],
 };
 
 /**
- * Generates the REACH poll template with fresh IDs
+ * Generates the REACH poll template with fresh IDs and proper section mapping.
  */
 export function generateREACHTemplate(): PollBuilderData {
   const template = REACH_POLL_TEMPLATE;
-  
-  // Define sections with stable keys that map to generated IDs
+
+  // 8 sections matching the template structure
   const sectionDefs: Array<{ key: string; title: string; icon: string; description: string; order: number }> = [
-    { key: "user-context", title: "User Context", icon: "👤", description: "Understanding your perspective and platform usage", order: 1 },
-    { key: "six-pillars", title: "The 6 Pillars", icon: "📊", description: "Rate and tune the core REACH pillars", order: 2 },
-    { key: "velocity", title: "The 7th Pillar - Velocity", icon: "⚡", description: "Momentum and realtime engagement metrics", order: 3 },
-    { key: "verification", title: "Verification Tiers", icon: "🔐", description: "How authentication affects your influence", order: 4 },
-    { key: "anti-gaming", title: "Anti-Gaming & View Integrity", icon: "🛡️", description: "Bot prevention and authentic engagement", order: 5 },
-    { key: "ui-ux", title: "UI/UX Preferences", icon: "🎨", description: "Charts, themes, animations, and layouts", order: 6 },
-    { key: "web3", title: "Web3 Features", icon: "🌐", description: "Wallets, NFTs, and crypto integrations", order: 7 },
-    { key: "features", title: "Feature Priorities", icon: "🚀", description: "What should we build next?", order: 8 },
-    { key: "community", title: "Community & Social", icon: "🤝", description: "Social features and community dynamics", order: 9 },
-    { key: "innovation", title: "Open Innovation", icon: "💡", description: "Your wildest ideas and feedback", order: 10 },
+    { key: "welcome",       title: "Welcome & You",       icon: "👋", description: "Tell us about yourself",                            order: 1 },
+    { key: "impressions",   title: "First Impressions",    icon: "✨", description: "Your experience landing on VeggaStare",             order: 2 },
+    { key: "reach-pillars", title: "The 7 Pillars",        icon: "📊", description: "Rate the REACH scoring system",                     order: 3 },
+    { key: "discovery",     title: "Discovery Zone",       icon: "🔍", description: "Did you know we have these features?",              order: 4 },
+    { key: "trust",         title: "Trust & Safety",       icon: "🛡️", description: "Bot prevention, privacy & moderation",              order: 5 },
+    { key: "design",        title: "Design & Experience",  icon: "🎨", description: "How the platform looks and feels",                  order: 6 },
+    { key: "roadmap",       title: "What's Next?",         icon: "🚀", description: "Help us prioritize upcoming features",              order: 7 },
+    { key: "voice",         title: "Your Voice",           icon: "💬", description: "Open feedback — say anything!",                     order: 8 },
   ];
 
-  // Generate section IDs and create mapping
   const sectionIdMap: Record<string, string> = {};
   const sections = sectionDefs.map((s) => {
     const id = generateId();
@@ -651,18 +571,16 @@ export function generateREACHTemplate(): PollBuilderData {
     };
   });
 
-  // Map question order ranges to section keys
+  // Map question order → section (ranges must match actual question groupings above)
   const getQuestionSection = (order: number): string | null => {
-    if (order >= 1 && order <= 4) return sectionIdMap["user-context"];
-    if (order >= 5 && order <= 10) return sectionIdMap["six-pillars"];
-    if (order >= 11 && order <= 12) return sectionIdMap["velocity"];
-    if (order >= 13 && order <= 14) return sectionIdMap["verification"];
-    if (order >= 15 && order <= 16) return sectionIdMap["anti-gaming"];
-    if (order >= 17 && order <= 18) return sectionIdMap["ui-ux"];
-    if (order >= 19 && order <= 22) return sectionIdMap["web3"];
-    if (order >= 23 && order <= 26) return sectionIdMap["features"];
-    if (order >= 27 && order <= 28) return sectionIdMap["community"];
-    if (order >= 29) return sectionIdMap["innovation"];
+    if (order >= 1  && order <= 3)  return sectionIdMap["welcome"];
+    if (order >= 4  && order <= 6)  return sectionIdMap["impressions"];
+    if (order >= 7  && order <= 10) return sectionIdMap["reach-pillars"];
+    if (order >= 11 && order <= 15) return sectionIdMap["discovery"];
+    if (order >= 16 && order <= 18) return sectionIdMap["trust"];
+    if (order >= 19 && order <= 21) return sectionIdMap["design"];
+    if (order >= 22 && order <= 25) return sectionIdMap["roadmap"];
+    if (order >= 26 && order <= 28) return sectionIdMap["voice"];
     return null;
   };
 
@@ -678,7 +596,7 @@ export function generateREACHTemplate(): PollBuilderData {
     })),
   }));
 
-  // Build section flows - map each section to its questions
+  // Build section flows
   const sectionsWithFlow: PollSection[] = sections.map(s => {
     const sectionQuestions = questions.filter(q => q.sectionId === s.id);
     return {
@@ -687,7 +605,6 @@ export function generateREACHTemplate(): PollBuilderData {
     };
   });
 
-  // Top-level flow contains sections in order
   const topLevelFlow = sectionsWithFlow.map(s => ({ type: 'SECTION' as const, id: s.id }));
 
   return {

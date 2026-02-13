@@ -533,8 +533,9 @@ export function generateVerifyPollDemoTemplate(): PollBuilderData {
     // Q4: Single choice - "Select me" is first option
     if (i === 4 && q.type === "SINGLE_CHOICE" && opts[0]) {
       question.correctAnswer = opts[0].id;
-      question.explanation = "The option 'Select me' is correct.";
-      question.wrongExplanation = "The correct option clearly says 'Select me'.";
+      question.explanation = "The option labeled 'Select me' is the correct answer. This tests basic single-choice selection.";
+      question.wrongExplanation = "Read each option carefully — the one that literally says 'Select me' is correct.";
+      question.deepExplanation = "Single-choice questions allow exactly one selection. The UI disables other options once you pick one. This is the simplest question type in the system.";
     }
 
     // Q5: Multi choice - both options containing "correct" (opts 0 and 1)
@@ -547,8 +548,9 @@ export function generateVerifyPollDemoTemplate(): PollBuilderData {
     // Q6: Single - "The Answer" is second option
     if (i === 6 && q.type === "SINGLE_CHOICE" && opts[1]) {
       question.correctAnswer = opts[1].id;
-      question.explanation = "The option labeled 'The Answer' is correct.";
-      question.wrongExplanation = "Look for the exact label 'The Answer' — not 'Not The Answer' or 'An Answer'.";
+      question.explanation = "The exact label 'The Answer' appears on the second option. Close variants like 'Not The Answer' or 'An Answer' are traps.";
+      question.wrongExplanation = "Look for the EXACT label 'The Answer' — not 'Not The Answer', 'An Answer', or 'Maybe The Answer?'.";
+      question.deepExplanation = "This tests reading comprehension under mild distraction. In real polls, option text should be distinct enough to avoid confusion.";
     }
 
     // Q7: TRICK - NOT a fruit = Carrot (third option)
@@ -564,14 +566,16 @@ export function generateVerifyPollDemoTemplate(): PollBuilderData {
       question.correctAnswer = [opts[0].id, opts[1].id]; // Red and Green (any 2 of 3 primaries works)
       question.explanation = "In RGB, Red, Green, and Blue are primary. You needed to select any 2 of them.";
       question.wrongExplanation = "Yellow is NOT a primary in RGB (it's in CMYK). Pick from Red, Green, or Blue.";
+      question.deepExplanation = "RGB (Red, Green, Blue) is the additive color model used by screens. CMYK (Cyan, Magenta, Yellow, Key/black) is the subtractive model used by printers. Yellow is primary in CMYK but NOT in RGB.";
     }
 
     // Q9: TRICK (but actually easy) - 2 + 2 = 4 (second option)
     if (i === 9 && q.type === "SINGLE_CHOICE" && opts[1]) {
       question.correctAnswer = opts[1].id;
       question.trickQuestion = true;
-      question.explanation = "2 + 2 = 4. This was labeled as a trick but was actually straightforward!";
+      question.explanation = "2 + 2 = 4. This was labeled as a trick question but the math is straightforward!";
       question.wrongExplanation = "The answer is simply 4. '22' would be string concatenation in programming, not addition!";
+      question.deepExplanation = "The trick here is that there IS no trick — the 🎭 trick label is itself the misdirection. In JavaScript, '2' + '2' would indeed give '22' (string concatenation), but the question asks about mathematical addition.";
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -617,7 +621,8 @@ export function generateVerifyPollDemoTemplate(): PollBuilderData {
     if (i === 14 && q.type === "TEXT") {
       question.correctAnswer = "blue";
       question.explanation = "The sky is blue on a clear day!";
-      question.wrongExplanation = "On a clear day, the sky appears blue.";
+      question.wrongExplanation = "On a clear day, the sky appears blue due to Rayleigh scattering of sunlight.";
+      question.deepExplanation = "Text answers are compared case-insensitively, so 'Blue', 'blue', or 'BLUE' all work. The system trims whitespace and normalizes case before comparison.";
     }
 
     // Q15: Type "42" (the number)
@@ -662,8 +667,9 @@ export function generateVerifyPollDemoTemplate(): PollBuilderData {
     // Q19: Green is success (second option)
     if (i === 19 && q.type === "SINGLE_CHOICE" && opts[1]) {
       question.correctAnswer = opts[1].id;
-      question.explanation = "🟢 Green universally represents success, correctness, and approval!";
-      question.wrongExplanation = "Green is the color of success. Red = error, Blue = info, Yellow = warning.";
+      question.explanation = "🟢 Green universally represents success, correctness, and approval in UI design!";
+      question.wrongExplanation = "Green is the color of success. Red = error/danger, Blue = info/neutral, Yellow = warning/caution.";
+      question.deepExplanation = "UI color conventions:\n• 🟢 Green → success, confirm, correct\n• 🔴 Red → error, danger, destructive action\n• 🔵 Blue → information, primary action\n• 🟡 Yellow/Amber → warning, caution\n\nVeggaStare uses emerald green (#10b981) as its primary accent for this exact reason — it signals positivity and growth.";
     }
 
     // Q20: TRICK - Even numbers (2, 4, 6 = opts 0, 1, 3)

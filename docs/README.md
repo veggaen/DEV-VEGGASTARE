@@ -15,7 +15,7 @@ These documents provide the deep technical detail behind features summarized in 
 | [NORWAY_LEGAL_COMPLIANCE.md](NORWAY_LEGAL_COMPLIANCE.md) | **Active** | **Master compliance doc**: GDPR, consumer law, DSA, accessibility, DPI tax reporting, payments, Web3/MiCA, security standards, implementation roadmap |
 | [VIPPS_REQUIREMENTS.md](VIPPS_REQUIREMENTS.md) | Active | Vipps payment integration checklist: sales terms, consumer law, website content requirements |
 | [integration-core.md](integration-core.md) | Reference | Backend architecture rationale: why the backend is an Integration Core, Bring API surface, testing considerations |
-| [POLL_SYSTEM_UPGRADE_MASTER_QUERY.md](POLL_SYSTEM_UPGRADE_MASTER_QUERY.md) | Historical | Exhaustive spec used to build the advanced poll system (database schema, API routes, UI components, first poll content) |
+| [POLL_SYSTEM_UPGRADE_MASTER_QUERY.md](POLL_SYSTEM_UPGRADE_MASTER_QUERY.md) | Historical + Addendum | Exhaustive spec used to build the advanced poll system. **Addendum (2026-02):** Poll types, quiz correctness engine, template methodology, anti-gaming config, verification-weighted voting |
 | [POLL_SYSTEM_AGENT_PROMPT.md](POLL_SYSTEM_AGENT_PROMPT.md) | Historical | Agent prompt used during initial poll system development |
 
 ### Status Key

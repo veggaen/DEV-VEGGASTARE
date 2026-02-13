@@ -924,7 +924,7 @@ const FeedPage: React.FC = () => {
           {!currentUser && (
             <div
               onClick={() => router.push('/auth/login')}
-              className="rounded-2xl border border-border/60 bg-zinc-200/80 dark:bg-card p-4 cursor-pointer hover:border-primary/40 transition-colors"
+              className="rounded-2xl border border-border/40 bg-zinc-100/80 dark:bg-zinc-900/60 p-4 cursor-pointer hover:border-primary/40 transition-colors"
             >
               <div className="flex gap-3 items-center">
                 <div className="h-10 w-10 shrink-0 rounded-full bg-muted flex items-center justify-center">
@@ -937,7 +937,7 @@ const FeedPage: React.FC = () => {
             </div>
           )}
           {currentUser && (
-            <div className="rounded-2xl border border-border/60 bg-zinc-200/80 dark:bg-card">
+            <div className="rounded-2xl border border-border/40 bg-zinc-100/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-sm transition-colors hover:border-border/60">
               {filter === 'polls' ? (
                 // Poll-focused compose
                 <div className="p-4 space-y-4">
@@ -972,7 +972,7 @@ const FeedPage: React.FC = () => {
                               value={composeText}
                               onChange={(e) => setComposeText(e.target.value)}
                               placeholder="Add a message with your advanced poll (optional)..."
-                              className="min-h-[50px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0 text-base"
+                              className="min-h-[50px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 text-base placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                               rows={1}
                             />
                           </div>
@@ -1069,7 +1069,7 @@ const FeedPage: React.FC = () => {
                               value={composeText}
                               onChange={(e) => setComposeText(e.target.value)}
                               placeholder="Add a message with your poll (optional)..."
-                              className="min-h-[50px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0 text-base"
+                              className="min-h-[50px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 text-base placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                               rows={1}
                             />
                           </div>
@@ -1142,7 +1142,7 @@ const FeedPage: React.FC = () => {
                         value={composeText}
                         onChange={(e) => setComposeText(e.target.value)}
                         placeholder={pendingAdvancedPoll ? "Add a message with your advanced poll (optional)..." : "Pulse your thoughts..."}
-                        className="min-h-[60px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0 text-base"
+                        className="min-h-[60px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 text-base placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                         rows={2}
                       />
 
@@ -1256,7 +1256,7 @@ const FeedPage: React.FC = () => {
                 </div>
 
                 {/* Action bar */}
-                <div className="flex items-center justify-between pl-13">
+                <div className="flex items-center justify-between pl-13 border-t border-border/30 pt-2">
                   <div className="flex items-center gap-1">
                     {/* Poll Options Dropdown */}
                     <DropdownMenu>
