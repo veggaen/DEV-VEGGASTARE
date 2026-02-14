@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
         Accept: 'application/json',
         'X-Mybring-API-Uid': bringApiUID,
         'X-Mybring-API-Key': bringApiKey,
-        'X-Bring-Client-URL': clientUrl,
+        'X-Bring_Client_URL': clientUrl,
       },
       body: JSON.stringify(requestBody),
       cache: 'no-store',

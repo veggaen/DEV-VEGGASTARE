@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 # Cancel in-flight CI runs for the same branch/PR
 concurrency:
@@ -12,9 +12,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ─── Path filter (skip jobs when their code hasn't changed) ─
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+
   # ─── Frontend checks ───────────────────────────────────────
   frontend:
     name: Frontend (validate · build)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -55,6 +79,18 @@ jobs:
       - run: npx prisma generate
       - run: npx prisma validate
 
+      # Prisma: catch schema changes without a matching migration
+      - name: Check migration drift
+        run: |
+          SCHEMA_CHANGED=$(git diff --name-only ${{ github.event.before || 'HEAD~1' }} HEAD -- prisma/schema.prisma || true)
+          MIGRATION_CHANGED=$(git diff --name-only ${{ github.event.before || 'HEAD~1' }} HEAD -- prisma/migrations/ || true)
+          if [ -n "$SCHEMA_CHANGED" ] && [ -z "$MIGRATION_CHANGED" ]; then
+            echo "::error::prisma/schema.prisma was modified but no new migration was added."
+            echo "Run 'npx prisma migrate dev --name <description>' to create a migration."
+            exit 1
+          fi
+          echo "✓ Schema and migrations are in sync"
+
       # Next.js production build (includes TypeScript checking via ignoreBuildErrors: false)
       # No separate tsc --noEmit needed — Next.js build already type-checks
       - name: Build Next.js
@@ -73,6 +109,8 @@ jobs:
   # ─── Frontend lint (parallel) ──────────────────────────────
   frontend-lint:
     name: Frontend (lint)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -94,6 +132,8 @@ jobs:
   # ─── Backend checks ────────────────────────────────────────
   backend:
     name: Backend (validate · typecheck · build)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:

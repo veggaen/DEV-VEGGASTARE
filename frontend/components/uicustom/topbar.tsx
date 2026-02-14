@@ -7,7 +7,8 @@ import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { motion, useReducedMotion } from "framer-motion";
 import WalletConnection from "../crypto-related/WalletAdapter"; // Your wallet UI (legacy)
-import AppKitButton from "../crypto-related/AppKitButton"; // Polished AppKit wallet modal
+import SidebarWalletPanel from "../crypto-related/SidebarWalletPanel";
+import AppKitButton from "../crypto-related/AppKitButton";
 import NetworkSyncBridge from "@/components/crypto-related/NetworkSyncBridge";
 import { MyDialogbarNavigator } from "@/app/(protected)/_components/dialog-bar";
 import { useTheme } from "next-themes";
@@ -99,15 +100,10 @@ const MyTopBar = () => {
 		}, [mutateCart])
 	);
 
-	// Real-time notification updates via Pusher
-	usePusher<{ userId: string }>(
-		clientUser?.id ? `UserChannel_${clientUser.id}` : '',
-		'notification-update',
-		useCallback(() => {
-			// The notifications hook SWR will be revalidated via its own key
-			window.dispatchEvent(new CustomEvent('notification-refresh'));
-		}, [])
-	);
+	// NOTE: notification-update Pusher event removed — it was subscribed but
+	// never triggered from any server-side code, causing phantom refreshes.
+	// Re-add when server-side notification triggers are implemented.
+
 	const headerRef = useRef<HTMLElement | null>(null);
 	const { resolvedTheme, setTheme } = useTheme();
 	const [menuOpen, setMenuOpen] = useState(false);
@@ -357,6 +353,7 @@ const MyTopBar = () => {
 	return (
 		<>
 			<NetworkSyncBridge />
+
 			<MyDialogbarNavigator
 				open={nexusOpen}
 				onOpenChange={setNexusOpen}
@@ -644,24 +641,13 @@ const MyTopBar = () => {
 														</button>
 													)}
 
-													{/* Web3 Wallet — always visible in nav pane for all users */}
-													<div className={`${clientUser ? 'mt-2' : 'mt-4'} rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden`}>
-														<div className="flex items-center gap-3 px-4 py-2 bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
-															<FiZap className="h-4 w-4 text-emerald-500" />
-															<span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Web3 Wallet</span>
-															{clientUser && effectiveWeb3ModeEnabled && (
-																<Link
-																	href="/settings?section=wallet"
-																	onClick={() => setMenuOpen(false)}
-																	className="ml-auto text-[10px] text-zinc-400 hover:text-emerald-500 transition-colors"
-																>
-																	Manage →
-																</Link>
-															)}
-														</div>
-														<div className="flex justify-center p-3">
-															<AppKitButton size="md" />
-														</div>
+													{/* Web3 Wallets — multi-wallet display with linked + live wallets */}
+													<div className={clientUser ? 'mt-2' : 'mt-4'}>
+														<SidebarWalletPanel
+															isLoggedIn={!!clientUser}
+															web3Enabled={effectiveWeb3ModeEnabled}
+															onClose={() => setMenuOpen(false)}
+														/>
 													</div>
 												</div>
 											)}

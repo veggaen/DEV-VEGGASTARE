@@ -4,6 +4,10 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+    // Expose Vercel's VERCEL_ENV to client-side code for Pusher channel scoping
+    env: {
+        NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV || '',
+    },
     async redirects() {
         return [
             {

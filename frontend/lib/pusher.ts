@@ -1,4 +1,5 @@
 import PusherServer from 'pusher';
+import { scopeChannel } from './pusher-channel';
 
 const LOG_PREFIX = '[frontend/lib/pusher.ts]';
 
@@ -13,13 +14,30 @@ if (!P_KEY) console.error(`${LOG_PREFIX} Missing PUSHER_KEY`);
 if (!P_SECRET) console.error(`${LOG_PREFIX} Missing PUSHER_SECRET`);
 if (!P_CLUSTER) console.error(`${LOG_PREFIX} Missing PUSHER_CLUSTER`);
 
-const pusherServer = new PusherServer({
+/**
+ * Scoped PusherServer — automatically prefixes channel names with the
+ * current environment so dev/preview events never leak to production.
+ */
+class ScopedPusherServer extends PusherServer {
+    trigger(
+        channel: string | string[],
+        event: string,
+        data: any,
+        params?: any,
+    ): Promise<PusherServer.Response> {
+        const scoped = Array.isArray(channel)
+            ? channel.map(scopeChannel)
+            : scopeChannel(channel);
+        return super.trigger(scoped, event, data, params);
+    }
+}
+
+const pusherServer = new ScopedPusherServer({
     appId: P_APP_ID!!,
     key: P_KEY!!,
     secret: P_SECRET!!,
     cluster: P_CLUSTER!!,
     useTLS: true,
 });
-  
-  
+
 export { pusherServer };

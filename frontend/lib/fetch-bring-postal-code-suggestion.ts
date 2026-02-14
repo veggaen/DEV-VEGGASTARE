@@ -19,7 +19,7 @@ type PostalCodeSuggestion = {
         headers: {
           'X-Mybring-API-Uid': process.env.MYBRING_API_UID || '',
           'X-Mybring-API-Key': process.env.MYBRING_API_KEY || '',
-          'X-Bring-Client-URL': whatENV,
+          'X-Bring_Client_URL': whatENV,
           'Accept': 'application/json',
         },
       });

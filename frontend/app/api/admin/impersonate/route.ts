@@ -5,13 +5,23 @@ import { isOwner, logAdminAction } from '@/lib/admin';
 import { AdminAction, AdminTargetType } from '@/generated/prisma/browser';
 import { cookies } from 'next/headers';
 import { encode } from 'next-auth/jwt';
+import { getAccountByUserId } from '@/lib/account';
 
 const LOG_PREFIX = '[api/admin/impersonate]';
+
+const isSecure = process.env.NODE_ENV === 'production';
+/** NextAuth v5 session-token cookie name */
+const SESSION_COOKIE = isSecure
+  ? '__Secure-authjs.session-token'
+  : 'authjs.session-token';
 
 /**
  * POST /api/admin/impersonate
  * Start impersonating another user. OWNER only.
- * Sets a secure cookie with the original owner's ID so we can swap back.
+ * 
+ * This route:
+ * 1. Sets impersonation metadata cookies (so the JWT callback can keep the swap alive)
+ * 2. Force-encodes a new JWT with the target user's identity so the swap is IMMEDIATE
  */
 export async function POST(request: NextRequest) {
   const session = await MyLibUserAuth();
@@ -38,10 +48,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Cannot impersonate yourself' }, { status: 400 });
   }
 
-  // Verify target user exists
+  // Load the FULL target user (we need all fields for the JWT)
   const targetUser = await dbPrisma.user.findUnique({
     where: { id: targetUserId },
-    select: { id: true, name: true, email: true, role: true },
   });
 
   if (!targetUser) {
@@ -62,34 +71,64 @@ export async function POST(request: NextRequest) {
     reason: reason || 'Owner impersonation swap',
   });
 
-  // Set a secure httpOnly cookie with the owner's real identity.
-  // This cookie is used by the JWT callback to know we're in impersonation mode,
-  // and by the /end endpoint to restore the original session.
   const cookieStore = await cookies();
-  
-  cookieStore.set('x-impersonate-owner-id', session.id, {
+  const cookieOpts = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: isSecure,
+    sameSite: 'lax' as const,
     path: '/',
     maxAge: 60 * 60, // 1 hour max impersonation
-  });
+  };
 
-  cookieStore.set('x-impersonate-owner-name', session.name || 'Owner', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60,
-  });
+  // ── 1. Set impersonation metadata cookies ────────────────────────
+  cookieStore.set('x-impersonate-owner-id', session.id, cookieOpts);
+  cookieStore.set('x-impersonate-owner-name', session.name || 'Owner', cookieOpts);
+  cookieStore.set('x-impersonate-target-id', targetUserId, cookieOpts);
 
-  cookieStore.set('x-impersonate-target-id', targetUserId, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60,
-  });
+  // ── 2. Force-encode a new JWT with the target's identity ─────────
+  // This makes the swap immediate — no waiting for JWT callback refresh.
+  const targetAccount = await getAccountByUserId(targetUser.id);
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+
+  if (secret) {
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const newToken = await encode({
+        token: {
+          sub: targetUser.id,
+          name: targetUser.name,
+          email: targetUser.email,
+          picture: targetUser.image, // NextAuth uses 'picture' internally
+          image: targetUser.image,
+          role: targetUser.role,
+          isTwoFactorEnabled: targetUser.isTwoFactorEnabled,
+          referredBy: targetUser.referredBy,
+          isOAuth: !!targetAccount,
+          web3ModeEnabled: targetUser.web3ModeEnabled,
+          tokenVersion: targetUser.tokenVersion,
+          // Impersonation metadata
+          isImpersonating: true,
+          impersonatingFromId: session.id,
+          impersonatingFromName: session.name || 'Owner',
+          iat: now,
+          exp: now + 60 * 60, // 1 hour
+        },
+        secret,
+        salt: SESSION_COOKIE,
+      });
+
+      cookieStore.set(SESSION_COOKIE, newToken, {
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60,
+      });
+    } catch (err) {
+      console.error(`${LOG_PREFIX} Failed to encode impersonation JWT:`, err);
+      // Non-fatal — the JWT callback will still pick up the impersonation cookies
+    }
+  }
 
   console.log(
     `${LOG_PREFIX} OWNER ${session.id} (${session.name}) started impersonating ${targetUserId} (${targetUser.name})`

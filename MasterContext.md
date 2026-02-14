@@ -28,7 +28,7 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 4. **Server actions must validate with Zod.** Every mutation uses a Zod schema before touching the database.
 5. **Web3 trade acceptance requires wallet signature.** The `useSignMessage` hook must be called before confirming any P2P trade.
 6. **Pusher channels follow naming conventions.** Pattern: `{feature}-{id}` (e.g., `trade-abc123`, `pulse-feed`, `notifications-userId`).
-7. **VeggaSystem is a hardcoded system account.** Wallet: `0x018F6bF56814Dfa2543f98041e44A202b3632636`. Do not change this address.
+7. **VeggaSystem is a hardcoded system account with multi-chain wallets.** EVM/PulseChain: `0x018F6bF56814Dfa2543f98041e44A202b3632636`, Solana: `CKtrK9x1Hdtxt3JPpGVUDvoQgfhoGB24ecjsXYdzYnLx`, Bitcoin: `bc1qsyk5zhe5qtemv537ayd88nde58nsjtxhru6vas`. Do not change these addresses. OWNER can impersonate ("Take Control") this account via `/api/admin/impersonate` which force-encodes a new JWT for immediate identity swap. System email routes to `v3ggat@gmail.com`.
 8. **Build uses Webpack mode.** `next dev --webpack` and `next build --webpack` — not Turbopack (due to compatibility).
 9. **Environment variables are split.** Dev in `.env.local`, prod in hosting provider. Never commit secrets.
 10. **Backend CORS is restrictive in production.** Set `CORS_ORIGINS` explicitly. Default `*` is dev-only.
@@ -119,6 +119,54 @@ User action (OAuth link, wallet sign, payment)
 
 ---
 
+## Development Workflow & CI/CD
+
+### Starting Dev Servers
+
+| Method | Command | Result |
+|--------|---------|--------|
+| **VS Code task** | `Ctrl+Shift+B` | Both servers in split terminals |
+| **Root CLI** | `npm run dev` | Both servers via concurrently |
+| **Frontend only** | `npm run dev:fe` | localhost:3000 |
+| **Backend only** | `npm run dev:be` | localhost:3001 + :3002 |
+| **Copilot Chat** | Say *"start my project"* | Copilot runs the VS Code build task |
+
+### Git Branching Model
+
+```
+feat/my-feature ──push──▶ CI ──PR──▶ dev ──verify──▶ main
+                                       │               │
+                                  Vercel Preview    Vercel Prod (veggat.com)
+                                                    Railway Prod (backend)
+```
+
+- **`main`** — production. Pushing triggers Vercel + Railway deploy. Never push directly.
+- **`dev`** — staging. Push here for CI validation and Vercel previews.
+- Feature branches: `feat/`, `fix/`, `chore/` off `dev`.
+
+### CI Pipeline (GitHub Actions)
+
+Runs on every push/PR to `main` and `dev`:
+1. **Path filter** — skips jobs when code hasn't changed (`dorny/paths-filter`)
+2. **Frontend** — `npm ci` → `prisma generate` → `prisma validate` → migration drift check → `npm run build` → `npm run lint`
+3. **Backend** — `npm ci` → `prisma generate` → `prisma validate` → `tsc --noEmit`
+
+### Environment Routing
+
+| Branch / Env | Vercel Env | Database | Pusher Prefix |
+|-------------|-----------|----------|---------------|
+| `main` (production) | production | `DATABASE_URL_MAINLIVE` | *(none)* |
+| `dev` / PRs (preview) | preview | `DATABASE_URL_MAINPREVIEW` | `preview__` |
+| Local dev | development | `DATABASE_URL` (.env.local) | `dev__` |
+
+### Automation
+
+- **Dependabot** — weekly PRs for npm + GitHub Actions dependency updates
+- **Stale bot** — closes abandoned issues (30d) and PRs (14d)
+- **E2E scaffold** — Playwright tests in `frontend/e2e/` (runs on PR if tests change)
+
+---
+
 ## Key Data Relationships
 
 ```
@@ -135,7 +183,8 @@ User ──< PollResponse ──< PollAnswer ──> PollQuestion ──> Advanc
 User ──< Post ──< Reaction
 User ──< Notification
 User ──< Trade (initiator/responder) ──< TradeItem
-User ──< Wallet (linked via EVM signature)
+User ──< Wallet (multi-chain: EVM/SOLANA/BITCOIN via ChainFamily, linked via signature)
+User ─── Impersonation (OWNER can "Take Control" of VeggaSystem via cookies)
 ```
 
 ---
@@ -272,6 +321,8 @@ README.md                          ← Entry point: overview + quick start
 ├── architecture.md                ← System design, data flow, deployment
 ├── prd.md                         ← Product requirements, roadmap
 ├── MasterContext.md (this file)   ← Living context index
+├── ONBOARDING.md                  ← Employee/contributor onboarding guide
+├── .github/copilot-instructions.md ← Copilot Chat workflow commands (owner)
 └── docs/
     ├── NORWAY_LEGAL_COMPLIANCE.md         ← Master legal/regulatory compliance (GDPR, DSA, DPI, MiCA)
     ├── REACH_7_PILLARS_SPECIFICATION.md   ← True Reach™ metric formulas

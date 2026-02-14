@@ -1368,6 +1368,7 @@ enum ViewType {
 enum ChainFamily {
   EVM
   SOLANA
+  BITCOIN
 }
 
 enum FiatCurrency {

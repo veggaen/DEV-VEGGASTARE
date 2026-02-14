@@ -84,7 +84,7 @@ export async function GET(
       'X-MyBring-API-Uid': bringApiUid,
       'X-MyBring-API-Key': bringApiKey,
       // Many Bring APIs expect a client URL identifier. Safe to include.
-      'X-Bring-Client-URL': request.nextUrl.origin,
+      'X-Bring_Client_URL': request.nextUrl.origin,
     };
 
     switch (actionPath) {

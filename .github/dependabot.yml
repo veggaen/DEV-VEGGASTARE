@@ -1,0 +1,51 @@
+# Dependabot: automatic dependency update PRs
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+version: 2
+updates:
+  # ── Frontend (npm) ──
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Oslo
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - frontend
+    groups:
+      # Group minor/patch updates to reduce PR noise
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # ── Backend (npm) ──
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Oslo
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - backend
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # ── GitHub Actions ──
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ci

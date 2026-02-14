@@ -72,13 +72,16 @@ The platform uniquely combines:
 | Feature | Status | Description |
 |---------|--------|-------------|
 | Wallet Connection | ✅ Shipped | Reown/WalletConnect, Coinbase, Phantom, Solflare |
+| Multi-Wallet Support | ✅ Shipped | Link multiple wallets per user across EVM/Solana/Bitcoin (ChainFamily enum) |
 | OSRS-Style Inventory | ✅ Shipped | Grid-based crypto asset view with drag-and-drop |
 | P2P Trade Windows | ✅ Shipped | Open trade, make offers, accept/decline |
 | Wallet Confirmation | ✅ Shipped | Signature required on trade accept |
 | Trade Notifications | ✅ Shipped | Purple blink indicator for incoming trades |
 | Chat-Lite in Trade | ✅ Shipped | Inline conversation during trades |
-| VeggaSystem Bot | ✅ Shipped | System account for automated operations |
+| VeggaSystem Bot | ✅ Shipped | System account with multi-chain wallets (ETH/SOL/BTC/PLS) |
+| System Impersonation | ✅ Shipped | OWNER "Take Control" to act as VeggaSystem from profile/hovercard |
 | On-chain Verification | ✅ Shipped | Transaction-based tier upgrades |
+| Donation Verification | ⏳ Planned | $1 donation to system wallets as identity verification |
 
 ### 3.3 Social & Engagement
 

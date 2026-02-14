@@ -20,9 +20,10 @@ import {
   FiLink, FiEdit2, FiGrid, FiActivity, FiUsers, FiCamera, FiUpload, FiX, FiTrendingUp,
   FiRepeat, FiEye, FiBarChart2, FiZap
 } from 'react-icons/fi';
-import { Pin } from 'lucide-react';
+import { Pin, Shield } from 'lucide-react';
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 import { formatDistanceToNow } from 'date-fns';
+import { VEGGA_SYSTEM } from '@/lib/vegga-system-constants';
 import { toast } from 'sonner';
 import {
   Chart as ChartJS,
@@ -819,6 +820,36 @@ export default function ProfilePage() {
                         <FiMessageCircle className="h-4 w-4" />
                       )}
                     </Button>
+
+                    {/* Take Control — OWNER only, for system account */}
+                    {currentUser?.role === 'OWNER' && !currentUser?.isImpersonating && userId === VEGGA_SYSTEM.id && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/admin/impersonate', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ targetUserId: VEGGA_SYSTEM.id, reason: 'Owner controlling system account from profile' }),
+                            });
+                            if (!res.ok) {
+                              const err = await res.json().catch(() => ({}));
+                              throw new Error(err.error ?? 'Failed');
+                            }
+                            toast.success('Now controlling VeggaSystem. Refreshing…');
+                            setTimeout(() => window.location.reload(), 500);
+                          } catch (err: unknown) {
+                            toast.error(err instanceof Error ? err.message : 'Take control failed');
+                          }
+                        }}
+                        className="rounded-lg border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                        title="Take control of this system account"
+                      >
+                        <Shield className="h-4 w-4 mr-2" />
+                        Take Control
+                      </Button>
+                    )}
                   </>
                 )}
               </div>

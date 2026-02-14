@@ -119,7 +119,7 @@ DEV-VEGGASTARE/
 | 4 | **Server actions validate with Zod.** Every mutation uses a Zod schema. |
 | 5 | **Web3 trades require wallet signature.** `useSignMessage` before confirming any P2P trade. |
 | 6 | **Pusher channels: `{feature}-{id}`** pattern (e.g., `trade-abc123`). |
-| 7 | **VeggaSystem wallet is hardcoded:** `0x018F6bF56814Dfa2543f98041e44A202b3632636`. |
+| 7 | **VeggaSystem wallets are hardcoded (multi-chain):** EVM `0x018F...636`, Solana `CKtrK...nLx`, Bitcoin `bc1q...vas`. OWNER can impersonate via API. |
 | 8 | **Webpack mode only.** `next dev --webpack` and `next build --webpack`. |
 | 9 | **Never commit secrets.** Dev in `.env.local`, prod in hosting provider. |
 | 10 | **Backend CORS is restrictive in production.** Only `*` in dev. |
@@ -139,7 +139,7 @@ DEV-VEGGASTARE/
 Products, categories, company profiles, employee roles (OWNER/ADMIN/MEMBER), multi-warehouse inventory with real-time Socket.IO sync, Bring/Posten shipping (mock mode by default).
 
 ### Web3 & Crypto Trading
-OSRS-style grid inventory, P2P trade windows with wallet-signed acceptance, VeggaSystem bot account, trade notifications with purple blink indicator. EVM (WalletConnect/Coinbase) + Solana (Phantom/Solflare).
+OSRS-style grid inventory, P2P trade windows with wallet-signed acceptance, VeggaSystem bot account (multi-chain: EVM/Solana/Bitcoin/PulseChain wallets), trade notifications with purple blink indicator. EVM (WalletConnect/Coinbase) + Solana (Phantom/Solflare). Multi-wallet support: users can link multiple wallets across chains (ChainFamily: EVM/SOLANA/BITCOIN). OWNER "Take Control" impersonation lets the owner act as VeggaSystem from profile or hovercard.
 
 ### Social (Pulse)
 Real-time feed with posts/reactions, follow/sync system, DM/group conversations, UserHoverCard with quick actions, notification bell with real-time Pusher updates.
@@ -177,7 +177,8 @@ User ──< Follow                User ──< Friendship (via FriendRequest)
 User ──< ConversationParticipant ──> Conversation ──< Message
 User ──< PollResponse ──< PollAnswer ──> PollQuestion ──> AdvancedPoll
 User ──< Post ──< Reaction     User ──< Trade ──< TradeItem
-User ──< Wallet (EVM signature linked)
+User ──< Wallet (multi-chain: ChainFamily EVM/SOLANA/BITCOIN)
+User ─── Impersonation (OWNER → VeggaSystem via cookies)
 User ──< Notification          User ──1 Cart ──< CartItem ──> Product
 ```
 
@@ -204,22 +205,55 @@ PUSHER_APP_ID/KEY/SECRET/CLUSTER, CORS_ORIGINS
 
 ---
 
-## 9. Development Commands
+## 9. Development Workflow
+
+### Starting Dev Servers
+
+| Method | Command | Result |
+|--------|---------|--------|
+| **VS Code task** | `Ctrl+Shift+B` | Both servers in split terminal panels |
+| **Root CLI** | `npm run dev` | Both via concurrently (FE=cyan, BE=yellow) |
+| **Frontend only** | `npm run dev:fe` | localhost:3000 |
+| **Backend only** | `npm run dev:be` | localhost:3001 + :3002 |
 
 ```bash
-# Frontend
-cd frontend
-npm install
-npx prisma generate          # Required after schema changes
-npx prisma db push           # Sync schema to DB without migration
-npm run dev                  # Starts on localhost:3000 (Webpack mode)
-npm run build                # Production build
-
-# Backend
-cd backend
-npm install
-npm run dev                  # Starts on localhost:3001 + 3002 (WS)
+# Full setup from scratch
+npm install                      # root (concurrently)
+cd frontend && npm install && npx prisma generate && npx prisma migrate dev && cd ..
+cd backend && npm install && cd ..
+npm run dev                      # starts everything
 ```
+
+### Git Branching & Deployment
+
+```
+feat/my-feature ──push──▶ CI ──PR──▶ dev ──verify──▶ main
+                                      │               │
+                                 Vercel Preview    Vercel Prod (veggat.com)
+                                                   Railway Prod (backend)
+```
+
+- **`main`** — production. Triggers Vercel + Railway deploy. Never push directly.
+- **`dev`** — staging. Push here for CI validation and Vercel previews.
+- Feature branches: `feat/`, `fix/`, `chore/` branched off `dev`.
+- CI (GitHub Actions) runs on push/PR to `main` and `dev`: path-filtered builds, type-check, lint, Prisma validation, migration drift check.
+
+### Environment Routing
+
+| Branch / Env | Database | Pusher Prefix |
+|-------------|----------|---------------|
+| `main` (production) | `DATABASE_URL_MAINLIVE` | *(none)* |
+| `dev` / PRs (preview) | `DATABASE_URL_MAINPREVIEW` | `preview__` |
+| Local dev | `DATABASE_URL` (.env.local) | `dev__` |
+
+### Copilot Chat Commands (owner only)
+
+The owner (v3gga) has custom Copilot Chat commands in `.github/copilot-instructions.md`:
+- **"start my project"** — launches both dev servers
+- **"build to main"** / **"ship it"** — guarded deploy flow (dev → verify → main)
+- **"status"** — check git branch, servers, CI
+
+Employees/contributors follow `ONBOARDING.md` instead.
 
 ---
 
@@ -232,6 +266,8 @@ npm run dev                  # Starts on localhost:3001 + 3002 (WS)
 - Advanced poll system (AI gen, interactive preview, 7 templates, 11 Q types)
 - 12-tier verification, anti-gaming, fuzzy quiz matching
 - Security hardening (rate limiting on critical routes, prompt injection guards, unified logout)
+- Multi-wallet support (EVM/Solana/Bitcoin, sidebar panel, multi-chain linked wallets)
+- System account impersonation ("Take Control" from profile/hovercard, amber header banner)
 
 ### In Progress
 - True Reach™ score computation engine
@@ -301,10 +337,13 @@ npm run dev                  # Starts on localhost:3001 + 3002 (WS)
 ```
 
 ### Git & Deployment
+- **Never push directly to `main`**. Always go `feature-branch → dev → main`.
 - Frontend deploys to Vercel (auto-deploy on push)
 - Backend deploys to Railway (Docker)
+- CI runs on push/PR to `main` and `dev` (path-filtered, type-check, lint, Prisma drift)
 - Never commit `.env`, `database-backups/`, or `generated/prisma/`
 - Run `npx prisma generate` in CI/CD before build
+- For employee/contributor workflows, see `ONBOARDING.md`
 
 ---
 
@@ -314,8 +353,10 @@ npm run dev                  # Starts on localhost:3001 + 3002 (WS)
 |------|---------|-----------|
 | **agent.md** (this file) | Full project onboarding for AI agents | First — gives you the complete picture |
 | **MasterContext.md** | Living invariants, module map, audit log | Before making changes — check invariants |
-| **architecture.md** | System design, data flows, deployment | Before changing service boundaries |
-| **prd.md** | Product requirements, feature status, roadmap | To understand what's shipped vs planned |
+| **architecture.md** | System design, data flows, deployment, CI/CD | Before changing service boundaries |
+| **prd.md** | Product requirements, feature status, roadmap | To understand what’s shipped vs planned |
+| **ONBOARDING.md** | Employee/contributor quick-start guide | Giving someone access to the codebase |
+| **.github/copilot-instructions.md** | Owner’s Copilot Chat workflow commands | Understanding the owner’s dev flow |
 | **docs/REACH_7_PILLARS_SPECIFICATION.md** | True Reach™ metric formulas | Working on scoring/analytics |
 | **docs/NORWAY_LEGAL_COMPLIANCE.md** | GDPR, DSA, DPI, cookie, payment compliance | Working on legal/regulatory features |
 | **docs/SOCIAL_FEATURES_PLAN.md** | Friends, chat, broadcasts roadmap | Working on social features |

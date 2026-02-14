@@ -309,13 +309,46 @@ Production
 │   ├── Dockerfile-based deployment
 │   ├── HTTP on assigned port
 │   └── WebSocket on separate port
-└── Database: PostgreSQL (Neon / Supabase / Railway)
+└── Database: PostgreSQL (Neon — 3 branches: MainDev, MainPreview, MainLive)
 
 Development
 ├── Frontend: localhost:3000 (next dev --webpack)
 ├── Backend: localhost:3001 (HTTP) + :3002 (WS)
-└── Database: Local PostgreSQL or remote dev instance
+└── Database: Neon MainDev branch via DATABASE_URL
 ```
+
+### CI/CD Pipeline
+
+```
+git push ─────────────────────────────────────────────────────────────
+    │
+    ▼
+GitHub Actions CI (.github/workflows/ci.yml)
+    ├── Path filter (dorny/paths-filter) ── skip unchanged services
+    ├── Frontend: npm ci → prisma generate → prisma validate
+    │            → migration drift check → next build → eslint
+    └── Backend:  npm ci → prisma generate → prisma validate → tsc --noEmit
+    │
+    ▼ (on merge to dev)
+Vercel Preview Deploy ── preview URL for manual verification
+    │
+    ▼ (on merge to main)
+Vercel Production Deploy (veggat.com)  +  Railway Backend Deploy
+```
+
+### Environment Routing
+
+| Branch | Vercel Env | Database | Pusher Prefix |
+|--------|-----------|----------|---------------|
+| `main` | production | `DATABASE_URL_MAINLIVE` | *(none)* |
+| `dev` / PRs | preview | `DATABASE_URL_MAINPREVIEW` | `preview__` |
+| Local | development | `DATABASE_URL` | `dev__` |
+
+### Automation
+
+- **Dependabot** — weekly dependency update PRs (npm + GitHub Actions)
+- **Stale bot** — closes abandoned issues (30d) and PRs (14d)
+- **E2E scaffold** — Playwright tests in `frontend/e2e/` (triggered on PR)
 
 ---
 

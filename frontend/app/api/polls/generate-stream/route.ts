@@ -6,6 +6,9 @@ import { MyLibUserAuth } from "@/lib/user-auth";
 import { ensureUser } from "@/lib/ensure-user";
 import { getUserAiKeyForGeneration, upsertUserAiKey } from "@/lib/ai-key-store";
 
+// Allow up to 120s for AI generation (Groq / OpenAI can take 30-90s for large quizzes)
+export const maxDuration = 120;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STREAMING POLL GENERATION ENDPOINT
 // Sends real-time progress steps as Server-Sent Events so the client can
@@ -413,14 +416,20 @@ async function resolveGenerationAuth(reqBody: z.infer<typeof StreamRequestSchema
 
 // ── Provider call ──────────────────────────────────────────────────────────
 
+const PROVIDER_TIMEOUT_MS = 90_000; // 90s — generous for large quiz generation
+
 async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ"; apiKey: string; prompt: string; model?: string; systemPrompt?: string; }): Promise<string> {
   const systemPrompt = input.systemPrompt || SYSTEM_PROMPT;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
 
+  try {
   if (input.provider === "GROQ") {
     const model = input.model || "llama-3.3-70b-versatile";
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.apiKey}` },
+      signal: controller.signal,
       body: JSON.stringify({
         model,
         messages: [{ role: "system", content: systemPrompt }, { role: "user", content: input.prompt.trim() }],
@@ -444,6 +453,7 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": input.apiKey, "anthropic-version": "2023-06-01" },
+      signal: controller.signal,
       body: JSON.stringify({ model: input.model || "claude-3-5-haiku-latest", max_tokens: 16384, temperature: 0.7, system: systemPrompt, messages: [{ role: "user", content: input.prompt.trim() }] }),
     });
     if (!response.ok) { const e = await response.text(); console.error("Anthropic error:", response.status, e); throw new Error(`AI service error (${response.status}).`); }
@@ -458,6 +468,7 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
     const response = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.apiKey}` },
+      signal: controller.signal,
       body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: input.prompt.trim() }], temperature: 0.7, max_tokens: 16384 }),
     });
     if (!response.ok) { const e = await response.text(); console.error("Grok error:", response.status, e); throw new Error(`Grok AI error (${response.status}).`); }
@@ -471,6 +482,7 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.apiKey}`, ...(input.provider === "OPENROUTER" ? { "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://veggat.com", "X-Title": "VeggaStare Poll Generator" } : {}) },
+    signal: controller.signal,
     body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: input.prompt.trim() }], temperature: 0.7, max_tokens: 16384, response_format: { type: "json_object" } }),
   });
   if (!response.ok) { const e = await response.text(); console.error(`${input.provider} error:`, response.status, e); throw new Error(`AI error (${response.status}).`); }
@@ -478,6 +490,15 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
   const content = completion.choices?.[0]?.message?.content;
   if (!content) throw new Error("No response from AI.");
   return content;
+
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      throw new Error("AI took too long to respond. Try requesting fewer questions or a simpler topic.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // ── Daily quota guard (platform mode only) ─────────────────────────────────
