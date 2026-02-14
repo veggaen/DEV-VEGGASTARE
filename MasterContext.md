@@ -25,6 +25,7 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 1. **Auth is server-side only.** Never import `auth()` or session logic in client components. Use the session prop passed through providers.
 2. **Prisma Client is generated, not committed.** Run `npx prisma generate` after any schema change. The output lives in `frontend/generated/prisma/`.
 3. **The frontend Prisma schema is canonical.** `frontend/prisma/schema.prisma` is the source of truth (2000+ lines). Backend has a subset.
+18. **Vercel builds do NOT migrate databases.** CI runs `prisma generate` + `prisma validate`, but never `prisma db push`. After any schema change, you MUST manually push to each database: `cd frontend && NODE_ENV=production npx prisma db push` (production) and without NODE_ENV (dev). Forgetting this causes runtime P2022/P2021 errors ("column/table does not exist").
 4. **Server actions must validate with Zod.** Every mutation uses a Zod schema before touching the database.
 5. **Web3 trade acceptance requires wallet signature.** The `useSignMessage` hook must be called before confirming any P2P trade.
 6. **Pusher channels follow naming conventions.** Pattern: `{feature}-{id}` (e.g., `trade-abc123`, `pulse-feed`, `notifications-userId`).
