@@ -6,8 +6,8 @@ import { MyLibUserAuth } from "@/lib/user-auth";
 import { ensureUser } from "@/lib/ensure-user";
 import { getUserAiKeyForGeneration, upsertUserAiKey } from "@/lib/ai-key-store";
 
-// Allow up to 120s for AI generation (Groq / OpenAI can take 30-90s for large quizzes)
-export const maxDuration = 120;
+// Allow up to 60s for AI generation (Hobby plan max)
+export const maxDuration = 60;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STREAMING POLL GENERATION ENDPOINT
