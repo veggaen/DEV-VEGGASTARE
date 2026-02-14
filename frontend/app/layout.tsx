@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import AppProviders from "@/components/providers/app-providers";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -53,6 +54,7 @@ export default async function RootLayout({ children, modal }: { children: React.
         {children}
         {modal}
       </AppProviders>
+      <Analytics />
       </body>
     </html>
   );
