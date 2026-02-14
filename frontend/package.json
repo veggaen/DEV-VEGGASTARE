@@ -16,7 +16,7 @@
     "@coinbase/wallet-sdk": "^4.0.4",
     "@edgestore/react": "^0.1.7",
     "@edgestore/server": "^0.1.7",
-    "@hookform/resolvers": "^3.3.4",
+    "@hookform/resolvers": "^5.2.2",
     "@next/third-parties": "^16.1.6",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
