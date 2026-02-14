@@ -49,7 +49,14 @@ This is a guarded deployment flow. Do NOT push straight to main. Follow every st
    VEGGAT_OWNER=1 git push origin main
    git checkout dev
    ```
-7. Confirm: **"Merged to main and pushed. Vercel will deploy to veggat.com and Railway will deploy the backend. Back on dev branch."**
+7. **If Prisma schema changed — push to production DB.** Check if `prisma/schema.prisma` was modified in this deploy:
+   ```
+   cd frontend
+   $env:NODE_ENV="production"; npx prisma db push
+   $env:NODE_ENV="development"
+   ```
+   Vercel does NOT run migrations — skipping this causes 500 errors ("column does not exist").
+8. Confirm: **"Merged to main and pushed. Vercel will deploy to veggat.com and Railway will deploy the backend. Back on dev branch."**
 
 ### "verified" / "looks good" / "go ahead" (after "build to main")
 
