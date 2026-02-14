@@ -3,7 +3,7 @@
 > Living PRD for the Veggat marketplace and social platform.
 
 **Version:** 1.0  
-**Last Updated:** 2026-02-13  
+**Last Updated:** 2026-02-14  
 **Status:** Active Development
 
 ---
@@ -84,7 +84,7 @@ The platform uniquely combines:
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Pulse Feed | ✅ Shipped | Real-time social feed with posts |
+| Pulse Feed | ✅ Shipped | Real-time social feed with posts, **client-side filter pagination fix** (multi-fetch loop for polls/pulses filter) |
 | Reactions | ✅ Shipped | React to posts and content |
 | Conversations (DM) | ✅ Shipped | Private direct messages |
 | Group Conversations | ✅ Shipped | Multi-user group chats |
@@ -106,6 +106,14 @@ The platform uniquely combines:
 | Advanced Polls | ✅ Shipped | Multi-question (slider, choice, text, nested) |
 | Image Paste in Polls | ✅ Shipped | Paste/upload images in poll answers |
 | Verification Weighting | ✅ Shipped | Response power scaled by user tier |
+| Fuzzy Text-Answer Matching | ✅ Shipped | Levenshtein + token-set + vowel-swap matching for TEXT quiz answers — typos like "algea" → "algae oil" are accepted |
+| Streaming AI Generation | ✅ Shipped | SSE endpoint (`/api/polls/generate-stream`) with 6-step live progress UI in PollBuilder |
+| Per-Question Trust Badges | ✅ Shipped | Colour-coded trust indicator per AI-generated question (High/Medium/Low) |
+| Daily AI Quota Guard | ✅ Shipped | 5 free/day via auto-resolve (saved key > platform key). BYOK unlimited. No visible dropdown — clean UX with sleek `1/5` counter after first use |
+| Conversational AI Chat | ✅ Shipped | Chat thread in PollBuilder: initial generation → Review Card → refinement loop ("make Q3 harder"). Groq default (Llama 3.3 70B), owner-only OpenAI, BYOK for Grok/Claude/OpenRouter |
+| Interactive Preview | ✅ Shipped | PollTakerModal in preview mode: simulates full 5-screen quiz experience (welcome → sections → questions → completion → results) with no API calls, triggered from builder |
+| 7 Example Templates | ✅ Shipped | 5 external templates (Verify Demo, Feedback & Discovery, Feature Explorer, Canna Coco, Tony Vegan+Eggs) + 2 inline (Quick Feedback 6Q, Product Preference 8Q) |
+| Shape-Match Reliability | ✅ Shipped | Padded hit zones, proper swap logic, real-time drag hover feedback |
 | True Reach™ Score | 🔄 In Progress | 7-pillar metric calculation |
 | Velocity Pillar | ⏳ Planned | Real-time engagement momentum tracking |
 | Radar Chart Profile | ⏳ Planned | 7-axis radar visualization per user |
@@ -169,7 +177,7 @@ The platform uniquely combines:
 
 ## 6. Roadmap
 
-### Phase: Current (Q3 2025)
+### Phase: Current (Q1 2026)
 - Polish P2P trading experience
 - Complete True Reach™ velocity pillar implementation
 - Advance poll analytics dashboard

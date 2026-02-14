@@ -104,6 +104,10 @@ const patchBodySchema = z.object({
   tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
   isPinned: z.boolean().optional(),
   isLocked: z.boolean().optional(),
+  // Visibility targeting
+  visibleToUserIds: z.array(z.string().min(1).max(200)).max(200).optional(),
+  visibleToGroupIds: z.array(z.string().min(1).max(200)).max(50).optional(),
+  customViewers: z.array(z.string().min(1).max(200)).max(200).optional(),
 });
 
 /**
@@ -411,6 +415,9 @@ export async function PATCH(
       tags,
       isPinned,
       isLocked,
+      visibleToUserIds,
+      visibleToGroupIds,
+      customViewers,
     } = bodyResult.data;
 
     // Build update data - only include fields that were explicitly provided
@@ -434,6 +441,10 @@ export async function PATCH(
     if (visibility) updateData.visibility = visibility;
     if (replyPermission) updateData.replyPermission = replyPermission;
     if (tags) updateData.tags = tags;
+    // Visibility targeting fields - owner can set these themselves
+    if (visibleToUserIds) updateData.visibleToUserIds = visibleToUserIds;
+    if (visibleToGroupIds) updateData.visibleToGroupIds = visibleToGroupIds;
+    if (customViewers) updateData.customViewers = customViewers;
     // Only admin/owner can pin/lock
     if (isAdmin) {
       if (typeof isPinned === 'boolean') {

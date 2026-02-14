@@ -281,6 +281,7 @@ Every answer teaches you something new about the platform — even if you get it
       required: true,
       allowImages: false,
       options: [],
+      shapeMatchPreset: "outlineMatch",
     },
     {
       order: 14,

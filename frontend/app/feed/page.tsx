@@ -23,14 +23,18 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu';
 import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { UseCurrentRole } from '@/hooks/use-current-role';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import usePusher from '@/hooks/usePusher';
-import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2, FiRefreshCw, FiFilter, FiEye } from 'react-icons/fi';
-import { Pin, PinOff } from 'lucide-react';
+import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2, FiRefreshCw, FiFilter, FiEye, FiShield, FiAlertTriangle, FiFlag, FiUserCheck, FiUserX } from 'react-icons/fi';
+import { Pin, PinOff, Eye, EyeOff, Users2, UserCheck, ArrowRightLeft, ShieldAlert, Zap as ZapIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PulseHeart, PulseFlat, PulsePositive } from '@/components/uicustom/icons/PulseIcons';
 import { pulseLabels } from '@/lib/pulse-labels';
@@ -97,6 +101,12 @@ interface FeedItem {
   // Pin status
   pinnedToFeed?: boolean;
   pinnedToProfile?: boolean;
+  // Visibility
+  visibility?: string;
+  visibleToUserIds?: string[];
+  visibleToGroupIds?: string[];
+  // Content flags (admin moderation)
+  contentFlags?: { id: string; type: string; reason?: string | null }[];
 }
 
 const getReplyCount = (messageCount?: number | null) => Math.max(0, (messageCount || 0) - 1);
@@ -109,13 +119,17 @@ const getReplyCount = (messageCount?: number | null) => Math.max(0, (messageCoun
 
 // Main content type filter
 type ContentFilter = 'all' | 'pulses' | 'polls' | 'trending';
-type PostVisibility = 'PUBLIC' | 'PARTICIPANTS' | 'ROLE_BASED';
+type PostVisibility = 'PUBLIC' | 'PRIVATE' | 'PARTICIPANTS' | 'SYNCED_TO' | 'SYNCED_FROM' | 'MUTUAL_SYNC' | 'SPECIFIC_USERS' | 'SPECIFIC_GROUPS' | 'ROLE_BASED';
 type ReplyPermission = 'EVERYONE' | 'PARTICIPANTS' | 'MENTIONED' | 'MODS_ONLY' | 'CREATOR_ONLY';
 
 // Visibility options for the feed (simplified for quick posting)
 const VISIBILITY_OPTIONS: { value: PostVisibility; label: string; icon: React.ReactNode; description: string }[] = [
   { value: 'PUBLIC', label: 'Public', icon: <FiGlobe className="h-4 w-4" />, description: 'Anyone can see this post' },
+  { value: 'PRIVATE', label: 'Private', icon: <EyeOff className="h-4 w-4" />, description: 'Only you can see this post' },
   { value: 'PARTICIPANTS', label: 'Friends Only', icon: <FiUsers className="h-4 w-4" />, description: 'Only your friends can see' },
+  { value: 'SYNCED_TO', label: 'People I sync to', icon: <UserCheck className="h-4 w-4" />, description: 'Only people you follow/sync to' },
+  { value: 'SYNCED_FROM', label: 'My synced followers', icon: <Users2 className="h-4 w-4" />, description: 'Only people who sync to you' },
+  { value: 'MUTUAL_SYNC', label: 'Mutual sync only', icon: <ArrowRightLeft className="h-4 w-4" />, description: 'Only mutual sync connections' },
   { value: 'ROLE_BASED', label: 'Restricted', icon: <FiLock className="h-4 w-4" />, description: 'Only specific roles can see' },
 ];
 
@@ -463,6 +477,9 @@ const FeedPage: React.FC = () => {
   }, [filter]);
 
   // Fetch feed items (supports cursor pagination)
+  // When a content-type filter (polls/pulses) is active, we continue fetching
+  // additional server pages until we have enough client-visible items, because
+  // the server doesn't know about the poll/pulse distinction.
   const fetchFeed = useCallback(async (resetNewCount = true, cursor?: string) => {
     const isFirstPage = !cursor;
     if (isFirstPage) {
@@ -478,44 +495,65 @@ const FeedPage: React.FC = () => {
         : sortBy === 'reach' ? 'reach'
         : 'recent';
       
-      let url = `/api/conversations?filter=public&sort=${apiSort}&limit=${PAGE_SIZE}`;
-      if (tagFilter) {
-        url += `&tag=${encodeURIComponent(tagFilter)}`;
+      // We may need multiple server fetches to fill the page when filtering client-side
+      let collectedItems: FeedItem[] = [];
+      let currentCursor = cursor || undefined;
+      let serverHasMore = true;
+      const MIN_VISIBLE = Math.min(PAGE_SIZE, 10); // Minimum items to show per page
+      const MAX_FETCHES = 3; // Safety limit to avoid infinite loops
+      let fetchCount = 0;
+
+      while (serverHasMore && fetchCount < MAX_FETCHES) {
+        fetchCount++;
+        let url = `/api/conversations?filter=public&sort=${apiSort}&limit=${PAGE_SIZE}`;
+        if (tagFilter) {
+          url += `&tag=${encodeURIComponent(tagFilter)}`;
+        }
+        if (currentCursor) {
+          url += `&cursor=${encodeURIComponent(currentCursor)}`;
+        }
+        
+        const res = await fetch(url);
+        const data = await res.json();
+        let feedItems = (data.conversations || []) as FeedItem[];
+        const serverCursor = data.nextCursor || null;
+        
+        // ─────────────────────────────────────────────────────────────────────────
+        // CLIENT-SIDE CONTENT TYPE FILTER (poll vs pulse distinction is client-side)
+        // ─────────────────────────────────────────────────────────────────────────
+        if (filter === 'polls') {
+          feedItems = feedItems.filter(item => item.hasPoll);
+        } else if (filter === 'pulses') {
+          feedItems = feedItems.filter(item => !item.hasPoll);
+        } else if (filter === 'trending') {
+          feedItems = [...feedItems].sort((a, b) => calculateTrendingScore(b) - calculateTrendingScore(a));
+        }
+        // 'all' shows everything — server already sorted
+        
+        collectedItems = [...collectedItems, ...feedItems];
+        currentCursor = serverCursor || undefined;
+        serverHasMore = !!serverCursor;
+
+        // Stop fetching more if we have enough items or no more server pages
+        const needsContentFilter = filter === 'polls' || filter === 'pulses';
+        if (!needsContentFilter || collectedItems.length >= MIN_VISIBLE || !serverHasMore) {
+          break;
+        }
       }
-      if (cursor) {
-        url += `&cursor=${encodeURIComponent(cursor)}`;
-      }
-      
-      const res = await fetch(url);
-      const data = await res.json();
-      let feedItems = (data.conversations || []) as FeedItem[];
-      const serverCursor = data.nextCursor || null;
-      
-      // ─────────────────────────────────────────────────────────────────────────
-      // CLIENT-SIDE CONTENT TYPE FILTER (poll vs pulse distinction is client-side)
-      // ─────────────────────────────────────────────────────────────────────────
-      if (filter === 'polls') {
-        feedItems = feedItems.filter(item => item.hasPoll);
-      } else if (filter === 'pulses') {
-        feedItems = feedItems.filter(item => !item.hasPoll);
-      } else if (filter === 'trending') {
-        feedItems = [...feedItems].sort((a, b) => calculateTrendingScore(b) - calculateTrendingScore(a));
-      }
-      // 'all' shows everything — server already sorted
       
       if (isFirstPage) {
-        setItems(feedItems);
+        setItems(collectedItems);
       } else {
-        setItems(prev => [...prev, ...feedItems]);
+        setItems(prev => [...prev, ...collectedItems]);
       }
       
       // Update pagination state
-      setNextCursor(serverCursor);
-      setHasMore(serverCursor !== null);
+      setNextCursor(currentCursor || null);
+      setHasMore(serverHasMore);
       
       // Track latest pulse ID for new pulse detection
-      if (isFirstPage && feedItems.length > 0) {
-        latestPulseId.current = feedItems[0].id;
+      if (isFirstPage && collectedItems.length > 0) {
+        latestPulseId.current = collectedItems[0].id;
       }
       
       // Reset new pulses count
@@ -1625,6 +1663,7 @@ const FeedPage: React.FC = () => {
                           ...(q.type === 'TEXT' && q.correctAnswer != null && { correctAnswer: q.correctAnswer }),
                           ...(q.explanation && { explanation: q.explanation }),
                           ...(q.wrongExplanation && { wrongExplanation: q.wrongExplanation }),
+                          ...(q.deepExplanation && { deepExplanation: q.deepExplanation }),
                           ...(q.commitRequired === false && { commitRequired: false }),
                           ...(q.trickQuestion && { trickQuestion: q.trickQuestion }),
                         })),
@@ -1957,6 +1996,14 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   const [isPinnedToProfile, setIsPinnedToProfile] = useState(item.pinnedToProfile || false);
   const [isPinning, setIsPinning] = useState(false);
   
+  // Visibility & Flags state
+  const [localVisibility, setLocalVisibility] = useState(item.visibility || 'PUBLIC');
+  const [localContentFlags, setLocalContentFlags] = useState(item.contentFlags || []);
+  const [isChangingVisibility, setIsChangingVisibility] = useState(false);
+  const [isFlagging, setIsFlagging] = useState(false);
+  const [showFlaggedContent, setShowFlaggedContent] = useState(false);
+  const hasContentWarning = localContentFlags.length > 0;
+
   // Permission checks - owner of post OR platform owner/admin can manage
   const isPostOwner = currentUser?.id === item.userId;
   const isPlatformAdmin = userRole === 'OWNER' || userRole === 'ADMIN';
@@ -2231,6 +2278,111 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     }
   };
 
+  // ─── Visibility change handler ──────────────────────────────────────
+  const handleChangeVisibility = async (newVisibility: string) => {
+    if (isChangingVisibility) return;
+    if (newVisibility === localVisibility) return;
+    setIsChangingVisibility(true);
+    try {
+      const res = await fetch(`/api/conversations/${encodeURIComponent(item.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility: newVisibility }),
+      });
+      if (!res.ok) throw new Error('Failed to change visibility');
+      setLocalVisibility(newVisibility);
+      const labels: Record<string, string> = {
+        PUBLIC: 'Public', PRIVATE: 'Private (only you)', PARTICIPANTS: 'Friends only',
+        SYNCED_TO: 'People you sync to', SYNCED_FROM: 'Your synced followers',
+        MUTUAL_SYNC: 'Mutual sync only', SPECIFIC_USERS: 'Specific people',
+        SPECIFIC_GROUPS: 'Specific groups', ROLE_BASED: 'Role restricted',
+      };
+      toast.success(`Visibility changed to: ${labels[newVisibility] || newVisibility}`);
+    } catch (e) {
+      console.error('Visibility change failed:', e);
+      toast.error('Failed to change visibility');
+    } finally {
+      setIsChangingVisibility(false);
+    }
+  };
+
+  // ─── Content flag handlers (admin only) ─────────────────────────────
+  const CONTENT_FLAG_OPTIONS: { value: string; label: string; icon: React.ReactNode }[] = [
+    { value: 'DISTURBING_CONTENT', label: 'Disturbing content', icon: <ShieldAlert className="h-4 w-4" /> },
+    { value: 'DEATH_OR_INJURY', label: 'Death or serious injury', icon: <FiAlertTriangle className="h-4 w-4" /> },
+    { value: 'NUDITY', label: 'Nudity', icon: <EyeOff className="h-4 w-4" /> },
+    { value: 'FLASHING_IMAGES', label: 'Flashing colors/images', icon: <ZapIcon className="h-4 w-4" /> },
+    { value: 'VIOLENCE', label: 'Violence', icon: <ShieldAlert className="h-4 w-4" /> },
+    { value: 'HATE_SPEECH', label: 'Hate speech', icon: <FiFlag className="h-4 w-4" /> },
+    { value: 'MISINFORMATION', label: 'Misinformation', icon: <FiAlertTriangle className="h-4 w-4" /> },
+    { value: 'SPOILER', label: 'Spoiler', icon: <EyeOff className="h-4 w-4" /> },
+    { value: 'SENSITIVE_TOPIC', label: 'Sensitive topic', icon: <FiShield className="h-4 w-4" /> },
+  ];
+
+  const handleAddFlag = async (flagType: string) => {
+    if (isFlagging) return;
+    setIsFlagging(true);
+    try {
+      const res = await fetch(`/api/conversations/${encodeURIComponent(item.id)}/flags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: flagType }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 409) {
+          toast.info('This flag is already active');
+          return;
+        }
+        throw new Error(data.message || 'Failed to add flag');
+      }
+      const data = await res.json();
+      setLocalContentFlags(prev => [...prev, { id: data.flag.id, type: data.flag.type, reason: data.flag.reason }]);
+      const label = CONTENT_FLAG_OPTIONS.find(o => o.value === flagType)?.label || flagType;
+      toast.success(`Content flagged: ${label}`);
+    } catch (e) {
+      console.error('Flag failed:', e);
+      toast.error('Failed to add flag');
+    } finally {
+      setIsFlagging(false);
+    }
+  };
+
+  const handleRemoveFlag = async (flagId: string) => {
+    if (isFlagging) return;
+    setIsFlagging(true);
+    try {
+      const res = await fetch(`/api/conversations/${encodeURIComponent(item.id)}/flags?flagId=${encodeURIComponent(flagId)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to remove flag');
+      setLocalContentFlags(prev => prev.filter(f => f.id !== flagId));
+      toast.success('Flag removed');
+    } catch (e) {
+      console.error('Remove flag failed:', e);
+      toast.error('Failed to remove flag');
+    } finally {
+      setIsFlagging(false);
+    }
+  };
+
+  // Flag label helper
+  const getFlagLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      DISTURBING_CONTENT: 'Disturbing content',
+      DEATH_OR_INJURY: 'Death or serious injury',
+      NUDITY: 'Nudity',
+      FLASHING_IMAGES: 'Flashing colors/images',
+      VIOLENCE: 'Violence',
+      HATE_SPEECH: 'Hate speech',
+      MISINFORMATION: 'Misinformation',
+      SPOILER: 'Spoiler',
+      SENSITIVE_TOPIC: 'Sensitive topic',
+      OTHER: 'Flagged content',
+    };
+    return labels[type] || 'Flagged content';
+  };
+
   const MAX_PREVIEW_CHARS = 500;
   const rawPreviewText =
     item.description?.trim() ||
@@ -2331,114 +2483,226 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                     <FiChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuLabel>Share</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    disabled={!currentUser || isReposting}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      void handleRepulse();
-                    }}
-                  >
-                    <FiRepeat className="h-4 w-4 mr-2" />
-                    {item.hasReposted ? 'Undo repulse' : 'Repulse'}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={!currentUser}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setQuoteOpen(true);
-                    }}
-                  >
-                    <FiEdit3 className="h-4 w-4 mr-2" />
-                    Quote repulse
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Feedback</DropdownMenuLabel>
-                  <DropdownMenuItem
-                    disabled={!currentUser || isPulsing}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      void handlePulse('NEGATIVE');
-                    }}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <FiEyeOff className="h-4 w-4 mr-2" />
-                    Not interested
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={!currentUser}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      // TODO: Implement mute user functionality
-                      console.log('User muted from your feed');
-                    }}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <PulseFlat className="h-4 w-4 mr-2" />
-                    Don&apos;t show from this user
-                  </DropdownMenuItem>
-
-                  {/* Pin options */}
-                  {currentUser && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Pin</DropdownMenuLabel>
+                <DropdownMenuContent align="end" className="w-56">
+                  {/* ─── Share & Feedback ──────────────────────────── */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="gap-2">
+                      <FiRepeat className="h-4 w-4" />
+                      Share & Feedback
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                    <DropdownMenuSubContent className="w-52">
+                      <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Share</DropdownMenuLabel>
                       <DropdownMenuItem
-                        disabled={isPinning}
+                        disabled={!currentUser || isReposting}
                         onClick={(e) => {
                           e.preventDefault();
-                          void handlePinToProfile();
+                          void handleRepulse();
                         }}
                       >
-                        {isPinnedToProfile ? (
-                          <>
-                            <PinOff className="h-4 w-4 mr-2" />
-                            Unpin from profile
-                          </>
-                        ) : (
-                          <>
-                            <Pin className="h-4 w-4 mr-2" />
-                            Pin to my profile
-                          </>
-                        )}
+                        <FiRepeat className="h-4 w-4 mr-2" />
+                        {item.hasReposted ? 'Undo repulse' : 'Repulse'}
                       </DropdownMenuItem>
-                      {isPlatformAdmin && (
+                      <DropdownMenuItem
+                        disabled={!currentUser}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setQuoteOpen(true);
+                        }}
+                      >
+                        <FiEdit3 className="h-4 w-4 mr-2" />
+                        Quote repulse
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Feedback</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        disabled={!currentUser || isPulsing}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          void handlePulse('NEGATIVE');
+                        }}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <FiEyeOff className="h-4 w-4 mr-2" />
+                        Not interested
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!currentUser}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          console.log('User muted from your feed');
+                        }}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <PulseFlat className="h-4 w-4 mr-2" />
+                        Don&apos;t show from this user
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+
+                  {/* ─── Visibility & Pin (owner/admin) ────────────── */}
+                  {canManage && (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="gap-2">
+                        <FiGlobe className="h-4 w-4" />
+                        Visibility & Pin
+                        {isPlatformAdmin && !isPostOwner && (
+                          <Badge variant="outline" className="ml-auto text-[9px] px-1 py-0">Admin</Badge>
+                        )}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                      <DropdownMenuSubContent className="w-56">
+                        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Visibility</DropdownMenuLabel>
+                        {[
+                          { value: 'PUBLIC', label: 'Public', icon: <FiGlobe className="h-4 w-4 mr-2" /> },
+                          { value: 'PRIVATE', label: 'Private (only me)', icon: <EyeOff className="h-4 w-4 mr-2" /> },
+                          { value: 'MUTUAL_SYNC', label: 'Mutual sync only', icon: <ArrowRightLeft className="h-4 w-4 mr-2" /> },
+                          { value: 'SYNCED_TO', label: 'People I sync to', icon: <UserCheck className="h-4 w-4 mr-2" /> },
+                          { value: 'SYNCED_FROM', label: 'My synced followers', icon: <Users2 className="h-4 w-4 mr-2" /> },
+                          { value: 'SPECIFIC_USERS', label: 'Specific people', icon: <FiUserCheck className="h-4 w-4 mr-2" /> },
+                          { value: 'SPECIFIC_GROUPS', label: 'Specific groups', icon: <FiUsers className="h-4 w-4 mr-2" /> },
+                        ].map(opt => (
+                          <DropdownMenuItem
+                            key={opt.value}
+                            disabled={isChangingVisibility}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              void handleChangeVisibility(opt.value);
+                            }}
+                            className={cn(
+                              "text-sm",
+                              localVisibility === opt.value && "bg-primary/10 text-primary font-medium"
+                            )}
+                          >
+                            {opt.icon}
+                            <span className="flex-1">{opt.label}</span>
+                            {localVisibility === opt.value && (
+                              <Check className="h-3 w-3 ml-1 text-primary" />
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Pin</DropdownMenuLabel>
                         <DropdownMenuItem
                           disabled={isPinning}
                           onClick={(e) => {
                             e.preventDefault();
-                            void handlePinToFeed();
+                            void handlePinToProfile();
                           }}
-                          className={isPinnedToFeed ? 'text-amber-500' : ''}
                         >
-                          {isPinnedToFeed ? (
+                          {isPinnedToProfile ? (
                             <>
                               <PinOff className="h-4 w-4 mr-2" />
-                              Unpin from main feed
-                              <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Admin</Badge>
+                              Unpin from profile
                             </>
                           ) : (
                             <>
                               <Pin className="h-4 w-4 mr-2" />
-                              Pin to main feed
-                              <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Admin</Badge>
+                              Pin to my profile
                             </>
                           )}
                         </DropdownMenuItem>
-                      )}
-                    </>
+                        {isPlatformAdmin && (
+                          <DropdownMenuItem
+                            disabled={isPinning}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              void handlePinToFeed();
+                            }}
+                            className={isPinnedToFeed ? 'text-amber-500' : ''}
+                          >
+                            {isPinnedToFeed ? (
+                              <>
+                                <PinOff className="h-4 w-4 mr-2" />
+                                Unpin from main feed
+                                <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Admin</Badge>
+                              </>
+                            ) : (
+                              <>
+                                <Pin className="h-4 w-4 mr-2" />
+                                Pin to main feed
+                                <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Admin</Badge>
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
                   )}
 
-                  {/* Owner/Admin actions */}
+                  {/* ─── Pin (non-owner, non-admin: just profile pin) ── */}
+                  {!canManage && currentUser && (
+                    <DropdownMenuItem
+                      disabled={isPinning}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        void handlePinToProfile();
+                      }}
+                    >
+                      {isPinnedToProfile ? (
+                        <>
+                          <PinOff className="h-4 w-4 mr-2" />
+                          Unpin from profile
+                        </>
+                      ) : (
+                        <>
+                          <Pin className="h-4 w-4 mr-2" />
+                          Pin to my profile
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                  )}
+
+                  {/* ─── Content Warnings (admin only) ─────────────── */}
+                  {isPlatformAdmin && (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="gap-2">
+                        <ShieldAlert className="h-4 w-4" />
+                        Content Warnings
+                        <Badge variant="outline" className="ml-auto text-[9px] px-1 py-0">Admin</Badge>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                      <DropdownMenuSubContent className="w-52">
+                        {CONTENT_FLAG_OPTIONS.map(opt => {
+                          const alreadyFlagged = localContentFlags.some(f => f.type === opt.value);
+                          return (
+                            <DropdownMenuItem
+                              key={opt.value}
+                              disabled={isFlagging}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (alreadyFlagged) {
+                                  const flag = localContentFlags.find(f => f.type === opt.value);
+                                  if (flag) void handleRemoveFlag(flag.id);
+                                } else {
+                                  void handleAddFlag(opt.value);
+                                }
+                              }}
+                              className={cn(
+                                "text-sm",
+                                alreadyFlagged && "bg-red-500/10 text-red-400"
+                              )}
+                            >
+                              {opt.icon}
+                              <span className="ml-2 flex-1">{opt.label}</span>
+                              {alreadyFlagged && (
+                                <Badge variant="destructive" className="ml-1 text-[9px] px-1 py-0">Active</Badge>
+                              )}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  )}
+
+                  {/* ─── Manage / Admin Actions ────────────────────── */}
                   {canManage && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-                        {isPlatformAdmin && !isPostOwner ? 'Admin Actions' : 'Manage'}
-                      </DropdownMenuLabel>
                       <DropdownMenuItem
                         onClick={(e) => {
                           e.preventDefault();
@@ -2500,90 +2764,148 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
             </div>
           )}
 
-          {/* Content */}
-          {rawPreviewText && (
-            <div className="mt-2 space-y-1">
-              {shouldShowTitle && (
-                <h3 className="text-sm text-foreground/80 font-medium leading-snug">
-                  {titleText}
-                </h3>
-              )}
-
-              {isPulsePage ? (
-                <RichTextContent
-                  content={rawPreviewText}
-                  className="text-[15px] leading-relaxed text-foreground/90"
-                  onTagClick={onTagClick}
-                  embedYouTube={true}
-                  maxYouTubeEmbeds={2}
-                />
-              ) : (
-                <>
-                  <RichTextContent
-                    content={previewText}
-                    className="text-[15px] leading-relaxed text-foreground/90"
-                    onTagClick={onTagClick}
-                    embedYouTube={true}
-                    maxYouTubeEmbeds={1}
-                  />
-
-                  {showReadMore && (
-                    <div className="text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                      Read more
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Poll preview */}
-          {item.hasPoll && (
-            <div className="mt-3">
-              {item.advancedPoll ? (
-                // Advanced Poll - clickable card opens poll directly
-                <button
-                  className="w-full p-4 rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 hover:border-primary/50 hover:from-primary/10 hover:to-primary/20 transition-all text-left group"
+          {/* ─── Content Warning Overlay (for flagged content) ──────── */}
+          {hasContentWarning && !showFlaggedContent ? (
+            <div className="relative mt-2 rounded-xl overflow-hidden">
+              {/* Blurred content behind */}
+              <div className="blur-lg pointer-events-none select-none opacity-30 max-h-40 overflow-hidden" aria-hidden="true">
+                {rawPreviewText && (
+                  <div className="space-y-1">
+                    <p className="text-[15px] leading-relaxed text-foreground/90">{rawPreviewText.slice(0, 200)}</p>
+                  </div>
+                )}
+              </div>
+              {/* Warning overlay */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/60 backdrop-blur-sm rounded-xl border border-yellow-500/30 p-4">
+                <div className="flex items-center gap-2 text-yellow-500">
+                  <ShieldAlert className="h-5 w-5" />
+                  <span className="font-semibold text-sm">Content Warning</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-1.5">
+                  {localContentFlags.map(flag => (
+                    <Badge key={flag.id} variant="outline" className="text-[11px] border-yellow-500/50 text-yellow-400 bg-yellow-500/10">
+                      {getFlagLabel(flag.type)}
+                    </Badge>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-1 text-xs border-yellow-500/40 hover:bg-yellow-500/10 text-yellow-400"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onOpenPoll?.(item.advancedPoll!.id);
+                    setShowFlaggedContent(true);
                   }}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                      <FiBarChart2 className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-primary group-hover:text-primary/80 transition-colors">
-                          {item.advancedPoll.type === 'REACH_ASSESSMENT' ? '🎯 ' : '📊 '}
-                          {item.advancedPoll.title}
-                        </span>
-                      </div>
-                      {item.advancedPoll.description && (
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                          {item.advancedPoll.description}
-                        </p>
+                  <Eye className="h-3.5 w-3.5 mr-1.5" />
+                  Show content
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Content */}
+              {rawPreviewText && (
+                <div className="mt-2 space-y-1">
+                  {shouldShowTitle && (
+                    <h3 className="text-sm text-foreground/80 font-medium leading-snug">
+                      {titleText}
+                    </h3>
+                  )}
+
+                  {isPulsePage ? (
+                    <RichTextContent
+                      content={rawPreviewText}
+                      className="text-[15px] leading-relaxed text-foreground/90"
+                      onTagClick={onTagClick}
+                      embedYouTube={true}
+                      maxYouTubeEmbeds={2}
+                    />
+                  ) : (
+                    <>
+                      <RichTextContent
+                        content={previewText}
+                        className="text-[15px] leading-relaxed text-foreground/90"
+                        onTagClick={onTagClick}
+                        embedYouTube={true}
+                        maxYouTubeEmbeds={1}
+                      />
+
+                      {showReadMore && (
+                        <div className="text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors">
+                          Read more
+                        </div>
                       )}
-                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <FiUsers className="h-3 w-3" />
-                          {item.advancedPoll.totalResponses} responses
-                        </span>
-                        <span className="text-primary font-medium group-hover:underline">
-                          Take this poll →
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ) : (
-                // Regular Poll - use PollDisplay (clicking opens pulse modal)
-                <div onClick={(e) => e.stopPropagation()}>
-                  <PollDisplay conversationId={item.id} />
+                    </>
+                  )}
                 </div>
               )}
-            </div>
+
+              {/* Active content warning banner (after reveal) */}
+              {hasContentWarning && showFlaggedContent && (
+                <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-xs text-yellow-400">
+                  <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    {localContentFlags.map(f => getFlagLabel(f.type)).join(', ')}
+                  </span>
+                  <button
+                    className="ml-auto text-yellow-500 hover:text-yellow-300 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); setShowFlaggedContent(false); }}
+                  >
+                    Hide
+                  </button>
+                </div>
+              )}
+
+              {/* Poll preview */}
+              {item.hasPoll && (
+                <div className="mt-3">
+                  {item.advancedPoll ? (
+                    // Advanced Poll - clickable card opens poll directly
+                    <button
+                      className="w-full p-4 rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 hover:border-primary/50 hover:from-primary/10 hover:to-primary/20 transition-all text-left group"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenPoll?.(item.advancedPoll!.id);
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                          <FiBarChart2 className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-primary group-hover:text-primary/80 transition-colors">
+                              {item.advancedPoll.type === 'REACH_ASSESSMENT' ? '🎯 ' : '📊 '}
+                              {item.advancedPoll.title}
+                            </span>
+                          </div>
+                          {item.advancedPoll.description && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                              {item.advancedPoll.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <FiUsers className="h-3 w-3" />
+                              {item.advancedPoll.totalResponses} responses
+                            </span>
+                            <span className="text-primary font-medium group-hover:underline">
+                              Take this poll →
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ) : (
+                    // Regular Poll - use PollDisplay (clicking opens pulse modal)
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <PollDisplay conversationId={item.id} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
           {/* Tags */}

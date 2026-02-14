@@ -80,13 +80,13 @@ const MyTopBar = () => {
 		isLoading: notificationsLoading,
 		markAsRead,
 		markAllAsRead 
-	} = useNotifications({ refreshInterval: 30000, enabled: !!clientUser });
+	} = useNotifications({ refreshInterval: 60000, enabled: !!clientUser });
 
 	// Fetch cart count for logged-in users
 	const { data: cartData, mutate: mutateCart } = useSWR(
 		clientUser?.id ? `/api/cart/${clientUser.id}` : null,
 		fetcher,
-		{ refreshInterval: 10000, dedupingInterval: 3000 }
+		{ refreshInterval: 60000, dedupingInterval: 5000, revalidateOnFocus: true }
 	);
 	const cartCount = cartData?.items?.reduce((sum: number, item: { quantity: number }) => sum + item.quantity, 0) || 0;
 

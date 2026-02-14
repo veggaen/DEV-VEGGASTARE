@@ -8,7 +8,6 @@
 
 Veggat is a **two-service architecture**:
 
-0. **Ideas & inspiration** https://motion.dev/examples https://webflow.com/made-in-webflow/gsapanimation https://demos.gsap.com/explore/
 1. **Frontend** (Next.js 16) — Full-stack web app handling UI, auth, database operations, and API routes
 2. **Backend** (Hapi.js) — Integration Core handling shipping, real-time broadcasting, and third-party connectors
 
@@ -113,6 +112,35 @@ Accept            → wagmi wallet signature → On-chain verification
 User creates post → Server action → Prisma insert
                   → Pusher trigger("pulse:new-post")
 All feed clients  ← Pusher subscription ← real-time update
+```
+
+### 7. AI Quiz Generation (Streaming)
+
+```
+PollBuilder          → POST /api/polls/generate-stream (topic, difficulty, mode)
+                     ← SSE stream (TransformStream + WritableStreamDefaultWriter)
+
+Key resolution (mode: "auto"):
+  1. Check saved key  → found? use it (unlimited, no quota)
+  2. No saved key     → fall back to platform key (5/day quota)
+  mode: "one_time"   → use provided BYOK key (unlimited)
+
+Security:
+  → sanitizeUserPrompt() blocks prompt injection patterns
+  → output content validation blocks unsafe responses
+
+Streaming steps:
+  ← step 1: "Researching topic…"       (progress event)
+  ← step 2: "Verifying facts…"          (progress event)
+  ← step 3: "Constructing questions…"    (progress event)
+  ← step 4: "Building explanations…"     (progress event)
+  ← step 5: "Validating quiz…"           (progress event)
+  ← step 6: "Calculating trust score…"   (progress event)
+  ← final:  { step: "result", data: pollJSON, _meta: { freeUsed, freeLimit, usedSavedKey } }
+
+Providers: OpenAI | Anthropic (Claude) | OpenRouter | Grok (xAI)
+Daily quota guard: 5 generations/user/day for platform-key users (BYOK unlimited).
+Trust note appended to poll description when trust ≤ medium.
 ```
 
 ---

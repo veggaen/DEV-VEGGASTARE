@@ -244,8 +244,6 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   const { userId } = await context.params;
 
   if (user.id !== userId) {
-    console.log("userId:", userId);
-    console.log("user.id:", user.id);
     return NextResponse.json({ error: "Forbidden (user.id !== userId)" }, { status: 403 });
   }
 

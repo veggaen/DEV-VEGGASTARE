@@ -74,7 +74,7 @@ async function fetchFiatRatesFromAPI(): Promise<Record<string, number> | null> {
       ratesToUSD[currency] = 1 / (rate as number);
     }
 
-    console.log('[currency-rates] Fetched fresh fiat rates');
+    if (process.env.NODE_ENV !== 'production') console.log('[currency-rates] Fetched fresh fiat rates');
     return ratesToUSD;
   } catch (error) {
     console.warn('[currency-rates] Failed to fetch fiat rates:', error);
@@ -113,7 +113,7 @@ async function fetchCryptoPricesFromAPI(): Promise<Record<string, number> | null
       USDT: data.tether?.usd ?? 1,
     };
 
-    console.log('[currency-rates] Fetched fresh crypto prices:', prices);
+    if (process.env.NODE_ENV !== 'production') console.log('[currency-rates] Fetched fresh crypto prices:', prices);
     return prices;
   } catch (error) {
     console.warn('[currency-rates] Failed to fetch crypto prices:', error);

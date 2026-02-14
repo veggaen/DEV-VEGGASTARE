@@ -448,7 +448,7 @@ Educational only - not medical advice.`,
       allowImages: false,
       options: [],
       sliderConfig: {
-        min: 0, max: 3, step: 1,
+        min: 0, max: 3, step: 0.5,
         minLabel: "0.0", maxLabel: "3.0",
         stepLabels: ["0.0", "0.5", "1.0", "1.5", "2.0", "2.5", "3.0"],
       },

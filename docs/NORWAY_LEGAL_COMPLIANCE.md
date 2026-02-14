@@ -72,8 +72,26 @@ These architectural decisions keep Veggat in a lower-regulation zone:
 - **SaaS sold B2B:** Reverse charge may apply for cross-border sales
 - **Crypto transactions:** Currently MVA-exempt in Norway (financial services exemption), but monitor MiCA developments
 
+### ENK → AS Transition Plan
+
+**The access gate stays closed until an AS (Aksjeselskap) is formed.** This is the single most important legal decision for the platform — it prevents personal liability exposure during the public launch phase.
+
+| Item | Details |
+|------|--------|
+| **Target entity** | Aksjeselskap (AS) — limited liability |
+| **Cost** | ~35,500 NOK (30,000 aksjekapital + ~5,500 registration fee) |
+| **Aksjekapital note** | The 30k is working capital — immediately usable after registration, not a fee |
+| **Registration** | Via Altinn → Samordnet registermelding for AS |
+| **Trigger** | When any: 30k+ saved & app ready, liability exposure grows, crypto features need CASP, need investors/employees |
+| **Gate rule** | `GATE_STATUS=false` only after AS is formed and all compliance items are in place |
+
+**Why AS before launch:** ENK has unlimited personal liability. MiCA Art. 59(3) requires legal-person-equivalent protection for CASP — ENK does not meet this. Vipps, banks, and Finanstilsynet take AS entities more seriously.
+
+Full ENK→AS strategy, funding options, and checklist: see [TOKEN_ECONOMY_PLAN.md §2](TOKEN_ECONOMY_PLAN.md)
+
 ### Key Sources
 - [Brønnøysund — ENK registration](https://www.brreg.no/enkeltpersonforetak/registrere-et-enkeltpersonforetak/)
+- [Brønnøysund — AS registration](https://www.brreg.no/aksjeselskap/registrere-et-aksjeselskap-i-einingsregisteret-og-foretaksregisteret/)
 - [Skatteetaten — ENK basics & VAT](https://www.skatteetaten.no/bedrift-og-organisasjon/starte-og-drive/ny-som-naringsdrivende/nytt-enk/)
 - [Lovdata — Bokføringsloven](https://lovdata.no/lov/2004-11-19-73)
 - [Skatteetaten — MVA for digital services](https://www.skatteetaten.no/bedrift-og-organisasjon/avgifter/mva/)
@@ -405,7 +423,7 @@ See [VIPPS_REQUIREMENTS.md](VIPPS_REQUIREMENTS.md) for the detailed Vipps integr
 
 ### MiCA (Markets in Crypto-Assets Regulation)
 
-The EU MiCA regulation is being adopted across the EEA. Key implications for Veggat:
+The EU MiCA regulation (EU 2023/1114) is being adopted across the EEA. Key implications for Veggat:
 
 | Aspect | Risk Level | Notes |
 |--------|-----------|-------|
@@ -414,6 +432,41 @@ The EU MiCA regulation is being adopted across the EEA. Key implications for Veg
 | **P2P trading** (wallet-to-wallet) | Medium | Classifieds model is lower risk; any intermediation increases risk |
 | **NFT features** (future) | Medium | Depends on whether NFTs are classified as crypto-assets |
 | **On-chain verification tiers** | Low | Reading blockchain data, not transacting |
+| **$VEGGA utility token** | Medium | Utility token per Art. 3(1)(9) — see classification below |
+
+### $VEGGA Token Classification
+
+$VEGGA is classified as a **utility token** under MiCA Article 3(1)(9) — it provides access to platform services (quiz creation, AI generation, premium features) and is not an e-money token or asset-referenced token.
+
+**Key MiCA exemption pathways:**
+
+| Exemption | Article | Applicability |
+|-----------|---------|---------------|
+| Utility for existing service | Art. 4(3)(c) | ✅ If services are already operational at token launch |
+| Offer under EUR 1,000,000 | Art. 4(2)(b) | ✅ Highly likely in initial period |
+| Offer to <150 persons/Member State | Art. 4(2)(a) | ✅ Small initial user base |
+| Tokens offered for free | Art. 4(3)(a) | ✅ Earned tokens = no consideration |
+
+**While the gate is closed:** No "offer to the public" per MiCA Art. 12. A password-gated private beta does not constitute a public offer. This eliminates MiCA obligations entirely during the ENK/gated phase.
+
+### CASP (Crypto-Asset Service Provider) Limitation
+
+MiCA Art. 59(1) requires CASPs to be legal persons. Art. 59(3) allows non-legal-person undertakings only if their legal form "ensures a level of protection for third parties' interests equivalent to that afforded by legal persons."
+
+**An ENK does not meet this standard.** Therefore:
+- No crypto-asset services during ENK phase (credits only, off-chain)
+- AS must be formed before any on-chain token operations go live
+- "Never hold funds" principle is critical regardless of entity type (see §9)
+
+If CASP authorization is ever needed (post-AS), minimum capital per MiCA Annex IV:
+
+| CASP Class | Services | Minimum Capital |
+|------------|----------|-----------------|
+| Class 1 | Custody, transfer | EUR 50,000 |
+| Class 2 | + exchange, placement | EUR 125,000 |
+| Class 3 | + trading platform | EUR 150,000 |
+
+Full MiCA analysis with exemption strategy and white paper preparation: see [TOKEN_ECONOMY_PLAN.md §3](TOKEN_ECONOMY_PLAN.md)
 
 ### Anti-Money Laundering (AML)
 
@@ -421,6 +474,7 @@ If Veggat processes crypto payments:
 - May need to register with Finanstilsynet as a virtual asset service provider (VASP)
 - May need KYC (Know Your Customer) procedures
 - Monitor: Norway's implementation of MiCA and the Transfer of Funds Regulation
+- **"Never hold funds" strategy may eliminate VASP requirement** — needs legal confirmation
 
 ### Current Safeguards
 
@@ -428,16 +482,19 @@ If Veggat processes crypto payments:
 - Wallet signatures prove ownership without custody
 - No platform-controlled wallets or fund pools
 - Trade records create audit trail
+- **Access gate closed** — no public users, no public token offering
 
 ### Key Sources
 - [Finanstilsynet — Virtual assets](https://www.finanstilsynet.no/tema/virtuelle-valutaer/)
-- [EU MiCA Regulation](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32023R1114)
+- [EU MiCA Regulation — Full text (EUR-Lex)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32023R1114)
 
 ---
 
 ## 11. Digital Platform Information (DPI)
 
-### DPI Reporting — Effective 1 January 2026 ⚠️
+### DPI Reporting — Effective 1 January 2026
+
+> **Status while gate is closed:** ✅ No obligation. DPI applies to public marketplace transactions. Since the access gate is closed (`GATE_STATUS=true`) and no reportable transactions have occurred, there is no current reporting requirement. **DPI pipeline must be ready before the gate opens (Phase 3).** The deadline has technically passed (Jan 2026), but this is a non-issue — obligation activates when reportable activity begins.
 
 If Veggat facilitates any of these activities, we must report seller/provider information to Skatteetaten:
 
@@ -650,6 +707,11 @@ Complete overview of where we stand across all regulatory areas:
 | Bokføringsloven | Bookkeeping Act | [lovdata.no/lov/2004-11-19-73](https://lovdata.no/lov/2004-11-19-73) |
 | Åndsverkloven | Copyright Act | [lovdata.no/lov/2018-06-15-40](https://lovdata.no/lov/2018-06-15-40) |
 | Eiendomsmeglingsloven | Real Estate Brokerage Act | [lovdata.no/lov/2007-06-29-73](https://lovdata.no/lov/2007-06-29-73) |
+| Folkefinansieringsloven | Crowdfunding Act (effective Feb 2026) | [lovdata.no/lov/2026-02-06-2](https://lovdata.no/lov/2026-02-06-2) |
+| Enhetsregisterloven (ny) | Entity Register Act (effective Jan 2026) | [lovdata.no/lov/2025-06-20-105](https://lovdata.no/lov/2025-06-20-105) |
+| Foretaksregisterloven (ny) | Business Register Act (effective Jan 2026) | [lovdata.no/lov/2025-06-20-106](https://lovdata.no/lov/2025-06-20-106) |
+| Aksjeloven | Limited Companies Act | [lovdata.no/lov/1997-06-13-44](https://lovdata.no/lov/1997-06-13-44) |
+| Hvitvaskingsloven | Anti-Money Laundering Act | [lovdata.no/lov/2018-06-01-23](https://lovdata.no/lov/2018-06-01-23) |
 
 ### International Standards
 

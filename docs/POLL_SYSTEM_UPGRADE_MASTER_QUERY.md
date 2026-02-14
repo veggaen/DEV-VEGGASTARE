@@ -1040,14 +1040,39 @@ Implementation: `frontend/lib/poll-response-weighting.ts`
 |------|------|-----------|----------|
 | `reach-poll-template.ts` | FEEDBACK | 28 | 8 |
 | `feature-explorer-quiz-template.ts` | QUIZ | 18 | 5 |
-| `verify-poll-demo-template.ts` | QUIZ | 22 | 6 |
+| `verify-poll-demo-template.ts` | QUIZ | 27 | 6 |
+| `canna-coco-quiz-template.ts` | QUIZ | 22 | 6 |
+| `tony-vegan-eggs-mastery-template.ts` | QUIZ | 22 | 6 |
+| Quick Feedback (inline in PollBuilder) | FEEDBACK | 6 | — |
+| Product Preference (inline in PollBuilder) | SURVEY | 8 | — |
 
 All templates export a `generate*Template(): PollBuilderData` function that creates fresh IDs on each call.
 
-### PollBuilder "Examples" Dropdown (5 entries)
+### PollBuilder "Examples" Dropdown (7 entries)
 
-1. **Verify Poll Demo** — Test all types (emerald icon)
-2. **Feedback & Discovery** — Hybrid poll (purple icon)
-3. **Feature Explorer Quiz** — Scored quiz (amber icon)
-4. **Quick Feedback** — Simple 2-question survey (blue icon, inline)
-5. **Product Preference** — 3-question survey (cyan icon, inline)
+1. **Verify Poll Demo** — Test all question types, 27Q/6 sections (emerald icon)
+2. **Feedback & Discovery** — Hybrid feedback + feature discovery, 28Q/8 sections (purple icon)
+3. **Feature Explorer Quiz** — Scored VeggaStare knowledge quiz, 18Q/5 sections (amber icon)
+4. **Canna Coco Mastery** — Growing knowledge quiz, 22Q/6 sections (green icon)
+5. **Tony Vegan+Eggs Mastery** — Performance/nutrition quiz, 22Q/6 sections (orange icon)
+6. **Quick Feedback** — 6-question feedback template with all numeric types + sliderConfig (blue icon, inline)
+7. **Product Preference** — 8-question product survey with emojis, RANKING, SCALE, SLIDER (cyan icon, inline)
+
+### AI Conversational Chat Thread (added 2026-02-14)
+
+The AI panel is now a full conversational chat interface:
+- **Initial generation**: User enters a prompt, AI generates a full quiz/poll via SSE streaming
+- **Review Card**: Shows quiz snapshot (title, type, question count, section count) with [Test Preview] and [Inspect in Builder] buttons
+- **Refinement loop**: After first generation, input switches to refinement mode ("make question 3 harder", "add a section about X"). Each refinement is 1 credit.
+- **Credit tracking**: `1/5` pill counter in header, 5/day free, BYOK unlimited
+- **Provider chain**: Auto-resolve: saved key → owner-only OpenAI (PLATFORM_OWNER_EMAIL) → Groq (Llama 3.3 70B) → error
+
+### Interactive Preview Mode (added 2026-02-14)
+
+PollTakerModal accepts a `previewData` prop (PollBuilderData shape) for in-builder preview:
+- `builderDataToPollData()` converter handles flow-based ordering, sliderConfig normalization, options mapping
+- Full 5-screen experience: Welcome → Section Select → Questions → Completion → Results
+- No API calls — all data is local
+- Quiz scoring works (correct/wrong answers computed client-side)
+- "See Preview Results" button on completion screen, "Back to Builder" button on results screen
+- Triggered by "Test Preview" in AI Review Card or "Take Poll" in static card preview

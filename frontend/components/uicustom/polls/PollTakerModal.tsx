@@ -44,8 +44,11 @@ import {
   Share2,
   Trophy,
   AlertCircle,
+  Eye,
+  Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fuzzyTextMatch, aiVerifyTextAnswer } from "@/lib/fuzzy-text-match";
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────
 
@@ -133,6 +136,151 @@ interface PollTakerModalProps {
   pollId: string | null;
   onClose: () => void;
   onComplete?: (responseId: string) => void;
+  /** Pass PollBuilderData directly for preview mode (no API fetch, no submit) */
+  previewData?: {
+    title: string;
+    description: string;
+    type: string;
+    allowPartialSubmission: boolean;
+    showProgressBar: boolean;
+    randomizeQuestions: boolean;
+    questions: Array<{
+      id: string;
+      type: string;
+      questionText: string;
+      description?: string;
+      required: boolean;
+      allowImages: boolean;
+      options: Array<{ id: string; text: string; description?: string; value?: number; imageUrl?: string }>;
+      sliderConfig?: any;
+      shapeMatchPreset?: string;
+      shapeMatchConfig?: any;
+      correctAnswer?: string | string[] | null;
+      explanation?: string | null;
+      wrongExplanation?: string | null;
+      deepExplanation?: string | null;
+      commitRequired?: boolean;
+      trickQuestion?: boolean;
+      order?: number;
+    }>;
+    sections: Array<{
+      id: string;
+      title: string;
+      description?: string;
+      icon?: string;
+      flow: Array<{ type: string; id: string }>;
+    }>;
+    flow: Array<{ type: string; id: string }>;
+  } | null;
+}
+
+/** Convert PollBuilderData to the PollData shape that PollTakerModal expects */
+function builderDataToPollData(bd: NonNullable<PollTakerModalProps['previewData']>): PollData {
+  // Build ordered question list from flow
+  const orderedQuestions: PollQuestion[] = [];
+  let order = 0;
+
+  const addQuestionsFromFlow = (flow: Array<{ type: string; id: string }>) => {
+    for (const item of flow) {
+      if (item.type === 'QUESTION') {
+        const q = bd.questions.find(qq => qq.id === item.id);
+        if (q) {
+          order++;
+          orderedQuestions.push({
+            id: q.id,
+            text: q.questionText,
+            questionText: q.questionText,
+            description: q.description || null,
+            type: q.type,
+            order,
+            isRequired: q.required,
+            allowImages: q.allowImages,
+            allowComments: false,
+            sliderConfig: q.sliderConfig ? {
+              min: q.sliderConfig.min ?? q.sliderConfig.minValue,
+              max: q.sliderConfig.max ?? q.sliderConfig.maxValue,
+              step: q.sliderConfig.step,
+              labels: q.sliderConfig.stepLabels,
+              showValue: q.sliderConfig.showValue,
+            } : null,
+            options: (q.options || []).map((o, idx) => ({
+              id: o.id,
+              text: o.text,
+              order: idx,
+              value: o.value ?? null,
+              imageUrl: o.imageUrl ?? null,
+            })),
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation || null,
+            wrongExplanation: q.wrongExplanation || null,
+            deepExplanation: q.deepExplanation || null,
+            commitRequired: q.commitRequired,
+            trickQuestion: q.trickQuestion,
+            shapeMatchPreset: q.shapeMatchPreset,
+          });
+        }
+      } else if (item.type === 'SECTION') {
+        const sec = bd.sections.find(s => s.id === item.id);
+        if (sec) addQuestionsFromFlow(sec.flow);
+      }
+    }
+  };
+
+  addQuestionsFromFlow(bd.flow);
+
+  // If no flow-based ordering, fall back to flat list
+  if (orderedQuestions.length === 0) {
+    for (const q of bd.questions) {
+      order++;
+      orderedQuestions.push({
+        id: q.id,
+        text: q.questionText,
+        questionText: q.questionText,
+        description: q.description || null,
+        type: q.type,
+        order: q.order ?? order,
+        isRequired: q.required,
+        allowImages: q.allowImages,
+        allowComments: false,
+        sliderConfig: q.sliderConfig ? {
+          min: q.sliderConfig.min ?? q.sliderConfig.minValue,
+          max: q.sliderConfig.max ?? q.sliderConfig.maxValue,
+          step: q.sliderConfig.step,
+          labels: q.sliderConfig.stepLabels,
+          showValue: q.sliderConfig.showValue,
+        } : null,
+        options: (q.options || []).map((o, idx) => ({
+          id: o.id,
+          text: o.text,
+          order: idx,
+          value: o.value ?? null,
+          imageUrl: o.imageUrl ?? null,
+        })),
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation || null,
+        wrongExplanation: q.wrongExplanation || null,
+        deepExplanation: q.deepExplanation || null,
+        commitRequired: q.commitRequired,
+        trickQuestion: q.trickQuestion,
+        shapeMatchPreset: q.shapeMatchPreset,
+      });
+    }
+  }
+
+  return {
+    id: 'preview-' + Date.now(),
+    title: bd.title || 'Untitled Poll',
+    description: bd.description || null,
+    type: (bd.type || 'SURVEY') as PollData['type'],
+    creatorId: 'preview',
+    isAnonymous: false,
+    allowPartial: bd.allowPartialSubmission,
+    requiresAuth: false,
+    totalResponses: 0,
+    avgCompletionPct: 0,
+    questions: orderedQuestions,
+    creator: { id: 'preview', name: 'Preview Mode' },
+  };
 }
 
 // ─── SECTION GROUPING ──────────────────────────────────────────────────────
@@ -191,6 +339,16 @@ function sectionAnsweredCount(section: Section, answers: Record<string, Question
   return section.questions.filter(q => answers[q.id]?.value !== undefined).length;
 }
 
+// Parse AI trust score from poll description (embedded by generation endpoint)
+function parseTrustInfo(description?: string | null): { score: number | null; factor: string | null } | null {
+  if (!description) return null;
+  const match = description.match(/Estimated truthfulness\/quality:\s*(\d+)\/100/);
+  if (!match) return null;
+  const score = parseInt(match[1], 10);
+  const factor = score >= 80 ? "High" : score >= 55 ? "Medium" : "Low";
+  return { score, factor };
+}
+
 // Find all unanswered question indices across all sections
 function findUnansweredQuestions(sections: Section[], answers: Record<string, QuestionAnswer>): Array<{ sectionIdx: number; questionIdx: number; question: PollQuestion }> {
   const unanswered: Array<{ sectionIdx: number; questionIdx: number; question: PollQuestion }> = [];
@@ -205,15 +363,18 @@ function findUnansweredQuestions(sections: Section[], answers: Record<string, Qu
 }
 
 // Calculate quiz score (correct answers / total questions with correct answers)
-function calculateQuizScore(
+// Async: TEXT answers that fail fuzzy match get a second opinion from AI (Groq, ~200ms).
+async function calculateQuizScore(
   sections: Section[],
   answers: Record<string, QuestionAnswer>
-): { correct: number; total: number; bySection: Array<{ section: Section; correct: number; total: number }> } {
+): Promise<{ correct: number; total: number; bySection: Array<{ section: Section; correct: number; total: number }>; aiVerified: string[] }> {
   let totalCorrect = 0;
   let totalGraded = 0;
   const bySection: Array<{ section: Section; correct: number; total: number }> = [];
+  // Track TEXT questions that fuzzy rejected but AI verified correct
+  const pendingAiChecks: Array<{ questionId: string; sectionIdx: number; userAnswer: string; correctAnswer: string; questionText: string }> = [];
 
-  sections.forEach((section) => {
+  sections.forEach((section, sectionIdx) => {
     let sectionCorrect = 0;
     let sectionGraded = 0;
 
@@ -250,11 +411,32 @@ function calculateQuizScore(
         return;
       }
 
-      // TEXT: case-insensitive
+      // TEXT: fuzzy match with requiresExactMatch guard + AI fallback for rejections
       if (question.type === "TEXT" && typeof correctAnswer === "string" && typeof userAnswer === "string") {
-        if (correctAnswer.trim().toLowerCase() === userAnswer.trim().toLowerCase()) {
+        const prompt = (question.questionText ?? question.text ?? "").toLowerCase();
+        const description = (question.description ?? "").toLowerCase();
+        const requiresExactMatch =
+          prompt.includes("type exactly") ||
+          description.includes("case and punctuation must be exact") ||
+          description.includes("case-sensitive");
+
+        if (requiresExactMatch) {
+          if (correctAnswer === userAnswer) { sectionCorrect++; totalCorrect++; }
+          return;
+        }
+
+        if (fuzzyTextMatch(userAnswer, correctAnswer)) {
           sectionCorrect++;
           totalCorrect++;
+        } else {
+          // Queue for AI verification — don't mark wrong yet
+          pendingAiChecks.push({
+            questionId: question.id,
+            sectionIdx,
+            userAnswer,
+            correctAnswer,
+            questionText: question.questionText ?? question.text ?? "",
+          });
         }
         return;
       }
@@ -282,12 +464,32 @@ function calculateQuizScore(
     bySection.push({ section, correct: sectionCorrect, total: sectionGraded });
   });
 
-  return { correct: totalCorrect, total: totalGraded, bySection };
+  // AI verification pass — batch all pending TEXT checks in parallel
+  const aiVerified: string[] = [];
+  if (pendingAiChecks.length > 0) {
+    const results = await Promise.allSettled(
+      pendingAiChecks.map((check) =>
+        aiVerifyTextAnswer(check.userAnswer, check.correctAnswer, check.questionText)
+          .then((ok) => ({ ...check, ok }))
+      )
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled" && result.value.ok) {
+        totalCorrect++;
+        const sectionEntry = bySection[result.value.sectionIdx];
+        if (sectionEntry) sectionEntry.correct++;
+        aiVerified.push(result.value.questionId);
+      }
+    }
+  }
+
+  return { correct: totalCorrect, total: totalGraded, bySection, aiVerified };
 }
 
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 
-export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalProps) {
+export function PollTakerModal({ pollId, onClose, onComplete, previewData }: PollTakerModalProps) {
+  const isPreviewMode = !!previewData;
   const [poll, setPoll] = useState<PollData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -306,8 +508,18 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Preview mode: convert builder data directly, skip API fetch
+  useEffect(() => {
+    if (previewData) {
+      setPoll(builderDataToPollData(previewData));
+      setLoading(false);
+      return;
+    }
+  }, [previewData]);
+
   // Fetch poll data
   useEffect(() => {
+    if (previewData) return; // Skip fetch in preview mode
     if (!pollId) {
       setPoll(null);
       setLoading(false);
@@ -477,7 +689,7 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
 
   // Keyboard + mouse-button navigation (matching ReachPollV3 approach)
   useEffect(() => {
-    if (!pollId) return;
+    if (!pollId && !isPreviewMode) return;
     
     const onKey = (e: KeyboardEvent) => {
       if (screen !== "question") return;
@@ -493,18 +705,32 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
         e.preventDefault(); 
         e.stopImmediatePropagation();
         if (screen === "question") goPrev();
-        else if (screen === "complete") setScreen("question");
+        else if (screen === "complete") {
+          // Guard: only go back to question screen if a valid question exists
+          if (sections[currentSectionIdx]?.questions[currentQuestionIdx]) {
+            setScreen("question");
+          } else {
+            setScreen("welcome");
+          }
+        }
         else if (screen === "section-select") setScreen("welcome");
       }
       if (e.button === 4) { 
         e.preventDefault(); 
         e.stopImmediatePropagation();
         if (screen === "welcome") {
-          setCurrentSectionIdx(0);
-          setCurrentQuestionIdx(0);
-          setScreen("question");
+          if (sections[0]?.questions[0]) {
+            setCurrentSectionIdx(0);
+            setCurrentQuestionIdx(0);
+            setScreen("question");
+          }
         } else if (screen === "section-select") {
-          setScreen("question");
+          // Guard: only go to question if current indices are valid
+          if (sections[currentSectionIdx]?.questions[currentQuestionIdx]) {
+            setScreen("question");
+          } else {
+            setScreen("welcome");
+          }
         } else if (screen === "question") {
           goNext();
         }
@@ -531,6 +757,11 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
   // Submit
   const handleSubmit = async () => {
     if (!poll) return;
+    // Preview mode: skip API call, simulate submission
+    if (isPreviewMode) {
+      setScreen("results");
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
     setAuthRequired(false);
@@ -619,10 +850,10 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
     setScreen("question");
   }, []);
 
-  if (!pollId) return null;
+  if (!pollId && !isPreviewMode) return null;
 
   return (
-    <Dialog open={!!pollId} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={!!pollId || isPreviewMode} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         className="max-w-3xl w-[95vw] max-h-[90vh] p-0 overflow-hidden border-zinc-800/50 bg-zinc-950/95 backdrop-blur-xl"
         accessibleTitle={poll?.title || "Poll"}
@@ -666,6 +897,17 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
                     onBack={() => setScreen("welcome")}
                   />
                 )}
+                {screen === "question" && !currentQuestion && (
+                  <motion.div
+                    key="question-fallback"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center justify-center h-full"
+                  >
+                    <p className="text-muted-foreground">Loading question…</p>
+                  </motion.div>
+                )}
                 {screen === "question" && currentQuestion && (
                   <QuestionScreen
                     key={`q-${currentQuestion.id}`}
@@ -691,6 +933,7 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
                     onPrev={goPrev}
                     onSectionSelect={() => setScreen("section-select")}
                     answers={answers}
+                    trustInfo={parseTrustInfo(poll.description)}
                   />
                 )}
                 {screen === "complete" && (
@@ -704,6 +947,7 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
                     theme={theme}
                     isSubmitting={isSubmitting}
                     authRequired={authRequired}
+                    isPreview={isPreviewMode}
                     onSubmit={handleSubmit}
                     onBack={() => setScreen("question")}
                     onSelectSection={jumpToSection}
@@ -720,6 +964,7 @@ export function PollTakerModal({ pollId, onClose, onComplete }: PollTakerModalPr
                     answeredCount={answeredCount}
                     totalQuestions={totalQuestions}
                     theme={theme}
+                    isPreview={isPreviewMode}
                     onClose={onClose}
                   />
                 )}
@@ -955,7 +1200,7 @@ function QuestionScreen({
   question, questionNumber, totalQuestions, section, sectionIdx, sectionCount,
   answer, showComment, answeredCount, progressPct, theme, slideDirection,
   isFirst, isLast, pollType,
-  onAnswer, onCommit, onToggleComment, onNext, onPrev, onSectionSelect, answers,
+  onAnswer, onCommit, onToggleComment, onNext, onPrev, onSectionSelect, answers, trustInfo,
 }: {
   question: PollQuestion;
   questionNumber: number;
@@ -979,6 +1224,7 @@ function QuestionScreen({
   onPrev: () => void;
   onSectionSelect: () => void;
   answers: Record<string, QuestionAnswer>;
+  trustInfo?: { score: number | null; factor: string | null } | null;
 }) {
   const [showExplanation, setShowExplanation] = useState(false);
   const [showDeepExplanation, setShowDeepExplanation] = useState(false);
@@ -1068,7 +1314,7 @@ function QuestionScreen({
       return correctAns.length === userAns.length && correctAns.every((a) => userAns.includes(a));
     }
     
-    // TEXT question: exact match mode for explicitly strict prompts, otherwise case-insensitive trimmed comparison
+    // TEXT question: exact match mode for explicitly strict prompts, otherwise fuzzy-tolerant comparison
     if (question.type === "TEXT" && typeof correctAns === "string" && typeof userAns === "string") {
       const prompt = (question.questionText ?? question.text ?? "").toLowerCase();
       const description = (question.description ?? "").toLowerCase();
@@ -1081,7 +1327,7 @@ function QuestionScreen({
         return correctAns === userAns;
       }
 
-      return correctAns.trim().toLowerCase() === userAns.trim().toLowerCase();
+      return fuzzyTextMatch(userAns, correctAns);
     }
     
     // String comparison (single choice - exact ID match)
@@ -1374,6 +1620,24 @@ function QuestionScreen({
               {getQuestionTypeLabel(question.type)}
             </span>
             {question.isRequired && <span className="text-[10px] text-red-400/80 font-medium">Required</span>}
+            {trustInfo?.score != null && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={cn(
+                    "ml-auto flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full cursor-help",
+                    trustInfo.factor === "High" && "bg-emerald-500/15 text-emerald-400",
+                    trustInfo.factor === "Medium" && "bg-amber-500/15 text-amber-400",
+                    trustInfo.factor === "Low" && "bg-red-500/15 text-red-400",
+                  )}>
+                    <Sparkles className="w-3 h-3" />
+                    Trust: {trustInfo.factor}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  AI-generated · Confidence: {trustInfo.score}/100
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
 
           <h2 className="text-xl md:text-2xl font-bold mb-2 leading-snug">{question.text}</h2>
@@ -1422,7 +1686,8 @@ function QuestionScreen({
                 description={question.description ?? undefined}
                 config={SHAPE_MATCH_PRESETS[question.shapeMatchPreset as keyof typeof SHAPE_MATCH_PRESETS] || SHAPE_MATCH_PRESETS.basicShapes}
                 onChange={(placements) => { handleValueChange(Object.values(placements).filter(Boolean).length); }}
-                onComplete={(isCorrect) => { handleValueChange(isCorrect ? 100 : 0); }}
+                onComplete={(isCorrect) => { handleValueChange(isCorrect ? 100 : 0); onCommit(); }}
+                disabled={isCommitted}
               />
             )}
 
@@ -1866,7 +2131,7 @@ function QuestionScreen({
 
 function CompletionScreen({
   poll, sections, answers, answeredCount, totalQuestions, theme,
-  isSubmitting, authRequired, onSubmit, onBack, onSelectSection, onStartMissingFlow, onClose,
+  isSubmitting, authRequired, isPreview, onSubmit, onBack, onSelectSection, onStartMissingFlow, onClose,
 }: {
   poll: PollData;
   sections: Section[];
@@ -1876,6 +2141,7 @@ function CompletionScreen({
   theme: ReturnType<typeof getPollTheme>;
   isSubmitting: boolean;
   authRequired: boolean;
+  isPreview?: boolean;
   onSubmit: () => void;
   onBack: () => void;
   onSelectSection: (idx: number) => void;
@@ -1973,6 +2239,14 @@ function CompletionScreen({
                   </Link>
                 </Button>
               </>
+            ) : isPreview ? (
+              <Button
+                size="lg"
+                onClick={onSubmit}
+                className={cn("w-full py-6 text-base font-semibold rounded-2xl text-white bg-gradient-to-r", theme.gradient)}
+              >
+                <span className="flex items-center gap-2"><Eye className="h-5 w-5" />See Preview Results</span>
+              </Button>
             ) : (
               <Button
                 size="lg"
@@ -2004,7 +2278,7 @@ function CompletionScreen({
 // ─── RESULTS SCREEN ─────────────────────────────────────────────────────────
 
 function ResultsScreen({
-  poll, sections, answers, answeredCount, totalQuestions, theme, onClose,
+  poll, sections, answers, answeredCount, totalQuestions, theme, isPreview, onClose,
 }: {
   poll: PollData;
   sections: Section[];
@@ -2012,13 +2286,29 @@ function ResultsScreen({
   answeredCount: number;
   totalQuestions: number;
   theme: ReturnType<typeof getPollTheme>;
+  isPreview?: boolean;
   onClose: () => void;
 }) {
   const pct = totalQuestions > 0 ? Math.min(100, Math.round((answeredCount / totalQuestions) * 100)) : 0;
   const isQuiz = poll.type === "QUIZ";
   
-  // Calculate quiz score
-  const quizScore = isQuiz ? calculateQuizScore(sections, answers) : null;
+  // Async quiz score — starts with quick fuzzy-only pass, then AI-verifies rejected TEXT answers
+  const [quizScore, setQuizScore] = useState<{ correct: number; total: number; bySection: Array<{ section: Section; correct: number; total: number }>; aiVerified: string[] } | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  useEffect(() => {
+    if (!isQuiz) return;
+    let cancelled = false;
+    setIsVerifying(true);
+    calculateQuizScore(sections, answers).then((score) => {
+      if (!cancelled) {
+        setQuizScore(score);
+        setIsVerifying(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [isQuiz, sections, answers]);
+
   const scorePct = quizScore && quizScore.total > 0 ? Math.round((quizScore.correct / quizScore.total) * 100) : 0;
 
   return (
@@ -2066,11 +2356,19 @@ function ResultsScreen({
             <p className="text-lg text-muted-foreground mb-6">
               {isQuiz && quizScore
                 ? `You got ${quizScore.correct} of ${quizScore.total} correct (${scorePct}%)`
-                : isQuiz 
-                  ? `You answered ${answeredCount} of ${totalQuestions} questions`
-                  : "Your feedback has been recorded"
+                : isQuiz && isVerifying
+                  ? "Checking your answers..."
+                  : isQuiz 
+                    ? `You answered ${answeredCount} of ${totalQuestions} questions`
+                    : "Your feedback has been recorded"
               }
             </p>
+            {isQuiz && quizScore && quizScore.aiVerified.length > 0 && (
+              <p className="text-xs text-violet-400 mb-4 flex items-center justify-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" />
+                {quizScore.aiVerified.length} answer{quizScore.aiVerified.length > 1 ? "s" : ""} verified by AI (typo forgiveness)
+              </p>
+            )}
           </motion.div>
 
           {/* Quiz Score Card - Only shown for quizzes with scored questions */}
@@ -2221,12 +2519,15 @@ function ResultsScreen({
               onClick={onClose}
             >
               <span className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5" />
-                Done
+                {isPreview ? (
+                  <><Pencil className="h-5 w-5" />Back to Builder</>
+                ) : (
+                  <><CheckCircle2 className="h-5 w-5" />Done</>
+                )}
               </span>
             </Button>
             
-            {/* Share option - placeholder for Pulse feature */}
+            {!isPreview && (
             <Button variant="outline" size="lg" className="w-full rounded-2xl border-zinc-700" onClick={() => {
               // TODO: Integrate with Pulse/sharing
               if (typeof navigator !== "undefined" && navigator.share) {
@@ -2236,6 +2537,7 @@ function ResultsScreen({
               <Share2 className="h-4 w-4 mr-2" />
               Share Results
             </Button>
+            )}
           </motion.div>
         </div>
       </div>

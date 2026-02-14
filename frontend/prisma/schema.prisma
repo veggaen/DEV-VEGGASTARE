@@ -165,6 +165,10 @@ model Conversation {
   Pulse                  Pulse[]
   ProfilePins            ProfilePin[]
   PulseProductLinks      PulseProductLink[]
+  ContentFlags           ContentFlag[]
+  // Visibility targeting
+  visibleToUserIds       String[]               @default([])
+  visibleToGroupIds      String[]               @default([])
 
   @@index([userId])
   @@index([type])
@@ -173,6 +177,36 @@ model Conversation {
   @@index([deletionScheduledFor])
   @@index([type, visibility, lastActivityAt])
   @@index([pinnedToFeed, pinnedToFeedAt])
+}
+
+// ─── Content Flags (Admin moderation / content warnings) ──────────────────────
+model ContentFlag {
+  id             String          @id @default(cuid())
+  conversationId String
+  flaggedByUserId String
+  type           ContentFlagType
+  reason         String?         // Optional free-text reason
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  Conversation   Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([flaggedByUserId])
+  @@index([conversationId, isActive])
+}
+
+enum ContentFlagType {
+  DISTURBING_CONTENT
+  DEATH_OR_INJURY
+  NUDITY
+  FLASHING_IMAGES
+  VIOLENCE
+  HATE_SPEECH
+  MISINFORMATION
+  SPOILER
+  SENSITIVE_TOPIC
+  OTHER
 }
 
 model ConversationRepost {
@@ -935,6 +969,32 @@ model User {
   // P2P Crypto Trades
   TradesInitiated                                                 Trade[]                       @relation("TradesInitiated")
   TradesReceived                                                  Trade[]                       @relation("TradesReceived")
+  AiApiKeys                                                       UserAiApiKey[]
+}
+
+model UserAiApiKey {
+  id              String     @id @default(cuid())
+  userId          String
+  provider        AiProvider
+  encryptedKey    String
+  iv              String
+  authTag         String
+  keyFingerprint  String
+  isDefault       Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  User            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@index([userId, isDefault])
+}
+
+enum AiProvider {
+  OPENAI
+  OPENROUTER
+  ANTHROPIC
+  GROK
 }
 
 model VerificationToken {
@@ -1345,7 +1405,13 @@ enum ConversationType {
 
 enum ConversationVisibility {
   PUBLIC
+  PRIVATE
   PARTICIPANTS
+  SYNCED_TO
+  SYNCED_FROM
+  MUTUAL_SYNC
+  SPECIFIC_USERS
+  SPECIFIC_GROUPS
   ROLE_BASED
   CUSTOM
 }

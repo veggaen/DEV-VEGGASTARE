@@ -4,7 +4,7 @@
 > This file is the canonical source for architecture invariants and onboarding context.
 
 **Auto-generated sections** are marked with `<!-- @auto -->`. Manual sections are maintained by developers.  
-**Last Updated:** 2026-02-13
+**Last Updated:** 2026-02-14
 
 ---
 
@@ -37,6 +37,8 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 13. **Database backups must never be committed to git.** The `.gitignore` excludes `**/database-backups/`. Never override this.
 14. **Web3 mode toggle does NOT require email verification.** Toggling `web3ModeEnabled` is a simple PATCH to `/api/settings/web3-mode`. Email verification is only required for **wallet linking** (binding a wallet address to the user account).
 15. **Unified sign-out: Web2 ↔ Web3.** `useCleanLogout` handles Web2→Web3 (disconnects wallets on sign-out). `WalletDisconnectWatcher` in `Web3Providers.tsx` handles Web3→Web2 (wallet disconnect triggers `signOut`). A `cleanLogoutInProgress` flag in `use-clean-logout.ts` prevents loops.
+16. **AI generation requires authentication + auto-resolves keys.** Server uses `auto` mode: saved key → owner-only OpenAI (PLATFORM_OWNER_EMAIL) → Groq free tier (GROQ_API_KEY, Llama 3.3 70B) → error. 1 credit = 1 action (generation or refinement), 5/day. BYOK unlimited. Conversational chat thread: initial generation → Review Card with [Test Preview] [Inspect in Builder] → refinement loop ("make question 3 harder"). No dropdown, no mention of "default key".
+17. **AI prompts are sanitized server-side.** Known injection/jailbreak patterns are blocked before reaching the AI provider. Output is validated for safety before returning to the client.
 
 ---
 
@@ -56,14 +58,14 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 | **Pulse (Social)** | `app/feed/`, `app/pulse/` | Active | Social feed, posts, reactions |
 | **Conversations** | `app/(protected)/` area | Active | DMs, group chats |
 | **Crypto Trading** | `components/crypto-related/` | Active | OSRS inventory, trade windows, P2P |
-| **Polls** | `app/poll-test/`, `components/uicustom/polls/` | Active | 3 poll types (SURVEY, FEEDBACK, QUIZ), 11 question types, PollBuilder with 5 example templates, verification-weighted voting, anti-gaming, two-tier quiz feedback |
+| **Polls** | `app/poll-test/`, `components/uicustom/polls/` | Active | 3 poll types (SURVEY, FEEDBACK, QUIZ), 11 question types, PollBuilder with 7 example templates (5 external + 2 inline), verification-weighted voting, anti-gaming, two-tier quiz feedback, **fuzzy text-answer matching** (Levenshtein), **conversational AI chat** (SSE via `/api/polls/generate-stream`, refinement loop, Review Card), **interactive preview mode** (PollTakerModal with `previewData` prop — simulates full quiz-taking experience from welcome → questions → completion → results, no API calls), **per-question trust badges**, **Groq free tier default** (Llama 3.3 70B) + owner-only OpenAI, Grok/Claude/OpenRouter BYOK, **prompt injection guardrails** |
 | **Analytics** | `app/analytics/`, `actions/analytics-*.ts` | Active | Company/product/user analytics |
 | **UI Components** | `components/ui/` | Stable | shadcn/ui primitives |
 | **Custom Components** | `components/uicustom/` | Active | Composite components |
 | **Header/Nav** | `components/header/` | Stable | Navigation, search, notifications |
 | **Providers** | `components/providers/` | Stable | React context providers (theme, session, wagmi) |
 | **Hooks** | `hooks/` | Stable | Custom React hooks |
-| **Lib** | `lib/` | Stable | Utilities, constants, view-strength calc |
+| **Lib** | `lib/` | Stable | Utilities, constants, view-strength calc, **fuzzy-text-match.ts** (Levenshtein distance, token-set, vowel-swap variant matching for quiz TEXT answers) |
 | **Email (Resend)** | `lib/mail.ts` | Stable | Transactional emails: 2FA, password reset, verification, wallet link/unlink. Uses Resend SDK with verified `veggat.com` domain. Env: `RESEND_API_KEY` |
 | **Web3 Providers** | `components/crypto-related/Web3Providers.tsx` | Stable | Root Web3 provider tree (wagmi, AppKit, Solana). Includes `WalletDisconnectWatcher` for unified session sync |
 | **Clean Logout** | `hooks/use-clean-logout.ts` | Stable | Unified sign-out: disconnects EVM + Solana wallets, clears stale localStorage flags, then NextAuth `signOut()` |
@@ -218,6 +220,36 @@ These tags can be extracted by the aggregation script at `scripts/aggregate-cont
 | Follow route lacked rate limiting | Added `checkRateLimit('social')` to POST and DELETE handlers |
 | Messages route lacked rate limiting | Added `checkRateLimit('message')` to POST handler |
 
+### 2026-02-14 — AI Generation UX Redesign + Security Hardening + Interactive Preview
+
+**Fixed:**
+| Issue | Fix |
+|-------|-----|
+| "VeggaStare default key" dropdown option was confusing and exposed platform internals | Removed all dropdowns. Server auto-resolves: saved key > platform key. No mention of "default key" anywhere. |
+| AI panel had 3 cluttered dropdowns (mode, provider, key) | Clean UX: just prompt + generate button. Sleek `1/5` pill counter after first use. "Use my key" opt-in expansion only when clicked. |
+| Select dropdowns hidden behind Dialog (z-index bug) | Bumped Select and Popover base z-index from `z-50` → `z-[100]` (Dialog uses `z-[80]`). Fixes all Select-in-Dialog globally. |
+| Users with saved API keys still used platform quota | Auto mode tries saved key first — if found, uses it (unlimited, no platform quota consumed). |
+| No Grok (xAI) provider support | Added Grok provider in BYOK options + server `callProvider()` (xAI API endpoint) |
+| System prompt could be overridden by user input | Added `sanitizeUserPrompt()` — blocks injection patterns (ignore instructions, system override, DAN, etc.) before AI call |
+| AI output could contain unsafe content | Added output validation — blocks responses with API keys, exploit tutorials, etc. |
+| AI panel was single-shot: generate → done | Rewrote as conversational chat thread: initial generation → Review Card with [Test Preview] [Inspect in Builder] → refinement loop ("make Q3 harder"). Messages rendered as chat bubbles. |
+| Preview was a static card, not interactive | Added interactive preview: PollTakerModal accepts `previewData` prop, converts `PollBuilderData` → `PollData` via `builderDataToPollData()`, simulates full 5-screen quiz experience (welcome → sections → questions → completion → results) with no API calls. "Back to Builder" button on results screen. |
+| Inline templates (Quick Feedback, Product Preference) were too minimal and had missing sliderConfig | Upgraded: Quick Feedback 2Q→6Q (SCALE+sliderConfig, SINGLE_CHOICE, MULTI_CHOICE, SLIDER, RANKING, TEXT, type→FEEDBACK), Product Preference 3Q→8Q (emojis, descriptions, all numeric Qs have sliderConfig, RANKING added) |
+| `visibleToUserIds` column missing from DB (schema drift) | Ran `npx prisma db push` to sync schema — fixes conversation creation, feed posts, and conversations API |
+| Template count in addendum was 5 | Now 7 templates: 5 external (verify-poll-demo, feature-explorer, reach-poll, canna-coco, tony-vegan-eggs) + 2 inline (Quick Feedback, Product Preference) |
+
+### 2026-02-13 — Poll System UX + Reliability Hardening
+
+**Fixed:**
+| Issue | Fix |
+|-------|-----|
+| TEXT quiz answers required exact match — typos like "algea" for "algae oil" marked wrong | Added fuzzy text matching with 6-layer pipeline: normalized exact → token-set → partial-token → whole-string Levenshtein → per-token fuzzy → vowel-swap variants (`lib/fuzzy-text-match.ts`) |
+| Shape-match drag-and-drop had tiny hit zones, unintended swaps, no hover feedback | Padded hit rects (+24 px), increased snap distance (84→140 px), proper swap logic (displaced shape returns to source slot), real-time drag hover tracking with visual scale/shadow feedback |
+| AI quiz generation showed no progress — blank wait up to 30 s | New SSE streaming endpoint (`/api/polls/generate-stream`) sends 6 progress steps; PollBuilder shows animated step list with spinner/checkmark |
+| No trust-level visibility for AI-generated quiz questions | `parseTrustInfo()` extracts trust data from poll description; per-question badge rendered with colour-coded tooltip (High/Medium/Low) |
+| No rate limit on AI generation for platform-key users | Daily quota guard (5 generations/user/day) in streaming endpoint; resets at UTC midnight |
+| Pulse feed filter (polls / pulses) showed wrong items due to single-fetch pagination | Multi-fetch loop collects up to 3 server pages until ≥ 10 visible filtered items found |
+
 **Known remaining issues (lower priority):**
 | Issue | Severity | Status |
 |-------|----------|--------|
@@ -243,10 +275,14 @@ README.md                          ← Entry point: overview + quick start
 └── docs/
     ├── NORWAY_LEGAL_COMPLIANCE.md         ← Master legal/regulatory compliance (GDPR, DSA, DPI, MiCA)
     ├── REACH_7_PILLARS_SPECIFICATION.md   ← True Reach™ metric formulas
-    ├── POLL_SYSTEM_UPGRADE_MASTER_QUERY.md ← Poll system design spec
+    ├── POLL_SYSTEM_UPGRADE_MASTER_QUERY.md ← Poll system design spec (HISTORICAL)
+    ├── POLL_SYSTEM_AGENT_PROMPT.md         ← Agent build instructions (HISTORICAL)
     ├── SOCIAL_FEATURES_PLAN.md            ← Social features roadmap
     ├── VIPPS_REQUIREMENTS.md              ← Vipps payment integration checklist
     └── integration-core.md                ← Backend architecture rationale
+frontend/docs/
+    ├── ADDRESS_SHIPPING_UPGRADE_PLAN.md   ← Address + shipping upgrade plan
+    └── BRING_INTEGRATION.md               ← Bring API integration guide
 ```
 
 ---

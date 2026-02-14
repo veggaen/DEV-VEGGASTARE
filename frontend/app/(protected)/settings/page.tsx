@@ -66,12 +66,12 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
-  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'wallet' | 'notifications' | 'privacy' | 'appearance' | 'currency' | 'verification'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'wallet' | 'notifications' | 'privacy' | 'appearance' | 'currency' | 'verification' | 'ai'>('profile');
   
   // Read section from URL params (e.g. /settings?section=notifications)
   useEffect(() => {
     const sectionParam = searchParams.get('section');
-    if (sectionParam && ['profile', 'account', 'security', 'wallet', 'notifications', 'privacy', 'appearance', 'currency', 'verification'].includes(sectionParam)) {
+    if (sectionParam && ['profile', 'account', 'security', 'wallet', 'notifications', 'privacy', 'appearance', 'currency', 'verification', 'ai'].includes(sectionParam)) {
       setActiveSection(sectionParam as typeof activeSection);
     }
   }, [searchParams]);
@@ -356,6 +356,7 @@ export default function SettingsPage() {
     { id: 'security', label: 'Security', icon: FiShield, description: 'Password and authentication' },
     { id: 'wallet', label: 'Web3 & Wallet', icon: FiKey, description: 'Connect wallets & crypto' },
     { id: 'verification', label: 'Verification', icon: FiTrendingUp, description: 'Trust level & Reach multiplier' },
+    { id: 'ai', label: 'AI Keys', icon: FiKey, description: 'Bring your own AI key' },
     { id: 'notifications', label: 'Notifications', icon: FiBell, description: 'Email and push notifications' },
     { id: 'privacy', label: 'Privacy', icon: FiLock, description: 'Control your data and visibility' },
   ] as const;
@@ -1044,6 +1045,10 @@ export default function SettingsPage() {
                 <VerificationDashboard />
               )}
 
+              {activeSection === 'ai' && (
+                <AiKeysSettings />
+              )}
+
               {activeSection === 'privacy' && (
                 <PrivacySettings />
               )}
@@ -1062,6 +1067,227 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+function AiKeysSettings() {
+  const [provider, setProvider] = useState<'OPENAI' | 'OPENROUTER' | 'ANTHROPIC'>('OPENAI');
+  const [apiKey, setApiKey] = useState('');
+  const [setAsDefault, setSetAsDefault] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [keys, setKeys] = useState<Array<{
+    provider: 'OPENAI' | 'OPENROUTER' | 'ANTHROPIC';
+    isDefault: boolean;
+    maskedKey: string;
+    keyFingerprint: string;
+    updatedAt: string;
+  }>>([]);
+
+  const providerLabels = {
+    OPENAI: 'OpenAI',
+    OPENROUTER: 'OpenRouter',
+    ANTHROPIC: 'Claude (Anthropic)',
+  } as const;
+
+  const loadKeys = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/users/ai-keys', { cache: 'no-store' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to load saved keys');
+      }
+
+      const nextKeys = Array.isArray(data?.keys) ? data.keys : [];
+      setKeys(nextKeys);
+
+      const defaultKey = nextKeys.find((k: any) => k.isDefault) || nextKeys[0];
+      if (defaultKey?.provider) {
+        setProvider(defaultKey.provider);
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to load AI keys');
+      setKeys([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadKeys();
+  }, [loadKeys]);
+
+  const handleSave = async () => {
+    if (!apiKey.trim()) {
+      toast.error('Please paste an API key first');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/users/ai-keys', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, apiKey: apiKey.trim(), setDefault: setAsDefault }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to save API key');
+      }
+
+      toast.success('AI key saved securely');
+      setApiKey('');
+      await loadKeys();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to save API key');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (keyProvider: 'OPENAI' | 'OPENROUTER' | 'ANTHROPIC') => {
+    try {
+      const res = await fetch('/api/users/ai-keys', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: keyProvider }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to delete API key');
+      }
+
+      toast.success(`${providerLabels[keyProvider]} key deleted`);
+      await loadKeys();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to delete API key');
+    }
+  };
+
+  const handleSetDefault = async (keyProvider: 'OPENAI' | 'OPENROUTER' | 'ANTHROPIC') => {
+    try {
+      const res = await fetch('/api/users/ai-keys', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: keyProvider }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to set default provider');
+      }
+
+      toast.success(`${providerLabels[keyProvider]} is now your default provider`);
+      await loadKeys();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to set default provider');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="border-b border-border dark:border-white/10 pb-4">
+        <h2 className="text-xl font-semibold text-foreground dark:text-white">AI Keys</h2>
+        <p className="text-sm text-muted-foreground dark:text-white/50">Bring your own API key. Keys are encrypted, scoped to your account, and can be removed anytime.</p>
+      </div>
+
+      <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <FormLabel className="text-foreground/80 dark:text-white/80">Provider</FormLabel>
+            <Select value={provider} onValueChange={(v) => setProvider(v as 'OPENAI' | 'OPENROUTER' | 'ANTHROPIC')}>
+              <SelectTrigger className="bg-white/70 border-border dark:bg-white/5 dark:border-white/10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="dark:bg-zinc-950 dark:border-zinc-800">
+                <SelectItem value="OPENAI">OpenAI</SelectItem>
+                <SelectItem value="OPENROUTER">OpenRouter</SelectItem>
+                <SelectItem value="ANTHROPIC">Claude (Anthropic)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <FormLabel className="text-foreground/80 dark:text-white/80">API Key</FormLabel>
+            <Input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Paste your API key"
+              className="bg-white/70 border-border text-foreground dark:bg-white/5 dark:border-white/10 dark:text-white"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between rounded-xl bg-zinc-100/70 border border-zinc-200 p-3 dark:bg-white/5 dark:border-white/10">
+          <div>
+            <div className="font-medium text-foreground dark:text-white/90">Set as default provider</div>
+            <div className="text-sm text-muted-foreground dark:text-white/40">This key/provider will be used when you choose saved-key generation.</div>
+          </div>
+          <Switch checked={setAsDefault} onCheckedChange={setSetAsDefault} />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button onClick={handleSave} disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-500 text-white">
+            {isSaving ? 'Saving...' : 'Save API Key'}
+          </Button>
+          <p className="text-xs text-muted-foreground dark:text-white/40">
+            Your full key is never shown again after save.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Saved Keys</h3>
+
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground dark:text-white/50">Loading...</div>
+        ) : keys.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-zinc-300 p-4 text-sm text-muted-foreground dark:border-white/15 dark:text-white/50">
+            No saved AI keys yet.
+          </div>
+        ) : (
+          keys.map((entry) => (
+            <div key={entry.provider} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+              <div>
+                <div className="font-medium text-foreground dark:text-white/90 flex items-center gap-2">
+                  {providerLabels[entry.provider]}
+                  {entry.isDefault && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">DEFAULT</span>
+                  )}
+                </div>
+                <div className="text-sm text-muted-foreground dark:text-white/40">
+                  {entry.maskedKey} · Updated {new Date(entry.updatedAt).toLocaleString()}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {!entry.isDefault && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSetDefault(entry.provider)}
+                    className="border-border text-foreground/80 hover:bg-zinc-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
+                  >
+                    Set default
+                  </Button>
+                )}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDelete(entry.provider)}
+                  className="bg-red-600 hover:bg-red-500"
+                >
+                  Delete key
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Privacy Settings Component
 function PrivacySettings() {
   const [settings, setSettings] = useState({

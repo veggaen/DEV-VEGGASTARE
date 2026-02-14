@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { io } from 'socket.io-client';
 
 const LOG_PREFIX = '[frontend/hooks/useWebSocket.ts]';
+const IS_DEV = process.env.NODE_ENV !== 'production';
 
 export const useWebSocket = <T = unknown>(onMessage: (data: T) => void): void => {
   useEffect(() => {
@@ -9,21 +10,21 @@ export const useWebSocket = <T = unknown>(onMessage: (data: T) => void): void =>
       ? 'https://dev-veggastare.vercel.app'
       : 'http://localhost:3002';
     
-    console.log(LOG_PREFIX, 'Connecting to WebSocket server:', wsUrl);
+    if (IS_DEV) console.log(LOG_PREFIX, 'Connecting to WebSocket server:', wsUrl);
     const socket = io(wsUrl, {
       transports: ['websocket'],
     });
 
     socket.on('connect', () => {
-      console.log(LOG_PREFIX, '[WebSocket] Connection opened', socket.id);
+      if (IS_DEV) console.log(LOG_PREFIX, '[WebSocket] Connection opened', socket.id);
     });
 
     socket.on('disconnect', (reason) => {
-      console.log(LOG_PREFIX, '[WebSocket] Connection closed:', reason, socket.id);
+      if (IS_DEV) console.log(LOG_PREFIX, '[WebSocket] Connection closed:', reason, socket.id);
     });
 
     socket.on('WAREHOUSES_UPDATE', (data) => {
-      console.log(LOG_PREFIX, '[WebSocket] Message received:', data);
+      if (IS_DEV) console.log(LOG_PREFIX, '[WebSocket] Message received:', data);
       onMessage(data);
     });
 
@@ -36,7 +37,7 @@ export const useWebSocket = <T = unknown>(onMessage: (data: T) => void): void =>
     });
 
     return () => {
-      console.log(LOG_PREFIX, 'Closing WebSocket connection', socket.id);
+      if (IS_DEV) console.log(LOG_PREFIX, 'Closing WebSocket connection', socket.id);
       socket.disconnect();
     };
   }, [onMessage]);

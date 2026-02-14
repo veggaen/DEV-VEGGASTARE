@@ -145,13 +145,13 @@ function TargetZone({
         "relative w-24 h-24 rounded-2xl border-2 border-dashed transition-all duration-200",
         "flex items-center justify-center",
         colorClass,
-        isActive && "ring-4 scale-105 border-solid",
+        isActive && "ring-4 scale-110 border-solid brightness-125 shadow-lg shadow-current/20",
         isCorrect && "bg-emerald-500/30 border-emerald-500 ring-emerald-500/50",
         isIncorrect && "bg-red-500/30 border-red-500 ring-red-500/50 animate-shake",
         hasShape && "border-solid"
       )}
-      animate={isIncorrect ? { x: [0, -10, 10, -10, 10, 0] } : {}}
-      transition={{ duration: 0.4 }}
+      animate={isIncorrect ? { x: [0, -10, 10, -10, 10, 0] } : isActive ? { scale: 1.1 } : { scale: 1 }}
+      transition={{ duration: isActive ? 0.15 : 0.4 }}
     >
       {/* Shape outline hint */}
       {showShapeOutline && !hasShape && (
@@ -186,12 +186,16 @@ function DraggableShapeItem({
   shape,
   position,
   onDragEnd,
+  onDrag,
+  onDragStart,
   disabled,
   isPlaced,
 }: {
   shape: DraggableShape;
   position: { x: number; y: number } | null;
   onDragEnd: (info: { point: { x: number; y: number } }) => void;
+  onDrag?: (info: { point: { x: number; y: number } }) => void;
+  onDragStart?: () => void;
   disabled: boolean;
   isPlaced: boolean;
 }) {
@@ -204,12 +208,14 @@ function DraggableShapeItem({
       drag={!disabled}
       dragMomentum={false}
       dragElastic={0.1}
+      onDragStart={onDragStart}
+      onDrag={(_, info) => onDrag?.(info)}
       onDragEnd={(_, info) => onDragEnd(info)}
-      whileDrag={{ scale: 1.1, zIndex: 100 }}
+      whileDrag={{ scale: 1.15, zIndex: 100, boxShadow: "0 8px 30px rgba(0,0,0,0.4)" }}
       whileHover={{ scale: 1.05 }}
       className={cn(
         "w-16 h-16 cursor-grab active:cursor-grabbing rounded-xl border-2 shadow-lg",
-        "flex items-center justify-center p-2",
+        "flex items-center justify-center p-2 touch-none",
         colorClass,
         disabled && "opacity-50 cursor-not-allowed"
       )}
@@ -240,9 +246,13 @@ export function ShapeMatchQuestion({
   const [isComplete, setIsComplete] = useState(false);
   const [isReadyToConfirm, setIsReadyToConfirm] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(config.timeLimit ?? null);
+  const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const targetRefs = useRef<Map<string, DOMRect>>(new Map());
-  const SNAP_DISTANCE_PX = 84;
+  // Generous snap distance — allows dropping near a zone (not just precisely on it)
+  const SNAP_DISTANCE_PX = 140;
+  // Extra padding around each target rect for hit detection (px on each side)
+  const HIT_PADDING_PX = 36;
 
   // Timer
   useEffect(() => {
@@ -301,40 +311,108 @@ export function ShapeMatchQuestion({
     }
   }, [config]);
 
+  // Track which target the user is hovering over during drag (for visual feedback)
+  const handleDrag = useCallback((info: { point: { x: number; y: number } }) => {
+    if (disabled || isComplete) return;
+    updateTargetPositions(); // Refresh positions in case of scroll
+    let hoveredTarget: string | null = null;
+    let nearestDist = Number.POSITIVE_INFINITY;
+    let nearestId: string | null = null;
+
+    targetRefs.current.forEach((rect, targetId) => {
+      // Use padded rect for hover detection (more forgiving)
+      if (
+        info.point.x >= rect.left - HIT_PADDING_PX &&
+        info.point.x <= rect.right + HIT_PADDING_PX &&
+        info.point.y >= rect.top - HIT_PADDING_PX &&
+        info.point.y <= rect.bottom + HIT_PADDING_PX
+      ) {
+        hoveredTarget = targetId;
+      }
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const d = Math.hypot(info.point.x - cx, info.point.y - cy);
+      if (d < nearestDist) { nearestDist = d; nearestId = targetId; }
+    });
+
+    if (!hoveredTarget && nearestId && nearestDist <= SNAP_DISTANCE_PX) {
+      hoveredTarget = nearestId;
+    }
+    setActiveTarget(hoveredTarget);
+  }, [disabled, isComplete, updateTargetPositions]);
+
   // Handle drag end
   const handleDragEnd = useCallback((shapeId: string, info: { point: { x: number; y: number } }) => {
+    setIsDragging(false);
     if (disabled || isComplete) return;
     
-    // Find which target the shape was dropped on (inside rect) or nearest target within snap distance
+    // Refresh target positions right before detection
+    updateTargetPositions();
+
+    // Find which target the shape was dropped on (padded rect) or nearest target within snap distance
     let droppedTarget: string | null = null;
-    let nearestTargetId: string | null = null;
-    let nearestDistance = Number.POSITIVE_INFINITY;
+    let paddedMatchDist = Number.POSITIVE_INFINITY;   // best distance among padded-rect hits
+    let snapTargetId: string | null = null;
+    let snapDist = Number.POSITIVE_INFINITY;           // best distance for snap fallback
     
     targetRefs.current.forEach((rect, targetId) => {
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const d = Math.hypot(info.point.x - cx, info.point.y - cy);
+
+      // Use padded rect for drop detection — accepts drops anywhere inside + padding
       if (
-        info.point.x >= rect.left &&
-        info.point.x <= rect.right &&
-        info.point.y >= rect.top &&
-        info.point.y <= rect.bottom
+        info.point.x >= rect.left - HIT_PADDING_PX &&
+        info.point.x <= rect.right + HIT_PADDING_PX &&
+        info.point.y >= rect.top - HIT_PADDING_PX &&
+        info.point.y <= rect.bottom + HIT_PADDING_PX
       ) {
-        droppedTarget = targetId;
+        // If multiple targets overlap after padding, prefer the closest center
+        if (!droppedTarget || d < paddedMatchDist) {
+          droppedTarget = targetId;
+          paddedMatchDist = d;
+        }
       }
 
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      const distance = Math.hypot(info.point.x - centerX, info.point.y - centerY);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestTargetId = targetId;
+      // Track overall nearest target for snap-distance fallback (separate from padded-rect)
+      if (d < snapDist) {
+        snapDist = d;
+        snapTargetId = targetId;
       }
     });
 
-    if (!droppedTarget && nearestTargetId && nearestDistance <= SNAP_DISTANCE_PX) {
-      droppedTarget = nearestTargetId;
+    if (!droppedTarget && snapTargetId && snapDist <= SNAP_DISTANCE_PX) {
+      droppedTarget = snapTargetId;
     }
     
     if (droppedTarget) {
-      const nextPlacements = { ...placements, [shapeId]: droppedTarget };
+      // If another shape already occupies this target, swap them instead of overwriting
+      const existingShapeInTarget = Object.entries(placements).find(
+        ([sid, tid]) => tid === droppedTarget && sid !== shapeId
+      );
+
+      const nextPlacements = { ...placements };
+
+      if (existingShapeInTarget) {
+        // Swap: move the existing shape back to the source shape's old target (or remove it)
+        const [existingShapeId] = existingShapeInTarget;
+        const sourceTarget = placements[shapeId]; // Where was the incoming shape before?
+        if (sourceTarget) {
+          // Swap targets
+          nextPlacements[existingShapeId] = sourceTarget;
+        } else {
+          // Incoming shape was unplaced — just remove the existing shape from the target
+          delete nextPlacements[existingShapeId];
+        }
+        // Clear feedback for the displaced shape
+        setFeedback(prev => {
+          const next = { ...prev };
+          delete next[existingShapeId];
+          return next;
+        });
+      }
+
+      nextPlacements[shapeId] = droppedTarget;
       setPlacements(nextPlacements);
       onChange(nextPlacements);
 
@@ -349,7 +427,7 @@ export function ShapeMatchQuestion({
     }
     
     setActiveTarget(null);
-  }, [disabled, isComplete, placements, checkPlacement, config.shapes, onChange]);
+  }, [disabled, isComplete, placements, checkPlacement, config.shapes, onChange, updateTargetPositions]);
 
   const handleConfirm = useCallback(() => {
     if (disabled || isComplete) return;
@@ -501,6 +579,8 @@ export function ShapeMatchQuestion({
               key={shape.id}
               shape={shape}
               position={null}
+              onDragStart={() => { setIsDragging(true); updateTargetPositions(); }}
+              onDrag={(info) => handleDrag(info)}
               onDragEnd={(info) => handleDragEnd(shape.id, info)}
               disabled={disabled || isComplete}
               isPlaced={placedShapeIds.includes(shape.id)}

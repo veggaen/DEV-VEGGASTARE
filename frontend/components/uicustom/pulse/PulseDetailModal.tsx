@@ -105,6 +105,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
   const scrollRef = useRef<HTMLDivElement>(null);
   
   const [pulse, setPulse] = useState<PulseData | null>(null);
+  const [resolvedAdvancedPoll, setResolvedAdvancedPoll] = useState<AdvancedPollPreview | null>(null);
   const [rootMessageContent, setRootMessageContent] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -300,6 +301,13 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
     };
   }, [pulse, rootMessageContent]);
 
+  const effectiveAdvancedPoll = useMemo<AdvancedPollPreview | null>(() => {
+    if (advancedPoll) return advancedPoll;
+    if (resolvedAdvancedPoll) return resolvedAdvancedPoll;
+    const fromPulse = (pulse?.advancedPoll || (pulse as any)?.AdvancedPoll) as AdvancedPollPreview | null | undefined;
+    return fromPulse || null;
+  }, [advancedPoll, resolvedAdvancedPoll, pulse]);
+
   // Fetch pulse details and messages
   const fetchPulseData = useCallback(async () => {
     if (!pulseId) return;
@@ -369,6 +377,37 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
       fetchPulseData();
     }
   }, [pulseId, fetchPulseData]);
+
+  useEffect(() => {
+    if (!pulseId) return;
+    if (advancedPoll) {
+      setResolvedAdvancedPoll(advancedPoll);
+      return;
+    }
+
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/advanced-polls?page=1&pageSize=1&conversationId=${encodeURIComponent(pulseId)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const first = Array.isArray(data?.polls) ? data.polls[0] : null;
+        if (!alive || !first) return;
+        setResolvedAdvancedPoll({
+          id: first.id,
+          title: first.title,
+          description: first.description,
+          type: first.type,
+          totalResponses: typeof first.totalResponses === 'number' ? first.totalResponses : 0,
+        });
+      } catch {
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [pulseId, advancedPoll]);
 
   // Real-time updates via shared Pusher singleton
   const channelName = pulseId ? `ConversationChannel_${pulseId}` : '';
@@ -611,16 +650,16 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
             </div>
 
             {/* Advanced Poll Banner - Show when pulse has an advanced poll */}
-            {advancedPoll && (
+            {effectiveAdvancedPoll && (
               <div className="border-b border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-emerald-500/10">
                 <button
                   onClick={() => {
                     if (onOpenPoll) {
-                      onOpenPoll(advancedPoll.id);
+                      onOpenPoll(effectiveAdvancedPoll.id);
                     } else {
                       // Fallback: update URL and close modal
                       const url = new URL(window.location.href);
-                      url.searchParams.set('poll', advancedPoll.id);
+                      url.searchParams.set('poll', effectiveAdvancedPoll.id);
                       window.history.pushState({}, '', url.toString());
                       window.dispatchEvent(new PopStateEvent('popstate'));
                       onClose();
@@ -635,17 +674,17 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                     <div className="text-left">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-emerald-700 dark:text-emerald-300 text-sm">
-                          {advancedPoll.type === 'REACH_ASSESSMENT' ? '🎯 ' : '📊 '}
-                          {advancedPoll.title}
+                          {effectiveAdvancedPoll.type === 'REACH_ASSESSMENT' ? '🎯 ' : '📊 '}
+                          {effectiveAdvancedPoll.title}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                         <span className="flex items-center gap-1">
                           <FiUsersIcon className="h-3 w-3" />
-                          {advancedPoll.totalResponses} responses
+                          {effectiveAdvancedPoll.totalResponses} responses
                         </span>
-                        {advancedPoll.description && (
-                          <span className="line-clamp-1">{advancedPoll.description}</span>
+                        {effectiveAdvancedPoll.description && (
+                          <span className="line-clamp-1">{effectiveAdvancedPoll.description}</span>
                         )}
                       </div>
                     </div>

@@ -374,12 +374,17 @@ Strain: **Green Crack Punch** (RQS, Green Crack × Purple Punch, 55-60 days flow
     // ═══════════════════════════════════════════════════════════════════════
     {
       order: 20,
-      type: "TEXT",
-      questionText: "Why does kelp in AN CalMag Xtra help vs plain mineral CalMag? (one main reason)",
-      description: "Short answer — think about what kelp provides that calcium nitrate alone doesn't.",
+      type: "SINGLE_CHOICE",
+      questionText: "Why does kelp in AN CalMag Xtra help vs plain mineral CalMag?",
+      description: "Think about what kelp provides that calcium nitrate alone doesn't.",
       required: true,
       allowImages: false,
-      options: [],
+      options: [
+        { text: "Natural plant hormones (auxins/cytokinins) + chelated trace minerals + root stimulation" },
+        { text: "It contains more calcium per ml than Canna CalMag Agent" },
+        { text: "Kelp lowers pH automatically so you don't need pH-down" },
+        { text: "It replaces the need for any base nutrients entirely" },
+      ],
     },
     {
       order: 21,
@@ -684,9 +689,9 @@ export function generateCannaCocoQuizTemplate(): PollBuilderData {
     // SECTION 6: ADVANCED / TROUBLESHOOTING (Q19–Q21)
     // ═══════════════════════════════════════════════════════════════════════
 
-    // Q19: Kelp benefit → natural hormones + trace minerals + root boost
-    if (i === 19 && q.type === "TEXT") {
-      question.correctAnswer = "natural hormones trace minerals root boost";
+    // Q19: Kelp benefit → natural hormones + trace minerals + root boost (first option)
+    if (i === 19 && q.type === "SINGLE_CHOICE" && opts[0]) {
+      question.correctAnswer = opts[0].id;
       question.explanation = "✅ Kelp = natural auxins/cytokinins + chelated trace minerals + root stimulation. This is what separates AN Xtra from basic mineral CalMag products.";
       question.wrongExplanation = "The main benefit of kelp isn't 'more calcium' — it's the ORGANIC compounds: natural plant hormones (auxins, cytokinins), amino acids, vitamins, and naturally chelated trace minerals that boost root health and nutrient uptake.";
       question.deepExplanation = "**What kelp (Ascophyllum nodosum) provides:**\n\n🌿 **Plant growth regulators:**\n• Auxins → root elongation, cell differentiation\n• Cytokinins → cell division, shoot branching\n• Betaines → osmotic stress resistance\n\n🔬 **Trace minerals (naturally chelated):**\n• Iron (Fe) — chlorophyll production\n• Manganese (Mn) — enzyme activation\n• Zinc (Zn) — auxin synthesis, node spacing\n• Boron (B) — cell wall integrity, Ca transport\n\n🦠 **Microbial support:**\n• Oligosaccharides = food for beneficial microbes\n• Root exudate stimulation → healthier rhizosphere\n\nResult: more efficient nutrient uptake from LESS input → less salt stress → better terpene expression that pure mineral CalMag can't match.";

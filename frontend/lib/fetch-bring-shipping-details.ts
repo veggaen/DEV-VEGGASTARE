@@ -2,7 +2,6 @@ import { getIntegrationCoreBaseUrl } from "@/lib/integration-core";
 
 
 export async function fetchBringShippingDetails(requestData: any): Promise<any> {
-    console.log('[frontend/lib/fetch-bring-shipping-details.ts] requestData', requestData)
 
     const rawPackages = Array.isArray(requestData?.packages) && requestData.packages.length > 0
       ? requestData.packages
@@ -105,7 +104,6 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
         }
 
         const result = await response.json().catch(() => null);
-        console.log('[frontend/lib/fetch-bring-shipping-details.ts] result', result)
         
         if (!response.ok) {
             const message = result?.error || response.statusText || `HTTP error! status: ${response.status}`;

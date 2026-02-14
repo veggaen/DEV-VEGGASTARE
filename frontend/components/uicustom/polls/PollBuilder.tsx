@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, Reorder, useDragControls } from "framer-motion";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Plus,
   Trash2,
@@ -34,10 +35,23 @@ import {
   Smile,
   Layers,
   ArrowUpDown,
+  ArrowUp,
+  ChevronLeft,
   Undo2,
   Redo2,
   RotateCcw,
   FlaskConical,
+  AlertTriangle,
+  Lock,
+  LogIn,
+  Gift,
+  Key,
+  Send,
+  Wrench,
+  ExternalLink,
+  HelpCircle,
+  Zap,
+  Bot,
 } from "lucide-react";
 import {
   Popover,
@@ -82,6 +96,7 @@ import { generateFeatureExplorerTemplate } from "@/components/uicustom/polls/fea
 import { generateCannaCocoQuizTemplate } from "@/components/uicustom/polls/canna-coco-quiz-template";
 import { generateTonyVeganEggsMasteryTemplate } from "@/components/uicustom/polls/tony-vegan-eggs-mastery-template";
 import { ShapeMatchVisualBuilder, ShapeMatchBuilderConfig, builderConfigToRuntime } from "@/components/uicustom/polls/ShapeMatchVisualBuilder";
+import { PollTakerModal } from "@/components/uicustom/polls/PollTakerModal";
 
 // Max nesting depth for sections (3 levels: section ? subsection ? sub-subsection)
 const MAX_SECTION_DEPTH = 3;
@@ -178,6 +193,144 @@ interface PollBuilderProps {
   aiGenerateOpen?: boolean;
   onAiGenerateClose?: () => void;
 }
+
+type AiProvider = "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ";
+// No dropdown — server auto-resolves: saved key > platform key
+// User can opt-in to BYOK via "Use my key" expansion
+type AiKeySource = "auto" | "byok";
+
+// Chat message for conversational AI generation
+interface AiChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  isResult?: boolean;
+  quizSnapshot?: any;       // quiz data attached to result messages
+  meta?: AiGenerationMeta;  // generation metadata for result messages
+  timestamp: number;
+}
+
+interface SavedAiKeyMeta {
+  provider: AiProvider;
+  isDefault: boolean;
+  maskedKey: string;
+  updatedAt: string;
+}
+
+interface AiGenerationMeta {
+  aiGenerated?: boolean;
+  trustFactor?: "Low" | "Medium" | "High";
+  trustScore?: number;
+  researchDepth?: "Low" | "Medium" | "High";
+  researchSummary?: string;
+  trustNote?: string | null;
+  provider?: AiProvider;
+  mode?: AiKeySource;
+  usedSavedKey?: boolean;
+  savedKeyProvider?: string;
+}
+
+interface AiProgressStep {
+  step: number;
+  label: string;
+  status: "active" | "done" | "error";
+  startedAt?: number;   // timestamp when step became active
+  completedAt?: number; // timestamp when step completed
+}
+
+interface AiModelOption {
+  value: string;
+  label: string;
+  description?: string;
+  isDefault?: boolean;
+}
+
+interface AiProviderOptionDef {
+  value: AiProvider;
+  label: string;
+  emoji: string;
+  tagline: string;
+  getKeyUrl: string;
+  freeAvailable: boolean;
+  pricingNote: string;
+  models: AiModelOption[];
+}
+
+const AI_PROVIDER_OPTIONS: AiProviderOptionDef[] = [
+  {
+    value: "GROQ",
+    label: "Groq",
+    emoji: "⚡",
+    tagline: "Lightning-fast open-source models",
+    getKeyUrl: "https://console.groq.com/keys",
+    freeAvailable: true,
+    pricingNote: "Free tier available",
+    models: [
+      { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B", description: "Best quality · versatile", isDefault: true },
+      { value: "llama-3.1-8b-instant",    label: "Llama 3.1 8B",  description: "Fastest · lightweight" },
+      { value: "mixtral-8x7b-32768",      label: "Mixtral 8×7B",  description: "Good balance · 32K context" },
+    ],
+  },
+  {
+    value: "OPENROUTER",
+    label: "OpenRouter",
+    emoji: "🌐",
+    tagline: "100+ models with one key",
+    getKeyUrl: "https://openrouter.ai/keys",
+    freeAvailable: true,
+    pricingNote: "Free models available",
+    models: [
+      { value: "openai/gpt-4o",                        label: "GPT-4o",             description: "OpenAI flagship", isDefault: true },
+      { value: "openai/gpt-4o-mini",                   label: "GPT-4o Mini",        description: "Fast & cheap" },
+      { value: "anthropic/claude-sonnet-4-20250514",    label: "Claude Sonnet 4",    description: "Great reasoning" },
+      { value: "google/gemini-2.5-pro-preview",         label: "Gemini 2.5 Pro",     description: "Google flagship" },
+      { value: "meta-llama/llama-3.3-70b-instruct",    label: "Llama 3.3 70B",      description: "Open source · free" },
+    ],
+  },
+  {
+    value: "OPENAI",
+    label: "OpenAI",
+    emoji: "🧠",
+    tagline: "GPT-4o & o-series reasoning",
+    getKeyUrl: "https://platform.openai.com/api-keys",
+    freeAvailable: false,
+    pricingNote: "Pay-as-you-go (~$0.01/quiz)",
+    models: [
+      { value: "gpt-4o",      label: "GPT-4o",      description: "Flagship · best quality", isDefault: true },
+      { value: "gpt-4o-mini", label: "GPT-4o Mini", description: "Fast & affordable" },
+      { value: "gpt-4.1",     label: "GPT-4.1",     description: "Latest · coding focus" },
+      { value: "gpt-4.1-mini",label: "GPT-4.1 Mini",description: "Latest mini · cheap" },
+      { value: "o4-mini",     label: "o4-mini",      description: "Reasoning model" },
+    ],
+  },
+  {
+    value: "ANTHROPIC",
+    label: "Claude (Anthropic)",
+    emoji: "🎭",
+    tagline: "Deep reasoning & nuance",
+    getKeyUrl: "https://console.anthropic.com/settings/keys",
+    freeAvailable: false,
+    pricingNote: "Pay-as-you-go (~$0.01/quiz)",
+    models: [
+      { value: "claude-sonnet-4-20250514",  label: "Claude Sonnet 4",  description: "Best balance · recommended", isDefault: true },
+      { value: "claude-opus-4-20250514",    label: "Claude Opus 4",    description: "Most capable · premium" },
+      { value: "claude-3-5-haiku-latest",   label: "Claude 3.5 Haiku", description: "Fastest · cheapest" },
+    ],
+  },
+  {
+    value: "GROK",
+    label: "Grok (xAI)",
+    emoji: "🚀",
+    tagline: "Creative & bold from xAI",
+    getKeyUrl: "https://console.x.ai/",
+    freeAvailable: false,
+    pricingNote: "Pay-as-you-go",
+    models: [
+      { value: "grok-3",      label: "Grok 3",      description: "Flagship · most capable", isDefault: true },
+      { value: "grok-3-mini", label: "Grok 3 Mini", description: "Fast & efficient" },
+    ],
+  },
+];
 
 // Default values
 const DEFAULT_SLIDER_CONFIG: SliderConfig = {
@@ -2462,17 +2615,53 @@ export function PollBuilder({
   }, []);
   const [showSettings, setShowSettings] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showInteractivePreview, setShowInteractivePreview] = useState(false);
   const [justCopied, setJustCopied] = useState(false);
   
   // AI Generation state
+  const currentUser = useCurrentUser();
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiKeySource, setAiKeySource] = useState<AiKeySource>("auto");
+  const [aiProvider, setAiProvider] = useState<AiProvider>("OPENAI");
+  const [aiModel, setAiModel] = useState<string>(() => {
+    const defaultProvider = AI_PROVIDER_OPTIONS.find(p => p.value === "OPENAI");
+    return defaultProvider?.models.find(m => m.isDefault)?.value || defaultProvider?.models[0]?.value || "";
+  });
+  const [aiApiKey, setAiApiKey] = useState("");
+  const [aiRememberKey, setAiRememberKey] = useState(true);
+  const [aiSavedKeys, setAiSavedKeys] = useState<SavedAiKeyMeta[]>([]);
+  const [aiKeysLoading, setAiKeysLoading] = useState(false);
+  const [aiGenerationMeta, setAiGenerationMeta] = useState<AiGenerationMeta | null>(null);
+  const [aiProgressSteps, setAiProgressSteps] = useState<AiProgressStep[]>([]);
+  const [aiHeartbeatLog, setAiHeartbeatLog] = useState<string[]>([]); // accumulated heartbeat messages
+  const [aiElapsed, setAiElapsed] = useState(0); // seconds since generation started
+  const aiElapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const aiProgressLogRef = useRef<HTMLDivElement>(null);
+  const [aiFreeUsed, setAiFreeUsed] = useState<number | null>(null); // e.g. 1 of 5
+  const [aiFreeLimit, setAiFreeLimit] = useState<number>(5);
+  const [aiShowByok, setAiShowByok] = useState(false); // expands BYOK panel
+  const [aiUsingSavedKey, setAiUsingSavedKey] = useState(false); // server told us it used a saved key
+  // ── Conversational AI chat thread state ─────────────────────────────────
+  const [aiChatMessages, setAiChatMessages] = useState<AiChatMessage[]>([]);
+  const [aiRefinementInput, setAiRefinementInput] = useState("");
+  const [aiHasGenerated, setAiHasGenerated] = useState(false); // at least one generation completed
+  const aiChatScrollRef = useRef<HTMLDivElement>(null);
   
   // Drag-and-drop state for dragging questions and sections
   const [draggingQuestionId, setDraggingQuestionId] = useState<string | null>(null);
   const [draggingFromSectionId, setDraggingFromSectionId] = useState<string | null>(null); // Track source section
   const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
+
+  // Auto-set default model when provider changes
+  useEffect(() => {
+    const providerDef = AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider);
+    if (providerDef) {
+      const defaultModel = providerDef.models.find(m => m.isDefault)?.value || providerDef.models[0]?.value || "";
+      setAiModel(defaultModel);
+    }
+  }, [aiProvider]);
   const [mergeSectionTarget, setMergeSectionTarget] = useState<string | null>(null); // Target section for merging
   const [dragSource, setDragSource] = useState<'workbench' | 'builder' | null>(null);
   const [dropTargetSectionId, setDropTargetSectionId] = useState<string | null>(null);
@@ -4180,22 +4369,227 @@ export function PollBuilder({
 
   // Save poll
   // AI Poll Generation
-  const handleAiGenerate = useCallback(async () => {
-    if (!aiPrompt.trim()) return;
+  const loadSavedAiKeys = useCallback(async () => {
+    setAiKeysLoading(true);
+    try {
+      const res = await fetch("/api/users/ai-keys", { cache: "no-store" });
+      if (!res.ok) {
+        setAiSavedKeys([]);
+        return;
+      }
+
+      const data = await res.json();
+      const keys = Array.isArray(data?.keys) ? data.keys : [];
+      setAiSavedKeys(keys);
+
+      const defaultKey = keys.find((k: SavedAiKeyMeta) => k.isDefault) || keys[0];
+      if (defaultKey?.provider) {
+        setAiProvider(defaultKey.provider);
+      }
+    } catch {
+      setAiSavedKeys([]);
+    } finally {
+      setAiKeysLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (aiGenerateOpen) {
+      loadSavedAiKeys();
+    }
+  }, [aiGenerateOpen, loadSavedAiKeys]);
+
+  // Auto-scroll progress log when heartbeat messages arrive
+  useEffect(() => {
+    if (aiProgressLogRef.current) {
+      aiProgressLogRef.current.scrollTop = aiProgressLogRef.current.scrollHeight;
+    }
+  }, [aiHeartbeatLog, aiProgressSteps]);
+
+  const handleAiGenerate = useCallback(async (refinementPrompt?: string) => {
+    const prompt = refinementPrompt || aiPrompt.trim();
+    if (!prompt) return;
+    if (!currentUser) {
+      setAiError("Please sign in to generate polls with AI.");
+      return;
+    }
+
+    const isRefinement = !!refinementPrompt && aiHasGenerated;
+
+    // Push user message to chat thread
+    const userMsgId = `user-${Date.now()}`;
+    setAiChatMessages((prev) => [...prev, {
+      id: userMsgId,
+      role: "user",
+      content: prompt,
+      timestamp: Date.now(),
+    }]);
+
     setAiGenerating(true);
     setAiError(null);
+    setAiGenerationMeta(null);
+    setAiProgressSteps([]);
+    setAiHeartbeatLog([]);
+    setAiElapsed(0);
+    // Start elapsed timer
+    if (aiElapsedRef.current) clearInterval(aiElapsedRef.current);
+    aiElapsedRef.current = setInterval(() => setAiElapsed((s) => s + 1), 1000);
+
     try {
-      const res = await fetch("/api/polls/generate", {
+      // Build payload — server decides: saved key > platform key (auto mode)
+      // If user expanded BYOK and typed a key, send it as one_time
+      const isByok = aiKeySource === "byok" && aiApiKey.trim();
+      const payload: any = {
+        prompt,
+        ...(isRefinement ? {
+          context: {
+            isRefinement: true,
+            existingQuiz: {
+              title: data.title,
+              description: data.description,
+              type: data.type,
+              questions: data.questions,
+              sections: data.sections,
+              flow: data.flow,
+            },
+          },
+        } : {}),
+        aiAuth: {
+          mode: isByok ? "one_time" : "auto",
+          provider: isByok ? aiProvider : undefined,
+          ...(isByok ? { apiKey: aiApiKey, rememberKey: aiRememberKey, model: aiModel || undefined } : {}),
+        },
+      };
+
+      // 3 minute timeout — AI calls can take 60-90s; give plenty of headroom
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 180_000);
+
+      const res = await fetch("/api/polls/generate-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt.trim() }),
+        body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeout);
+
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         throw new Error(errBody.error || `Generation failed (${res.status})`);
       }
-      const generated = await res.json();
-      // Merge generated data into the builder
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("Streaming not supported");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let generated: any = null;
+
+      // Process a single SSE line ("data: {...}")
+      const processLine = (line: string) => {
+        if (!line.startsWith("data: ")) return;
+        const event = JSON.parse(line.slice(6));
+
+        if (event.step === "error") {
+          throw new Error(event.message || "Generation failed");
+        }
+
+        if (event.step === "result") {
+          generated = event.data;
+          return;
+        }
+
+        // Heartbeat sub-steps (step 2.1, 2.2, etc.) — accumulate in log
+        if (typeof event.step === "number" && !Number.isInteger(event.step)) {
+          setAiHeartbeatLog((prev) => [...prev, event.label]);
+          // Also update parent step label so the main row shows latest status
+          const parentStep = Math.floor(event.step);
+          setAiProgressSteps((prev) => {
+            const existing = prev.findIndex((s) => s.step === parentStep);
+            if (existing >= 0) {
+              const updated = [...prev];
+              updated[existing] = { ...updated[existing], label: event.label };
+              return updated;
+            }
+            return prev;
+          });
+          return;
+        }
+
+        if (typeof event.step === "number") {
+          const now = Date.now();
+          setAiProgressSteps((prev) => {
+            const existing = prev.findIndex((s) => s.step === event.step);
+            const updated = [...prev];
+            if (existing >= 0) {
+              updated[existing] = {
+                step: event.step, label: event.label, status: event.status,
+                startedAt: updated[existing].startedAt,
+                completedAt: event.status === "done" ? now : undefined,
+              };
+            } else {
+              updated.push({
+                step: event.step, label: event.label, status: event.status,
+                startedAt: event.status === "active" ? now : undefined,
+              });
+            }
+            return updated;
+          });
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          try {
+            processLine(line);
+          } catch (parseErr) {
+            if (parseErr instanceof SyntaxError) {
+              // Ignore JSON parse errors on partial chunks
+            } else {
+              throw parseErr;
+            }
+          }
+        }
+      }
+
+      // ─── CRITICAL: process any remaining data left in the buffer ───
+      // The final SSE event may not have a trailing \n\n, leaving it
+      // stranded in `buffer` when the stream closes.
+      if (buffer.trim()) {
+        try {
+          processLine(buffer.trim());
+        } catch (trailingErr) {
+          if (trailingErr instanceof SyntaxError) {
+            // JSON parse error on trailing partial data — ignore
+          } else {
+            throw trailingErr;
+          }
+        }
+      }
+
+      if (!generated) {
+        throw new Error("No result received from AI");
+      }
+
+      const meta = generated?._meta;
+      setAiGenerationMeta((meta || null) as AiGenerationMeta | null);
+
+      // Update usage counters from server response
+      if (typeof meta?.freeUsed === "number") setAiFreeUsed(meta.freeUsed);
+      if (typeof meta?.freeLimit === "number") setAiFreeLimit(meta.freeLimit);
+      if (meta?.usedSavedKey) {
+        setAiUsingSavedKey(true);
+      }
+
+      // Load generated data into the builder
       setData((prev) => ({
         ...prev,
         title: generated.title || prev.title,
@@ -4205,16 +4599,60 @@ export function PollBuilder({
         sections: generated.sections || prev.sections || [],
         flow: generated.flow || prev.flow,
       }));
-      toast.success(`Generated poll with ${generated.questions?.length || 0} questions!`);
+
+      setAiHasGenerated(true);
+
+      // Push assistant result message to chat thread
+      const qCount = generated.questions?.length || 0;
+      const trustLabel = meta?.trustFactor || "Medium";
+      const trustScore = typeof meta?.trustScore === "number" ? ` (${meta.trustScore}/100)` : "";
+      const providerLabel = meta?.provider || "AI";
+
+      setAiChatMessages((prev) => [...prev, {
+        id: `ai-${Date.now()}`,
+        role: "assistant",
+        content: isRefinement
+          ? `Done! I've updated your quiz based on your feedback. ${qCount} questions • Trust: ${trustLabel}${trustScore} • via ${providerLabel}`
+          : `I've built your quiz on "${generated.title || 'your topic'}"! ${qCount} questions with layered explanations.\n\nTrust: ${trustLabel}${trustScore} • via ${providerLabel}`,
+        isResult: true,
+        quizSnapshot: {
+          title: generated.title,
+          questionCount: qCount,
+          type: generated.type,
+          trustFactor: meta?.trustFactor,
+          trustScore: meta?.trustScore,
+        },
+        meta: (meta || null) as AiGenerationMeta | null as any,
+        timestamp: Date.now(),
+      }]);
+
+      // Scroll chat to bottom
+      setTimeout(() => {
+        aiChatScrollRef.current?.scrollTo({ top: aiChatScrollRef.current.scrollHeight, behavior: "smooth" });
+      }, 100);
+
+      const trustNote = meta?.trustNote ? `\n${meta.trustNote}` : "";
+      toast.success(`${isRefinement ? "Updated" : "Generated"} poll with ${qCount} questions • Trust: ${trustLabel}${trustNote}`);
       setAiPrompt("");
-      onAiGenerateClose?.();
+      setAiRefinementInput("");
+      if (isByok && !aiRememberKey) setAiApiKey("");
+      // Don't close the panel — keep chat thread visible for refinement
     } catch (err: any) {
       console.error("AI generate error:", err);
       setAiError(err.message || "Failed to generate poll");
+      // Push error to chat
+      setAiChatMessages((prev) => [...prev, {
+        id: `err-${Date.now()}`,
+        role: "assistant",
+        content: `Error: ${err.message || "Something went wrong. Please try again."}`,
+        timestamp: Date.now(),
+      }]);
     } finally {
       setAiGenerating(false);
+      // Stop elapsed timer
+      if (aiElapsedRef.current) { clearInterval(aiElapsedRef.current); aiElapsedRef.current = null; }
     }
-  }, [aiPrompt, onAiGenerateClose]);
+  }, [aiKeySource, aiApiKey, aiPrompt, aiProvider, aiRememberKey, currentUser, aiHasGenerated, data]);
 
   const handleSave = useCallback(async () => {
     if (!data.title.trim()) {
@@ -4261,16 +4699,16 @@ export function PollBuilder({
           {/* Left: Import / Export */}
           <div className="flex items-center gap-1">
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Tooltip>
+              <Tooltip delayDuration={400}>
+                <DropdownMenuTrigger asChild>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-zinc-200">
                       <Upload className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Import</TooltipContent>
-                </Tooltip>
-              </DropdownMenuTrigger>
+                </DropdownMenuTrigger>
+                <TooltipContent>Import</TooltipContent>
+              </Tooltip>
               <DropdownMenuContent align="start" className="bg-zinc-900 border-zinc-700 min-w-[200px]">
                 <DropdownMenuItem onClick={() => setShowImportModal(true)} className="gap-2">
                   <FileText className="w-4 h-4 text-blue-400" />
@@ -4290,16 +4728,16 @@ export function PollBuilder({
             </DropdownMenu>
 
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Tooltip>
+              <Tooltip delayDuration={400}>
+                <DropdownMenuTrigger asChild>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-zinc-200">
                       {justCopied ? <Check className="w-4 h-4 text-green-500" /> : <Download className="w-4 h-4" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{justCopied ? "Copied!" : "Export"}</TooltipContent>
-                </Tooltip>
-              </DropdownMenuTrigger>
+                </DropdownMenuTrigger>
+                <TooltipContent>{justCopied ? "Copied!" : "Export"}</TooltipContent>
+              </Tooltip>
               <DropdownMenuContent align="start" className="bg-zinc-900 border-zinc-700 min-w-[220px]">
                 <DropdownMenuItem onClick={handleCopyJson} className="gap-2">
                   <Copy className="w-4 h-4 text-blue-400" />
@@ -4399,53 +4837,71 @@ export function PollBuilder({
                 <DropdownMenuItem 
                   onClick={() => {
                     setData({
-                      title: "Quick Feedback Survey",
-                      description: "A simple feedback form",
-                      type: "SURVEY",
+                      title: "⚡ Quick Feedback Survey",
+                      description: "A focused 6-question feedback form covering satisfaction, priorities, and open suggestions.\n\nQuick to complete (~2 min), great for gathering actionable user insights.",
+                      type: "FEEDBACK",
                       allowPartialSubmission: true,
                       showProgressBar: true,
                       randomizeQuestions: false,
                       expiresAt: undefined,
-                      flow: [{ type: 'QUESTION', id: 'q1' }, { type: 'QUESTION', id: 'q2' }],
+                      flow: [
+                        { type: 'QUESTION', id: 'qf1' }, { type: 'QUESTION', id: 'qf2' },
+                        { type: 'QUESTION', id: 'qf3' }, { type: 'QUESTION', id: 'qf4' },
+                        { type: 'QUESTION', id: 'qf5' }, { type: 'QUESTION', id: 'qf6' },
+                      ],
                       sections: [],
                       questions: [
-                        { id: 'q1', type: 'SCALE', questionText: 'How satisfied are you with our service?', required: true, allowImages: false, options: [] },
-                        { id: 'q2', type: 'TEXT', questionText: 'Any additional feedback?', required: false, allowImages: false, options: [] },
+                        { id: 'qf1', type: 'SCALE', questionText: 'Overall, how satisfied are you with this product/service?', description: 'Be honest — there are no wrong answers here.', required: true, allowImages: false, options: [], sliderConfig: { min: 1, max: 10, step: 1, minLabel: 'Very Unhappy', maxLabel: 'Absolutely Love It', showValue: true } },
+                        { id: 'qf2', type: 'SINGLE_CHOICE', questionText: 'How likely are you to recommend us to a friend?', description: 'Classic NPS-style question.', required: true, allowImages: false, options: [{ id: 'nps1', text: '🟢 Definitely would recommend' }, { id: 'nps2', text: '🟡 Maybe, depends on context' }, { id: 'nps3', text: '🔴 Probably not right now' }, { id: 'nps4', text: '⚪ Too early to say' }] },
+                        { id: 'qf3', type: 'MULTI_CHOICE', questionText: 'Which areas need the most improvement?', description: 'Select all that apply.', required: true, allowImages: false, options: [{ id: 'imp1', text: '🚀 Performance / Speed' }, { id: 'imp2', text: '🎨 Design / UI' }, { id: 'imp3', text: '📚 Documentation / Help' }, { id: 'imp4', text: '🔧 Features / Functionality' }, { id: 'imp5', text: '💬 Support / Response time' }] },
+                        { id: 'qf4', type: 'SLIDER', questionText: 'How easy was it to get started?', description: 'Slide from hard to effortless.', required: true, allowImages: false, options: [], sliderConfig: { min: 1, max: 7, step: 1, minLabel: 'Very Difficult', maxLabel: 'Effortless', showValue: true } },
+                        { id: 'qf5', type: 'RANKING', questionText: 'Rank these priorities — most important at top', description: 'Drag to reorder by importance to you.', required: false, allowImages: false, options: [{ id: 'rk1', text: 'New features' }, { id: 'rk2', text: 'Bug fixes' }, { id: 'rk3', text: 'Better design' }, { id: 'rk4', text: 'Performance' }] },
+                        { id: 'qf6', type: 'TEXT', questionText: 'Anything else you want us to know?', description: 'Free text — be as honest as you like.', required: false, allowImages: false, options: [] },
                       ],
                     });
-                    toast.success("Loaded Quick Feedback template!");
+                    toast.success("Loaded Quick Feedback template (6 questions)!");
                   }} 
                   className="gap-2"
                 >
                   <FileText className="h-4 w-4 text-blue-400" />
                   Quick Feedback
-                  <span className="text-[10px] text-zinc-500 ml-auto">Simple</span>
+                  <span className="text-[10px] text-zinc-500 ml-auto">6Q feedback</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => {
                     setData({
-                      title: "Product Preference Survey",
-                      description: "Help us understand your preferences",
+                      title: "🛒 Product Preference Survey",
+                      description: "Understand your audience's shopping habits, preferences, and priorities.\n\n8 questions covering categories, decision factors, price sensitivity, and brand loyalty. Great template for e-commerce research.",
                       type: "SURVEY",
-                      allowPartialSubmission: false,
+                      allowPartialSubmission: true,
                       showProgressBar: true,
                       randomizeQuestions: false,
                       expiresAt: undefined,
-                      flow: [{ type: 'QUESTION', id: 'p1' }, { type: 'QUESTION', id: 'p2' }, { type: 'QUESTION', id: 'p3' }],
+                      flow: [
+                        { type: 'QUESTION', id: 'pp1' }, { type: 'QUESTION', id: 'pp2' },
+                        { type: 'QUESTION', id: 'pp3' }, { type: 'QUESTION', id: 'pp4' },
+                        { type: 'QUESTION', id: 'pp5' }, { type: 'QUESTION', id: 'pp6' },
+                        { type: 'QUESTION', id: 'pp7' }, { type: 'QUESTION', id: 'pp8' },
+                      ],
                       sections: [],
                       questions: [
-                        { id: 'p1', type: 'SINGLE_CHOICE', questionText: 'Which product category interests you most?', required: true, allowImages: false, options: [{ id: 'o1', text: 'Electronics' }, { id: 'o2', text: 'Fashion' }, { id: 'o3', text: 'Home & Garden' }, { id: 'o4', text: 'Sports' }] },
-                        { id: 'p2', type: 'MULTI_CHOICE', questionText: 'What factors influence your purchase decisions?', required: true, allowImages: false, options: [{ id: 'o5', text: 'Price' }, { id: 'o6', text: 'Quality' }, { id: 'o7', text: 'Brand' }, { id: 'o8', text: 'Reviews' }, { id: 'o9', text: 'Sustainability' }] },
-                        { id: 'p3', type: 'SLIDER', questionText: 'Rate your shopping experience', required: false, allowImages: false, options: [], sliderConfig: { min: 1, max: 7, step: 1, minLabel: 'Poor', maxLabel: 'Excellent', showValue: true } },
+                        { id: 'pp1', type: 'SINGLE_CHOICE', questionText: 'Which product category interests you most?', description: 'Pick the one you shop for most often.', required: true, allowImages: false, options: [{ id: 'c1', text: '📱 Electronics & Tech' }, { id: 'c2', text: '👗 Fashion & Apparel' }, { id: 'c3', text: '🏠 Home & Living' }, { id: 'c4', text: '⚽ Sports & Outdoors' }, { id: 'c5', text: '🎮 Gaming & Entertainment' }, { id: 'c6', text: '🥗 Health & Wellness' }] },
+                        { id: 'pp2', type: 'MULTI_CHOICE', questionText: 'What factors influence your purchase decisions the most?', description: 'Select all that apply.', required: true, allowImages: false, options: [{ id: 'f1', text: '💰 Price / Value for money' }, { id: 'f2', text: '⭐ Quality / Durability' }, { id: 'f3', text: '🏷️ Brand reputation' }, { id: 'f4', text: '📝 Reviews & ratings' }, { id: 'f5', text: '🌱 Sustainability / Ethics' }, { id: 'f6', text: '🚚 Fast shipping' }] },
+                        { id: 'pp3', type: 'SLIDER', questionText: 'How important is brand loyalty to you?', description: 'Slide from "I always switch" to "ride or die."', required: true, allowImages: false, options: [], sliderConfig: { min: 1, max: 10, step: 1, minLabel: 'Always switch', maxLabel: 'Loyal for life', showValue: true } },
+                        { id: 'pp4', type: 'SCALE', questionText: 'How much do you typically spend per online purchase?', description: 'Approximate average in USD.', required: true, allowImages: false, options: [], sliderConfig: { min: 10, max: 500, step: 10, minLabel: '$10', maxLabel: '$500+', showValue: true } },
+                        { id: 'pp5', type: 'SINGLE_CHOICE', questionText: 'Where do you discover new products?', description: 'Pick your #1 discovery channel.', required: true, allowImages: false, options: [{ id: 'd1', text: '📲 Social media (Instagram, TikTok)' }, { id: 'd2', text: '🔍 Search engines (Google)' }, { id: 'd3', text: '👥 Word of mouth / Friends' }, { id: 'd4', text: '📧 Email newsletters' }, { id: 'd5', text: '🎥 YouTube / Video reviews' }] },
+                        { id: 'pp6', type: 'RANKING', questionText: 'Rank these shopping priorities — most important first', description: 'Drag to reorder.', required: true, allowImages: false, options: [{ id: 'r1', text: 'Free returns policy' }, { id: 'r2', text: 'Same-day delivery' }, { id: 'r3', text: 'Loyalty rewards program' }, { id: 'r4', text: 'Eco-friendly packaging' }, { id: 'r5', text: 'Customer support chat' }] },
+                        { id: 'pp7', type: 'SCALE', questionText: 'How satisfied are you with your most recent online purchase?', description: 'Think about your last order.', required: false, allowImages: false, options: [], sliderConfig: { min: 1, max: 5, step: 1, minLabel: 'Regret it', maxLabel: 'Loved it', showValue: true } },
+                        { id: 'pp8', type: 'TEXT', questionText: 'What product or feature do you wish existed?', description: 'Dream big — what would make shopping perfect?', required: false, allowImages: false, options: [] },
                       ],
                     });
-                    toast.success("Loaded Product Preference template!");
+                    toast.success("Loaded Product Preference template (8 questions)!");
                   }} 
                   className="gap-2"
                 >
                   <LayoutGrid className="h-4 w-4 text-green-400" />
                   Product Preference
-                  <span className="text-[10px] text-zinc-500 ml-auto">Poll</span>
+                  <span className="text-[10px] text-zinc-500 ml-auto">8Q survey</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -4654,7 +5110,7 @@ export function PollBuilder({
                       <span>{data.questions.length} questions</span>
                       <span>~{Math.max(1, data.questions.length * 30)} sec</span>
                     </div>
-                    <Button size="sm" className="h-8 bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white">
+                    <Button size="sm" className="h-8 bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white" onClick={() => setShowInteractivePreview(true)}>
                       Take Poll
                     </Button>
                   </div>
@@ -4665,7 +5121,7 @@ export function PollBuilder({
         )}
       </AnimatePresence>
 
-      {/* AI Generate Panel */}
+      {/* AI Generate Panel — Chat Thread */}
       <AnimatePresence>
         {aiGenerateOpen && (
           <motion.div
@@ -4675,63 +5131,520 @@ export function PollBuilder({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="p-4 rounded-xl border border-violet-500/20 bg-gradient-to-b from-violet-500/5 to-transparent space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="rounded-xl border border-violet-500/20 bg-gradient-to-b from-violet-500/5 to-transparent flex flex-col" style={{ maxHeight: "560px" }}>
+              {/* Header — context-aware for chat vs BYOK view */}
+              <div className="flex items-center justify-between p-3 border-b border-zinc-800/50">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-violet-400" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-zinc-200">AI Generate</h4>
-                    <p className="text-[11px] text-zinc-500">Describe the poll you want to create</p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-zinc-500 hover:text-zinc-300"
-                  onClick={() => { onAiGenerateClose?.(); setAiError(null); }}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-
-              <Textarea
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder={'e.g. "Create a 10-question quiz about climate change with single choice and slider questions"'}
-                className="min-h-[80px] bg-zinc-900/60 border-zinc-800/50 focus:border-violet-500/40 text-zinc-200 text-sm resize-none placeholder:text-zinc-600"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !aiGenerating && aiPrompt.trim()) {
-                    handleAiGenerate();
-                  }
-                }}
-              />
-
-              {aiError && (
-                <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{aiError}</p>
-              )}
-
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-zinc-600">Ctrl+Enter to generate</span>
-                <Button
-                  size="sm"
-                  className="h-8 gap-1.5 bg-violet-600 hover:bg-violet-500 text-xs"
-                  disabled={aiGenerating || !aiPrompt.trim()}
-                  onClick={handleAiGenerate}
-                >
-                  {aiGenerating ? (
+                  {aiShowByok ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      Generating...
+                      <button
+                        type="button"
+                        onClick={() => { setAiShowByok(false); setAiKeySource("auto"); }}
+                        className="w-7 h-7 rounded-lg bg-zinc-800/60 hover:bg-zinc-700/60 flex items-center justify-center transition-colors"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-zinc-400" />
+                      </button>
+                      <div>
+                        <h4 className="text-sm font-medium text-zinc-200">Set up your own AI</h4>
+                        <p className="text-[11px] text-zinc-500">Connect an API key for unlimited generation</p>
+                      </div>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Generate Poll
+                      <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-violet-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-zinc-200">AI Generate</h4>
+                        <p className="text-[11px] text-zinc-500">
+                          {aiHasGenerated ? "Chat with AI to refine your poll" : "Describe the poll you want to create"}
+                        </p>
+                      </div>
                     </>
                   )}
-                </Button>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {/* Credit counter in header */}
+                  {currentUser && aiFreeUsed !== null && !aiUsingSavedKey && !aiShowByok && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                          aiFreeUsed >= aiFreeLimit
+                            ? "bg-red-500/15 text-red-400"
+                            : "bg-emerald-500/10 text-emerald-400"
+                        )}>
+                          <Sparkles className="w-2.5 h-2.5" />
+                          {aiFreeUsed}/{aiFreeLimit}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        {aiFreeUsed >= aiFreeLimit
+                          ? "Daily limit reached. Use your own key or try tomorrow."
+                          : `${aiFreeUsed} of ${aiFreeLimit} free actions used today`}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-zinc-500 hover:text-zinc-300"
+                    onClick={() => { if (aiShowByok) { setAiShowByok(false); setAiKeySource("auto"); } else { onAiGenerateClose?.(); setAiError(null); } }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* ─── BYOK Full-Panel View ─── */}
+              {aiShowByok && (
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-[120px] max-h-[460px] scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                  {/* Explainer */}
+                  <div className="rounded-xl bg-gradient-to-br from-violet-500/10 to-fuchsia-500/5 border border-violet-500/15 p-4 flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                      <HelpCircle className="w-4 h-4 text-violet-400" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] text-zinc-200 font-medium mb-1">What is an API key?</p>
+                      <p className="text-[12px] text-zinc-400 leading-relaxed">
+                        An API key is like a password that lets our app talk to an AI service on your behalf.
+                        Pick a provider below, create a free account, copy the key, and paste it here. Takes ~2 minutes.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Provider cards — spacious grid */}
+                  <div className="space-y-2">
+                    <Label className="text-[12px] text-zinc-400 font-medium">Choose a provider</Label>
+                    <div className="grid gap-2">
+                      {AI_PROVIDER_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setAiProvider(opt.value as AiProvider)}
+                          className={cn(
+                            "w-full text-left rounded-xl border p-3.5 transition-all",
+                            aiProvider === opt.value
+                              ? "border-violet-500/50 bg-violet-500/10 ring-1 ring-violet-500/20"
+                              : "border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700/60 hover:bg-zinc-900/60"
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="text-xl shrink-0">{opt.emoji}</span>
+                              <div className="min-w-0">
+                                <div className="text-[13px] text-zinc-200 font-medium">{opt.label}</div>
+                                <div className="text-[11px] text-zinc-500">{opt.tagline}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {opt.freeAvailable && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                                  FREE
+                                </span>
+                              )}
+                              <span className="text-[10px] text-zinc-600">{opt.pricingNote}</span>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Model selector for chosen provider */}
+                  {(() => {
+                    const providerDef = AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider);
+                    if (!providerDef || providerDef.models.length <= 1) return null;
+                    return (
+                      <div className="space-y-2">
+                        <Label className="text-[12px] text-zinc-400 font-medium">Choose a model</Label>
+                        <div className="grid gap-1.5">
+                          {providerDef.models.map((model) => (
+                            <button
+                              key={model.value}
+                              type="button"
+                              onClick={() => setAiModel(model.value)}
+                              className={cn(
+                                "w-full text-left rounded-lg border px-3 py-2.5 transition-all",
+                                aiModel === model.value
+                                  ? "border-violet-500/50 bg-violet-500/10 ring-1 ring-violet-500/20"
+                                  : "border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700/60 hover:bg-zinc-900/60"
+                              )}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className={cn(
+                                    "w-2 h-2 rounded-full shrink-0 transition-colors",
+                                    aiModel === model.value ? "bg-violet-400" : "bg-zinc-700"
+                                  )} />
+                                  <span className="text-[13px] text-zinc-200 font-medium">{model.label}</span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {model.description && (
+                                    <span className="text-[10px] text-zinc-500">{model.description}</span>
+                                  )}
+                                  {model.isDefault && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-zinc-800/80 text-zinc-500 border border-zinc-700/40">
+                                      DEFAULT
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Step-by-step for selected provider */}
+                  <div className="rounded-xl bg-zinc-800/30 border border-zinc-800/50 p-4 space-y-3">
+                    <div className="text-[12px] text-zinc-200 font-medium flex items-center gap-2">
+                      <Zap className="w-3.5 h-3.5 text-violet-400" />
+                      Quick setup — {AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider)?.label}
+                    </div>
+                    <ol className="text-[12px] text-zinc-400 space-y-2 list-decimal list-inside leading-relaxed">
+                      <li>
+                        <a
+                          href={AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider)?.getKeyUrl || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-violet-400 hover:text-violet-300 inline-flex items-center gap-1 underline underline-offset-2"
+                        >
+                          Open {AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider)?.label} dashboard
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </li>
+                      <li>Sign up or log in (Google/GitHub works)</li>
+                      <li>Create a new API key and copy it</li>
+                      <li>Paste it below — done!</li>
+                    </ol>
+                  </div>
+
+                  {/* Key input — larger */}
+                  <div className="space-y-2">
+                    <Label className="text-[12px] text-zinc-400">Paste your API key</Label>
+                    <Input
+                      value={aiApiKey}
+                      onChange={(e) => { setAiApiKey(e.target.value); setAiKeySource("byok"); }}
+                      type="password"
+                      placeholder={`Paste your ${AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider)?.label || "API"} key here`}
+                      className="h-10 bg-zinc-900/80 border-zinc-700/50 text-sm font-mono placeholder:font-sans focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/20"
+                    />
+                  </div>
+
+                  {/* Remember + Manage */}
+                  <div className="flex items-center justify-between gap-2 pb-1">
+                    <div className="flex items-center gap-2.5">
+                      <Switch id="remember-ai-key" checked={aiRememberKey} onCheckedChange={setAiRememberKey} />
+                      <Label htmlFor="remember-ai-key" className="text-[12px] text-zinc-400">Remember this key</Label>
+                    </div>
+                    <a href="/settings?section=ai" className="text-[12px] text-violet-400 hover:text-violet-300 inline-flex items-center gap-1 transition-colors">
+                      <Settings className="w-3 h-3" />
+                      Manage keys
+                    </a>
+                  </div>
+
+                  {/* Apply button */}
+                  {aiApiKey.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => { setAiShowByok(false); setAiKeySource("byok"); }}
+                      className="w-full rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium py-2.5 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Check className="w-4 h-4" />
+                      Use this key and start generating
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* ─── Chat View (hidden when BYOK is open) ─── */}
+              {/* Chat Thread — scrollable */}
+              <div ref={aiChatScrollRef} className={cn("flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-[120px] max-h-[340px]", aiShowByok && "hidden")}>
+                {/* Empty state */}
+                {aiChatMessages.length === 0 && !aiGenerating && (
+                  <div className="text-center py-8 text-zinc-600 text-sm">
+                    <Sparkles className="w-6 h-6 mx-auto mb-2 text-violet-500/40" />
+                    <p>Tell the AI what kind of poll to create.</p>
+                    <p className="text-[11px] mt-1">e.g. &quot;10 questions about space, mix of choice and slider&quot;</p>
+                  </div>
+                )}
+
+                {/* Chat messages */}
+                {aiChatMessages.map((msg) => (
+                  <div key={msg.id} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+                    {msg.role === "user" ? (
+                      <div className="max-w-[85%] rounded-xl rounded-tr-sm bg-violet-600/20 border border-violet-500/20 px-3 py-2 text-sm text-zinc-200">
+                        {msg.content}
+                      </div>
+                    ) : msg.isResult ? (
+                      /* AI Result Card (Review Card) */
+                      <div className="max-w-[90%] w-full rounded-xl bg-zinc-900/80 border border-emerald-500/20 p-3 space-y-2">
+                        <div className="text-sm text-emerald-300">{msg.content}</div>
+
+                        {/* Quiz snapshot info */}
+                        {msg.quizSnapshot && (
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
+                            <span className="px-2 py-0.5 rounded-full bg-zinc-800/80 border border-zinc-700/50">
+                              {msg.quizSnapshot.questionCount} questions
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full bg-zinc-800/80 border border-zinc-700/50">
+                              {msg.quizSnapshot.type}
+                            </span>
+                            {msg.quizSnapshot.trustFactor && (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                Trust: {msg.quizSnapshot.trustFactor}
+                                {typeof msg.quizSnapshot.trustScore === "number" ? ` (${msg.quizSnapshot.trustScore})` : ""}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Action buttons — Review Card */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[11px] gap-1 border-zinc-700/60 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300"
+                            onClick={() => setShowInteractivePreview(true)}
+                          >
+                            <Eye className="w-3 h-3" />
+                            Test Preview
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[11px] gap-1 border-zinc-700/60 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300"
+                            onClick={() => { onAiGenerateClose?.(); }}
+                          >
+                            <Wrench className="w-3 h-3" />
+                            Inspect in Builder
+                          </Button>
+                        </div>
+
+                        <p className="text-[10px] text-zinc-600 pt-0.5">
+                          Want changes? Tell me below &mdash; e.g. &quot;make question 3 harder&quot;
+                        </p>
+                      </div>
+                    ) : (
+                      /* Regular AI message (errors, etc.) */
+                      <div className={cn(
+                        "max-w-[85%] rounded-xl rounded-tl-sm px-3 py-2 text-sm",
+                        msg.content.startsWith("Error:")
+                          ? "bg-red-500/10 border border-red-500/20 text-red-300"
+                          : "bg-zinc-800/60 border border-zinc-700/40 text-zinc-300"
+                      )}>
+                        {msg.content}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Live progress during generation */}
+                {aiGenerating && aiProgressSteps.length > 0 && (
+                  <div className="rounded-lg border border-violet-500/20 bg-zinc-950/80 p-3 space-y-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                        <span className="text-[11px] text-violet-300 font-medium uppercase tracking-wider">
+                          {aiHasGenerated ? "Refining\u2026" : "Generating\u2026"}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-zinc-500 font-mono tabular-nums">
+                        {Math.floor(aiElapsed / 60) > 0 ? `${Math.floor(aiElapsed / 60)}m ` : ""}{aiElapsed % 60}s
+                      </span>
+                    </div>
+                    {/* Smooth progress bar — includes heartbeat sub-progress during step 2 */}
+                    <div className="h-0.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-700 ease-out"
+                        style={{ width: `${Math.round(((aiProgressSteps.filter((s) => s.status === "done").length + (aiProgressSteps.some(s => s.step === 2 && s.status === "active") ? Math.min(aiHeartbeatLog.length / 8, 0.95) : 0)) / 6) * 100)}%` }}
+                      />
+                    </div>
+                    {/* Scrollable step log with heartbeat history */}
+                    <div ref={aiProgressLogRef} className="max-h-[180px] overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                      {aiProgressSteps.map((ps) => (
+                        <div key={ps.step}>
+                          <div className="flex items-center gap-2.5 text-[12px]">
+                            {ps.status === "done" ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            ) : ps.status === "active" ? (
+                              <Loader2 className="w-3.5 h-3.5 text-violet-400 animate-spin shrink-0" />
+                            ) : (
+                              <X className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                            )}
+                            <span className={cn(
+                              "transition-colors flex-1",
+                              ps.status === "done" && "text-zinc-400",
+                              ps.status === "active" && "text-zinc-200 font-medium",
+                              ps.status === "error" && "text-red-400",
+                            )}>
+                              {ps.label}
+                            </span>
+                            {/* Per-step elapsed shown while active */}
+                            {ps.status === "active" && ps.startedAt && (
+                              <span className="text-[10px] text-zinc-500 font-mono tabular-nums shrink-0">
+                                {Math.round((Date.now() - ps.startedAt) / 1000)}s
+                              </span>
+                            )}
+                            {ps.status === "done" && ps.startedAt && ps.completedAt && (
+                              <span className="text-[10px] text-zinc-600 font-mono tabular-nums shrink-0">
+                                {((ps.completedAt - ps.startedAt) / 1000).toFixed(1)}s
+                              </span>
+                            )}
+                          </div>
+                          {/* Heartbeat sub-messages under the active/done step 2 */}
+                          {ps.step === 2 && aiHeartbeatLog.length > 0 && (
+                            <div className="ml-6 mt-0.5 space-y-0.5 border-l border-zinc-800/60 pl-2">
+                              {aiHeartbeatLog.map((msg, i) => (
+                                <div key={i} className="text-[11px] text-zinc-500 flex items-center gap-1.5">
+                                  <span className="w-1 h-1 rounded-full bg-violet-500/40 shrink-0" />
+                                  <span className={i === aiHeartbeatLog.length - 1 && ps.status === "active" ? "text-zinc-400" : ""}>{msg}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Fallback loader */}
+                {aiGenerating && aiProgressSteps.length === 0 && (
+                  <div className="rounded-lg border border-violet-500/20 bg-zinc-950/80 p-3 flex items-center gap-3">
+                    <Loader2 className="w-4 h-4 text-violet-400 animate-spin" />
+                    <span className="text-xs text-zinc-400">Connecting to AI&hellip;</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Input area — ChatGPT-inspired (hidden when BYOK view is active) */}
+              <div className={cn("p-3 space-y-2", aiShowByok && "hidden")}>
+                {/* Sign-in required */}
+                {!currentUser && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex items-center gap-2.5">
+                    <LogIn className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div className="text-[12px] text-amber-200">
+                      <span className="font-medium">Sign in required.</span>{" "}
+                      Log in with Google, GitHub, or Discord to use AI generation.
+                    </div>
+                  </div>
+                )}
+
+                {/* Daily limit reached — friendly upsell */}
+                {currentUser && aiFreeUsed !== null && aiFreeUsed >= aiFreeLimit && !aiShowByok && aiKeySource !== "byok" && (
+                  <div className="rounded-lg border border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 p-3 space-y-2">
+                    <div className="text-[12px] text-violet-200 font-medium flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 shrink-0 text-violet-400" />
+                      You&apos;ve used all {aiFreeLimit} free AI generations for today
+                    </div>
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                      Want unlimited? Connect your own AI key in 2 minutes — some providers have <span className="text-emerald-400 font-medium">free tiers</span>.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { setAiShowByok(true); setAiKeySource("byok"); }}
+                      className="inline-flex items-center gap-1.5 text-[12px] font-medium text-violet-400 hover:text-violet-300 transition-colors"
+                    >
+                      <Bot className="w-3.5 h-3.5" />
+                      Set up your own AI
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Prompt input — ChatGPT-style rounded container */}
+                {currentUser && (aiFreeUsed === null || aiFreeUsed < aiFreeLimit || aiKeySource === "byok") && (
+                  <div className="rounded-2xl border border-zinc-700/40 bg-zinc-900/70 backdrop-blur-sm px-3 py-2.5 ring-1 ring-zinc-800/50 focus-within:ring-2 focus-within:ring-violet-500/30 transition-all">
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 min-w-0">
+                        <textarea
+                          value={aiHasGenerated ? aiRefinementInput : aiPrompt}
+                          onChange={(e) => {
+                            if (aiHasGenerated) {
+                              setAiRefinementInput(e.target.value);
+                            } else {
+                              setAiPrompt(e.target.value);
+                            }
+                            // Auto-resize
+                            const el = e.target;
+                            el.style.height = "auto";
+                            el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+                          }}
+                          placeholder={aiHasGenerated
+                            ? 'Tell me what to change \u2014 e.g. "make question 3 harder"'
+                            : 'Describe your poll \u2014 e.g. "10 questions about climate change"'}
+                          className="w-full resize-none bg-transparent text-sm leading-relaxed text-zinc-200 placeholder:text-zinc-500 focus:outline-none overflow-y-hidden"
+                          rows={1}
+                          style={{ maxHeight: "120px" }}
+                          disabled={aiGenerating}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey && !aiGenerating) {
+                              e.preventDefault();
+                              const val = aiHasGenerated ? aiRefinementInput.trim() : aiPrompt.trim();
+                              if (val) handleAiGenerate(aiHasGenerated ? aiRefinementInput.trim() : undefined);
+                            }
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className={cn(
+                          "shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full transition-all",
+                          aiGenerating ||
+                          !(aiHasGenerated ? aiRefinementInput.trim() : aiPrompt.trim()) ||
+                          (aiFreeUsed !== null && aiFreeUsed >= aiFreeLimit && aiKeySource !== "byok")
+                            ? "bg-zinc-700/50 text-zinc-500 cursor-not-allowed"
+                            : "bg-violet-600 text-white hover:bg-violet-500 shadow-sm shadow-violet-500/20"
+                        )}
+                        disabled={
+                          aiGenerating ||
+                          !(aiHasGenerated ? aiRefinementInput.trim() : aiPrompt.trim()) ||
+                          (aiFreeUsed !== null && aiFreeUsed >= aiFreeLimit && aiKeySource !== "byok")
+                        }
+                        onClick={() => handleAiGenerate(aiHasGenerated ? aiRefinementInput.trim() : undefined)}
+                      >
+                        {aiGenerating ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <ArrowUp className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    {/* Subtle meta row */}
+                    <div className="mt-1.5 flex items-center justify-between text-[10px] text-zinc-600">
+                      <div className="flex items-center gap-2">
+                        {currentUser && !aiShowByok && (
+                          <button
+                            type="button"
+                            onClick={() => setAiShowByok(!aiShowByok)}
+                            className="inline-flex items-center gap-1 hover:text-violet-400 transition-colors"
+                          >
+                            <Bot className="w-2.5 h-2.5" />
+                            {aiUsingSavedKey ? "Change AI key" : "Use your own AI"}
+                          </button>
+                        )}
+                      </div>
+                      <span>Enter to send &bull; Shift+Enter for newline</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Saved key badge */}
+                {aiUsingSavedKey && !aiShowByok && (
+                  <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                    <Key className="w-3 h-3" />
+                    Using your saved key{aiGenerationMeta?.savedKeyProvider ? ` (${aiGenerationMeta.savedKeyProvider})` : ""}
+                  </div>
+                )}
+
+
+
+                {aiError && (
+                  <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{aiError}</p>
+                )}
               </div>
             </div>
           </motion.div>
@@ -5175,6 +6088,16 @@ export function PollBuilder({
             toast.success("Shape match configuration saved!");
           }}
           onClose={() => setShapeBuilderQuestionId(null)}
+        />
+      )}
+
+      {/* Interactive Preview (PollTakerModal in preview mode) */}
+      {showInteractivePreview && (
+        <PollTakerModal
+          pollId={null}
+          previewData={data}
+          onClose={() => setShowInteractivePreview(false)}
+          onComplete={() => setShowInteractivePreview(false)}
         />
       )}
     </div>

@@ -19,9 +19,6 @@ const CORRECT_PASSWORD = ACCESS_GATE_CONFIG.password;
 const COOKIE_NAME = ACCESS_GATE_CONFIG.cookieName;
 const COOKIE_VALUE = makeGateCookieValue(CORRECT_PASSWORD);
 
-// DEBUG: Log cookie value on startup
-console.log('[proxy.ts] COOKIE_VALUE:', COOKIE_VALUE, 'COOKIE_NAME:', COOKIE_NAME);
-
 // Routes that bypass the access gate (legal pages should be accessible)
 const GATE_BYPASS_ROUTES = ACCESS_GATE_CONFIG.bypassRoutes;
 

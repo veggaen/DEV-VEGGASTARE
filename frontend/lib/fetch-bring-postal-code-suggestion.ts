@@ -15,7 +15,6 @@ type PostalCodeSuggestion = {
         ? 'http://localhost:3000/' 
         : 'https://www.veggat.com/';
   
-      console.log('whatENV:', whatENV);
       const response = await fetch(`https://api.bring.com/address/api/no/postal-codes/suggestions?q=${postalCodeInput}`, {
         headers: {
           'X-Mybring-API-Uid': process.env.MYBRING_API_UID || '',

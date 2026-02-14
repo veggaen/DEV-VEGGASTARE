@@ -31,19 +31,21 @@ const listQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   type: z.enum(['SIMPLE', 'SURVEY', 'QUIZ', 'FEEDBACK', 'REACH_ASSESSMENT']).optional(),
   creatorId: z.string().min(1).optional(),
+  conversationId: z.string().min(1).optional(),
 });
 
 export async function GET(req: NextRequest) {
   try {
     const queryResult = parseQueryOrError(req, listQuerySchema);
     if (!queryResult.ok) return queryResult.response;
-    const { type, creatorId } = queryResult.data;
+    const { type, creatorId, conversationId } = queryResult.data;
     const page = queryResult.data.page ?? 1;
     const pageSize = queryResult.data.pageSize ?? 20;
 
     const where: Record<string, unknown> = {};
     if (type) where.type = type;
     if (creatorId) where.creatorId = creatorId;
+    if (conversationId) where.conversationId = conversationId;
     // Only show published polls to non-creators
     const currentUser = await MyLibUserAuth();
     if (!currentUser?.id || currentUser.id !== creatorId) {

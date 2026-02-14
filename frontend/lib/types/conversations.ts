@@ -9,7 +9,13 @@ export const ConversationTypeSchema = z.enum([
 
 export const ConversationVisibilitySchema = z.enum([
   'PUBLIC',
+  'PRIVATE',
   'PARTICIPANTS',
+  'SYNCED_TO',
+  'SYNCED_FROM',
+  'MUTUAL_SYNC',
+  'SPECIFIC_USERS',
+  'SPECIFIC_GROUPS',
   'ROLE_BASED',
   'CUSTOM',
 ]);
@@ -61,6 +67,23 @@ export const ConversationRepostOfConversationSchema = z
     lastMessage: ConversationMessageSummarySchema.nullable().optional(),
   })
   .strict();
+
+export const ContentFlagSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum([
+    'DISTURBING_CONTENT',
+    'DEATH_OR_INJURY',
+    'NUDITY',
+    'FLASHING_IMAGES',
+    'VIOLENCE',
+    'HATE_SPEECH',
+    'MISINFORMATION',
+    'SPOILER',
+    'SENSITIVE_TOPIC',
+    'OTHER',
+  ]),
+  reason: z.string().nullable().optional(),
+});
 
 export const ConversationListItemSchema = z
   .object({
@@ -150,6 +173,13 @@ export const ConversationListItemSchema = z
     positivePulseCount: z.number().int().finite(),
     negativePulseCount: z.number().int().finite(),
     userPulse: z.enum(['POSITIVE', 'NEGATIVE']).nullable(),
+
+    // Content flags (admin moderation warnings)
+    contentFlags: z.array(ContentFlagSchema).optional(),
+
+    // Visibility targeting
+    visibleToUserIds: z.array(z.string()).optional(),
+    visibleToGroupIds: z.array(z.string()).optional(),
 
     // Back-compat: Prisma include uses `User`.
     User: ConversationUserSummarySchema,

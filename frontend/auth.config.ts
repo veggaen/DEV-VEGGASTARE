@@ -18,18 +18,6 @@ const googleClientSecret = process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_
 const githubClientId = process.env.AUTH_GITHUB_ID || process.env.GITHUB_ID || process.env.GITHUB_CLIENT_ID
 const githubClientSecret = process.env.AUTH_GITHUB_SECRET || process.env.GITHUB_SECRET || process.env.GITHUB_CLIENT_SECRET
 
-// Log OAuth provider config status ONCE (helps debug production issues without spam)
-const globalForOAuthLog = globalThis as unknown as { __authConfigLogged?: boolean }
-if (!globalForOAuthLog.__authConfigLogged) {
-  globalForOAuthLog.__authConfigLogged = true
-  console.log(LOG_PREFIX, 'OAuth config:', {
-    hasGoogleId: !!googleClientId,
-    hasGoogleSecret: !!googleClientSecret,
-    hasGithubId: !!githubClientId,
-    hasGithubSecret: !!githubClientSecret,
-  })
-}
-
 const oauthProviders: NextAuthConfig['providers'] = []
 
 if (googleClientId && googleClientSecret) {

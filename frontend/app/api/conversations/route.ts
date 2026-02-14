@@ -562,6 +562,14 @@ export async function GET(req: Request) {
             pinnedAt: true,
           },
         },
+        ContentFlags: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            type: true,
+            reason: true,
+          },
+        },
         _count: {
           select: { Message: true, ConversationRepost: true },
         },
@@ -738,6 +746,17 @@ export async function GET(req: Request) {
         positivePulseCount: conversation.positivePulseCount || 0,
         negativePulseCount: conversation.negativePulseCount || 0,
         userPulse: userId ? userPulseMap.get(conversation.id) || null : null,
+
+        // Content flags (admin moderation warnings)
+        contentFlags: (conversation as any).ContentFlags?.map((f: any) => ({
+          id: f.id,
+          type: f.type,
+          reason: f.reason,
+        })) || [],
+
+        // Visibility targeting
+        visibleToUserIds: (conversation as any).visibleToUserIds || [],
+        visibleToGroupIds: (conversation as any).visibleToGroupIds || [],
 
         User: {
           id: conversation.User.id,

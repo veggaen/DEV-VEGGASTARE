@@ -8,8 +8,6 @@ const whatENV =
     ? "http://localhost:3000"
     : "https://www.veggat.com";
 
-console.log('whatENV:', whatENV);
-
 export const sendTwoFactorTokenEmail = async (email: string, token: string): Promise<void> => {
   await resend.emails.send({
     from: 'Veggat-Security@veggat.com',

@@ -2,7 +2,7 @@
 
 > **Modern marketplace for premium digital products and services.**
 
-**Last verified:** 2026-02-13
+**Last verified:** 2026-02-14
 
 **Documentation precedence:** when docs conflict, use `frontend/README.md` + `backend/README.md` for setup/runtime behavior, `MasterContext.md` for architecture invariants, and treat `docs/*` files marked Historical as audit-only.
 
@@ -29,7 +29,7 @@ A full-stack Web3-enabled marketplace built with **Next.js 16**, **React 19**, a
 
 | Layer | Technologies |
 |-------|-------------|
-| **Frontend** | Next.js 16.1.6 (Turbopack/Webpack), React 19, TypeScript, Tailwind CSS |
+| **Frontend** | Next.js 16.1.6 (Webpack mode), React 19, TypeScript, Tailwind CSS |
 | **Auth** | NextAuth v5 (beta.7), Google/GitHub/Discord OAuth, email magic links |
 | **Database** | PostgreSQL, Prisma 7.3.0 (with `@prisma/adapter-pg`) |
 | **Backend** | Hapi.js 21 (standalone API on port 3001), Socket.IO 4 (port 3002) |
@@ -124,7 +124,7 @@ npm run dev              # → http://localhost:3001 (API) + :3002 (WebSocket)
 - **Pulse Feed** — Real-time social feed with posts, reactions, conversations (Pusher-powered)
 - **Conversations** — Direct messages, group chats, employee broadcasts
 - **Follow/Sync System** — One-way follows + mutual "sync" with UserHoverCard integration
-- **Advanced Polls** — 3 types (Survey, Feedback, Quiz), 11 question types, PollBuilder with 5 templates, verification-weighted voting, two-tier quiz feedback engine
+- **Advanced Polls** — 3 types (Survey, Feedback, Quiz), 11 question types, PollBuilder with 5 templates, verification-weighted voting, two-tier quiz feedback engine, **AI generation with 5 free/day + BYOK**, fuzzy text matching, per-question trust badges
 - **True Reach™** — 7-pillar engagement scoring (see below)
 
 ### Identity & Verification
