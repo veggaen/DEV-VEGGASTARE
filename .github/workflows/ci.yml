@@ -55,7 +55,7 @@ jobs:
 
       # ── Cache: Prisma engines (skip 15-40MB download) ──
       - name: Cache Prisma engines
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             node_modules/.prisma
@@ -65,7 +65,7 @@ jobs:
 
       # ── Cache: Next.js build cache (biggest win ~60-80% faster rebuilds) ──
       - name: Cache Next.js build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: frontend/.next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}-${{ hashFiles('frontend/**/*.ts', 'frontend/**/*.tsx') }}
@@ -150,7 +150,7 @@ jobs:
 
       # ── Cache: Prisma engines ──
       - name: Cache Prisma engines
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             node_modules/.prisma
