@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+# Pre-push hook — prevents direct pushes to main and dev.
+# Employees should NEVER push to main or dev directly.
+# Owner (v3gga) can bypass by setting VEGGAT_OWNER=1:
+#   VEGGAT_OWNER=1 git push origin main
+#
+
+PROTECTED_BRANCHES="^(main|dev)$"
+CURRENT_BRANCH=$(git symbolic-ref HEAD 2>/dev/null | sed 's|refs/heads/||')
+
+# Check if we're pushing TO a protected branch (remote ref)
+while read local_ref local_sha remote_ref remote_sha; do
+  REMOTE_BRANCH=$(echo "$remote_ref" | sed 's|refs/heads/||')
+
+  if echo "$REMOTE_BRANCH" | grep -qE "$PROTECTED_BRANCHES"; then
+    # Owner bypass
+    if [ "$VEGGAT_OWNER" = "1" ]; then
+      echo "⚡ Owner bypass — pushing to $REMOTE_BRANCH"
+      continue
+    fi
+
+    # If we're ON main or dev and pushing to that same branch, block it
+    # (This catches direct pushes. Merges via the "build to main" flow
+    #  from Copilot Chat use the VEGGAT_OWNER bypass.)
+    if echo "$CURRENT_BRANCH" | grep -qE "$PROTECTED_BRANCHES"; then
+      echo ""
+      echo "🚫 Direct push to '$REMOTE_BRANCH' is blocked."
+      echo ""
+      echo "   Employees: push to your feature branch and open a PR to dev."
+      echo "   Owner:     use 'VEGGAT_OWNER=1 git push origin $REMOTE_BRANCH'"
+      echo "              or say 'build to main' in Copilot Chat."
+      echo ""
+      exit 1
+    fi
+  fi
+done
+
+exit 0

@@ -6,8 +6,9 @@ const IS_DEV = process.env.NODE_ENV !== 'production';
 
 export const useWebSocket = <T = unknown>(onMessage: (data: T) => void): void => {
   useEffect(() => {
+    // Use env var for production WebSocket URL, with sensible fallback
     const wsUrl = process.env.NODE_ENV === 'production'
-      ? 'https://dev-veggastare.vercel.app'
+      ? (process.env.NEXT_PUBLIC_WS_URL || 'https://www.veggat.com')
       : 'http://localhost:3002';
     
     if (IS_DEV) console.log(LOG_PREFIX, 'Connecting to WebSocket server:', wsUrl);

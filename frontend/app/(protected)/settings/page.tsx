@@ -2,6 +2,7 @@
 
 import * as z from 'zod';
 import { Form, FormField, FormControl, FormItem, FormLabel, FormDescription, FormMessage } from '@/components/ui/form';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Switch } from "@/components/ui/switch";
@@ -1194,7 +1195,7 @@ function AiKeysSettings() {
       <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="space-y-2">
-            <FormLabel className="text-foreground/80 dark:text-white/80">Provider</FormLabel>
+            <Label className="text-foreground/80 dark:text-white/80">Provider</Label>
             <Select value={provider} onValueChange={(v) => setProvider(v as 'OPENAI' | 'OPENROUTER' | 'ANTHROPIC')}>
               <SelectTrigger className="bg-white/70 border-border dark:bg-white/5 dark:border-white/10">
                 <SelectValue />
@@ -1208,7 +1209,7 @@ function AiKeysSettings() {
           </div>
 
           <div className="space-y-2">
-            <FormLabel className="text-foreground/80 dark:text-white/80">API Key</FormLabel>
+            <Label className="text-foreground/80 dark:text-white/80">API Key</Label>
             <Input
               type="password"
               value={apiKey}

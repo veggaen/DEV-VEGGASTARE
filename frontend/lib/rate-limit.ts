@@ -115,6 +115,7 @@ function checkMemory(key: string, maxRequests: number, windowMs: number): RateLi
 let redisClient: RedisClientType | null = null;
 let redisReady = false;
 let redisInitPromise: Promise<void> | null = null;
+let redisErrorLogged = false;
 
 function getRedisUrl(): string | undefined {
   return process.env.REDIS_URL || process.env.KV_URL;
@@ -128,12 +129,16 @@ async function initRedis(): Promise<void> {
     redisClient = createClient({ url }) as RedisClientType;
 
     redisClient.on("error", (err: Error) => {
-      console.warn("[rate-limit] Redis error, falling back to in-memory:", err.message);
+      if (!redisErrorLogged) {
+        console.warn("[rate-limit] Redis error, falling back to in-memory:", err.message);
+        redisErrorLogged = true;
+      }
       redisReady = false;
     });
 
     redisClient.on("ready", () => {
       redisReady = true;
+      redisErrorLogged = false; // Reset so we log again if it fails after recovery
     });
 
     await redisClient.connect();

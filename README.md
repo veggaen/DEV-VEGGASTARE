@@ -22,6 +22,8 @@ A full-stack Web3-enabled marketplace built with **Next.js 16**, **React 19**, a
 | [architecture.md](architecture.md) | System architecture & data flow |
 | [prd.md](prd.md) | Product Requirements Document |
 | [MasterContext.md](MasterContext.md) | Living context index for AI + dev onboarding |
+| [ONBOARDING.md](ONBOARDING.md) | Employee/contributor quick-start guide |
+| [.github/copilot-instructions.md](.github/copilot-instructions.md) | Copilot Chat workflow commands |
 
 ---
 
@@ -78,7 +80,7 @@ DEV-VEGGASTARE/
 ### Prerequisites
 
 - **Node.js** 20+ and **npm**
-- **PostgreSQL** database (local or hosted)
+- **PostgreSQL** database (local or hosted — we use Neon)
 - Environment variables configured (see sub-READMEs)
 
 ### Quick Start
@@ -88,20 +90,26 @@ DEV-VEGGASTARE/
 git clone <repository-url>
 cd DEV-VEGGASTARE
 
-# 2. Frontend
-cd frontend
-npm install
-npx prisma generate
-npx prisma migrate dev
-npm run dev              # → http://localhost:3000
+# 2. Install everything
+npm install                      # root (concurrently)
+cd frontend && npm install && npx prisma generate && npx prisma migrate dev && cd ..
+cd backend && npm install && cd ..
 
-# 3. Backend (separate terminal)
-cd backend
-npm install
-npm run dev              # → http://localhost:3001 (API) + :3002 (WebSocket)
+# 3. Start both services at once
+npm run dev                      # → Frontend :3000 + Backend :3001/:3002
 ```
 
+**Other ways to start:**
+
+| Method | Command |
+|--------|---------|
+| Both services (CLI) | `npm run dev` from root |
+| VS Code task | `Ctrl+Shift+B` (launches both in split terminals) |
+| Frontend only | `npm run dev:fe` or VS Code Task → `dev:frontend-only` |
+| Backend only | `npm run dev:be` or VS Code Task → `dev:backend-only` |
+
 > See [frontend/README.md](frontend/README.md) and [backend/README.md](backend/README.md) for full setup details including env vars.
+> For employee/contributor onboarding, see [ONBOARDING.md](ONBOARDING.md).
 
 ---
 
@@ -147,6 +155,35 @@ npm run dev              # → http://localhost:3001 (API) + :3002 (WebSocket)
 | 7 | **Velocity** | 10% | Real-time engagement momentum & viral coefficient |
 
 > Full specification: [docs/REACH_7_PILLARS_SPECIFICATION.md](docs/REACH_7_PILLARS_SPECIFICATION.md)
+
+---
+
+## Git & Deployment Flow
+
+```
+feature branch ──push──▶ CI validates ──PR──▶ dev ──verify──▶ main
+                                               │               │
+                                          Vercel Preview   Vercel Prod (veggat.com)
+                                                           Railway Prod (backend)
+```
+
+| Branch | Purpose | Deploys To |
+|--------|---------|------------|
+| `feat/*`, `fix/*` | Feature development | Vercel preview (on PR) |
+| `dev` | Staging & integration | Vercel preview |
+| `main` | Production | veggat.com + Railway |
+
+**Rules:** Never push directly to `main`. Always go through `dev`. CI must pass before merge.
+
+---
+
+## CI/CD
+
+- **GitHub Actions CI** — runs on push/PR to `main` and `dev`: path-filtered builds, type-check, lint, Prisma validation, migration drift check
+- **Vercel** — auto-deploys `main` → production, `dev`/PRs → preview URLs
+- **Railway** — auto-deploys backend from `main` (Docker)
+- **Dependabot** — weekly dependency update PRs
+- **Stale bot** — closes abandoned issues (30d) and PRs (14d)
 
 ---
 

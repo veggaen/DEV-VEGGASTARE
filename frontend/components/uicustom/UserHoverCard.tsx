@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useFollowState } from '@/hooks/useFollowState';
-import { CalendarDays, Users, ArrowLeftRight, RefreshCw } from 'lucide-react';
+import { CalendarDays, Users, ArrowLeftRight, RefreshCw, Shield } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { useAccount, useChainId } from 'wagmi';
 import { toast } from 'sonner';
+import { VEGGA_SYSTEM } from '@/lib/vegga-system-constants';
 
 interface UserHoverCardProps {
   userId: string;
@@ -207,6 +208,41 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
                     >
                       <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isFollowing ? '' : 'animate-none'}`} />
                       {isFollowing ? 'Synced' : 'Sync'}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Take Control — OWNER only, for system account */}
+                {currentUser?.role === 'OWNER' && !currentUser?.isImpersonating && userId === VEGGA_SYSTEM.id && (
+                  <div className="flex justify-end -mt-1 mb-1 relative z-30">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        try {
+                          const res = await fetch('/api/admin/impersonate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ targetUserId: VEGGA_SYSTEM.id, reason: 'Owner controlling system account' }),
+                          });
+                          if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.error ?? 'Failed to take control');
+                          }
+                          toast.success('Now controlling VeggaSystem. Refreshing…');
+                          // Force full page reload to pick up new JWT
+                          setTimeout(() => window.location.reload(), 500);
+                        } catch (err: unknown) {
+                          toast.error(err instanceof Error ? err.message : 'Take control failed');
+                        }
+                      }}
+                      className="rounded-full h-7 px-2.5 text-[11px] border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                      title="Take control of this system account"
+                    >
+                      <Shield className="h-3 w-3 mr-1" />
+                      Take Control
                     </Button>
                   </div>
                 )}

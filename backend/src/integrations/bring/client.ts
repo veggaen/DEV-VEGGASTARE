@@ -38,7 +38,7 @@ function asBringHeaders(env: BringEnv): Record<string, string> {
     Accept: 'application/json',
     'X-Mybring-API-Uid': env.uid,
     'X-Mybring-API-Key': env.key,
-    'X-Bring-Client-URL': env.clientUrl,
+    'X-Bring_Client_URL': env.clientUrl,
   };
 }
 
@@ -212,7 +212,7 @@ export class LiveBringProvider implements BringProvider {
         Accept: 'application/json',
         'X-Mybring-API-Uid': env.uid,
         'X-Mybring-API-Key': env.key,
-        'X-Bring-Client-URL': env.clientUrl,
+        'X-Bring_Client_URL': env.clientUrl,
       },
     });
 

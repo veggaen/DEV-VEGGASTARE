@@ -1,0 +1,34 @@
+name: ✨ Feature Request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like?
+      description: Clear description of the feature
+      placeholder: "It would be great if..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Why is this useful?
+      description: What problem does it solve?
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Frontend (UI)
+        - Backend (API)
+        - Database
+        - Auth
+        - Web3 / Trading
+        - Polls
+        - Social (Pulse/Chat)
+        - Other
+    validations:
+      required: true

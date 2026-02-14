@@ -2766,40 +2766,39 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
           {/* ─── Content Warning Overlay (for flagged content) ──────── */}
           {hasContentWarning && !showFlaggedContent ? (
-            <div className="relative mt-2 rounded-xl overflow-hidden">
-              {/* Blurred content behind */}
-              <div className="blur-lg pointer-events-none select-none opacity-30 max-h-40 overflow-hidden" aria-hidden="true">
+            <div className="relative mt-3 rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.02]">
+              {/* Blurred content behind — with guaranteed min height */}
+              <div className="blur-md pointer-events-none select-none opacity-20 min-h-[100px] overflow-hidden px-4 py-3" aria-hidden="true">
                 {rawPreviewText && (
-                  <div className="space-y-1">
-                    <p className="text-[15px] leading-relaxed text-foreground/90">{rawPreviewText.slice(0, 200)}</p>
-                  </div>
+                  <p className="text-[15px] leading-relaxed text-foreground/90">{rawPreviewText.slice(0, 300)}</p>
                 )}
               </div>
               {/* Warning overlay */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/60 backdrop-blur-sm rounded-xl border border-yellow-500/30 p-4">
-                <div className="flex items-center gap-2 text-yellow-500">
-                  <ShieldAlert className="h-5 w-5" />
-                  <span className="font-semibold text-sm">Content Warning</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/70 backdrop-blur-sm rounded-2xl p-5">
+                <div className="flex items-center gap-2 text-amber-400/90">
+                  <ShieldAlert className="h-4.5 w-4.5" />
+                  <span className="font-medium text-[13px] tracking-wide uppercase">Content Warning</span>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-1.5">
                   {localContentFlags.map(flag => (
-                    <Badge key={flag.id} variant="outline" className="text-[11px] border-yellow-500/50 text-yellow-400 bg-yellow-500/10">
+                    <span
+                      key={flag.id}
+                      className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-amber-500/10 text-amber-400/80 ring-1 ring-inset ring-amber-500/20"
+                    >
                       {getFlagLabel(flag.type)}
-                    </Badge>
+                    </span>
                   ))}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-1 text-xs border-yellow-500/40 hover:bg-yellow-500/10 text-yellow-400"
+                <button
+                  className="mt-0.5 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium text-white/60 ring-1 ring-inset ring-white/10 hover:ring-white/20 hover:text-white/80 hover:bg-white/[0.04] transition-all duration-200"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowFlaggedContent(true);
                   }}
                 >
-                  <Eye className="h-3.5 w-3.5 mr-1.5" />
+                  <Eye className="h-3.5 w-3.5" />
                   Show content
-                </Button>
+                </button>
               </div>
             </div>
           ) : (
@@ -2841,21 +2840,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                 </div>
               )}
 
-              {/* Active content warning banner (after reveal) */}
-              {hasContentWarning && showFlaggedContent && (
-                <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-xs text-yellow-400">
-                  <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-                  <span>
-                    {localContentFlags.map(f => getFlagLabel(f.type)).join(', ')}
-                  </span>
-                  <button
-                    className="ml-auto text-yellow-500 hover:text-yellow-300 transition-colors"
-                    onClick={(e) => { e.stopPropagation(); setShowFlaggedContent(false); }}
-                  >
-                    Hide
-                  </button>
-                </div>
-              )}
+              {/* Content warning dismissed — no banner shown */}
 
               {/* Poll preview */}
               {item.hasPoll && (

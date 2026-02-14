@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
       headers: {
         'X-Mybring-API-Uid': bringApiUID || '',
         'X-Mybring-API-Key': bringApiKey || '',
-        'X-Bring-Client-URL': clientUrl,
+        'X-Bring_Client_URL': clientUrl,
         Accept: 'application/json',
       },
       cache: 'no-store',

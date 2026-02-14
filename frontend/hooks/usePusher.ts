@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import PusherClient from "pusher-js";
+import { scopeChannel } from '@/lib/pusher-channel';
 
 const LOG_PREFIX = '[usePusher]';
 const DEBUG_PUSHER = process.env.NEXT_PUBLIC_DEBUG_PUSHER === 'true';
@@ -24,18 +25,21 @@ const usePusher = <T = unknown>(channelName: string, eventName: string, callback
 
   useEffect(() => {
     if (!pusherClient || !channelName) return;
+
+    // Scope the channel name to the current environment
+    const scopedChannel = scopeChannel(channelName);
     
-    const subKey = `${channelName}:${eventName}`;
+    const subKey = `${scopedChannel}:${eventName}`;
     const isNewSub = !activeSubscriptions.has(subKey);
     
     if (isNewSub) {
       activeSubscriptions.add(subKey);
       if (DEBUG_PUSHER) {
-        console.log(`${LOG_PREFIX} +${channelName}/${eventName}`);
+        console.log(`${LOG_PREFIX} +${scopedChannel}/${eventName}`);
       }
     }
 
-    const channel = pusherClient.subscribe(channelName);
+    const channel = pusherClient.subscribe(scopedChannel);
     channel.bind(eventName, callback);
 
     // Only log subscription success once per unique channel (not per event)
@@ -49,7 +53,7 @@ const usePusher = <T = unknown>(channelName: string, eventName: string, callback
     }
 
     channel.bind('pusher:subscription_error', (status: any) => {
-      console.error(`${LOG_PREFIX} Error on ${channelName}:`, status);
+      console.error(`${LOG_PREFIX} Error on ${scopedChannel}:`, status);
     });
 
     return () => {

@@ -9,10 +9,26 @@ const P_CLUSTER = process.env.PUSHER_CLUSTER;
 
 export const isPusherConfigured = Boolean(P_APP_ID && P_KEY && P_SECRET && P_CLUSTER);
 
+// ---------- Channel scoping ----------
+// Production channels are unprefixed; dev/preview get a prefix so events
+// from different environments never leak to each other.
+function getChannelPrefix(): string {
+  const railwayEnv = (process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT || '').toLowerCase();
+  if (railwayEnv === 'production' || process.env.NODE_ENV === 'production') return '';
+  return 'dev__';
+}
+
+function scopeChannel(channel: string): string {
+  const prefix = getChannelPrefix();
+  if (!prefix) return channel;
+  if (channel.startsWith(prefix)) return channel;
+  return `${prefix}${channel}`;
+}
+
 let pusherServer: PusherServer | null = null;
 if (isPusherConfigured) {
-  // todo: remove this log when done
   console.log(LOG_PREFIX, 'Pusher environment variables loaded successfully.');
+  console.log(LOG_PREFIX, `Channel prefix: ${getChannelPrefix() || '(none — production)'}`);
 
   pusherServer = new PusherServer({
     appId: P_APP_ID as string,
@@ -29,6 +45,7 @@ export const triggerEvent = (channel: string, event: string, data: unknown): voi
     if (!pusherServer) {
       return;
     }
-    console.log(LOG_PREFIX,'Triggering Pusher event:', channel, event);
-    pusherServer.trigger(channel, event, data);
+    const scoped = scopeChannel(channel);
+    console.log(LOG_PREFIX,'Triggering Pusher event:', scoped, event);
+    pusherServer.trigger(scoped, event, data);
 };

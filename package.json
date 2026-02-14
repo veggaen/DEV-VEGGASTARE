@@ -1,0 +1,19 @@
+{
+  "name": "veggastare",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VeggaStare monorepo – frontend (Next.js / Vercel) + backend (Hapi / Railway)",
+  "scripts": {
+    "dev": "concurrently -n FE,BE -c cyan,yellow \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\"",
+    "dev:fe": "npm run dev --prefix frontend",
+    "dev:be": "npm run dev --prefix backend",
+    "build:fe": "npm run build --prefix frontend",
+    "lint": "npm run lint --prefix frontend",
+    "prisma:generate": "npx --prefix frontend prisma generate",
+    "prisma:studio": "npx --prefix frontend prisma studio",
+    "prepare": "git config core.hooksPath .githooks"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

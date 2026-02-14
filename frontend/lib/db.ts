@@ -17,11 +17,20 @@ declare global {
     var prisma: PrismaClient | undefined
 }
 
-// Select database URL: prefer DEV in non-production
+// Select database URL based on environment:
+// - Vercel production  → MAINLIVE
+// - Vercel preview     → MAINPREVIEW (falls back to MAINDEV)
+// - Local development  → MAINDEV (falls back to MAINLIVE)
+const vercelEnv = process.env.VERCEL_ENV; // 'production' | 'preview' | 'development' (set by Vercel)
+
 const selectedDatabaseUrl =
-    process.env.NODE_ENV !== 'production'
-        ? process.env.DATABASE_URL_MAINDEV ?? process.env.DATABASE_URL_MAINLIVE
-        : process.env.DATABASE_URL_MAINLIVE
+    vercelEnv === 'production'
+        ? process.env.DATABASE_URL_MAINLIVE
+        : vercelEnv === 'preview'
+            ? process.env.DATABASE_URL_MAINPREVIEW ?? process.env.DATABASE_URL_MAINDEV
+            : process.env.NODE_ENV === 'production'
+                ? process.env.DATABASE_URL_MAINLIVE                    // standalone prod build (non-Vercel)
+                : process.env.DATABASE_URL_MAINDEV ?? process.env.DATABASE_URL_MAINLIVE
 
 function withLibpqCompat(url: string | undefined): string | undefined {
     if (!url) return url
