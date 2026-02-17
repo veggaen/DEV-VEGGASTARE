@@ -8,7 +8,7 @@ const isPreview = vercelEnv === 'preview'
 const resolvedDatasourceUrl = isProduction
   ? process.env.DATABASE_URL_MAINLIVE ?? process.env.DATABASE_URL ?? process.env.DATABASE_URL_MAINDEV
   : isPreview
-    ? process.env.DATABASE_URL_MAINPREVIEW ?? process.env.DATABASE_URL_MAINDEV ?? process.env.DATABASE_URL
+    ? process.env.DATABASE_URL_MAINPREVIEW ?? process.env.DATABASE_URL_MAINDEV ?? process.env.DATABASE_URL ?? process.env.DATABASE_URL_MAINLIVE
     : process.env.DATABASE_URL_MAINDEV ?? process.env.DATABASE_URL ?? process.env.DATABASE_URL_MAINLIVE
 
 if (!resolvedDatasourceUrl) {
