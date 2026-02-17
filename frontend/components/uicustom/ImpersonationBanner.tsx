@@ -47,7 +47,7 @@ export default function ImpersonationBanner() {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[9999] bg-amber-500 text-black px-4 py-2 flex items-center justify-center gap-3 text-sm font-medium shadow-lg">
+    <div className="fixed top-0 left-0 right-0 z-9999 bg-amber-500 text-black px-4 py-2 flex items-center justify-center gap-3 text-sm font-medium shadow-lg">
       <FiAlertTriangle className="h-4 w-4 shrink-0" />
       <div className="flex items-center gap-1.5">
         <FiUser className="h-3.5 w-3.5" />

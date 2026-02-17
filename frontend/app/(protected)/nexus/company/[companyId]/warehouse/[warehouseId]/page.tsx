@@ -78,27 +78,29 @@ const WarehouseInventory = () => {
         }
     }, [companyId, warehouseId]);
 
-    if (loading) return <div>Loading...</div>;
-    if (error) return <div>{error}</div>;
-    if (!warehouse) return <div>Warehouse not found.</div>;
+    const inventory = warehouse?.inventory ?? [];
 
     const totals = useMemo(() => {
-        const skuCount = warehouse.inventory.length;
-        const initialTotal = warehouse.inventory.reduce((acc, item) => acc + (item.quantity ?? 0), 0);
-        const currentTotal = warehouse.inventory.reduce((acc, item) => acc + (item.stock ?? 0), 0);
+        const skuCount = inventory.length;
+        const initialTotal = inventory.reduce((acc, item) => acc + (item.quantity ?? 0), 0);
+        const currentTotal = inventory.reduce((acc, item) => acc + (item.stock ?? 0), 0);
         const ratio = initialTotal > 0 ? currentTotal / initialTotal : 0;
         return { skuCount, initialTotal, currentTotal, ratio };
-    }, [warehouse.inventory]);
+    }, [inventory]);
 
     const filteredInventory = useMemo(() => {
         const q = query.trim().toLowerCase();
-        if (!q) return warehouse.inventory;
-        return warehouse.inventory.filter((item) => {
+        if (!q) return inventory;
+        return inventory.filter((item) => {
             const title = item.product?.title?.toLowerCase() ?? '';
             const category = item.product?.category?.toLowerCase() ?? '';
             return title.includes(q) || category.includes(q);
         });
-    }, [warehouse.inventory, query]);
+    }, [inventory, query]);
+    if (loading) return <div>Loading...</div>;
+    if (error) return <div>{error}</div>;
+    if (!warehouse) return <div>Warehouse not found.</div>;
+
 
     const fmtNumber = (n: number) => new Intl.NumberFormat(undefined).format(n);
     const fmtPercent = (n: number) => `${Math.round(n * 100)}%`;

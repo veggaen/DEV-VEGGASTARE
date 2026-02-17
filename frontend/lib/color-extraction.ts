@@ -370,13 +370,14 @@ export function useBannerColors(bannerUrl: string | null | undefined) {
 
   useEffect(() => {
     if (!bannerUrl) {
-      setRawColors(null);
       return;
     }
 
     let mounted = true;
-    setLoading(true);
-    setError(null);
+    const startTimeoutId = window.setTimeout(() => {
+      setLoading(true);
+      setError(null);
+    }, 0);
 
     extractColorsFromImage(bannerUrl)
       .then((extractedColors) => {
@@ -396,10 +397,12 @@ export function useBannerColors(bannerUrl: string | null | undefined) {
 
     return () => {
       mounted = false;
+      window.clearTimeout(startTimeoutId);
     };
   }, [bannerUrl]);
 
-  const colors = rawColors ? applyModeToColors(rawColors, mode) : null;
+  const effectiveRawColors = bannerUrl ? rawColors : null;
+  const colors = effectiveRawColors ? applyModeToColors(effectiveRawColors, mode) : null;
   return { colors, loading, error };
 }
 

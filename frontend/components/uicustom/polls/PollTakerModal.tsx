@@ -1001,14 +1001,14 @@ function WelcomeScreen({ poll, sections, theme, answeredCount, totalQuestions, o
       className="relative flex flex-col items-center justify-center p-8 text-center min-h-full h-full"
     >
       {/* Animated gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-zinc-900/50 to-background overflow-hidden">
+      <div className="absolute inset-0 bg-linear-to-b from-background via-zinc-900/50 to-background overflow-hidden">
         <motion.div
-          className={cn("absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl opacity-20 bg-gradient-to-br", theme.gradient)}
+          className={cn("absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl opacity-20 bg-linear-to-br", theme.gradient)}
           animate={{ x: [0, 50, 0], y: [0, 30, 0], scale: [1, 1.1, 1] }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-gradient-to-br from-violet-500/15 to-pink-500/15 blur-3xl"
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-linear-to-br from-violet-500/15 to-pink-500/15 blur-3xl"
           animate={{ x: [0, -50, 0], y: [0, -30, 0], scale: [1, 1.2, 1] }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
         />
@@ -1027,14 +1027,14 @@ function WelcomeScreen({ poll, sections, theme, answeredCount, totalQuestions, o
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: "spring", stiffness: 100, damping: 15, delay: 0.2 }}
         >
-          <div className={cn("w-24 h-24 rounded-3xl p-1 shadow-2xl bg-gradient-to-br", theme.gradient)}>
+          <div className={cn("w-24 h-24 rounded-3xl p-1 shadow-2xl bg-linear-to-br", theme.gradient)}>
             <div className="w-full h-full rounded-[20px] bg-background/80 backdrop-blur-xl flex items-center justify-center">
               {poll.type === "QUIZ" ? <Crown className="w-12 h-12 text-violet-500" /> :
                <Target className="w-12 h-12 text-amber-500" />}
             </div>
           </div>
           <motion.div
-            className={cn("absolute -top-2 -right-2 w-8 h-8 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br", theme.gradient)}
+            className={cn("absolute -top-2 -right-2 w-8 h-8 rounded-xl flex items-center justify-center shadow-lg bg-linear-to-br", theme.gradient)}
             initial={{ scale: 0 }}
             animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
             transition={{ delay: 0.6, duration: 0.5 }}
@@ -1047,7 +1047,7 @@ function WelcomeScreen({ poll, sections, theme, answeredCount, totalQuestions, o
         <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}>
           <DialogTitle className="sr-only">{poll.title}</DialogTitle>
           <h1 className="text-2xl md:text-3xl font-extrabold mb-3">
-            <span className={cn("bg-gradient-to-r bg-clip-text text-transparent", theme.gradient)}>
+            <span className={cn("bg-linear-to-r bg-clip-text text-transparent", theme.gradient)}>
               {poll.title.replace(/^[📊🎯🚀⚡💡🔐🛡️🎨🌐📋]+\s*/, '')}
             </span>
           </h1>
@@ -1091,9 +1091,9 @@ function WelcomeScreen({ poll, sections, theme, answeredCount, totalQuestions, o
           <Button
             size="lg"
             onClick={onStart}
-            className={cn("relative group px-8 py-6 text-base font-semibold rounded-2xl text-white shadow-2xl overflow-hidden bg-gradient-to-r", theme.gradient)}
+            className={cn("relative group px-8 py-6 text-base font-semibold rounded-2xl text-white shadow-2xl overflow-hidden bg-linear-to-r", theme.gradient)}
           >
-            <motion.span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0" animate={{ x: ["-200%", "200%"] }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} />
+            <motion.span className="absolute inset-0 bg-linear-to-r from-white/0 via-white/20 to-white/0" animate={{ x: ["-200%", "200%"] }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} />
             <span className="relative flex items-center gap-2">
               {hasProgress ? "Continue" : "Start"}
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -1177,7 +1177,7 @@ function SectionSelectScreen({ sections, answers, theme, onSelect, onBack }: {
                   </div>
                   <div className="mt-2 h-1 rounded-full bg-zinc-800 overflow-hidden">
                     <motion.div
-                      className={cn("h-full rounded-full", isDone ? "bg-emerald-500" : `bg-gradient-to-r ${theme.gradient}`)}
+                      className={cn("h-full rounded-full", isDone ? "bg-emerald-500" : `bg-linear-to-r ${theme.gradient}`)}
                       initial={{ width: 0 }}
                       animate={{ width: `${pct}%` }}
                       transition={{ delay: idx * 0.05 + 0.2, duration: 0.5 }}
@@ -1230,22 +1230,32 @@ function QuestionScreen({
   const [showDeepExplanation, setShowDeepExplanation] = useState(false);
 
   useEffect(() => {
-    setShowExplanation(false);
-    setShowDeepExplanation(false);
+    const timeoutId = window.setTimeout(() => {
+      setShowExplanation(false);
+      setShowDeepExplanation(false);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [question.id]);
   
   // Shuffle ranking options on first display (so not defaulted to correct order).
   // Ensure shuffled order is never identical to correct order — user must make at least one adjustment.
-  const rankingOptionsShuffled = useMemo(() => {
+  const rankingOptionsShuffled = (() => {
     if (question.type !== "RANKING" || !question.options?.length) return question.options?.map((opt) => ({ id: opt.id, label: opt.text })) ?? [];
     const arr = [...question.options];
     const correctOrder = Array.isArray(question.correctAnswer) ? (question.correctAnswer as string[]) : null;
     const idsEqual = (a: { id: string }[], b: string[] | null) =>
       b && a.length === b.length && a.every((x, i) => x.id === b[i]);
+    const getDeterministicIndex = (maxExclusive: number, seed: string) => {
+      let hash = 0;
+      for (let idx = 0; idx < seed.length; idx++) {
+        hash = (hash * 31 + seed.charCodeAt(idx)) >>> 0;
+      }
+      return maxExclusive > 0 ? hash % maxExclusive : 0;
+    };
 
     for (let attempt = 0; attempt < 50; attempt++) {
       for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = getDeterministicIndex(i + 1, `${question.id}:${attempt}:${i}`);
         [arr[i], arr[j]] = [arr[j], arr[i]];
       }
       if (!idsEqual(arr, correctOrder)) break;
@@ -1253,7 +1263,7 @@ function QuestionScreen({
       [arr[0], arr[1]] = [arr[1], arr[0]];
     }
     return arr.map((opt) => ({ id: opt.id, label: opt.text }));
-  }, [question.id, question.type, question.correctAnswer]);
+  })();
   
   const handleValueChange = (value: string | string[] | number | undefined) => {
     onAnswer({ value, comment: answer?.comment });
@@ -1299,7 +1309,7 @@ function QuestionScreen({
   // Show feedback only after commit (or immediately if no commit needed)
   const showFeedback = isAnswered && (!needsCommit || isCommitted);
   
-  const isCorrect = useMemo(() => {
+  const isCorrect = (() => {
     if (!isAnswered || !hasCorrectAnswer || !isQuiz) return null;
     const correctAns = effectiveCorrectAnswer;
     const userAns = answer?.value;
@@ -1345,9 +1355,9 @@ function QuestionScreen({
     }
     
     return null;
-  }, [isAnswered, hasCorrectAnswer, isQuiz, effectiveCorrectAnswer, answer?.value, question.type]);
+  })();
 
-  const deepRangeHelp = useMemo(() => {
+  const deepRangeHelp = (() => {
     if (isCorrect !== false) return null;
     if (question.type !== "SLIDER" && question.type !== "SCALE") return null;
 
@@ -1383,9 +1393,9 @@ function QuestionScreen({
       remainingUnselected,
       formatValue,
     };
-  }, [answer?.value, effectiveCorrectAnswer, isCorrect, question.type, sliderMax, sliderMin, sliderStep]);
+  })();
 
-  const deepWordHelp = useMemo(() => {
+  const deepWordHelp = (() => {
     if (isCorrect !== false) return null;
     if (question.type !== "MULTI_CHOICE" && question.type !== "SINGLE_CHOICE") return null;
 
@@ -1429,9 +1439,9 @@ function QuestionScreen({
       optionsWithSubstringOnly,
       selectedTexts,
     };
-  }, [answer?.value, isCorrect, question.options, question.questionText, question.text, question.type]);
+  })();
 
-  const dynamicWrongTip = useMemo(() => {
+  const dynamicWrongTip = (() => {
     if (isCorrect !== false) return null;
     if (question.type !== "MULTI_CHOICE" && question.type !== "SINGLE_CHOICE") return null;
 
@@ -1488,9 +1498,9 @@ function QuestionScreen({
     }
 
     return null;
-  }, [answer?.value, isCorrect, question.options, question.questionText, question.text, question.type]);
+  })();
 
-  const deepRankingHelp = useMemo(() => {
+  const deepRankingHelp = (() => {
     if (isCorrect !== false) return null;
     if (question.type !== "RANKING") return null;
     if (!Array.isArray(effectiveCorrectAnswer) || !Array.isArray(answer?.value)) return null;
@@ -1527,7 +1537,7 @@ function QuestionScreen({
     }
 
     return `You got ${correctPositions} out of ${expected.length} positions right.\n\nCompare each row with the target order and fix only the rows that differ.`;
-  }, [answer?.value, effectiveCorrectAnswer, isCorrect, question.type]);
+  })();
 
   const customDeepHelp = useMemo(() => {
     if (typeof question.deepExplanation !== "string") return null;
@@ -1535,7 +1545,7 @@ function QuestionScreen({
     return trimmed.length > 0 ? trimmed : null;
   }, [question.deepExplanation]);
 
-  const wrongExplanationDetail = useMemo(() => {
+  const wrongExplanationDetail = (() => {
     if (isCorrect !== false) return null;
 
     if (question.type === "RANKING" && Array.isArray(effectiveCorrectAnswer) && Array.isArray(answer?.value)) {
@@ -1573,14 +1583,14 @@ function QuestionScreen({
     }
 
     return null;
-  }, [answer?.value, effectiveCorrectAnswer, isCorrect, question.options, question.type]);
+  })();
 
-  const explanationContent = useMemo(() => {
+  const explanationContent = (() => {
     if (isCorrect === false) {
       return wrongExplanationDetail ?? question.wrongExplanation ?? question.explanation ?? null;
     }
     return question.explanation ?? null;
-  }, [isCorrect, question.explanation, question.wrongExplanation, wrongExplanationDetail]);
+  })();
 
   return (
     <motion.div
@@ -1605,7 +1615,7 @@ function QuestionScreen({
           <span className="text-xs text-muted-foreground">{answeredCount}/{totalQuestions}</span>
         </div>
         <div className="h-1 rounded-full bg-zinc-800 overflow-hidden">
-          <motion.div className={cn("h-full rounded-full bg-gradient-to-r", theme.gradient)} initial={{ width: 0 }} animate={{ width: `${progressPct}%` }} transition={{ duration: 0.3 }} />
+          <motion.div className={cn("h-full rounded-full bg-linear-to-r", theme.gradient)} initial={{ width: 0 }} animate={{ width: `${progressPct}%` }} transition={{ duration: 0.3 }} />
         </div>
       </div>
 
@@ -1774,7 +1784,7 @@ function QuestionScreen({
                 onClick={onCommit}
                 className={cn(
                   "w-full py-5 text-base font-semibold rounded-xl text-white shadow-lg",
-                  "bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600",
+                  "bg-linear-to-r from-violet-600 via-purple-600 to-fuchsia-600",
                   "hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500",
                   "transition-all duration-200"
                 )}
@@ -1813,7 +1823,7 @@ function QuestionScreen({
                         animate={{ rotate: 0, scale: 1 }}
                         transition={{ type: "spring", stiffness: 500, damping: 15, delay: 0.1 }}
                         className={cn(
-                          "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
+                          "shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
                           isCorrect ? "bg-emerald-500/30" : "bg-red-500/30"
                         )}
                       >
@@ -2106,7 +2116,7 @@ function QuestionScreen({
                   key={q.id}
                   className={cn(
                     "h-1.5 rounded-full transition-all duration-200",
-                    isActive ? cn("w-6 bg-gradient-to-r", theme.gradient) :
+                    isActive ? cn("w-6 bg-linear-to-r", theme.gradient) :
                     isFilled ? "w-1.5 bg-emerald-500" : "w-1.5 bg-zinc-700"
                   )}
                 />
@@ -2117,7 +2127,7 @@ function QuestionScreen({
           <Button
             size="sm"
             onClick={onNext}
-            className={cn("font-medium", isLast ? cn("bg-gradient-to-r text-white", theme.gradient) : "bg-zinc-800 hover:bg-zinc-700 text-foreground")}
+            className={cn("font-medium", isLast ? cn("bg-linear-to-r text-white", theme.gradient) : "bg-zinc-800 hover:bg-zinc-700 text-foreground")}
           >
             {isLast ? (<>Finish <CheckCircle2 className="h-4 w-4 ml-1" /></>) : (<>Next <ChevronRight className="h-4 w-4 ml-1" /></>)}
           </Button>
@@ -2161,7 +2171,7 @@ function CompletionScreen({
           {/* Completion icon */}
           <motion.div className="mx-auto mb-6" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200, damping: 15 }}>
             {pct === 100 ? (
-              <div className={cn("w-20 h-20 rounded-full flex items-center justify-center mx-auto bg-gradient-to-br", theme.gradient)}>
+              <div className={cn("w-20 h-20 rounded-full flex items-center justify-center mx-auto bg-linear-to-br", theme.gradient)}>
                 <CheckCircle2 className="w-10 h-10 text-white" />
               </div>
             ) : (
@@ -2232,7 +2242,7 @@ function CompletionScreen({
                 <Button
                   size="lg"
                   asChild
-                  className={cn("w-full py-6 text-base font-semibold rounded-2xl text-white bg-gradient-to-r", theme.gradient)}
+                  className={cn("w-full py-6 text-base font-semibold rounded-2xl text-white bg-linear-to-r", theme.gradient)}
                 >
                   <Link href={`/auth/login?callbackUrl=${encodeURIComponent(loginCallbackUrl)}`}>
                     Sign in to submit
@@ -2243,7 +2253,7 @@ function CompletionScreen({
               <Button
                 size="lg"
                 onClick={onSubmit}
-                className={cn("w-full py-6 text-base font-semibold rounded-2xl text-white bg-gradient-to-r", theme.gradient)}
+                className={cn("w-full py-6 text-base font-semibold rounded-2xl text-white bg-linear-to-r", theme.gradient)}
               >
                 <span className="flex items-center gap-2"><Eye className="h-5 w-5" />See Preview Results</span>
               </Button>
@@ -2252,7 +2262,7 @@ function CompletionScreen({
                 size="lg"
                 onClick={onSubmit}
                 disabled={isSubmitting || answeredCount === 0}
-                className={cn("w-full py-6 text-base font-semibold rounded-2xl text-white bg-gradient-to-r", theme.gradient)}
+                className={cn("w-full py-6 text-base font-semibold rounded-2xl text-white bg-linear-to-r", theme.gradient)}
               >
                 {isSubmitting ? (
                   <span className="flex items-center gap-2">
@@ -2299,14 +2309,17 @@ function ResultsScreen({
   useEffect(() => {
     if (!isQuiz) return;
     let cancelled = false;
-    setIsVerifying(true);
+    const timeoutId = window.setTimeout(() => setIsVerifying(true), 0);
     calculateQuizScore(sections, answers).then((score) => {
       if (!cancelled) {
         setQuizScore(score);
         setIsVerifying(false);
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, [isQuiz, sections, answers]);
 
   const scorePct = quizScore && quizScore.total > 0 ? Math.round((quizScore.correct / quizScore.total) * 100) : 0;
@@ -2322,7 +2335,7 @@ function ResultsScreen({
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
           >
-            <div className={cn("w-24 h-24 rounded-full flex items-center justify-center mx-auto bg-gradient-to-br shadow-2xl", theme.gradient)}>
+            <div className={cn("w-24 h-24 rounded-full flex items-center justify-center mx-auto bg-linear-to-br shadow-2xl", theme.gradient)}>
               {isQuiz ? <Trophy className="w-12 h-12 text-white" /> : <PartyPopper className="w-12 h-12 text-white" />}
             </div>
           </motion.div>
@@ -2339,8 +2352,8 @@ function ResultsScreen({
                   scale: 0 
                 }}
                 animate={{ 
-                  x: `${20 + Math.random() * 60}%`,
-                  y: `${10 + Math.random() * 50}%`,
+                  x: `${20 + ((i * 37) % 61)}%`,
+                  y: `${10 + ((i * 29) % 51)}%`,
                   scale: [0, 1.5, 1],
                   opacity: [0, 1, 0]
                 }}
@@ -2515,7 +2528,7 @@ function ResultsScreen({
           >
             <Button
               size="lg"
-              className={cn("w-full py-6 text-base font-semibold rounded-2xl text-white bg-gradient-to-r", theme.gradient)}
+              className={cn("w-full py-6 text-base font-semibold rounded-2xl text-white bg-linear-to-r", theme.gradient)}
               onClick={onClose}
             >
               <span className="flex items-center gap-2">

@@ -139,7 +139,7 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
         ) : (
           <div>
             {/* Banner */}
-            <div className="relative h-20 bg-gradient-to-br from-primary/30 via-primary/20 to-muted">
+            <div className="relative h-20 bg-linear-to-br from-primary/30 via-primary/20 to-muted">
               {userPreview?.banner && (
                 <img
                   src={userPreview.banner}

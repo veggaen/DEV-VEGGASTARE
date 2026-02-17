@@ -504,7 +504,7 @@ export default function SettingsPage() {
                   {/* Unsaved Changes Alert */}
                   {hasUnsavedChanges && (
                     <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
-                      <FiInfo className="h-4 w-4 flex-shrink-0" />
+                      <FiInfo className="h-4 w-4 shrink-0" />
                       <span>You have unsaved changes. Click &quot;Save Changes&quot; to apply them.</span>
                     </div>
                   )}
@@ -526,7 +526,7 @@ export default function SettingsPage() {
                             )}
                           </div>
                         </div>
-                        <FiArrowRight className="h-5 w-5 text-emerald-400 flex-shrink-0" />
+                        <FiArrowRight className="h-5 w-5 text-emerald-400 shrink-0" />
                         <div className="flex-1">
                           <div className="text-xs text-emerald-400 mb-1">New</div>
                           <div className="relative h-16 w-full rounded-lg overflow-hidden bg-emerald-500/10 border border-emerald-500/30">
@@ -551,7 +551,7 @@ export default function SettingsPage() {
                         isDraggingBanner 
                           ? 'border-emerald-400 bg-emerald-500/10' 
                           : prefs.hoverEffects === 'colorful'
-                            ? 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-gradient-to-br dark:from-indigo-500/20 dark:to-purple-600/20 dark:hover:border-white/40'
+                            ? 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-linear-to-br dark:from-indigo-500/20 dark:to-purple-600/20 dark:hover:border-white/40'
                             : 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:hover:border-white/40'
                       }`}
                       onClick={() => bannerInputRef.current?.click()}
@@ -620,7 +620,7 @@ export default function SettingsPage() {
                             )}
                           </div>
                         </div>
-                        <FiArrowRight className="h-5 w-5 text-emerald-400 flex-shrink-0" />
+                        <FiArrowRight className="h-5 w-5 text-emerald-400 shrink-0" />
                         <div className="text-center">
                           <div className="text-xs text-emerald-400 mb-1">New</div>
                           <div className="relative h-16 w-16 rounded-full overflow-hidden bg-emerald-500/10 border-2 border-emerald-500/30 mx-auto">
@@ -646,7 +646,7 @@ export default function SettingsPage() {
                           isDraggingAvatar 
                             ? 'border-emerald-400 bg-emerald-500/10' 
                             : prefs.hoverEffects === 'colorful'
-                              ? 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-gradient-to-br dark:from-indigo-500/30 dark:to-purple-600/30 dark:hover:border-white/40'
+                              ? 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-linear-to-br dark:from-indigo-500/30 dark:to-purple-600/30 dark:hover:border-white/40'
                               : 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:hover:border-white/40'
                         }`}
                         onClick={() => avatarInputRef.current?.click()}
@@ -753,7 +753,7 @@ export default function SettingsPage() {
                       
                       <div className="space-y-3">
                         {/* Total Views */}
-                        <div className="rounded-xl bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 p-3">
+                        <div className="rounded-xl bg-linear-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 p-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <FiEye className="h-4 w-4 text-emerald-400" />
@@ -769,7 +769,7 @@ export default function SettingsPage() {
                         </div>
                         
                         {/* Unique Viewers */}
-                        <div className="rounded-xl bg-gradient-to-r from-blue-500/10 to-blue-600/5 border border-blue-500/20 p-3">
+                        <div className="rounded-xl bg-linear-to-r from-blue-500/10 to-blue-600/5 border border-blue-500/20 p-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <FiUsers className="h-4 w-4 text-blue-400" />
@@ -785,7 +785,7 @@ export default function SettingsPage() {
                         </div>
                         
                         {/* Engagement Rate */}
-                        <div className="rounded-xl bg-gradient-to-r from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-3">
+                        <div className="rounded-xl bg-linear-to-r from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <FiActivity className="h-4 w-4 text-purple-400" />
@@ -1656,11 +1656,17 @@ function Web3WalletSettings() {
 
   useEffect(() => {
     if (user && (user as any).web3ModeEnabled !== undefined) {
-      setWeb3Enabled(!!(user as any).web3ModeEnabled);
+      const timeoutId = window.setTimeout(() => {
+        setWeb3Enabled(!!(user as any).web3ModeEnabled);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     } else {
       try {
         const raw = window.localStorage.getItem("veggastare:web3ModeEnabled");
-        if (raw === "true") setWeb3Enabled(true);
+        if (raw === "true") {
+          const timeoutId = window.setTimeout(() => setWeb3Enabled(true), 0);
+          return () => window.clearTimeout(timeoutId);
+        }
       } catch { /* ignore */ }
     }
   }, [user]);

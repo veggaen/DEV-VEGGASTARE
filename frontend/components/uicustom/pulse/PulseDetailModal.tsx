@@ -582,7 +582,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22, ease: modalEase }}
-            className="fixed inset-0 z-[80] bg-black/50 dark:bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 z-80 bg-black/50 dark:bg-black/70 backdrop-blur-sm"
             style={{ 
               position: 'fixed',
               top: 0,
@@ -596,7 +596,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
 
           {/* Modal overlay (keeps it centered on all screens) */}
           <div
-            className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+            className="fixed inset-0 z-90 flex items-center justify-center p-4"
             onMouseDown={handleOverlayPointerDown}
             onTouchStart={handleOverlayPointerDown}
           >
@@ -651,7 +651,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
 
             {/* Advanced Poll Banner - Show when pulse has an advanced poll */}
             {effectiveAdvancedPoll && (
-              <div className="border-b border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-emerald-500/10">
+              <div className="border-b border-emerald-500/20 bg-linear-to-r from-emerald-500/10 via-cyan-500/10 to-emerald-500/10">
                 <button
                   onClick={() => {
                     if (onOpenPoll) {
@@ -854,7 +854,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                                     <FiMoreHorizontal className="h-4 w-4 text-muted-foreground" />
                                   </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48 z-[9999]">
+                                <DropdownMenuContent align="end" className="w-48 z-9999">
                                   <DropdownMenuItem onClick={copyLink}>
                                     <FiCopy className="h-4 w-4 mr-2" />
                                     {copied ? 'Copied!' : 'Copy link'}
@@ -969,7 +969,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                                       <FiMoreHorizontal className="h-4 w-4 text-muted-foreground" />
                                     </button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-44 z-[9999]">
+                                  <DropdownMenuContent align="end" className="w-44 z-9999">
                                     {currentUser && (
                                       <DropdownMenuItem onClick={() => setReplyingToId(replyingToId === message.id ? null : message.id)}>
                                         <FiCornerDownRight className="h-4 w-4 mr-2" />

@@ -206,7 +206,7 @@ export function ChoiceQuestion({
               {showLabels && (
                 <motion.div
                   className={cn(
-                    "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
+                    "shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground"
@@ -259,7 +259,7 @@ export function ChoiceQuestion({
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0, opacity: 0 }}
-                    className="flex-shrink-0"
+                    className="shrink-0"
                   >
                     {multiSelect ? (
                       <div className="w-5 h-5 rounded bg-primary flex items-center justify-center">

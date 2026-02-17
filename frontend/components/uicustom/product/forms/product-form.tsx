@@ -1038,7 +1038,7 @@ export const MyProductCreationForm = () => {
       {showFileReselectionNotice && (
         <div className="mb-4 p-4 rounded-lg border border-amber-500/50 bg-amber-500/10">
           <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 mt-0.5">
+            <div className="shrink-0 mt-0.5">
               <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
@@ -1099,7 +1099,7 @@ export const MyProductCreationForm = () => {
                     {imagePreviews.map((preview, index) => (
                       <div
                         key={preview}
-                        className="group/tile relative flex-shrink-0 w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 lg:w-56 lg:h-56 overflow-hidden rounded-lg border border-border bg-muted/30"
+                        className="group/tile relative shrink-0 w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 lg:w-56 lg:h-56 overflow-hidden rounded-lg border border-border bg-muted/30"
                       >
                         <Image
                           src={preview}
@@ -1139,7 +1139,7 @@ export const MyProductCreationForm = () => {
 
                     {/* Add more indicator - right next to images */}
                     {imagePreviews.length < MAX_IMAGES && (
-                      <div className="flex-shrink-0 w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 lg:w-56 lg:h-56 rounded-lg border border-dashed border-border/80 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors">
+                      <div className="shrink-0 w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 lg:w-56 lg:h-56 rounded-lg border border-dashed border-border/80 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors">
                         <span className="text-3xl">+</span>
                       </div>
                     )}
@@ -1404,7 +1404,7 @@ export const MyProductCreationForm = () => {
                     <div className="rounded-lg border border-purple-500/30 bg-purple-500/5 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                          <div className="shrink-0 w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
                             <FaDownload className="h-5 w-5 text-purple-400" />
                           </div>
                           <div className="min-w-0">
@@ -1415,7 +1415,7 @@ export const MyProductCreationForm = () => {
                         <button
                           type="button"
                           onClick={removeDigitalFile}
-                          className="flex-shrink-0 p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
+                          className="shrink-0 p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
                         >
                           <RxCrossCircled className="h-5 w-5" />
                         </button>
@@ -1578,7 +1578,7 @@ export const MyProductCreationForm = () => {
                   {features.map((feature, index) => (
                     <div key={index} className="flex gap-2 items-start group/feature">
                       {/* Drag handle / bullet indicator */}
-                      <div className="flex-shrink-0 pt-2.5 text-muted-foreground/50 text-xs select-none">
+                      <div className="shrink-0 pt-2.5 text-muted-foreground/50 text-xs select-none">
                         •
                       </div>
                       
@@ -1587,7 +1587,7 @@ export const MyProductCreationForm = () => {
                         value={feature.key || '_none'}
                         onValueChange={(value) => updateFeature(index, 'key', value === '_none' ? '' : value)}
                       >
-                        <SelectTrigger className={`${customStyles.selectTrigger} w-24 sm:w-28 flex-shrink-0 text-xs`}>
+                        <SelectTrigger className={`${customStyles.selectTrigger} w-24 sm:w-28 shrink-0 text-xs`}>
                           <SelectValue placeholder="Category" />
                         </SelectTrigger>
                         <SelectContent className={customStyles.selectContent}>
@@ -1621,7 +1621,7 @@ export const MyProductCreationForm = () => {
                         <button
                           type="button"
                           onClick={() => reorderFeatures(index, index - 1)}
-                          className="flex-shrink-0 p-1.5 text-muted-foreground/40 hover:text-foreground transition-colors opacity-0 group-hover/feature:opacity-100"
+                          className="shrink-0 p-1.5 text-muted-foreground/40 hover:text-foreground transition-colors opacity-0 group-hover/feature:opacity-100"
                           title="Move up"
                         >
                           <FiChevronLeft className="h-3.5 w-3.5 rotate-90" />
@@ -1632,7 +1632,7 @@ export const MyProductCreationForm = () => {
                         <button
                           type="button"
                           onClick={() => reorderFeatures(index, index + 1)}
-                          className="flex-shrink-0 p-1.5 text-muted-foreground/40 hover:text-foreground transition-colors opacity-0 group-hover/feature:opacity-100"
+                          className="shrink-0 p-1.5 text-muted-foreground/40 hover:text-foreground transition-colors opacity-0 group-hover/feature:opacity-100"
                           title="Move down"
                         >
                           <FiChevronRight className="h-3.5 w-3.5 rotate-90" />
@@ -1643,7 +1643,7 @@ export const MyProductCreationForm = () => {
                       <button
                         type="button"
                         onClick={() => removeFeature(index)}
-                        className="flex-shrink-0 p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
+                        className="shrink-0 p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
                       >
                         <RxCrossCircled className="h-4 w-4" />
                       </button>
@@ -1716,7 +1716,7 @@ export const MyProductCreationForm = () => {
                                 value={spec.key === 'Custom' ? '' : spec.key}
                                 onChange={(e) => handleSpecificationChange(index, 'key', e.target.value || 'Custom')}
                                 placeholder="Spec name"
-                                className={`${customStyles.input} w-28 sm:w-32 flex-shrink-0 text-sm`}
+                                className={`${customStyles.input} w-28 sm:w-32 shrink-0 text-sm`}
                               />
                             ) : (
                               // Preset: dropdown select
@@ -1724,7 +1724,7 @@ export const MyProductCreationForm = () => {
                                 value={spec.key}
                                 onValueChange={(value) => handleSpecificationChange(index, 'key', value)}
                               >
-                                <SelectTrigger className={`${customStyles.selectTrigger} w-28 sm:w-32 flex-shrink-0 text-sm`}>
+                                <SelectTrigger className={`${customStyles.selectTrigger} w-28 sm:w-32 shrink-0 text-sm`}>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className={customStyles.selectContent}>
@@ -1759,14 +1759,14 @@ export const MyProductCreationForm = () => {
                               <button
                                 type="button"
                                 onClick={() => removeSpecification(index)}
-                                className="flex-shrink-0 p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
+                                className="shrink-0 p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
                               >
                                 <RxCrossCircled className="h-4 w-4" />
                               </button>
                             )}
                             {/* Show locked indicator for required shipping specs */}
                             {isPhysicalProduct && shippingSpecKeys.includes(spec.key) && (
-                              <div className="flex-shrink-0 p-1.5 text-muted-foreground/50" title="Required for shipping">
+                              <div className="shrink-0 p-1.5 text-muted-foreground/50" title="Required for shipping">
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                 </svg>

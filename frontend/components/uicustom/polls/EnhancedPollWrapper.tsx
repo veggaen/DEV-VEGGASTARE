@@ -403,7 +403,7 @@ function DefaultWelcome({
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 20 }}
-        className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mb-6 shadow-xl"
+        className="w-20 h-20 rounded-2xl bg-linear-to-br from-primary to-primary/60 flex items-center justify-center mb-6 shadow-xl"
       >
         <span className="text-4xl">📊</span>
       </motion.div>
@@ -462,7 +462,7 @@ function DefaultComplete({
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 20 }}
-        className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center mb-6 shadow-xl"
+        className="w-24 h-24 rounded-full bg-linear-to-br from-emerald-500 to-cyan-500 flex items-center justify-center mb-6 shadow-xl"
       >
         <span className="text-5xl">🎉</span>
       </motion.div>

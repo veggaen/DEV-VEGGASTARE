@@ -16,12 +16,17 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { UserRole } from '@/generated/prisma/browser';
 
 // ─── Loading Skeleton ────────────────────────────────────────────────────────
+const FILTER_SKELETON_WIDTHS = [72, 84, 66, 78, 90, 70, 82, 76] as const;
+
 const FilterSkeleton = ({ count = 5 }: { count?: number }) => (
   <div className="space-y-2 animate-pulse">
     {Array.from({ length: count }).map((_, i) => (
       <div key={i} className="flex items-center gap-2">
         <div className="h-4 w-4 rounded bg-zinc-200 dark:bg-zinc-700" />
-        <div className="h-4 flex-1 rounded bg-zinc-200 dark:bg-zinc-700" style={{ width: `${60 + Math.random() * 30}%` }} />
+        <div
+          className="h-4 flex-1 rounded bg-zinc-200 dark:bg-zinc-700"
+          style={{ width: `${FILTER_SKELETON_WIDTHS[i % FILTER_SKELETON_WIDTHS.length]}%` }}
+        />
       </div>
     ))}
   </div>
@@ -59,7 +64,7 @@ const FilterSection = ({
     isOpen && canGrow && "flex-1"
   )}>
     {/* Header row - uses div + onClick to avoid nesting buttons */}
-    <div className="flex w-full items-center justify-between gap-2 py-3 -mx-1 px-1 rounded-md flex-shrink-0">
+    <div className="flex w-full items-center justify-between gap-2 py-3 -mx-1 px-1 rounded-md shrink-0">
       {/* Clickable toggle area */}
       <button
         type="button"
@@ -67,19 +72,19 @@ const FilterSection = ({
         className="flex items-center gap-2 flex-1 min-w-0 text-left transition-colors hover:opacity-80"
         aria-expanded={isOpen}
       >
-        {icon && <span className="text-zinc-500 dark:text-zinc-400 flex-shrink-0">{icon}</span>}
+        {icon && <span className="text-zinc-500 dark:text-zinc-400 shrink-0">{icon}</span>}
         <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{title}</span>
         {typeof count === 'number' && (
-          <span className="text-xs text-zinc-400 dark:text-zinc-500 flex-shrink-0">({count})</span>
+          <span className="text-xs text-zinc-400 dark:text-zinc-500 shrink-0">({count})</span>
         )}
         {typeof selectedCount === 'number' && selectedCount > 0 && (
-          <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500/15 px-1.5 text-xs font-medium text-sky-600 dark:text-sky-400 flex-shrink-0">
+          <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500/15 px-1.5 text-xs font-medium text-sky-600 dark:text-sky-400 shrink-0">
             {selectedCount}
           </span>
         )}
       </button>
       {/* Action buttons - siblings, not nested */}
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex items-center gap-1 shrink-0">
         {showReset && onReset && (
           <button
             type="button"
@@ -651,7 +656,7 @@ export const MySidebarProductsMenu = () => {
               <div className="flex flex-col flex-1 min-h-0 gap-2">
                 {/* Category search - always render to maintain focus */}
                 {categoriesWithCounts.length > 6 && (
-                  <div className="relative flex-shrink-0 mx-0.5">
+                  <div className="relative shrink-0 mx-0.5">
                     <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
                     <input
                       type="text"
@@ -700,7 +705,7 @@ export const MySidebarProductsMenu = () => {
               <div className="flex flex-col flex-1 min-h-0 gap-2">
                 {/* Seller search */}
                 {sellers.length > 6 && (
-                  <div className="relative flex-shrink-0 mx-0.5">
+                  <div className="relative shrink-0 mx-0.5">
                     <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
                     <input
                       type="text"
@@ -736,7 +741,7 @@ export const MySidebarProductsMenu = () => {
                           {seller.name}
                         </span>
                         <span className={cn(
-                          "text-xs tabular-nums flex-shrink-0",
+                          "text-xs tabular-nums shrink-0",
                           seller.count === 0 ? "text-zinc-300 dark:text-zinc-600" : "text-zinc-400 dark:text-zinc-500"
                         )}>
                           {seller.count}
@@ -842,7 +847,7 @@ export const MySidebarProductsMenu = () => {
       <aside
         data-sidebar-filters="true"
         className={cn(
-          "hidden md:block fixed z-[60]",
+          "hidden md:block fixed z-60",
           "will-change-transform",
           // Smooth transitions when not dragging, instant when dragging for 1:1 tracking
           isDragging 
@@ -890,14 +895,14 @@ export const MySidebarProductsMenu = () => {
 					</div>
 				</aside>
 
-      {/* Overlay for small screens - z-[95] below sidebar (z-[100]) but above everything else */}
+      {/* Overlay for small screens - z-95 below sidebar (z-100) but above everything else */}
       {(isSidebarOpen || (isSidebarSwiping && sidebarSwipePx > 0)) && (
         <div
           onClick={() => {
             cancelSidebarSwipe();
             closeSidebar();
           }}
-          className="fixed inset-0 bg-black/50 z-[95] md:hidden"
+          className="fixed inset-0 bg-black/50 z-95 md:hidden"
           style={{
             opacity: isSidebarOpen ? 1 : Math.min(1, Math.max(0.08, sidebarSwipePx / 280)) * 0.9,
             transition: isSidebarSwiping ? "none" : "opacity 200ms ease-out",
@@ -909,7 +914,7 @@ export const MySidebarProductsMenu = () => {
       <aside
         data-sidebar-filters="true"
         className={cn(
-        "fixed w-[92vw] max-w-[420px] bg-white dark:bg-surface-1 shadow-2xl z-[100] transform will-change-transform md:hidden",
+        "fixed w-[92vw] max-w-[420px] bg-white dark:bg-surface-1 shadow-2xl z-100 transform will-change-transform md:hidden",
         		isSidebarSwiping ? "transition-none" : "transition-transform duration-300 ease-out",
           isRight ? "right-0 border-l border-zinc-200 dark:border-zinc-800" : "left-0 border-r border-zinc-200 dark:border-zinc-800",
         // During active swipe, we drive transform inline for smooth follow.

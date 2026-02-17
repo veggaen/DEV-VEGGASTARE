@@ -143,7 +143,11 @@ export function UiPreferencesProvider({ children }: { children: React.ReactNode 
   // Load once on mount.
   useEffect(() => {
     const existing = safeParse(globalThis.localStorage?.getItem(STORAGE_KEY) ?? null);
-    if (existing) setPrefsState(normalize(existing));
+    if (!existing) return;
+    const timeoutId = window.setTimeout(() => {
+      setPrefsState(normalize(existing));
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   // Persist.

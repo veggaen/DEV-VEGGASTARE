@@ -99,11 +99,11 @@ export function FancyGradient({
 
   const gradientStyles = {
     default:
-      "bg-gradient-to-b from-background via-background/70 to-sky-950/10 dark:from-black/15 dark:via-transparent dark:to-black/5",
+      "bg-linear-to-b from-background via-background/70 to-sky-950/10 dark:from-black/15 dark:via-transparent dark:to-black/5",
     subtle:
-      "bg-gradient-to-b from-transparent via-background/30 to-background/50",
+      "bg-linear-to-b from-transparent via-background/30 to-background/50",
     vibrant:
-      "bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5",
+      "bg-linear-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5",
   };
 
   return (

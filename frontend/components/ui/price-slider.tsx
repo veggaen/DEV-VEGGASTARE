@@ -504,13 +504,13 @@ export const PriceSlider = ({
           {/* Handle body - scale effect on hover/active via CSS to avoid position jump */}
           <div className={cn(
             "relative w-5 h-5 rounded-full shadow-md transition-transform duration-150",
-            "bg-gradient-to-br from-white to-zinc-100",
+            "bg-linear-to-br from-white to-zinc-100",
             "dark:from-zinc-600 dark:to-zinc-800",
             "border-2 border-emerald-500 dark:border-emerald-400",
             "hover:scale-110 active:scale-115",
             isDragging === 'min' && "scale-115"
           )}>
-            <div className="absolute inset-0.5 rounded-full bg-gradient-to-br from-emerald-200/30 to-transparent dark:from-emerald-400/20" />
+            <div className="absolute inset-0.5 rounded-full bg-linear-to-br from-emerald-200/30 to-transparent dark:from-emerald-400/20" />
           </div>
         </motion.div>
 
@@ -558,13 +558,13 @@ export const PriceSlider = ({
           {/* Handle body - scale effect on hover/active via CSS to avoid position jump */}
           <div className={cn(
             "relative w-5 h-5 rounded-full shadow-md transition-transform duration-150",
-            "bg-gradient-to-br from-white to-zinc-100",
+            "bg-linear-to-br from-white to-zinc-100",
             "dark:from-zinc-600 dark:to-zinc-800",
             "border-2 border-violet-500 dark:border-violet-400",
             "hover:scale-110 active:scale-115",
             isDragging === 'max' && "scale-115"
           )}>
-            <div className="absolute inset-0.5 rounded-full bg-gradient-to-br from-violet-200/30 to-transparent dark:from-violet-400/20" />
+            <div className="absolute inset-0.5 rounded-full bg-linear-to-br from-violet-200/30 to-transparent dark:from-violet-400/20" />
           </div>
         </motion.div>
       </div>

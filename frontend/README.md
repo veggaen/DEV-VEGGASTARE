@@ -99,7 +99,7 @@ frontend/
 | **Auth** | NextAuth (v5 beta) | ^5.0.0-beta.7 |
 | **Database** | Prisma Client | ^7.3.0 |
 | **DB Adapter** | `@prisma/adapter-pg` + `pg` | ^7.3.0 / ^8.18.0 |
-| **Styling** | Tailwind CSS | (config in tailwind.config.ts) |
+| **Styling** | Tailwind CSS | (config in app/globals.css with @theme) |
 | **UI Library** | Radix UI (14+ primitives) | latest |
 | **Icons** | Lucide React | ^0.563.0 |
 | **Animations** | Framer Motion | ^11.0.5 |

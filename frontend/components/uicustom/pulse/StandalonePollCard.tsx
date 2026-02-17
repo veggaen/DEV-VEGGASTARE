@@ -52,7 +52,7 @@ export function StandalonePollCard({ poll }: StandalonePollCardProps) {
     <>
       <button
         onClick={handleOpenPoll}
-        className="w-full p-5 rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 hover:border-primary/50 hover:from-primary/10 hover:to-primary/20 transition-all text-left group shadow-sm"
+        className="w-full p-5 rounded-xl border border-primary/30 bg-linear-to-br from-primary/5 to-primary/10 hover:border-primary/50 hover:from-primary/10 hover:to-primary/20 transition-all text-left group shadow-sm"
       >
         <div className="flex items-start gap-4">
           <div className="p-3 rounded-lg bg-primary/10 text-primary">

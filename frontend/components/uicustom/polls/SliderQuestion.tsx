@@ -368,7 +368,7 @@ export function SliderQuestion({
           <motion.div
             className={cn(
               "absolute top-0 left-0 h-full rounded-full",
-              colorScheme === "reach" ? "bg-gradient-to-r from-red-500 via-yellow-500 to-emerald-500" : "bg-gradient-to-r from-violet-600 to-violet-400"
+              colorScheme === "reach" ? "bg-linear-to-r from-red-500 via-yellow-500 to-emerald-500" : "bg-linear-to-r from-violet-600 to-violet-400"
             )}
             initial={false}
             animate={{ 

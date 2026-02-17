@@ -8,7 +8,7 @@ export default function ProductSkeleton() {
         <div className="lg:sticky lg:top-6">
           <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-900/40 p-2 animate-pulse">
             <AspectRatio ratio={1 / 1}>
-              <div className="w-full h-full bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-700 dark:to-zinc-800 rounded-xl" />
+              <div className="w-full h-full bg-linear-to-br from-zinc-200 to-zinc-300 dark:from-zinc-700 dark:to-zinc-800 rounded-xl" />
             </AspectRatio>
           </div>
         </div>
@@ -16,7 +16,7 @@ export default function ProductSkeleton() {
         {/* Details skeleton */}
         <div className="flex flex-col gap-4">
           {/* Hero heading skeleton */}
-          <div className="relative rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 bg-gradient-to-br from-zinc-50/80 to-zinc-100/80 dark:from-zinc-900/50 dark:to-zinc-800/50 p-6 overflow-hidden animate-pulse">
+          <div className="relative rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 bg-linear-to-br from-zinc-50/80 to-zinc-100/80 dark:from-zinc-900/50 dark:to-zinc-800/50 p-6 overflow-hidden animate-pulse">
             {/* Category badge */}
             <div className="inline-flex mb-3">
               <div className="h-6 w-40 bg-zinc-200 dark:bg-zinc-700 rounded-full" />

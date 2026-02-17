@@ -688,16 +688,16 @@ function PollPreview({ poll }: { poll: ImportedPoll }) {
                 {/* Show slider labels if present */}
                 {(q.sliderConfig?.minLabel || q.sliderConfig?.maxLabel) && (
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {q.sliderConfig.minLabel && <span>Min: "{q.sliderConfig.minLabel}"</span>}
+                    {q.sliderConfig.minLabel && <span>Min: &quot;{q.sliderConfig.minLabel}&quot;</span>}
                     {q.sliderConfig.minLabel && q.sliderConfig.maxLabel && <span> → </span>}
-                    {q.sliderConfig.maxLabel && <span>Max: "{q.sliderConfig.maxLabel}"</span>}
+                    {q.sliderConfig.maxLabel && <span>Max: &quot;{q.sliderConfig.maxLabel}&quot;</span>}
                   </div>
                 )}
                 {(q.scaleConfig?.minLabel || q.scaleConfig?.maxLabel) && (
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {q.scaleConfig.minLabel && <span>Min: "{q.scaleConfig.minLabel}"</span>}
+                    {q.scaleConfig.minLabel && <span>Min: &quot;{q.scaleConfig.minLabel}&quot;</span>}
                     {q.scaleConfig.minLabel && q.scaleConfig.maxLabel && <span> → </span>}
-                    {q.scaleConfig.maxLabel && <span>Max: "{q.scaleConfig.maxLabel}"</span>}
+                    {q.scaleConfig.maxLabel && <span>Max: &quot;{q.scaleConfig.maxLabel}&quot;</span>}
                   </div>
                 )}
                 {q.options && q.options.length > 0 && (
@@ -749,7 +749,7 @@ export function PollImportModal({ open, onOpenChange, onImport }: PollImportModa
       clearTimeout(autoParseTimerRef.current);
     }
     
-    setIsProcessing(true);
+    const processingTimeoutId = window.setTimeout(() => setIsProcessing(true), 0);
     autoParseTimerRef.current = setTimeout(() => {
       const result = parseJSONFormat(jsonInput);
       setParseResult(result);
@@ -758,6 +758,7 @@ export function PollImportModal({ open, onOpenChange, onImport }: PollImportModa
     }, 400);
     
     return () => {
+      window.clearTimeout(processingTimeoutId);
       if (autoParseTimerRef.current) {
         clearTimeout(autoParseTimerRef.current);
       }

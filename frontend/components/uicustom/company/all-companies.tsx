@@ -54,7 +54,7 @@ const CompanyCard = ({ company }: { company: PublicCompany }) => {
             className="object-cover"
           />
         ) : (
-          <div className="h-full w-full bg-gradient-to-r from-indigo-500/30 via-sky-500/20 to-emerald-500/30 dark:from-indigo-500/20 dark:via-sky-500/10 dark:to-emerald-500/20" />
+          <div className="h-full w-full bg-linear-to-r from-indigo-500/30 via-sky-500/20 to-emerald-500/30 dark:from-indigo-500/20 dark:via-sky-500/10 dark:to-emerald-500/20" />
         )}
         {/* Logo overlay */}
         <div className="absolute -bottom-6 left-3">

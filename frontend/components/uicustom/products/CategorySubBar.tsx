@@ -133,7 +133,7 @@ function CategoryDropdown({ group, availableCategories, selectedCategories, onCa
           >
             <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden">
               {/* Header with gradient */}
-              <div className={cn("px-3 py-2 bg-gradient-to-r text-white text-xs font-medium", group.color)}>
+              <div className={cn("px-3 py-2 bg-linear-to-r text-white text-xs font-medium", group.color)}>
                 {group.label} Categories
               </div>
               
@@ -240,7 +240,7 @@ function AllCategoriesDropdown({
             className="absolute top-full left-0 mt-1 z-50 min-w-[220px] max-w-[300px]"
           >
             <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden">
-              <div className="px-3 py-2 bg-gradient-to-r from-zinc-600 to-zinc-700 text-white text-xs font-medium">
+              <div className="px-3 py-2 bg-linear-to-r from-zinc-600 to-zinc-700 text-white text-xs font-medium">
                 Browse All Categories
               </div>
               
@@ -311,7 +311,7 @@ export function CategorySubBar() {
   }
 
   return (
-    <div className="border-b border-black/5 dark:border-white/5 bg-gradient-to-r from-zinc-50/80 via-white/60 to-zinc-50/80 dark:from-zinc-900/40 dark:via-zinc-800/30 dark:to-zinc-900/40">
+    <div className="border-b border-black/5 dark:border-white/5 bg-linear-to-r from-zinc-50/80 via-white/60 to-zinc-50/80 dark:from-zinc-900/40 dark:via-zinc-800/30 dark:to-zinc-900/40">
       <div className="mx-auto max-w-screen-2xl px-3 sm:px-4 md:px-6">
         <div className="flex items-center gap-1 py-2 overflow-x-auto scrollbar-hide">
           {/* All Categories dropdown */}

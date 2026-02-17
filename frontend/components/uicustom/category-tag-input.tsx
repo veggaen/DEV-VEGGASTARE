@@ -349,7 +349,7 @@ export function CategoryTagInput({
           {showSimilarWarning && !suggestions.find((s) => s.isExactMatch) && (
             <div className="px-3 py-2 border-b border-border bg-amber-50 dark:bg-amber-900/20">
               <div className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-200">
-                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-medium">Lignende kategori finnes</p>
                   <p className="opacity-80">
@@ -374,7 +374,7 @@ export function CategoryTagInput({
             >
               <div className="flex items-center gap-2 min-w-0">
                 {suggestion.isExactMatch && (
-                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <Check className="h-4 w-4 text-green-600 shrink-0" />
                 )}
                 <span className="truncate">
                   {suggestion.parentName && (
@@ -387,7 +387,7 @@ export function CategoryTagInput({
                 </span>
               </div>
               {suggestion.productCount !== undefined && suggestion.productCount > 0 && (
-                <span className="text-xs text-muted-foreground flex-shrink-0">
+                <span className="text-xs text-muted-foreground shrink-0">
                   {suggestion.productCount} produkt{suggestion.productCount !== 1 ? 'er' : ''}
                 </span>
               )}

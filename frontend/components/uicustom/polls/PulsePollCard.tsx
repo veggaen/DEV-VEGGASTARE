@@ -95,7 +95,7 @@ const TYPE_CONFIG = {
   REACH_ASSESSMENT: {
     label: "Innovation Poll",
     icon: Zap,
-    color: "bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-red-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40",
+    color: "bg-linear-to-r from-amber-500/20 via-orange-500/20 to-red-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40",
     bgGlow: "from-amber-500/10 via-orange-500/5",
   },
 };
@@ -275,7 +275,7 @@ export function PulsePollCard({ poll, onClick, isAdmin, isOwner, onEdit, onDelet
             size="sm" 
             className={cn(
               "w-full gap-2 h-9 text-xs font-medium",
-              poll.type === "REACH_ASSESSMENT" && "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+              poll.type === "REACH_ASSESSMENT" && "bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
             )}
           >
             <PlayCircle className="h-3.5 w-3.5" />

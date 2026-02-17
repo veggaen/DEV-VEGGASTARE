@@ -21,7 +21,7 @@ export default function ProductsSkeleton() {
           </div>
 
           {/* Content area — mirrors ProductCard p-3 md:p-4 */}
-          <div className="p-3 md:p-4 flex flex-col gap-2 flex-grow">
+          <div className="p-3 md:p-4 flex flex-col gap-2 grow">
             {/* Title */}
             <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
             {/* Description */}

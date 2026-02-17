@@ -15,12 +15,14 @@ export function SolanaNetworkProvider({ children }: { children: ReactNode }) {
   const [solanaNetwork, setSolanaNetworkState] = useState<WalletAdapterNetwork>(WalletAdapterNetwork.Devnet);
 
   useEffect(() => {
+    let next = WalletAdapterNetwork.Devnet;
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw === "mainnet") setSolanaNetworkState(WalletAdapterNetwork.Mainnet);
-      else if (raw === "testnet") setSolanaNetworkState(WalletAdapterNetwork.Testnet);
-      else setSolanaNetworkState(WalletAdapterNetwork.Devnet);
+      if (raw === "mainnet") next = WalletAdapterNetwork.Mainnet;
+      else if (raw === "testnet") next = WalletAdapterNetwork.Testnet;
     } catch {}
+    const timeoutId = window.setTimeout(() => setSolanaNetworkState(next), 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   const setSolanaNetwork = (v: WalletAdapterNetwork) => {

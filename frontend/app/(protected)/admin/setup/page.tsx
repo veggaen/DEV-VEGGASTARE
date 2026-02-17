@@ -185,7 +185,7 @@ WHERE email = '${session.user?.email || "your@email.com"}';`}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mt-6 p-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-center"
+          className="mt-6 p-6 rounded-xl bg-linear-to-r from-emerald-500 to-teal-500 text-white text-center"
         >
           <h3 className="text-xl font-bold mb-2">🎉 Setup Complete!</h3>
           <p className="opacity-90">

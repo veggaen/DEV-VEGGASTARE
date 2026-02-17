@@ -695,7 +695,7 @@ export default function ConversationCreateForm() {
                           variant="ghost"
                           size="icon"
                           onClick={() => removePollOption(index)}
-                          className="flex-shrink-0 text-muted-foreground hover:text-destructive"
+                          className="shrink-0 text-muted-foreground hover:text-destructive"
                         >
                           <FiTrash2 className="h-4 w-4" />
                         </Button>

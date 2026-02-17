@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/picoclaw/main/config.schema.json",
+  "_comment": "PicoClaw research sidecar config for VeggaStare poll generation",
+
+  "provider": {
+    "name": "groq",
+    "model": "llama-3.3-70b-versatile",
+    "api_key_env": "GROQ_API_KEY",
+    "temperature": 0.3,
+    "max_tokens": 4096
+  },
+
+  "tools": [
+    {
+      "name": "duckduckgo_search",
+      "enabled": true,
+      "_comment": "Always available — free, no API key needed"
+    },
+    {
+      "name": "brave_search",
+      "enabled": true,
+      "config": {
+        "api_key_env": "BRAVE_API_KEY",
+        "max_results": 5
+      },
+      "_comment": "Primary search — disabled at runtime if BRAVE_API_KEY not set"
+    }
+  ],
+
+  "gateway": {
+    "port": 8080,
+    "auth": {
+      "type": "bearer",
+      "token_env": "PICOCLAW_API_KEY"
+    },
+    "cors": {
+      "allowed_origins": ["*"]
+    },
+    "rate_limit": {
+      "requests_per_minute": 30,
+      "burst": 5
+    }
+  },
+
+  "memory": {
+    "enabled": false,
+    "_comment": "Stateless — each request is independent (research + validate)"
+  },
+
+  "logging": {
+    "level": "info",
+    "format": "json"
+  }
+}

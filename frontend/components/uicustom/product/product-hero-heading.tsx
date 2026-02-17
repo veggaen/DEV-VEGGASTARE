@@ -82,7 +82,15 @@ export default function ProductHeroHeading({
   }, [resolvedAccent]);
 
   const [glowUntilMs, setGlowUntilMs] = React.useState(0);
-  const glowActive = !reduceMotion && Date.now() < glowUntilMs;
+  const [nowMs, setNowMs] = React.useState(() => Date.now());
+  const glowActive = !reduceMotion && nowMs < glowUntilMs;
+
+  React.useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   React.useEffect(() => {
     if (!glowActive) return;
@@ -106,7 +114,7 @@ export default function ProductHeroHeading({
     >
       {/* soft lighting behind title+price */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-2xl">
-        <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-white/10 to-transparent dark:from-white/[0.06] dark:via-white/[0.03] dark:to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-b from-white/40 via-white/10 to-transparent dark:from-white/[0.06] dark:via-white/[0.03] dark:to-transparent" />
         <motion.div
           className={`absolute -top-12 -right-16 h-[220px] w-[220px] rounded-full blur-3xl ${palette.blobA}`}
           animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.12, 0.2, 0.12] }}

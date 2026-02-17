@@ -46,7 +46,7 @@ export function MyThemeBtn({ customName, onClick }: MyThemeBtnProps) {
 				<span aria-hidden className="pointer-events-none absolute inset-0">
 					<span className="absolute inset-0 origin-center scale-x-0 bg-black/5 transition-transform duration-200 ease-out group-hover:scale-x-100 dark:bg-white/[0.10]" />
 					{showFancyHover && (
-						<span className="absolute inset-0 origin-center scale-x-0 opacity-0 bg-gradient-to-r from-sky-400/55 via-emerald-400/45 to-fuchsia-400/55 transition-[transform,opacity] duration-300 ease-out delay-150 group-hover:scale-x-100 group-hover:opacity-100" />
+						<span className="absolute inset-0 origin-center scale-x-0 opacity-0 bg-linear-to-r from-sky-400/55 via-emerald-400/45 to-fuchsia-400/55 transition-[transform,opacity] duration-300 ease-out delay-150 group-hover:scale-x-100 group-hover:opacity-100" />
 					)}
 				</span>
 

@@ -114,6 +114,7 @@ export const MyNewVerificationForm = () => {
     }, [token, success, error, router]);
 
     useEffect(() => {
+      const timeoutId = window.setTimeout(() => {
         if (token) {
             console.log(`${LOG_PREFIX} useEffect triggering verification`)
             onSubmit();
@@ -121,6 +122,8 @@ export const MyNewVerificationForm = () => {
             console.error('Token is missing.');
             setError('Missing token');
         }
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }, [onSubmit, token])
 
   // If verification succeeded and we're showing the close message
@@ -133,7 +136,7 @@ export const MyNewVerificationForm = () => {
       >
         <div className="flex flex-col w-full justify-center items-center gap-4">
           <div className="text-center space-y-2">
-            <p className="text-emerald-600 dark:text-emerald-400 font-medium">You're all set!</p>
+            <p className="text-emerald-600 dark:text-emerald-400 font-medium">You&apos;re all set!</p>
             <p className="text-sm text-muted-foreground">
               You can close this tab and return to your original browser window.
             </p>

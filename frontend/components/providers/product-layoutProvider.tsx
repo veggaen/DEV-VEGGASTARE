@@ -91,8 +91,10 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 	// Reset chrome visibility when pathname changes within /products/*
 	// This ensures the topbar is visible when navigating to /products/create, etc.
 	useEffect(() => {
-		setProductsControlsVisible(true);
-		setTopBarVisible(true);
+		const timeoutId = window.setTimeout(() => {
+			setProductsControlsVisible(true);
+			setTopBarVisible(true);
+		}, 0);
 		productsControlsVisibleRef.current = true;
 		topBarVisibleRef.current = true;
 		try {
@@ -104,6 +106,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		} catch {
 			// ignore
 		}
+		return () => window.clearTimeout(timeoutId);
 	}, [pathname]);
 	useEffect(() => {
 		sidebarOpenRef.current = isSidebarOpen;

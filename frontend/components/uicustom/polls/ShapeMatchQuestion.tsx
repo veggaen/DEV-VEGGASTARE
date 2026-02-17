@@ -427,7 +427,7 @@ export function ShapeMatchQuestion({
     }
     
     setActiveTarget(null);
-  }, [disabled, isComplete, placements, checkPlacement, config.shapes, onChange, updateTargetPositions]);
+  }, [disabled, isComplete, placements, checkPlacement, config.shapes, config.showFeedback, onChange, updateTargetPositions]);
 
   const handleConfirm = useCallback(() => {
     if (disabled || isComplete) return;
@@ -516,7 +516,7 @@ export function ShapeMatchQuestion({
       <div className="flex items-center gap-2 text-sm">
         <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-gradient-to-r from-violet-500 to-indigo-500"
+            className="h-full bg-linear-to-r from-violet-500 to-indigo-500"
             initial={{ width: 0 }}
             animate={{ width: `${(correctCount / config.shapes.length) * 100}%` }}
           />
@@ -527,7 +527,7 @@ export function ShapeMatchQuestion({
       </div>
 
       {/* Game area */}
-      <div className="relative bg-gradient-to-br from-neutral-900/50 to-neutral-800/50 rounded-2xl p-6 min-h-[300px]">
+      <div className="relative bg-linear-to-br from-neutral-900/50 to-neutral-800/50 rounded-2xl p-6 min-h-[300px]">
         {/* Target zones */}
         <div className="flex flex-wrap justify-center gap-8 mb-8">
           {config.targets.map((target) => {

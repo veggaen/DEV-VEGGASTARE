@@ -102,7 +102,7 @@ function SortableItem({
       {/* Drag indicator - visual only */}
       <motion.div 
         className={cn(
-          "flex-shrink-0 p-1.5 rounded-lg transition-colors",
+          "shrink-0 p-1.5 rounded-lg transition-colors",
           isDragging 
             ? "bg-primary/20 text-primary" 
             : "text-muted-foreground/50 hover:text-muted-foreground"
@@ -119,9 +119,9 @@ function SortableItem({
       {/* Rank Medal/Number */}
       <motion.div 
         className={cn(
-          "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center",
+          "shrink-0 w-10 h-10 rounded-xl flex items-center justify-center",
           index === 0 
-            ? "bg-gradient-to-br from-amber-400/20 to-amber-600/20" 
+            ? "bg-linear-to-br from-amber-400/20 to-amber-600/20" 
             : "bg-muted/50"
         )}
         layout
@@ -143,9 +143,9 @@ function SortableItem({
       {/* Position badge */}
       <motion.div 
         className={cn(
-          "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
+          "shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
           index === 0 
-            ? "bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30" 
+            ? "bg-linear-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30" 
             : "bg-muted text-muted-foreground"
         )}
         layout
@@ -160,7 +160,7 @@ function SortableItem({
       <AnimatePresence>
         {isDragging && (
           <motion.div
-            className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/5 to-primary/10 pointer-events-none"
+            className="absolute inset-0 rounded-2xl bg-linear-to-r from-primary/5 to-primary/10 pointer-events-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

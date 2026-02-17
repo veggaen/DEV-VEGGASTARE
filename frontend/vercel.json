@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/reach-decay",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/daily-poll",
+      "schedule": "0 8 * * *"
     }
   ]
 }

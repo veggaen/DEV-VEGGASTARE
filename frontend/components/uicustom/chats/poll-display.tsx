@@ -94,7 +94,7 @@ export const PollDisplay: React.FC<PollDisplayProps> = ({ conversationId }) => {
       {/* Poll Header */}
       <div className="flex items-start justify-between gap-3">
         <h3 className="font-semibold text-lg">{poll.question}</h3>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {poll.isAnonymous && (
             <Badge variant="outline" className="text-xs gap-1">
               <FiLock className="h-3 w-3" />

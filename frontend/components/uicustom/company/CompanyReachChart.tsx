@@ -76,7 +76,7 @@ export default function CompanyReachChart({ companyName, stats }: CompanyReachCh
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-white flex items-center gap-2">
           <FiTrendingUp className="h-5 w-5 text-sky-400" />
-          {companyName}'s Reach
+          {companyName}&apos;s Reach
         </h3>
         <p className="text-sm text-white/50 mt-1">
           Real engagement metrics - how many people actually interact with this company
@@ -93,7 +93,7 @@ export default function CompanyReachChart({ companyName, stats }: CompanyReachCh
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-gradient-to-r from-sky-500/10 to-sky-600/5 border border-sky-500/20 p-4">
+          <div className="rounded-xl bg-linear-to-r from-sky-500/10 to-sky-600/5 border border-sky-500/20 p-4">
             <div className="flex items-center gap-2 mb-2">
               <FiEye className="h-4 w-4 text-sky-400" />
               <span className="text-xs text-white/60">Product Views</span>
@@ -103,7 +103,7 @@ export default function CompanyReachChart({ companyName, stats }: CompanyReachCh
             </div>
           </div>
 
-          <div className="rounded-xl bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 p-4">
+          <div className="rounded-xl bg-linear-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 p-4">
             <div className="flex items-center gap-2 mb-2">
               <FiUsers className="h-4 w-4 text-emerald-400" />
               <span className="text-xs text-white/60">Unique Visitors</span>
@@ -113,7 +113,7 @@ export default function CompanyReachChart({ companyName, stats }: CompanyReachCh
             </div>
           </div>
 
-          <div className="rounded-xl bg-gradient-to-r from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-4">
+          <div className="rounded-xl bg-linear-to-r from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-4">
             <div className="flex items-center gap-2 mb-2">
               <FiPackage className="h-4 w-4 text-purple-400" />
               <span className="text-xs text-white/60">Products</span>
@@ -123,7 +123,7 @@ export default function CompanyReachChart({ companyName, stats }: CompanyReachCh
             </div>
           </div>
 
-          <div className="rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-600/5 border border-amber-500/20 p-4">
+          <div className="rounded-xl bg-linear-to-r from-amber-500/10 to-amber-600/5 border border-amber-500/20 p-4">
             <div className="flex items-center gap-2 mb-2">
               <FiTrendingUp className="h-4 w-4 text-amber-400" />
               <span className="text-xs text-white/60">Views/Product</span>
@@ -134,7 +134,7 @@ export default function CompanyReachChart({ companyName, stats }: CompanyReachCh
           </div>
 
           {stats.averageRating && stats.averageRating > 0 && (
-            <div className="col-span-2 rounded-xl bg-gradient-to-r from-yellow-500/10 to-yellow-600/5 border border-yellow-500/20 p-4">
+            <div className="col-span-2 rounded-xl bg-linear-to-r from-yellow-500/10 to-yellow-600/5 border border-yellow-500/20 p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -168,7 +168,7 @@ export default function CompanyReachChart({ companyName, stats }: CompanyReachCh
         <div className="text-sm font-medium text-white/80 mb-1">💡 Company Reach</div>
         <p className="text-xs text-white/50 leading-relaxed">
           Company reach measures actual engagement - product views, unique visitors, and interaction rates.
-          Unlike follower counts, these metrics show how many people <em>actually</em> discover and engage with this company's products.
+          Unlike follower counts, these metrics show how many people <em>actually</em> discover and engage with this company&apos;s products.
         </p>
       </div>
     </div>

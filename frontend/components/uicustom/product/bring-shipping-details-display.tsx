@@ -400,7 +400,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
             <div className="p-4">
               <div className="flex items-start gap-3">
                 {/* Icon */}
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 dark:from-emerald-500/30 dark:to-teal-500/30 flex items-center justify-center shrink-0">
+                <div className="h-12 w-12 rounded-xl bg-linear-to-br from-emerald-500/20 to-teal-500/20 dark:from-emerald-500/30 dark:to-teal-500/30 flex items-center justify-center shrink-0">
                   <FiMapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
 

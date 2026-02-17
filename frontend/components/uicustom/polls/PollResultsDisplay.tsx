@@ -223,16 +223,19 @@ function ChoiceChart({
 
   if (mode === "pie") {
     const total = responses.reduce((sum, r) => sum + r.count, 0);
-    let cumulativeAngle = 0;
+    const segments = responses.map((response, idx) => {
+      const angle = total > 0 ? (response.count / total) * 360 : 0;
+      const startAngle = responses
+        .slice(0, idx)
+        .reduce((sum, current) => sum + (total > 0 ? (current.count / total) * 360 : 0), 0);
+      return { response, idx, angle, startAngle };
+    });
 
     return (
       <div className="flex items-center gap-6">
         {/* Pie Chart SVG */}
         <svg viewBox="0 0 100 100" className="w-32 h-32">
-          {responses.map((response, idx) => {
-            const angle = (response.count / total) * 360;
-            const startAngle = cumulativeAngle;
-            cumulativeAngle += angle;
+          {segments.map(({ response, idx, angle, startAngle }) => {
 
             // Calculate arc path
             const startRad = (startAngle - 90) * (Math.PI / 180);
@@ -271,7 +274,7 @@ function ChoiceChart({
               )}
             >
               <div
-                className="w-3 h-3 rounded-sm flex-shrink-0"
+                className="w-3 h-3 rounded-sm shrink-0"
                 style={{ backgroundColor: colors[idx % colors.length] }}
               />
               <span className="truncate flex-1">
@@ -467,7 +470,7 @@ function TextResponsesList({
               className="p-3 rounded-lg bg-muted/50 border border-border/30"
             >
               <div className="flex items-start gap-2">
-                <Quote className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                <Quote className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm">{response.text}</p>
                   <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">

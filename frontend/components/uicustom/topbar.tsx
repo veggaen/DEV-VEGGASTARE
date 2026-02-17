@@ -143,7 +143,10 @@ const MyTopBar = () => {
 	useEffect(() => {
 		try {
 			const raw = window.localStorage.getItem("veggastare:web3ModeEnabled");
-			if (raw === "true") setWeb3ModeEnabled(true);
+			if (raw === "true") {
+				const timeoutId = window.setTimeout(() => setWeb3ModeEnabled(true), 0);
+				return () => window.clearTimeout(timeoutId);
+			}
 		} catch {
 			// ignore
 		}
@@ -326,13 +329,15 @@ const MyTopBar = () => {
 	useEffect(() => {
 		// Always reset topbar visibility on pathname change - the ProductProvider will
 		// re-hide it if needed based on scroll position
-		setProductsTopbarVisible(true);
+		const timeoutId = window.setTimeout(() => setProductsTopbarVisible(true), 0);
+		return () => window.clearTimeout(timeoutId);
 	}, [pathname]);
 
 	// Also reset when switching to desktop
 	useEffect(() => {
 		if (!isMobile) {
-			setProductsTopbarVisible(true);
+			const timeoutId = window.setTimeout(() => setProductsTopbarVisible(true), 0);
+			return () => window.clearTimeout(timeoutId);
 		}
 	}, [isMobile]);
 
@@ -362,7 +367,7 @@ const MyTopBar = () => {
 			/>
 			<motion.header
 				ref={headerRef}
-				className="sticky top-0 z-[60] w-full overflow-hidden transition-[max-height] duration-200 ease-out"
+				className="sticky top-0 z-60 w-full overflow-hidden transition-[max-height] duration-200 ease-out"
 				style={{
 					maxHeight: collapseForProducts ? 0 : measuredHeaderHeight,
 					pointerEvents: collapseForProducts ? "none" : "auto",

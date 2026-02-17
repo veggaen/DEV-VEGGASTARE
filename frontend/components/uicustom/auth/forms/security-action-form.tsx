@@ -69,7 +69,10 @@ export const MySecurityActionForm = () => {
 
 	useEffect(() => {
 		// Attempt to confirm automatically first (email-only users).
-		confirm();
+		const timeoutId = window.setTimeout(() => {
+			confirm();
+		}, 0);
+		return () => window.clearTimeout(timeoutId);
 	}, [confirm]);
 
 	return (

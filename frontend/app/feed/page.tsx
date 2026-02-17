@@ -761,7 +761,7 @@ const FeedPage: React.FC = () => {
               changeFilter('all');
               changeSort('recent');
             }}
-            className="text-sm font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent hover:from-emerald-400 hover:to-cyan-400 transition-all shrink-0 flex items-center gap-1.5"
+            className="text-sm font-bold bg-linear-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent hover:from-emerald-400 hover:to-cyan-400 transition-all shrink-0 flex items-center gap-1.5"
           >
             <Zap className="h-4 w-4 text-emerald-500" />
             Flow
@@ -985,7 +985,7 @@ const FeedPage: React.FC = () => {
                     <>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20">
+                          <div className="p-2 rounded-lg bg-linear-to-br from-amber-500/20 to-orange-500/20">
                             <Zap className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                           </div>
                           <h3 className="font-semibold">Advanced Poll</h3>
@@ -1017,7 +1017,7 @@ const FeedPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="p-3 rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-amber-500/10">
+                        <div className="p-3 rounded-lg border border-amber-500/30 bg-linear-to-br from-amber-500/5 to-amber-500/10">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3">
                               <div className="p-2 rounded-lg bg-amber-500/20">
@@ -1054,7 +1054,7 @@ const FeedPage: React.FC = () => {
                     // Show poll type selection
                     <>
                       <div className="flex items-center gap-3 mb-1">
-                        <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/10">
+                        <div className="p-2.5 rounded-xl bg-linear-to-br from-primary/10 to-primary/5 border border-primary/10">
                           <Target className="h-5 w-5 text-primary" />
                         </div>
                         <div>
@@ -1243,7 +1243,7 @@ const FeedPage: React.FC = () => {
 
                     {/* Advanced Poll Preview (if pending) */}
                     {pendingAdvancedPoll && (
-                      <div className="p-3 rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-amber-500/10">
+                      <div className="p-3 rounded-lg border border-amber-500/30 bg-linear-to-br from-amber-500/5 to-amber-500/10">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <div className="p-2 rounded-lg bg-amber-500/20">
@@ -1567,7 +1567,7 @@ const FeedPage: React.FC = () => {
               <DialogHeader className="pb-0">
                 <div className="flex items-center justify-between">
                   <DialogTitle className="flex items-center gap-2.5 text-lg">
-                    <div className="rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/10 p-1.5">
+                    <div className="rounded-lg bg-linear-to-br from-amber-500/20 to-orange-500/10 p-1.5">
                       <Zap className="h-4 w-4 text-amber-500" />
                     </div>
                     Poll Builder
@@ -2848,7 +2848,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                   {item.advancedPoll ? (
                     // Advanced Poll - clickable card opens poll directly
                     <button
-                      className="w-full p-4 rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 hover:border-primary/50 hover:from-primary/10 hover:to-primary/20 transition-all text-left group"
+                      className="w-full p-4 rounded-xl border border-primary/30 bg-linear-to-br from-primary/5 to-primary/10 hover:border-primary/50 hover:from-primary/10 hover:to-primary/20 transition-all text-left group"
                       onClick={(e) => {
                         e.stopPropagation();
                         onOpenPoll?.(item.advancedPoll!.id);

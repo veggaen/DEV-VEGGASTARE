@@ -2,7 +2,7 @@
 
 > **Purpose:** Single-file onboarding for any AI agent (Claude, GPT, Gemini, Copilot, etc.).  
 > Read this file first → you'll understand the entire project, methodology, and current state.  
-> **Last Updated:** 2026-02-14
+> **Last Updated:** 2026-02-17
 
 ---
 
@@ -44,9 +44,13 @@ Users can:
   ║  BACKEND SERVICE  (Hapi.js 21)      ║  Port 3001 (HTTP) + 3002 (WS)
   ║  Bring Shipping · Socket.IO · Prisma 6.16  ║  Deployed on Railway
   ╚══════════════════════════════════════╝
+  ╔══════════════════════════════════════╗
+  ║  PICOCLAW SIDECAR  (Go binary)     ║  Port 8080
+  ║  Web Search (Brave/DDG) · Fact-check║  Deployed on Railway
+  ╚══════════════════════════════════════╝
 ```
 
-**Two services, one database.** Frontend is the primary service (auth, DB writes, API routes, UI). Backend is an "Integration Core" for shipping, warehouse sync, and third-party connectors.
+**Three services, one database.** Frontend is the primary service (auth, DB writes, API routes, UI). Backend is an "Integration Core" for shipping, warehouse sync, and third-party connectors. PicoClaw is a lightweight research sidecar (<10MB RAM) for AI poll quality.
 
 ---
 
@@ -149,13 +153,17 @@ Real-time feed with posts/reactions, follow/sync system, DM/group conversations,
 
 Key capabilities:
 - **PollBuilder** with 7 example templates, flow-based section ordering, drag-and-drop
-- **AI conversational generation** — SSE streaming, chat thread with refinement loop, Review Card
+- **AI conversational generation** — SSE streaming (8-step pipeline), chat thread with refinement loop, Review Card
+- **PicoClaw research sidecar** — Go binary on Railway; web search (Brave primary + DDG fallback) for grounded poll generation + post-generation fact-checking with auto-correction
 - **Interactive preview** — full 5-screen quiz simulation (welcome → sections → questions → completion → results) via PollTakerModal
 - **Fuzzy text matching** — Levenshtein + token-set + vowel-swap for forgiving quiz answers
 - **Two-tier quiz feedback** — explanation → "Still don't understand?" → deepExplanation
 - **Verification-weighted voting** — poll response power scales with user's verification tier
 - **Anti-gaming** — min dwell time, rate limits, straightline detection, IP hashing
-- **BYOK** — Bring your own API key (OpenAI, Anthropic, Grok, Groq, OpenRouter)
+- **BYOK** — Bring your own API key (OpenAI, Anthropic, Grok, Groq, OpenRouter) with optional research toggle
+- **DB-backed daily quota** — 5 free AI generations/day via PostgreSQL (survives cold starts)
+- **Scheduled daily polls** — Cron-based templates with PENDING_REVIEW admin approval flow
+- **Search budget guard** — Hard monthly cap on Brave API (900/mo), auto-fallback to DDG, owner email alerts
 
 ### True Reach™ (7 Pillars)
 Proprietary engagement metric: Visibility (18%), Engagement Depth (25%), Conversion Impact (18%), Loyalty (14%), Growth (10%), Recall (5%), Velocity (10%). 12-tier verification multipliers affect all scoring.

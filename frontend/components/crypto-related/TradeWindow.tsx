@@ -60,9 +60,14 @@ function TradeSessionToken({ tradeId }: { tradeId?: string }) {
       return Math.abs(hash).toString(36).toUpperCase().padStart(6, "0").slice(0, 6);
     }
 
-    setCode(generateCode());
+    const initTimeoutId = window.setTimeout(() => {
+      setCode(generateCode());
+    }, 0);
     const interval = setInterval(() => setCode(generateCode()), ROTATE_INTERVAL);
-    return () => clearInterval(interval);
+    return () => {
+      window.clearTimeout(initTimeoutId);
+      clearInterval(interval);
+    };
   }, [tradeId]);
 
   // Countdown progress ring
@@ -397,14 +402,14 @@ export function TradeWindow({ partner, tradeId, onClose, onComplete }: TradeWind
 
               {/* Animated divider */}
               <div className="flex items-center gap-2 px-4 py-1.5">
-                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-zinc-300 dark:via-zinc-700 to-transparent" />
+                <div className="flex-1 h-px bg-linear-to-r from-transparent via-zinc-300 dark:via-zinc-700 to-transparent" />
                 <motion.div
                   animate={{ rotate: phase === "confirm" ? 360 : 0 }}
                   transition={{ duration: 2, repeat: phase === "confirm" ? Infinity : 0, ease: "linear" }}
                 >
                   <FiRepeat className="h-3 w-3 text-zinc-400 shrink-0" />
                 </motion.div>
-                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-zinc-300 dark:via-zinc-700 to-transparent" />
+                <div className="flex-1 h-px bg-linear-to-r from-transparent via-zinc-300 dark:via-zinc-700 to-transparent" />
               </div>
 
               {/* My side */}
@@ -635,7 +640,7 @@ function TradePanel({
                     className="w-full h-full rounded-full object-contain"
                   />
                 ) : (
-                  <div className="w-full h-full rounded-full bg-gradient-to-br from-zinc-300 to-zinc-500 flex items-center justify-center">
+                  <div className="w-full h-full rounded-full bg-linear-to-br from-zinc-300 to-zinc-500 flex items-center justify-center">
                     <span className="text-[7px] font-bold text-white">
                       {item.token.symbol.slice(0, 2)}
                     </span>

@@ -62,10 +62,6 @@ const CompanySettingsClient = () => {
         const rawCompanyId = (params as any)?.id ?? (params as any)?.companyId;
         const companyId = Array.isArray(rawCompanyId) ? rawCompanyId[0] : rawCompanyId;
 
-        if (!companyId) {
-                return <div className="text-center py-4">Invalid company id.</div>;
-        }
-
         const tagReplacements: { [key: string]: TagReplacement } = {
                 CAN_REMOVE_EMPLOYEE: { name: 'Can Remove Employee', description: 'Allows the user to remove employees within the company.', icon: <MdRemoveCircleOutline className="text-xl h-8 w-8" /> },
                 CAN_EDIT_PERMISSION: { name: 'Can Edit Permission', description: 'Allows the user to edit permissions of employees within the company.', icon: <MdEdit className="text-xl h-8 w-8" /> },
@@ -141,7 +137,9 @@ const CompanySettingsClient = () => {
                 setRegNoticeDays(((company as any).employmentNoticeDays ?? 14) as number);
                 setRegError(null);
                 setRegSuccess(null);
-            }, [company?.id]);
+            }, [company]);
+
+        if (!companyId) return <div className="text-center py-4">Invalid company id.</div>;
 
         if (loading) return <div className="text-center py-4">Loading...</div>;
         if (loadError) return <div className="text-center py-4">{loadError}</div>;
@@ -282,9 +280,9 @@ const CompanySettingsClient = () => {
                                     />
                                 </AspectRatio>
                             ) : (
-                                <div className="h-44 w-full bg-gradient-to-r from-indigo-500/30 via-sky-500/20 to-emerald-500/30 dark:from-indigo-500/20 dark:via-sky-500/10 dark:to-emerald-500/20" />
+                                <div className="h-44 w-full bg-linear-to-r from-indigo-500/30 via-sky-500/20 to-emerald-500/30 dark:from-indigo-500/20 dark:via-sky-500/10 dark:to-emerald-500/20" />
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                            <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
 
                             <div className="absolute inset-0 flex items-end justify-between gap-4 p-4 md:p-6">
                                 <div className="flex items-end gap-4">
@@ -516,7 +514,7 @@ const CompanySettingsClient = () => {
                                                 <div className="flex items-center space-x-4">
                                                     <div className="flex-1 min-w-0">
                                                         <div className='flex gap-2'>
-                                                            <div className="flex-shrink-0">
+                                                            <div className="shrink-0">
                                                                 {employee.user.image ? (
                                                                     <Image 
                                                                         src={employee.user.image} 

@@ -63,8 +63,8 @@ function useOncePerTabGate(key: string) {
 
   useEffect(() => {
     if (reduceMotion) {
-      setPlay(false);
-      return;
+      const timeoutId = window.setTimeout(() => setPlay(false), 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
     // In dev, components can mount twice (React StrictMode). If we write to
@@ -75,8 +75,8 @@ function useOncePerTabGate(key: string) {
     try {
       const force = new URLSearchParams(window.location.search).get("intro") === "1";
       if (force) {
-        setPlay(true);
-        return;
+        const timeoutId = window.setTimeout(() => setPlay(true), 0);
+        return () => window.clearTimeout(timeoutId);
       }
 
       const k = `vega:intro:${key}`;
@@ -85,11 +85,11 @@ function useOncePerTabGate(key: string) {
       const last = lastRaw ? Number(lastRaw) : 0;
 
       if (Number.isFinite(last) && last > 0 && now - last < 1200) {
-        setPlay(false);
-        return;
+        const timeoutId = window.setTimeout(() => setPlay(false), 0);
+        return () => window.clearTimeout(timeoutId);
       }
 
-      setPlay(true);
+      const playTimeoutId = window.setTimeout(() => setPlay(true), 0);
 
       let cancelled = false;
       const t = window.setTimeout(() => {
@@ -102,11 +102,13 @@ function useOncePerTabGate(key: string) {
       }, 50);
       return () => {
         cancelled = true;
+        window.clearTimeout(playTimeoutId);
         window.clearTimeout(t);
       };
     } catch {
       // If storage is blocked, just play once for this mount.
-      setPlay(true);
+      const timeoutId = window.setTimeout(() => setPlay(true), 0);
+      return () => window.clearTimeout(timeoutId);
     }
   }, [key, reduceMotion]);
 
@@ -162,18 +164,19 @@ function useReloadIntroGate(key: string) {
 
   useEffect(() => {
     if (reduceMotion) {
-      setPlay(false);
-      return;
+      const timeoutId = window.setTimeout(() => setPlay(false), 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
     const type = getNavigationType();
     // User asked explicitly for Ctrl+R (reload). Don't replay on client-side navigation.
     if (type !== "reload") {
-      setPlay(false);
-      return;
+      const timeoutId = window.setTimeout(() => setPlay(false), 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
-    setPlay(true);
+    const timeoutId = window.setTimeout(() => setPlay(true), 0);
+    return () => window.clearTimeout(timeoutId);
   }, [key, reduceMotion]);
 
   return play;
@@ -228,9 +231,11 @@ function useRsvpTypingIntro(fullText: string, play: boolean, rsvpWpm: number) {
 
   useEffect(() => {
     if (reduceMotion || !play) {
-      setPhase("done");
-      setIdx(cleaned.length);
-      return;
+      const timeoutId = window.setTimeout(() => {
+        setPhase("done");
+        setIdx(cleaned.length);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
     let cancelled = false;
@@ -238,8 +243,10 @@ function useRsvpTypingIntro(fullText: string, play: boolean, rsvpWpm: number) {
     let t2: number | undefined;
     let interval: number | undefined;
 
-    setPhase("acronym");
-    setIdx(0);
+    const startTimeoutId = window.setTimeout(() => {
+      setPhase("acronym");
+      setIdx(0);
+    }, 0);
 
     // WPM -> rough ms/char (assume ~5 chars per word)
     const msPerChar = clamp(Math.round(60000 / Math.max(60, rsvpWpm) / 5), 16, 64);
@@ -266,6 +273,7 @@ function useRsvpTypingIntro(fullText: string, play: boolean, rsvpWpm: number) {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(startTimeoutId);
       if (t1) window.clearTimeout(t1);
       if (t2) window.clearTimeout(t2);
       if (interval) window.clearInterval(interval);
@@ -634,13 +642,17 @@ function AnimatedProductTitle({
 
   useEffect(() => {
     if (!shouldAnimate) {
-      setStageIndex(stages.length - 1);
-      setIntroDone(true);
-      return;
+      const timeoutId = window.setTimeout(() => {
+        setStageIndex(stages.length - 1);
+        setIntroDone(true);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
-    setStageIndex(0);
-    setIntroDone(false);
+    const initTimeoutId = window.setTimeout(() => {
+      setStageIndex(0);
+      setIntroDone(false);
+    }, 0);
 
     let cancelled = false;
     const run = async () => {
@@ -668,6 +680,7 @@ function AnimatedProductTitle({
 
     return () => {
       cancelled = true;
+      window.clearTimeout(initTimeoutId);
     };
   }, [shouldAnimate, stages, words.length]);
 
@@ -839,13 +852,17 @@ function AnimatedCategoryKicker({ text }: { text: string }) {
 
   useEffect(() => {
     if (!intro || reduceMotion) {
-      setStageIndex(stages.length - 1);
-      setIntroDone(true);
-      return;
+      const timeoutId = window.setTimeout(() => {
+        setStageIndex(stages.length - 1);
+        setIntroDone(true);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
-    setStageIndex(0);
-    setIntroDone(false);
+    const initTimeoutId = window.setTimeout(() => {
+      setStageIndex(0);
+      setIntroDone(false);
+    }, 0);
 
     let cancelled = false;
     const run = async () => {
@@ -864,6 +881,7 @@ function AnimatedCategoryKicker({ text }: { text: string }) {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(initTimeoutId);
     };
   }, [intro, reduceMotion, stages]);
 
@@ -957,15 +975,19 @@ function AnimatedPrice({ amount, currency = 'USD' }: { amount: number; currency?
 
   useEffect(() => {
     if (!shouldAnimate) {
-      setPrimaryStageIndex(primaryStages.length - 1);
-      setSecondaryStageIndex(secondaryStages.length - 1);
-      setIntroDone(true);
-      return;
+      const timeoutId = window.setTimeout(() => {
+        setPrimaryStageIndex(primaryStages.length - 1);
+        setSecondaryStageIndex(secondaryStages.length - 1);
+        setIntroDone(true);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
-    setPrimaryStageIndex(0);
-    setSecondaryStageIndex(0);
-    setIntroDone(false);
+    const initTimeoutId = window.setTimeout(() => {
+      setPrimaryStageIndex(0);
+      setSecondaryStageIndex(0);
+      setIntroDone(false);
+    }, 0);
 
     let cancelled = false;
     const run = async () => {
@@ -997,6 +1019,7 @@ function AnimatedPrice({ amount, currency = 'USD' }: { amount: number; currency?
 
     return () => {
       cancelled = true;
+      window.clearTimeout(initTimeoutId);
     };
   }, [shouldAnimate, primaryStages, secondaryStages]);
 
@@ -1581,7 +1604,7 @@ function ProductDetails({ product }: { product: Product }) {
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-white/5">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 dark:from-emerald-500/30 dark:to-teal-500/30 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-xl bg-linear-to-br from-emerald-500/20 to-teal-500/20 dark:from-emerald-500/30 dark:to-teal-500/30 flex items-center justify-center">
                   <CiDeliveryTruck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
@@ -1624,7 +1647,7 @@ function ProductDetails({ product }: { product: Product }) {
                         disabled={isLocLoading}
                         className={cn(
                           "w-full py-4 px-4 rounded-xl",
-                          "bg-gradient-to-br from-emerald-500 to-teal-600",
+                          "bg-linear-to-br from-emerald-500 to-teal-600",
                           "hover:from-emerald-400 hover:to-teal-500",
                           "text-white font-medium",
                           "flex items-center justify-center gap-3",
@@ -1771,7 +1794,7 @@ function ProductDetails({ product }: { product: Product }) {
               }}
             >
               <div className="p-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-zinc-800 dark:to-zinc-700 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-xl bg-linear-to-br from-gray-100 to-gray-200 dark:from-zinc-800 dark:to-zinc-700 flex items-center justify-center">
                   <CiDeliveryTruck className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                 </div>
                 <div className="flex-1">
@@ -1872,7 +1895,7 @@ function ProductDetails({ product }: { product: Product }) {
                 <ul className="space-y-2">
                   {items.map((feature, idx) => (
                     <li key={idx} className="flex items-start gap-3">
-                      <span className="mt-1 flex-shrink-0 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      <span className="mt-1 shrink-0 h-1.5 w-1.5 rounded-full bg-emerald-500" />
                       <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                         {feature.text}
                       </span>
@@ -1978,12 +2001,12 @@ export default function ProductClient({ productId }: { productId: string }) {
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             This product may have been removed or the link is invalid.
           </p>
-          <a
+          <Link
             href="/products"
             className="mt-6 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
             Browse Products
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -1994,7 +2017,7 @@ export default function ProductClient({ productId }: { productId: string }) {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Something went wrong</h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            We couldn't load this product. Please try again.
+            We couldn&apos;t load this product. Please try again.
           </p>
           <button
             onClick={() => window.location.reload()}

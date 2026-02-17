@@ -49,7 +49,7 @@ export function DragToMatch({
   const [activeItem, setActiveItem] = useState<string | null>(null);
   const [hoveredTarget, setHoveredTarget] = useState<string | null>(null);
   const [rightItems, setRightItems] = useState<DraggableItem[]>([]);
-  const [connections, setConnections] = useState<Array<{ from: string; to: string }>>([]);
+  const [connections, setConnections] = useState<Array<{ key: string; path: string; isCorrect: boolean }>>([]);
 
   // Initialize right items (shuffled or in order)
   useEffect(() => {
@@ -60,12 +60,60 @@ export function DragToMatch({
       side: "right" as const,
       originalIndex: idx,
     }));
-    setRightItems(shuffleRight ? shuffleArray(items) : items);
+    const timeoutId = window.setTimeout(() => {
+      setRightItems(shuffleRight ? shuffleArray(items) : items);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [pairs, shuffleRight]);
 
   // Track refs for line drawing
   const leftRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const rightRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    const computeConnections = () => {
+      const container = containerRef.current;
+      if (!container) {
+        setConnections([]);
+        return;
+      }
+
+      const containerRect = container.getBoundingClientRect();
+      const nextConnections: Array<{ key: string; path: string; isCorrect: boolean }> = [];
+
+      for (const [leftId, rightId] of Object.entries(value)) {
+        const leftEl = leftRefs.current[leftId];
+        const rightEl = rightRefs.current[rightId];
+        if (!leftEl || !rightEl) continue;
+
+        const leftRect = leftEl.getBoundingClientRect();
+        const rightRect = rightEl.getBoundingClientRect();
+
+        const x1 = leftRect.right - containerRect.left;
+        const y1 = leftRect.top + leftRect.height / 2 - containerRect.top;
+        const x2 = rightRect.left - containerRect.left;
+        const y2 = rightRect.top + rightRect.height / 2 - containerRect.top;
+
+        nextConnections.push({
+          key: `${leftId}-${rightId}`,
+          path: `M ${x1} ${y1} C ${x1 + 40} ${y1}, ${x2 - 40} ${y2}, ${x2} ${y2}`,
+          isCorrect: leftId === rightId,
+        });
+      }
+
+      setConnections(nextConnections);
+    };
+
+    const timeoutId = window.setTimeout(computeConnections, 0);
+    window.addEventListener("resize", computeConnections);
+    window.addEventListener("scroll", computeConnections, { passive: true });
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("resize", computeConnections);
+      window.removeEventListener("scroll", computeConnections);
+    };
+  }, [value, pairs, rightItems]);
 
   const handleMatch = useCallback(
     (leftId: string, rightId: string) => {
@@ -119,37 +167,20 @@ export function DragToMatch({
           className="absolute inset-0 w-full h-full pointer-events-none z-10"
           style={{ overflow: "visible" }}
         >
-          {Object.entries(value).map(([leftId, rightId]) => {
-            const leftEl = leftRefs.current[leftId];
-            const rightEl = rightRefs.current[rightId];
-            if (!leftEl || !rightEl || !containerRef.current) return null;
-
-            const containerRect = containerRef.current.getBoundingClientRect();
-            const leftRect = leftEl.getBoundingClientRect();
-            const rightRect = rightEl.getBoundingClientRect();
-
-            const x1 = leftRect.right - containerRect.left;
-            const y1 = leftRect.top + leftRect.height / 2 - containerRect.top;
-            const x2 = rightRect.left - containerRect.left;
-            const y2 = rightRect.top + rightRect.height / 2 - containerRect.top;
-
-            const isCorrect = leftId === rightId;
-
-            return (
-              <motion.path
-                key={`${leftId}-${rightId}`}
-                d={`M ${x1} ${y1} C ${x1 + 40} ${y1}, ${x2 - 40} ${y2}, ${x2} ${y2}`}
-                fill="none"
-                stroke={isCorrect ? "#10b981" : "#3b82f6"}
-                strokeWidth="3"
-                strokeLinecap="round"
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{ pathLength: 1, opacity: 1 }}
-                exit={{ pathLength: 0, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-              />
-            );
-          })}
+          {connections.map((connection) => (
+            <motion.path
+              key={connection.key}
+              d={connection.path}
+              fill="none"
+              stroke={connection.isCorrect ? "#10b981" : "#3b82f6"}
+              strokeWidth="3"
+              strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              exit={{ pathLength: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            />
+          ))}
         </svg>
 
         {/* Left Column */}

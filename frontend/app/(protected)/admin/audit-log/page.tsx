@@ -282,7 +282,7 @@ export default function AdminAuditLogPage() {
                         </div>
                         {log.reason && (
                           <div className="text-sm text-zinc-500 dark:text-zinc-400 italic">
-                            Reason: "{log.reason}"
+                            Reason: &quot;{log.reason}&quot;
                           </div>
                         )}
                         <div className="flex items-center gap-4 mt-2 text-xs text-zinc-400 dark:text-zinc-500">

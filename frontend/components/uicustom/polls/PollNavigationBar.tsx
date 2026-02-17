@@ -145,7 +145,7 @@ function DropZone({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className={cn(
-            "fixed z-[9998] flex items-center justify-center",
+            "fixed z-9998 flex items-center justify-center",
             "border-2 border-dashed transition-colors duration-200",
             positionStyles[position],
             isHovered
@@ -212,7 +212,8 @@ export function PollNavigationBar({
   // Load position from localStorage on mount
   useEffect(() => {
     const savedPosition = loadBarPosition();
-    setPosition(savedPosition);
+    const timeoutId = window.setTimeout(() => setPosition(savedPosition), 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   // Handle position change
@@ -270,7 +271,7 @@ export function PollNavigationBar({
   };
 
   const containerClasses = cn(
-    "fixed z-[9999] transition-all duration-300",
+    "fixed z-9999 transition-all duration-300",
     positionStyles[position],
     isDragging && "cursor-grabbing"
   );
@@ -475,7 +476,7 @@ export function PollNavigationBar({
                     <TooltipTrigger asChild>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-8 px-2 gap-1 max-w-[120px]">
-                          <Layers className="h-3.5 w-3.5 flex-shrink-0" />
+                          <Layers className="h-3.5 w-3.5 shrink-0" />
                           <span className="truncate text-xs">
                             {currentSection + 1}/{totalSections}
                           </span>

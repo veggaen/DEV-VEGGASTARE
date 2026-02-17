@@ -122,7 +122,7 @@ export default function JobDetailPage() {
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
       {/* Background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/5" />
+        <div className="absolute inset-0 bg-linear-to-b from-black/15 via-transparent to-black/5" />
         <motion.div
           className="absolute -right-20 top-32 h-[480px] w-[480px] rounded-full blur-3xl"
           animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.1, 0.18, 0.1] }}
@@ -216,7 +216,7 @@ export default function JobDetailPage() {
                         <button
                           key={idx}
                           onClick={() => setSelectedImage(img)}
-                          className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all ${
+                          className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-lg transition-all ${
                             selectedImage === img
                               ? 'ring-2 ring-indigo-400'
                               : 'ring-1 ring-black/10 dark:ring-white/10 hover:ring-black/30 dark:hover:ring-white/30'
@@ -317,7 +317,7 @@ export default function JobDetailPage() {
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-3 py-2 text-sm text-indigo-600 dark:text-indigo-300 transition-colors hover:bg-black/10 dark:hover:bg-white/10"
                     >
-                      <FiExternalLink className="h-4 w-4 flex-shrink-0" />
+                      <FiExternalLink className="h-4 w-4 shrink-0" />
                       <span className="truncate">{link}</span>
                     </a>
                   ))}
@@ -336,7 +336,7 @@ export default function JobDetailPage() {
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-3 py-2 text-sm text-zinc-600 dark:text-white/70 transition-colors hover:bg-black/10 dark:hover:bg-white/10"
                     >
-                      <FiFileText className="h-4 w-4 flex-shrink-0" />
+                      <FiFileText className="h-4 w-4 shrink-0" />
                       <span className="truncate">Document {idx + 1}</span>
                     </a>
                   ))}

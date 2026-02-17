@@ -129,7 +129,7 @@ function CategoryDropdown({ group, availableCategories, selectedCategories, onCa
   return (
     <div
       ref={dropdownRef}
-      className="relative z-[100]"
+      className="relative z-100"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -156,10 +156,10 @@ function CategoryDropdown({ group, availableCategories, selectedCategories, onCa
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.97 }}
             transition={{ duration: 0.12, ease: [0.23, 1, 0.32, 1] }}
-            className="absolute top-full left-0 mt-1.5 z-[100] min-w-[180px]"
+            className="absolute top-full left-0 mt-1.5 z-100 min-w-[180px]"
           >
             <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 shadow-lg shadow-black/10 dark:shadow-black/40 overflow-hidden">
-              <div className={cn("px-3 py-1.5 bg-gradient-to-r text-white text-[11px] font-medium tracking-wide uppercase", group.gradient)}>
+              <div className={cn("px-3 py-1.5 bg-linear-to-r text-white text-[11px] font-medium tracking-wide uppercase", group.gradient)}>
                 {group.label}
               </div>
               <div className="p-1.5 max-h-[260px] overflow-y-auto">
@@ -231,7 +231,7 @@ function AllCategoriesDropdown({
   return (
     <div
       ref={dropdownRef}
-      className="relative z-[100]"
+      className="relative z-100"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -258,10 +258,10 @@ function AllCategoriesDropdown({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.97 }}
             transition={{ duration: 0.12, ease: [0.23, 1, 0.32, 1] }}
-            className="absolute top-full left-0 mt-1.5 z-[100] min-w-[200px]"
+            className="absolute top-full left-0 mt-1.5 z-100 min-w-[200px]"
           >
             <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 shadow-lg shadow-black/10 dark:shadow-black/40 overflow-hidden">
-              <div className="px-3 py-1.5 bg-gradient-to-r from-zinc-700 to-zinc-800 text-white text-[11px] font-medium tracking-wide uppercase">
+              <div className="px-3 py-1.5 bg-linear-to-r from-zinc-700 to-zinc-800 text-white text-[11px] font-medium tracking-wide uppercase">
                 All Categories
               </div>
               <div className="p-1.5 max-h-[300px] overflow-y-auto">

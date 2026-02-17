@@ -19,18 +19,14 @@ const LoadingTimer: React.FC<LoadingTimerProps> = ({ intervalDuration, onRefresh
     return () => clearInterval(progressInterval);
   }, [intervalDuration]);
 
-  useEffect(() => {
-    if (refreshing) {
-      setProgress(0); // Reset progress when refreshing
-    }
-  }, [refreshing]);
+  const displayedProgress = refreshing ? 0 : progress;
 
   return (
     <div className="flex items-center space-x-4">
       <div style={{ width: 30, height: 30 }}>
         <CircularProgressbar
-          value={progress}
-          text={`${Math.round(progress)}%`}
+          value={displayedProgress}
+          text={`${Math.round(displayedProgress)}%`}
           styles={buildStyles({
             textColor: 'transparent',
             pathColor: '#0ea5e9',
