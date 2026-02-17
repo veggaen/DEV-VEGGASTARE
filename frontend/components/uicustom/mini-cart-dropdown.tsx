@@ -227,7 +227,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                           <Link
                             href={`/products/${item.product.id}`}
                             onClick={() => setOpen(false)}
-                            className="relative flex-shrink-0 h-14 w-14 rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-800 hover:ring-2 hover:ring-emerald-500/40 transition-all"
+                            className="relative shrink-0 h-14 w-14 rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-800 hover:ring-2 hover:ring-emerald-500/40 transition-all"
                           >
                             {item.product.image?.[0] ? (
                               <Image

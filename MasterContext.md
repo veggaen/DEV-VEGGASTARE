@@ -4,7 +4,7 @@
 > This file is the canonical source for architecture invariants and onboarding context.
 
 **Auto-generated sections** are marked with `<!-- @auto -->`. Manual sections are maintained by developers.  
-**Last Updated:** 2026-02-14
+**Last Updated:** 2026-02-17
 
 ---
 
@@ -59,7 +59,7 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 | **Pulse (Social)** | `app/feed/`, `app/pulse/` | Active | Social feed, posts, reactions |
 | **Conversations** | `app/(protected)/` area | Active | DMs, group chats |
 | **Crypto Trading** | `components/crypto-related/` | Active | OSRS inventory, trade windows, P2P |
-| **Polls** | `app/poll-test/`, `components/uicustom/polls/` | Active | 3 poll types (SURVEY, FEEDBACK, QUIZ), 11 question types, PollBuilder with 7 example templates (5 external + 2 inline), verification-weighted voting, anti-gaming, two-tier quiz feedback, **fuzzy text-answer matching** (Levenshtein), **conversational AI chat** (SSE via `/api/polls/generate-stream`, refinement loop, Review Card), **interactive preview mode** (PollTakerModal with `previewData` prop — simulates full quiz-taking experience from welcome → questions → completion → results, no API calls), **per-question trust badges**, **Groq free tier default** (Llama 3.3 70B) + owner-only OpenAI, Grok/Claude/OpenRouter BYOK, **prompt injection guardrails** |
+| **Polls** | `app/poll-test/`, `components/uicustom/polls/` | Active | 3 poll types (SURVEY, FEEDBACK, QUIZ), 11 question types, PollBuilder with 7 example templates (5 external + 2 inline), verification-weighted voting, anti-gaming, two-tier quiz feedback, **fuzzy text-answer matching** (Levenshtein), **conversational AI chat** (8-step SSE pipeline via `/api/polls/generate-stream`, refinement loop, Review Card), **PicoClaw research sidecar** (web search via Brave/DDG + fact-checking with auto-corrections), **interactive preview mode** (PollTakerModal with `previewData` prop), **per-question trust badges**, **Groq free tier default** (Llama 3.3 70B) + owner-only OpenAI, Grok/Claude/OpenRouter BYOK with `useKeyForResearch` toggle, **prompt injection guardrails**, **DB-backed daily quota** (5/day, survives cold starts), **search budget guard** (Brave 900/mo hard cap + DDG fallback), **scheduled daily polls** (cron + PENDING_REVIEW admin approval), **admin email alerts** (Resend) |
 | **Analytics** | `app/analytics/`, `actions/analytics-*.ts` | Active | Company/product/user analytics |
 | **UI Components** | `components/ui/` | Stable | shadcn/ui primitives |
 | **Custom Components** | `components/uicustom/` | Active | Composite components |
@@ -299,6 +299,30 @@ These tags can be extracted by the aggregation script at `scripts/aggregate-cont
 | No trust-level visibility for AI-generated quiz questions | `parseTrustInfo()` extracts trust data from poll description; per-question badge rendered with colour-coded tooltip (High/Medium/Low) |
 | No rate limit on AI generation for platform-key users | Daily quota guard (5 generations/user/day) in streaming endpoint; resets at UTC midnight |
 | Pulse feed filter (polls / pulses) showed wrong items due to single-fetch pagination | Multi-fetch loop collects up to 3 server pages until ≥ 10 visible filtered items found |
+
+### 2026-02-17 — PicoClaw Research Sidecar + Poll System Hardening
+
+**Fixed:**
+| Issue | Fix |
+|-------|-----|
+| Daily AI quota used in-memory Map — reset on every Vercel cold start | Replaced with PostgreSQL-backed `DailyAiUsage` model using atomic `upsert` on `userId_date` composite key (`lib/daily-ai-quota.ts`) |
+| Legacy `/api/polls/generate` route had zero auth, zero quota, zero injection protection | Deleted entirely (546 lines). Only `generate-stream` exists now with full auth + quota + sanitization |
+| AI polls had no web research — "Researching topic" was pure UI theater | PicoClaw Go sidecar performs real web search (Brave primary + DDG fallback) before generation. Research context injected into system prompt |
+| No fact-checking of AI-generated poll answers | PicoClaw validates generated polls post-generation. Corrections with >80% confidence auto-applied |
+| Brave Search could incur unexpected charges | Hard monthly cap (900 queries, env-configurable) via `SearchUsage` DB model. Auto-fallback to DDG when exhausted. Owner email alert via Resend |
+| No admin notification for system alerts | `lib/admin-alerts.ts` sends email via Resend to `PLATFORM_OWNER_EMAIL` for budget exhaustion, PicoClaw outages, etc. |
+| Progress bar hardcoded `/6` steps — would overflow with new pipeline | Server sends `totalSteps` in SSE events; PollBuilder uses dynamic denominator |
+| No scheduled poll generation capability | `ScheduledPoll` model + `/api/cron/daily-poll` route (8 AM UTC daily via Vercel cron). Polls created as PENDING_REVIEW for admin approval |
+
+**New env vars:**
+| Variable | Where | Purpose |
+|----------|-------|---------|
+| `PICOCLAW_URL` | Vercel | Railway public URL of PicoClaw sidecar |
+| `PICOCLAW_API_KEY` | Vercel + Railway | Shared secret for sidecar auth |
+| `PICOCLAW_ENABLED` | Vercel | Feature flag — `"true"` to enable research |
+| `BRAVE_API_KEY` | Railway (PicoClaw) | Brave Search API key |
+| `BRAVE_MONTHLY_LIMIT` | Vercel | Hard cap on Brave queries/month (default: 900) |
+| `PLATFORM_OWNER_EMAIL` | Vercel | Email for admin alerts |
 
 **Known remaining issues (lower priority):**
 | Issue | Severity | Status |

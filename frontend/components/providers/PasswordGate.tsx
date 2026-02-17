@@ -34,7 +34,7 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
   // Show loading while checking
   if (isChecking) {
     return (
-      <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-white dark:bg-black">
+      <div className="fixed inset-0 z-99999 flex items-center justify-center bg-white dark:bg-black">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 dark:border-white/20 border-t-zinc-600 dark:border-t-white" />
       </div>
     );
@@ -44,7 +44,7 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
   // But as a fallback, show nothing (prevents flash of content)
   if (!isAuthenticated) {
     return (
-      <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-white dark:bg-black">
+      <div className="fixed inset-0 z-99999 flex items-center justify-center bg-white dark:bg-black">
         <div className="text-zinc-500 dark:text-white/60 text-sm">Redirecting to access gate...</div>
       </div>
     );

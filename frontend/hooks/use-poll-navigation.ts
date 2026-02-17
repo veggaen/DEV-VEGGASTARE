@@ -300,23 +300,29 @@ export function usePollNavigation({
       urlState.questionIndex !== undefined ||
       urlState.screen !== undefined
     ) {
-      setState((prev) => {
-        const newState = {
-          sectionIndex: urlState.sectionIndex ?? prev.sectionIndex,
-          questionIndex: urlState.questionIndex ?? prev.questionIndex,
-          screen: urlState.screen ?? prev.screen,
-        };
+      const timeoutId = window.setTimeout(() => {
+        setState((prev) => {
+          const newState = {
+            sectionIndex: urlState.sectionIndex ?? prev.sectionIndex,
+            questionIndex: urlState.questionIndex ?? prev.questionIndex,
+            screen: urlState.screen ?? prev.screen,
+          };
 
-        // Only update if actually different
-        if (
-          newState.sectionIndex !== prev.sectionIndex ||
-          newState.questionIndex !== prev.questionIndex ||
-          newState.screen !== prev.screen
-        ) {
-          return newState;
-        }
-        return prev;
-      });
+          // Only update if actually different
+          if (
+            newState.sectionIndex !== prev.sectionIndex ||
+            newState.questionIndex !== prev.questionIndex ||
+            newState.screen !== prev.screen
+          ) {
+            return newState;
+          }
+          return prev;
+        });
+      }, 0);
+
+      return () => {
+        window.clearTimeout(timeoutId);
+      };
     }
   }, [searchParams, enableUrlSync]);
 

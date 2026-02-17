@@ -25,7 +25,7 @@ const walletConnectProjectId =
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.veggat.com";
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __veggastareWagmiConfig: ReturnType<typeof createConfig> | undefined;
 }
 

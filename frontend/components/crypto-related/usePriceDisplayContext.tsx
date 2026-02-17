@@ -50,16 +50,25 @@ export function PriceDisplayProvider({ children }: { children: ReactNode }) {
   const [rates, setRates] = useState<Ctx["rates"]>({});
 
   useEffect(() => {
+    let nextPreset: Preset | null = null;
+    let nextPrimary: Unit | null = null;
+    let nextSecondary: Unit | null = null;
     try {
       const p = localStorage.getItem(STORAGE_KEY) as Preset | null;
-      if (p) setPresetState(p);
+      if (p) nextPreset = p;
       const raw = localStorage.getItem(CUSTOM_KEY);
       if (raw) {
         const j = JSON.parse(raw);
-        if (j?.primary) setCustomPrimary(j.primary);
-        if (j?.secondary) setCustomSecondary(j.secondary);
+        if (j?.primary) nextPrimary = j.primary;
+        if (j?.secondary) nextSecondary = j.secondary;
       }
     } catch {}
+    const timeoutId = window.setTimeout(() => {
+      if (nextPreset) setPresetState(nextPreset);
+      if (nextPrimary) setCustomPrimary(nextPrimary);
+      if (nextSecondary) setCustomSecondary(nextSecondary);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   const setPreset = (p: Preset) => {

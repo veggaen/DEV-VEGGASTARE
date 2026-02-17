@@ -40,37 +40,35 @@ interface TradeModalProps {
   isFullPage?: boolean;
 }
 
+function generateTradeSessionCode(currentTradeId: string, rotateMs: number): string {
+  const seed = `${currentTradeId}-${Math.floor(Date.now() / rotateMs)}`;
+  let hash = 0;
+  for (let index = 0; index < seed.length; index++) {
+    hash = ((hash << 5) - hash + seed.charCodeAt(index)) | 0;
+  }
+  return Math.abs(hash).toString(36).toUpperCase().padStart(6, "0").slice(0, 6);
+}
+
 // ────────────────────────────────────────────────────────────
 // Session Token (TOTP-style rotating code)
 // ────────────────────────────────────────────────────────────
 
 function TradeSessionToken({ tradeId }: { tradeId: string }) {
-  const [code, setCode] = useState("------");
-  const [progress, setProgress] = useState(100);
   const ROTATE = 30_000;
+  const [code, setCode] = useState(() => generateTradeSessionCode(tradeId, ROTATE));
 
   useEffect(() => {
-    function gen(): string {
-      const seed = `${tradeId}-${Math.floor(Date.now() / ROTATE)}`;
-      let h = 0;
-      for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
-      return Math.abs(h).toString(36).toUpperCase().padStart(6, "0").slice(0, 6);
-    }
-    setCode(gen());
-    const iv = setInterval(() => setCode(gen()), ROTATE);
-    return () => clearInterval(iv);
+    const timeoutId = window.setTimeout(() => {
+      setCode(generateTradeSessionCode(tradeId, ROTATE));
+    }, 0);
+    const intervalId = window.setInterval(() => setCode(generateTradeSessionCode(tradeId, ROTATE)), ROTATE);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
+    };
   }, [tradeId]);
 
-  useEffect(() => {
-    let raf: number;
-    const ROTATE = 30_000;
-    const tick = () => {
-      setProgress(100 - ((Date.now() % ROTATE) / ROTATE) * 100);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
+  const progress = 100;
 
   const c = 2 * Math.PI * 10;
   return (
@@ -204,7 +202,7 @@ function TradeItemGrid({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.token.logo} alt={item.token.symbol} className="w-full h-full rounded-full object-contain" />
               ) : (
-                <div className="w-full h-full rounded-full bg-gradient-to-br from-zinc-300 to-zinc-500 flex items-center justify-center">
+                <div className="w-full h-full rounded-full bg-linear-to-br from-zinc-300 to-zinc-500 flex items-center justify-center">
                   <span className="text-[8px] font-bold text-white">{item.token.symbol.slice(0, 2)}</span>
                 </div>
               )}
@@ -748,7 +746,7 @@ function ModalWrapper({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9998] flex items-center justify-center p-4"
+        className="fixed inset-0 z-9998 flex items-center justify-center p-4"
       >
         {/* Backdrop */}
         <motion.div

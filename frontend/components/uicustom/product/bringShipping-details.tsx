@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { MyBringShippingLogic } from './bringShipping-logic';
 import { BringShippingRequestBody } from '@/app/api/bring-shipping/route';
 
@@ -37,22 +37,12 @@ export const BringShippingDetails: React.FC<BringShippingDetailsProps> = ({
   warehouse,
   userDistanceKm,
 }) => {
-const [shippingDetailsFromUser, setShippingDetailsFromUser] = useState<{ fromPostalCode: string; toPostalCode: string; packages: ProductSpecifications[]; } | null>(null);
+const shippingDetailsFromUser = useMemo(() => ({
+  fromPostalCode,
+  toPostalCode,
+  packages: [productSpecifications],
+}), [fromPostalCode, toPostalCode, productSpecifications]);
 const [shippingResFromAPI, setShippingResFromAPI] = useState< BringShippingRequestBody | null>(null);
-
-useEffect(() => {
-    console.log(LOG_PREFIX,'useEffect() bringShipping-details.tsx toPostalCode:', toPostalCode)
-    const shippingData = {
-        fromPostalCode,
-        toPostalCode,
-        packages: [productSpecifications],
-    };
-    setShippingDetailsFromUser(shippingData);
-}, [fromPostalCode, toPostalCode, productSpecifications]);
-
-if (!shippingDetailsFromUser) {
-    return <div className="text-center text-gray-500 dark:text-gray-500">Loading shipping details...</div>;
-}
 
   return (
     <div>

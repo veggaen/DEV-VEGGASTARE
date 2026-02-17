@@ -150,7 +150,7 @@ export function QuestionCommentButton({
         "rounded-full transition-all shadow-md",
         hasComment
           ? "bg-primary text-primary-foreground hover:bg-primary/90"
-          : "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white hover:opacity-90"
+          : "bg-linear-to-r from-emerald-500 to-cyan-500 text-white hover:opacity-90"
       );
     }
 

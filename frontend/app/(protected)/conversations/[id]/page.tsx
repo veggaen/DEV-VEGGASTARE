@@ -179,7 +179,7 @@ export default function ConversationPage() {
               <div className="flex items-center gap-3 min-w-0">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={otherParticipant.image || undefined} />
-                  <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                  <AvatarFallback className="bg-linear-to-br from-indigo-500 to-purple-600 text-white">
                     {otherParticipant.name?.[0] || '?'}
                   </AvatarFallback>
                 </Avatar>

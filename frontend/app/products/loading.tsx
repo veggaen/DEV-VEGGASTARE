@@ -26,7 +26,7 @@ export default function ProductsLoading() {
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton
                 key={i}
-                className="h-7 rounded-full flex-shrink-0"
+                className="h-7 rounded-full shrink-0"
                 style={{ width: `${60 + i * 12}px` }}
               />
             ))}

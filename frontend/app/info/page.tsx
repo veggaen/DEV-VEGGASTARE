@@ -35,7 +35,7 @@ export default function InfoPage() {
               </h1>
               <p className="max-w-3xl text-pretty text-sm text-muted-foreground sm:text-base">
                 VeggaStare is my playground for fast UI motion, realtime signals, and practical marketplace workflows. Pulse your
-                thoughts, sync with your community, and watch the ripple effect. I'm iterating in public: shipping small, learning
+                thoughts, sync with your community, and watch the ripple effect. I&apos;m iterating in public: shipping small, learning
                 quickly, and turning rough edges into a system that feels effortless.
               </p>
             </header>
@@ -207,7 +207,7 @@ export default function InfoPage() {
                 transition={{ duration: 0.35, ease: "easeOut", delay: 0.12 }}
                 className="border-t border-border pt-5"
               >
-                <h2 className="text-sm font-semibold tracking-wide text-foreground/90">What's next</h2>
+                <h2 className="text-sm font-semibold tracking-wide text-foreground/90">What&apos;s next</h2>
                 <ul className="mt-3 grid grid-cols-1 gap-x-10 gap-y-2 text-sm text-muted-foreground sm:grid-cols-2">
                   {[
                     "Production hardening: stability, performance, and fewer sharp edges.",

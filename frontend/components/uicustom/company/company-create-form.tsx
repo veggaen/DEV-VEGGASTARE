@@ -1,3 +1,7 @@
+/**
+ * @fileOverview  Company creation form – card-sectioned, responsive, dark-mode ready.
+ * @stability     stable
+ */
 'use client';
 
 import React, { startTransition, useEffect, useState } from 'react';
@@ -6,15 +10,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { z } from 'zod';
 import { MyFormError } from '../forms/form-error';
 import { MyFormSuccess } from '../forms/form-sucess';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useEdgeStore } from '@/lib/edgestore';
 import { useDropzone } from 'react-dropzone';
-import { RxCrossCircled } from "react-icons/rx";
-import { FaFileUpload } from "react-icons/fa";
+import { X, Upload, Plus, Trash2, MapPin, Loader2 } from "lucide-react";
 import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { MyCreateCompanyAction } from '@/actions/create-company';
@@ -287,335 +293,403 @@ export const MyCompanyCreateForm = () => {
     setBannerPreview((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const smColumnsLogo = logoPreview.length ? Math.min(logoPreview.length, 2) : 1;
-  const mdColumnsLogo = logoPreview.length ? Math.min(logoPreview.length, 3) : 1;
-  const lgColumnsLogo = logoPreview.length ? Math.min(logoPreview.length, 4) : 1;
-  const xlColumnsLogo = logoPreview.length ? Math.min(logoPreview.length, 5) : 1;
-  const gridClassLogo = `sm:grid-cols-${smColumnsLogo} md:grid-cols-${mdColumnsLogo} lg:grid-cols-${lgColumnsLogo} xl:grid-cols-${xlColumnsLogo}`;
-
-  const smColumnsBanner = bannerPreview.length ? Math.min(bannerPreview.length, 1) : 1;
-  const mdColumnsBanner = bannerPreview.length ? Math.min(bannerPreview.length, 1) : 1;
-  const lgColumnsBanner = bannerPreview.length ? Math.min(bannerPreview.length, 1) : 1;
-  const xlColumnsBanner = bannerPreview.length ? Math.min(bannerPreview.length, 1) : 1;
-  const gridClassBanner = `sm:grid-cols-${smColumnsBanner} md:grid-cols-${mdColumnsBanner} lg:grid-cols-${lgColumnsBanner} xl:grid-cols-${xlColumnsBanner}`;
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="w-full max-w-[640px] flex flex-col justify-start items-center border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm">
-        <div className="w-full flex flex-col justify-start items-center">
-          <div className="w-full border-b border-zinc-100 dark:border-zinc-800 p-6">
-            <h1 className='text-lg font-semibold text-zinc-900 dark:text-zinc-100'>Company Details</h1>
-            <p className='text-sm text-zinc-500 dark:text-zinc-400 mt-1'>Basic information about your company</p>
-          </div>
-          <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem className='w-full px-6 py-4 border-b border-zinc-50 dark:border-zinc-800/50'>
-              <FormLabel className="text-zinc-900 dark:text-zinc-100">Company Name</FormLabel>
-              <FormDescription className='text-xs text-zinc-500 dark:text-zinc-400'>
-                Enter a name to use for this company.
-              </FormDescription>
-              <FormControl>
-                <Input {...field} placeholder="Enter company name" disabled={!user || isSubmitting} type="text" spellCheck='false' className='bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700' />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="description" render={({ field }) => (
-            <FormItem className='w-full px-6 py-4 border-b border-zinc-50 dark:border-zinc-800/50'>
-              <FormLabel className="text-zinc-900 dark:text-zinc-100">Company Description</FormLabel>
-              <FormDescription className='text-xs text-zinc-500 dark:text-zinc-400'>
-                Enter a description for the company.
-              </FormDescription>
-              <FormControl>
-                <Input {...field} placeholder="Enter company description" disabled={!user || isSubmitting} type="text" spellCheck='false' className='bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700' />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name='websiteUrl' render={({ field }) => (
-            <FormItem className='w-full px-6 py-4 border-b border-zinc-50 dark:border-zinc-800/50'>
-              <FormLabel className="text-zinc-900 dark:text-zinc-100">Company Website</FormLabel>
-              <FormDescription className='text-xs text-zinc-500 dark:text-zinc-400'>
-                Add existing website url to your company.
-              </FormDescription>
-              <FormControl>
-                <Input {...field} placeholder="https://example.com" disabled={!user || isSubmitting} type="text" spellCheck='false' className='bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700' />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-8">
 
-          <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 px-6 py-4 border-b border-zinc-50 dark:border-zinc-800/50">
-            <FormField
-              control={form.control}
-              name="orgType"
-              render={({ field }) => (
-                <FormItem className='w-full'>
-                  <FormLabel>Organization Type (optional)</FormLabel>
-                  <FormDescription className='px-4 py-0'>
-                    Helps tailor company settings later.
-                  </FormDescription>
-                  <Select
-                    value={(field.value as any) ?? 'UNSPECIFIED'}
-                    onValueChange={(v) => field.onChange(v === 'UNSPECIFIED' ? undefined : v)}
-                    disabled={!user || isSubmitting}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700">
-                        <SelectValue placeholder="Not specified" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="UNSPECIFIED">Not specified</SelectItem>
-                      <SelectItem value="ENK">Enkeltpersonforetak (ENK)</SelectItem>
-                      <SelectItem value="AS">Aksjeselskap (AS)</SelectItem>
-                      <SelectItem value="ANS">Ansvarlig selskap (ANS)</SelectItem>
-                      <SelectItem value="DA">Delt ansvar (DA)</SelectItem>
-                      <SelectItem value="SA">Samvirkeforetak (SA)</SelectItem>
-                      <SelectItem value="FORENING">Forening / Lag</SelectItem>
-                      <SelectItem value="NUF">NUF</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="orgNumber"
-              render={({ field }) => (
-                <FormItem className='w-full'>
-                  <FormLabel className="text-zinc-900 dark:text-zinc-100">Organization Number (optional)</FormLabel>
-                  <FormDescription className='text-xs text-zinc-500 dark:text-zinc-400'>
-                    9 digits.
-                  </FormDescription>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="123456789"
-                      disabled={!user || isSubmitting}
-                      inputMode="numeric"
-                      pattern="\d*"
-                      maxLength={9}
-                      className='bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700'
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <FormField
-            control={form.control}
-            name="employmentNoticeDays"
-            render={({ field }) => (
-              <FormItem className='w-full px-6 py-4 border-b border-zinc-50 dark:border-zinc-800/50'>
-                <FormLabel className="text-zinc-900 dark:text-zinc-100">Default Notice Days (optional)</FormLabel>
-                <FormDescription className='text-xs text-zinc-500 dark:text-zinc-400'>
-                  Default: 14 days
-                </FormDescription>
+        {/* ── Section 1: Company Details ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Company Details</CardTitle>
+            <CardDescription>Basic information about your company</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Company Name</FormLabel>
                 <FormControl>
-                  <Input
-                    {...field}
-                    type="number"
-                    min={0}
-                    max={365}
-                    disabled={!user || isSubmitting}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
-                    className='bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700'
-                  />
+                  <Input {...field} placeholder="Enter company name" disabled={!user || isSubmitting} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
-            )}
-          />
+            )} />
 
-          <FormField control={form.control} name='logo' render={({ field }) => (
-            <FormItem className='w-full px-4 pt-2' title='Optimal image ratio 1:1'>
-              <FormLabel>Company Logo</FormLabel>
-              <FormDescription className='px-4 py-0'>
-                Add a logo to your company use a ratio of 1 : 1 for images.
-              </FormDescription>
-              <FormControl>
-                <Input {...field} name='logo' disabled={!user || isSubmitting} spellCheck='false' className='hidden' {...getLogoInputProps()} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <div className='w-full px-4 py-2'>
-            <div className={`h-full w-full flex justify-center items-center rounded-md bg-zinc-100 dark:bg-zinc-900 border border-input disabled:pointer-events-none px-3 py-2 text-sm ring-offset-bg-black/20 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}>
-              <div {...getLogoRootProps()} className={`w-full dropzone cursor-pointer bg-zinc-100 dark:bg-zinc-900 rounded-md border border-dashed ${logoPreview.length >= 1 ? 'border-transparent dark:border-transparent bg-white/0 dark:bg-black/0 hover:bg-transparent dark:hover:bg-transparent' : ' border-gray-600/60 dark:border-gray-600/60'}`}>
-                {logoPreview.length < 1 && (
-                  <AspectRatio ratio={1 / 1}>
-                    <div className={`text-center flex flex-col justify-center items-center w-full h-full text-black dark:text-white focus:outline-none transition rounded-md`} title='Optimal image ratio 1:1'>
-                      <FaFileUpload className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-200" />
-                      <p className="p-4 pt-0 text-sm text-gray-600 dark:text-gray-200 hidden xxs:flex">
-                        Drag a LOGO here or <br /> Click to select
-                      </p>
-                    </div>
-                  </AspectRatio>
-                )}
-                {logoPreview.length >= 1 && (
-                  <div className={`grid gap-3 ${gridClassLogo} min-w-[64px] xs:min-w-[300px] sm:min-w-[420px] grow place-items-stretch`}>
-                    {logoPreview.map((preview, index) => (
-                      <div key={index} className={`border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300`}>
-                        <div className="relative flex flex-col">
-                          <div className='min-w-0 shrink-0 grow-0 basis-full flex justify-center'>
-                            <AspectRatio ratio={1 / 1}>
-                              <Image src={preview} alt={`preview-${index}`} fill sizes="100%" priority className="object-fill" />
-                            </AspectRatio>
-                          </div>
-                          <div onClick={(e) => removeImageLogo(e, index)} className="absolute top-1 right-1 hover:scale-110 transform duration-300 bg-gray-800/30 hover:bg-red-600/40 text-white p-1 rounded-full">
-                            <RxCrossCircled className="h-4 w-4" />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          <FormField control={form.control} name='bannerImage' render={({ field }) => (
-            <FormItem className='w-full px-4 py-2' title='Optimal image ratio 3:1'>
-              <FormLabel>Company Banner</FormLabel>
-              <FormDescription className='px-4 py-0'>
-                Add a banner to your company use a ratio of 3 : 1 for images.
-              </FormDescription>
-              <FormControl>
-                <Input {...field} name='bannerImage' disabled={!user || isSubmitting} spellCheck='false' className='hidden' {...getBannerInputProps()} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <div className='w-full px-4 py-2'>
-            <div className={`h-full w-full flex justify-center items-center rounded-md bg-zinc-100 dark:bg-zinc-900 border border-input disabled:pointer-events-none px-3 py-2 text-sm ring-offset-bg-black/20 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}>
-              <div {...getBannerRootProps()} className={`w-full dropzone cursor-pointer bg-zinc-100 dark:bg-zinc-900 rounded-md border border-dashed ${bannerPreview.length >= 1 ? 'border-transparent dark:border-transparent bg-white/0 dark:bg-black/0 hover:bg-transparent dark:hover:bg-transparent' : ' border-gray-600/60 dark:border-gray-600/60'}`}>
-                {bannerPreview.length < 1 && (
-                  <AspectRatio ratio={3 / 1}>
-                    <div className={`text-center flex flex-col justify-center items-center w-full h-full text-black dark:text-white focus:outline-none transition rounded-md`} title='Optimal image ratio 3:1'>
-                      <FaFileUpload className="h-8 w-8 text-gray-600 dark:text-gray-200" />
-                      <p className="p-4 pt-0 text-sm text-gray-600 dark:text-gray-200 hidden xs:block">
-                        Drag a Banner here or Click to select
-                      </p>
-                    </div>
-                  </AspectRatio>
-                )}
-                {bannerPreview.length >= 1 && (
-                  <div className={`grid gap-3 ${gridClassBanner} min-w-[64px] xs:min-w-[300px] sm:min-w-[420px] grow place-items-stretch`}>
-                    {bannerPreview.map((preview, index) => (
-                      <div key={index} className={`border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300`}>
-                        <div className="relative flex flex-col">
-                          <div className='min-w-0 shrink-0 grow-0 basis-full flex justify-center'>
-                            <AspectRatio ratio={3 / 1}>
-                              <Image src={preview} alt={`preview-${index}`} fill sizes="100%" priority className="object-fill" />
-                            </AspectRatio>
-                          </div>
-                          <div onClick={(e) => removeImageBanner(e, index)} className="absolute top-1 right-1 hover:scale-110 transform duration-300 bg-gray-800/30 hover:bg-red-600/40 text-white p-1 rounded-full">
-                            <RxCrossCircled className="h-4 w-4" />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          {user?.role === 'ADMIN' && (
-            <FormField control={form.control} name='employees' render={({ field }) => (
-              <FormItem className='w-full px-4 py-2'>
-                <FormLabel>Employees</FormLabel>
-                <FormDescription className='px-4 py-0'>
-                  Select users to add to your company as Employees and assign their roles.
-                </FormDescription>
-                <div className="flex flex-col bg-zinc-50 dark:bg-zinc-900 p-2 rounded">
-                  <div className={'grid gap-2 p-2'}>
-                    <Select onValueChange={setSelectedEmployeeId} value={selectedEmployeeId}>
+            <FormField control={form.control} name="description" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    placeholder="Tell customers what your company does..."
+                    disabled={!user || isSubmitting}
+                    rows={3}
+                    className="resize-none"
+                  />
+                </FormControl>
+                <FormDescription>A brief description visible on your company profile</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="websiteUrl" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Website</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="https://example.com" disabled={!user || isSubmitting} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </CardContent>
+        </Card>
+
+        {/* ── Section 2: Organization ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Organization</CardTitle>
+            <CardDescription>Optional legal and organizational details</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="orgType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Organization Type</FormLabel>
+                    <Select
+                      value={(field.value as string) ?? 'UNSPECIFIED'}
+                      onValueChange={(v) => field.onChange(v === 'UNSPECIFIED' ? undefined : v)}
+                      disabled={!user || isSubmitting}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a user" />
+                          <SelectValue placeholder="Not specified" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="UNSPECIFIED">Not specified</SelectItem>
+                        <SelectItem value="ENK">Enkeltpersonforetak (ENK)</SelectItem>
+                        <SelectItem value="AS">Aksjeselskap (AS)</SelectItem>
+                        <SelectItem value="ANS">Ansvarlig selskap (ANS)</SelectItem>
+                        <SelectItem value="DA">Delt ansvar (DA)</SelectItem>
+                        <SelectItem value="SA">Samvirkeforetak (SA)</SelectItem>
+                        <SelectItem value="FORENING">Forening / Lag</SelectItem>
+                        <SelectItem value="NUF">NUF</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="orgNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Organization Number</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="123456789"
+                        disabled={!user || isSubmitting}
+                        inputMode="numeric"
+                        pattern="\d*"
+                        maxLength={9}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">9 digits (optional)</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="employmentNoticeDays"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Default Notice Period</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="number"
+                      min={0}
+                      max={365}
+                      disabled={!user || isSubmitting}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      className="max-w-48"
+                    />
+                  </FormControl>
+                  <FormDescription className="text-xs">Days of notice for employees (default 14)</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        {/* ── Section 3: Branding ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Branding</CardTitle>
+            <CardDescription>Upload your company logo and banner image</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Logo upload */}
+              <div className="space-y-2">
+                <FormField control={form.control} name="logo" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Logo</FormLabel>
+                    <FormDescription className="text-xs">Square image (1:1 ratio)</FormDescription>
+                    <FormControl>
+                      <Input {...field} name="logo" disabled={!user || isSubmitting} className="hidden" {...getLogoInputProps()} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <div
+                  {...getLogoRootProps()}
+                  className={`
+                    group relative cursor-pointer rounded-xl border-2 border-dashed transition-colors
+                    ${logoPreview.length > 0
+                      ? 'border-transparent bg-transparent p-0'
+                      : 'border-zinc-200/80 dark:border-zinc-800/50 hover:border-emerald-400 dark:hover:border-emerald-500/60 bg-zinc-50 dark:bg-zinc-900/60 p-4'
+                    }
+                  `}
+                >
+                  {logoPreview.length < 1 ? (
+                    <AspectRatio ratio={1}>
+                      <div className="flex flex-col items-center justify-center size-full text-zinc-400 dark:text-zinc-500 group-hover:text-emerald-500 transition-colors">
+                        <Upload className="size-8 mb-2" />
+                        <span className="text-sm font-medium">Upload logo</span>
+                        <span className="text-xs mt-1 hidden sm:block">Drag & drop or click</span>
+                      </div>
+                    </AspectRatio>
+                  ) : (
+                    <div className="relative">
+                      <AspectRatio ratio={1}>
+                        <Image
+                          src={logoPreview[0]}
+                          alt="Logo preview"
+                          fill
+                          sizes="(max-width: 768px) 100vw, 300px"
+                          className="object-cover rounded-xl"
+                        />
+                      </AspectRatio>
+                      <button
+                        type="button"
+                        onClick={(e) => removeImageLogo(e, 0)}
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 hover:bg-red-600 text-white/80 hover:text-white transition-all duration-200 hover:scale-110"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Banner upload */}
+              <div className="space-y-2">
+                <FormField control={form.control} name="bannerImage" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Banner</FormLabel>
+                    <FormDescription className="text-xs">Wide image (3:1 ratio)</FormDescription>
+                    <FormControl>
+                      <Input {...field} name="bannerImage" disabled={!user || isSubmitting} className="hidden" {...getBannerInputProps()} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <div
+                  {...getBannerRootProps()}
+                  className={`
+                    group relative cursor-pointer rounded-xl border-2 border-dashed transition-colors
+                    ${bannerPreview.length > 0
+                      ? 'border-transparent bg-transparent p-0'
+                      : 'border-zinc-200/80 dark:border-zinc-800/50 hover:border-emerald-400 dark:hover:border-emerald-500/60 bg-zinc-50 dark:bg-zinc-900/60 p-4'
+                    }
+                  `}
+                >
+                  {bannerPreview.length < 1 ? (
+                    <AspectRatio ratio={3 / 1}>
+                      <div className="flex flex-col items-center justify-center size-full text-zinc-400 dark:text-zinc-500 group-hover:text-emerald-500 transition-colors">
+                        <Upload className="size-8 mb-2" />
+                        <span className="text-sm font-medium">Upload banner</span>
+                        <span className="text-xs mt-1 hidden sm:block">Drag & drop or click</span>
+                      </div>
+                    </AspectRatio>
+                  ) : (
+                    <div className="space-y-3">
+                      {bannerPreview.map((preview, index) => (
+                        <div key={index} className="relative">
+                          <AspectRatio ratio={3 / 1}>
+                            <Image
+                              src={preview}
+                              alt={`Banner preview ${index + 1}`}
+                              fill
+                              sizes="(max-width: 768px) 100vw, 600px"
+                              className="object-cover rounded-xl"
+                            />
+                          </AspectRatio>
+                          <button
+                            type="button"
+                            onClick={(e) => removeImageBanner(e, index)}
+                            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 hover:bg-red-600 text-white/80 hover:text-white transition-all duration-200 hover:scale-110"
+                          >
+                            <X className="size-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── Section 4: Team (admin only) ── */}
+        {user?.role === 'ADMIN' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Team</CardTitle>
+              <CardDescription>Add employees and assign roles</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FormField control={form.control} name="employees" render={() => (
+                <FormItem>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Select onValueChange={setSelectedEmployeeId} value={selectedEmployeeId}>
+                      <FormControl>
+                        <SelectTrigger className="sm:flex-1">
+                          <SelectValue placeholder="Select a user to add..." />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {users
                           .filter(userMap => !employeeList.some(employee => employee.userId === userMap.id))
                           .map((userMap) => (
-                            <React.Fragment key={userMap.id}>
-                              <SelectItem value={userMap.id}>{userMap.email}</SelectItem>
-                            </React.Fragment>
+                            <SelectItem key={userMap.id} value={userMap.id}>{userMap.email}</SelectItem>
                           ))}
                       </SelectContent>
                     </Select>
-                    <Button type='button' onClick={handleAddEmployee} variant='vegaNormalBtn' className={''}>
-                      Add Employee
+                    <Button type="button" onClick={handleAddEmployee} variant="vegaNormalBtn" size="default" className="shrink-0">
+                      <Plus className="size-4 mr-1.5" />
+                      Add
                     </Button>
-                    {error2 && <p className='text-orange-300'>{error2 && error2}</p>}
                   </div>
-                  <div className={`flex flex-col justify-between items-center gap-3 p-4 pt-0 ${employeeList.length <= 1 ? 'hidden' : ''}`}>
-                    {employeeList.map((employee, index) => (
-                      <div key={employee.userId} className={`flex justify-between items-center gap-3 p-2 w-full bg-zinc-200 dark:bg-zinc-700 ${employee.userId === user?.id && 'hidden'} rounded`} >
-                        <div className={'capitalize bg-zinc-100 dark:bg-zinc-800 p-2 rounded'}>{employee.email}</div>
-                        <Select defaultValue={employee.role} onValueChange={(newRole) => handleRoleChange(employee.userId, newRole as EmployeeRole)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent >
-                            {Object.values(EmployeeRole).filter(role => role !== 'OWNER' || employee.userId === user?.id).map((role) => (
-                              <SelectItem key={role} value={role}>{role}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button variant='vegaNormalBtn' disabled={employee.userId === user?.id} onClick={(e) => removeEmployee(e, employee.userId)}>Remove</Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )} />
-          )}
-          <FormField control={form.control} name='usesShipping' render={({ field }) => (
-            <FormItem className='w-full px-4 py-2'>
-              <div className="flex flex-col justify-start w-full items-start space-y-2">
-                <FormLabel>
-                  <div className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-pretty">
-                    <p className='hidden xs:flex'>Enable Shipping Cost Estimation for Physical Products?</p>
-                    <p className='xs:hidden'>Enable Shipping Cost Calc?</p>
-                  </div>
-                </FormLabel>
-                <div className="flex h-10 bg-zinc-50 dark:bg-zinc-900 w-full space-x-2 rounded-md border border-input disabled:pointer-events-none bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                  <FormControl>
-                    <Input {...field} className='w-5 h-5 ' disabled={!user || isSubmitting} type='checkbox' value={field.value ? 'false' : 'true'} />
-                  </FormControl>
-                  <span className={`text-sm font-medium ${field.value ? 'Activated' : 'text-black/50 dark:text-white/50'}`}>
-                    {field.value ? 'Activated' : 'Inactivated'}
-                  </span>
-                </div>
-                <FormDescription className={`px-4 py-0 ${!form.watch('usesShipping') && 'hidden'}`}>
-                  Add warehouse locations for shipping data estimation of physical products.
-                </FormDescription>
+
+                  {error2 && (
+                    <p className="mt-2 text-sm text-orange-500 dark:text-orange-400">{error2}</p>
+                  )}
+
+                  {employeeList.length > 1 && (
+                    <div className="mt-4 space-y-2">
+                      {employeeList.map((employee) => {
+                        if (employee.userId === user?.id) return null;
+                        return (
+                          <div
+                            key={employee.userId}
+                            className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/70 dark:border-zinc-800/50 transition-colors duration-150 hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
+                          >
+                            <span className="text-sm font-medium truncate sm:flex-1">
+                              {employee.email}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <Select
+                                defaultValue={employee.role}
+                                onValueChange={(newRole) => handleRoleChange(employee.userId, newRole as EmployeeRole)}
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Object.values(EmployeeRole)
+                                    .filter(role => role !== 'OWNER' || employee.userId === user?.id)
+                                    .map((role) => (
+                                      <SelectItem key={role} value={role}>{role}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                disabled={employee.userId === user?.id}
+                                onClick={(e) => removeEmployee(e, employee.userId)}
+                                className="text-zinc-400 hover:text-red-500 dark:hover:text-red-400"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── Section 5: Shipping ── */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <CardTitle className="text-lg">Shipping</CardTitle>
+                <CardDescription>Enable shipping cost estimation for physical products</CardDescription>
               </div>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <div className='w-full space-y-3 px-4 pb-2 '>
-            {form.watch('usesShipping') && (
-              fields.map((field, index) => {
-                return (
-                  <div key={field.id} className="space-y-4 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-800 py-4 px-2 rounded">
-                    <FormLabel className='w-full'>
-                      <div className='flex flex-col xs:flex-row justify-between space-y-2'>
-                        <h1 className='py-4 pl-2 font-semibold'>Warehouse Location {index + 1}</h1>
-                        <Button type="button" variant='vegaNormalBtnRed' className='' onClick={() => remove(index)}>Remove Location</Button>
-                      </div>
-                    </FormLabel>
+              <FormField control={form.control} name="usesShipping" render={({ field }) => (
+                <FormItem className="flex items-center space-y-0">
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={!user || isSubmitting}
+                    />
+                  </FormControl>
+                </FormItem>
+              )} />
+            </div>
+          </CardHeader>
+
+          {isShippingEnabled && (
+            <CardContent className="space-y-4 border-t border-zinc-100 dark:border-zinc-800/40 pt-6">
+              {fields.map((field, index) => (
+                <div
+                  key={field.id}
+                  className="relative rounded-xl border border-zinc-200/70 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/40 p-4 sm:p-5 space-y-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                      <MapPin className="size-4 text-zinc-400" />
+                      Warehouse {index + 1}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => remove(index)}
+                      className="text-zinc-400 hover:text-red-500 dark:hover:text-red-400 -mr-2"
+                    >
+                      <Trash2 className="size-4 mr-1" />
+                      Remove
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <FormField name={`warehouseLocations.${index}.address`} control={form.control} render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="sm:col-span-2">
                         <FormControl>
-                          <Input {...field} placeholder="Address" disabled={!user || isSubmitting} type="text" title={"Enter street name and number."} className='bg-white dark:bg-zinc-800' />
+                          <Input {...field} placeholder="Street address" disabled={!user || isSubmitting} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -623,7 +697,7 @@ export const MyCompanyCreateForm = () => {
                     <FormField name={`warehouseLocations.${index}.postalCode`} control={form.control} render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Input {...field} placeholder="postal code" disabled={!user || isSubmitting} type="text" title={"Enter your ZIP/postal code. E.g., 12345 or A1B 2C3."} className='bg-white dark:bg-zinc-800' />
+                          <Input {...field} placeholder="Postal code" disabled={!user || isSubmitting} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -631,15 +705,15 @@ export const MyCompanyCreateForm = () => {
                     <FormField name={`warehouseLocations.${index}.city`} control={form.control} render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Input {...field} placeholder="City" disabled={!user || isSubmitting} type="text" title={"Enter the name of your city."} className='bg-white dark:bg-zinc-800' />
+                          <Input {...field} placeholder="City" disabled={!user || isSubmitting} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField name={`warehouseLocations.${index}.country`} control={form.control} render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="sm:col-span-2">
                         <FormControl>
-                          <Input {...field} placeholder="Country" disabled={!user || isSubmitting} type="text" title={"Select your country from the list."} className='bg-white dark:bg-zinc-800' />
+                          <Input {...field} placeholder="Country" disabled={!user || isSubmitting} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -647,7 +721,14 @@ export const MyCompanyCreateForm = () => {
                     <FormField name={`warehouseLocations.${index}.latitude`} control={form.control} render={({ field: { onChange, value } }) => (
                       <FormItem>
                         <FormControl>
-                          <Input {...field} placeholder="Latitude (Optional)" disabled={!user || isSubmitting} value={value} onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))} type="number" step="any" title={"Enter latitude in decimal format (e.g., 59.9139)."} className='bg-white dark:bg-zinc-800' />
+                          <Input
+                            placeholder="Latitude (opt)"
+                            disabled={!user || isSubmitting}
+                            value={value ?? ''}
+                            onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                            type="number"
+                            step="any"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -655,34 +736,61 @@ export const MyCompanyCreateForm = () => {
                     <FormField name={`warehouseLocations.${index}.longitude`} control={form.control} render={({ field: { onChange, value } }) => (
                       <FormItem>
                         <FormControl>
-                          <Input {...field} placeholder="Longitude (Optional)" disabled={!user || isSubmitting} value={value} onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))} type="number" step="any" title={"Enter longitude in decimal format (e.g., 10.7522)."} className='bg-white dark:bg-zinc-800' />
+                          <Input
+                            placeholder="Longitude (opt)"
+                            disabled={!user || isSubmitting}
+                            value={value ?? ''}
+                            onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                            type="number"
+                            step="any"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                   </div>
-                )
-              })
-            )}
-            {form.watch('usesShipping') && (
-              <Button type="button" variant='vegaNormalBtn' disabled={!user || isSubmitting} className='w-full' onClick={() => append({
-                address: '',
-                city: '',
-                country: '',
-                postalCode: '',
-                latitude: undefined,
-                longitude: undefined
-              })}>
-                Add Location
+                </div>
+              ))}
+
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!user || isSubmitting}
+                className="w-full"
+                onClick={() => append({
+                  address: '',
+                  city: '',
+                  country: '',
+                  postalCode: '',
+                  latitude: undefined,
+                  longitude: undefined,
+                })}
+              >
+                <Plus className="size-4 mr-1.5" />
+                Add Warehouse Location
               </Button>
-            )}
-          </div>
-        </div>
-        <div className='w-full px-6 py-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 rounded-b-2xl'>
+            </CardContent>
+          )}
+        </Card>
+
+        {/* ── Submit Footer ── */}
+        <div className="space-y-3">
           <MyFormError message={error} />
           <MyFormSuccess message={success} />
-          <Button type="submit" disabled={!user || isSubmitting} className="w-full h-12 text-base font-medium" variant="vegaEmeraldBtn">
-            {isSubmitting ? 'Creating...' : 'Create Company'}
+          <Button
+            type="submit"
+            disabled={!user || isSubmitting}
+            className="w-full h-12 text-base font-medium"
+            variant="vegaEmeraldBtn"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Creating…
+              </>
+            ) : (
+              'Create Company'
+            )}
           </Button>
         </div>
       </form>

@@ -1804,7 +1804,7 @@ function PhaseSelector({
               )}
 
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${phase.color}20` }}>
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${phase.color}20` }}>
                   <Icon className="w-6 h-6" style={{ color: phase.color }} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -1837,25 +1837,25 @@ function WelcomeScreen({ onStart, onSelectPhase, phases }: { onStart: () => void
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative flex flex-col items-center justify-center p-8 text-center min-h-full h-full">
       {/* Gradient background that fills the entire container */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-emerald-950/10 to-background">
-        <motion.div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 blur-3xl" animate={{ x: [0, 50, 0], y: [0, 30, 0], scale: [1, 1.1, 1] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }} />
-        <motion.div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-gradient-to-br from-violet-500/20 to-pink-500/20 blur-3xl" animate={{ x: [0, -50, 0], y: [0, -30, 0], scale: [1, 1.2, 1] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }} />
+      <div className="absolute inset-0 bg-linear-to-b from-background via-emerald-950/10 to-background">
+        <motion.div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-linear-to-br from-emerald-500/20 to-cyan-500/20 blur-3xl" animate={{ x: [0, 50, 0], y: [0, 30, 0], scale: [1, 1.1, 1] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }} />
+        <motion.div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-linear-to-br from-violet-500/20 to-pink-500/20 blur-3xl" animate={{ x: [0, -50, 0], y: [0, -30, 0], scale: [1, 1.2, 1] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }} />
       </div>
 
       <div className="relative z-10">
         <motion.div className="relative mb-8" initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 100, damping: 15, delay: 0.2 }}>
-          <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-500 via-cyan-500 to-blue-600 p-1 shadow-2xl shadow-emerald-500/30">
+          <div className="w-24 h-24 rounded-3xl bg-linear-to-br from-emerald-500 via-cyan-500 to-blue-600 p-1 shadow-2xl shadow-emerald-500/30">
             <div className="w-full h-full rounded-[20px] bg-background/80 backdrop-blur-xl flex items-center justify-center">
               <Target className="w-12 h-12 text-emerald-500" />
             </div>
           </div>
-          <motion.div className="absolute -top-2 -right-2 w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg" initial={{ scale: 0 }} animate={{ scale: 1, rotate: [0, 10, -10, 0] }} transition={{ delay: 0.6, duration: 0.5 }}>
+          <motion.div className="absolute -top-2 -right-2 w-8 h-8 rounded-xl bg-linear-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg" initial={{ scale: 0 }} animate={{ scale: 1, rotate: [0, 10, -10, 0] }} transition={{ delay: 0.6, duration: 0.5 }}>
             <Sparkles className="w-4 h-4 text-white" />
           </motion.div>
         </motion.div>
 
         <motion.h1 className="text-3xl md:text-4xl font-extrabold mb-3" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}>
-          <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 bg-clip-text text-transparent">Design REACH Together</span>
+          <span className="bg-linear-to-r from-emerald-500 via-cyan-500 to-blue-500 bg-clip-text text-transparent">Design REACH Together</span>
         </motion.h1>
 
         <motion.p className="text-base md:text-lg text-muted-foreground max-w-md mb-4" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
@@ -1882,8 +1882,8 @@ function WelcomeScreen({ onStart, onSelectPhase, phases }: { onStart: () => void
         </motion.div>
 
         <motion.div className="flex flex-col sm:flex-row gap-3 justify-center" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }}>
-          <Button size="lg" onClick={onStart} className="relative group px-8 py-6 text-base font-semibold rounded-2xl bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 hover:from-emerald-600 hover:via-cyan-600 hover:to-blue-600 text-white shadow-2xl shadow-emerald-500/30 overflow-hidden">
-            <motion.span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0" animate={{ x: ["-200%", "200%"] }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} />
+          <Button size="lg" onClick={onStart} className="relative group px-8 py-6 text-base font-semibold rounded-2xl bg-linear-to-r from-emerald-500 via-cyan-500 to-blue-500 hover:from-emerald-600 hover:via-cyan-600 hover:to-blue-600 text-white shadow-2xl shadow-emerald-500/30 overflow-hidden">
+            <motion.span className="absolute inset-0 bg-linear-to-r from-white/0 via-white/20 to-white/0" animate={{ x: ["-200%", "200%"] }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} />
             <span className="relative flex items-center gap-2">
               Start Research
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -1934,12 +1934,12 @@ function CompletionScreen({
       </motion.div>
 
       <div className="relative z-10">
-        <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 100, damping: 15, delay: 0.2 }} className={cn("w-28 h-28 rounded-full flex items-center justify-center mb-6 shadow-2xl", percentage === 100 ? "bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500 shadow-amber-500/30" : "bg-gradient-to-br from-emerald-400 via-cyan-500 to-blue-500 shadow-emerald-500/30")}>
+        <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 100, damping: 15, delay: 0.2 }} className={cn("w-28 h-28 rounded-full flex items-center justify-center mb-6 shadow-2xl", percentage === 100 ? "bg-linear-to-br from-amber-400 via-yellow-500 to-orange-500 shadow-amber-500/30" : "bg-linear-to-br from-emerald-400 via-cyan-500 to-blue-500 shadow-emerald-500/30")}>
           <Trophy className="w-14 h-14 text-white" />
         </motion.div>
 
         <motion.h2 className="text-3xl font-extrabold mb-2" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
-          {percentage === 100 ? <span className="bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">Research Complete! 🎉</span> : percentage >= 75 ? <span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">Great Progress!</span> : <span className="text-foreground">Getting Started!</span>}
+          {percentage === 100 ? <span className="bg-linear-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">Research Complete! 🎉</span> : percentage >= 75 ? <span className="bg-linear-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">Great Progress!</span> : <span className="text-foreground">Getting Started!</span>}
         </motion.h2>
 
         <motion.p className="text-muted-foreground mb-6" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
@@ -1979,7 +1979,7 @@ function CompletionScreen({
           <Button variant="outline" onClick={onClose} className="px-6 py-3 rounded-xl">
             Save & Exit
           </Button>
-          <Button onClick={onSubmit} disabled={isSubmitting || answeredCount === 0} className={cn("px-8 py-3 rounded-xl text-white shadow-lg", percentage === 100 ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600" : "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600")}>
+          <Button onClick={onSubmit} disabled={isSubmitting || answeredCount === 0} className={cn("px-8 py-3 rounded-xl text-white shadow-lg", percentage === 100 ? "bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600" : "bg-linear-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600")}>
             {isSubmitting ? "Submitting..." : <>Submit Feedback <Sparkles className="ml-2 w-4 h-4" /></>}
           </Button>
         </motion.div>
@@ -2392,7 +2392,7 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
   return (
     <Dialog open={!!pollId} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl w-[95vw] h-[85vh] max-h-[85vh] p-0 overflow-hidden bg-background/95 backdrop-blur-2xl border-white/10 shadow-2xl flex flex-col" hideCloseButton accessibleTitle="REACH Algorithm Research">
-        <div className="flex items-center justify-between p-4 border-b border-white/10 flex-shrink-0">
+        <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
           {/* Left side: Back button + Section info */}
           <div className="flex items-center gap-2">
             {/* Back Button - Always visible, closes modal on welcome screen */}
@@ -2423,7 +2423,7 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
                 )}
                 <div className="hidden md:flex items-center gap-2 ml-2">
                   <div className="h-2 w-32 bg-muted rounded-full overflow-hidden">
-                    <motion.div className="h-full bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500" initial={{ width: 0 }} animate={{ width: `${overallProgress}%` }} transition={{ duration: 0.3 }} />
+                    <motion.div className="h-full bg-linear-to-r from-emerald-500 via-cyan-500 to-blue-500" initial={{ width: 0 }} animate={{ width: `${overallProgress}%` }} transition={{ duration: 0.3 }} />
                   </div>
                   <span className="text-xs text-muted-foreground">{overallProgress}%</span>
                 </div>
@@ -2456,7 +2456,7 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
           <AnimatePresence mode="wait">
             {showResumePrompt && savedProgress && (
               <motion.div key="resume-prompt" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="flex flex-col items-center justify-center p-8 text-center min-h-[400px]">
-                <motion.div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center mb-6 shadow-xl" initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 100, damping: 15 }}>
+                <motion.div className="w-20 h-20 rounded-2xl bg-linear-to-br from-emerald-500 to-cyan-500 flex items-center justify-center mb-6 shadow-xl" initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 100, damping: 15 }}>
                   <Sparkles className="w-10 h-10 text-white" />
                 </motion.div>
                 <motion.h2 className="text-2xl font-bold mb-2" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>Welcome Back! 👋</motion.h2>
@@ -2467,12 +2467,12 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
                     <span className="font-semibold text-primary">{Object.keys(savedProgress.answers).length} / {totalQuestions}</span>
                   </div>
                   <div className="h-2 bg-muted rounded-full mt-2 overflow-hidden">
-                    <motion.div className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500" initial={{ width: 0 }} animate={{ width: `${Math.round((Object.keys(savedProgress.answers).length / totalQuestions) * 100)}%` }} transition={{ delay: 0.6, duration: 0.5 }} />
+                    <motion.div className="h-full bg-linear-to-r from-emerald-500 to-cyan-500" initial={{ width: 0 }} animate={{ width: `${Math.round((Object.keys(savedProgress.answers).length / totalQuestions) * 100)}%` }} transition={{ delay: 0.6, duration: 0.5 }} />
                   </div>
                 </motion.div>
                 <motion.div className="flex flex-col sm:flex-row gap-3" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
                   <Button variant="outline" onClick={startFresh} className="px-6 py-3 rounded-xl">Start Fresh</Button>
-                  <Button onClick={resumeProgress} className="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white shadow-lg">
+                  <Button onClick={resumeProgress} className="px-8 py-3 rounded-xl bg-linear-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white shadow-lg">
                     Continue Where I Left Off <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </motion.div>
@@ -2510,12 +2510,12 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
 
         <AnimatePresence>
           {error && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="mx-4 mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm text-center flex-shrink-0">{error}</motion.div>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="mx-4 mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm text-center shrink-0">{error}</motion.div>
           )}
         </AnimatePresence>
 
         {screen === "question" && !showResumePrompt && (
-          <div className="flex items-center justify-between p-4 border-t border-white/10 bg-muted/30 flex-shrink-0">
+          <div className="flex items-center justify-between p-4 border-t border-white/10 bg-muted/30 shrink-0">
             <Button variant="ghost" onClick={goPrev} disabled={currentPhase === 0 && currentQuestion === 0} className="gap-1"><ChevronLeft className="w-4 h-4" /> Back</Button>
             <div className="hidden md:flex items-center gap-3">
               {PHASES.map((p, idx) => (

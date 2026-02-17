@@ -108,7 +108,7 @@ function QuestionLevel({
               {/* Selection indicator */}
               <motion.div
                 className={cn(
-                  "flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center",
+                  "shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center",
                   isSelected
                     ? "border-primary bg-primary text-white"
                     : "border-muted-foreground/30"
@@ -132,7 +132,7 @@ function QuestionLevel({
               {/* Follow-up indicator */}
               {hasFollowUp && (
                 <motion.div
-                  className="flex-shrink-0"
+                  className="shrink-0"
                   animate={{ x: isSelected ? [0, 4, 0] : 0 }}
                   transition={{ repeat: isSelected ? Infinity : 0, duration: 1.5 }}
                 >

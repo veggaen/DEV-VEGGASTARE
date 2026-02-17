@@ -47,7 +47,8 @@ export function NotificationDropdown({
   
   // Handle client-side mounting for portal
   useEffect(() => {
-    setMounted(true);
+    const timeoutId = window.setTimeout(() => setMounted(true), 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
   
   // Calculate dropdown position when opening

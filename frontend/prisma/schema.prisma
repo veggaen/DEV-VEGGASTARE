@@ -970,20 +970,24 @@ model User {
   TradesInitiated                                                 Trade[]                       @relation("TradesInitiated")
   TradesReceived                                                  Trade[]                       @relation("TradesReceived")
   AiApiKeys                                                       UserAiApiKey[]
+  // AI Poll System
+  DailyAiUsage                                                    DailyAiUsage[]
+  ScheduledPolls                                                  ScheduledPoll[]
 }
 
 model UserAiApiKey {
-  id              String     @id @default(cuid())
-  userId          String
-  provider        AiProvider
-  encryptedKey    String
-  iv              String
-  authTag         String
-  keyFingerprint  String
-  isDefault       Boolean    @default(false)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  User            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String     @id @default(cuid())
+  userId            String
+  provider          AiProvider
+  encryptedKey      String
+  iv                String
+  authTag           String
+  keyFingerprint    String
+  isDefault         Boolean    @default(false)
+  useKeyForResearch Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  User              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, provider])
   @@index([userId])
@@ -995,6 +999,7 @@ enum AiProvider {
   OPENROUTER
   ANTHROPIC
   GROK
+  GROQ
 }
 
 model VerificationToken {
@@ -1539,10 +1544,16 @@ model AdvancedPoll {
   // Analytics cache
   totalResponses    Int                @default(0)
   avgCompletionPct  Float              @default(0)
+
+  // Review status for AI-generated / scheduled polls
+  reviewStatus      ReviewStatus       @default(APPROVED)
+  reviewedAt        DateTime?
+  reviewedBy        String?
   
   @@index([creatorId])
   @@index([conversationId])
   @@index([type])
+  @@index([reviewStatus])
 }
 
 enum AdvancedPollType {
@@ -2108,4 +2119,65 @@ enum TradeStatus {
 enum TradeSide {
   INITIATOR
   RESPONDER
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI POLL SYSTEM — Quota, Search Budget, Scheduled Polls
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum ReviewStatus {
+  PENDING_REVIEW // AI-generated or scheduled — awaiting owner approval
+  APPROVED       // Verified by human — visible in feed
+  REJECTED       // Rejected by owner — hidden from feed
+}
+
+/// Tracks daily AI generation usage per user (replaces volatile in-memory Map).
+/// One row per user per day. Survives Vercel cold starts.
+model DailyAiUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+/// Tracks monthly search API usage for budget capping.
+/// One row per month (format: "2026-02"). Hard cap on Brave prevents overage.
+model SearchUsage {
+  id               String    @id @default(cuid())
+  month            String    // Format: "YYYY-MM" e.g. "2026-02"
+  braveCount       Int       @default(0)
+  ddgCount         Int       @default(0)
+  limitReached     Boolean   @default(false)
+  limitReachedAt   DateTime?
+  ownerNotifiedAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([month])
+}
+
+/// Scheduled poll templates for automated cron-based poll generation.
+model ScheduledPoll {
+  id               String    @id @default(cuid())
+  cronExpression   String    // Cron format e.g. "0 9 * * *" (9 AM daily)
+  promptTemplate   String    // Prompt sent to AI for generation
+  targetFeedId     String?   // Optional: post to specific conversation/feed
+  isActive         Boolean   @default(true)
+  autoPublish      Boolean   @default(true)
+  lastRunAt        DateTime?
+  nextRunAt        DateTime?
+  createdBy        String
+  Creator          User      @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([isActive])
+  @@index([nextRunAt])
+  @@index([createdBy])
 }

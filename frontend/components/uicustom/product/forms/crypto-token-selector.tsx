@@ -207,7 +207,7 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
       {/* Warning box */}
       {tokens.length > 0 && (
         <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 p-2.5 flex gap-2">
-          <FiAlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500 mt-0.5" />
+          <FiAlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
           <div className="text-[10px] text-amber-700 dark:text-amber-300 leading-relaxed space-y-1">
             <p className="font-medium flex items-center gap-1">
               <FiShield className="h-3 w-3" /> Crypto Payment Disclaimer

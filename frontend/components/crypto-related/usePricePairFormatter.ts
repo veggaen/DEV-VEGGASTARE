@@ -1,5 +1,4 @@
 "use client";
-import { useMemo } from "react";
 import { usePricing } from "./PricingContext";
 
 export function usePricePairFormatter() {
@@ -32,5 +31,5 @@ export function usePricePairFormatter() {
     return fmt(String(real), n);
   };
 
-  return useMemo(() => ({ formatPair, formatSingle }), [primary, secondary, convertFromUSD, resolveUnit]);
+  return { formatPair, formatSingle };
 }

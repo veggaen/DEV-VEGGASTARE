@@ -37,8 +37,11 @@ export default function MetricTimeSeriesChart({ metric }: { metric: AnalyticsMet
 
   useEffect(() => {
     if (interval === 'custom' && firstDate && lastDate) {
-      setCustomStartDate(firstDate.toISOString().split('T')[0]);
-      setCustomEndDate(lastDate.toISOString().split('T')[0]);
+      const timeoutId = window.setTimeout(() => {
+        setCustomStartDate(firstDate.toISOString().split('T')[0]);
+        setCustomEndDate(lastDate.toISOString().split('T')[0]);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
   }, [interval, firstDate, lastDate]);
 

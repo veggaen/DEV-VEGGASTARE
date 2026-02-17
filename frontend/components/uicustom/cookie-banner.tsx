@@ -152,17 +152,17 @@ export default function CookieBanner() {
           animate={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
           transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="fixed inset-x-0 bottom-4 z-[85] px-4"
+          className="fixed inset-x-0 bottom-4 z-85 px-4"
         >
           <div ref={ref} className="mx-auto max-w-md">
             <div className="relative overflow-hidden rounded-2xl border border-zinc-200/60 dark:border-zinc-700/50 bg-white/95 dark:bg-zinc-900/95 shadow-2xl shadow-zinc-900/10 dark:shadow-black/30 backdrop-blur-xl">
               {/* Subtle gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-zinc-50/50 via-transparent to-zinc-100/30 dark:from-zinc-800/30 dark:via-transparent dark:to-zinc-800/20 pointer-events-none" />
+              <div className="absolute inset-0 bg-linear-to-br from-zinc-50/50 via-transparent to-zinc-100/30 dark:from-zinc-800/30 dark:via-transparent dark:to-zinc-800/20 pointer-events-none" />
               
               {/* Main content */}
               <div className="relative p-5">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-700 shadow-inner">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-700 shadow-inner">
                     <Cookie className="h-5 w-5 text-zinc-600 dark:text-zinc-300" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -216,7 +216,7 @@ export default function CookieBanner() {
                             onClick={() => setAnalytics((v) => !v)}
                             className={`relative h-6 w-11 rounded-full transition-all duration-200 ${
                               analytics 
-                                ? "bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/30" 
+                                ? "bg-linear-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/30" 
                                 : "bg-zinc-300 dark:bg-zinc-600"
                             }`}
                           >
@@ -241,7 +241,7 @@ export default function CookieBanner() {
                             onClick={() => setMarketing((v) => !v)}
                             className={`relative h-6 w-11 rounded-full transition-all duration-200 ${
                               marketing 
-                                ? "bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/30" 
+                                ? "bg-linear-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/30" 
                                 : "bg-zinc-300 dark:bg-zinc-600"
                             }`}
                           >
@@ -264,7 +264,7 @@ export default function CookieBanner() {
                       <button
                         type="button"
                         onClick={() => saveAndDismiss({ analytics, marketing })}
-                        className="flex-1 rounded-xl bg-gradient-to-r from-zinc-800 to-zinc-900 dark:from-white dark:to-zinc-100 px-4 py-2.5 text-sm font-semibold text-white dark:text-zinc-900 transition-all hover:shadow-lg hover:shadow-zinc-900/20 dark:hover:shadow-white/10 hover:-translate-y-0.5 active:translate-y-0"
+                        className="flex-1 rounded-xl bg-linear-to-r from-zinc-800 to-zinc-900 dark:from-white dark:to-zinc-100 px-4 py-2.5 text-sm font-semibold text-white dark:text-zinc-900 transition-all hover:shadow-lg hover:shadow-zinc-900/20 dark:hover:shadow-white/10 hover:-translate-y-0.5 active:translate-y-0"
                       >
                         Save Preferences
                       </button>
@@ -281,7 +281,7 @@ export default function CookieBanner() {
                       <button
                         type="button"
                         onClick={() => saveAndDismiss({ analytics: true, marketing: false })}
-                        className="flex-1 rounded-xl bg-gradient-to-r from-zinc-800 to-zinc-900 dark:from-white dark:to-zinc-100 px-4 py-2.5 text-sm font-semibold text-white dark:text-zinc-900 transition-all hover:shadow-lg hover:shadow-zinc-900/20 dark:hover:shadow-white/10 hover:-translate-y-0.5 active:translate-y-0"
+                        className="flex-1 rounded-xl bg-linear-to-r from-zinc-800 to-zinc-900 dark:from-white dark:to-zinc-100 px-4 py-2.5 text-sm font-semibold text-white dark:text-zinc-900 transition-all hover:shadow-lg hover:shadow-zinc-900/20 dark:hover:shadow-white/10 hover:-translate-y-0.5 active:translate-y-0"
                       >
                         Accept All
                       </button>

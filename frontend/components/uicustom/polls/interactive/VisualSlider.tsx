@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -46,13 +46,6 @@ export function VisualSlider({
   const currentValue = localValue ?? value ?? min;
   const percentage = ((currentValue - min) / (max - min)) * 100;
   const steps = Math.floor((max - min) / step) + 1;
-  
-  // Sync local value with prop when not dragging
-  useEffect(() => {
-    if (!isDragging) {
-      setLocalValue(null);
-    }
-  }, [isDragging, value]);
   
   // Get current color based on percentage
   const getCurrentColor = useCallback(() => {

@@ -46,6 +46,7 @@ interface ChatLiteDropdownProps {
 
 export function ChatLiteDropdown({ className }: ChatLiteDropdownProps) {
   const currentUser = useCurrentUser();
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
@@ -58,7 +59,17 @@ export function ChatLiteDropdown({ className }: ChatLiteDropdownProps) {
   const searchRef = useRef<HTMLInputElement>(null);
 
   // SSR guard
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setMounted(true), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   // Calculate position
   useEffect(() => {
@@ -74,7 +85,7 @@ export function ChatLiteDropdown({ className }: ChatLiteDropdownProps) {
   // Fetch conversations on open
   useEffect(() => {
     if (!isOpen || !currentUser?.id) return;
-    setLoading(true);
+    const timeoutId = window.setTimeout(() => setLoading(true), 0);
 
     fetch("/api/conversations?filter=private&sort=recent&limit=8")
       .then((res) => (res.ok ? res.json() : { conversations: [] }))
@@ -96,6 +107,7 @@ export function ChatLiteDropdown({ className }: ChatLiteDropdownProps) {
       })
       .catch(() => setConversations([]))
       .finally(() => setLoading(false));
+    return () => window.clearTimeout(timeoutId);
   }, [isOpen, currentUser?.id]);
 
   // Focus search on open
@@ -167,7 +179,7 @@ export function ChatLiteDropdown({ className }: ChatLiteDropdownProps) {
 
   function timeAgo(dateStr: string | null): string {
     if (!dateStr) return "";
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const diff = nowMs - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return "now";
     if (mins < 60) return `${mins}m`;

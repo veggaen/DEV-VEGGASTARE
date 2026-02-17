@@ -148,7 +148,7 @@ const CartPage = () => {
               transition={{ duration: 0.5 }}
             >
               <div className="flex items-center gap-4 flex-1">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-muted dark:bg-white/5 rounded-lg overflow-hidden flex-shrink-0">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-muted dark:bg-white/5 rounded-lg overflow-hidden shrink-0">
                   <AspectRatio ratio={1 / 1}>
                     <Image src={item.product.image[0]} alt={item.product.title} fill className="object-cover" />
                   </AspectRatio>

@@ -218,7 +218,7 @@ export default function ConversationsPage() {
           {conversation.type === 'PRIVATE_DM' && otherParticipant ? (
             <Avatar className="h-12 w-12 shrink-0 ring-2 ring-border/30">
               <AvatarImage src={otherParticipant.image} />
-              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+              <AvatarFallback className="bg-linear-to-br from-indigo-500 to-purple-600 text-white">
                 {otherParticipant.name?.[0] || '?'}
               </AvatarFallback>
             </Avatar>
@@ -227,7 +227,7 @@ export default function ConversationsPage() {
               {participants.slice(0, 2).map((p, i) => (
                 <Avatar key={p.id} className={`h-8 w-8 absolute ${i === 0 ? 'top-0 left-0' : 'bottom-0 right-0'} ring-2 ring-background`}>
                   <AvatarImage src={p.image} />
-                  <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs">
+                  <AvatarFallback className="bg-linear-to-br from-emerald-500 to-teal-600 text-white text-xs">
                     {p.name?.[0] || '?'}
                   </AvatarFallback>
                 </Avatar>
@@ -248,7 +248,7 @@ export default function ConversationsPage() {
             {/* Pending deletion banner */}
             {conversation.deletionScheduledFor && (
               <div className="flex items-center gap-2 text-xs text-orange-400 bg-orange-500/10 px-2 py-1 rounded mb-2 -mt-1">
-                <FiTrash2 className="h-3 w-3 flex-shrink-0" />
+                <FiTrash2 className="h-3 w-3 shrink-0" />
                 <span>
                   Deletion in {formatDistanceToNowStrict(new Date(conversation.deletionScheduledFor))}
                 </span>
@@ -258,7 +258,7 @@ export default function ConversationsPage() {
             {/* Title row */}
             <div className="flex items-center gap-2 mb-1">
               {conversation.isPinned && (
-                <BsPin className="h-3 w-3 text-amber-400 flex-shrink-0" />
+                <BsPin className="h-3 w-3 text-amber-400 shrink-0" />
               )}
               <h3 className={`font-semibold text-foreground truncate ${conversation.isAnonymized ? 'italic' : ''}`}>
                 {conversation.type === 'PRIVATE_DM' && otherParticipant
@@ -372,7 +372,7 @@ export default function ConversationsPage() {
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
       {/* Background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/5 dark:from-black/15 dark:to-black/5" />
+        <div className="absolute inset-0 bg-linear-to-b from-black/5 via-transparent to-black/5 dark:from-black/15 dark:to-black/5" />
         <motion.div
           className="absolute -right-20 top-32 h-[480px] w-[480px] rounded-full blur-3xl"
           animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.08, 0.14, 0.08] }}

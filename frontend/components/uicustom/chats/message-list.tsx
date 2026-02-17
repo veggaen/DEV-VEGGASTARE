@@ -226,7 +226,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                     className={cn(
                       "relative rounded-2xl px-4 py-2.5 shadow-sm transition-all",
                       isCurrentUser
-                        ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-br-md"
+                        ? "bg-linear-to-br from-indigo-500 to-purple-600 text-white rounded-br-md"
                         : "bg-white/10 text-white rounded-bl-md backdrop-blur-sm"
                     )}
                   >

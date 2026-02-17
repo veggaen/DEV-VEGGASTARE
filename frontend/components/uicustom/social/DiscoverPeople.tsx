@@ -193,7 +193,7 @@ export function DiscoverPeople() {
                 >
                   <Avatar className="h-10 w-10 ring-2 ring-border/30 cursor-pointer">
                     <AvatarImage src={user.image || undefined} />
-                    <AvatarFallback className="text-sm bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                    <AvatarFallback className="text-sm bg-linear-to-br from-indigo-500 to-purple-600 text-white">
                       {user.name?.[0] || user.email?.[0]?.toUpperCase() || '?'}
                     </AvatarFallback>
                   </Avatar>

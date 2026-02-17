@@ -583,7 +583,7 @@ function WelcomeScreen({ onStart, phases }: { onStart: () => void; phases: Phase
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.2, type: "spring" }}
       >
-        <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-500 via-cyan-500 to-blue-500 flex items-center justify-center shadow-2xl shadow-emerald-500/20">
+        <div className="w-24 h-24 rounded-3xl bg-linear-to-br from-emerald-500 via-cyan-500 to-blue-500 flex items-center justify-center shadow-2xl shadow-emerald-500/20">
           <Target className="w-12 h-12 text-white" />
         </div>
         <motion.div
@@ -598,7 +598,7 @@ function WelcomeScreen({ onStart, phases }: { onStart: () => void; phases: Phase
 
       {/* Title */}
       <motion.h1
-        className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text"
+        className="text-3xl md:text-4xl font-bold mb-4 bg-linear-to-r from-foreground via-foreground to-muted-foreground bg-clip-text"
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
@@ -676,9 +676,9 @@ function WelcomeScreen({ onStart, phases }: { onStart: () => void; phases: Phase
         <Button
           size="lg"
           onClick={onStart}
-          className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white px-8 py-6 text-lg rounded-2xl shadow-xl shadow-emerald-500/20 group"
+          className="bg-linear-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white px-8 py-6 text-lg rounded-2xl shadow-xl shadow-emerald-500/20 group"
         >
-          Let's Begin
+          Let&apos;s Begin
           <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
         </Button>
       </motion.div>
@@ -689,7 +689,7 @@ function WelcomeScreen({ onStart, phases }: { onStart: () => void; phases: Phase
         animate={{ opacity: 1 }}
         transition={{ delay: 1 }}
       >
-        Skip any question you don't want to answer
+        Skip any question you don&apos;t want to answer
       </motion.p>
     </motion.div>
   );
@@ -916,7 +916,7 @@ function SliderQuestionV2({
       {/* Custom slider track */}
       <div className="relative h-3 bg-muted rounded-full">
         <motion.div
-          className="absolute h-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full"
+          className="absolute h-full bg-linear-to-r from-emerald-500 to-cyan-500 rounded-full"
           initial={{ width: 0 }}
           animate={{ width: `${percentage}%` }}
         />
@@ -1304,7 +1304,7 @@ function CompletionScreen({
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", delay: 0.2 }}
-        className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center mb-6"
+        className="w-24 h-24 rounded-full bg-linear-to-br from-emerald-500 to-cyan-500 flex items-center justify-center mb-6"
       >
         <Trophy className="w-12 h-12 text-white" />
       </motion.div>
@@ -1385,7 +1385,7 @@ function CompletionScreen({
         <Button
           onClick={onSubmit}
           disabled={isSubmitting || answeredCount === 0}
-          className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white px-6"
+          className="bg-linear-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white px-6"
         >
           {isSubmitting ? "Submitting..." : "Submit Feedback"}
           {!isSubmitting && <Sparkles className="ml-2 w-4 h-4" />}
@@ -1549,7 +1549,7 @@ export function ReachAuditPollV2({ pollId, onClose, onComplete }: ReachAuditPoll
               <div className="flex items-center gap-2">
                 <div className="h-2 w-32 bg-muted rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500"
+                    className="h-full bg-linear-to-r from-emerald-500 to-cyan-500"
                     initial={{ width: 0 }}
                     animate={{ width: `${overallProgress}%` }}
                   />
@@ -1574,7 +1574,7 @@ export function ReachAuditPollV2({ pollId, onClose, onComplete }: ReachAuditPoll
                 exit={{ opacity: 0 }}
                 className="flex flex-col items-center justify-center min-h-[60vh] p-8"
               >
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center mb-4 animate-pulse">
+                <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-emerald-500 to-cyan-500 flex items-center justify-center mb-4 animate-pulse">
                   <Target className="w-8 h-8 text-white" />
                 </div>
                 <p className="text-muted-foreground">Loading poll...</p>

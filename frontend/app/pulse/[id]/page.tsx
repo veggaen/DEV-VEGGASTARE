@@ -131,7 +131,7 @@ export default async function PulsePage({ params }: PulsePageProps) {
   const firstMessage = pulse.Message?.[0];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
+    <div className="min-h-screen bg-linear-to-b from-background via-background to-muted/20">
       {/* ── Sticky header ────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-20 backdrop-blur-xl bg-background/70 border-b border-border/50">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">

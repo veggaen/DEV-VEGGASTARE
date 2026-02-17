@@ -162,7 +162,7 @@ export default function MyDownloadsPage() {
               <div className="flex flex-col sm:flex-row gap-4">
                 {/* Product Image */}
                 {token.product.image?.[0] && (
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <img
                       src={token.product.image[0]}
                       alt={token.product.title}
@@ -172,7 +172,7 @@ export default function MyDownloadsPage() {
                 )}
                 
                 {/* Product Info */}
-                <div className="flex-grow min-w-0">
+                <div className="grow min-w-0">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="font-semibold text-lg truncate">{token.product.title}</h3>
                     <div className={`flex items-center gap-1.5 text-sm ${statusInfo.color}`}>

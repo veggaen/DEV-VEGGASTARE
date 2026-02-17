@@ -426,7 +426,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
                           <FiMoreHorizontal className="h-4 w-4 text-muted-foreground" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44 z-[9999]">
+                      <DropdownMenuContent align="end" className="w-44 z-9999">
                         {currentUser && (
                           <DropdownMenuItem onClick={() => setReplyingToId(replyingToId === message.id ? null : message.id)}>
                             <FiCornerDownRight className="h-4 w-4 mr-2" />

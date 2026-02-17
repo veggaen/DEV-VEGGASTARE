@@ -68,7 +68,7 @@ export function NotificationBell({
               "min-w-4 h-4 px-1",
               "rounded-full",
               hasTradeRequest
-                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white animate-pulse"
+                ? "bg-linear-to-r from-purple-500 to-pink-500 text-white animate-pulse"
                 : "bg-emerald-500 text-white",
               "text-[10px] font-bold"
             )}
@@ -80,7 +80,7 @@ export function NotificationBell({
               <span className={cn(
                 "absolute inset-0 rounded-full animate-ping opacity-75",
                 hasTradeRequest
-                  ? "bg-gradient-to-r from-purple-500 to-pink-500"
+                  ? "bg-linear-to-r from-purple-500 to-pink-500"
                   : "bg-emerald-500"
               )} />
             )}

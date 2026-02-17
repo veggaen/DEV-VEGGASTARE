@@ -364,7 +364,7 @@ export default function PollTestPage() {
   const [answers, setAnswers] = useState<Record<string, QuestionAnswer>>({});
   const [showComments, setShowComments] = useState<Record<string, boolean>>({});
   const [viewMode, setViewMode] = useState<'all' | 'single'>('all');
-  const [startTime] = useState<number>(Date.now());
+  const [startTime] = useState<number>(() => Date.now());
   
   // Simulated owner status - in real app this comes from auth
   const [isOwner] = useState(true);
@@ -424,7 +424,7 @@ export default function PollTestPage() {
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
               <Rocket className="w-8 h-8 text-emerald-400" />
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-linear-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
                 {REACH_AUDIT_POLL_CONFIG.title}
               </h1>
             </div>
@@ -510,7 +510,7 @@ export default function PollTestPage() {
                 description={
                   <div className="space-y-2">
                     <p>The complete {TOTAL_QUESTIONS}-question journey across all 8 sections.</p>
-                    <p className="text-emerald-400">Your comprehensive input shapes VeggaStare's future!</p>
+                    <p className="text-emerald-400">Your comprehensive input shapes VeggaStare&apos;s future!</p>
                     <p className="text-xs text-neutral-400">Includes: Pillar evaluation, Velocity feedback, Auth preferences, UI/UX, and more.</p>
                   </div>
                 }
@@ -596,7 +596,7 @@ export default function PollTestPage() {
                 </div>
                 <div className="h-2 bg-neutral-800 rounded-full overflow-hidden">
                   <motion.div 
-                    className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                    className="h-full bg-linear-to-r from-emerald-500 to-emerald-400"
                     initial={{ width: 0 }}
                     animate={{ width: `${progressPct}%` }}
                     transition={{ duration: 0.5, ease: "easeOut" }}
@@ -706,7 +706,7 @@ export default function PollTestPage() {
                 icon={<Target className="w-3 h-3 text-emerald-400" />}
                 side="bottom"
               >
-                <div className="bg-gradient-to-r from-emerald-900/30 to-transparent rounded-lg p-4 border border-emerald-800/50 cursor-help">
+                <div className="bg-linear-to-r from-emerald-900/30 to-transparent rounded-lg p-4 border border-emerald-800/50 cursor-help">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold">
                       {currentSection + 1}

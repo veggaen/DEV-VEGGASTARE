@@ -94,7 +94,7 @@ export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
 // Singleton guard for AppKit initialization (persist across Fast Refresh)
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __veggastareAppKitInitialized: boolean | undefined;
 }
 

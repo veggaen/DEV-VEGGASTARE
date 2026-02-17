@@ -248,7 +248,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
     const profile = orgType ? TAX_PROFILES[orgType] : null;
     return (
       <div className="space-y-6">
-        <div className="rounded-xl border border-black/10 bg-gradient-to-br from-emerald-50 to-teal-50 p-8 dark:border-white/10 dark:from-emerald-950/20 dark:to-teal-950/20">
+        <div className="rounded-xl border border-black/10 bg-linear-to-br from-emerald-50 to-teal-50 p-8 dark:border-white/10 dark:from-emerald-950/20 dark:to-teal-950/20">
           <div className="flex items-start gap-4">
             <div className="rounded-full bg-emerald-100 p-3 dark:bg-emerald-900/50">
               <FiDollarSign className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
@@ -740,7 +740,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                     <div className="font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">{src.label}</div>
                     <div className="text-[10px] text-zinc-400">{src.desc}</div>
                   </div>
-                  <FiExternalLink className="h-3 w-3 flex-shrink-0 text-zinc-400 group-hover:text-indigo-500 ml-2" />
+                  <FiExternalLink className="h-3 w-3 shrink-0 text-zinc-400 group-hover:text-indigo-500 ml-2" />
                 </a>
               ))}
             </div>
@@ -749,7 +749,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
           {/* Disclaimer */}
           <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-950/20">
             <div className="flex gap-2">
-              <FiAlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500 mt-0.5" />
+              <FiAlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
               <p className="text-[10px] text-amber-700 dark:text-amber-300 leading-relaxed">
                 {tb.disclaimer} These figures are estimates based on recorded data and Norwegian tax rules for {TAX_YEAR}.
                 Contact an authorized accountant or{' '}

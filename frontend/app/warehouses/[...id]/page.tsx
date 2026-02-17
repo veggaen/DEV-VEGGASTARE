@@ -28,9 +28,6 @@ interface ExtendedWarehouse extends WarehouseLocation {
 const WarehouseDetails = () => {
   const { id } = useParams();
   const warehouseId = Array.isArray(id) ? id[0] : id;
-  if (!warehouseId) {
-    return <div>Warehouse ID is required</div>;
-  }
   const clientUser = useCurrentUser();
   const [warehouse, setWarehouse] = useState<ExtendedWarehouse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,9 +39,15 @@ const WarehouseDetails = () => {
 
   const getWarehouseDetails = async () => {
     console.log(LOG_PREFIX, 'Fetching warehouse details');
+    const id = warehouseId;
+    if (!id) {
+      setError('Invalid warehouse id');
+      setLoading(false);
+      return;
+    }
     try {
       setRefreshing(true);
-      const data = await fetchWarehouseById(warehouseId);
+      const data = await fetchWarehouseById(id);
       setWarehouse(data);
       setPermissionError(null); // Clear any permission error
       console.log(LOG_PREFIX, 'Fetched warehouse details:', data);
@@ -58,6 +61,12 @@ const WarehouseDetails = () => {
   };
 
   useEffect(() => {
+    if (!warehouseId) {
+      setLoading(false);
+      setError('Invalid warehouse id');
+      return;
+    }
+
     getWarehouseDetails();
 
     const intervalId = setInterval(() => {
@@ -67,7 +76,7 @@ const WarehouseDetails = () => {
     return () => clearInterval(intervalId);
   }, []);
 
-  usePusher(`WarehouseChannel_${warehouseId}`, 'my-event-warehouse', throttle((data) => {
+  usePusher(`WarehouseChannel_${warehouseId ?? 'unknown'}`, 'my-event-warehouse', throttle((data) => {
     console.log(LOG_PREFIX, '[Pusher] Message received:', data);
     if (data.payload.warehouseId === warehouseId) {
       setWarehouse((prevWarehouse) => {
@@ -86,6 +95,9 @@ const WarehouseDetails = () => {
     console.log(LOG_PREFIX, 'Updating stock for inventory:', inventoryId, 'action:', action);
     startTransition(async () => {
       try {
+        if (!warehouseId) {
+          return;
+        }
         const response = await updateWarehouseInventory(warehouseId, inventoryId, action);
         if (response.status === 200) {
           console.log(LOG_PREFIX, 'Warehouse inventory updated successfully');
@@ -118,7 +130,10 @@ const WarehouseDetails = () => {
     }, [intervalDuration]);
 
     useEffect(() => {
-      if (refreshing) setProgress(0);
+      if (refreshing) {
+        const timeoutId = window.setTimeout(() => setProgress(0), 0);
+        return () => window.clearTimeout(timeoutId);
+      }
     }, [refreshing]);
 
     return (
@@ -161,6 +176,7 @@ const WarehouseDetails = () => {
   };
 
   if (loading) return <Spinner />;
+  if (!warehouseId) return <div>Warehouse ID is required</div>;
   if (error) return <div>{error}</div>;
 
   return (

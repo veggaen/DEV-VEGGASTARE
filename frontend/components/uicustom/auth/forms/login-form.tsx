@@ -71,7 +71,7 @@ export const MyLoginForm = () => {
                           id="password"
                           name="password"
                           type="password"
-                          className="w-full py-1 px-2 pl-4 border disabled:bg-white/60 bg-white dark:disabled:bg-black/50 dark:bg-black/70 border-gray-200 dark:border-gray-500 placeholder-opacity-100 text-black dark:text-white rounded focus:outline-none  focus:border-blue-400 focus:text-black transform focus:scale-105 duration-300 ease-in-out"
+                          className="w-full py-1 px-2 pl-4 border disabled:bg-white/60 bg-white dark:disabled:bg-black/50 dark:bg-black/70 border-gray-200 dark:border-gray-500 text-black dark:text-white rounded focus:outline-none  focus:border-blue-400 focus:text-black transform focus:scale-105 duration-300 ease-in-out"
                           placeholder={`Enter a password`}
                           spellCheck='false'
                         />

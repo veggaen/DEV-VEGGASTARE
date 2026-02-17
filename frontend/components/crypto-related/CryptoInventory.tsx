@@ -517,7 +517,7 @@ function InventorySlotCard({
               }}
             />
           ) : (
-            <div className="w-full h-full rounded-full bg-gradient-to-br from-zinc-300 to-zinc-500 dark:from-zinc-600 dark:to-zinc-800 flex items-center justify-center">
+            <div className="w-full h-full rounded-full bg-linear-to-br from-zinc-300 to-zinc-500 dark:from-zinc-600 dark:to-zinc-800 flex items-center justify-center">
               <span className="text-[10px] font-bold text-white">
                 {slot.token.symbol.slice(0, 2)}
               </span>
@@ -607,7 +607,7 @@ function InventoryContextMenu({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.1 }}
-      className="fixed z-[100]"
+      className="fixed z-100"
       style={{ left: x, top: y }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -668,7 +668,7 @@ function SplitDialog({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onCancel}
     >
       <motion.div
@@ -767,7 +767,7 @@ function FloatingGhostItem({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.5 }}
       transition={{ type: "spring", stiffness: 500, damping: 25 }}
-      className="fixed pointer-events-none z-[200]"
+      className="fixed pointer-events-none z-200"
       style={{
         left: x - 28,
         top: y - 28,
@@ -797,7 +797,7 @@ function FloatingGhostItem({
               className="w-full h-full rounded-full object-contain"
             />
           ) : (
-            <div className="w-full h-full rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
+            <div className="w-full h-full rounded-full bg-linear-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
               <span className="text-[7px] font-bold text-white">
                 {item.token.symbol.slice(0, 2)}
               </span>

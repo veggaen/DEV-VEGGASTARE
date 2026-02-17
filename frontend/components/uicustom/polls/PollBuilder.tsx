@@ -844,7 +844,7 @@ function SectionItem({
                     </Button>
                   </PopoverTrigger>
                 <PopoverContent 
-                  className="w-72 p-2 bg-zinc-900 border-zinc-700 z-[100]" 
+                  className="w-72 p-2 bg-zinc-900 border-zinc-700 z-100" 
                   sideOffset={5}
                   onWheel={(e) => e.stopPropagation()}
                   onTouchMove={(e) => e.stopPropagation()}
@@ -1247,7 +1247,7 @@ function TopLevelQuestionReorderItem({
                   <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50 h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-700 z-[100]">
+                  <SelectContent className="bg-zinc-900 border-zinc-700 z-100">
                     <SelectItem value="_toplevel"><span className="text-zinc-500">Keep at top-level</span></SelectItem>
                     {sections.length === 0 ? (
                       <div className="px-2 py-1.5 text-xs text-zinc-500 italic">Add sections to move questions</div>
@@ -1588,7 +1588,7 @@ function SectionQuestionEditor({
                     <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50 h-7 text-xs">
                       <SelectValue placeholder="No correct answer" />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-700 z-[100]">
+                    <SelectContent className="bg-zinc-900 border-zinc-700 z-100">
                       <SelectItem value="_none"><span className="text-zinc-500">None (opinion)</span></SelectItem>
                       {question.options?.map((opt) => (
                         <SelectItem key={opt.id} value={opt.id}>{opt.text || "(empty)"}</SelectItem>
@@ -1974,7 +1974,7 @@ function QuestionItem({
                       <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-zinc-700 z-[100]">
+                      <SelectContent className="bg-zinc-900 border-zinc-700 z-100">
                         <SelectItem value="SINGLE_CHOICE">
                           <div className="flex items-center gap-2">
                             <List className="w-4 h-4" />
@@ -2028,7 +2028,7 @@ function QuestionItem({
                       <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50">
                         <SelectValue placeholder="No section" />
                       </SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-zinc-700 z-[100]">
+                      <SelectContent className="bg-zinc-900 border-zinc-700 z-100">
                         <SelectItem value="_none">
                           <span className="text-zinc-500">No section (top-level)</span>
                         </SelectItem>
@@ -2285,7 +2285,7 @@ function QuestionItem({
 
                     </SelectTrigger>
 
-                    <SelectContent className="bg-zinc-900 border-zinc-700 z-[100]">
+                    <SelectContent className="bg-zinc-900 border-zinc-700 z-100">
 
                       <SelectItem value="_none"><span className="text-zinc-500">Custom (Visual Builder)</span></SelectItem>
 
@@ -2357,7 +2357,7 @@ function QuestionItem({
                       <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50">
                         <SelectValue placeholder="No correct answer" />
                       </SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-zinc-700 z-[100]">
+                      <SelectContent className="bg-zinc-900 border-zinc-700 z-100">
                         <SelectItem value="_none">
                           <span className="text-zinc-500">No correct answer (opinion)</span>
                         </SelectItem>
@@ -2631,10 +2631,12 @@ export function PollBuilder({
   });
   const [aiApiKey, setAiApiKey] = useState("");
   const [aiRememberKey, setAiRememberKey] = useState(true);
+  const [aiUseKeyForResearch, setAiUseKeyForResearch] = useState(true); // BYOK: also use key for PicoClaw research
   const [aiSavedKeys, setAiSavedKeys] = useState<SavedAiKeyMeta[]>([]);
   const [aiKeysLoading, setAiKeysLoading] = useState(false);
   const [aiGenerationMeta, setAiGenerationMeta] = useState<AiGenerationMeta | null>(null);
   const [aiProgressSteps, setAiProgressSteps] = useState<AiProgressStep[]>([]);
+  const [aiTotalSteps, setAiTotalSteps] = useState(8); // server sends totalSteps, default 8
   const [aiHeartbeatLog, setAiHeartbeatLog] = useState<string[]>([]); // accumulated heartbeat messages
   const [aiElapsed, setAiElapsed] = useState(0); // seconds since generation started
   const aiElapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -4429,6 +4431,7 @@ export function PollBuilder({
     setAiError(null);
     setAiGenerationMeta(null);
     setAiProgressSteps([]);
+    setAiTotalSteps(8); // reset to default, server will update
     setAiHeartbeatLog([]);
     setAiElapsed(0);
     // Start elapsed timer
@@ -4457,7 +4460,7 @@ export function PollBuilder({
         aiAuth: {
           mode: isByok ? "one_time" : "auto",
           provider: isByok ? aiProvider : undefined,
-          ...(isByok ? { apiKey: aiApiKey, rememberKey: aiRememberKey, model: aiModel || undefined } : {}),
+          ...(isByok ? { apiKey: aiApiKey, rememberKey: aiRememberKey, model: aiModel || undefined, useKeyForResearch: aiUseKeyForResearch } : {}),
         },
       };
 
@@ -4519,6 +4522,10 @@ export function PollBuilder({
 
         if (typeof event.step === "number") {
           const now = Date.now();
+          // Update totalSteps from server if provided
+          if (typeof event.totalSteps === "number" && event.totalSteps > 0) {
+            setAiTotalSteps(event.totalSteps);
+          }
           setAiProgressSteps((prev) => {
             const existing = prev.findIndex((s) => s.step === event.step);
             const updated = [...prev];
@@ -5024,7 +5031,7 @@ export function PollBuilder({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-4 rounded-lg bg-gradient-to-br from-violet-500/5 to-indigo-500/5 space-y-4">
+            <div className="p-4 rounded-lg bg-linear-to-br from-violet-500/5 to-indigo-500/5 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-medium flex items-center gap-2">
                   <Eye className="w-4 h-4" />
@@ -5041,7 +5048,7 @@ export function PollBuilder({
                   {/* Header */}
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
                         V
                       </div>
                       <div>
@@ -5110,7 +5117,7 @@ export function PollBuilder({
                       <span>{data.questions.length} questions</span>
                       <span>~{Math.max(1, data.questions.length * 30)} sec</span>
                     </div>
-                    <Button size="sm" className="h-8 bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white" onClick={() => setShowInteractivePreview(true)}>
+                    <Button size="sm" className="h-8 bg-linear-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white" onClick={() => setShowInteractivePreview(true)}>
                       Take Poll
                     </Button>
                   </div>
@@ -5131,7 +5138,7 @@ export function PollBuilder({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="rounded-xl border border-violet-500/20 bg-gradient-to-b from-violet-500/5 to-transparent flex flex-col" style={{ maxHeight: "560px" }}>
+            <div className="rounded-xl border border-violet-500/20 bg-linear-to-b from-violet-500/5 to-transparent flex flex-col" style={{ maxHeight: "560px" }}>
               {/* Header — context-aware for chat vs BYOK view */}
               <div className="flex items-center justify-between p-3 border-b border-zinc-800/50">
                 <div className="flex items-center gap-2">
@@ -5200,7 +5207,7 @@ export function PollBuilder({
               {aiShowByok && (
                 <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-[120px] max-h-[460px] scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
                   {/* Explainer */}
-                  <div className="rounded-xl bg-gradient-to-br from-violet-500/10 to-fuchsia-500/5 border border-violet-500/15 p-4 flex items-start gap-3">
+                  <div className="rounded-xl bg-linear-to-br from-violet-500/10 to-fuchsia-500/5 border border-violet-500/15 p-4 flex items-start gap-3">
                     <div className="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center shrink-0 mt-0.5">
                       <HelpCircle className="w-4 h-4 text-violet-400" />
                     </div>
@@ -5345,6 +5352,15 @@ export function PollBuilder({
                     </a>
                   </div>
 
+                  {/* Use key for research toggle */}
+                  <div className="flex items-center gap-2.5 pb-1">
+                    <Switch id="use-key-research" checked={aiUseKeyForResearch} onCheckedChange={setAiUseKeyForResearch} />
+                    <Label htmlFor="use-key-research" className="text-[12px] text-zinc-400">
+                      Also use for web research
+                    </Label>
+                    <span className="text-[10px] text-zinc-600">(improves accuracy)</span>
+                  </div>
+
                   {/* Apply button */}
                   {aiApiKey.trim() && (
                     <button
@@ -5458,8 +5474,8 @@ export function PollBuilder({
                     {/* Smooth progress bar — includes heartbeat sub-progress during step 2 */}
                     <div className="h-0.5 bg-zinc-800 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-700 ease-out"
-                        style={{ width: `${Math.round(((aiProgressSteps.filter((s) => s.status === "done").length + (aiProgressSteps.some(s => s.step === 2 && s.status === "active") ? Math.min(aiHeartbeatLog.length / 8, 0.95) : 0)) / 6) * 100)}%` }}
+                        className="h-full bg-linear-to-r from-violet-500 to-fuchsia-500 transition-all duration-700 ease-out"
+                        style={{ width: `${Math.round(((aiProgressSteps.filter((s) => s.status === "done").length + (aiProgressSteps.some(s => s.step === 2 && s.status === "active") ? Math.min(aiHeartbeatLog.length / 8, 0.95) : 0)) / aiTotalSteps) * 100)}%` }}
                       />
                     </div>
                     {/* Scrollable step log with heartbeat history */}
@@ -5535,7 +5551,7 @@ export function PollBuilder({
 
                 {/* Daily limit reached — friendly upsell */}
                 {currentUser && aiFreeUsed !== null && aiFreeUsed >= aiFreeLimit && !aiShowByok && aiKeySource !== "byok" && (
-                  <div className="rounded-lg border border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 p-3 space-y-2">
+                  <div className="rounded-lg border border-violet-500/20 bg-linear-to-r from-violet-500/10 to-fuchsia-500/10 p-3 space-y-2">
                     <div className="text-[12px] text-violet-200 font-medium flex items-center gap-1.5">
                       <Zap className="w-3.5 h-3.5 shrink-0 text-violet-400" />
                       You&apos;ve used all {aiFreeLimit} free AI generations for today
@@ -5952,14 +5968,14 @@ export function PollBuilder({
                     )}
                     {/* Section drag indicator - shows when this section is being dragged */}
                     {draggingSectionId === section.id && (
-                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-[101] bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
+                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-101 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
                         <ArrowUpDown className="w-3 h-3" />
                         {mergeSectionTarget ? "Drop to merge" : "Reorder only"}
                       </div>
                     )}
                     {/* Merge target indicator */}
                     {mergeSectionTarget === section.id && draggingSectionId !== section.id && (
-                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-[101] bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
+                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-101 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
                         <FolderPlus className="w-3 h-3" />
                         Drop to make sub-section
                       </div>

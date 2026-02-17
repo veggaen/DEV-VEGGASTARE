@@ -87,7 +87,9 @@ function KineticTitle({
 
   // Use ref to avoid re-running effect when callback changes
   const onHoverChangeRef = React.useRef(onHoverChange);
-  onHoverChangeRef.current = onHoverChange;
+  React.useEffect(() => {
+    onHoverChangeRef.current = onHoverChange;
+  }, [onHoverChange]);
 
   const stages = React.useMemo(() => buildFixedPositionStages(words), [words]);
 
@@ -256,9 +258,6 @@ function KineticDescription({
   endSpeed?: number;
 }) {
   const reduceMotion = useReducedMotion();
-  if (reduceMotion) {
-    return <p className={className}>{text}</p>;
-  }
 
   // Split into words to prevent mid-word line breaks
   const words = React.useMemo(() => String(text ?? "").split(/\s+/).filter(Boolean), [text]);
@@ -295,6 +294,7 @@ function KineticDescription({
   React.useEffect(() => {
     setRevealCount(0);
     setStarted(false);
+    if (reduceMotion) return;
     if (totalChars <= 0) return;
 
     const startTimer = window.setTimeout(() => {
@@ -318,10 +318,18 @@ function KineticDescription({
       window.clearTimeout(startTimer);
       if (innerTimeoutRef.current) window.clearTimeout(innerTimeoutRef.current);
     };
-  }, [totalChars, startDelay, startSpeed, endSpeed]);
+  }, [reduceMotion, totalChars, startDelay, startSpeed, endSpeed]);
 
-  // Map global char index to which word & char-in-word
-  let globalIdx = 0;
+  const wordStartIndices = React.useMemo(() => {
+    return words.reduce<number[]>((acc, word) => {
+      const prevStart = acc.length === 0 ? 0 : acc[acc.length - 1] + words[acc.length - 1].length;
+      return [...acc, prevStart];
+    }, []);
+  }, [words]);
+
+  if (reduceMotion) {
+    return <p className={className}>{text}</p>;
+  }
 
   return (
     <motion.p
@@ -335,8 +343,7 @@ function KineticDescription({
       {/* Use standard inline text flow instead of flex to prevent word-by-word wrapping issues */}
       <span className="inline leading-relaxed">
         {words.map((word, wIdx) => {
-          const startIdx = globalIdx;
-          globalIdx += word.length;
+          const startIdx = wordStartIndices[wIdx] ?? 0;
           return (
             <React.Fragment key={wIdx}>
               {/* Each word as inline-block prevents mid-word breaks */}
@@ -895,6 +902,7 @@ export default function HomeHero({
   const [whereGlowUntilMs, setWhereGlowUntilMs] = React.useState(0);
   const [titleGlowUntilMs, setTitleGlowUntilMs] = React.useState(0);
   const [titlePulseToken, setTitlePulseToken] = React.useState(0);
+  const [nowMs, setNowMs] = React.useState(() => Date.now());
 
   // NEW SEQUENCE: Title → Description + Headline together → Buttons
   const titleTextMain = "Freedom Store";
@@ -915,13 +923,20 @@ export default function HomeHero({
   const [titleAreaHovering, setTitleAreaHovering] = React.useState(false);
   const [tmLetterHover, setTmLetterHover] = React.useState<"T" | "M" | null>(null);
 
-  const whereGlowActive = !reduceMotion && Date.now() < whereGlowUntilMs;
-  const titleGlowActive = !reduceMotion && Date.now() < titleGlowUntilMs;
+  const whereGlowActive = !reduceMotion && nowMs < whereGlowUntilMs;
+  const titleGlowActive = !reduceMotion && nowMs < titleGlowUntilMs;
   // TM should reset immediately when hover ends; do not tie to the lingering title glow timer.
   const tmActive = !reduceMotion && (titleAreaHovering || titleHoverActive);
 
   React.useEffect(() => {
     if (mountAtRef.current == null) mountAtRef.current = performance.now();
+  }, []);
+
+  React.useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => window.clearInterval(intervalId);
   }, []);
 
   React.useEffect(() => {
@@ -1183,7 +1198,7 @@ export default function HomeHero({
           >
             {/* Animated gradient border with idle pulse */}
             <motion.div
-              className="absolute -inset-[1px] rounded-xl bg-gradient-to-r from-emerald-500 via-cyan-400 to-emerald-500 blur-[2px] group-hover:blur-[3px]"
+              className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-emerald-500 via-cyan-400 to-emerald-500 blur-[2px] group-hover:blur-[3px]"
               animate={{
                 backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
                 opacity: [0.5, 0.8, 0.5],
@@ -1249,7 +1264,7 @@ export default function HomeHero({
           >
             {/* Subtle idle border pulse */}
             <motion.div
-              className="absolute -inset-[1px] rounded-xl bg-gradient-to-r from-gray-400/20 via-gray-400/40 to-gray-400/20 dark:from-white/5 dark:via-white/15 dark:to-white/5 blur-[1px]"
+              className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-gray-400/20 via-gray-400/40 to-gray-400/20 dark:from-white/5 dark:via-white/15 dark:to-white/5 blur-[1px]"
               animate={{ opacity: [0.2, 0.4, 0.2] }}
               whileHover={{ opacity: 0.7 }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}

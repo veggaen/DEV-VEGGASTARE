@@ -63,7 +63,7 @@ const ProductCard = React.memo(
 						<CarouselNext className="opacity-0 group-hover:opacity-100 transition-opacity" />
 					</Carousel>
 
-					<div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/35 to-transparent" />
+					<div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-black/35 to-transparent" />
 					<div className="absolute left-3 bottom-3 flex gap-2">
 						<motion.span
 							initial={reduceMotion ? false : { opacity: 0, y: -14, filter: "blur(8px)" }}
@@ -80,7 +80,7 @@ const ProductCard = React.memo(
 					</div>
 				</div>
 
-				<div className="p-3 md:p-4 flex flex-col gap-2 flex-grow">
+				<div className="p-3 md:p-4 flex flex-col gap-2 grow">
 					<div className="min-w-0">
 						<h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 truncate">{product.title}</h2>
 						<p className="text-sm text-zinc-600 dark:text-zinc-300 truncate">{product.description}</p>
@@ -97,7 +97,7 @@ const ProductCard = React.memo(
 											"text-zinc-600 dark:text-zinc-300 " +
 											"group-hover/seller:border-zinc-300/70 dark:group-hover/seller:border-zinc-600/60 " +
 											(showFancyHover
-												? "group-hover/seller:bg-gradient-to-r group-hover/seller:from-indigo-500/10 group-hover/seller:via-fuchsia-500/10 group-hover/seller:to-emerald-500/10 "
+												? "group-hover/seller:bg-linear-to-r group-hover/seller:from-indigo-500/10 group-hover/seller:via-fuchsia-500/10 group-hover/seller:to-emerald-500/10 "
 												: "group-hover/seller:bg-neutral-100 dark:group-hover/seller:bg-neutral-800 ") +
 											"group-hover/seller:text-zinc-900 dark:group-hover/seller:text-zinc-100"
 										}
@@ -116,7 +116,7 @@ const ProductCard = React.memo(
 											"text-zinc-600 dark:text-zinc-300 " +
 											"group-hover/seller:border-zinc-300/70 dark:group-hover/seller:border-zinc-600/60 " +
 											(showFancyHover
-												? "group-hover/seller:bg-gradient-to-r group-hover/seller:from-indigo-500/10 group-hover/seller:via-fuchsia-500/10 group-hover/seller:to-emerald-500/10 "
+												? "group-hover/seller:bg-linear-to-r group-hover/seller:from-indigo-500/10 group-hover/seller:via-fuchsia-500/10 group-hover/seller:to-emerald-500/10 "
 												: "group-hover/seller:bg-neutral-100 dark:group-hover/seller:bg-neutral-800 ") +
 											"group-hover/seller:text-zinc-900 dark:group-hover/seller:text-zinc-100"
 										}
@@ -337,11 +337,11 @@ export default function MyProductsPage() {
 	    <div className="w-full min-h-full">
 					{/* Scroll progress indicator - thin horizontal bar at the very top */}
 					<div
-						className="fixed top-0 left-0 right-0 h-[2px] z-[80] pointer-events-none"
+						className="fixed top-0 left-0 right-0 h-[2px] z-80 pointer-events-none"
 						aria-hidden="true"
 					>
 						<div
-							className="h-full bg-gradient-to-r from-sky-400 to-indigo-500 origin-left transition-transform duration-75 ease-out"
+							className="h-full bg-linear-to-r from-sky-400 to-indigo-500 origin-left transition-transform duration-75 ease-out"
 							style={{ transform: `scaleX(${scrollProgress})` }}
 						/>
 					</div>
@@ -391,7 +391,7 @@ export default function MyProductsPage() {
 										{showFancyHover && (
 											<span
 												aria-hidden
-												className="pointer-events-none absolute inset-0 text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-sky-300 to-fuchsia-300 opacity-0 transition-opacity duration-300 group-hover:opacity-60"
+												className="pointer-events-none absolute inset-0 text-transparent bg-clip-text bg-linear-to-r from-emerald-300 via-sky-300 to-fuchsia-300 opacity-0 transition-opacity duration-300 group-hover:opacity-60"
 											>
 												Products
 											</span>

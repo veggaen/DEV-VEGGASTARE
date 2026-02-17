@@ -363,7 +363,7 @@ export default function AdminUserEditPage() {
           className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden mb-6"
         >
           {/* Banner */}
-          <div className="relative h-48 bg-gradient-to-r from-emerald-500 to-teal-600">
+          <div className="relative h-48 bg-linear-to-r from-emerald-500 to-teal-600">
             {formData.banner && (
               <img
                 src={formData.banner}

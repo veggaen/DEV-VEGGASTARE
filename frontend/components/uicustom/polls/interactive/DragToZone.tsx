@@ -287,7 +287,7 @@ export function DragToZone({
         </span>
         <div className="h-2 w-32 bg-muted rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500"
+            className="h-full bg-linear-to-r from-emerald-500 to-cyan-500"
             initial={{ width: 0 }}
             animate={{
               width: `${(Object.keys(value).length / items.length) * 100}%`,

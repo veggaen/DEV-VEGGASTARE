@@ -315,7 +315,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
   }, [config, onSave]);
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-200 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -362,7 +362,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                   <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50 h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-700 z-[250]">
+                  <SelectContent className="bg-zinc-900 border-zinc-700 z-250">
                     {MODE_OPTIONS.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
                         <span className="text-xs">{opt.label}</span>
@@ -660,7 +660,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                     <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50 h-7 text-xs">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-700 z-[250]">
+                    <SelectContent className="bg-zinc-900 border-zinc-700 z-250">
                       {SHAPES.map(s => (
                         <SelectItem key={s.value} value={s.value}>
                           <span className="text-xs">{s.label}</span>

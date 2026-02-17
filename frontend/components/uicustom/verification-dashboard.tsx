@@ -479,7 +479,7 @@ export function VerificationDashboard() {
                 }`}
               >
                 {/* Status icon */}
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   {isComplete ? (
                     <FiCheckCircle className="w-5 h-5 text-emerald-500" />
                   ) : (
@@ -488,7 +488,7 @@ export function VerificationDashboard() {
                 </div>
 
                 {/* Icon */}
-                <span className="text-lg flex-shrink-0">{item.icon}</span>
+                <span className="text-lg shrink-0">{item.icon}</span>
 
                 {/* Label & description */}
                 <div className="flex-1 min-w-0">
@@ -505,7 +505,7 @@ export function VerificationDashboard() {
                 </div>
 
                 {/* Points badge */}
-                <span className={`text-xs font-mono px-2 py-0.5 rounded-full flex-shrink-0 ${
+                <span className={`text-xs font-mono px-2 py-0.5 rounded-full shrink-0 ${
                   isComplete
                     ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                     : 'bg-white/80 text-muted-foreground dark:bg-white/5 dark:text-white/40'
@@ -519,7 +519,7 @@ export function VerificationDashboard() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleAction(item)}
-                    className="flex-shrink-0 text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
+                    className="shrink-0 text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
                   >
                     {item.action === 'phone' && isExpanded ? 'Close' : 'Start'}
                     <FiArrowRight className="w-3.5 h-3.5 ml-1" />

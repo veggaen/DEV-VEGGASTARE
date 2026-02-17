@@ -24,7 +24,7 @@ export function UpdateBanner() {
           <button
             type="button"
             onClick={refresh}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-medium hover:from-indigo-600 hover:to-purple-700 transition-all"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-linear-to-r from-indigo-500 to-purple-600 text-white text-xs font-medium hover:from-indigo-600 hover:to-purple-700 transition-all"
           >
             <FiRefreshCw className="h-3.5 w-3.5 animate-spin-slow" />
             A new version is available — click to update

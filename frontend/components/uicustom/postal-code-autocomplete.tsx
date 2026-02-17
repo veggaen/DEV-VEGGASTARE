@@ -362,7 +362,7 @@ export function PostalCodeAutocomplete({
             disabled={disabled || isLocating}
             className={cn(
               'relative shrink-0 overflow-hidden',
-              'bg-gradient-to-br from-emerald-500/10 to-teal-500/10',
+              'bg-linear-to-br from-emerald-500/10 to-teal-500/10',
               'dark:from-emerald-500/20 dark:to-teal-500/20',
               'border-emerald-500/30 hover:border-emerald-500/50',
               'hover:from-emerald-500/20 hover:to-teal-500/20',

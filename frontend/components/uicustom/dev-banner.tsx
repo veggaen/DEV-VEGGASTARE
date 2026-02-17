@@ -251,16 +251,16 @@ export default function DevBanner() {
           animate={{ opacity: 1, y: 0, bottom: 16 + footerLiftPx + cookieLiftPx }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
           transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="fixed inset-x-0 z-[80] px-4"
+          className="fixed inset-x-0 z-80 px-4"
         >
           <div ref={ref} className="mx-auto max-w-xs">
-            <div className="relative overflow-hidden rounded-2xl border border-amber-200/50 dark:border-amber-500/20 bg-gradient-to-br from-amber-50 via-white to-orange-50 dark:from-zinc-900 dark:via-zinc-950 dark:to-amber-950/30 shadow-lg shadow-amber-500/10 dark:shadow-amber-500/5 backdrop-blur-sm">
+            <div className="relative overflow-hidden rounded-2xl border border-amber-200/50 dark:border-amber-500/20 bg-linear-to-br from-amber-50 via-white to-orange-50 dark:from-zinc-900 dark:via-zinc-950 dark:to-amber-950/30 shadow-lg shadow-amber-500/10 dark:shadow-amber-500/5 backdrop-blur-sm">
               {/* Subtle glow effect */}
               <div className="absolute -top-10 -left-10 h-20 w-20 rounded-full bg-amber-400/20 blur-2xl dark:bg-amber-500/10" />
               <div className="absolute -bottom-10 -right-10 h-20 w-20 rounded-full bg-orange-400/15 blur-2xl dark:bg-orange-500/10" />
               
               <div className="relative flex items-center gap-3 px-4 py-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-md shadow-amber-500/25">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-amber-400 to-orange-500 shadow-md shadow-amber-500/25">
                   <Construction className="h-4 w-4 text-white" />
                 </div>
                 <div className="min-w-0 flex-1">

@@ -42,16 +42,21 @@ export function ActiveNetworkProvider({ children }: { children: React.ReactNode 
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    let parsedNetwork: ActiveNetwork | null = null;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (isValidNetwork(parsed)) {
-          setActiveState(parsed);
+          parsedNetwork = parsed;
         }
       }
     } catch {}
-    setLoaded(true);
+    const timeoutId = window.setTimeout(() => {
+      if (parsedNetwork) setActiveState(parsedNetwork);
+      setLoaded(true);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   const setActive = useCallback((n: ActiveNetwork) => {
