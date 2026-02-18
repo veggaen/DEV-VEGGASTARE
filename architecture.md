@@ -52,7 +52,7 @@ Veggat is a **two-service architecture**:
 │  ┌──────────┐ ┌──────────┐ ┌──────────────┐  │           │
 │  │ Bring    │ │ Socket   │ │ Prisma       │──┘           │
 │  │ Shipping │ │ .IO      │ │ Client       │              │
-│  │ Provider │ │ Server   │ │ (v6.16)      │              │
+  │ Provider │ │ Server   │ │ (v7.4)       │              │
 │  └──────────┘ └──────────┘ └──────────────┘              │
 │                                                           │
 │  ┌──────────┐ ┌──────────┐                               │
@@ -185,7 +185,7 @@ Trust note appended to poll description when trust ≤ medium.
 ### ORM: Prisma
 
 - **Frontend:** Prisma 7.3.0 with `@prisma/adapter-pg` driver adapter
-- **Backend:** Prisma 6.16.3 (standard client)
+- **Backend:** Prisma 7.4.0 with `@prisma/adapter-pg` driver adapter
 - **Schema location:** `frontend/prisma/schema.prisma` (2000+ lines, canonical source)
 - **Backend schema:** `backend/prisma/schema.prisma` (subset for warehouse operations)
 

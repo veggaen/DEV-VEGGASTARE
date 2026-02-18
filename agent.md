@@ -42,7 +42,7 @@ Users can:
                    │ PostgreSQL
   ╔════════════════╧═════════════════════╗
   ║  BACKEND SERVICE  (Hapi.js 21)      ║  Port 3001 (HTTP) + 3002 (WS)
-  ║  Bring Shipping · Socket.IO · Prisma 6.16  ║  Deployed on Railway
+  ║  Bring Shipping · Socket.IO · Prisma 7.4   ║  Deployed on Railway
   ╚══════════════════════════════════════╝
 ```
 
@@ -57,7 +57,7 @@ Users can:
 | Framework | Next.js (Webpack mode, NOT Turbopack) | 16.1.6 |
 | UI | React + Tailwind CSS + shadcn/ui + Framer Motion | React 19 |
 | Auth | NextAuth v5 (Google, GitHub, Discord OAuth + email magic links) | beta.7 |
-| Database | PostgreSQL + Prisma ORM | Prisma 7.3 (frontend), 6.16 (backend) |
+| Database | PostgreSQL + Prisma ORM | Prisma 7 (both services) |
 | Real-time | Pusher (events/notifications) + Socket.IO (warehouse sync) | — |
 | Web3 | Reown/WalletConnect (AppKit), wagmi 2, Solana adapters | — |
 | Backend | Hapi.js + Zod 4 + Bring shipping API | 21 |
@@ -300,9 +300,7 @@ Employees/contributors follow `ONBOARDING.md` instead.
 
 | Issue | Severity | Notes |
 |-------|----------|-------|
-| ~120 API routes lack rate limiting | HIGH | `lib/rate-limit.ts` exists, 6 routes covered |
 | Payment webhook signatures not verified | HIGH | Must implement before real payments |
-| ~15 routes use raw `request.json()` without Zod | MEDIUM | Need schemas |
 | Trade confirm has race condition (no `$transaction`) | MEDIUM | Should use DB transaction |
 | Database backups in git history (old commits) | MEDIUM | Need BFG/filter-branch cleanup |
 | GDPR data subject rights not implemented | HIGH (legal) | No export/delete/restrict endpoints |

@@ -321,7 +321,6 @@ These tags can be extracted by the aggregation script at `scripts/aggregate-cont
 **Known remaining issues (lower priority):**
 | Issue | Severity | Status |
 |-------|----------|--------|
-| ~~120 API routes lack rate limiting~~ | ~~HIGH~~ | **RESOLVED** — middleware-level rate limiter in `proxy.ts` covers all API routes (2 layers: global + per-tier) |
 | ~15 routes use raw `request.json()` without Zod validation | MEDIUM | Should add Zod schemas |
 | Trade confirm has potential race condition (no DB transaction) | MEDIUM | Should use `$transaction` |
 | No CSRF token on API routes (mitigated by SameSite cookies) | MEDIUM | Consider Origin header check |
