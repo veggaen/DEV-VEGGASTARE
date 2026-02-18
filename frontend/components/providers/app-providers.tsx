@@ -36,15 +36,31 @@ export default function AppProviders({
   // Gate page gets minimal layout - no providers, no header/footer
   if (pathname === '/gate') {
     return (
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="dark"
-        enableSystem={false}
-        disableTransitionOnChange
-        storageKey="veggat:theme"
-      >
-        {children}
-      </ThemeProvider>
+      <SessionProvider session={session} refetchOnWindowFocus>
+        <EdgeStoreProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem={false}
+            disableTransitionOnChange
+            storageKey="veggat:theme"
+          >
+            <ProfileThemeProvider>
+              <UiPreferencesProvider>
+                <FollowStateProvider>
+                  <CurrencyRatesProvider>
+                    <Web3Providers>
+                      {children}
+                      <Toaster />
+                    </Web3Providers>
+                  </CurrencyRatesProvider>
+                </FollowStateProvider>
+              </UiPreferencesProvider>
+            </ProfileThemeProvider>
+            <SpeedInsights />
+          </ThemeProvider>
+        </EdgeStoreProvider>
+      </SessionProvider>
     );
   }
 

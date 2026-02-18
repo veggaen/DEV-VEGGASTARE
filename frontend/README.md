@@ -180,6 +180,12 @@ frontend/
 | `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub OAuth |
 | `AUTH_DISCORD_ID` / `AUTH_DISCORD_SECRET` | Discord OAuth |
 
+OAuth callback URL requirements:
+- Set `AUTH_URL` (or `NEXTAUTH_URL`) to your exact canonical host for each environment.
+- GitHub callback URL: `<AUTH_URL>/api/auth/callback/github`
+- Discord callback URL: `<AUTH_URL>/api/auth/callback/discord`
+- A mismatch between provider callback URL and `AUTH_URL` causes `redirect_uri` errors.
+
 ### Web3
 
 | Variable | Description |

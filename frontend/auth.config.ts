@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs"
 import type { NextAuthConfig } from "next-auth"
 import Credentials from 'next-auth/providers/credentials'
+import Discord from 'next-auth/providers/discord'
 import Github from 'next-auth/providers/github'
 import Google from 'next-auth/providers/google'
 
@@ -17,6 +18,8 @@ const googleClientSecret = process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_
 
 const githubClientId = process.env.AUTH_GITHUB_ID || process.env.GITHUB_ID || process.env.GITHUB_CLIENT_ID
 const githubClientSecret = process.env.AUTH_GITHUB_SECRET || process.env.GITHUB_SECRET || process.env.GITHUB_CLIENT_SECRET
+const discordClientId = process.env.AUTH_DISCORD_ID || process.env.DISCORD_CLIENT_ID
+const discordClientSecret = process.env.AUTH_DISCORD_SECRET || process.env.DISCORD_CLIENT_SECRET
 
 const oauthProviders: NextAuthConfig['providers'] = []
 
@@ -45,6 +48,21 @@ if (githubClientId && githubClientSecret) {
   )
 } else if (isDev) {
   console.log(LOG_PREFIX, 'GitHub OAuth disabled: missing AUTH_GITHUB_ID/AUTH_GITHUB_SECRET (or GITHUB_*)')
+}
+
+if (discordClientId && discordClientSecret) {
+  oauthProviders.push(
+    Discord({
+      clientId: discordClientId,
+      clientSecret: discordClientSecret,
+      allowDangerousEmailAccountLinking: true,
+    })
+  )
+} else if (isDev) {
+  console.log(
+    LOG_PREFIX,
+    'Discord OAuth disabled: missing AUTH_DISCORD_ID/AUTH_DISCORD_SECRET (or DISCORD_CLIENT_ID/DISCORD_CLIENT_SECRET)'
+  )
 }
 
 export default {

@@ -249,6 +249,7 @@ export function VerificationDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
+  const [availableProviders, setAvailableProviders] = useState<Record<string, boolean>>({});
 
   const fetchVerification = useCallback(async () => {
     try {
@@ -267,6 +268,29 @@ export function VerificationDashboard() {
     fetchVerification();
   }, [fetchVerification]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    fetch('/api/auth/providers')
+      .then((res) => (res.ok ? res.json() : {} as Record<string, unknown>))
+      .then((providers: Record<string, unknown>) => {
+        if (!mounted) return;
+        setAvailableProviders({
+          google: Boolean(providers?.google),
+          github: Boolean(providers?.github),
+          discord: Boolean(providers?.discord),
+        });
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setAvailableProviders({});
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const handleRecalculate = async () => {
     setIsRecalculating(true);
     try {
@@ -282,20 +306,31 @@ export function VerificationDashboard() {
   };
 
   const handleAction = (item: ChecklistItem) => {
+    const verificationCallbackUrl = '/settings?section=verification';
+    const requireProvider = (provider: 'google' | 'github' | 'discord') => {
+      if (!availableProviders[provider]) {
+        toast.error(`${provider.charAt(0).toUpperCase() + provider.slice(1)} OAuth is not configured in this environment`);
+        return false;
+      }
+      return true;
+    };
+
     switch (item.action) {
       case 'google':
-        signIn('google');
+        if (!requireProvider('google')) break;
+        signIn('google', { callbackUrl: verificationCallbackUrl });
         break;
       case 'github':
-        signIn('github');
+        if (!requireProvider('github')) break;
+        signIn('github', { callbackUrl: verificationCallbackUrl });
         break;
       case 'discord':
-        toast.info('Discord OAuth is not configured yet');
+        if (!requireProvider('discord')) break;
+        signIn('discord', { callbackUrl: verificationCallbackUrl });
         break;
       case 'wallet':
-        // Navigate to wallet section or open wallet modal
-        window.location.href = '/settings?section=account';
-        toast.info('Connect your wallet in the Account section');
+        window.location.href = '/settings?section=wallet';
+        toast.info('Connect and verify your wallet in the Wallet section');
         break;
       case 'purchase':
         window.location.href = '/products';
