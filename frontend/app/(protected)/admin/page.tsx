@@ -71,6 +71,14 @@ const adminSections = [
     color: "teal",
     allowedRoles: ["OWNER", "ADMIN"],
   },
+  {
+    title: "Moderation",
+    description: "Review content reports and take moderation actions (DSA)",
+    icon: FiAlertTriangle,
+    href: "/admin/moderation",
+    color: "orange",
+    allowedRoles: ["OWNER", "ADMIN"],
+  },
 ];
 
 const colorClasses = {
@@ -103,6 +111,11 @@ const colorClasses = {
     bg: "bg-teal-500/10 dark:bg-teal-500/20",
     icon: "text-teal-600 dark:text-teal-400",
     border: "hover:border-teal-500/30",
+  },
+  orange: {
+    bg: "bg-orange-500/10 dark:bg-orange-500/20",
+    icon: "text-orange-600 dark:text-orange-400",
+    border: "hover:border-orange-500/30",
   },
 };
 

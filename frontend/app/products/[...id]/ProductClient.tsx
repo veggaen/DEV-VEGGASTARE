@@ -43,8 +43,9 @@ import ProductHeroHeading from "@/components/uicustom/product/product-hero-headi
 import { fetchUserEmployeePermissions } from "@/actions/user-company-permissions";
 import { MyDeleteProductAction } from "@/actions/products";
 import type { EmployeePermissions } from "@/lib/types/company-permissions";
-import { Pencil, Trash2, Loader2, Navigation } from "lucide-react";
+import { Pencil, Trash2, Loader2, Navigation, Flag } from "lucide-react";
 import { toast } from "sonner";
+import { ReportDialog } from "@/components/uicustom/report/ReportDialog";
 
 function getNavigationType() {
   try {
@@ -1157,6 +1158,7 @@ function ProductDetails({ product }: { product: Product }) {
   const [companyEditAllowed, setCompanyEditAllowed] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const sessionUserId = (session as any)?.user?.id as string | undefined;
   const sessionRole = (session as any)?.user?.role as string | undefined;
@@ -1485,6 +1487,14 @@ function ProductDetails({ product }: { product: Product }) {
               <CiStar className="h-5 w-5 text-yellow-500" />
               <AnimatedRating />
             </div>
+
+            {/* Report button — visible to logged-in non-owners */}
+            {sessionUserId && !canEditProduct && (
+              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-red-600" onClick={() => setReportOpen(true)}>
+                <Flag className="h-4 w-4" />
+                Rapporter
+              </Button>
+            )}
 
             {canEditProduct && (
               <div className="flex items-center gap-2">
@@ -1946,6 +1956,15 @@ function ProductDetails({ product }: { product: Product }) {
           </div>
         </dl>
       </motion.section>
+
+      {/* Report Dialog */}
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        contentType="PRODUCT"
+        contentId={product.id}
+        contentLabel="dette produktet"
+      />
     </div>
   );
 }

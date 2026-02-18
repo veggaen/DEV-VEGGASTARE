@@ -30,6 +30,8 @@ import { useUiPreferences } from '@/components/providers/ui-preferences';
 import { useEdgeStore } from '@/lib/edgestore';
 import { FancyBackground } from '@/components/uicustom/fancy-background';
 import { NotificationSettings as NotificationSettingsComponent } from '@/components/uicustom/notifications/notification-settings';
+import { exportMyData } from '@/actions/gdpr-data-export';
+import { requestAccountDeletion, cancelAccountDeletion } from '@/actions/gdpr-account-deletion';
 import type { NotificationSettings as NotificationSettingsType, NotificationMute } from '@/components/uicustom/notifications/types';
 import { CurrencySelector, useCurrency, FIAT_CURRENCIES, CRYPTO_CURRENCIES } from '@/components/uicustom/currency-selector';
 import { VerificationDashboard } from '@/components/uicustom/verification-dashboard';
@@ -41,7 +43,8 @@ import EvmWalletList from '@/components/crypto-related/EvmWalletList';
 import { 
   FiUser, FiLock, FiMail, FiBell, FiShield, FiSave, 
   FiEdit2, FiX, FiCheck, FiImage, FiChevronRight, FiCamera, FiUpload,
-  FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity, FiSliders, FiDollarSign, FiKey, FiMapPin
+  FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity, FiSliders, FiDollarSign, FiKey, FiMapPin,
+  FiDownload, FiTrash2, FiAlertTriangle, FiFlag
 } from 'react-icons/fi';
 import {
   Chart as ChartJS,
@@ -1452,14 +1455,303 @@ function PrivacySettings() {
         </div>
       </div>
 
-      <div className="pt-4 border-t border-border dark:border-white/10">
-        <Button variant="destructive" className="bg-red-600 hover:bg-red-500">
-          Delete Account
-        </Button>
-        <p className="text-xs text-muted-foreground dark:text-white/40 mt-2">
-          This action is irreversible. All your data will be permanently deleted.
-        </p>
+      {/* GDPR — Data Export */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Dine data (GDPR)</h3>
+        <DataExportCard />
       </div>
+
+      {/* GDPR — Account Deletion */}
+      <div className="pt-4 border-t border-border dark:border-white/10">
+        <AccountDeletionCard />
+      </div>
+
+      {/* My Reports */}
+      <div className="pt-4 border-t border-border dark:border-white/10 space-y-2">
+        <MyReportsCard />
+      </div>
+    </div>
+  );
+}
+
+/** GDPR data export card */
+function DataExportCard() {
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const result = await exportMyData();
+      if (!result.success) {
+        toast.error(result.error || 'Feil ved eksport.');
+        return;
+      }
+      // Download as JSON file
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `veggat-mine-data-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Data eksportert og lastet ned.');
+    } catch {
+      toast.error('Noe gikk galt.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10 space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="p-2 rounded-lg bg-blue-500/10 dark:bg-blue-500/20">
+          <FiDownload className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        </div>
+        <div className="flex-1">
+          <div className="font-medium text-foreground dark:text-white/90">Last ned dine data</div>
+          <div className="text-sm text-muted-foreground dark:text-white/40">
+            Eksporter all personlig informasjon vi har om deg som JSON-fil (GDPR Art. 15/20).
+          </div>
+        </div>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleExport}
+        disabled={isExporting}
+        className="gap-2"
+      >
+        <FiDownload className="h-4 w-4" />
+        {isExporting ? 'Eksporterer...' : 'Last ned mine data'}
+      </Button>
+    </div>
+  );
+}
+
+/** GDPR account deletion card with grace period */
+function AccountDeletionCard() {
+  const [pendingDeletion, setPendingDeletion] = useState<{ scheduledFor: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  // Check for pending deletion on mount
+  useEffect(() => {
+    fetch('/api/users/deletion-status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.pending) setPendingDeletion({ scheduledFor: data.scheduledFor });
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const handleRequest = async () => {
+    if (confirmText !== 'SLETT') return;
+    setIsRequesting(true);
+    try {
+      const result = await requestAccountDeletion();
+      if (result.success) {
+        toast.success('Slettingsforespørsel registrert. Du har 30 dager til å angre.');
+        setPendingDeletion({ scheduledFor: new Date(Date.now() + 30 * 86400000).toISOString() });
+        setShowConfirm(false);
+        setConfirmText('');
+      } else {
+        toast.error(result.error || 'Feil.');
+      }
+    } catch {
+      toast.error('Noe gikk galt.');
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    setIsCancelling(true);
+    try {
+      const result = await cancelAccountDeletion();
+      if (result.success) {
+        toast.success('Slettingsforespørsel kansellert.');
+        setPendingDeletion(null);
+      } else {
+        toast.error(result.error || 'Feil.');
+      }
+    } catch {
+      toast.error('Noe gikk galt.');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  if (isLoading) return null;
+
+  if (pendingDeletion) {
+    const scheduledDate = new Date(pendingDeletion.scheduledFor);
+    return (
+      <div className="rounded-xl bg-red-500/5 border border-red-500/20 p-4 dark:bg-red-500/10 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-red-500/10 dark:bg-red-500/20">
+            <FiAlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+          </div>
+          <div className="flex-1">
+            <div className="font-medium text-red-600 dark:text-red-400">Kontoen din er planlagt for sletting</div>
+            <div className="text-sm text-muted-foreground dark:text-white/40">
+              Kontoen og all personlig data slettes permanent{' '}
+              <strong className="text-foreground dark:text-white/80">{scheduledDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>.
+              Du kan angre innen denne fristen.
+            </div>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCancel}
+          disabled={isCancelling}
+          className="gap-2"
+        >
+          {isCancelling ? 'Kansellerer...' : 'Avbryt sletting'}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10 space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="p-2 rounded-lg bg-red-500/10 dark:bg-red-500/20">
+          <FiTrash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
+        </div>
+        <div className="flex-1">
+          <div className="font-medium text-foreground dark:text-white/90">Slett konto</div>
+          <div className="text-sm text-muted-foreground dark:text-white/40">
+            Slett all personlig data permanent (GDPR Art. 17). Vi gir deg 30 dager til å angre.
+            Ordrehistorikk anonymiseres i henhold til bokføringsloven.
+          </div>
+        </div>
+      </div>
+      
+      {showConfirm ? (
+        <div className="space-y-2">
+          <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+            Skriv <code className="bg-red-500/10 px-1.5 py-0.5 rounded">SLETT</code> for å bekrefte:
+          </p>
+          <div className="flex items-center gap-2">
+            <Input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="SLETT"
+              className="max-w-[120px]"
+            />
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleRequest}
+              disabled={confirmText !== 'SLETT' || isRequesting}
+            >
+              {isRequesting ? 'Sender...' : 'Bekreft sletting'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => { setShowConfirm(false); setConfirmText(''); }}>
+              Avbryt
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => setShowConfirm(true)}
+          className="gap-2"
+        >
+          <FiTrash2 className="h-4 w-4" />
+          Slett min konto
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** My content reports card */
+function MyReportsCard() {
+  const [reports, setReports] = useState<{ id: string; contentType: string; reason: string; status: string; createdAt: string }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/users/my-reports')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setReports(data);
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const statusLabels: Record<string, { label: string; class: string }> = {
+    PENDING: { label: 'Venter', class: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+    IN_REVIEW: { label: 'Under vurdering', class: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+    RESOLVED: { label: 'Behandlet', class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+    DISMISSED: { label: 'Avvist', class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400' },
+  };
+
+  const reasonLabels: Record<string, string> = {
+    ILLEGAL_CONTENT: 'Ulovlig innhold',
+    HATE_SPEECH: 'Hatefulle ytringer',
+    HARASSMENT: 'Trakassering',
+    VIOLENCE: 'Vold/trusler',
+    SEXUAL_CONTENT: 'Seksuelt innhold',
+    CHILD_EXPLOITATION: 'Overgrep mot barn',
+    SPAM: 'Spam',
+    SCAM: 'Svindel',
+    IMPERSONATION: 'Etterligning',
+    COPYRIGHT_INFRINGEMENT: 'Opphavsrett',
+    MISINFORMATION: 'Villedende info',
+    PLATFORM_MANIPULATION: 'Manipulering',
+    OTHER: 'Annet',
+  };
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Mine rapporter</h3>
+      
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Laster...</p>
+      ) : reports.length === 0 ? (
+        <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center gap-3">
+            <FiFlag className="h-5 w-5 text-muted-foreground" />
+            <div className="text-sm text-muted-foreground dark:text-white/40">
+              Du har ikke rapportert noe innhold ennå.
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {reports.map((report) => {
+            const status = statusLabels[report.status] || statusLabels.PENDING;
+            return (
+              <div key={report.id} className="rounded-xl bg-white/70 border border-border p-3 dark:bg-white/5 dark:border-white/10 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-foreground dark:text-white/90">{reasonLabels[report.reason] || report.reason}</span>
+                    <span className="text-muted-foreground dark:text-white/40">·</span>
+                    <span className="text-muted-foreground dark:text-white/40 capitalize">{report.contentType.toLowerCase()}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground dark:text-white/30 mt-0.5">
+                    {new Date(report.createdAt).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </div>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${status.class}`}>
+                  {status.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
