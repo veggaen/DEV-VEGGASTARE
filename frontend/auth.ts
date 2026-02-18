@@ -9,7 +9,7 @@ import { getUserById } from "@/data/user"
 import { getTwoFactorConfirmationByUserId } from "@/data/two-factor-confirmation"
 import { getAccountByUserId } from "./lib/account"
 import { recalculateVerificationTier } from "@/lib/verification-recalc"
-import { sendOauthProviderLinkedEmail } from "@/lib/mail"
+import { sendOauthLinkConfirmationEmail } from "@/lib/mail"
 
 
 // Console.log PREFIX
@@ -88,46 +88,45 @@ export const {
 
       },
       async linkAccount({ user, profile, account }){
-        // Build the OAuth flag based on provider
-        const oauthFlags: Record<string, boolean> = {};
-        if (account.provider === 'google') oauthFlags.hasGoogleAuth = true;
-        if (account.provider === 'github') oauthFlags.hasGithubAuth = true;
-        if (account.provider === 'discord') oauthFlags.hasDiscordAuth = true;
-
         const provider = account.provider as 'google' | 'github' | 'discord' | string;
 
+        // Mark emailVerified + sync profile image, but do NOT set hasXxxAuth yet.
+        // The user must confirm the link via a verification email first (yellow → green).
         await dbPrisma.user.update({
           where: { id: user?.id },
           data: {
             emailVerified: new Date(),
             email: user.email,
             image: profile.image,
-            ...oauthFlags,
           }
         });
 
-        // Recalculate verification tier with the newly set flag
-        if (user?.id) {
-          await recalculateVerificationTier(user.id, oauthFlags);
+        // For named OAuth providers: create a pending link record and send confirmation email.
+        // hasXxxAuth is only set to true after the user clicks the confirm link in the email.
+        if (
+          user?.id &&
+          user.email &&
+          (provider === 'google' || provider === 'github' || provider === 'discord')
+        ) {
+          // Upsert: replace any existing pending record for this provider (e.g. re-linking)
+          const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 h
+          const pending = await dbPrisma.pendingOAuthLink.upsert({
+            where: { userId_provider: { userId: user.id, provider } },
+            update: { token: crypto.randomUUID(), expires },
+            create: { userId: user.id, provider, expires },
+          });
 
-          // Security notification for additional linked OAuth providers.
-          // This confirms account-link activity without blocking login.
-          if (
-            user.email &&
-            (provider === 'google' || provider === 'github' || provider === 'discord')
-          ) {
-            const totalLinkedAccounts = await dbPrisma.account.count({ where: { userId: user.id } });
-            if (totalLinkedAccounts >= 2) {
-              sendOauthProviderLinkedEmail(user.email, {
-                provider,
-                userName: user.name,
-              }).catch((err) => {
-                console.error(`${LOG_PREFIX} linkAccount: failed to send OAuth link notification`, err);
-              });
-            }
+          try {
+            await sendOauthLinkConfirmationEmail(user.email, {
+              provider: provider as 'google' | 'github' | 'discord',
+              userName: user.name,
+              token: pending.token,
+            });
+          } catch (err) {
+            console.error(`${LOG_PREFIX} linkAccount: failed to send confirmation email`, err);
           }
         }
-      }
+      },
     },
     callbacks: {
         async signIn({ user, account, profile, email, credentials }) {

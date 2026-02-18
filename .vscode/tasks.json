@@ -2,10 +2,21 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "dev:cleanup",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/dev-stop.ps1",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "showReuseMessage": false
+      }
+    },
+    {
       "label": "dev",
-      "detail": "Start frontend + backend dev servers side-by-side",
-      "dependsOn": ["dev:frontend", "dev:backend"],
-      "dependsOrder": "parallel",
+      "detail": "Clean ports then start frontend + backend side-by-side",
+      "dependsOn": ["dev:cleanup", "dev:servers"],
+      "dependsOrder": "sequence",
       "problemMatcher": [],
       "group": {
         "kind": "build",
@@ -14,6 +25,13 @@
       "presentation": {
         "reveal": "always"
       }
+    },
+    {
+      "label": "dev:servers",
+      "detail": "Launch FE + BE in split panes (triggered after cleanup)",
+      "dependsOn": ["dev:frontend", "dev:backend"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
     },
     {
       "label": "dev:frontend",

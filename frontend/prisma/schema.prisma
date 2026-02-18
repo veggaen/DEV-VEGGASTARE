@@ -909,6 +909,21 @@ model TwoFactorToken {
   @@unique([email, token])
 }
 
+// Pending OAuth provider link — user must confirm via email before flag is set
+model PendingOAuthLink {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String   // "google" | "github" | "discord"
+  token     String   @unique @default(cuid())
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([token])
+}
+
 // Admin audit log for tracking all admin actions
 model AdminAuditLog {
   id            String          @id @default(cuid())
@@ -1003,6 +1018,7 @@ model User {
   SecurityActionToken                                             SecurityActionToken[]
   TwoFactorConfirmation                                           TwoFactorConfirmation?
   privacySettings                                                 UserPrivacySettings?
+  PendingOAuthLink                                                PendingOAuthLink[]
   Wallet                                                          Wallet[]
   WalletVerificationChallenge                                     WalletVerificationChallenge[]
   WarehouseLocation                                               WarehouseLocation[]

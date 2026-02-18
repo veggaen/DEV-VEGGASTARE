@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signIn } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FiCheckCircle, FiCircle, FiRefreshCw, FiArrowRight,
   FiMail, FiSmartphone, FiShield, FiLock,
@@ -31,6 +32,7 @@ interface VerificationData {
   score: number;
   multiplier: number;
   linkedProviders: string[];
+  pendingProviders: string[];
   phoneNumber: string | null;
 }
 
@@ -250,6 +252,9 @@ export function VerificationDashboard() {
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
   const [availableProviders, setAvailableProviders] = useState<Record<string, boolean>>({});
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const handledOauthFeedbackRef = useRef(false);
 
   const fetchVerification = useCallback(async () => {
     try {
@@ -291,6 +296,75 @@ export function VerificationDashboard() {
     };
   }, []);
 
+  // Handle OAuth error redirects (from proxy.ts intercept) and email-confirmed links
+  useEffect(() => {
+    if (handledOauthFeedbackRef.current) return;
+
+    const oauthError   = searchParams.get('oauthError');
+    const oauthConfirm = searchParams.get('oauthConfirm');
+
+    if (!oauthError && !oauthConfirm) return;
+    handledOauthFeedbackRef.current = true;
+
+    if (oauthError) {
+      const errorMessageMap: Record<string, string> = {
+        OAuthCallbackError: 'OAuth callback failed. Check provider credentials and callback URL configuration.',
+        CallbackRouteError: 'OAuth provider rejected the callback. This often means invalid client ID/secret.',
+        AccessDenied:       'OAuth access was denied by the provider.',
+        Configuration:      'OAuth configuration error. Check provider credentials.',
+      };
+      toast.error(errorMessageMap[oauthError] || `OAuth linking failed: ${oauthError}`);
+    }
+
+    if (oauthConfirm) {
+      if (oauthConfirm === 'expired') {
+        toast.error('Confirmation link has expired. Please link the provider again.');
+      } else if (oauthConfirm === 'invalid') {
+        toast.error('Invalid confirmation link.');
+      } else if (oauthConfirm === 'denied') {
+        toast.warning('Account link denied. The OAuth account has been removed from your profile.');
+      } else {
+        // oauthConfirm = provider name (e.g. "discord")
+        const label = oauthConfirm.charAt(0).toUpperCase() + oauthConfirm.slice(1);
+        toast.success(`${label} linked and verified! Your score has been updated.`);
+        fetchVerification();
+      }
+    }
+
+    router.replace('/settings?section=verification', { scroll: false });
+  }, [fetchVerification, router, searchParams]);
+
+  // Detect that user just returned from Discord/GitHub/Google OAuth flow
+  useEffect(() => {
+    const pending = sessionStorage.getItem('pendingOauthLink');
+    if (!pending) return;
+
+    fetch('/api/users/verification')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!json) return;
+        sessionStorage.removeItem('pendingOauthLink');
+        // Check if this provider is now pending (email sent) or already confirmed
+        const isPending  = (json.pendingProviders ?? []).includes(pending);
+        const flagKey    = `has${pending.charAt(0).toUpperCase() + pending.slice(1)}Auth` as keyof typeof json.flags;
+        const isVerified = json.flags?.[flagKey] === true;
+
+        if (isPending) {
+          const label = pending.charAt(0).toUpperCase() + pending.slice(1);
+          toast.info(`Check your email to confirm the ${label} link — it will show yellow until verified.`);
+          setData(json);
+        } else if (isVerified) {
+          const label = pending.charAt(0).toUpperCase() + pending.slice(1);
+          toast.success(`${label} linked and verified!`);
+          setData(json);
+        } else {
+          toast.info('Provider linking was not completed. Try again if needed.');
+        }
+      })
+      .catch(() => sessionStorage.removeItem('pendingOauthLink'));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleRecalculate = async () => {
     setIsRecalculating(true);
     try {
@@ -318,14 +392,17 @@ export function VerificationDashboard() {
     switch (item.action) {
       case 'google':
         if (!requireProvider('google')) break;
+        sessionStorage.setItem('pendingOauthLink', 'google');
         signIn('google', { callbackUrl: verificationCallbackUrl });
         break;
       case 'github':
         if (!requireProvider('github')) break;
+        sessionStorage.setItem('pendingOauthLink', 'github');
         signIn('github', { callbackUrl: verificationCallbackUrl });
         break;
       case 'discord':
         if (!requireProvider('discord')) break;
+        sessionStorage.setItem('pendingOauthLink', 'discord');
         signIn('discord', { callbackUrl: verificationCallbackUrl });
         break;
       case 'wallet':
@@ -502,6 +579,10 @@ export function VerificationDashboard() {
 
         {CHECKLIST.map((item) => {
           const isComplete = data.flags[item.key];
+          // Yellow/pending: OAuth provider linked but email confirmation not yet clicked
+          const isPending  = !isComplete &&
+            (item.action === 'google' || item.action === 'github' || item.action === 'discord') &&
+            (data.pendingProviders ?? []).includes(item.action);
           const isExpanded = expandedAction === item.action;
 
           return (
@@ -510,13 +591,17 @@ export function VerificationDashboard() {
                 className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
                   isComplete
                     ? 'bg-emerald-500/5 border-emerald-500/20'
-                    : 'bg-white/50 border-border hover:border-blue-500/30 dark:bg-white/[0.02] dark:border-white/10 dark:hover:border-white/20'
+                    : isPending
+                      ? 'bg-yellow-500/5 border-yellow-500/30 dark:bg-yellow-500/5 dark:border-yellow-500/25'
+                      : 'bg-white/50 border-border hover:border-blue-500/30 dark:bg-white/2 dark:border-white/10 dark:hover:border-white/20'
                 }`}
               >
                 {/* Status icon */}
                 <div className="shrink-0">
                   {isComplete ? (
                     <FiCheckCircle className="w-5 h-5 text-emerald-500" />
+                  ) : isPending ? (
+                    <FiCheckCircle className="w-5 h-5 text-yellow-500" />
                   ) : (
                     <FiCircle className="w-5 h-5 text-muted-foreground/40 dark:text-white/20" />
                   )}
@@ -530,12 +615,14 @@ export function VerificationDashboard() {
                   <p className={`text-sm font-medium ${
                     isComplete
                       ? 'text-emerald-600 dark:text-emerald-400 line-through'
-                      : 'text-foreground dark:text-white/90'
+                      : isPending
+                        ? 'text-yellow-600 dark:text-yellow-400'
+                        : 'text-foreground dark:text-white/90'
                   }`}>
                     {item.label}
                   </p>
                   <p className="text-xs text-muted-foreground dark:text-white/40 truncate">
-                    {item.description}
+                    {isPending ? 'Check your email to confirm this link' : item.description}
                   </p>
                 </div>
 
@@ -543,13 +630,15 @@ export function VerificationDashboard() {
                 <span className={`text-xs font-mono px-2 py-0.5 rounded-full shrink-0 ${
                   isComplete
                     ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                    : 'bg-white/80 text-muted-foreground dark:bg-white/5 dark:text-white/40'
+                    : isPending
+                      ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
+                      : 'bg-white/80 text-muted-foreground dark:bg-white/5 dark:text-white/40'
                 }`}>
                   +{item.points}
                 </span>
 
                 {/* Action button */}
-                {!isComplete && item.action && (
+                {!isComplete && !isPending && item.action && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -558,6 +647,19 @@ export function VerificationDashboard() {
                   >
                     {item.action === 'phone' && isExpanded ? 'Close' : 'Start'}
                     <FiArrowRight className="w-3.5 h-3.5 ml-1" />
+                  </Button>
+                )}
+
+                {/* Pending: show "Resend" button */}
+                {isPending && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleAction(item)}
+                    className="shrink-0 text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                  >
+                    Resend
+                    <FiMail className="w-3.5 h-3.5 ml-1" />
                   </Button>
                 )}
               </div>
@@ -590,20 +692,29 @@ export function VerificationDashboard() {
 
       {/* Linked Accounts Overview */}
       {data.linkedProviders.length > 0 && (
-        <div className="p-4 rounded-xl border border-border bg-white/50 dark:border-white/10 dark:bg-white/[0.02]">
+        <div className="p-4 rounded-xl border border-border bg-white/50 dark:border-white/10 dark:bg-white/2">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground dark:text-white/40 mb-3">
             Linked Accounts
           </h4>
           <div className="flex flex-wrap gap-2">
-            {data.linkedProviders.map((p) => (
-              <span
-                key={p}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-              >
-                <FiCheckCircle className="w-3 h-3" />
-                {p.charAt(0).toUpperCase() + p.slice(1)}
-              </span>
-            ))}
+            {data.linkedProviders.map((p) => {
+              const isPending = (data.pendingProviders ?? []).includes(p);
+              return (
+                <span
+                  key={p}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+                    isPending
+                      ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
+                      : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  }`}
+                  title={isPending ? 'Pending email confirmation' : 'Verified'}
+                >
+                  <FiCheckCircle className="w-3 h-3" />
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                  {isPending && <span className="ml-0.5 opacity-70">(pending)</span>}
+                </span>
+              );
+            })}
           </div>
         </div>
       )}

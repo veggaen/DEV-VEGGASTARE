@@ -2,6 +2,24 @@ import { Resend } from 'resend';
 import { SecurityActionType } from '@/generated/prisma/browser';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+const LOG_PREFIX = '[mail.ts]';
+
+if (!process.env.RESEND_API_KEY) {
+  console.error(`${LOG_PREFIX} Missing RESEND_API_KEY. Email sending will fail.`);
+}
+
+async function sendEmailViaResend(payload: Parameters<typeof resend.emails.send>[0]): Promise<void> {
+  const { data, error } = await resend.emails.send(payload);
+
+  if (error) {
+    const msg = typeof error.message === 'string' ? error.message : 'Unknown Resend error';
+    throw new Error(`Resend send failed: ${msg}`);
+  }
+
+  if (!data?.id) {
+    throw new Error('Resend send failed: missing message id in response');
+  }
+}
 // Simplified environment detection (no trailing slash; callers add leading '/')
 const whatENV =
   process.env.NODE_ENV === "development"
@@ -106,6 +124,74 @@ export const sendSecurityActionEmail = async (
   });
 };
 
+// ─── OAuth Link Confirmation Email (pending → verified) ─────────────────────
+
+/**
+ * Sent when a user links a new OAuth provider.
+ * They must click the button to actually confirm the link — the flag stays
+ * false (yellow in UI) until they do. This prevents a rogue session from
+ * silently linking an attacker's account.
+ */
+export const sendOauthLinkConfirmationEmail = async (
+  email: string,
+  data: {
+    provider: 'google' | 'github' | 'discord';
+    userName?: string | null;
+    token: string;
+  }
+): Promise<void> => {
+  const providerLabel = data.provider === 'google'
+    ? 'Google'
+    : data.provider === 'github'
+      ? 'GitHub'
+      : 'Discord';
+
+  const confirmUrl = `${whatENV}/api/auth/confirm-oauth-link?token=${encodeURIComponent(data.token)}`;
+  const denyUrl   = `${whatENV}/api/auth/confirm-oauth-link?token=${encodeURIComponent(data.token)}&deny=1`;
+
+  await sendEmailViaResend({
+    from: 'Veggat-Security@veggat.com',
+    to: email,
+    subject: `🔐 Confirm ${providerLabel} account link — Veggat`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #1e40af, #0ea5e9); padding: 24px; border-radius: 8px 8px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 20px;">🔐 Confirm Account Link</h1>
+        </div>
+
+        <div style="padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+          <p style="color: #333;">Hi${data.userName ? ` ${data.userName}` : ''},</p>
+
+          <p style="color: #555;">
+            Someone just linked a <strong>${providerLabel}</strong> account to your Veggat profile.
+            <br/>Before this takes effect, you need to confirm it was you.
+          </p>
+
+          <div style="background: #fef9c3; border: 1px solid #fde047; padding: 14px; border-radius: 8px; margin: 16px 0;">
+            <p style="margin: 0; color: #78350f; font-size: 14px; font-weight: 600;">⚠️ If this wasn't you, click "Deny &amp; Secure" below immediately.</p>
+          </div>
+
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="${confirmUrl}"
+               style="background: #16a34a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
+              ✅ Yes, confirm this link
+            </a>
+            <a href="${denyUrl}"
+               style="background: #dc2626; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block; margin-left: 12px;">
+              ❌ Deny &amp; Secure
+            </a>
+          </div>
+
+          <p style="color: #9ca3af; font-size: 13px; text-align: center;">
+            This confirmation link expires in <strong>24 hours</strong>.
+            Until confirmed, the ${providerLabel} account is <em>pending</em> and does not count toward your verification score.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+};
+
 export const sendOauthProviderLinkedEmail = async (
   email: string,
   data: {
@@ -119,7 +205,7 @@ export const sendOauthProviderLinkedEmail = async (
       ? 'GitHub'
       : 'Discord';
 
-  await resend.emails.send({
+  await sendEmailViaResend({
     from: 'Veggat-Security@veggat.com',
     to: email,
     subject: `🔐 ${providerLabel} account linked to your Veggat profile`,

@@ -57,6 +57,13 @@ export async function GET() {
 
     const linkedProviders = accounts.map(a => a.provider);
 
+    // Get pending (unconfirmed) OAuth links
+    const pendingLinks = await dbPrisma.pendingOAuthLink.findMany({
+      where: { userId: session.id, expires: { gt: new Date() } },
+      select: { provider: true },
+    });
+    const pendingProviders = pendingLinks.map(p => p.provider);
+
     const tier = (user.verificationTier ?? 'ANONYMOUS') as VerificationTierKey;
     const multiplier = VERIFICATION_TIER_MULTIPLIERS[tier] ?? 0.1;
 
@@ -76,6 +83,7 @@ export async function GET() {
       score: user.verificationScore ?? 0,
       multiplier,
       linkedProviders,
+      pendingProviders,
       phoneNumber: user.phoneNumber
         ? user.phoneNumber.slice(0, -4) + '****'
         : null,
