@@ -64,7 +64,7 @@ The platform uniquely combines:
 | Employee Management | ✅ Shipped | Invite, assign roles (OWNER/ADMIN/MEMBER), remove |
 | Warehouse Management | ✅ Shipped | Create warehouses, manage stock per product |
 | Real-time Stock Sync | ✅ Shipped | WebSocket-based inventory updates across clients |
-| Shipping Integration | ✅ Shipped | Bring/Posten rates, postal code lookup, mock mode |
+| Shipping Integration | ✅ Shipped | Bring rates in checkout, method selection, booking, tracking, pickup points |
 | Vipps Payment | ⏳ Planned | Norwegian mobile payment (see docs/VIPPS_REQUIREMENTS.md) |
 
 ### 3.2 Web3 & Crypto Trading

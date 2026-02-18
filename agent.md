@@ -270,6 +270,7 @@ Employees/contributors follow `ONBOARDING.md` instead.
 - Security hardening (rate limiting on critical routes, prompt injection guards, unified logout)
 - Multi-wallet support (EVM/Solana/Bitcoin, sidebar panel, multi-chain linked wallets)
 - System account impersonation ("Take Control" from profile/hovercard, amber header banner)
+- Address & Shipping Phase 2 (shipping method selection, Bring booking + tracking, enhanced order confirmation + email)
 
 ### In Progress
 - True Reach™ score computation engine
@@ -281,7 +282,6 @@ Employees/contributors follow `ONBOARDING.md` instead.
 - Profile editing (/settings — avatar, banner, bio)
 - Vipps payment integration (Norwegian mobile payment)
 - Friend request system (mutual friendships)
-- Address + shipping upgrade (Bring booking, tracking, order emails)
 - Rate limiting on remaining ~120 routes
 
 ### Planned (Future)

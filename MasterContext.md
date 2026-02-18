@@ -4,7 +4,7 @@
 > This file is the canonical source for architecture invariants and onboarding context.
 
 **Auto-generated sections** are marked with `<!-- @auto -->`. Manual sections are maintained by developers.  
-**Last Updated:** 2026-02-18
+**Last Updated:** 2025-07-10
 
 ---
 
@@ -55,7 +55,7 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 | **Products** | `app/products/`, `actions/products.ts` | Stable | Product CRUD, listings, detail pages |
 | **Companies** | `app/company/`, `actions/create-company.ts` | Stable | Company management, employee roles |
 | **Warehouses** | `app/warehouses/`, `actions/fetchWarehouses.ts` | Stable | Warehouse inventory management |
-| **Cart & Checkout** | `app/cart/`, `app/checkout/`, `contexts/cart-context.tsx` | Stable | Shopping flow |
+| **Cart & Checkout** | `app/cart/`, `app/checkout/`, `contexts/cart-context.tsx` | Stable | Shopping flow with live Bring shipping rates, method selection, booking + tracking |
 | **Pulse (Social)** | `app/feed/`, `app/pulse/` | Active | Social feed, posts, reactions |
 | **Conversations** | `app/(protected)/` area | Active | DMs, group chats |
 | **Crypto Trading** | `components/crypto-related/` | Active | OSRS inventory, trade windows, P2P |
@@ -67,7 +67,8 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 | **Providers** | `components/providers/` | Stable | React context providers (theme, session, wagmi) |
 | **Hooks** | `hooks/` | Stable | Custom React hooks |
 | **Lib** | `lib/` | Stable | Utilities, constants, view-strength calc, **fuzzy-text-match.ts** (Levenshtein distance, token-set, vowel-swap variant matching for quiz TEXT answers) |
-| **Email (Resend)** | `lib/mail.ts` | Stable | Transactional emails: 2FA, password reset, verification, wallet link/unlink. Uses Resend SDK with verified `veggat.com` domain. Env: `RESEND_API_KEY` |
+| **Shipping Method Selector** | `components/uicustom/shipping-method-selector.tsx` | Stable | Live Bring rate fetching, method selection, pickup-point picker, digital-only detection, NOK→USD conversion |
+| **Email (Resend)** | `lib/mail.ts` | Stable | Transactional emails: 2FA, password reset, verification, wallet link/unlink, **order confirmation with shipping method/cost/tracking**. Uses Resend SDK with verified `veggat.com` domain. Env: `RESEND_API_KEY` |
 | **Web3 Providers** | `components/crypto-related/Web3Providers.tsx` | Stable | Root Web3 provider tree (wagmi, AppKit, Solana). Includes `WalletDisconnectWatcher` for unified session sync |
 | **Clean Logout** | `hooks/use-clean-logout.ts` | Stable | Unified sign-out: disconnects EVM + Solana wallets, clears stale localStorage flags, then NextAuth `signOut()` |
 | **Schemas** | `schemas/` | Stable | Zod validation schemas |
@@ -82,7 +83,7 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 | **WebSocket** | `src/websocket.ts` | Stable | Socket.IO server for warehouse sync |
 | **Pusher** | `src/pusher.ts` | Stable | Event trigger utility |
 | **Database** | `src/db.ts` | Stable | Prisma client init |
-| **Bring Integration** | `src/integrations/bring.ts` | Stable | Shipping provider (mock + live) |
+| **Bring Integration** | `src/integrations/bring.ts` | Stable | Shipping provider (mock + live). Frontend also calls Bring APIs directly for rates, booking, pickup points, tracking |
 | **Warehouse Ops** | `src/updateWarehouseInventory.ts` | Stable | Stock update logic |
 | **OpenAPI Spec** | `openapi/v1.yaml` | Stable | API documentation |
 
