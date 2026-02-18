@@ -398,7 +398,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                   <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Add Employee</span>
                 </Link>
                 <Link
-                  href="/products/create"
+                  href={`/products/create?source=company-hub&companyId=${encodeURIComponent(company.id)}`}
                   className="flex flex-col items-center gap-2 rounded-lg border border-black/10 bg-zinc-50 p-4 text-center transition-colors hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600 dark:text-zinc-300"><path d="M5 12h14"/><path d="M12 5v14"/></svg>

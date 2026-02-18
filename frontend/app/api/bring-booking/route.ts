@@ -44,7 +44,7 @@ const BringBookingBodySchema = z.object({
 const BRING_BOOKING_API = "https://api.bring.com/booking/api";
 
 // Environment variables needed:
-// BRING_API_KEY - Your MyBring API key
+// BRING_SHIPPING_API_KEY - Your MyBring API key
 // BRING_API_UID - Your MyBring user ID (email)
 // BRING_CUSTOMER_NUMBER - Your Bring customer number (for pricing)
 // BRING_TEST_MODE - "true" for test bookings
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
     } = parsed.data;
 
     // Get credentials from environment
-    const apiKey = process.env.BRING_API_KEY;
+    const apiKey = process.env.BRING_SHIPPING_API_KEY;
     const apiUid = process.env.BRING_API_UID;
     const customerNumber = process.env.BRING_CUSTOMER_NUMBER;
     const runtime = await getRuntimeConfig();

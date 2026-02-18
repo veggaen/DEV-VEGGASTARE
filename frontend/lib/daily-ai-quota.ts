@@ -25,7 +25,8 @@ function todayUTC(): Date {
  * Creates a new row if none exists for today (auto-reset on new day).
  */
 export async function checkDailyQuota(
-  userId: string
+  userId: string,
+  limit = DAILY_LIMIT
 ): Promise<{ allowed: boolean; remaining: number; used: number; limit: number }> {
   const date = todayUTC();
 
@@ -35,13 +36,13 @@ export async function checkDailyQuota(
   });
 
   const used = usage?.count ?? 0;
-  const remaining = Math.max(0, DAILY_LIMIT - used);
+  const remaining = Math.max(0, limit - used);
 
   return {
-    allowed: used < DAILY_LIMIT,
+    allowed: used < limit,
     remaining,
     used,
-    limit: DAILY_LIMIT,
+    limit,
   };
 }
 

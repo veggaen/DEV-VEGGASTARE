@@ -296,7 +296,7 @@ export const companyCreationSchema = z.object({
             (v) => {
                 if (v == null) return undefined;
                 if (typeof v !== 'string') return v;
-                const s = v.trim();
+                const s = v.trim().replace(/\D/g, '');
                 return s.length ? s : undefined;
             },
             z.string().optional()

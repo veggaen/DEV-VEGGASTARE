@@ -20,13 +20,14 @@ import { MyFormSuccess } from '../forms/form-sucess';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useEdgeStore } from '@/lib/edgestore';
 import { useDropzone } from 'react-dropzone';
-import { X, Upload, Plus, Trash2, MapPin, Loader2 } from "lucide-react";
+import { X, Upload, Plus, Trash2, MapPin, Loader2, Info, ExternalLink, CheckCircle2, AlertCircle } from "lucide-react";
 import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { MyCreateCompanyAction } from '@/actions/create-company';
 import { companyCreationSchema } from '@/schemas';
 import { EmployeeRole, User } from '@/generated/prisma/browser';
 import { useRouter } from 'next/navigation';
+import { formatNorwegianOrgNumber, normalizeNorwegianOrgNumber, type NorwayOrgLookupResult, type NorwayOrgSuggestion } from '@/lib/norway-org';
 
 type UIEmployee = {
   userId: string;
@@ -94,6 +95,11 @@ export const MyCompanyCreateForm = () => {
   const [error, setError] = useState<string | undefined>('');
   const [error2, setError2] = useState<string | undefined>('');
   const [success, setSuccess] = useState<string | undefined>('');
+  const [orgLookupState, setOrgLookupState] = useState<'idle' | 'loading' | 'found' | 'not-found' | 'error'>('idle');
+  const [orgLookupData, setOrgLookupData] = useState<NorwayOrgLookupResult | null>(null);
+  const [orgAutofilledFields, setOrgAutofilledFields] = useState<string[]>([]);
+  const [orgSuggestions, setOrgSuggestions] = useState<NorwayOrgSuggestion[]>([]);
+  const [showOrgSuggestions, setShowOrgSuggestions] = useState(false);
 
   const form = useForm<z.infer<typeof companyCreationSchema>>({
     resolver: zodResolver(companyCreationSchema),
@@ -115,7 +121,7 @@ export const MyCompanyCreateForm = () => {
     },
   });
 
-  const { control, handleSubmit, formState: { errors, isSubmitting, isDirty }, reset } = form;
+  const { control, handleSubmit, formState: { errors, isSubmitting, isDirty }, reset, getValues, setValue } = form;
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'warehouseLocations',
@@ -123,6 +129,7 @@ export const MyCompanyCreateForm = () => {
 
   const isShippingEnabled = useWatch({ control: form.control, name: 'usesShipping' });
   const watchedOwnerId = useWatch({ control: form.control, name: 'ownerId' });
+  const watchedOrgNumber = useWatch({ control: form.control, name: 'orgNumber' });
 
   useEffect(() => {
     if (!isShippingEnabled) {
@@ -147,6 +154,128 @@ export const MyCompanyCreateForm = () => {
 
     fetchUsers();
   }, [user]);
+
+  useEffect(() => {
+    const normalized = normalizeNorwegianOrgNumber(watchedOrgNumber);
+
+    if (normalized.length < 3 || normalized.length >= 9) {
+      const resetTimer = setTimeout(() => setOrgSuggestions([]), 0);
+      return () => clearTimeout(resetTimer);
+    }
+
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/companies/org-suggest?orgNumber=${encodeURIComponent(normalized)}&limit=6`);
+        const payload = (await res.json()) as { suggestions?: NorwayOrgSuggestion[] };
+        if (cancelled) return;
+        setOrgSuggestions(Array.isArray(payload.suggestions) ? payload.suggestions : []);
+      } catch {
+        if (cancelled) return;
+        setOrgSuggestions([]);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [watchedOrgNumber]);
+
+  useEffect(() => {
+    const normalized = normalizeNorwegianOrgNumber(watchedOrgNumber);
+
+    if (!normalized) {
+      const resetTimer = setTimeout(() => {
+        setOrgLookupState('idle');
+        setOrgLookupData(null);
+        setOrgAutofilledFields([]);
+      }, 0);
+      return () => clearTimeout(resetTimer);
+    }
+
+    if (normalized.length < 9) {
+      const resetTimer = setTimeout(() => {
+        setOrgLookupState('idle');
+        setOrgLookupData(null);
+        setOrgAutofilledFields([]);
+      }, 0);
+      return () => clearTimeout(resetTimer);
+    }
+
+    let cancelled = false;
+    const loadingTimer = setTimeout(() => {
+      if (!cancelled) setOrgLookupState('loading');
+    }, 0);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/companies/org-lookup?orgNumber=${encodeURIComponent(normalized)}`);
+        const payload = (await res.json()) as NorwayOrgLookupResult;
+
+        if (cancelled) return;
+
+        if (!res.ok || !payload.found) {
+          setOrgLookupState('not-found');
+          setOrgLookupData(payload);
+          setOrgAutofilledFields([]);
+          return;
+        }
+
+        setOrgLookupState('found');
+        setOrgLookupData(payload);
+        const autofilled: string[] = [];
+
+        // Optional autofill (non-destructive: only fill empty fields)
+        if (payload.legalName && !getValues('name')?.trim()) {
+          setValue('name', payload.legalName, { shouldDirty: true });
+          autofilled.push('Name');
+        }
+        if (payload.websiteUrl && !getValues('websiteUrl')?.trim()) {
+          setValue('websiteUrl', payload.websiteUrl, { shouldDirty: true });
+          autofilled.push('Website');
+        }
+        if (payload.suggestedOrgType && !getValues('orgType')) {
+          setValue('orgType', payload.suggestedOrgType, { shouldDirty: true });
+          autofilled.push('Org type');
+        }
+
+        if (payload.address) {
+          const locations = getValues('warehouseLocations') || [];
+          if (locations.length > 0) {
+            const first = locations[0];
+            const patched = {
+              ...first,
+              address: first.address || payload.address.address || '',
+              city: first.city || payload.address.city || '',
+              postalCode: first.postalCode || payload.address.postalCode || '',
+              country: first.country || payload.address.country || 'NO',
+            };
+            const next = [...locations];
+            next[0] = patched;
+            setValue('warehouseLocations', next, { shouldDirty: true });
+            if (!first.address && payload.address.address) autofilled.push('Warehouse address');
+            if (!first.city && payload.address.city) autofilled.push('Warehouse city');
+            if (!first.postalCode && payload.address.postalCode) autofilled.push('Warehouse postal code');
+            if (!first.country && payload.address.country) autofilled.push('Warehouse country');
+          }
+        }
+
+        setOrgAutofilledFields(autofilled);
+      } catch {
+        if (cancelled) return;
+        setOrgLookupState('error');
+        setOrgAutofilledFields([]);
+      }
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(loadingTimer);
+      clearTimeout(timer);
+    };
+  }, [watchedOrgNumber, getValues, setValue]);
 
   const onLogoDrop = (acceptedFiles: File[]) => {
     setLogoFile([...acceptedFiles]);
@@ -389,18 +518,148 @@ export const MyCompanyCreateForm = () => {
                 name="orgNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Organization Number</FormLabel>
+                    <FormLabel className="flex items-center gap-2">
+                      Organization Number
+                      <span title="Paste with or without spaces. We sanitize to 9 digits automatically.">
+                        <Info className="h-3.5 w-3.5 text-zinc-400" />
+                      </span>
+                    </FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="123456789"
-                        disabled={!user || isSubmitting}
-                        inputMode="numeric"
-                        pattern="\d*"
-                        maxLength={9}
-                      />
+                      <div className="relative">
+                        <Input
+                          value={formatNorwegianOrgNumber(field.value || '')}
+                          placeholder="123 456 789"
+                          disabled={!user || isSubmitting}
+                          inputMode="numeric"
+                          pattern="[0-9 ]*"
+                          maxLength={11}
+                          onFocus={() => setShowOrgSuggestions(true)}
+                          onBlur={() => setTimeout(() => setShowOrgSuggestions(false), 120)}
+                          onChange={(e) => {
+                            const normalized = normalizeNorwegianOrgNumber(e.target.value);
+                            field.onChange(normalized);
+                            setShowOrgSuggestions(true);
+                          }}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            const pasted = e.clipboardData.getData('text');
+                            field.onChange(normalizeNorwegianOrgNumber(pasted));
+                            setShowOrgSuggestions(true);
+                          }}
+                        />
+
+                        {showOrgSuggestions && orgSuggestions.length > 0 && normalizeNorwegianOrgNumber(field.value).length >= 3 && normalizeNorwegianOrgNumber(field.value).length < 9 && (
+                          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                            <ul className="max-h-56 overflow-auto py-1">
+                              {orgSuggestions.map((suggestion) => (
+                                <li key={`${suggestion.orgNumber}-${suggestion.legalName}`}>
+                                  <button
+                                    type="button"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => {
+                                      field.onChange(suggestion.orgNumber);
+                                      setShowOrgSuggestions(false);
+
+                                      if (suggestion.legalName && !getValues('name')?.trim()) {
+                                        setValue('name', suggestion.legalName, { shouldDirty: true });
+                                      }
+                                      if (suggestion.websiteUrl && !getValues('websiteUrl')?.trim()) {
+                                        setValue('websiteUrl', suggestion.websiteUrl, { shouldDirty: true });
+                                      }
+                                      if (suggestion.suggestedOrgType && !getValues('orgType')) {
+                                        setValue('orgType', suggestion.suggestedOrgType, { shouldDirty: true });
+                                      }
+                                    }}
+                                  >
+                                    <div className="font-medium text-zinc-900 dark:text-zinc-100">{suggestion.legalName || 'Registered organization'}</div>
+                                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                                      {formatNorwegianOrgNumber(suggestion.orgNumber)}
+                                      {suggestion.orgFormLabel ? ` • ${suggestion.orgFormLabel}` : ''}
+                                    </div>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
                     </FormControl>
-                    <FormDescription className="text-xs">9 digits (optional)</FormDescription>
+                    <FormDescription className="text-xs space-y-1">
+                      <div>9 digits (optional). Example: 937 051 107.</div>
+                      <div className="flex items-center gap-3 text-[11px]">
+                        <a
+                          href="https://www.brreg.no/en/"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 underline underline-offset-2"
+                          title="Brønnøysundregistrene official register"
+                        >
+                          Brønnøysund
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                        <a
+                          href="https://www.altinn.no/en/start-and-run-business/"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 underline underline-offset-2"
+                          title="Start a company in Norway via Altinn"
+                        >
+                          Start via Altinn
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </FormDescription>
+
+                    {normalizeNorwegianOrgNumber(field.value).length >= 3 && normalizeNorwegianOrgNumber(field.value).length < 9 && (
+                      <div className="rounded-md border border-sky-300/50 bg-sky-50 dark:bg-sky-950/30 px-3 py-2 text-xs text-sky-800 dark:text-sky-300 inline-flex items-start gap-1.5">
+                        <Info className="h-3.5 w-3.5 mt-0.5" />
+                        Keep typing all 9 digits to fetch official Brønnøysund company details and autofill fields.
+                      </div>
+                    )}
+
+                    {orgLookupState === 'loading' && (
+                      <div className="text-xs text-zinc-500 inline-flex items-center gap-1.5">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Looking up organization in Brønnøysund…
+                      </div>
+                    )}
+
+                    {orgLookupState === 'found' && orgLookupData?.found && (
+                      <div className="rounded-md border border-emerald-300/50 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
+                        <div className="inline-flex items-center gap-1.5 font-medium">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Match found: {orgLookupData.legalName || 'Registered organization'}
+                        </div>
+                        <div>
+                          Org number: {formatNorwegianOrgNumber(orgLookupData.orgNumber)}
+                          {orgLookupData.orgFormLabel ? ` • ${orgLookupData.orgFormLabel}` : ''}
+                        </div>
+                        {orgLookupData.officialEmail ? <div>Official email: {orgLookupData.officialEmail}</div> : null}
+                        {orgLookupData.websiteUrl ? <div>Website: {orgLookupData.websiteUrl}</div> : null}
+                        <div>
+                          {orgAutofilledFields.length > 0
+                            ? `Fields auto-filled where empty: ${orgAutofilledFields.join(', ')}.`
+                            : 'Official details fetched. Existing field values were kept.'}
+                        </div>
+                        <div>Official company-email verification will still be required before this org is linked.</div>
+                      </div>
+                    )}
+
+                    {orgLookupState === 'not-found' && (
+                      <div className="rounded-md border border-amber-300/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-300 inline-flex items-start gap-1.5">
+                        <AlertCircle className="h-3.5 w-3.5 mt-0.5" />
+                        {orgLookupData?.message || 'No company found for this number.'} You can still create a company profile, but it will stay unverified.
+                      </div>
+                    )}
+
+                    {orgLookupState === 'error' && (
+                      <div className="rounded-md border border-amber-300/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-300 inline-flex items-start gap-1.5">
+                        <AlertCircle className="h-3.5 w-3.5 mt-0.5" />
+                        Could not reach Brønnøysund right now. You can continue manually and verify later.
+                      </div>
+                    )}
+
                     <FormMessage />
                   </FormItem>
                 )}

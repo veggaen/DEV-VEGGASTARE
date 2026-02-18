@@ -14,11 +14,11 @@ type BringEnv = {
 
 function requireBringEnv(): BringEnv {
   const uid = process.env.BRING_API_UID || process.env.BRING_SHIPPING_API_UID;
-  const key = process.env.BRING_API_KEY || process.env.BRING_SHIPPING_API_KEY;
+  const key = process.env.BRING_SHIPPING_API_KEY || process.env.BRING_SHIPPING_API_KEY;
 
   if (!uid || !key) {
     throw new Error(
-      'Bring credentials missing. Set BRING_API_UID + BRING_API_KEY (or legacy BRING_SHIPPING_API_UID/KEY).'
+      'Bring credentials missing. Set BRING_API_UID + BRING_SHIPPING_API_KEY (or legacy BRING_SHIPPING_API_UID/KEY).'
     );
   }
 

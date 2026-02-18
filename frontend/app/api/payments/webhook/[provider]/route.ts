@@ -6,6 +6,76 @@ import { verifyWebhookSignature } from '@/lib/payments/webhook-verify';
 import { getProviderGate } from '@/lib/payments/provider-gating';
 import { getRuntimeConfig } from '@/lib/runtime-config';
 
+const prisma = dbPrisma as any;
+
+function selectWebhookHeaders(headers: Headers): Record<string, string> {
+  const keep = [
+    'paypal-transmission-id',
+    'paypal-transmission-time',
+    'paypal-cert-url',
+    'paypal-auth-algo',
+    'x-klarna-hmac-sha256',
+    'authorization',
+    'x-forwarded-for',
+    'user-agent',
+  ];
+
+  const result: Record<string, string> = {};
+  for (const key of keep) {
+    const value = headers.get(key);
+    if (value) result[key] = value;
+  }
+  return result;
+}
+
+async function logWebhookEvent(input: {
+  provider: string;
+  eventType?: string | null;
+  deliveryId?: string | null;
+  signatureVerified: boolean;
+  sessionId?: string | null;
+  orderId?: string | null;
+  paymentId?: string | null;
+  paymentStatus?: string | null;
+  orderStatus?: string | null;
+  httpStatus?: number | null;
+  processingError?: string | null;
+  rawPayload?: unknown;
+  headers?: Record<string, string>;
+}) {
+  try {
+    const deliveryId = input.deliveryId?.trim() || null;
+    const eventData = {
+      provider: input.provider,
+      eventType: input.eventType ?? null,
+      deliveryId,
+      signatureVerified: input.signatureVerified,
+      sessionId: input.sessionId ?? null,
+      orderId: input.orderId ?? null,
+      paymentId: input.paymentId ?? null,
+      paymentStatus: input.paymentStatus ?? null,
+      orderStatus: input.orderStatus ?? null,
+      httpStatus: input.httpStatus ?? null,
+      processingError: input.processingError ?? null,
+      rawPayload: input.rawPayload ? JSON.parse(JSON.stringify(input.rawPayload)) : null,
+      headers: input.headers ? JSON.parse(JSON.stringify(input.headers)) : null,
+    };
+
+    if (deliveryId) {
+      await prisma.paymentWebhookEvent.upsert({
+        where: { provider_deliveryId: { provider: input.provider, deliveryId } },
+        create: eventData,
+        update: eventData,
+      });
+      return;
+    }
+
+    await prisma.paymentWebhookEvent.create({ data: eventData });
+  } catch (error) {
+    console.error(`[webhook/${input.provider}] Failed to persist webhook event:`, error);
+  }
+}
+
 /**
  * POST /api/payments/webhook/[provider]
  * Handle payment provider webhooks (Vipps, Klarna, PayPal)
@@ -46,15 +116,35 @@ export async function POST(
   try {
     // Read raw body for signature verification, then parse JSON
     const rawBody = await req.text();
+    const headersForLog = selectWebhookHeaders(req.headers);
+    let parsedBody: any = null;
+    try {
+      parsedBody = JSON.parse(rawBody);
+    } catch {
+      parsedBody = null;
+    }
+
+    const eventType = parsedBody?.event_type || parsedBody?.eventType || parsedBody?.type || null;
+    const deliveryId = req.headers.get('paypal-transmission-id') || req.headers.get('x-klarna-request-id');
 
     // ── Signature verification (production-enforced) ──
     const isVerified = await verifyWebhookSignature(providerType, rawBody, req.headers);
     if (!isVerified) {
+      await logWebhookEvent({
+        provider: providerType,
+        eventType,
+        deliveryId,
+        signatureVerified: false,
+        httpStatus: 401,
+        processingError: 'Invalid signature',
+        rawPayload: parsedBody,
+        headers: headersForLog,
+      });
       console.error(`[webhook/${providerType}] Signature verification FAILED from IP: ${ip}`);
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
-    const body = JSON.parse(rawBody);
+    const body = parsedBody || JSON.parse(rawBody);
 
     // Extract session/reference ID based on provider
     let sessionId: string | undefined;
@@ -71,6 +161,16 @@ export async function POST(
     }
 
     if (!sessionId) {
+      await logWebhookEvent({
+        provider: providerType,
+        eventType,
+        deliveryId,
+        signatureVerified: true,
+        httpStatus: 200,
+        processingError: 'Missing session/reference ID',
+        rawPayload: body,
+        headers: headersForLog,
+      });
       console.error(`[webhook/${providerType}] Could not extract session ID from body`);
       return NextResponse.json({ received: true });
     }
@@ -101,6 +201,23 @@ export async function POST(
 
         console.log(`[webhook/${providerType}] Order ${orderId} completed via ${providerType}`);
 
+        const payment = await dbPrisma.payment.findUnique({ where: { orderId }, select: { id: true, status: true } });
+        const orderNow = await dbPrisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
+        await logWebhookEvent({
+          provider: providerType,
+          eventType,
+          deliveryId,
+          signatureVerified: true,
+          sessionId,
+          orderId,
+          paymentId: payment?.id ?? null,
+          paymentStatus: payment?.status ?? null,
+          orderStatus: orderNow?.status ?? null,
+          httpStatus: 200,
+          rawPayload: body,
+          headers: headersForLog,
+        });
+
         // Set Web2 payment flag and recalculate verification tier
         const order = await dbPrisma.order.findUnique({ where: { id: orderId }, select: { userId: true } });
         if (order?.userId) {
@@ -117,8 +234,91 @@ export async function POST(
       }
     }
 
+    if (status.status === 'CANCELLED' || status.status === 'FAILED') {
+      const orderIdMatch = sessionId.match(/^order-(.+?)-\d+$/);
+      const orderId = orderIdMatch?.[1];
+
+      if (orderId) {
+        const existingOrder = await dbPrisma.order.findUnique({
+          where: { id: orderId },
+          select: { status: true },
+        });
+
+        // Never downgrade a completed order from late/out-of-order webhook delivery.
+        if (existingOrder && existingOrder.status !== 'COMPLETED') {
+          await dbPrisma.$transaction([
+            dbPrisma.order.update({
+              where: { id: orderId },
+              data: {
+                status: 'FAILED',
+                transactionId: status.transactionId ?? sessionId,
+              },
+            }),
+            dbPrisma.payment.update({
+              where: { orderId },
+              data: {
+                status: 'FAILED',
+                transactionId: status.transactionId ?? sessionId,
+              },
+            }),
+          ]);
+
+          console.log(`[webhook/${providerType}] Order ${orderId} marked FAILED via ${providerType}`);
+
+          const payment = await dbPrisma.payment.findUnique({ where: { orderId }, select: { id: true, status: true } });
+          const orderNow = await dbPrisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
+          await logWebhookEvent({
+            provider: providerType,
+            eventType,
+            deliveryId,
+            signatureVerified: true,
+            sessionId,
+            orderId,
+            paymentId: payment?.id ?? null,
+            paymentStatus: payment?.status ?? null,
+            orderStatus: orderNow?.status ?? null,
+            httpStatus: 200,
+            rawPayload: body,
+            headers: headersForLog,
+          });
+        }
+      }
+    }
+
+    if (status.status !== 'CAPTURED' && status.status !== 'AUTHORIZED' && status.status !== 'CANCELLED' && status.status !== 'FAILED') {
+      const orderIdMatch = sessionId.match(/^order-(.+?)-\d+$/);
+      const orderId = orderIdMatch?.[1] ?? null;
+      const payment = orderId ? await dbPrisma.payment.findUnique({ where: { orderId }, select: { id: true, status: true } }) : null;
+      const orderNow = orderId ? await dbPrisma.order.findUnique({ where: { id: orderId }, select: { status: true } }) : null;
+      await logWebhookEvent({
+        provider: providerType,
+        eventType,
+        deliveryId,
+        signatureVerified: true,
+        sessionId,
+        orderId,
+        paymentId: payment?.id ?? null,
+        paymentStatus: payment?.status ?? null,
+        orderStatus: orderNow?.status ?? null,
+        httpStatus: 200,
+        rawPayload: body,
+        headers: headersForLog,
+      });
+    }
+
     return NextResponse.json({ received: true });
   } catch (error) {
+    try {
+      const message = error instanceof Error ? error.message : 'Webhook processing error';
+      await logWebhookEvent({
+        provider: providerType,
+        signatureVerified: false,
+        httpStatus: 500,
+        processingError: message,
+      });
+    } catch {
+      // ignore secondary logging errors
+    }
     console.error(`[webhook/${providerType}] Error:`, error);
     return NextResponse.json({ received: true }); // Always 200 for webhooks
   }

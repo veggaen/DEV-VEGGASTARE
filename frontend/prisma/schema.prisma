@@ -92,6 +92,30 @@ model Company {
   TaxReport                    TaxReport[]
   Expense                      Expense[]
   Purchase                     Purchase[]
+  orgVerification              CompanyOrgVerification?
+}
+
+model CompanyOrgVerification {
+  id              String                       @id @default(cuid())
+  companyId       String                       @unique
+  orgNumber       String
+  orgType         CompanyOrgType?
+  legalName       String?
+  officialEmail   String?
+  officialWebsite String?
+  officialAddress String?
+  status          CompanyOrgVerificationStatus @default(PENDING)
+  token           String                       @unique @default(cuid())
+  expires         DateTime
+  verifiedAt      DateTime?
+  deniedAt        DateTime?
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+
+  Company         Company                      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([status, expires])
 }
 
 model Conversation {
@@ -587,6 +611,30 @@ model Payment {
   @@index([chainFamily])
   @@index([senderAddress])
   @@index([receiverAddress])
+}
+
+model PaymentWebhookEvent {
+  id                String   @id @default(cuid())
+  provider          String
+  eventType         String?
+  deliveryId        String?
+  signatureVerified Boolean  @default(false)
+  sessionId         String?
+  orderId           String?
+  paymentId         String?
+  paymentStatus     String?
+  orderStatus       String?
+  httpStatus        Int?
+  processingError   String?
+  rawPayload        Json?
+  headers           Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([provider, createdAt])
+  @@index([eventType])
+  @@index([orderId])
+  @@unique([provider, deliveryId])
 }
 
 model Poll {
@@ -1471,6 +1519,13 @@ enum CompanyOrgType {
   FORENING
   NUF
   OTHER
+}
+
+enum CompanyOrgVerificationStatus {
+  PENDING
+  VERIFIED
+  DENIED
+  EXPIRED
 }
 
 enum AddressLabel {

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, Reorder, useDragControls } from "framer-motion";
+import { useTheme } from "next-themes";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Plus,
@@ -2496,6 +2497,9 @@ export function PollBuilder({
   aiGenerateOpen,
   onAiGenerateClose,
 }: PollBuilderProps) {
+  const { resolvedTheme } = useTheme();
+  const isLightMode = resolvedTheme === "light";
+
   // Start empty unless initialData provided
   const emptyData = useMemo(() => generateEmptyPollData(), []);
   
@@ -4683,7 +4687,14 @@ export function PollBuilder({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className={cn("space-y-3", className)} onClick={clearSelection}>
+      <div
+        className={cn(
+          "space-y-3 poll-builder-theme-scope",
+          isLightMode && "poll-builder-theme-scope--light",
+          className
+        )}
+        onClick={clearSelection}
+      >
         {/* Quick Start Guide � compact inline stepper */}
         <div className="flex items-center gap-4 px-3 py-2 rounded-lg bg-zinc-900/40 border border-zinc-800/40">
           {[

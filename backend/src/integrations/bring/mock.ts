@@ -24,7 +24,7 @@ export class MockBringProvider implements BringProvider {
         price: { amount: 129, currency },
         meta: {
           note:
-            'Mock mode enabled. Configure BRING_API_UID + BRING_API_KEY to fetch real rates.',
+            'Mock mode enabled. Configure BRING_API_UID + BRING_SHIPPING_API_KEY to fetch real rates.',
         },
       },
       {

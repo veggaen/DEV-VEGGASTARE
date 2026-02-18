@@ -6,6 +6,7 @@ import { MyLibUserAuth } from "@/lib/user-auth";
 import { ensureUser } from "@/lib/ensure-user";
 import { getUserAiKeyForGeneration, upsertUserAiKey } from "@/lib/ai-key-store";
 import { checkDailyQuota, incrementDailyUsage, DAILY_LIMIT } from "@/lib/daily-ai-quota";
+import { getPaidAiEntitlement } from "@/lib/ai-paid-entitlement";
 
 // Allow up to 60s for AI generation (Hobby plan max)
 export const maxDuration = 60;
@@ -394,14 +395,18 @@ async function resolveGenerationAuth(reqBody: z.infer<typeof StreamRequestSchema
   }
 
   // Platform key fallback
-  // Owner gets personal OpenAI key (never shared with other users)
+  // Owner + paid users get OpenAI platform key
   const ownerEmail = process.env.PLATFORM_OWNER_EMAIL;
   const isOwner = ownerEmail && userEmail && userEmail.toLowerCase() === ownerEmail.toLowerCase();
+  const paidEntitlement = await getPaidAiEntitlement(userId);
 
-  if (isOwner) {
+  if (isOwner || paidEntitlement.hasAccess) {
     const ownerKey = sanitizeApiKey(process.env.OPENAI_API_KEY);
     if (ownerKey) {
       return { provider: "OPENAI", apiKey: ownerKey, model: process.env.OPENAI_MODEL || model || "gpt-4o-mini" };
+    }
+    if (paidEntitlement.hasAccess) {
+      throw new Error("Premium AI is temporarily unavailable. Please contact support.");
     }
   }
 
@@ -565,6 +570,8 @@ export async function POST(req: NextRequest) {
       }
       const userId = session.id;
       const userEmail = (session as any).email || (session as any).user?.email || null;
+      const ownerEmail = process.env.PLATFORM_OWNER_EMAIL;
+      const isOwner = !!(ownerEmail && userEmail && userEmail.toLowerCase() === ownerEmail.toLowerCase());
 
       // ── STEP 0b: Input sanitization (security) ──────────────────────
       const { sanitized: prompt, blocked, reason } = sanitizeUserPrompt(rawPrompt);
@@ -595,6 +602,8 @@ export async function POST(req: NextRequest) {
         totalSteps: TOTAL_STEPS,
       });
 
+      const paidEntitlement = await getPaidAiEntitlement(userId);
+
       let auth: ResolvedAuth;
       try {
         auth = await resolveGenerationAuth(parsedBody.data, userId, userEmail);
@@ -607,18 +616,35 @@ export async function POST(req: NextRequest) {
       const mode = parsedBody.data.aiAuth?.mode || "auto";
       const isPlatformKey = !auth.usedSavedKey && mode !== "one_time";
       let freeUsed: number | null = null;
+      let freeLimit = DAILY_LIMIT;
 
       if (isPlatformKey) {
-        const quota = await checkDailyQuota(userId);
-        freeUsed = quota.used;
-        if (!quota.allowed) {
-          await sendEvent(writer, {
-            step: "error",
-            message: `You've used all ${DAILY_LIMIT} free generations for today. Provide your own API key for unlimited, or try again tomorrow.`,
-            freeUsed: DAILY_LIMIT,
-            freeLimit: DAILY_LIMIT,
-          });
-          return;
+        if (!isOwner && paidEntitlement.mode === "credit_pack") {
+          freeUsed = paidEntitlement.usedCredits;
+          freeLimit = paidEntitlement.totalCredits;
+          if (paidEntitlement.remainingCredits <= 0) {
+            await sendEvent(writer, {
+              step: "error",
+              message: "Your AI credit pack is exhausted. Buy another pack or use your own API key.",
+              freeUsed: freeLimit,
+              freeLimit,
+            });
+            return;
+          }
+        } else {
+          freeLimit = paidEntitlement.hasAccess ? paidEntitlement.dailyLimit : DAILY_LIMIT;
+          const quota = await checkDailyQuota(userId, freeLimit);
+          freeUsed = quota.used;
+          if (!quota.allowed) {
+            const limitLabel = paidEntitlement.hasAccess ? "premium" : "free";
+            await sendEvent(writer, {
+              step: "error",
+              message: `You've used all ${quota.limit} ${limitLabel} generations for today. Provide your own API key for unlimited, or try again tomorrow.`,
+              freeUsed: quota.limit,
+              freeLimit: quota.limit,
+            });
+            return;
+          }
         }
       }
 
@@ -761,8 +787,13 @@ export async function POST(req: NextRequest) {
 
       // Increment daily usage only for platform key users
       if (isPlatformKey) {
-        const newCount = await incrementDailyUsage(userId);
-        freeUsed = newCount;
+        await incrementDailyUsage(userId);
+        if (!isOwner && paidEntitlement.mode === "credit_pack") {
+          freeUsed = Math.min(freeLimit, (paidEntitlement.usedCredits || 0) + 1);
+        } else {
+          const quotaAfter = await checkDailyQuota(userId, freeLimit);
+          freeUsed = quotaAfter.used;
+        }
       }
 
       await sendEvent(writer, { step: 6, label: GENERATION_STEPS[5].label, status: "done", totalSteps: TOTAL_STEPS });
@@ -784,7 +815,11 @@ export async function POST(req: NextRequest) {
             usedSavedKey: auth.usedSavedKey || false,
             savedKeyProvider: auth.savedKeyProvider || null,
             freeUsed: freeUsed,
-            freeLimit: DAILY_LIMIT,
+            freeLimit,
+            premiumAiEnabled: paidEntitlement.hasAccess,
+            premiumAiProducts: paidEntitlement.purchasedProductIds,
+            premiumAiMode: paidEntitlement.mode,
+            creditPackRemaining: paidEntitlement.mode === "credit_pack" && freeUsed != null ? Math.max(0, freeLimit - freeUsed) : null,
             isRefinement,
           },
         },

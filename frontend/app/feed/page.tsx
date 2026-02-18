@@ -1563,7 +1563,7 @@ const FeedPage: React.FC = () => {
 
           {/* Advanced Poll Builder Modal */}
           <Dialog open={showPollBuilder} onOpenChange={(open) => { setShowPollBuilder(open); if (!open) setAiGenerateOpen(false); }}>
-            <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto bg-zinc-950 border-zinc-800">
+            <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto bg-background border-border">
               <DialogHeader className="pb-0">
                 <div className="flex items-center justify-between">
                   <DialogTitle className="flex items-center gap-2.5 text-lg">

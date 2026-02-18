@@ -5,6 +5,8 @@ import { auth } from '@/auth';
 import { dbPrisma } from '@/lib/db';
 import { companyCreationSchema } from '@/schemas';
 import { EmployeeRole, Prisma, Product } from '@/generated/prisma/client';
+import { lookupNorwegianOrganization, normalizeNorwegianOrgNumber } from '@/lib/norway-org';
+import { sendCompanyOrgVerificationEmail } from '@/lib/mail';
 
 type GetCompanyResult = Product[];
 type CreateCompanyResult = { error: string } | { success: string; companyId: string };
@@ -50,6 +52,9 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
     warehouseLocations,
   } = validateFields.data;
 
+  const normalizedOrgNumber = normalizeNorwegianOrgNumber(orgNumber);
+  const wantsOrgVerification = /^\d{9}$/.test(normalizedOrgNumber);
+
   // Override client-supplied IDs with verified session user
   // (prevents IDOR — callers cannot create companies owned by another user)
   if (creatorId !== sessionUserId || ownerId !== sessionUserId) {
@@ -59,6 +64,10 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
   const safeOwnerId = sessionUserId;
 
   try {
+    const orgLookup = wantsOrgVerification
+      ? await lookupNorwegianOrganization(normalizedOrgNumber)
+      : null;
+
     const userExists = await dbPrisma.user.findUnique({
       where: { id: safeCreatorId },
     });
@@ -76,14 +85,38 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
           logo,
           bannerImage,
           colorScheme,
-          orgType: orgType ?? null,
-          orgNumber: orgNumber || null,
+          // Org metadata only gets linked after official email confirmation.
+          orgType: null,
+          orgNumber: null,
           employmentNoticeDays,
           creatorId: safeCreatorId,
           ownerId: safeOwnerId,
           usesShipping,
         },
       });
+
+      // If org lookup found a valid legal entity with an official email,
+      // create pending verification record and wait for email confirmation.
+      if (
+        orgLookup?.found &&
+        orgLookup.orgNumber &&
+        orgLookup.officialEmail
+      ) {
+        await dbPrisma.companyOrgVerification.create({
+          data: {
+            companyId: company.id,
+            orgNumber: orgLookup.orgNumber,
+            orgType: orgLookup.suggestedOrgType ?? orgType ?? null,
+            legalName: orgLookup.legalName ?? null,
+            officialEmail: orgLookup.officialEmail ?? null,
+            officialWebsite: orgLookup.websiteUrl ?? null,
+            officialAddress: orgLookup.address?.address ?? null,
+            status: 'PENDING',
+            token: crypto.randomUUID(),
+            expires: new Date(Date.now() + 48 * 60 * 60 * 1000),
+          },
+        });
+      }
 
       const typedEmployees = employees?.map(emp => ({
         ...emp,
@@ -123,7 +156,33 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
       return company;
     });
 
-    return { success: 'Company created successfully!', companyId: createdCompany.id };
+    if (orgLookup?.found && orgLookup.officialEmail) {
+      const pending = await dbPrisma.companyOrgVerification.findUnique({
+        where: { companyId: createdCompany.id },
+      });
+
+      if (pending?.token) {
+        try {
+          await sendCompanyOrgVerificationEmail(orgLookup.officialEmail, {
+            companyName: createdCompany.name,
+            orgNumber: pending.orgNumber,
+            legalName: pending.legalName,
+            token: pending.token,
+            expiresHours: 48,
+          });
+        } catch (mailErr) {
+          console.error('[create-company] failed to send org verification email', mailErr);
+        }
+      }
+    }
+
+    return {
+      success:
+        orgLookup?.found && orgLookup.officialEmail
+          ? 'Company created. Organization link is pending email confirmation.'
+          : 'Company created successfully!',
+      companyId: createdCompany.id,
+    };
   } catch (error) {
     console.error('Error creating company:', error);
     let message = 'Failed to create the company. Please try again.';
