@@ -1,6 +1,6 @@
 import { dbbPrisma } from "./db";
 import { triggerEvent } from "./pusher";
-import { WarehouseLocation } from "@prisma/client";
+import { WarehouseLocation } from "./generated/prisma/client";
 
 type UpdateResult = 
   | { status: 200; data: WarehouseLocation }

@@ -155,6 +155,7 @@ jobs:
           path: |
             node_modules/.prisma
             node_modules/@prisma/engines
+            src/generated/prisma
           key: prisma-backend-${{ runner.os }}-${{ hashFiles('backend/prisma/schema.prisma') }}
           restore-keys: prisma-backend-${{ runner.os }}-
 

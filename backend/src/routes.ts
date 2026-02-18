@@ -1,5 +1,5 @@
 import { Server, ResponseToolkit, Request } from '@hapi/hapi';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from './generated/prisma/client';
 import { z } from 'zod';
 import { broadcastWarehousesUpdate } from './websocket';
 import { getBringProvider } from './integrations/bring';
