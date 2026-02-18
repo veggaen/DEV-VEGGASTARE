@@ -1,5 +1,5 @@
 # ── Stage 1: Build ──────────────────────────────────────────
-FROM node:18-bullseye-slim AS builder
+FROM node:20.19.0-bullseye-slim AS builder
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends openssl ca-certificates \
@@ -17,7 +17,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # ── Stage 2: Production (slim) ──────────────────────────────
-FROM node:18-bullseye-slim AS runner
+FROM node:20.19.0-bullseye-slim AS runner
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends openssl ca-certificates \
