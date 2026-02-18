@@ -5,6 +5,7 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 // =============================================================================
 // SCHEMAS
@@ -33,11 +34,15 @@ const UpdateAddressSchema = CreateAddressSchema.partial();
 // GET - List user's addresses
 // =============================================================================
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await MyLibUserAuth();
   if (!session?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // Per-user rate limit
+  const rl = await checkRateLimit(getClientIdentifier(request, session.id), 'read');
+  if (!rl.success) return rateLimitedResponse(rl);
 
   try {
     const addresses = await dbPrisma.address.findMany({
@@ -68,6 +73,10 @@ export async function POST(request: NextRequest) {
   if (!session?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // Per-user rate limit for writes
+  const rl = await checkRateLimit(getClientIdentifier(request, session.id), 'write');
+  if (!rl.success) return rateLimitedResponse(rl);
 
   try {
     const body = await request.json();

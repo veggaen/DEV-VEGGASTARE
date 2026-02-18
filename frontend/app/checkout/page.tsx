@@ -11,6 +11,9 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
 
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { AddressSelector } from "@/components/uicustom/address-selector";
+import type { Address } from "@/hooks/use-addresses";
+import type { AddressData } from "@/components/uicustom/address-input";
 
 /* --- App contexts (already mounted in layout) --- */
 import { useActiveNetwork } from "@/components/crypto-related/ActiveNetworkContext";
@@ -34,12 +37,8 @@ interface CartItem {
   product: { id: string; title: string; price: number; image: string[] };
 }
 
-interface ShippingForm {
+interface ShippingContact {
   name: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  country: string;
   phone: string;
   email: string;
 }
@@ -122,29 +121,46 @@ export default function CheckoutPage() {
   const [paymentTimeLeft, setPaymentTimeLeft] = useState(PAYMENT_TIMER_SECONDS);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  /* shipping form */
-  const [shipping, setShipping] = useState<ShippingForm>({
+  /* shipping — address book + contact */
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+  const [customAddress, setCustomAddress] = useState<Partial<AddressData>>({});
+  const [shippingContact, setShippingContact] = useState<ShippingContact>({
     name: "",
-    address: "",
-    city: "",
-    postalCode: "",
-    country: "NO",
     phone: "",
     email: user?.email ?? "",
   });
 
+  // Derived shipping fields from selected address OR custom address
+  const resolvedAddress = useMemo(() => {
+    if (selectedAddress) {
+      return {
+        addressLine1: selectedAddress.addressLine1,
+        postalCode: selectedAddress.postalCode,
+        city: selectedAddress.city,
+        country: selectedAddress.country,
+      };
+    }
+    if (customAddress?.addressLine1 && customAddress?.postalCode && customAddress?.city) {
+      return {
+        addressLine1: customAddress.addressLine1 + (customAddress.addressLine2 ? `, ${customAddress.addressLine2}` : ""),
+        postalCode: customAddress.postalCode,
+        city: customAddress.city,
+        country: customAddress.country || "NO",
+      };
+    }
+    return null;
+  }, [selectedAddress, customAddress]);
+
   const isShippingValid = useMemo(() => {
     return (
-      shipping.name.trim().length >= 2 &&
-      shipping.address.trim().length >= 3 &&
-      shipping.city.trim().length >= 2 &&
-      shipping.postalCode.trim().length >= 4 &&
-      shipping.email.includes("@")
+      resolvedAddress !== null &&
+      shippingContact.name.trim().length >= 2 &&
+      shippingContact.email.includes("@")
     );
-  }, [shipping]);
+  }, [resolvedAddress, shippingContact]);
 
-  const updateShipping = (field: keyof ShippingForm, value: string) => {
-    setShipping((prev) => ({ ...prev, [field]: value }));
+  const updateContact = (field: keyof ShippingContact, value: string) => {
+    setShippingContact((prev) => ({ ...prev, [field]: value }));
   };
 
   /* Payment countdown timer */
@@ -281,13 +297,13 @@ export default function CheckoutPage() {
             nokRateAtTime: nokRate ?? null,
             usdRateAtTime: usdRate ?? null,
             // Shipping info
-            shippingName: shipping.name,
-            shippingAddress: shipping.address,
-            shippingCity: shipping.city,
-            shippingPostalCode: shipping.postalCode,
-            shippingCountry: shipping.country,
-            shippingPhone: shipping.phone,
-            shippingEmail: shipping.email,
+            shippingName: shippingContact.name,
+            shippingAddress: resolvedAddress?.addressLine1 ?? "",
+            shippingCity: resolvedAddress?.city ?? "",
+            shippingPostalCode: resolvedAddress?.postalCode ?? "",
+            shippingCountry: resolvedAddress?.country ?? "NO",
+            shippingPhone: shippingContact.phone,
+            shippingEmail: shippingContact.email,
             // Cart items for OrderItem records
             items: items.map((it) => ({
               productId: it.product.id,
@@ -310,7 +326,7 @@ export default function CheckoutPage() {
         throw e;
       }
     },
-    [user?.id, items, subtotalUSD, networkLabel, shipping, active, nativeSymbol, usdPerNative, rates, totalInNative, senderAddress, receiverAddress]
+    [user?.id, items, subtotalUSD, networkLabel, shippingContact, resolvedAddress, active, nativeSymbol, usdPerNative, rates, totalInNative, senderAddress, receiverAddress]
   );
 
   /** Confirm order after on-chain verification */
@@ -449,13 +465,13 @@ export default function CheckoutPage() {
           method: paymentMethod.toUpperCase(),
           commentOrder: `${items.length} items`,
           commentPay: `Fiat payment via ${paymentMethod}`,
-          shippingName: shipping.name,
-          shippingAddress: shipping.address,
-          shippingCity: shipping.city,
-          shippingPostalCode: shipping.postalCode,
-          shippingCountry: shipping.country,
-          shippingPhone: shipping.phone,
-          shippingEmail: shipping.email,
+          shippingName: shippingContact.name,
+          shippingAddress: resolvedAddress?.addressLine1 ?? "",
+          shippingCity: resolvedAddress?.city ?? "",
+          shippingPostalCode: resolvedAddress?.postalCode ?? "",
+          shippingCountry: resolvedAddress?.country ?? "NO",
+          shippingPhone: shippingContact.phone,
+          shippingEmail: shippingContact.email,
           items: items.map((it) => ({
             productId: it.product.id,
             quantity: it.quantity,
@@ -637,53 +653,30 @@ export default function CheckoutPage() {
           {/* Shipping Address Form */}
           <div className="mt-6 pt-6 border-t border-border dark:border-white/10">
             <h3 className="text-xl font-semibold mb-4 text-foreground">Shipping Address</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* Address Selector — saved addresses + Bring autocomplete */}
+            <AddressSelector
+              value={selectedAddress}
+              onChange={setSelectedAddress}
+              customAddress={customAddress}
+              onCustomAddressChange={setCustomAddress}
+              allowCustom
+              allowSave
+              label="Delivery address"
+              required
+            />
+
+            {/* Contact details — always shown alongside address picker */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-foreground mb-1">
                   Full name *
                 </label>
                 <input
                   type="text"
-                  value={shipping.name}
-                  onChange={(e) => updateShipping("name", e.target.value)}
-                  placeholder="John Doe"
-                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Street address *
-                </label>
-                <input
-                  type="text"
-                  value={shipping.address}
-                  onChange={(e) => updateShipping("address", e.target.value)}
-                  placeholder="123 Main Street"
-                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Postal code *
-                </label>
-                <input
-                  type="text"
-                  value={shipping.postalCode}
-                  onChange={(e) => updateShipping("postalCode", e.target.value)}
-                  placeholder="0001"
-                  maxLength={4}
-                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  City *
-                </label>
-                <input
-                  type="text"
-                  value={shipping.city}
-                  onChange={(e) => updateShipping("city", e.target.value)}
-                  placeholder="Oslo"
+                  value={shippingContact.name}
+                  onChange={(e) => updateContact("name", e.target.value)}
+                  placeholder="Ola Nordmann"
                   className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                 />
               </div>
@@ -693,8 +686,8 @@ export default function CheckoutPage() {
                 </label>
                 <input
                   type="tel"
-                  value={shipping.phone}
-                  onChange={(e) => updateShipping("phone", e.target.value)}
+                  value={shippingContact.phone}
+                  onChange={(e) => updateContact("phone", e.target.value)}
                   placeholder="+47 123 45 678"
                   className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                 />
@@ -705,16 +698,17 @@ export default function CheckoutPage() {
                 </label>
                 <input
                   type="email"
-                  value={shipping.email}
-                  onChange={(e) => updateShipping("email", e.target.value)}
-                  placeholder="your@email.com"
+                  value={shippingContact.email}
+                  onChange={(e) => updateContact("email", e.target.value)}
+                  placeholder="ola@example.com"
                   className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                 />
               </div>
             </div>
+
             {!isShippingValid && (
               <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
-                Please fill in all required fields (*) to continue
+                Please select or enter an address and fill in your name and email to continue
               </p>
             )}
           </div>

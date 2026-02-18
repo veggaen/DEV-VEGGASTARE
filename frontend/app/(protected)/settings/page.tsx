@@ -33,13 +33,15 @@ import { NotificationSettings as NotificationSettingsComponent } from '@/compone
 import type { NotificationSettings as NotificationSettingsType, NotificationMute } from '@/components/uicustom/notifications/types';
 import { CurrencySelector, useCurrency, FIAT_CURRENCIES, CRYPTO_CURRENCIES } from '@/components/uicustom/currency-selector';
 import { VerificationDashboard } from '@/components/uicustom/verification-dashboard';
+import { useAddresses, type Address } from '@/hooks/use-addresses';
+import type { AddressLabel } from '@/generated/prisma/browser';
 import AppKitButton from '@/components/crypto-related/AppKitButton';
 import EvmWalletVerify from '@/components/crypto-related/EvmWalletVerify';
 import EvmWalletList from '@/components/crypto-related/EvmWalletList';
 import { 
   FiUser, FiLock, FiMail, FiBell, FiShield, FiSave, 
   FiEdit2, FiX, FiCheck, FiImage, FiChevronRight, FiCamera, FiUpload,
-  FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity, FiSliders, FiDollarSign, FiKey
+  FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity, FiSliders, FiDollarSign, FiKey, FiMapPin
 } from 'react-icons/fi';
 import {
   Chart as ChartJS,
@@ -67,12 +69,12 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
-  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'wallet' | 'notifications' | 'privacy' | 'appearance' | 'currency' | 'verification' | 'ai'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'wallet' | 'notifications' | 'privacy' | 'appearance' | 'currency' | 'verification' | 'ai' | 'addresses'>('profile');
   
   // Read section from URL params (e.g. /settings?section=notifications)
   useEffect(() => {
     const sectionParam = searchParams.get('section');
-    if (sectionParam && ['profile', 'account', 'security', 'wallet', 'notifications', 'privacy', 'appearance', 'currency', 'verification', 'ai'].includes(sectionParam)) {
+    if (sectionParam && ['profile', 'account', 'security', 'wallet', 'notifications', 'privacy', 'appearance', 'currency', 'verification', 'ai', 'addresses'].includes(sectionParam)) {
       setActiveSection(sectionParam as typeof activeSection);
     }
   }, [searchParams]);
@@ -358,6 +360,7 @@ export default function SettingsPage() {
     { id: 'wallet', label: 'Web3 & Wallet', icon: FiKey, description: 'Connect wallets & crypto' },
     { id: 'verification', label: 'Verification', icon: FiTrendingUp, description: 'Trust level & Reach multiplier' },
     { id: 'ai', label: 'AI Keys', icon: FiKey, description: 'Bring your own AI key' },
+    { id: 'addresses', label: 'Addresses', icon: FiMapPin, description: 'Saved shipping addresses' },
     { id: 'notifications', label: 'Notifications', icon: FiBell, description: 'Email and push notifications' },
     { id: 'privacy', label: 'Privacy', icon: FiLock, description: 'Control your data and visibility' },
   ] as const;
@@ -1048,6 +1051,10 @@ export default function SettingsPage() {
 
               {activeSection === 'ai' && (
                 <AiKeysSettings />
+              )}
+
+              {activeSection === 'addresses' && (
+                <AddressesSettings />
               )}
 
               {activeSection === 'privacy' && (
@@ -2056,6 +2063,270 @@ function CurrencySettings() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// ADDRESS BOOK SETTINGS
+// =============================================================================
+
+function AddressesSettings() {
+  const {
+    addresses,
+    isLoading,
+    isCreating,
+    isDeleting,
+    error,
+    createAddress,
+    updateAddress,
+    deleteAddress,
+    setDefaultAddress,
+  } = useAddresses();
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Form state
+  const emptyForm = {
+    label: 'HOME' as AddressLabel,
+    customLabel: '',
+    addressLine1: '',
+    addressLine2: '',
+    postalCode: '',
+    city: '',
+    municipality: '',
+    county: '',
+    country: 'NO',
+    isDefault: false,
+  };
+  const [form, setForm] = useState(emptyForm);
+
+  const startEdit = (addr: Address) => {
+    setEditId(addr.id);
+    setForm({
+      label: addr.label,
+      customLabel: addr.customLabel || '',
+      addressLine1: addr.addressLine1,
+      addressLine2: addr.addressLine2 || '',
+      postalCode: addr.postalCode,
+      city: addr.city,
+      municipality: addr.municipality || '',
+      county: addr.county || '',
+      country: addr.country,
+      isDefault: addr.isDefault,
+    });
+    setShowAdd(false);
+  };
+
+  const cancelEdit = () => {
+    setEditId(null);
+    setForm(emptyForm);
+  };
+
+  const startAdd = () => {
+    setEditId(null);
+    setForm(emptyForm);
+    setShowAdd(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.addressLine1 || !form.postalCode || !form.city) return;
+    const data = {
+      label: form.label,
+      customLabel: form.label === 'OTHER' ? form.customLabel : undefined,
+      addressLine1: form.addressLine1,
+      addressLine2: form.addressLine2 || undefined,
+      postalCode: form.postalCode,
+      city: form.city,
+      municipality: form.municipality || undefined,
+      county: form.county || undefined,
+      country: form.country,
+      isDefault: form.isDefault,
+    };
+
+    if (editId) {
+      const res = await updateAddress(editId, data);
+      if (res) { cancelEdit(); toast.success('Address updated'); }
+    } else {
+      const res = await createAddress(data);
+      if (res) { setShowAdd(false); setForm(emptyForm); toast.success('Address saved'); }
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const ok = await deleteAddress(id);
+    if (ok) { setDeleteConfirmId(null); toast.success('Address deleted'); }
+  };
+
+  const labelIcon = (l: AddressLabel) => {
+    const map: Record<AddressLabel, string> = { HOME: '🏠', WORK: '🏢', WAREHOUSE: '📦', PICKUP_POINT: '📍', OTHER: '📌' };
+    return map[l] || '📌';
+  };
+  const labelText = (l: AddressLabel, c?: string | null) => {
+    const map: Record<AddressLabel, string> = { HOME: 'Home', WORK: 'Work', WAREHOUSE: 'Warehouse', PICKUP_POINT: 'Pickup', OTHER: c || 'Other' };
+    return map[l] || c || 'Address';
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-20 rounded-lg bg-muted/50" />
+        ))}
+      </div>
+    );
+  }
+
+  const AddressForm = () => (
+    <div className="space-y-4 p-4 border border-border dark:border-white/10 rounded-lg bg-white/50 dark:bg-white/5">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2 sm:col-span-1">
+          <Label className="text-sm text-muted-foreground mb-1 block">Type</Label>
+          <Select value={form.label} onValueChange={(v) => setForm({ ...form, label: v as AddressLabel })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="HOME">🏠 Home</SelectItem>
+              <SelectItem value="WORK">🏢 Work</SelectItem>
+              <SelectItem value="WAREHOUSE">📦 Warehouse</SelectItem>
+              <SelectItem value="PICKUP_POINT">📍 Pickup Point</SelectItem>
+              <SelectItem value="OTHER">📌 Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {form.label === 'OTHER' && (
+          <div className="col-span-2 sm:col-span-1">
+            <Label className="text-sm text-muted-foreground mb-1 block">Custom label</Label>
+            <Input value={form.customLabel} onChange={(e) => setForm({ ...form, customLabel: e.target.value })} placeholder="e.g., Mom's house" />
+          </div>
+        )}
+        <div className="col-span-2">
+          <Label className="text-sm text-muted-foreground mb-1 block">Street address *</Label>
+          <Input value={form.addressLine1} onChange={(e) => setForm({ ...form, addressLine1: e.target.value })} placeholder="Karl Johans gate 1" />
+        </div>
+        <div className="col-span-2">
+          <Label className="text-sm text-muted-foreground mb-1 block">Apartment / floor</Label>
+          <Input value={form.addressLine2} onChange={(e) => setForm({ ...form, addressLine2: e.target.value })} placeholder="H0301" />
+        </div>
+        <div>
+          <Label className="text-sm text-muted-foreground mb-1 block">Postal code *</Label>
+          <Input value={form.postalCode} onChange={(e) => setForm({ ...form, postalCode: e.target.value })} placeholder="0154" maxLength={4} />
+        </div>
+        <div>
+          <Label className="text-sm text-muted-foreground mb-1 block">City *</Label>
+          <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Oslo" />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Switch checked={form.isDefault} onCheckedChange={(v) => setForm({ ...form, isDefault: v })} id="addr-default" />
+        <Label htmlFor="addr-default" className="text-sm cursor-pointer">Default shipping address</Label>
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        <Button onClick={handleSave} disabled={isCreating || !form.addressLine1 || !form.postalCode || !form.city} size="sm">
+          <FiSave className="h-4 w-4 mr-1.5" />
+          {editId ? 'Update' : 'Save'}
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => { setShowAdd(false); cancelEdit(); }}>
+          <FiX className="h-4 w-4 mr-1.5" />
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Addresses</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Manage saved addresses for faster checkout. Max 10 addresses.
+          </p>
+        </div>
+        {!showAdd && !editId && (
+          <Button onClick={startAdd} size="sm" disabled={addresses.length >= 10}>
+            <FiEdit2 className="h-4 w-4 mr-1.5" />
+            Add address
+          </Button>
+        )}
+      </div>
+
+      {error && <p className="text-sm text-red-500">{error}</p>}
+
+      {showAdd && <AddressForm />}
+
+      {addresses.length === 0 && !showAdd && (
+        <div className="text-center py-8 text-muted-foreground">
+          <FiMapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p>No saved addresses yet.</p>
+          <p className="text-xs mt-1">Add an address for faster checkout.</p>
+        </div>
+      )}
+
+      {addresses.map((addr) => (
+        <div
+          key={addr.id}
+          className="flex items-start justify-between p-4 border border-border dark:border-white/10 rounded-lg bg-white/50 dark:bg-white/5"
+        >
+          {editId === addr.id ? (
+            <div className="w-full">
+              <AddressForm />
+            </div>
+          ) : (
+            <>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">{labelIcon(addr.label)}</span>
+                  <span className="font-medium text-foreground">
+                    {labelText(addr.label, addr.customLabel)}
+                  </span>
+                  {addr.isDefault && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
+                      Default
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {addr.addressLine1}
+                  {addr.addressLine2 ? `, ${addr.addressLine2}` : ''}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {addr.postalCode} {addr.city}, {addr.country}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1 ml-3 shrink-0">
+                {!addr.isDefault && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDefaultAddress(addr.id)} title="Set as default">
+                    ⭐
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(addr)} title="Edit">
+                  <FiEdit2 className="h-4 w-4" />
+                </Button>
+
+                {deleteConfirmId === addr.id ? (
+                  <div className="flex items-center gap-1">
+                    <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => handleDelete(addr.id)} disabled={isDeleting}>
+                      <FiCheck className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteConfirmId(null)}>
+                      <FiX className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmId(addr.id)} title="Delete">
+                    🗑️
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
