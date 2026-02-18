@@ -123,12 +123,12 @@ export const MyDialogbarNavigator = ({ onOpen, variant = "default", open, onOpen
       {
         group: "Settings",
         items: [
-          { href: "/settings?tab=appearance", label: "Appearance", description: "Customize theme & look", icon: <FaPalette className="h-4 w-4" />, keywords: ["theme", "dark", "light", "mode", "color", "style", "look", "appearance"] },
-          { href: "/settings?tab=notifications", label: "Notifications", description: "Manage alerts & updates", icon: <FiBell className="h-4 w-4" />, keywords: ["alerts", "notify", "noti", "notifications", "updates", "messages"] },
-          { href: "/settings?tab=privacy", label: "Privacy & Security", description: "Control your data", icon: <FiLock className="h-4 w-4" />, keywords: ["security", "private", "data", "safety"] },
-          { href: "/settings?tab=wallet", label: "Wallet & Crypto", description: "Manage connected wallets", icon: <FaWallet className="h-4 w-4" />, keywords: ["crypto", "wallet", "web3", "ethereum", "connect"] },
-          { href: "/settings?tab=currency", label: "Currency", description: "Set preferred currency", icon: <FaDollarSign className="h-4 w-4" />, keywords: ["money", "currency", "usd", "eur", "nok", "price"] },
-          { href: "/settings?tab=language", label: "Language & Region", description: "Localization preferences", icon: <FiGlobe className="h-4 w-4" />, keywords: ["language", "locale", "region", "country"] },
+          { href: "/settings?section=appearance", label: "Appearance", description: "Customize theme & look", icon: <FaPalette className="h-4 w-4" />, keywords: ["theme", "dark", "light", "mode", "color", "style", "look", "appearance"] },
+          { href: "/settings?section=notifications", label: "Notifications", description: "Manage alerts & updates", icon: <FiBell className="h-4 w-4" />, keywords: ["alerts", "notify", "noti", "notifications", "updates", "messages"] },
+          { href: "/settings?section=privacy", label: "Privacy & Security", description: "Control your data", icon: <FiLock className="h-4 w-4" />, keywords: ["security", "private", "data", "safety"] },
+          { href: "/settings?section=wallet", label: "Wallet & Crypto", description: "Manage connected wallets", icon: <FaWallet className="h-4 w-4" />, keywords: ["crypto", "wallet", "web3", "ethereum", "connect"] },
+          { href: "/settings?section=currency", label: "Currency", description: "Set preferred currency", icon: <FaDollarSign className="h-4 w-4" />, keywords: ["money", "currency", "usd", "eur", "nok", "price"] },
+          { href: "/settings?section=appearance", label: "Language & Region", description: "Localization preferences", icon: <FiGlobe className="h-4 w-4" />, keywords: ["language", "locale", "region", "country"] },
         ],
       },
       {

@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { useRef, useState, useTransition, useEffect, useCallback, DragEvent, ClipboardEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MyAuthSettingsSchema } from '@/schemas';
@@ -63,6 +63,9 @@ export default function SettingsPage() {
   const reduceMotion = useReducedMotion();
   const user = useCurrentUser();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const SECTION_IDS = ['profile', 'account', 'security', 'wallet', 'notifications', 'privacy', 'appearance', 'currency', 'verification', 'ai', 'addresses'] as const;
+  type SectionId = typeof SECTION_IDS[number];
   const { prefs, setPrefs, resetPrefs } = useUiPreferences();
   const formRef = useRef<HTMLFormElement>(null);
   const { update } = useSession();
@@ -72,15 +75,23 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
-  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'wallet' | 'notifications' | 'privacy' | 'appearance' | 'currency' | 'verification' | 'ai' | 'addresses'>('profile');
+  const [activeSection, setActiveSection] = useState<SectionId>('profile');
   
   // Read section from URL params (e.g. /settings?section=notifications)
   useEffect(() => {
     const sectionParam = searchParams.get('section');
-    if (sectionParam && ['profile', 'account', 'security', 'wallet', 'notifications', 'privacy', 'appearance', 'currency', 'verification', 'ai', 'addresses'].includes(sectionParam)) {
-      setActiveSection(sectionParam as typeof activeSection);
+    if (sectionParam && SECTION_IDS.includes(sectionParam as SectionId)) {
+      setActiveSection(sectionParam as SectionId);
     }
   }, [searchParams]);
+
+  const handleSectionChange = useCallback((section: SectionId) => {
+    setActiveSection(section);
+    const next = `/settings?section=${section}`;
+    if (window.location.pathname + window.location.search !== next) {
+      router.replace(next, { scroll: false });
+    }
+  }, [router]);
   
   // Profile editing state - ORIGINAL values from server
   const [originalData, setOriginalData] = useState<{
@@ -450,7 +461,7 @@ export default function SettingsPage() {
               {sections.map((section) => (
                 <button
                   key={section.id}
-                  onClick={() => setActiveSection(section.id)}
+                  onClick={() => handleSectionChange(section.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all border-2 ${
                     activeSection === section.id
                       ? 'bg-emerald-50 border-emerald-500 text-foreground shadow-md shadow-emerald-500/10 dark:bg-emerald-500/10 dark:border-emerald-500 dark:text-white'
