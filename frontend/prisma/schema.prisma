@@ -465,12 +465,19 @@ model Order {
   shippingMethod     String?   // e.g. "PAKKE_I_POSTKASSEN", "SERVICEPAKKE"
   shippingCost       Float?
   
+  // Fulfilment status (separate from payment status)
+  fulfilmentStatus     FulfilmentStatus @default(UNFULFILLED)
+  fulfilledById        String?          // Employee who shipped the order
+  shippedAt            DateTime?
+  deliveredAt          DateTime?
+  
   // Bring shipment tracking (populated after booking)
   trackingNumber       String?
   trackingUrl          String?
   bringConsignmentId   String?
   estimatedDelivery    DateTime?
   shippingServiceName  String?   // Human-readable e.g. "Pakke i postkassen"
+  labelUrl             String?          // Bring label PDF URL
   
   User          User        @relation(fields: [userId], references: [id])
   Payment       Payment?
@@ -479,6 +486,7 @@ model Order {
 
   @@index([userId])
   @@index([status])
+  @@index([fulfilmentStatus])
   @@index([createdAt])
   @@index([userId, status])
 }
@@ -1067,6 +1075,7 @@ model WalletVerificationChallenge {
 
 model WarehouseLocation {
   id           String      @id @default(cuid())
+  name         String?     // e.g. "Hovedlager Oslo"
   userId       String?
   companyId    String?
   postalCode   String
@@ -1076,6 +1085,7 @@ model WarehouseLocation {
   country      String
   latitude     Float?
   longitude    Float?
+  isActive     Boolean     @default(true)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   Inventory    Inventory[]
@@ -1443,6 +1453,9 @@ enum EmployeeRole {
   OWNER
   MANAGER
   STAFF
+  WAREHOUSE_MANAGER
+  WAREHOUSE_WORKER
+  ACCOUNTANT
   USER
 }
 
@@ -1452,6 +1465,17 @@ enum OrderStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+/// Tracks the physical fulfilment lifecycle of an order.
+/// Separate from OrderStatus (payment) so warehouse workers can manage shipping.
+enum FulfilmentStatus {
+  UNFULFILLED       // Paid but not yet shipped
+  PROCESSING        // Warehouse is preparing the order
+  SHIPPED           // Booked with carrier, has tracking number
+  DELIVERED         // Carrier confirmed delivery
+  RETURNED          // Customer returned the shipment
+  CANCELLED         // Fulfilment cancelled before shipping
 }
 
 enum PackageStatus {

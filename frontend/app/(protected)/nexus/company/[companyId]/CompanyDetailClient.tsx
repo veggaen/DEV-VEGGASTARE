@@ -32,11 +32,14 @@ interface Warehouse {
         currentStock: number;
 }
 
-const rolePriority = {
+const rolePriority: Record<string, number> = {
         OWNER: 1,
         MANAGER: 2,
-        STAFF: 3,
-        USER: 4
+        WAREHOUSE_MANAGER: 3,
+        STAFF: 4,
+        WAREHOUSE_WORKER: 5,
+        ACCOUNTANT: 6,
+        USER: 7
 };
 
 const CompanyDetails = () => {

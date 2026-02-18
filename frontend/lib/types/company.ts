@@ -25,7 +25,7 @@ export const CompanyEmployeeResponseSchema = z
   .object({
     id: z.string().min(1),
     userId: z.string().min(1),
-    role: z.enum(['OWNER', 'MANAGER', 'STAFF', 'USER']),
+    role: z.enum(['OWNER', 'MANAGER', 'STAFF', 'WAREHOUSE_MANAGER', 'WAREHOUSE_WORKER', 'ACCOUNTANT', 'USER']),
     jobTitle: z.string().nullable().optional(),
     createdAt: IsoDateStringSchema,
     updatedAt: IsoDateStringSchema,
@@ -144,7 +144,7 @@ export const CompanyEmployeeSlimSchema = z
   .object({
     id: z.string().min(1),
     userId: z.string().min(1),
-    role: z.enum(['OWNER', 'MANAGER', 'STAFF', 'USER']),
+    role: z.enum(['OWNER', 'MANAGER', 'STAFF', 'WAREHOUSE_MANAGER', 'WAREHOUSE_WORKER', 'ACCOUNTANT', 'USER']),
     permissions: z.record(z.unknown()).optional(),
     createdAt: IsoDateStringSchema,
   })

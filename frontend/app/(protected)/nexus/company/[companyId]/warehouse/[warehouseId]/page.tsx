@@ -127,6 +127,12 @@ const WarehouseInventory = () => {
                             {warehouse.postalCode}, {warehouse.city}, {warehouse.country}
                         </p>
                     </div>
+                    <Link
+                        href={`/nexus/company/${companyId}/warehouse/${warehouseId}/orders`}
+                        className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-500 transition-colors"
+                    >
+                        📦 Ordrekø
+                    </Link>
 
                     <div className="w-full md:max-w-sm">
                         <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-300">Search inventory</label>

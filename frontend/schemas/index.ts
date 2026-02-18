@@ -244,11 +244,19 @@ export const employeePermissionsSchema = z.object({
     CAN_MANAGE_EXPENSES: z.boolean().default(false),
     CAN_MANAGE_SALARIES: z.boolean().default(false),
     CAN_COMMENT_TAX_REPORTS: z.boolean().default(false),
+
+    // Warehouse & Fulfilment
+    CAN_VIEW_ORDERS: z.boolean().default(false),
+    CAN_PROCESS_ORDERS: z.boolean().default(false),
+    CAN_SHIP_ORDERS: z.boolean().default(false),
+    CAN_MANAGE_SHIPMENTS: z.boolean().default(false),
+    CAN_VIEW_INVENTORY: z.boolean().default(false),
+    CAN_EDIT_INVENTORY: z.boolean().default(false),
 });
 export const employeeSchema = z.object({
     userId: z.string().min(1, 'User ID is required'),
     //name: z.string().min(1, 'Name is required'),
-    role: z.enum([EmployeeRole.OWNER, EmployeeRole.MANAGER, EmployeeRole.STAFF, EmployeeRole.USER]), // Assuming EmployeeRole is an enum you have defined
+    role: z.enum([EmployeeRole.OWNER, EmployeeRole.MANAGER, EmployeeRole.STAFF, EmployeeRole.WAREHOUSE_MANAGER, EmployeeRole.WAREHOUSE_WORKER, EmployeeRole.ACCOUNTANT, EmployeeRole.USER]),
     jobTitle: z.string().trim().min(1).max(80).optional(),
     permissions: employeePermissionsSchema.optional(), // permissions: z.array(z.string()).optional(), // Assuming permissions is an array of strings, adjust as necessary
 });

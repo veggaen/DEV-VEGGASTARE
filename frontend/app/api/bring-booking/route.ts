@@ -199,15 +199,16 @@ export async function POST(request: NextRequest) {
     });
 
     // Call Bring Booking API
-    const response = await fetch(`${BRING_BOOKING_API}/booking`, {
+    // Endpoint: POST https://api.bring.com/booking/api/create
+    // X-Bring-Test-Indicator is REQUIRED (true = test, false = production)
+    const response = await fetch(`${BRING_BOOKING_API}/create`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
         "X-MyBring-API-Uid": apiUid,
         "X-MyBring-API-Key": apiKey,
-        // CRITICAL: Test indicator for non-production bookings
-        ...(isTestMode && { "X-Bring-Test-Indicator": "true" }),
+        "X-Bring-Test-Indicator": isTestMode ? "true" : "false",
       },
       body: JSON.stringify(bookingRequest),
     });
