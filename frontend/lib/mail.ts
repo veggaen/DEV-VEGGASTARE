@@ -106,6 +106,60 @@ export const sendSecurityActionEmail = async (
   });
 };
 
+export const sendOauthProviderLinkedEmail = async (
+  email: string,
+  data: {
+    provider: 'google' | 'github' | 'discord';
+    userName?: string | null;
+  }
+): Promise<void> => {
+  const providerLabel = data.provider === 'google'
+    ? 'Google'
+    : data.provider === 'github'
+      ? 'GitHub'
+      : 'Discord';
+
+  await resend.emails.send({
+    from: 'Veggat-Security@veggat.com',
+    to: email,
+    subject: `🔐 ${providerLabel} account linked to your Veggat profile`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #2563eb, #0ea5e9); padding: 24px; border-radius: 8px 8px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 20px;">🔐 OAuth Account Linked</h1>
+        </div>
+
+        <div style="padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+          <p style="color: #333;">Hi${data.userName ? ` ${data.userName}` : ''},</p>
+          <p style="color: #555;">Your <strong>${providerLabel}</strong> account was linked to your Veggat account.</p>
+
+          <div style="background: #f8fafc; border: 1px solid #dbeafe; padding: 14px; border-radius: 8px; margin: 16px 0;">
+            <p style="margin: 0; color: #334155; font-size: 14px;"><strong>Provider:</strong> ${providerLabel}</p>
+            <p style="margin: 6px 0 0; color: #334155; font-size: 14px;"><strong>Time:</strong> ${new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+          </div>
+
+          <p style="color: #666; font-size: 14px;">
+            If this was you, no action is needed. You can now sign in with ${providerLabel} in addition to your other linked providers.
+          </p>
+
+          <p style="color: #666; font-size: 14px;">
+            If this was <strong>not</strong> you, change your password immediately and review your account security settings.
+          </p>
+
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${whatENV}/settings?section=security" style="background: #1d4ed8; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; margin-right: 10px; display: inline-block;">
+              Review Security
+            </a>
+            <a href="${whatENV}/settings?section=verification" style="background: #0f766e; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; display: inline-block;">
+              View Linked Methods
+            </a>
+          </div>
+        </div>
+      </div>
+    `,
+  });
+};
+
 // ─── Wallet Linked / Unlinked Confirmation ───────────────────────────────────
 
 export const sendWalletLinkedEmail = async (

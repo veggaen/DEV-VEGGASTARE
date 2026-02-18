@@ -154,6 +154,7 @@ frontend/
 ### Auth & Verification
 - NextAuth v5 with Google, GitHub, Discord OAuth providers
 - Email magic link login
+- Security notification email when an additional OAuth provider is linked to an existing account
 - Transactional emails via Resend (2FA, password reset, verification, security actions, wallet linked/unlinked)
 - 12-tier verification system (0.10x → 1.20x multiplier)
 - Web3 wallet signature verification
