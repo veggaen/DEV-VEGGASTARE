@@ -5,6 +5,7 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 // =============================================================================
 // SCHEMAS
@@ -32,13 +33,16 @@ const UpdateAddressSchema = z.object({
 // =============================================================================
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ addressId: string }> }
 ) {
   const session = await MyLibUserAuth();
   if (!session?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const rl = await checkRateLimit(getClientIdentifier(request, session.id), 'read');
+  if (!rl.success) return rateLimitedResponse(rl);
 
   const { addressId } = await params;
 
@@ -76,6 +80,9 @@ export async function PUT(
   if (!session?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const rl = await checkRateLimit(getClientIdentifier(request, session.id), 'write');
+  if (!rl.success) return rateLimitedResponse(rl);
 
   const { addressId } = await params;
 
@@ -142,13 +149,16 @@ export async function PUT(
 // =============================================================================
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ addressId: string }> }
 ) {
   const session = await MyLibUserAuth();
   if (!session?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const rl = await checkRateLimit(getClientIdentifier(request, session.id), 'write');
+  if (!rl.success) return rateLimitedResponse(rl);
 
   const { addressId } = await params;
 

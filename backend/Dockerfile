@@ -29,10 +29,10 @@ WORKDIR /usr/src
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy built output + Prisma client from builder
+# Copy built output + generated Prisma client from builder
 COPY --from=builder /usr/src/dist ./dist
-COPY --from=builder /usr/src/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /usr/src/prisma ./prisma
+COPY --from=builder /usr/src/prisma.config.ts ./prisma.config.ts
 
 EXPOSE 3001
 EXPOSE 3002

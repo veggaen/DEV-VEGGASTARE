@@ -5,6 +5,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { FaDownload, FaCheckCircle, FaClock, FaBan } from 'react-icons/fa';
 import { format } from 'date-fns';
 import { nb } from 'date-fns/locale';
+import Image from 'next/image';
 
 interface DownloadToken {
   id: string;
@@ -162,11 +163,13 @@ export default function MyDownloadsPage() {
               <div className="flex flex-col sm:flex-row gap-4">
                 {/* Product Image */}
                 {token.product.image?.[0] && (
-                  <div className="shrink-0">
-                    <img
+                  <div className="shrink-0 relative w-full sm:w-24 h-32 sm:h-24">
+                    <Image
                       src={token.product.image[0]}
                       alt={token.product.title}
-                      className="w-full sm:w-24 h-32 sm:h-24 object-cover rounded-lg"
+                      fill
+                      sizes="(max-width: 640px) 100vw, 96px"
+                      className="object-cover rounded-lg"
                     />
                   </div>
                 )}

@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit as sharedRateLimit, rateLimitedResponse, getClientIdentifier } from '@/lib/rate-limit';
+import { z } from 'zod';
+
+const BringBatchValidateSchema = z.object({
+  addresses: z.array(z.string().min(1).max(500)).min(1).max(50),
+  countryCode: z.string().max(5).default("no"),
+});
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -228,12 +234,12 @@ function formatAddress(addr: AddressSuggestion): string {
 // POST endpoint for batch validation or more complex queries
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { addresses, countryCode = "no" } = body;
-
-    if (!Array.isArray(addresses) || addresses.length === 0) {
-      return NextResponse.json({ error: "No addresses provided" }, { status: 400 });
+    const json = await request.json();
+    const parsed = BringBatchValidateSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid payload", issues: parsed.error.issues }, { status: 400 });
     }
+    const { addresses, countryCode } = parsed.data;
 
     // Validate multiple addresses
     const results = await Promise.all(

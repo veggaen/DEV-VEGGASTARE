@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { ACCESS_GATE_CONFIG } from '@/lib/site-config';
 import { makeGateCookieValue } from '@/lib/access-gate-cookie';
+import { z } from 'zod';
+
+const AccessGateSchema = z.object({
+  password: z.string().min(1).max(100),
+});
 
 const CORRECT_PASSWORD = ACCESS_GATE_CONFIG.password;
 const COOKIE_NAME = ACCESS_GATE_CONFIG.cookieName;
@@ -124,15 +129,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
-    const { password } = body;
-
-    if (!password || typeof password !== 'string') {
+    const json = await req.json();
+    const parsed = AccessGateSchema.safeParse(json);
+    if (!parsed.success) {
       return NextResponse.json(
         { error: 'Password is required' },
         { status: 400 }
       );
     }
+    const { password } = parsed.data;
 
     // Sanitize input - prevent injection attempts
     const sanitizedPassword = password.slice(0, 100); // Limit length

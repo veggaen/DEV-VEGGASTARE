@@ -6,6 +6,13 @@ import {
   SYSTEM_ACCOUNT,
 } from "@/lib/system-account";
 import { dbPrisma as db } from "@/lib/db";
+import { z } from 'zod';
+
+const SystemAccountUpdateSchema = z.object({
+  bio: z.string().max(2000).optional(),
+  image: z.string().url().max(2048).optional(),
+  banner: z.string().url().max(2048).optional(),
+}).strict();
 
 // GET /api/system/account - Get system account info
 export async function GET() {
@@ -57,8 +64,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
-    const { bio, image, banner } = body;
+    const json = await request.json();
+    const parsed = SystemAccountUpdateSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid payload", issues: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+    const { bio, image, banner } = parsed.data;
 
     await ensureSystemAccount();
 

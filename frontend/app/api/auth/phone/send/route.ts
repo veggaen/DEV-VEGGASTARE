@@ -19,6 +19,12 @@ import {
 } from '@/lib/phone-verification';
 import { calculateVerificationScore, determineUserVerificationTier } from '@/lib/view-strength';
 import { PhoneSendResponseSchema } from '@/lib/types/phone-verification';
+import { z } from 'zod';
+
+const PhoneSendBodySchema = z.object({
+  phoneNumber: z.string().min(1).max(30),
+  countryCode: z.string().length(2).default('NO'),
+});
 
 const LOG_PREFIX = '[api/auth/phone]';
 const MAX_ATTEMPTS = 3;
@@ -62,12 +68,12 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = await req.json();
-    const { phoneNumber, countryCode = 'NO' } = body;
-
-    if (!phoneNumber) {
-      return respond(400, { error: 'Phone number is required' });
+    const json = await req.json();
+    const parsed = PhoneSendBodySchema.safeParse(json);
+    if (!parsed.success) {
+      return respond(400, { error: 'Invalid payload' });
     }
+    const { phoneNumber, countryCode } = parsed.data;
 
     // Format and validate phone number
     const formattedPhone = formatPhoneE164(phoneNumber, countryCode);

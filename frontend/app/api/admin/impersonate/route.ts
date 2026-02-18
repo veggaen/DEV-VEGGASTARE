@@ -6,6 +6,12 @@ import { AdminAction, AdminTargetType } from '@/generated/prisma/browser';
 import { cookies } from 'next/headers';
 import { encode } from 'next-auth/jwt';
 import { getAccountByUserId } from '@/lib/account';
+import { z } from 'zod';
+
+const ImpersonateBodySchema = z.object({
+  targetUserId: z.string().min(1, 'targetUserId is required'),
+  reason: z.string().max(500).optional(),
+});
 
 const LOG_PREFIX = '[api/admin/impersonate]';
 
@@ -30,18 +36,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden — OWNER only' }, { status: 403 });
   }
 
-  let body: { targetUserId: string; reason?: string };
+  let body: z.infer<typeof ImpersonateBodySchema>;
   try {
-    body = await request.json();
+    const json = await request.json();
+    const parsed = ImpersonateBodySchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 });
+    }
+    body = parsed.data;
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
   const { targetUserId, reason } = body;
-
-  if (!targetUserId) {
-    return NextResponse.json({ error: 'targetUserId is required' }, { status: 400 });
-  }
 
   // Don't allow self-impersonation
   if (targetUserId === session.id) {

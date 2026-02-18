@@ -3,7 +3,7 @@
 > Living PRD for the Veggat marketplace and social platform.
 
 **Version:** 1.0  
-**Last Updated:** 2026-02-14  
+**Last Updated:** 2026-02-18  
 **Status:** Active Development
 
 ---
@@ -60,11 +60,16 @@ The platform uniquely combines:
 | Shopping Cart | ✅ Shipped | Add/remove items, quantity management |
 | Checkout Flow | ✅ Shipped | Address, shipping, payment flow |
 | Order Confirmation | ✅ Shipped | Post-purchase confirmation page |
+| Buyer "My Orders" | ✅ Shipped | Order history, fulfilment tracking, download links (`/my-orders`) |
+| Solo Seller "My Sales" | ✅ Shipped | Seller order visibility + metrics for solo and company sellers (`/my-sales`) |
 | Company Creation | ✅ Shipped | Register company with profile |
 | Employee Management | ✅ Shipped | Invite, assign roles (OWNER/ADMIN/MEMBER), remove |
 | Warehouse Management | ✅ Shipped | Create warehouses, manage stock per product |
 | Real-time Stock Sync | ✅ Shipped | WebSocket-based inventory updates across clients |
-| Shipping Integration | ✅ Shipped | Bring/Posten rates, postal code lookup, mock mode |
+| Shipping Integration | ✅ Shipped | Bring rates in checkout, method selection, booking, tracking, pickup points |
+| Returns/Refunds | ✅ Shipped | Buyer return requests, seller processing, stock restoration, 14-day Angrerettloven compliance |
+| Webhook Signatures | ✅ Shipped | Per-provider verification for Vipps/Klarna/PayPal payment webhooks |
+| Atomic Stock Reservation | ✅ Shipped | Serializable transaction prevents checkout race conditions |
 | Vipps Payment | ⏳ Planned | Norwegian mobile payment (see docs/VIPPS_REQUIREMENTS.md) |
 
 ### 3.2 Web3 & Crypto Trading
@@ -160,8 +165,11 @@ The platform uniquely combines:
 ### 4.4 Compliance
 - Norwegian consumer law compliance for Vipps integration
 - 14-day right of withdrawal (Angrerett)
-- GDPR-aligned data handling
 - Price display with VAT (MVA) included
+- **GDPR (implemented):** Full Art. 13/14 privacy policy, data export (Art. 15/20), account deletion with 30-day grace (Art. 17), automated decision disclosure (Art. 22)
+- **DSA (implemented):** Community guidelines, content reporting with 13 reason categories, moderation actions with statement of reasons (Art. 17), appeal mechanism within 6 months (Art. 20), 48-hour review target
+- **Accessibility:** WCAG 2.1 AA partial conformance, accessibility statement per UU-tilsynet requirements
+- **Legal pages:** /privacy, /terms, /community-guidelines, /accessibility — all in Norwegian
 
 ---
 

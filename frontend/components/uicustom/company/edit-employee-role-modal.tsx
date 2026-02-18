@@ -81,6 +81,9 @@ const EditEmployeeRoleModal: React.FC<EditEmployeeRoleModalProps> = ({ selectedE
             <option value="OWNER">Owner</option>
             <option value="MANAGER">Manager</option>
             <option value="STAFF">Staff</option>
+            <option value="WAREHOUSE_MANAGER">Warehouse Manager</option>
+            <option value="WAREHOUSE_WORKER">Warehouse Worker</option>
+            <option value="ACCOUNTANT">Accountant</option>
             <option value="USER">User</option>
           </select>
           {error && <div className='text-red-500'>{error}</div>}

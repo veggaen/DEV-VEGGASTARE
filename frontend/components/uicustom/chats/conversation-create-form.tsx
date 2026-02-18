@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useDropzone } from 'react-dropzone';
 import { useEdgeStore } from '@/lib/edgestore';
 import { Button } from '@/components/ui/button';
@@ -572,9 +573,12 @@ export default function ConversationCreateForm() {
             {imagePreview && (
               <div className="px-3 pb-3">
                 <div className="relative inline-block">
-                  <img
+                  <Image
                     src={imagePreview}
                     alt="Preview"
+                    width={256}
+                    height={128}
+                    unoptimized
                     className="max-h-32 rounded-md border"
                   />
                   <button

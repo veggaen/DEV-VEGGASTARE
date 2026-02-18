@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
@@ -141,10 +142,12 @@ export const UserHoverCard: React.FC<UserHoverCardProps> = ({
             {/* Banner */}
             <div className="relative h-20 bg-linear-to-br from-primary/30 via-primary/20 to-muted">
               {userPreview?.banner && (
-                <img
+                <Image
                   src={userPreview.banner}
                   alt=""
-                  className="absolute inset-0 h-full w-full object-cover"
+                  fill
+                  unoptimized
+                  className="object-cover"
                 />
               )}
             </div>

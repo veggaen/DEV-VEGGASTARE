@@ -3,6 +3,13 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdmin, logAdminAction, ADMIN_USER_EDITABLE_FIELDS, sanitizeFields } from '@/lib/admin';
 import { AdminAction, AdminTargetType } from '@/generated/prisma/browser';
+import { z } from 'zod';
+
+const AdminBulkActionSchema = z.object({
+  action: z.string().min(1).max(100),
+  userIds: z.array(z.string().min(1)).min(1).max(500),
+  reason: z.string().max(500).optional(),
+});
 
 const LOG_PREFIX = '[api/admin/users]';
 
@@ -88,12 +95,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
-    const { action, userIds, reason } = body;
-
-    if (!action || !userIds || !Array.isArray(userIds)) {
-      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    const json = await request.json();
+    const parsed = AdminBulkActionSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 });
     }
+    const { action, userIds, reason } = parsed.data;
 
     // Log the bulk action attempt
     await logAdminAction({

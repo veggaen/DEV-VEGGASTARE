@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { defaultBringLiveEnabled, getRuntimeConfig } from "@/lib/runtime-config";
 
 /**
  * Bring Booking API Integration
@@ -9,6 +11,35 @@ import { NextRequest, NextResponse } from "next/server";
  * IMPORTANT: Use X-Bring-Test-Indicator: true for testing!
  * This creates test bookings that won't generate real shipments or charges.
  */
+
+const BringPartySchema = z.object({
+  name: z.string().min(1).max(200),
+  address: z.string().min(1).max(500),
+  postalCode: z.string().min(1).max(20),
+  city: z.string().min(1).max(200),
+  countryCode: z.string().length(2).default("NO"),
+  email: z.string().email().max(254).optional(),
+  phone: z.string().max(30).optional(),
+});
+
+const BringPackageSchema = z.object({
+  weight: z.number().positive().max(100_000), // grams
+  dimensions: z.object({
+    height: z.number().positive().max(500),
+    width: z.number().positive().max(500),
+    length: z.number().positive().max(500),
+  }).optional(),
+  description: z.string().max(200).optional(),
+});
+
+const BringBookingBodySchema = z.object({
+  sender: BringPartySchema,
+  recipient: BringPartySchema,
+  packages: z.array(BringPackageSchema).min(1).max(50),
+  serviceCode: z.string().max(20).default("5800"),
+  shippingDate: z.string().max(30).optional(),
+  orderId: z.string().max(100).optional(),
+});
 
 const BRING_BOOKING_API = "https://api.bring.com/booking/api";
 
@@ -86,30 +117,31 @@ interface BookingResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    
+    const json = await request.json();
+    const parsed = BringBookingBodySchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid payload", issues: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+
     const {
       sender,
       recipient,
       packages,
-      serviceCode = "5800", // Default: Pakke til hentested (pickup point)
+      serviceCode,
       shippingDate,
       orderId,
-    } = body;
-
-    // Validate required fields
-    if (!sender || !recipient || !packages?.length) {
-      return NextResponse.json(
-        { error: "Missing required fields: sender, recipient, packages" },
-        { status: 400 }
-      );
-    }
+    } = parsed.data;
 
     // Get credentials from environment
     const apiKey = process.env.BRING_API_KEY;
     const apiUid = process.env.BRING_API_UID;
     const customerNumber = process.env.BRING_CUSTOMER_NUMBER;
-    const isTestMode = process.env.BRING_TEST_MODE === "true";
+    const runtime = await getRuntimeConfig();
+    const bringLiveEnabled = runtime.bringLiveEnabled ?? defaultBringLiveEnabled();
+    const isTestMode = !bringLiveEnabled;
 
     if (!apiKey || !apiUid || !customerNumber) {
       console.error("[bring-booking] Missing API credentials");
@@ -149,7 +181,7 @@ export async function POST(request: NextRequest) {
           id: serviceCode,
           customerNumber: customerNumber,
         },
-        packages: packages.map((pkg: any) => ({
+        packages: packages.map((pkg) => ({
           weightInKg: pkg.weight / 1000, // Convert grams to kg
           dimensions: pkg.dimensions ? {
             heightInCm: pkg.dimensions.height,
@@ -170,15 +202,16 @@ export async function POST(request: NextRequest) {
     });
 
     // Call Bring Booking API
-    const response = await fetch(`${BRING_BOOKING_API}/booking`, {
+    // Endpoint: POST https://api.bring.com/booking/api/create
+    // X-Bring-Test-Indicator is REQUIRED (true = test, false = production)
+    const response = await fetch(`${BRING_BOOKING_API}/create`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
         "X-MyBring-API-Uid": apiUid,
         "X-MyBring-API-Key": apiKey,
-        // CRITICAL: Test indicator for non-production bookings
-        ...(isTestMode && { "X-Bring-Test-Indicator": "true" }),
+        "X-Bring-Test-Indicator": isTestMode ? "true" : "false",
       },
       body: JSON.stringify(bookingRequest),
     });
@@ -265,7 +298,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     name: "Bring Booking API",
     version: "1.0",
-    testMode: process.env.BRING_TEST_MODE === "true",
+    testMode: !(await getRuntimeConfig()).bringLiveEnabled,
     endpoints: {
       createBooking: "POST /api/bring-booking",
       getErrors: "GET /api/bring-booking?action=errors",

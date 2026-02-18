@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { dbPrisma } from '@/lib/db';
-import { getPaymentProvider, getAvailablePaymentMethods, type PaymentProviderType } from '@/lib/payments/providers';
+import { getPaymentProvider, getAvailablePaymentMethods } from '@/lib/payments/providers';
+import { getProviderGate } from '@/lib/payments/provider-gating';
+import { getRuntimeConfig } from '@/lib/runtime-config';
 import { z } from 'zod';
 import { parseJsonOrError } from '@/lib/api-validate';
 
@@ -10,7 +12,11 @@ import { parseJsonOrError } from '@/lib/api-validate';
  * List available payment methods
  */
 export async function GET() {
-  const methods = getAvailablePaymentMethods();
+  const runtime = await getRuntimeConfig();
+  const methods = getAvailablePaymentMethods().filter((method) => {
+    if (method.type === 'crypto') return true;
+    return getProviderGate(method.type, runtime).enabled;
+  });
   return NextResponse.json({ methods });
 }
 
@@ -37,8 +43,17 @@ export async function POST(req: Request) {
   if (!bodyResult.ok) return bodyResult.response;
 
   const { provider: providerType, orderId, amount, returnUrl } = bodyResult.data;
+  const runtime = await getRuntimeConfig();
   const currency = bodyResult.data.currency ?? 'NOK';
   const description = bodyResult.data.description ?? 'VeggaStare Order';
+
+  const gate = getProviderGate(providerType, runtime);
+  if (!gate.enabled) {
+    return NextResponse.json(
+      { error: gate.reason ?? `${providerType} is currently unavailable` },
+      { status: 503 }
+    );
+  }
 
   // Verify order exists and belongs to user
   const order = await dbPrisma.order.findUnique({
@@ -54,7 +69,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Order already completed' }, { status: 400 });
   }
 
-  const provider = getPaymentProvider(providerType as PaymentProviderType);
+  const provider = getPaymentProvider(providerType);
   if (!provider) {
     return NextResponse.json({ error: `Payment provider ${providerType} not available` }, { status: 400 });
   }

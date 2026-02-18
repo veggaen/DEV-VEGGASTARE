@@ -33,7 +33,7 @@ A full-stack Web3-enabled marketplace built with **Next.js 16**, **React 19**, a
 |-------|-------------|
 | **Frontend** | Next.js 16.1.6 (Webpack mode), React 19, TypeScript, Tailwind CSS |
 | **Auth** | NextAuth v5 (beta.7), Google/GitHub/Discord OAuth, email magic links |
-| **Database** | PostgreSQL, Prisma 7.3.0 (with `@prisma/adapter-pg`) |
+| **Database** | PostgreSQL, Prisma 7 (with `@prisma/adapter-pg`) |
 | **Backend** | Hapi.js 21 (standalone API on port 3001), Socket.IO 4 (port 3002) |
 | **Web3** | Reown/WalletConnect (AppKit 1.8), wagmi 2, Solana wallet adapters |
 | **Realtime** | Pusher (events + notifications), Socket.IO (warehouse sync) |

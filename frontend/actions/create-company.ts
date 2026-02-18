@@ -1,6 +1,7 @@
 'use server';
 
 import * as z from 'zod';
+import { auth } from '@/auth';
 import { dbPrisma } from '@/lib/db';
 import { companyCreationSchema } from '@/schemas';
 import { EmployeeRole, Prisma, Product } from '@/generated/prisma/client';
@@ -14,6 +15,13 @@ const MyGetCompanyAction = async (): Promise<GetCompanyResult> => {
 };
 
 const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchema>): Promise<CreateCompanyResult> => {
+  // --- AUTH CHECK (CRITICAL) ---
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: 'Unauthorized — you must be logged in to create a company.' };
+  }
+  const sessionUserId = session.user.id;
+
   console.log('MyCreateCompanyAction() Creating company with values:', values);
   
   const validateFields = companyCreationSchema.safeParse(values);
@@ -42,9 +50,17 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
     warehouseLocations,
   } = validateFields.data;
 
+  // Override client-supplied IDs with verified session user
+  // (prevents IDOR — callers cannot create companies owned by another user)
+  if (creatorId !== sessionUserId || ownerId !== sessionUserId) {
+    console.warn(`[create-company] ID mismatch: client sent creator=${creatorId}, owner=${ownerId}, session is ${sessionUserId}. Overriding.`);
+  }
+  const safeCreatorId = sessionUserId;
+  const safeOwnerId = sessionUserId;
+
   try {
     const userExists = await dbPrisma.user.findUnique({
-      where: { id: creatorId },
+      where: { id: safeCreatorId },
     });
     
     if (!userExists) {
@@ -63,8 +79,8 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
           orgType: orgType ?? null,
           orgNumber: orgNumber || null,
           employmentNoticeDays,
-          creatorId,
-          ownerId,
+          creatorId: safeCreatorId,
+          ownerId: safeOwnerId,
           usesShipping,
         },
       });

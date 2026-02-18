@@ -42,6 +42,7 @@ import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 import usePusher from '@/hooks/usePusher';
 import Spinner from '@/components/uicustom/spinner';
 import RichTextContent from '@/components/uicustom/pulse/RichTextContent';
+import { ReportDialog } from '@/components/uicustom/report/ReportDialog';
 
 interface Message {
   id: string;
@@ -111,6 +112,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [modalHeight, setModalHeight] = useState<number | null>(null);
   
   // Comment edit/delete state
@@ -573,6 +575,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
   const expandedHeight = modalHeight ?? 640;
 
   return (
+    <>
     <AnimatePresence>
       {isOpen && (
         <>
@@ -870,7 +873,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                                     Repulse
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => {
-                                    toast.info('Report submitted');
+                                    setReportOpen(true);
                                   }}>
                                     <FiFlag className="h-4 w-4 mr-2" />
                                     Report
@@ -1191,5 +1194,17 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
         </>
       )}
     </AnimatePresence>
+
+    {/* Report Dialog */}
+    {pulse && (
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        contentType="POST"
+        contentId={pulse.id}
+        contentLabel="denne pulsen"
+      />
+    )}
+    </>
   );
 }

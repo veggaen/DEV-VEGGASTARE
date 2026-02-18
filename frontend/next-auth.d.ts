@@ -27,7 +27,7 @@ declare module "next-auth" {
      * You can add more custom types if needed here
     */
     interface Session {
-      user: ExtendedUser
+      user?: ExtendedUser
     }
 }
 

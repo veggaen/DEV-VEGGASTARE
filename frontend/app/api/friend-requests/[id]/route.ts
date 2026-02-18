@@ -5,6 +5,11 @@ import {
   FriendRequestActionResponseSchema,
   FriendRequestDeleteResponseSchema,
 } from '@/lib/types/friend-requests';
+import { z } from 'zod';
+
+const FriendRequestActionSchema = z.object({
+  action: z.enum(['accept', 'decline']),
+});
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -23,11 +28,12 @@ export async function PATCH(
   const { id } = await context.params;
 
   try {
-    const { action } = await request.json();
-
-    if (!['accept', 'decline'].includes(action)) {
+    const json = await request.json();
+    const parsed = FriendRequestActionSchema.safeParse(json);
+    if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid action. Use "accept" or "decline"' }, { status: 400 });
     }
+    const { action } = parsed.data;
 
     // Get the friend request
     const friendRequest = await dbPrisma.friendRequest.findUnique({

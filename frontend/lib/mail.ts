@@ -287,6 +287,12 @@ interface OrderConfirmationData {
   shippingCountry: string;
   transactionId?: string;
   downloadLinks?: DownloadLink[];
+  // Phase 2: shipping method + tracking
+  shippingMethodName?: string;
+  shippingCost?: number;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  estimatedDelivery?: string;
 }
 
 export const sendOrderConfirmationEmail = async (
@@ -340,7 +346,17 @@ export const sendOrderConfirmationEmail = async (
       <p style="margin: 4px 0 0; color: #666;">${data.shippingAddress}</p>
       <p style="margin: 4px 0 0; color: #666;">${data.shippingPostalCode} ${data.shippingCity}</p>
       <p style="margin: 4px 0 0; color: #666;">${data.shippingCountry}</p>
+      ${data.shippingMethodName ? `<p style="margin: 8px 0 0; color: #333;"><strong>Fraktmetode:</strong> ${data.shippingMethodName}</p>` : ''}
+      ${data.shippingCost != null && data.shippingCost > 0 ? `<p style="margin: 4px 0 0; color: #666;">Fraktkostnad: $${data.shippingCost.toFixed(2)}</p>` : ''}
+      ${data.estimatedDelivery ? `<p style="margin: 4px 0 0; color: #10b981;"><strong>Estimert levering:</strong> ${new Date(data.estimatedDelivery).toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}</p>` : ''}
     </div>
+    ${data.trackingNumber ? `
+    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 16px; border-radius: 8px; margin-top: 12px;">
+      <p style="color: white; margin: 0; font-size: 14px; font-weight: bold;">📍 Sporing</p>
+      <p style="color: #d1fae5; margin: 8px 0 0; font-size: 13px;">Sporingsnummer: <strong style="color: white;">${data.trackingNumber}</strong></p>
+      ${data.trackingUrl ? `<a href="${data.trackingUrl}" style="display: inline-block; margin-top: 12px; background: white; color: #059669; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px;">Spor pakken hos Bring →</a>` : ''}
+    </div>
+    ` : ''}
   ` : '';
 
   await resend.emails.send({
@@ -376,6 +392,12 @@ export const sendOrderConfirmationEmail = async (
               ${itemsHtml}
             </tbody>
             <tfoot>
+              ${data.shippingCost != null && data.shippingCost > 0 ? `
+              <tr style="background: #f8f9fa;">
+                <td colspan="3" style="padding: 8px 12px; text-align: right; color: #666;">Frakt${data.shippingMethodName ? ` (${data.shippingMethodName})` : ''}:</td>
+                <td style="padding: 8px 12px; text-align: right; color: #666;">$${data.shippingCost.toFixed(2)}</td>
+              </tr>
+              ` : ''}
               <tr style="background: #f8f9fa; font-weight: bold;">
                 <td colspan="3" style="padding: 12px; text-align: right;">Totalsum:</td>
                 <td style="padding: 12px; text-align: right;">$${data.totalAmount.toFixed(2)}</td>

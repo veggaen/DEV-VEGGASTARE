@@ -5,7 +5,7 @@
 'use client';
 
 import React, { startTransition, useEffect, useState } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -115,28 +115,28 @@ export const MyCompanyCreateForm = () => {
     },
   });
 
-  const { control, handleSubmit, formState: { errors, isSubmitting }, watch, reset } = form;
+  const { control, handleSubmit, formState: { errors, isSubmitting, isDirty }, reset } = form;
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'warehouseLocations',
   });
 
-  const isShippingEnabled = watch('usesShipping');
+  const isShippingEnabled = useWatch({ control: form.control, name: 'usesShipping' });
+  const watchedOwnerId = useWatch({ control: form.control, name: 'ownerId' });
 
   useEffect(() => {
     if (!isShippingEnabled) {
       form.clearErrors('warehouseLocations');
       form.resetField('warehouseLocations');
     }
+  }, [form, isShippingEnabled]);
 
-    const subscription = form.watch((allValues) => {
-      if (form.formState.isDirty && UID !== form.formState.defaultValues?.ownerId || form.formState.isDirty && UID !== allValues.ownerId) {
-        form.reset();
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [form, isShippingEnabled, UID]);
+  useEffect(() => {
+    if (!isDirty || !UID) return;
+    if (UID !== watchedOwnerId) {
+      reset();
+    }
+  }, [UID, isDirty, watchedOwnerId, reset]);
 
   useEffect(() => {
     const fetchUsers = async () => {

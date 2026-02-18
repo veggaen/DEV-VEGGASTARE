@@ -1,18 +1,20 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { Button } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
 import { RxCrossCircled } from "react-icons/rx";
 import { FaFileUpload } from "react-icons/fa";
-import { FiEdit2, FiTrash2, FiCheck, FiX, FiImage } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiCheck, FiX, FiImage, FiFlag } from "react-icons/fi";
 import { useEdgeStore } from '@/lib/edgestore';
 import Pusher from 'pusher-js';
 import Spinner from '../spinner';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday, formatDistanceToNowStrict } from 'date-fns';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
+import { ReportDialog } from '@/components/uicustom/report/ReportDialog';
 
 interface Message {
   id: string;
@@ -44,6 +46,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
   const [editedImage, setEditedImage] = useState<File | null>(null);
   const [editedImagePreview, setEditedImagePreview] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [reportMessageId, setReportMessageId] = useState<string | null>(null);
 
   const messageListRef = useRef<HTMLDivElement>(null);
 
@@ -251,9 +254,12 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                           <input {...getInputProps()} />
                           {editedImagePreview ? (
                             <div className="relative inline-block">
-                              <img
+                              <Image
                                 src={editedImagePreview}
                                 alt="Edited"
+                                width={80}
+                                height={80}
+                                unoptimized
                                 className="w-20 h-20 rounded-lg object-cover"
                               />
                               <button
@@ -306,9 +312,12 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                         
                         {message.imageUrl && (
                           <div className="mt-2">
-                            <img
+                            <Image
                               src={message.imageUrl}
                               alt="Attachment"
+                              width={512}
+                              height={512}
+                              unoptimized
                               className="rounded-lg max-w-full max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                               onClick={() => window.open(message.imageUrl, '_blank')}
                             />
@@ -357,11 +366,34 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                     </button>
                   </div>
                 )}
+                {/* Report button - visible on other people's messages */}
+                {!isCurrentUser && !isEditing && (
+                  <div className={cn(
+                    "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  )}>
+                    <button
+                      onClick={() => setReportMessageId(message.id)}
+                      className="p-2 rounded-full hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-all"
+                      title="Rapporter melding"
+                    >
+                      <FiFlag className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
+
+      {/* Report Dialog */}
+      <ReportDialog
+        open={!!reportMessageId}
+        onOpenChange={(open) => { if (!open) setReportMessageId(null); }}
+        contentType="MESSAGE"
+        contentId={reportMessageId || ''}
+        contentLabel="denne meldingen"
+      />
     </div>
   );
 };

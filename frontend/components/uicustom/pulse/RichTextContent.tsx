@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { YouTubeEmbed } from '@next/third-parties/google';
 import { cn } from '@/lib/utils';
 import { FiExternalLink, FiPlay } from 'react-icons/fi';
@@ -167,11 +168,12 @@ function YouTubeEmbedCard({ videoId, originalUrl }: { videoId: string; originalU
       <div className="relative rounded-xl overflow-hidden border border-border/60 shadow-sm hover:shadow-md transition-shadow">
         {/* Thumbnail */}
         <div className="relative aspect-video bg-black">
-          <img
+          <Image
             src={thumbnailUrl}
             alt="YouTube video thumbnail"
-            className="w-full h-full object-cover"
-            loading="lazy"
+            fill
+            unoptimized
+            className="object-cover"
           />
           
           {/* Gradient overlay */}

@@ -1,9 +1,16 @@
 import type { NextRequest } from 'next/server';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { getIntegrationCoreBaseUrl } from '@/lib/integration-core';
+import { defaultBringLiveEnabled, getRuntimeConfig } from '@/lib/runtime-config';
 import { z } from 'zod';
 
-// Define TypeScript interfaces for the request body and the Bring API response
+export type ShippingPackage = {
+  length: number;
+  width: number;
+  height: number;
+  grossWeight: number;
+};
+
 export interface BringShippingRequestBody {
   language: string;
   withPrice: boolean;
@@ -13,18 +20,71 @@ export interface BringShippingRequestBody {
   edi: boolean;
   postingAtPostOffice: boolean;
   trace: boolean;
-  consignments: Array<any >;
-  productSpecifications: {
-    length: number;
-    width: number;
-    height: number;
-    grossWeight: number;
-  };
+  consignments: unknown[];
+  productSpecifications?: ShippingPackage;
 }
 
 interface BringApiResponse {
-  // Define the structure based on the Bring API response
-  consignments: Array<any>; // Simplified for example purposes
+  consignments: unknown[];
+}
+
+type IntegrationCoreBody = {
+  fromCountryCode?: string;
+  toCountryCode?: string;
+  fromPostalCode: string;
+  toPostalCode: string;
+  packages: ShippingPackage[];
+  language?: string;
+  customerNumber?: string;
+};
+
+const IntegrationCoreRequestSchema = z
+  .object({
+    fromCountryCode: z.string().trim().min(2).max(2).optional(),
+    toCountryCode: z.string().trim().min(2).max(2).optional(),
+    fromPostalCode: z.string().trim().min(1).max(16),
+    toPostalCode: z.string().trim().min(1).max(16),
+    packages: z
+      .array(
+        z.object({
+          length: z.coerce.number().finite().positive(),
+          width: z.coerce.number().finite().positive(),
+          height: z.coerce.number().finite().positive(),
+          grossWeight: z.coerce.number().finite().positive(),
+        })
+      )
+      .min(1)
+      .max(100),
+    language: z.string().trim().min(2).max(10).optional(),
+    customerNumber: z.string().trim().min(1).max(32).optional(),
+  })
+  .passthrough();
+
+const LegacyBringShippingSchema = z
+  .object({
+    language: z.string().trim().min(2).max(10).optional(),
+    consignments: z.array(z.unknown()).min(1).max(100),
+  })
+  .passthrough();
+
+const BringShippingInputSchema = z.union([
+  IntegrationCoreRequestSchema,
+  LegacyBringShippingSchema,
+]);
+
+type BringShippingInput = z.infer<typeof BringShippingInputSchema>;
+
+type LegacyConsignment = {
+  fromCountryCode?: string;
+  toCountryCode?: string;
+  fromPostalCode?: string;
+  toPostalCode?: string;
+  packages?: unknown;
+};
+
+function asObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object') return null;
+  return value as Record<string, unknown>;
 }
 
 const bringApiUID = process.env.BRING_SHIPPING_API_UID;
@@ -33,59 +93,29 @@ const bringApiKey = process.env.BRING_SHIPPING_API_KEY;
 function normalizePackages(input: unknown) {
   if (!Array.isArray(input)) return [];
   return input
-    .map((p: any) => ({
-      length: Number(p?.length ?? 0),
-      width: Number(p?.width ?? 0),
-      height: Number(p?.height ?? 0),
-      grossWeight: Number(p?.grossWeight ?? 0),
-    }))
+    .map((item) => {
+      const pkg = asObject(item);
+      return {
+        length: Number(pkg?.length ?? 0),
+        width: Number(pkg?.width ?? 0),
+        height: Number(pkg?.height ?? 0),
+        grossWeight: Number(pkg?.grossWeight ?? 0),
+      };
+    })
     .filter((p) => Number.isFinite(p.length) && p.length > 0)
     .filter((p) => Number.isFinite(p.width) && p.width > 0)
     .filter((p) => Number.isFinite(p.height) && p.height > 0)
-    .filter((p) => Number.isFinite(p.grossWeight) && p.grossWeight > 0);
+    .filter((p) => Number.isFinite(p.grossWeight) && p.grossWeight > 0) as ShippingPackage[];
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const bodyResult = await parseJsonOrError(
-      req,
-      z
-        .union([
-          // Normalized Integration Core request shape
-          z
-            .object({
-              fromCountryCode: z.string().trim().min(2).max(2).optional(),
-              toCountryCode: z.string().trim().min(2).max(2).optional(),
-              fromPostalCode: z.string().trim().min(1).max(16),
-              toPostalCode: z.string().trim().min(1).max(16),
-              packages: z
-                .array(
-                  z.object({
-                    length: z.coerce.number().finite().positive(),
-                    width: z.coerce.number().finite().positive(),
-                    height: z.coerce.number().finite().positive(),
-                    grossWeight: z.coerce.number().finite().positive(),
-                  })
-                )
-                .min(1)
-                .max(100),
-              language: z.string().trim().min(2).max(10).optional(),
-              customerNumber: z.string().trim().min(1).max(32).optional(),
-            })
-            .passthrough(),
-
-          // Legacy Bring Shipping Guide request shape (consignments etc)
-          z
-            .object({
-              language: z.string().trim().min(2).max(10).optional(),
-              consignments: z.array(z.any()).min(1).max(100),
-            })
-            .passthrough(),
-        ])
-    );
+    const bodyResult = await parseJsonOrError(req, BringShippingInputSchema);
     if (!bodyResult.ok) return bodyResult.response;
 
-    const body: any = bodyResult.data;
+    const body: BringShippingInput = bodyResult.data;
+    const runtime = await getRuntimeConfig();
+    const bringLiveEnabled = runtime.bringLiveEnabled ?? defaultBringLiveEnabled();
 
     // Prefer Integration Core backend service (mock/live Bring), then optionally fall back to calling Bring directly.
     const coreBaseUrl = process.env.INTEGRATION_CORE_URL || getIntegrationCoreBaseUrl();
@@ -93,34 +123,60 @@ export async function POST(req: NextRequest) {
       ? `${coreBaseUrl.replace(/\/+$/, '')}/v1/shipping/bring/products`
       : '';
 
-    const firstConsignment = Array.isArray(body?.consignments) ? body.consignments[0] : null;
+    const firstConsignment = Array.isArray(body?.consignments)
+      ? (body.consignments[0] as LegacyConsignment | undefined)
+      : undefined;
 
-    const fromCountryCode = (body?.fromCountryCode || firstConsignment?.fromCountryCode || 'NO').toString();
-    const toCountryCode = (body?.toCountryCode || firstConsignment?.toCountryCode || 'NO').toString();
-    const fromPostalCode = (body?.fromPostalCode || firstConsignment?.fromPostalCode || '').toString();
-    const toPostalCode = (body?.toPostalCode || firstConsignment?.toPostalCode || '').toString();
-    const packages = normalizePackages(body?.packages || firstConsignment?.packages);
+    const fromCountryCode = (
+      ('fromCountryCode' in body ? body.fromCountryCode : undefined) ||
+      firstConsignment?.fromCountryCode ||
+      'NO'
+    ).toString();
+    const toCountryCode = (
+      ('toCountryCode' in body ? body.toCountryCode : undefined) ||
+      firstConsignment?.toCountryCode ||
+      'NO'
+    ).toString();
+    const fromPostalCode = (
+      ('fromPostalCode' in body ? body.fromPostalCode : undefined) ||
+      firstConsignment?.fromPostalCode ||
+      ''
+    ).toString();
+    const toPostalCode = (
+      ('toPostalCode' in body ? body.toPostalCode : undefined) ||
+      firstConsignment?.toPostalCode ||
+      ''
+    ).toString();
+    const packages = normalizePackages(
+      ('packages' in body ? body.packages : undefined) || firstConsignment?.packages
+    );
 
-    const language = (body?.language || 'en').toString();
-    const customerNumber = (body?.customerNumber || '5').toString();
+    const language = (body.language || 'en').toString();
+    const customerNumber = (
+      ('customerNumber' in body ? body.customerNumber : undefined) ||
+      (bringLiveEnabled ? process.env.BRING_CUSTOMER_NUMBER : undefined) ||
+      '5'
+    ).toString();
 
     if (coreUrl && fromPostalCode && toPostalCode && packages.length > 0) {
+      const coreRequestBody: IntegrationCoreBody = {
+        fromCountryCode,
+        toCountryCode,
+        fromPostalCode,
+        toPostalCode,
+        packages,
+        language,
+        customerNumber,
+      };
+
       const response = await fetch(coreUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fromCountryCode,
-          toCountryCode,
-          fromPostalCode,
-          toPostalCode,
-          packages,
-          language,
-          customerNumber,
-        }),
+        body: JSON.stringify(coreRequestBody),
         cache: 'no-store',
       });
 
-      const result = await response.json().catch(() => null);
+      const result = await response.json().catch(() => null) as { error?: string } | null;
       if (response.ok) {
         return new Response(JSON.stringify(result), {
           status: 200,
@@ -154,7 +210,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const requestBody: BringShippingRequestBody = body;
+    const requestBody: BringShippingRequestBody = body as unknown as BringShippingRequestBody;
 
     // Prefer actual request origin if available; fallback to a reasonable default.
     const fallbackClientUrl =

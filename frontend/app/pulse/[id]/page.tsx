@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { dbPrisma } from '@/lib/db';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { FiArrowLeft } from 'react-icons/fi';
@@ -154,9 +155,12 @@ export default async function PulsePage({ params }: PulsePageProps) {
         <div className="flex items-center gap-3 mb-5">
           <div className="relative">
             {author?.image ? (
-              <img
+              <Image
                 src={author.image}
                 alt={authorName}
+                width={44}
+                height={44}
+                unoptimized
                 className="w-11 h-11 rounded-full ring-2 ring-background shadow-md object-cover"
               />
             ) : (

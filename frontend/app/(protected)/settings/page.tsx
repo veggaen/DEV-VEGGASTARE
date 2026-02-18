@@ -30,16 +30,21 @@ import { useUiPreferences } from '@/components/providers/ui-preferences';
 import { useEdgeStore } from '@/lib/edgestore';
 import { FancyBackground } from '@/components/uicustom/fancy-background';
 import { NotificationSettings as NotificationSettingsComponent } from '@/components/uicustom/notifications/notification-settings';
+import { exportMyData } from '@/actions/gdpr-data-export';
+import { requestAccountDeletion, cancelAccountDeletion } from '@/actions/gdpr-account-deletion';
 import type { NotificationSettings as NotificationSettingsType, NotificationMute } from '@/components/uicustom/notifications/types';
 import { CurrencySelector, useCurrency, FIAT_CURRENCIES, CRYPTO_CURRENCIES } from '@/components/uicustom/currency-selector';
 import { VerificationDashboard } from '@/components/uicustom/verification-dashboard';
+import { useAddresses, type Address } from '@/hooks/use-addresses';
+import type { AddressLabel } from '@/generated/prisma/browser';
 import AppKitButton from '@/components/crypto-related/AppKitButton';
 import EvmWalletVerify from '@/components/crypto-related/EvmWalletVerify';
 import EvmWalletList from '@/components/crypto-related/EvmWalletList';
 import { 
   FiUser, FiLock, FiMail, FiBell, FiShield, FiSave, 
   FiEdit2, FiX, FiCheck, FiImage, FiChevronRight, FiCamera, FiUpload,
-  FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity, FiSliders, FiDollarSign, FiKey
+  FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity, FiSliders, FiDollarSign, FiKey, FiMapPin,
+  FiDownload, FiTrash2, FiAlertTriangle, FiFlag
 } from 'react-icons/fi';
 import {
   Chart as ChartJS,
@@ -67,12 +72,12 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
-  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'wallet' | 'notifications' | 'privacy' | 'appearance' | 'currency' | 'verification' | 'ai'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'account' | 'security' | 'wallet' | 'notifications' | 'privacy' | 'appearance' | 'currency' | 'verification' | 'ai' | 'addresses'>('profile');
   
   // Read section from URL params (e.g. /settings?section=notifications)
   useEffect(() => {
     const sectionParam = searchParams.get('section');
-    if (sectionParam && ['profile', 'account', 'security', 'wallet', 'notifications', 'privacy', 'appearance', 'currency', 'verification', 'ai'].includes(sectionParam)) {
+    if (sectionParam && ['profile', 'account', 'security', 'wallet', 'notifications', 'privacy', 'appearance', 'currency', 'verification', 'ai', 'addresses'].includes(sectionParam)) {
       setActiveSection(sectionParam as typeof activeSection);
     }
   }, [searchParams]);
@@ -135,7 +140,7 @@ export default function SettingsPage() {
   }, [user?.id]);
 
   // Image validation helper
-  const validateImageFile = (file: File): boolean => {
+  const validateImageFile = useCallback((file: File): boolean => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       toast.error('Please upload a valid image file (JPG, PNG, GIF, or WebP)');
@@ -146,10 +151,10 @@ export default function SettingsPage() {
       return false;
     }
     return true;
-  };
+  }, []);
 
   // Upload image and return URL (doesn't save to profile yet)
-  const uploadImage = async (file: File): Promise<string | null> => {
+  const uploadImage = useCallback(async (file: File): Promise<string | null> => {
     try {
       const res = await edgestore.myPublicImages.upload({ file });
       return res.url;
@@ -158,7 +163,7 @@ export default function SettingsPage() {
       toast.error('Failed to upload image');
       return null;
     }
-  };
+  }, [edgestore]);
 
   // Handle banner file selection (from input, paste, or drop)
   const handleBannerFile = useCallback(async (file: File) => {
@@ -171,7 +176,7 @@ export default function SettingsPage() {
       toast.success('Banner preview ready! Click Save to apply.');
     }
     setIsUploadingBanner(false);
-  }, []);
+  }, [uploadImage, validateImageFile]);
 
   // Handle avatar file selection (from input, paste, or drop)
   const handleAvatarFile = useCallback(async (file: File) => {
@@ -184,7 +189,7 @@ export default function SettingsPage() {
       toast.success('Avatar preview ready! Click Save to apply.');
     }
     setIsUploadingAvatar(false);
-  }, []);
+  }, [uploadImage, validateImageFile]);
 
   // Handle file input change
   const handleAvatarInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -358,6 +363,7 @@ export default function SettingsPage() {
     { id: 'wallet', label: 'Web3 & Wallet', icon: FiKey, description: 'Connect wallets & crypto' },
     { id: 'verification', label: 'Verification', icon: FiTrendingUp, description: 'Trust level & Reach multiplier' },
     { id: 'ai', label: 'AI Keys', icon: FiKey, description: 'Bring your own AI key' },
+    { id: 'addresses', label: 'Addresses', icon: FiMapPin, description: 'Saved shipping addresses' },
     { id: 'notifications', label: 'Notifications', icon: FiBell, description: 'Email and push notifications' },
     { id: 'privacy', label: 'Privacy', icon: FiLock, description: 'Control your data and visibility' },
   ] as const;
@@ -1050,6 +1056,10 @@ export default function SettingsPage() {
                 <AiKeysSettings />
               )}
 
+              {activeSection === 'addresses' && (
+                <AddressesSettings />
+              )}
+
               {activeSection === 'privacy' && (
                 <PrivacySettings />
               )}
@@ -1445,14 +1455,303 @@ function PrivacySettings() {
         </div>
       </div>
 
-      <div className="pt-4 border-t border-border dark:border-white/10">
-        <Button variant="destructive" className="bg-red-600 hover:bg-red-500">
-          Delete Account
-        </Button>
-        <p className="text-xs text-muted-foreground dark:text-white/40 mt-2">
-          This action is irreversible. All your data will be permanently deleted.
-        </p>
+      {/* GDPR — Data Export */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Dine data (GDPR)</h3>
+        <DataExportCard />
       </div>
+
+      {/* GDPR — Account Deletion */}
+      <div className="pt-4 border-t border-border dark:border-white/10">
+        <AccountDeletionCard />
+      </div>
+
+      {/* My Reports */}
+      <div className="pt-4 border-t border-border dark:border-white/10 space-y-2">
+        <MyReportsCard />
+      </div>
+    </div>
+  );
+}
+
+/** GDPR data export card */
+function DataExportCard() {
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const result = await exportMyData();
+      if (!result.success) {
+        toast.error(result.error || 'Feil ved eksport.');
+        return;
+      }
+      // Download as JSON file
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `veggat-mine-data-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Data eksportert og lastet ned.');
+    } catch {
+      toast.error('Noe gikk galt.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10 space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="p-2 rounded-lg bg-blue-500/10 dark:bg-blue-500/20">
+          <FiDownload className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        </div>
+        <div className="flex-1">
+          <div className="font-medium text-foreground dark:text-white/90">Last ned dine data</div>
+          <div className="text-sm text-muted-foreground dark:text-white/40">
+            Eksporter all personlig informasjon vi har om deg som JSON-fil (GDPR Art. 15/20).
+          </div>
+        </div>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleExport}
+        disabled={isExporting}
+        className="gap-2"
+      >
+        <FiDownload className="h-4 w-4" />
+        {isExporting ? 'Eksporterer...' : 'Last ned mine data'}
+      </Button>
+    </div>
+  );
+}
+
+/** GDPR account deletion card with grace period */
+function AccountDeletionCard() {
+  const [pendingDeletion, setPendingDeletion] = useState<{ scheduledFor: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  // Check for pending deletion on mount
+  useEffect(() => {
+    fetch('/api/users/deletion-status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.pending) setPendingDeletion({ scheduledFor: data.scheduledFor });
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const handleRequest = async () => {
+    if (confirmText !== 'SLETT') return;
+    setIsRequesting(true);
+    try {
+      const result = await requestAccountDeletion();
+      if (result.success) {
+        toast.success('Slettingsforespørsel registrert. Du har 30 dager til å angre.');
+        setPendingDeletion({ scheduledFor: new Date(Date.now() + 30 * 86400000).toISOString() });
+        setShowConfirm(false);
+        setConfirmText('');
+      } else {
+        toast.error(result.error || 'Feil.');
+      }
+    } catch {
+      toast.error('Noe gikk galt.');
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    setIsCancelling(true);
+    try {
+      const result = await cancelAccountDeletion();
+      if (result.success) {
+        toast.success('Slettingsforespørsel kansellert.');
+        setPendingDeletion(null);
+      } else {
+        toast.error(result.error || 'Feil.');
+      }
+    } catch {
+      toast.error('Noe gikk galt.');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  if (isLoading) return null;
+
+  if (pendingDeletion) {
+    const scheduledDate = new Date(pendingDeletion.scheduledFor);
+    return (
+      <div className="rounded-xl bg-red-500/5 border border-red-500/20 p-4 dark:bg-red-500/10 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-red-500/10 dark:bg-red-500/20">
+            <FiAlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+          </div>
+          <div className="flex-1">
+            <div className="font-medium text-red-600 dark:text-red-400">Kontoen din er planlagt for sletting</div>
+            <div className="text-sm text-muted-foreground dark:text-white/40">
+              Kontoen og all personlig data slettes permanent{' '}
+              <strong className="text-foreground dark:text-white/80">{scheduledDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>.
+              Du kan angre innen denne fristen.
+            </div>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCancel}
+          disabled={isCancelling}
+          className="gap-2"
+        >
+          {isCancelling ? 'Kansellerer...' : 'Avbryt sletting'}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10 space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="p-2 rounded-lg bg-red-500/10 dark:bg-red-500/20">
+          <FiTrash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
+        </div>
+        <div className="flex-1">
+          <div className="font-medium text-foreground dark:text-white/90">Slett konto</div>
+          <div className="text-sm text-muted-foreground dark:text-white/40">
+            Slett all personlig data permanent (GDPR Art. 17). Vi gir deg 30 dager til å angre.
+            Ordrehistorikk anonymiseres i henhold til bokføringsloven.
+          </div>
+        </div>
+      </div>
+      
+      {showConfirm ? (
+        <div className="space-y-2">
+          <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+            Skriv <code className="bg-red-500/10 px-1.5 py-0.5 rounded">SLETT</code> for å bekrefte:
+          </p>
+          <div className="flex items-center gap-2">
+            <Input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="SLETT"
+              className="max-w-[120px]"
+            />
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleRequest}
+              disabled={confirmText !== 'SLETT' || isRequesting}
+            >
+              {isRequesting ? 'Sender...' : 'Bekreft sletting'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => { setShowConfirm(false); setConfirmText(''); }}>
+              Avbryt
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => setShowConfirm(true)}
+          className="gap-2"
+        >
+          <FiTrash2 className="h-4 w-4" />
+          Slett min konto
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** My content reports card */
+function MyReportsCard() {
+  const [reports, setReports] = useState<{ id: string; contentType: string; reason: string; status: string; createdAt: string }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/users/my-reports')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setReports(data);
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const statusLabels: Record<string, { label: string; class: string }> = {
+    PENDING: { label: 'Venter', class: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+    IN_REVIEW: { label: 'Under vurdering', class: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+    RESOLVED: { label: 'Behandlet', class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+    DISMISSED: { label: 'Avvist', class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400' },
+  };
+
+  const reasonLabels: Record<string, string> = {
+    ILLEGAL_CONTENT: 'Ulovlig innhold',
+    HATE_SPEECH: 'Hatefulle ytringer',
+    HARASSMENT: 'Trakassering',
+    VIOLENCE: 'Vold/trusler',
+    SEXUAL_CONTENT: 'Seksuelt innhold',
+    CHILD_EXPLOITATION: 'Overgrep mot barn',
+    SPAM: 'Spam',
+    SCAM: 'Svindel',
+    IMPERSONATION: 'Etterligning',
+    COPYRIGHT_INFRINGEMENT: 'Opphavsrett',
+    MISINFORMATION: 'Villedende info',
+    PLATFORM_MANIPULATION: 'Manipulering',
+    OTHER: 'Annet',
+  };
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Mine rapporter</h3>
+      
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Laster...</p>
+      ) : reports.length === 0 ? (
+        <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center gap-3">
+            <FiFlag className="h-5 w-5 text-muted-foreground" />
+            <div className="text-sm text-muted-foreground dark:text-white/40">
+              Du har ikke rapportert noe innhold ennå.
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {reports.map((report) => {
+            const status = statusLabels[report.status] || statusLabels.PENDING;
+            return (
+              <div key={report.id} className="rounded-xl bg-white/70 border border-border p-3 dark:bg-white/5 dark:border-white/10 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-foreground dark:text-white/90">{reasonLabels[report.reason] || report.reason}</span>
+                    <span className="text-muted-foreground dark:text-white/40">·</span>
+                    <span className="text-muted-foreground dark:text-white/40 capitalize">{report.contentType.toLowerCase()}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground dark:text-white/30 mt-0.5">
+                    {new Date(report.createdAt).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </div>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${status.class}`}>
+                  {status.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -2056,6 +2355,270 @@ function CurrencySettings() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// ADDRESS BOOK SETTINGS
+// =============================================================================
+
+function AddressesSettings() {
+  const {
+    addresses,
+    isLoading,
+    isCreating,
+    isDeleting,
+    error,
+    createAddress,
+    updateAddress,
+    deleteAddress,
+    setDefaultAddress,
+  } = useAddresses();
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Form state
+  const emptyForm = {
+    label: 'HOME' as AddressLabel,
+    customLabel: '',
+    addressLine1: '',
+    addressLine2: '',
+    postalCode: '',
+    city: '',
+    municipality: '',
+    county: '',
+    country: 'NO',
+    isDefault: false,
+  };
+  const [form, setForm] = useState(emptyForm);
+
+  const startEdit = (addr: Address) => {
+    setEditId(addr.id);
+    setForm({
+      label: addr.label,
+      customLabel: addr.customLabel || '',
+      addressLine1: addr.addressLine1,
+      addressLine2: addr.addressLine2 || '',
+      postalCode: addr.postalCode,
+      city: addr.city,
+      municipality: addr.municipality || '',
+      county: addr.county || '',
+      country: addr.country,
+      isDefault: addr.isDefault,
+    });
+    setShowAdd(false);
+  };
+
+  const cancelEdit = () => {
+    setEditId(null);
+    setForm(emptyForm);
+  };
+
+  const startAdd = () => {
+    setEditId(null);
+    setForm(emptyForm);
+    setShowAdd(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.addressLine1 || !form.postalCode || !form.city) return;
+    const data = {
+      label: form.label,
+      customLabel: form.label === 'OTHER' ? form.customLabel : undefined,
+      addressLine1: form.addressLine1,
+      addressLine2: form.addressLine2 || undefined,
+      postalCode: form.postalCode,
+      city: form.city,
+      municipality: form.municipality || undefined,
+      county: form.county || undefined,
+      country: form.country,
+      isDefault: form.isDefault,
+    };
+
+    if (editId) {
+      const res = await updateAddress(editId, data);
+      if (res) { cancelEdit(); toast.success('Address updated'); }
+    } else {
+      const res = await createAddress(data);
+      if (res) { setShowAdd(false); setForm(emptyForm); toast.success('Address saved'); }
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const ok = await deleteAddress(id);
+    if (ok) { setDeleteConfirmId(null); toast.success('Address deleted'); }
+  };
+
+  const labelIcon = (l: AddressLabel) => {
+    const map: Record<AddressLabel, string> = { HOME: '🏠', WORK: '🏢', WAREHOUSE: '📦', PICKUP_POINT: '📍', OTHER: '📌' };
+    return map[l] || '📌';
+  };
+  const labelText = (l: AddressLabel, c?: string | null) => {
+    const map: Record<AddressLabel, string> = { HOME: 'Home', WORK: 'Work', WAREHOUSE: 'Warehouse', PICKUP_POINT: 'Pickup', OTHER: c || 'Other' };
+    return map[l] || c || 'Address';
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-20 rounded-lg bg-muted/50" />
+        ))}
+      </div>
+    );
+  }
+
+  const renderAddressForm = () => (
+    <div className="space-y-4 p-4 border border-border dark:border-white/10 rounded-lg bg-white/50 dark:bg-white/5">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2 sm:col-span-1">
+          <Label className="text-sm text-muted-foreground mb-1 block">Type</Label>
+          <Select value={form.label} onValueChange={(v) => setForm({ ...form, label: v as AddressLabel })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="HOME">🏠 Home</SelectItem>
+              <SelectItem value="WORK">🏢 Work</SelectItem>
+              <SelectItem value="WAREHOUSE">📦 Warehouse</SelectItem>
+              <SelectItem value="PICKUP_POINT">📍 Pickup Point</SelectItem>
+              <SelectItem value="OTHER">📌 Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {form.label === 'OTHER' && (
+          <div className="col-span-2 sm:col-span-1">
+            <Label className="text-sm text-muted-foreground mb-1 block">Custom label</Label>
+            <Input value={form.customLabel} onChange={(e) => setForm({ ...form, customLabel: e.target.value })} placeholder="e.g., Mom's house" />
+          </div>
+        )}
+        <div className="col-span-2">
+          <Label className="text-sm text-muted-foreground mb-1 block">Street address *</Label>
+          <Input value={form.addressLine1} onChange={(e) => setForm({ ...form, addressLine1: e.target.value })} placeholder="Karl Johans gate 1" />
+        </div>
+        <div className="col-span-2">
+          <Label className="text-sm text-muted-foreground mb-1 block">Apartment / floor</Label>
+          <Input value={form.addressLine2} onChange={(e) => setForm({ ...form, addressLine2: e.target.value })} placeholder="H0301" />
+        </div>
+        <div>
+          <Label className="text-sm text-muted-foreground mb-1 block">Postal code *</Label>
+          <Input value={form.postalCode} onChange={(e) => setForm({ ...form, postalCode: e.target.value })} placeholder="0154" maxLength={4} />
+        </div>
+        <div>
+          <Label className="text-sm text-muted-foreground mb-1 block">City *</Label>
+          <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Oslo" />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Switch checked={form.isDefault} onCheckedChange={(v) => setForm({ ...form, isDefault: v })} id="addr-default" />
+        <Label htmlFor="addr-default" className="text-sm cursor-pointer">Default shipping address</Label>
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        <Button onClick={handleSave} disabled={isCreating || !form.addressLine1 || !form.postalCode || !form.city} size="sm">
+          <FiSave className="h-4 w-4 mr-1.5" />
+          {editId ? 'Update' : 'Save'}
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => { setShowAdd(false); cancelEdit(); }}>
+          <FiX className="h-4 w-4 mr-1.5" />
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Addresses</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Manage saved addresses for faster checkout. Max 10 addresses.
+          </p>
+        </div>
+        {!showAdd && !editId && (
+          <Button onClick={startAdd} size="sm" disabled={addresses.length >= 10}>
+            <FiEdit2 className="h-4 w-4 mr-1.5" />
+            Add address
+          </Button>
+        )}
+      </div>
+
+      {error && <p className="text-sm text-red-500">{error}</p>}
+
+      {showAdd && renderAddressForm()}
+
+      {addresses.length === 0 && !showAdd && (
+        <div className="text-center py-8 text-muted-foreground">
+          <FiMapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p>No saved addresses yet.</p>
+          <p className="text-xs mt-1">Add an address for faster checkout.</p>
+        </div>
+      )}
+
+      {addresses.map((addr) => (
+        <div
+          key={addr.id}
+          className="flex items-start justify-between p-4 border border-border dark:border-white/10 rounded-lg bg-white/50 dark:bg-white/5"
+        >
+          {editId === addr.id ? (
+            <div className="w-full">
+              {renderAddressForm()}
+            </div>
+          ) : (
+            <>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">{labelIcon(addr.label)}</span>
+                  <span className="font-medium text-foreground">
+                    {labelText(addr.label, addr.customLabel)}
+                  </span>
+                  {addr.isDefault && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
+                      Default
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {addr.addressLine1}
+                  {addr.addressLine2 ? `, ${addr.addressLine2}` : ''}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {addr.postalCode} {addr.city}, {addr.country}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1 ml-3 shrink-0">
+                {!addr.isDefault && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDefaultAddress(addr.id)} title="Set as default">
+                    ⭐
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(addr)} title="Edit">
+                  <FiEdit2 className="h-4 w-4" />
+                </Button>
+
+                {deleteConfirmId === addr.id ? (
+                  <div className="flex items-center gap-1">
+                    <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => handleDelete(addr.id)} disabled={isDeleting}>
+                      <FiCheck className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteConfirmId(null)}>
+                      <FiX className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmId(addr.id)} title="Delete">
+                    🗑️
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

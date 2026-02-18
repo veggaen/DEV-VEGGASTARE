@@ -1,13 +1,40 @@
 import { getIntegrationCoreBaseUrl } from "@/lib/integration-core";
 
+type InputPackage = {
+  length?: number;
+  width?: number;
+  height?: number;
+  grossWeight?: number;
+};
 
-export async function fetchBringShippingDetails(requestData: any): Promise<any> {
+type ShippingRequestData = {
+  packages?: InputPackage[];
+  fromPostalCode?: string;
+  toPostalCode?: string;
+  customerNumber?: string;
+};
+
+type CoreOrLegacyResponse = Record<string, unknown>;
+
+type ErrorWithCause = Error & {
+  cause?: {
+    code?: string;
+  };
+};
+
+function isConnectionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const err = error as ErrorWithCause;
+  return err.cause?.code === "ECONNREFUSED" || err.message.includes("fetch failed");
+}
+
+export async function fetchBringShippingDetails(requestData: ShippingRequestData): Promise<CoreOrLegacyResponse | null> {
 
     const rawPackages = Array.isArray(requestData?.packages) && requestData.packages.length > 0
       ? requestData.packages
       : [{ length: 10, width: 10, height: 10, grossWeight: 300 }];
 
-    const packages = rawPackages.map((p: any, idx: number) => ({
+    const packages = rawPackages.map((p, idx: number) => ({
       id: String(idx + 1),
       length: Number(p?.length ?? 10),
       width: Number(p?.width ?? 10),
@@ -27,8 +54,7 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
       toPostalCode,
       packages,
       language: "en",
-      // Bring testing: customerNumber "5"/"6"/"7" can unlock dummy pricing for some services.
-      customerNumber: "5",
+      customerNumber: requestData?.customerNumber,
     };
 
     // Legacy fallback path: call Next route that proxies Bring Shipping Guide directly.
@@ -73,12 +99,12 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
               },
               body: JSON.stringify(coreRequestBody),
             });
-          } catch (networkError: any) {
+          } catch (networkError: unknown) {
             // Backend service unavailable, fall back to legacy API route
             console.warn('[fetch-bring-shipping-details] Integration Core unavailable, using legacy API:', networkError);
             
             // Check if it's a connection refused error (backend not running)
-            if (networkError?.cause?.code === 'ECONNREFUSED' || networkError?.message?.includes('fetch failed')) {
+            if (isConnectionError(networkError)) {
               throw new ShippingError(
                 'BACKEND_UNAVAILABLE',
                 'The shipping service is currently unavailable. Please try again later.'
@@ -117,9 +143,9 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
                 });
                 const legacyResult = await legacyResponse.json().catch(() => null);
                 if (legacyResponse.ok) return legacyResult;
-              } catch (legacyError: any) {
+              } catch (legacyError: unknown) {
                 // Both services failed
-                if (legacyError?.cause?.code === 'ECONNREFUSED') {
+                if (isConnectionError(legacyError)) {
                   throw new ShippingError(
                     'BACKEND_UNAVAILABLE',
                     'The shipping service is currently unavailable. Please try again later.'
@@ -140,7 +166,7 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
         }
 
         return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('There was an error fetching the shipping details:', error);
         
         // Re-throw ShippingError as-is
@@ -149,7 +175,7 @@ export async function fetchBringShippingDetails(requestData: any): Promise<any> 
         }
         
         // Handle connection errors
-        if (error?.cause?.code === 'ECONNREFUSED' || error?.message?.includes('fetch failed')) {
+        if (isConnectionError(error)) {
           throw new ShippingError(
             'BACKEND_UNAVAILABLE',
             'The shipping service is currently unavailable. Please try again later.'

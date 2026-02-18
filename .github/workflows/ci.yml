@@ -21,7 +21,6 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
-      picoclaw: ${{ steps.filter.outputs.picoclaw }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -33,9 +32,6 @@ jobs:
               - '.github/workflows/ci.yml'
             backend:
               - 'backend/**'
-              - '.github/workflows/ci.yml'
-            picoclaw:
-              - 'picoclaw/**'
               - '.github/workflows/ci.yml'
 
   # ─── Frontend checks ───────────────────────────────────────
@@ -159,6 +155,7 @@ jobs:
           path: |
             node_modules/.prisma
             node_modules/@prisma/engines
+            src/generated/prisma
           key: prisma-backend-${{ runner.os }}-${{ hashFiles('backend/prisma/schema.prisma') }}
           restore-keys: prisma-backend-${{ runner.os }}-
 
@@ -170,19 +167,3 @@ jobs:
 
       # TypeScript: compile (backend uses tsc for build)
       - run: npx tsc --noEmit
-
-  # ─── PicoClaw sidecar (Docker build check) ─────────────────
-  picoclaw:
-    name: PicoClaw (docker build)
-    needs: changes
-    if: needs.changes.outputs.picoclaw == 'true'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Validate Dockerfile
-        run: docker build --check picoclaw/
-
-      - name: Validate config.json
-        run: python3 -c "import json; json.load(open('picoclaw/config.json'))"

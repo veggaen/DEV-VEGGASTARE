@@ -5,12 +5,12 @@
 // live only in the frontend schema and are NOT needed here.
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL_MAINLIVE")
 }
 
 // ─── Enums ───────────────────────────────────────────────────

@@ -11,6 +11,11 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
 
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { AddressSelector } from "@/components/uicustom/address-selector";
+import { ShippingMethodSelector } from "@/components/uicustom/shipping-method-selector";
+import type { SelectedShipping } from "@/components/uicustom/shipping-method-selector";
+import type { Address } from "@/hooks/use-addresses";
+import type { AddressData } from "@/components/uicustom/address-input";
 
 /* --- App contexts (already mounted in layout) --- */
 import { useActiveNetwork } from "@/components/crypto-related/ActiveNetworkContext";
@@ -31,15 +36,20 @@ import { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } f
 interface CartItem {
   id: string;
   quantity: number;
-  product: { id: string; title: string; price: number; image: string[] };
+  product: {
+    id: string;
+    title: string;
+    price: number;
+    image: string[];
+    productType?: string;
+    shipFromPostalId?: string;
+    freeShippingEnabled?: boolean;
+    freeShippingThreshold?: number | null;
+  };
 }
 
-interface ShippingForm {
+interface ShippingContact {
   name: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  country: string;
   phone: string;
   email: string;
 }
@@ -122,29 +132,83 @@ export default function CheckoutPage() {
   const [paymentTimeLeft, setPaymentTimeLeft] = useState(PAYMENT_TIMER_SECONDS);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  /* shipping form */
-  const [shipping, setShipping] = useState<ShippingForm>({
+  /* shipping — address book + contact */
+  const [selectedShipping, setSelectedShipping] = useState<SelectedShipping | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+  const [customAddress, setCustomAddress] = useState<Partial<AddressData>>({});
+  const [shippingContact, setShippingContact] = useState<ShippingContact>({
     name: "",
-    address: "",
-    city: "",
-    postalCode: "",
-    country: "NO",
     phone: "",
     email: user?.email ?? "",
   });
 
-  const isShippingValid = useMemo(() => {
-    return (
-      shipping.name.trim().length >= 2 &&
-      shipping.address.trim().length >= 3 &&
-      shipping.city.trim().length >= 2 &&
-      shipping.postalCode.trim().length >= 4 &&
-      shipping.email.includes("@")
-    );
-  }, [shipping]);
+  // Derived shipping fields from selected address OR custom address
+  const resolvedAddress = useMemo(() => {
+    if (selectedAddress) {
+      return {
+        addressLine1: selectedAddress.addressLine1,
+        postalCode: selectedAddress.postalCode,
+        city: selectedAddress.city,
+        country: selectedAddress.country,
+      };
+    }
+    if (customAddress?.addressLine1 && customAddress?.postalCode && customAddress?.city) {
+      return {
+        addressLine1: customAddress.addressLine1 + (customAddress.addressLine2 ? `, ${customAddress.addressLine2}` : ""),
+        postalCode: customAddress.postalCode,
+        city: customAddress.city,
+        country: customAddress.country || "NO",
+      };
+    }
+    return null;
+  }, [selectedAddress, customAddress]);
 
-  const updateShipping = (field: keyof ShippingForm, value: string) => {
-    setShipping((prev) => ({ ...prev, [field]: value }));
+  // Determine if all items are digital-only (no shipping needed)
+  const allDigital = useMemo(
+    () => items.length > 0 && items.every((it) => it.product.productType === "DIGITAL"),
+    [items]
+  );
+
+  // Get the first seller postal code from cart items (for shipping rate lookup)
+  const sellerPostalCode = useMemo(() => {
+    for (const it of items) {
+      if (it.product.shipFromPostalId) return it.product.shipFromPostalId;
+    }
+    return "4310"; // Fallback: Hommersåk (Veggat HQ)
+  }, [items]);
+
+  // NOK per USD for shipping cost conversion
+  const nokPerUsd = useMemo(() => {
+    if (rates.NOK?.usd) return 1 / rates.NOK.usd;
+    return 11.0;
+  }, [rates]);
+
+  const isShippingValid = useMemo(() => {
+    const baseValid =
+      resolvedAddress !== null &&
+      shippingContact.name.trim().length >= 2 &&
+      shippingContact.email.includes("@");
+    // Digital-only orders don't need a shipping method
+    if (allDigital) return baseValid;
+    // Physical orders need a selected shipping method
+    return baseValid && selectedShipping !== null;
+  }, [resolvedAddress, shippingContact, allDigital, selectedShipping]);
+
+  // Check if all items qualify for free shipping
+  const freeShipping = useMemo(() => {
+    if (allDigital) return true;
+    return items.every((it) => {
+      if (it.product.productType === "DIGITAL") return true;
+      if (it.product.freeShippingEnabled) {
+        if (!it.product.freeShippingThreshold) return true;
+        return it.product.price * it.quantity >= it.product.freeShippingThreshold;
+      }
+      return false;
+    });
+  }, [items, allDigital]);
+
+  const updateContact = (field: keyof ShippingContact, value: string) => {
+    setShippingContact((prev) => ({ ...prev, [field]: value }));
   };
 
   /* Payment countdown timer */
@@ -207,6 +271,18 @@ export default function CheckoutPage() {
     [items]
   );
 
+  // Shipping cost in USD (0 if free shipping or digital)
+  const shippingCostUSD = useMemo(() => {
+    if (allDigital || freeShipping) return 0;
+    return selectedShipping?.priceUSD ?? 0;
+  }, [allDigital, freeShipping, selectedShipping]);
+
+  // Grand total = subtotal + shipping
+  const grandTotalUSD = useMemo(
+    () => subtotalUSD + shippingCostUSD,
+    [subtotalUSD, shippingCostUSD]
+  );
+
   // price per native (USD per 1 native)
   const usdPerNative = useMemo(() => {
     if (nativeSymbol === "ETH") return rates.ETH?.usd ?? null;
@@ -217,8 +293,8 @@ export default function CheckoutPage() {
 
   // total to pay in native token, following the active network
   const totalInNative = useMemo(
-    () => convertFromUSD(subtotalUSD, "NATIVE"),
-    [subtotalUSD, convertFromUSD]
+    () => convertFromUSD(grandTotalUSD, "NATIVE"),
+    [grandTotalUSD, convertFromUSD]
   );
 
   /* sender/receiver addresses */
@@ -265,7 +341,7 @@ export default function CheckoutPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            totalAmount: subtotalUSD,
+            totalAmount: grandTotalUSD,
             transactionId: txHashValue,
             method: "CRYPTO_NATIVE",
             commentOrder: `${items.length} items`,
@@ -281,13 +357,15 @@ export default function CheckoutPage() {
             nokRateAtTime: nokRate ?? null,
             usdRateAtTime: usdRate ?? null,
             // Shipping info
-            shippingName: shipping.name,
-            shippingAddress: shipping.address,
-            shippingCity: shipping.city,
-            shippingPostalCode: shipping.postalCode,
-            shippingCountry: shipping.country,
-            shippingPhone: shipping.phone,
-            shippingEmail: shipping.email,
+            shippingName: shippingContact.name,
+            shippingAddress: resolvedAddress?.addressLine1 ?? "",
+            shippingCity: resolvedAddress?.city ?? "",
+            shippingPostalCode: resolvedAddress?.postalCode ?? "",
+            shippingCountry: resolvedAddress?.country ?? "NO",
+            shippingPhone: shippingContact.phone,
+            shippingEmail: shippingContact.email,
+            shippingMethod: selectedShipping?.serviceCode ?? null,
+            shippingCost: shippingCostUSD > 0 ? shippingCostUSD : null,
             // Cart items for OrderItem records
             items: items.map((it) => ({
               productId: it.product.id,
@@ -310,7 +388,7 @@ export default function CheckoutPage() {
         throw e;
       }
     },
-    [user?.id, items, subtotalUSD, networkLabel, shipping, active, nativeSymbol, usdPerNative, rates, totalInNative, senderAddress, receiverAddress]
+    [user?.id, items, grandTotalUSD, networkLabel, shippingContact, resolvedAddress, active, nativeSymbol, usdPerNative, rates, totalInNative, senderAddress, receiverAddress, selectedShipping, shippingCostUSD]
   );
 
   /** Confirm order after on-chain verification */
@@ -328,6 +406,76 @@ export default function CheckoutPage() {
       console.error("Order confirm error:", e);
     }
   }, []);
+
+  /**
+   * Book Bring shipment after payment succeeds.
+   * Non-blocking: failures are logged but don't break the order flow.
+   */
+  const bookShipment = useCallback(
+    async (orderId: string) => {
+      if (allDigital || !selectedShipping || !resolvedAddress) return;
+      try {
+        // 1. Create Bring booking
+        const bookRes = await fetch("/api/bring-booking", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sender: {
+              name: "Veggat",
+              address: "Blåskjellveien 5B",
+              postalCode: sellerPostalCode,
+              city: "Hommersåk",
+              countryCode: "NO",
+              email: "orders@veggat.com",
+            },
+            recipient: {
+              name: shippingContact.name,
+              address: resolvedAddress.addressLine1,
+              postalCode: resolvedAddress.postalCode,
+              city: resolvedAddress.city,
+              countryCode: resolvedAddress.country || "NO",
+              email: shippingContact.email || undefined,
+              phone: shippingContact.phone || undefined,
+            },
+            packages: [
+              {
+                weight: items.reduce((sum, it) => sum + it.quantity * 1000, 0), // grams
+                description: `Veggat order ${orderId}`,
+              },
+            ],
+            serviceCode: selectedShipping.serviceCode,
+            orderId,
+          }),
+        });
+
+        if (!bookRes.ok) {
+          console.warn("[checkout] Bring booking failed:", await bookRes.text());
+          return;
+        }
+
+        const booking = await bookRes.json();
+
+        // 2. Persist tracking info on order
+        if (booking.success && booking.booking) {
+          await fetch(`/api/orders/${orderId}/shipping`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              trackingNumber: booking.booking.consignmentNumber ?? null,
+              trackingUrl: booking.booking.trackingUrl ?? null,
+              bringConsignmentId: booking.booking.consignmentNumber ?? null,
+              shippingServiceName: selectedShipping.serviceName,
+              estimatedDelivery: selectedShipping.estimatedDelivery ?? null,
+            }),
+          });
+        }
+      } catch (e) {
+        // Non-blocking — order is already placed
+        console.error("[checkout] Bring booking error:", e);
+      }
+    },
+    [allDigital, selectedShipping, resolvedAddress, sellerPostalCode, shippingContact, items]
+  );
 
   async function handlePayEvmNative() {
     if (!walletClient || !publicClient) throw new Error("Wallet not connected");
@@ -361,6 +509,8 @@ export default function CheckoutPage() {
     // Confirm order after on-chain verification
     if (orderData?.id) {
       await confirmOrder(orderData.id, hash, Number(receipt.blockNumber));
+      // Book shipment (non-blocking — fires after order confirmed)
+      bookShipment(orderData.id);
     }
   }
 
@@ -406,6 +556,7 @@ export default function CheckoutPage() {
     // Confirm order
     if (orderData?.id) {
       await confirmOrder(orderData.id, sig);
+      bookShipment(orderData.id);
     }
   }
 
@@ -444,18 +595,20 @@ export default function CheckoutPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          totalAmount: subtotalUSD,
+          totalAmount: grandTotalUSD,
           transactionId: `fiat_${Date.now()}`,
           method: paymentMethod.toUpperCase(),
           commentOrder: `${items.length} items`,
           commentPay: `Fiat payment via ${paymentMethod}`,
-          shippingName: shipping.name,
-          shippingAddress: shipping.address,
-          shippingCity: shipping.city,
-          shippingPostalCode: shipping.postalCode,
-          shippingCountry: shipping.country,
-          shippingPhone: shipping.phone,
-          shippingEmail: shipping.email,
+          shippingName: shippingContact.name,
+          shippingAddress: resolvedAddress?.addressLine1 ?? "",
+          shippingCity: resolvedAddress?.city ?? "",
+          shippingPostalCode: resolvedAddress?.postalCode ?? "",
+          shippingCountry: resolvedAddress?.country ?? "NO",
+          shippingPhone: shippingContact.phone,
+          shippingEmail: shippingContact.email,
+          shippingMethod: selectedShipping?.serviceCode ?? null,
+          shippingCost: shippingCostUSD > 0 ? shippingCostUSD : null,
           items: items.map((it) => ({
             productId: it.product.id,
             quantity: it.quantity,
@@ -470,6 +623,9 @@ export default function CheckoutPage() {
       }
       const { order } = await orderRes.json();
 
+      // 1b. Book Bring shipment (non-blocking, fires in parallel with payment session)
+      if (order?.id) bookShipment(order.id);
+
       // 2. Create payment session with provider
       const sessionRes = await fetch("/api/payments", {
         method: "POST",
@@ -477,7 +633,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           orderId: order.id,
           provider: paymentMethod,
-          amount: Math.round(subtotalUSD * 100), // cents/øre
+          amount: Math.round(grandTotalUSD * 100), // cents/øre
           currency: paymentMethod === "vipps" ? "NOK" : "USD",
           returnUrl: `${window.location.origin}/order-confirmation?orderId=${order.id}`,
         }),
@@ -637,53 +793,30 @@ export default function CheckoutPage() {
           {/* Shipping Address Form */}
           <div className="mt-6 pt-6 border-t border-border dark:border-white/10">
             <h3 className="text-xl font-semibold mb-4 text-foreground">Shipping Address</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* Address Selector — saved addresses + Bring autocomplete */}
+            <AddressSelector
+              value={selectedAddress}
+              onChange={setSelectedAddress}
+              customAddress={customAddress}
+              onCustomAddressChange={setCustomAddress}
+              allowCustom
+              allowSave
+              label="Delivery address"
+              required
+            />
+
+            {/* Contact details — always shown alongside address picker */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-foreground mb-1">
                   Full name *
                 </label>
                 <input
                   type="text"
-                  value={shipping.name}
-                  onChange={(e) => updateShipping("name", e.target.value)}
-                  placeholder="John Doe"
-                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Street address *
-                </label>
-                <input
-                  type="text"
-                  value={shipping.address}
-                  onChange={(e) => updateShipping("address", e.target.value)}
-                  placeholder="123 Main Street"
-                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Postal code *
-                </label>
-                <input
-                  type="text"
-                  value={shipping.postalCode}
-                  onChange={(e) => updateShipping("postalCode", e.target.value)}
-                  placeholder="0001"
-                  maxLength={4}
-                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  City *
-                </label>
-                <input
-                  type="text"
-                  value={shipping.city}
-                  onChange={(e) => updateShipping("city", e.target.value)}
-                  placeholder="Oslo"
+                  value={shippingContact.name}
+                  onChange={(e) => updateContact("name", e.target.value)}
+                  placeholder="Ola Nordmann"
                   className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                 />
               </div>
@@ -693,8 +826,8 @@ export default function CheckoutPage() {
                 </label>
                 <input
                   type="tel"
-                  value={shipping.phone}
-                  onChange={(e) => updateShipping("phone", e.target.value)}
+                  value={shippingContact.phone}
+                  onChange={(e) => updateContact("phone", e.target.value)}
                   placeholder="+47 123 45 678"
                   className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                 />
@@ -705,18 +838,35 @@ export default function CheckoutPage() {
                 </label>
                 <input
                   type="email"
-                  value={shipping.email}
-                  onChange={(e) => updateShipping("email", e.target.value)}
-                  placeholder="your@email.com"
+                  value={shippingContact.email}
+                  onChange={(e) => updateContact("email", e.target.value)}
+                  placeholder="ola@example.com"
                   className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                 />
               </div>
             </div>
-            {!isShippingValid && (
+
+            {!isShippingValid && !selectedShipping && resolvedAddress && (
               <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
-                Please fill in all required fields (*) to continue
+                Please select or enter an address and fill in your name and email to continue
               </p>
             )}
+            {!isShippingValid && !resolvedAddress && (
+              <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
+                Please select or enter an address and fill in your name and email to continue
+              </p>
+            )}
+
+            {/* Shipping Method Selector — Bring live rates */}
+            <ShippingMethodSelector
+              fromPostalCode={sellerPostalCode}
+              toPostalCode={resolvedAddress?.postalCode ?? ""}
+              totalWeightGrams={items.reduce((sum, it) => sum + it.quantity * 1000, 0)}
+              nokPerUsd={nokPerUsd}
+              onSelect={setSelectedShipping}
+              selectedServiceCode={selectedShipping?.serviceCode}
+              allDigital={allDigital}
+            />
           </div>
         </motion.div>
 
@@ -735,10 +885,32 @@ export default function CheckoutPage() {
               <span className="text-foreground font-medium">${subtotalUSD.toFixed(2)}</span>
             </div>
 
+            {/* Shipping cost line */}
+            <div className="flex justify-between">
+              <span className="text-muted-foreground font-medium">Shipping:</span>
+              <span className="text-foreground font-medium">
+                {allDigital
+                  ? "Digital"
+                  : freeShipping
+                  ? "Free"
+                  : shippingCostUSD > 0
+                  ? `$${shippingCostUSD.toFixed(2)}`
+                  : "—"}
+              </span>
+            </div>
+            {selectedShipping && !allDigital && !freeShipping && (
+              <p className="text-xs text-muted-foreground -mt-2">
+                {selectedShipping.serviceName}
+                {selectedShipping.estimatedDelivery
+                  ? ` — est. ${new Date(selectedShipping.estimatedDelivery).toLocaleDateString("nb-NO", { day: "numeric", month: "short" })}`
+                  : ""}
+              </p>
+            )}
+
             <hr className="border-border dark:border-white/10 my-2" />
             <div className="flex justify-between font-bold text-xl">
               <span className="text-foreground">Total (USD)</span>
-              <span className="text-emerald-600 dark:text-emerald-400">${subtotalUSD.toFixed(2)}</span>
+              <span className="text-emerald-600 dark:text-emerald-400">${grandTotalUSD.toFixed(2)}</span>
             </div>
 
             {/* Payment Method Selector */}
@@ -787,7 +959,7 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total ({nativeSymbol})</span>
                   <span className="text-foreground font-medium">
-                    <PriceAmount usd={subtotalUSD} />
+                    <PriceAmount usd={grandTotalUSD} />
                   </span>
                 </div>
               </div>
@@ -865,7 +1037,7 @@ export default function CheckoutPage() {
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Amount</span>
                             <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                              <PriceAmount usd={subtotalUSD} />
+                              <PriceAmount usd={grandTotalUSD} />
                             </span>
                           </div>
                         </div>

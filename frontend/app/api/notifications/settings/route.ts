@@ -1,6 +1,43 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { dbPrisma as db } from "@/lib/db";
+import { z } from 'zod';
+
+const NotificationSettingsSchema = z.object({
+  // Global settings
+  pushEnabled: z.boolean().optional(),
+  emailEnabled: z.boolean().optional(),
+  soundEnabled: z.boolean().optional(),
+  vibrateEnabled: z.boolean().optional(),
+  // Quiet hours
+  quietHoursEnabled: z.boolean().optional(),
+  quietHoursStart: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  quietHoursEnd: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  quietHoursTimezone: z.string().max(100).optional(),
+  // Engagement toggles
+  heartbeatEnabled: z.boolean().optional(),
+  vibeEnabled: z.boolean().optional(),
+  repulseEnabled: z.boolean().optional(),
+  // Social toggles
+  syncEnabled: z.boolean().optional(),
+  mentionEnabled: z.boolean().optional(),
+  replyEnabled: z.boolean().optional(),
+  // Message toggles
+  dmEnabled: z.boolean().optional(),
+  groupMessageEnabled: z.boolean().optional(),
+  typingIndicatorEnabled: z.boolean().optional(),
+  // Trend toggles
+  hotPulseEnabled: z.boolean().optional(),
+  milestoneEnabled: z.boolean().optional(),
+  // Prompt toggles
+  vibeCheckEnabled: z.boolean().optional(),
+  dailyDigestEnabled: z.boolean().optional(),
+  // Condensing
+  condenseNotifications: z.boolean().optional(),
+  condenseThreshold: z.number().int().min(1).max(100).optional(),
+  // Premium
+  customSoundUrl: z.string().url().max(2048).optional().nullable(),
+}).strict();
 
 // GET /api/notifications/settings - Get user's notification settings
 export async function GET() {
@@ -41,51 +78,13 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    
-    // Only allow specific fields to be updated (matching schema)
-    const allowedFields = [
-      // Global settings
-      "pushEnabled",
-      "emailEnabled",
-      "soundEnabled",
-      "vibrateEnabled",
-      // Quiet hours
-      "quietHoursEnabled",
-      "quietHoursStart",
-      "quietHoursEnd",
-      "quietHoursTimezone",
-      // Engagement toggles
-      "heartbeatEnabled",
-      "vibeEnabled",
-      "repulseEnabled",
-      // Social toggles
-      "syncEnabled",
-      "mentionEnabled",
-      "replyEnabled",
-      // Message toggles
-      "dmEnabled",
-      "groupMessageEnabled",
-      "typingIndicatorEnabled",
-      // Trend toggles
-      "hotPulseEnabled",
-      "milestoneEnabled",
-      // Prompt toggles
-      "vibeCheckEnabled",
-      "dailyDigestEnabled",
-      // Condensing
-      "condenseNotifications",
-      "condenseThreshold",
-      // Premium
-      "customSoundUrl",
-    ];
-
-    const updateData: Record<string, unknown> = {};
-    for (const field of allowedFields) {
-      if (field in body) {
-        updateData[field] = body[field];
-      }
+    const json = await request.json();
+    const parsed = NotificationSettingsSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid payload", issues: parsed.error.issues }, { status: 400 });
     }
+
+    const updateData = parsed.data;
 
     // Upsert settings (create if doesn't exist)
     const settings = await db.notificationSettings.upsert({

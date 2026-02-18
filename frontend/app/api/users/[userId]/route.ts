@@ -6,6 +6,14 @@ import {
   UserProfileGetResponseSchema,
   UserProfilePatchResponseSchema,
 } from '@/lib/types/users';
+import { z } from 'zod';
+
+const UserProfilePatchInputSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  image: z.string().url().max(2048).optional().nullable(),
+  banner: z.string().url().max(2048).optional().nullable(),
+  bio: z.string().max(2000).optional().nullable(),
+}).strict();
 
 // Next.js 16+ params type
 type RouteContext = { params: Promise<{ userId: string }> };
@@ -209,28 +217,15 @@ export async function PATCH(
   }
 
   try {
-    const body = await request.json();
-    
-    // Only allow specific fields to be updated
-    const allowedFields = ['name', 'image', 'banner', 'bio'];
-    const updateData: Record<string, string> = {};
-    
-    for (const field of allowedFields) {
-      if (body[field] !== undefined) {
-        // Validate URLs for image fields
-        if (['image', 'banner'].includes(field) && body[field]) {
-          try {
-            new URL(body[field]);
-          } catch {
-            return NextResponse.json(
-              { error: `Invalid URL for ${field}` },
-              { status: 400 }
-            );
-          }
-        }
-        updateData[field] = body[field];
-      }
+    const json = await request.json();
+    const parsed = UserProfilePatchInputSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid payload', ...(isDev ? { issues: parsed.error.issues } : {}) },
+        { status: 400 }
+      );
     }
+    const updateData = parsed.data;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(

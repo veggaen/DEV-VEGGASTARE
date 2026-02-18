@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { dbPrisma } from "@/lib/db";
+import { z } from "zod";
+
+const SiteNoticeSchema = z.object({
+  dismissedVersion: z.number().int().min(0).max(1_000_000),
+});
 
 export async function GET() {
   const session = await auth();
@@ -33,12 +38,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json().catch(() => null);
-  const dismissedVersion = Number((body as any)?.dismissedVersion);
+  const json = await req.json().catch(() => null);
+  const parsed = SiteNoticeSchema.safeParse(json);
 
-  if (!Number.isFinite(dismissedVersion) || dismissedVersion < 0 || dismissedVersion > 1_000_000) {
+  if (!parsed.success) {
     return NextResponse.json({ error: "Invalid dismissedVersion" }, { status: 400 });
   }
+
+  const { dismissedVersion } = parsed.data;
 
   try {
     await (dbPrisma as any).user.update({

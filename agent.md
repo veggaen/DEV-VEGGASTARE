@@ -2,7 +2,7 @@
 
 > **Purpose:** Single-file onboarding for any AI agent (Claude, GPT, Gemini, Copilot, etc.).  
 > Read this file first → you'll understand the entire project, methodology, and current state.  
-> **Last Updated:** 2026-02-17
+> **Last Updated:** 2026-02-18
 
 ---
 
@@ -42,15 +42,11 @@ Users can:
                    │ PostgreSQL
   ╔════════════════╧═════════════════════╗
   ║  BACKEND SERVICE  (Hapi.js 21)      ║  Port 3001 (HTTP) + 3002 (WS)
-  ║  Bring Shipping · Socket.IO · Prisma 6.16  ║  Deployed on Railway
-  ╚══════════════════════════════════════╝
-  ╔══════════════════════════════════════╗
-  ║  PICOCLAW SIDECAR  (Go binary)     ║  Port 8080
-  ║  Web Search (Brave/DDG) · Fact-check║  Deployed on Railway
+  ║  Bring Shipping · Socket.IO · Prisma 7.4   ║  Deployed on Railway
   ╚══════════════════════════════════════╝
 ```
 
-**Three services, one database.** Frontend is the primary service (auth, DB writes, API routes, UI). Backend is an "Integration Core" for shipping, warehouse sync, and third-party connectors. PicoClaw is a lightweight research sidecar (<10MB RAM) for AI poll quality.
+**Two services, one database.** Frontend is the primary service (auth, DB writes, API routes, UI). Backend is an "Integration Core" for shipping, warehouse sync, and third-party connectors.
 
 ---
 
@@ -61,7 +57,7 @@ Users can:
 | Framework | Next.js (Webpack mode, NOT Turbopack) | 16.1.6 |
 | UI | React + Tailwind CSS + shadcn/ui + Framer Motion | React 19 |
 | Auth | NextAuth v5 (Google, GitHub, Discord OAuth + email magic links) | beta.7 |
-| Database | PostgreSQL + Prisma ORM | Prisma 7.3 (frontend), 6.16 (backend) |
+| Database | PostgreSQL + Prisma ORM | Prisma 7 (both services) |
 | Real-time | Pusher (events/notifications) + Socket.IO (warehouse sync) | — |
 | Web3 | Reown/WalletConnect (AppKit), wagmi 2, Solana adapters | — |
 | Backend | Hapi.js + Zod 4 + Bring shipping API | 21 |
@@ -153,17 +149,15 @@ Real-time feed with posts/reactions, follow/sync system, DM/group conversations,
 
 Key capabilities:
 - **PollBuilder** with 7 example templates, flow-based section ordering, drag-and-drop
-- **AI conversational generation** — SSE streaming (8-step pipeline), chat thread with refinement loop, Review Card
-- **PicoClaw research sidecar** — Go binary on Railway; web search (Brave primary + DDG fallback) for grounded poll generation + post-generation fact-checking with auto-correction
+- **AI conversational generation** — SSE streaming (6-step pipeline), chat thread with refinement loop, Review Card
 - **Interactive preview** — full 5-screen quiz simulation (welcome → sections → questions → completion → results) via PollTakerModal
 - **Fuzzy text matching** — Levenshtein + token-set + vowel-swap for forgiving quiz answers
 - **Two-tier quiz feedback** — explanation → "Still don't understand?" → deepExplanation
 - **Verification-weighted voting** — poll response power scales with user's verification tier
 - **Anti-gaming** — min dwell time, rate limits, straightline detection, IP hashing
-- **BYOK** — Bring your own API key (OpenAI, Anthropic, Grok, Groq, OpenRouter) with optional research toggle
+- **BYOK** — Bring your own API key (OpenAI, Anthropic, Grok, Groq, OpenRouter)
 - **DB-backed daily quota** — 5 free AI generations/day via PostgreSQL (survives cold starts)
 - **Scheduled daily polls** — Cron-based templates with PENDING_REVIEW admin approval flow
-- **Search budget guard** — Hard monthly cap on Brave API (900/mo), auto-fallback to DDG, owner email alerts
 
 ### True Reach™ (7 Pillars)
 Proprietary engagement metric: Visibility (18%), Engagement Depth (25%), Conversion Impact (18%), Loyalty (14%), Growth (10%), Recall (5%), Velocity (10%). 12-tier verification multipliers affect all scoring.
@@ -276,6 +270,8 @@ Employees/contributors follow `ONBOARDING.md` instead.
 - Security hardening (rate limiting on critical routes, prompt injection guards, unified logout)
 - Multi-wallet support (EVM/Solana/Bitcoin, sidebar panel, multi-chain linked wallets)
 - System account impersonation ("Take Control" from profile/hovercard, amber header banner)
+- Address & Shipping Phase 2 (shipping method selection, Bring booking + tracking, enhanced order confirmation + email)
+- GDPR/DSA compliance (full privacy policy, community guidelines, accessibility statement, data export, account deletion, content reporting + appeals)
 
 ### In Progress
 - True Reach™ score computation engine
@@ -287,7 +283,6 @@ Employees/contributors follow `ONBOARDING.md` instead.
 - Profile editing (/settings — avatar, banner, bio)
 - Vipps payment integration (Norwegian mobile payment)
 - Friend request system (mutual friendships)
-- Address + shipping upgrade (Bring booking, tracking, order emails)
 - Rate limiting on remaining ~120 routes
 
 ### Planned (Future)
@@ -296,8 +291,6 @@ Employees/contributors follow `ONBOARDING.md` instead.
 - User search at Pulse/feed level
 - Mobile app (React Native or PWA)
 - NFT marketplace integration
-- GDPR data subject rights (export, deletion, restriction)
-- DSA content moderation system
 - Two-factor authentication (TOTP)
 
 ---
@@ -306,13 +299,11 @@ Employees/contributors follow `ONBOARDING.md` instead.
 
 | Issue | Severity | Notes |
 |-------|----------|-------|
-| ~120 API routes lack rate limiting | HIGH | `lib/rate-limit.ts` exists, 6 routes covered |
 | Payment webhook signatures not verified | HIGH | Must implement before real payments |
-| ~15 routes use raw `request.json()` without Zod | MEDIUM | Need schemas |
 | Trade confirm has race condition (no `$transaction`) | MEDIUM | Should use DB transaction |
 | Database backups in git history (old commits) | MEDIUM | Need BFG/filter-branch cleanup |
-| GDPR data subject rights not implemented | HIGH (legal) | No export/delete/restrict endpoints |
-| DSA content moderation not started | HIGH (legal) | No reporting/appeal mechanism |
+| GDPR data export UI polish | LOW | API works, needs settings page integration |
+| DSA admin moderation dashboard | MEDIUM | API works, needs admin UI for review queue |
 | DPI tax reporting deadline passed (Jan 2026) | HIGH (legal) | Check if applicable |
 
 ---

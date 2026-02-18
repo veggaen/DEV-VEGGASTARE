@@ -101,8 +101,38 @@ async function handleCategories(
 
 export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreateSchema>, postalCodes: string[]): Promise<CreateProductResult> => {
   try {
+    // --- AUTH CHECK (CRITICAL) ---
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { error: 'Unauthorized — you must be logged in to create a product.' };
+    }
+    const sessionUserId = session.user.id;
+
     console.log('Server is Creating a product with data: ', data);
     const validatedData = MyProductCreateSchema.parse(data);
+
+    // Override client-supplied userId with verified session user
+    // (prevents IDOR — callers cannot create products as another user)
+    if (validatedData.userId !== sessionUserId) {
+      console.warn(`[products] userId mismatch: client sent ${validatedData.userId}, session is ${sessionUserId}. Overriding.`);
+    }
+
+    // Verify companyId ownership — if a company is specified, the caller must be OWNER/MANAGER/employee
+    if (validatedData.companyId) {
+      const employee = await dbPrisma.employee.findFirst({
+        where: {
+          userId: sessionUserId,
+          companyId: validatedData.companyId,
+        },
+      });
+      const company = await dbPrisma.company.findUnique({
+        where: { id: validatedData.companyId },
+        select: { ownerId: true },
+      });
+      if (!employee && company?.ownerId !== sessionUserId) {
+        return { error: 'You do not have permission to create products for this company.' };
+      }
+    }
 
     const cleanedPostalCodes = Array.from(
       new Set((postalCodes ?? []).map((p) => p.trim()).filter(Boolean))
@@ -142,7 +172,7 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
         image: validatedData.image,
         specifications: validatedData.specifications ? JSON.stringify(validatedData.specifications) : Prisma.JsonNull,
         features: validatedData.features ? JSON.stringify(validatedData.features) : Prisma.JsonNull,
-        userId: validatedData.userId,
+        userId: sessionUserId,
         companyId: validatedData.companyId ?? null,
         // Digital product fields
         productType: validatedData.productType ?? 'PHYSICAL',
@@ -159,7 +189,7 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
 
     // Handle categories - create new ones and link to product
     if (validatedData.categories && validatedData.categories.length > 0) {
-      await handleCategories(product.id, validatedData.categories, validatedData.userId);
+      await handleCategories(product.id, validatedData.categories, sessionUserId);
       console.log('Categories linked: ', validatedData.categories.map(c => c.name).join(', '));
     }
 
@@ -216,7 +246,7 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
             address: '',
             city: '',
             country: 'Norway',
-            userId: validatedData.userId,
+            userId: sessionUserId,
             companyId: validatedData.companyId ?? null,
           },
         });

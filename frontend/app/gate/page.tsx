@@ -55,7 +55,7 @@ export default function GatePage() {
     } finally {
       setIsLoading(false);
     }
-  }, [password]);
+  }, [password, redirectTo]);
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-950">

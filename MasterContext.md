@@ -4,7 +4,7 @@
 > This file is the canonical source for architecture invariants and onboarding context.
 
 **Auto-generated sections** are marked with `<!-- @auto -->`. Manual sections are maintained by developers.  
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-18
 
 ---
 
@@ -33,13 +33,14 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 8. **Build uses Webpack mode.** `next dev --webpack` and `next build --webpack` — not Turbopack (due to compatibility).
 9. **Environment variables are split.** Dev in `.env.local`, prod in hosting provider. Never commit secrets.
 10. **Backend CORS is restrictive in production.** Set `CORS_ORIGINS` explicitly. Default `*` is dev-only.
-11. **Payment webhooks must verify provider signatures in production.** Vipps/Klarna/PayPal each send signature headers. See `app/api/payments/webhook/[provider]/route.ts`.
+11. **Payment webhooks verify provider signatures in production.** Vipps: Authorization header vs `VIPPS_WEBHOOK_SECRET`. Klarna: HMAC-SHA256 via `X-Klarna-Hmac-Sha256`. PayPal: cert-based verification via PayPal API (`PAYPAL_WEBHOOK_ID`). In dev, verification is skipped with a warning. See `lib/payments/webhook-verify.ts`.
 12. **GATE_PASSWORD must be set via env var.** No hardcoded fallback — set `GATE_PASSWORD` in `.env`. To disable the gate, set `GATE_STATUS=false`.
 13. **Database backups must never be committed to git.** The `.gitignore` excludes `**/database-backups/`. Never override this.
 14. **Web3 mode toggle does NOT require email verification.** Toggling `web3ModeEnabled` is a simple PATCH to `/api/settings/web3-mode`. Email verification is only required for **wallet linking** (binding a wallet address to the user account).
 15. **Unified sign-out: Web2 ↔ Web3.** `useCleanLogout` handles Web2→Web3 (disconnects wallets on sign-out). `WalletDisconnectWatcher` in `Web3Providers.tsx` handles Web3→Web2 (wallet disconnect triggers `signOut`). A `cleanLogoutInProgress` flag in `use-clean-logout.ts` prevents loops.
 16. **AI generation requires authentication + auto-resolves keys.** Server uses `auto` mode: saved key → owner-only OpenAI (PLATFORM_OWNER_EMAIL) → Groq free tier (GROQ_API_KEY, Llama 3.3 70B) → error. 1 credit = 1 action (generation or refinement), 5/day. BYOK unlimited. Conversational chat thread: initial generation → Review Card with [Test Preview] [Inspect in Builder] → refinement loop ("make question 3 harder"). No dropdown, no mention of "default key".
 17. **AI prompts are sanitized server-side.** Known injection/jailbreak patterns are blocked before reaching the AI provider. Output is validated for safety before returning to the client.
+18. **Live integration toggles are DB-backed and OWNER-controlled.** `RuntimeConfig` (`paymentsLiveEnabled`, `bringLiveEnabled`) can be changed only via `PATCH /api/admin/runtime-config` (OWNER). Production payment providers are fail-closed when required provider + webhook env vars are missing.
 
 ---
 
@@ -55,11 +56,11 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 | **Products** | `app/products/`, `actions/products.ts` | Stable | Product CRUD, listings, detail pages |
 | **Companies** | `app/company/`, `actions/create-company.ts` | Stable | Company management, employee roles |
 | **Warehouses** | `app/warehouses/`, `actions/fetchWarehouses.ts` | Stable | Warehouse inventory management |
-| **Cart & Checkout** | `app/cart/`, `app/checkout/`, `contexts/cart-context.tsx` | Stable | Shopping flow |
+| **Cart & Checkout** | `app/cart/`, `app/checkout/`, `contexts/cart-context.tsx` | Stable | Shopping flow with live Bring shipping rates, method selection, booking + tracking |
 | **Pulse (Social)** | `app/feed/`, `app/pulse/` | Active | Social feed, posts, reactions |
 | **Conversations** | `app/(protected)/` area | Active | DMs, group chats |
 | **Crypto Trading** | `components/crypto-related/` | Active | OSRS inventory, trade windows, P2P |
-| **Polls** | `app/poll-test/`, `components/uicustom/polls/` | Active | 3 poll types (SURVEY, FEEDBACK, QUIZ), 11 question types, PollBuilder with 7 example templates (5 external + 2 inline), verification-weighted voting, anti-gaming, two-tier quiz feedback, **fuzzy text-answer matching** (Levenshtein), **conversational AI chat** (8-step SSE pipeline via `/api/polls/generate-stream`, refinement loop, Review Card), **PicoClaw research sidecar** (web search via Brave/DDG + fact-checking with auto-corrections), **interactive preview mode** (PollTakerModal with `previewData` prop), **per-question trust badges**, **Groq free tier default** (Llama 3.3 70B) + owner-only OpenAI, Grok/Claude/OpenRouter BYOK with `useKeyForResearch` toggle, **prompt injection guardrails**, **DB-backed daily quota** (5/day, survives cold starts), **search budget guard** (Brave 900/mo hard cap + DDG fallback), **scheduled daily polls** (cron + PENDING_REVIEW admin approval), **admin email alerts** (Resend) |
+| **Polls** | `app/poll-test/`, `components/uicustom/polls/` | Active | 3 poll types (SURVEY, FEEDBACK, QUIZ), 11 question types, PollBuilder with 7 example templates (5 external + 2 inline), verification-weighted voting, anti-gaming, two-tier quiz feedback, **fuzzy text-answer matching** (Levenshtein), **conversational AI chat** (6-step SSE pipeline via `/api/polls/generate-stream`, refinement loop, Review Card), **interactive preview mode** (PollTakerModal with `previewData` prop), **per-question trust badges**, **Groq free tier default** (Llama 3.3 70B) + owner-only OpenAI, Grok/Claude/OpenRouter BYOK, **prompt injection guardrails**, **DB-backed daily quota** (5/day, survives cold starts), **scheduled daily polls** (cron + PENDING_REVIEW admin approval), **admin email alerts** (Resend) |
 | **Analytics** | `app/analytics/`, `actions/analytics-*.ts` | Active | Company/product/user analytics |
 | **UI Components** | `components/ui/` | Stable | shadcn/ui primitives |
 | **Custom Components** | `components/uicustom/` | Active | Composite components |
@@ -67,7 +68,8 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 | **Providers** | `components/providers/` | Stable | React context providers (theme, session, wagmi) |
 | **Hooks** | `hooks/` | Stable | Custom React hooks |
 | **Lib** | `lib/` | Stable | Utilities, constants, view-strength calc, **fuzzy-text-match.ts** (Levenshtein distance, token-set, vowel-swap variant matching for quiz TEXT answers) |
-| **Email (Resend)** | `lib/mail.ts` | Stable | Transactional emails: 2FA, password reset, verification, wallet link/unlink. Uses Resend SDK with verified `veggat.com` domain. Env: `RESEND_API_KEY` |
+| **Shipping Method Selector** | `components/uicustom/shipping-method-selector.tsx` | Stable | Live Bring rate fetching, method selection, pickup-point picker, digital-only detection, NOK→USD conversion |
+| **Email (Resend)** | `lib/mail.ts` | Stable | Transactional emails: 2FA, password reset, verification, wallet link/unlink, **order confirmation with shipping method/cost/tracking**. Uses Resend SDK with verified `veggat.com` domain. Env: `RESEND_API_KEY` |
 | **Web3 Providers** | `components/crypto-related/Web3Providers.tsx` | Stable | Root Web3 provider tree (wagmi, AppKit, Solana). Includes `WalletDisconnectWatcher` for unified session sync |
 | **Clean Logout** | `hooks/use-clean-logout.ts` | Stable | Unified sign-out: disconnects EVM + Solana wallets, clears stale localStorage flags, then NextAuth `signOut()` |
 | **Schemas** | `schemas/` | Stable | Zod validation schemas |
@@ -82,7 +84,7 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 | **WebSocket** | `src/websocket.ts` | Stable | Socket.IO server for warehouse sync |
 | **Pusher** | `src/pusher.ts` | Stable | Event trigger utility |
 | **Database** | `src/db.ts` | Stable | Prisma client init |
-| **Bring Integration** | `src/integrations/bring.ts` | Stable | Shipping provider (mock + live) |
+| **Bring Integration** | `src/integrations/bring.ts` | Stable | Shipping provider (mock + live). Frontend also calls Bring APIs directly for rates, booking, pickup points, tracking |
 | **Warehouse Ops** | `src/updateWarehouseInventory.ts` | Stable | Stock update logic |
 | **OpenAPI Spec** | `openapi/v1.yaml` | Stable | API documentation |
 
@@ -247,6 +249,22 @@ These tags can be extracted by the aggregation script at `scripts/aggregate-cont
 
 ## Security Audit Log
 
+### 2026-02-18 — Hybrid Seller Validation & Gap Closure
+
+**Security (this session):**
+| Issue | Severity | Fix |
+|-------|----------|-----|
+| Payment webhook signatures not verified (forged webhooks could complete orders) | HIGH → FIXED | Implemented per-provider verification: Vipps (Authorization), Klarna (HMAC-SHA256), PayPal (cert-based). Created `lib/payments/webhook-verify.ts`. Dev skips with warning, prod enforces. |
+| Checkout race condition — concurrent buyers could oversell last item | MEDIUM → FIXED | Order creation + stock decrement now wrapped in single `$transaction` with `Serializable` isolation level. Stock checked + decremented inside transaction before order insert. |
+| Stock decrement was outside transaction (TOCTOU vulnerability) | MEDIUM → FIXED | Moved into atomic transaction block. Returns also restore stock transactionally. |
+
+**New features:**
+| Feature | Details |
+|---------|---------|
+| Solo seller "My Sales" dashboard | `/my-sales` page + `/api/seller/orders` API. Shows orders containing the seller's products (via userId or company ownership). Status tabs, quick metrics, expandable order cards. |
+| Buyer "My Orders" page | `/my-orders` page. Full order history with payment status, fulfilment tracking, download links, and order confirmation links. Uses existing `/api/orders/user/[userId]` API. |
+| Returns/refund request system | `ReturnRequest` Prisma model + `/api/returns` (buyer: POST/GET) + `/api/returns/[id]` (seller: PATCH/GET). 6 return reasons, state machine transitions, 14-day Angrerettloven compliance check, stock restoration on refund. |
+
 ### 2026-02-12 — Pre-Commit Security Audit
 
 **Fixed (this session):**
@@ -300,40 +318,48 @@ These tags can be extracted by the aggregation script at `scripts/aggregate-cont
 | No rate limit on AI generation for platform-key users | Daily quota guard (5 generations/user/day) in streaming endpoint; resets at UTC midnight |
 | Pulse feed filter (polls / pulses) showed wrong items due to single-fetch pagination | Multi-fetch loop collects up to 3 server pages until ≥ 10 visible filtered items found |
 
-### 2026-02-17 — PicoClaw Research Sidecar + Poll System Hardening
+### 2026-02-17 — Poll System Hardening
 
 **Fixed:**
 | Issue | Fix |
 |-------|-----|
 | Daily AI quota used in-memory Map — reset on every Vercel cold start | Replaced with PostgreSQL-backed `DailyAiUsage` model using atomic `upsert` on `userId_date` composite key (`lib/daily-ai-quota.ts`) |
 | Legacy `/api/polls/generate` route had zero auth, zero quota, zero injection protection | Deleted entirely (546 lines). Only `generate-stream` exists now with full auth + quota + sanitization |
-| AI polls had no web research — "Researching topic" was pure UI theater | PicoClaw Go sidecar performs real web search (Brave primary + DDG fallback) before generation. Research context injected into system prompt |
-| No fact-checking of AI-generated poll answers | PicoClaw validates generated polls post-generation. Corrections with >80% confidence auto-applied |
-| Brave Search could incur unexpected charges | Hard monthly cap (900 queries, env-configurable) via `SearchUsage` DB model. Auto-fallback to DDG when exhausted. Owner email alert via Resend |
-| No admin notification for system alerts | `lib/admin-alerts.ts` sends email via Resend to `PLATFORM_OWNER_EMAIL` for budget exhaustion, PicoClaw outages, etc. |
+| No admin notification for system alerts | `lib/admin-alerts.ts` sends email via Resend to `PLATFORM_OWNER_EMAIL` for cron failures, system warnings |
 | Progress bar hardcoded `/6` steps — would overflow with new pipeline | Server sends `totalSteps` in SSE events; PollBuilder uses dynamic denominator |
 | No scheduled poll generation capability | `ScheduledPoll` model + `/api/cron/daily-poll` route (8 AM UTC daily via Vercel cron). Polls created as PENDING_REVIEW for admin approval |
+| No middleware-level rate limiting (122 unprotected routes) | Two-layer rate limiter in `proxy.ts` (middleware): global per-IP cap (300/min) + per-tier caps (gate 5, ai 8, analytics 15, wallet 10, trade 20, admin 30, message 40, write 40, social 60, external 60, read 120). Edge-compatible in-memory store. Routes with `@/lib/rate-limit` keep their stricter per-user limits on top. |
+| No admin dashboard for AI/polls monitoring | `/admin` now fetches live stats from `/api/admin/stats` (platform totals + AI quota metrics). `/admin/polls` page for pending review queue + scheduled template CRUD via `/api/admin/polls`. |
 
 **New env vars:**
 | Variable | Where | Purpose |
 |----------|-------|---------|
-| `PICOCLAW_URL` | Vercel | Railway public URL of PicoClaw sidecar |
-| `PICOCLAW_API_KEY` | Vercel + Railway | Shared secret for sidecar auth |
-| `PICOCLAW_ENABLED` | Vercel | Feature flag — `"true"` to enable research |
-| `BRAVE_API_KEY` | Railway (PicoClaw) | Brave Search API key |
-| `BRAVE_MONTHLY_LIMIT` | Vercel | Hard cap on Brave queries/month (default: 900) |
 | `PLATFORM_OWNER_EMAIL` | Vercel | Email for admin alerts |
 
 **Known remaining issues (lower priority):**
 | Issue | Severity | Status |
 |-------|----------|--------|
-| ~120 API routes still lack rate limiting | HIGH | `lib/rate-limit.ts` exists, 6 more routes added this session |
-| ~15 routes use raw `request.json()` without Zod validation | MEDIUM | Should add Zod schemas |
+| ~~~15 routes use raw `request.json()` without Zod validation~~ | ~~MEDIUM~~ | ✅ Verified: all 42 API routes use Zod |
 | Trade confirm has potential race condition (no DB transaction) | MEDIUM | Should use `$transaction` |
 | No CSRF token on API routes (mitigated by SameSite cookies) | MEDIUM | Consider Origin header check |
 | Anonymous engagement events on `/api/interact` | MEDIUM | Has built-in rate limit, but no auth required |
-| Payment webhook signature verification not implemented | HIGH | Must implement before accepting real payments |
+| ~~Payment webhook signature verification not implemented~~ | ~~HIGH~~ | ✅ Implemented: Vipps (Authorization header), Klarna (HMAC-SHA256), PayPal (cert-based API verification). See `lib/payments/webhook-verify.ts` |
 | Purge database-backup data from git history (BFG/filter-branch) | MEDIUM | Data still in old commits |
+
+### 2026-02-18 — GDPR/DSA Compliance Implementation
+
+**Added:**
+| Feature | Details |
+|---------|--------|
+| Privacy policy rewrite (GDPR Art. 13/14) | `/privacy` — 13 sections: data controller, categories, legal basis, purposes, retention, third parties w/ SCC, 7 data subject rights, automated decisions, children, cookies, security, Datatilsynet complaint |
+| Community guidelines (DSA) | `/community-guidelines` — prohibited content (10 categories), reporting process, 48hr review target, appeal mechanism (Art. 20, 6 months), consequences table, copyright/UGC licensing, Nkom as supervisory authority |
+| Accessibility statement (WCAG 2.1 AA) | `/accessibility` — conformance level, what works (7 items), known limitations (6 items), UU-tilsynet as supervisory authority |
+| Terms content licensing | `/terms` — new §8 UGC license: non-exclusive worldwide royalty-free, user retains ownership |
+| Prisma schema: 6 new models | `ContentReport`, `ModerationAction`, `ContentAppeal`, `DataExportRequest`, `AccountDeletionRequest` + 5 enums |
+| Data export API (GDPR Art. 15/20) | `actions/gdpr-data-export.ts` — exports 14 data categories as JSON |
+| Account deletion (GDPR Art. 17) | `actions/gdpr-account-deletion.ts` — 30-day grace period, order PII anonymised (bokføringsloven), cascading delete |
+| Content report API (DSA) | `actions/content-report.ts` — submit report (13 reasons), resolve (admin), appeal, moderation queue |
+| Report dialog UI | `components/uicustom/report/ReportDialog.tsx` — wired into PulseDetailModal report button |
 
 ---
 
