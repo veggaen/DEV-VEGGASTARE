@@ -18,7 +18,7 @@
     "@prisma/adapter-pg": "^7.4.0",
     "@prisma/client": "^7.4.0",
     "@types/hapi": "^18.0.14",
-    "dotenv": "^16.4.5",
+    "dotenv": "^17.3.1",
     "pg": "^8.18.0",
     "pusher": "^5.2.0",
     "pusher-js": "^8.4.0-rc2",
