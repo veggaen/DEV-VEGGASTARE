@@ -66,8 +66,8 @@ const ProductCard = React.memo(
 					<div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-black/35 to-transparent" />
 					<div className="absolute left-3 bottom-3 flex gap-2">
 						<motion.span
-							initial={reduceMotion ? false : { opacity: 0, y: -14, filter: "blur(8px)" }}
-							animate={reduceMotion ? undefined : { opacity: 1, y: 0, filter: "blur(0px)" }}
+							initial={reduceMotion ? false : { opacity: 0, y: -14 }}
+							animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
 							transition={
 								reduceMotion
 									? undefined
@@ -367,8 +367,8 @@ export default function MyProductsPage() {
 									<div className="flex items-end justify-between gap-4">
 										<div className="min-w-0">
 									<motion.div
-										initial={reduceMotion ? false : { opacity: 0, y: -18, filter: 'blur(10px)' }}
-										animate={reduceMotion ? undefined : { opacity: 1, y: 0, filter: 'blur(0px)' }}
+											initial={reduceMotion ? false : { opacity: 0, y: -18 }}
+											animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
 										transition={reduceMotion ? undefined : { type: 'spring', stiffness: 560, damping: 26, mass: 0.7 }}
 										className="inline-flex items-center gap-2"
 									>

@@ -31,6 +31,7 @@ export const UserReachSchema = z
   .object({
     totalViews: z.number().int().finite(),
     uniqueViewers: z.number().int().finite(),
+    totalReplies: z.number().int().finite(),
     engagementRate: z.number().finite(),
     // 7-Pillar Reach (optional — populated when data exists)
     reachLifetime: z.number().finite().optional(),

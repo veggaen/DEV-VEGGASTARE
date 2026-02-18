@@ -99,7 +99,7 @@ export default function SettingsPage() {
     banner: string | null;
     bio: string | null;
     name: string | null;
-    reach: { totalViews: number; uniqueViewers: number; engagementRate: number; postCount: number; followerCount: number } | null;
+    reach: { totalViews: number; uniqueViewers: number; totalReplies: number; engagementRate: number; postCount: number; followerCount: number } | null;
   }>({ image: null, banner: null, bio: null, name: null, reach: null });
   
   // PENDING changes (preview before save)
@@ -140,6 +140,7 @@ export default function SettingsPage() {
             reach: userData.reach ? {
               totalViews: userData.reach.totalViews || 0,
               uniqueViewers: userData.reach.uniqueViewers || 0,
+              totalReplies: userData.reach.totalReplies || 0,
               engagementRate: userData.reach.engagementRate || 0,
               postCount: userData._count?.posts || 0,
               followerCount: userData._count?.followers || 0,
@@ -813,7 +814,7 @@ export default function SettingsPage() {
                             </div>
                           </div>
                           <div className="text-xs text-muted-foreground dark:text-white/40 mt-1">
-                            Formula: (views ÷ followers) × 100 = ({reach?.totalViews || 0} ÷ {reach?.followerCount || 1}) × 100
+                            Formula: (replies ÷ unique viewers) × 100 = ({reach?.totalReplies || 0} ÷ {Math.max(reach?.uniqueViewers || 0, 1)}) × 100
                           </div>
                         </div>
                         
