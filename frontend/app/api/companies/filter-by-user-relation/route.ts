@@ -45,8 +45,14 @@ export async function GET(req: NextRequest) {
         logo: true,
         bannerImage: true,
         orgType: true,
+        createdAt: true,
         ownerId: true,
         creatorId: true,
+        _count: {
+          select: {
+            Employee: true,
+          },
+        },
         Employee: {
           select: {
             id: true,
@@ -71,8 +77,12 @@ export async function GET(req: NextRequest) {
       logo: Array.isArray(company.logo) ? company.logo : null,
       bannerImage: Array.isArray(company.bannerImage) ? company.bannerImage : null,
       orgType: company.orgType ?? null,
+      createdAt: company.createdAt instanceof Date ? company.createdAt.toISOString() : String(company.createdAt),
       ownerId: String(company.ownerId),
       creatorId: String(company.creatorId),
+      _count: {
+        employees: company._count?.Employee ?? 0,
+      },
       employees: Array.isArray(company.Employee)
         ? company.Employee.map((employee) => ({
             id: String(employee.id),

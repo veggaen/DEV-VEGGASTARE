@@ -254,10 +254,11 @@ function generateNonce() {
   return btoa(binary);
 }
 
-function buildCsp(nonce: string, isDev: boolean) {
+function buildCsp(nonce: string, isDev: boolean, isReportOnly: boolean) {
   const scriptSrc = [
     "'self'",
     `'nonce-${nonce}'`,
+    ...(isReportOnly ? ["'unsafe-inline'"] : []),
     ...(isDev ? ["'unsafe-eval'"] : []),
     "https:",
   ].join(" ");
@@ -273,8 +274,9 @@ function buildCsp(nonce: string, isDev: boolean) {
     "font-src 'self' https: data:",
     `style-src ${styleSrc}`,
     `script-src ${scriptSrc}`,
+    "frame-src 'self' https://vercel.live https://*.vercel.live",
     "connect-src 'self' https: wss:",
-    "upgrade-insecure-requests",
+    ...(isReportOnly ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
 }
 
@@ -309,10 +311,12 @@ function applySecurityHeaders(res: NextResponse, requestId: string, nonce: strin
 
   // In development, CSP (even report-only) produces a lot of console noise from
   // browser extensions and injected wallet scripts. Default to off in dev.
-  const csp = buildCsp(nonce, isDev);
   const enforce = process.env.CSP_ENFORCE === "true";
   const report = process.env.CSP_REPORT === "true";
-  if (!isDev || enforce || report) {
+  const shouldApplyCsp = !isDev || enforce || report;
+  const isReportOnly = !enforce;
+  const csp = buildCsp(nonce, isDev, isReportOnly);
+  if (shouldApplyCsp) {
     if (enforce) res.headers.set("content-security-policy", csp);
     else res.headers.set("content-security-policy-report-only", csp);
   }

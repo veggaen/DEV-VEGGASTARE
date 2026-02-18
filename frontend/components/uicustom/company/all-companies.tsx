@@ -27,7 +27,7 @@ interface PublicCompany {
     userId: string;
     role?: string;
   }>;
-  _count: {
+  _count?: {
     employees: number;
   };
 }
@@ -43,6 +43,12 @@ const CompanyCard = ({ company }: { company: PublicCompany }) => {
   const foundedLabel = Number.isNaN(createdAtDate.getTime())
     ? 'Founded recently'
     : `Founded ${formatDistanceToNow(createdAtDate, { addSuffix: true })}`;
+  const memberCount =
+    typeof company._count?.employees === 'number'
+      ? company._count.employees
+      : Array.isArray(company.employees)
+      ? company.employees.length
+      : 0;
 
   return (
     <Link
@@ -92,7 +98,7 @@ const CompanyCard = ({ company }: { company: PublicCompany }) => {
         </div>
 
         <div className="mt-4 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-          <span>{company._count.employees} {company._count.employees === 1 ? 'member' : 'members'}</span>
+          <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
           <span>{foundedLabel}</span>
         </div>
       </div>

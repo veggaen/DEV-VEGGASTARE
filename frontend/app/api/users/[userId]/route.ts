@@ -81,6 +81,7 @@ export async function GET(
           select: {
             viewCount: true,
             uniqueViewCount: true,
+            replyCount: true,
             pillarVisibility: true,
             pillarEngagement: true,
             pillarConversion: true,
@@ -107,11 +108,12 @@ export async function GET(
     // Calculate reach metrics
     const totalViews = user.Conversation.reduce((sum, c) => sum + c.viewCount, 0);
     const uniqueViewers = user.Conversation.reduce((sum, c) => sum + c.uniqueViewCount, 0);
+    const totalReplies = user.Conversation.reduce((sum, c) => sum + c.replyCount, 0);
     const followerCount = user.followers.length;
     const followingCount = user.following.length;
-    // Engagement rate: total views / followers (capped at 1000% to handle edge cases)
-    const engagementRate = followerCount > 0 
-      ? Math.min(Math.round((totalViews / followerCount) * 100), 100000) 
+    // Engagement rate: reply interactions per unique viewer (0-100%)
+    const engagementRate = uniqueViewers > 0
+      ? Math.min((totalReplies / uniqueViewers) * 100, 100)
       : 0;
 
     // Calculate aggregate pillar breakdown from user's public pulses
@@ -165,6 +167,7 @@ export async function GET(
       reach: {
         totalViews,
         uniqueViewers,
+        totalReplies,
         engagementRate, // Higher = content actually reaches people
         reachLifetime: user.reachLifetime,
         reachMomentum: user.reachMomentum,

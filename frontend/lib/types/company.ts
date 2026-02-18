@@ -158,8 +158,10 @@ export const CompanyByUserRelationListItemSchema = z
     logo: z.array(z.string()).nullable(),
     bannerImage: z.array(z.string()).nullable(),
     orgType: z.string().nullable().optional(),
+    createdAt: IsoDateStringSchema,
     ownerId: z.string().min(1),
     creatorId: z.string().min(1),
+    _count: CompanyEmployeesCountSchema,
     employees: z.array(CompanyEmployeeSlimSchema),
   })
   .strict();

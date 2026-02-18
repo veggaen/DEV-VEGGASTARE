@@ -604,9 +604,9 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
             onTouchStart={handleOverlayPointerDown}
           >
             <motion.div
-              initial={{ opacity: 0, y: 10, filter: 'blur(8px)', height: compactHeight }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)', height: expandedHeight }}
-              exit={{ opacity: 0, y: 8, filter: 'blur(6px)', height: compactHeight }}
+              initial={{ opacity: 0, y: 10, height: compactHeight }}
+              animate={{ opacity: 1, y: 0, height: expandedHeight }}
+              exit={{ opacity: 0, y: 8, height: compactHeight }}
               transition={{ duration: 0.24, ease: modalEase }}
               className="w-full max-w-2xl max-h-[90dvh] overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 shadow-2xl bg-white dark:bg-zinc-900 flex flex-col"
               style={{
