@@ -313,7 +313,7 @@ function applySecurityHeaders(res: NextResponse, requestId: string, nonce: strin
   // browser extensions and injected wallet scripts. Default to off in dev.
   const enforce = process.env.CSP_ENFORCE === "true";
   const report = process.env.CSP_REPORT === "true";
-  const shouldApplyCsp = !isDev || enforce || report;
+  const shouldApplyCsp = enforce || report;
   const isReportOnly = !enforce;
   const csp = buildCsp(nonce, isDev, isReportOnly);
   if (shouldApplyCsp) {

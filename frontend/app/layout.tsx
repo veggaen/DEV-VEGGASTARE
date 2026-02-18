@@ -45,13 +45,6 @@ export default async function RootLayout({ children, modal }: { children: React.
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var key='veggat:theme';var t=localStorage.getItem(key);var m=window.matchMedia('(prefers-color-scheme: dark)');var theme=t||'system';var isDark=(theme==='dark')||(theme==='system'&&m.matches);var root=document.documentElement;if(isDark){root.classList.add('dark');}else{root.classList.remove('dark');}}catch(e){}})();`,
-          }}
-        />
-      </head>
       <body
         className={`${inter.className} myanimation transition-colors min-h-[100dvh] flex flex-col bg-background text-foreground`}
         suppressHydrationWarning={true}

@@ -11,7 +11,8 @@
 ```bash
 cd frontend
 npm install
-# Create .env.local manually using the Environment Variables section below
+# Create local env from template
+cp .env.example .env.local
 npx prisma generate                # Generate Prisma client
 npx prisma migrate dev             # Apply database migrations
 npm run dev                        # → http://localhost:3000
@@ -162,6 +163,21 @@ frontend/
 ---
 
 ## Environment Variables
+
+### Which file/platform gets what?
+
+| Location | Use for | Notes |
+|----------|---------|-------|
+| `frontend/.env.example` | **Template only** (committed) | Placeholder keys, never real secrets |
+| `frontend/.env.local` | **Local development only** | Real local secrets; never committed |
+| **Vercel (Preview/Production)** | **Frontend runtime secrets** | Add PayPal, OAuth, Pusher, app URLs here |
+| **Railway** | **Backend service env only** | Backend/Hapi keys and backend DB/runtime vars |
+
+PayPal variables belong to the **frontend app runtime** and should be set in:
+- local: `frontend/.env.local`
+- cloud: **Vercel Project → Environment Variables** (Preview and Production)
+
+They do **not** belong to Railway unless your backend service directly calls PayPal.
 
 ### Required
 
