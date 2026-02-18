@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import { 
   FiUsers, FiBriefcase, FiActivity, FiSettings, FiShield,
   FiMessageSquare, FiAlertTriangle, FiArrowRight, FiCpu,
-  FiBarChart2, FiPackage, FiZap, FiClock, FiCheckCircle
+  FiBarChart2, FiPackage, FiZap, FiClock, FiCheckCircle, FiCreditCard
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +57,14 @@ const adminSections = [
     allowedRoles: ["OWNER", "ADMIN"],
   },
   {
+    title: "Runtime Controls",
+    description: "Flip payments and Bring between test and live modes",
+    icon: FiZap,
+    href: "/admin/runtime",
+    color: "emerald",
+    allowedRoles: ["OWNER", "ADMIN"],
+  },
+  {
     title: "Audit Log",
     description: "Track all admin actions for accountability",
     icon: FiActivity,
@@ -70,6 +78,14 @@ const adminSections = [
     icon: FiCpu,
     href: "/admin/polls",
     color: "teal",
+    allowedRoles: ["OWNER", "ADMIN"],
+  },
+  {
+    title: "AI Credits",
+    description: "Monitor credit-pack usage and entitlement health",
+    icon: FiCreditCard,
+    href: "/admin/ai-credits",
+    color: "blue",
     allowedRoles: ["OWNER", "ADMIN"],
   },
   {

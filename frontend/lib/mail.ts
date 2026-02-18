@@ -246,6 +246,56 @@ export const sendOauthProviderLinkedEmail = async (
   });
 };
 
+// ─── Company Organization Verification Email ───────────────────────────────
+
+export const sendCompanyOrgVerificationEmail = async (
+  email: string,
+  data: {
+    companyName: string;
+    orgNumber: string;
+    legalName?: string | null;
+    token: string;
+    expiresHours?: number;
+  }
+): Promise<void> => {
+  const confirmUrl = `${whatENV}/api/companies/verify-org?token=${encodeURIComponent(data.token)}`;
+  const denyUrl = `${whatENV}/api/companies/verify-org?token=${encodeURIComponent(data.token)}&deny=1`;
+  const expiresHours = data.expiresHours ?? 48;
+
+  await sendEmailViaResend({
+    from: 'Veggat-Security@veggat.com',
+    to: email,
+    subject: `Confirm organization link for ${data.companyName} (${data.orgNumber})`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 640px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #0f766e, #10b981); padding: 24px; border-radius: 8px 8px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 20px;">🏢 Confirm Organization Connection</h1>
+        </div>
+
+        <div style="padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+          <p style="color: #334155;">A Veggat company profile requested verification against this organization:</p>
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin: 14px 0;">
+            <p style="margin: 0; color: #0f172a;"><strong>Company profile:</strong> ${data.companyName}</p>
+            <p style="margin: 6px 0 0; color: #0f172a;"><strong>Organization number:</strong> ${data.orgNumber}</p>
+            <p style="margin: 6px 0 0; color: #0f172a;"><strong>Registered legal name:</strong> ${data.legalName || 'Unknown'}</p>
+          </div>
+
+          <p style="color: #475569;">If this connection is legitimate, confirm below. If not, deny it.</p>
+
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="${confirmUrl}" style="background: #16a34a; color: white; padding: 12px 22px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">✅ Confirm organization</a>
+            <a href="${denyUrl}" style="background: #dc2626; color: white; padding: 12px 22px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block; margin-left: 10px;">❌ Deny</a>
+          </div>
+
+          <p style="color: #64748b; font-size: 13px;">
+            Link expires in ${expiresHours} hours. Until confirmed, Veggat will treat this profile as unverified and keep org details disconnected.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+};
+
 // ─── Wallet Linked / Unlinked Confirmation ───────────────────────────────────
 
 export const sendWalletLinkedEmail = async (

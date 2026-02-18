@@ -12,7 +12,7 @@ Set Bring credentials in `backend/.env` (backend-owned integration). Frontend on
 
 ```bash
 # Bring API Credentials (get from MyBring: https://www.mybring.com/)
-BRING_API_KEY=your-api-key-here
+BRING_SHIPPING_API_KEY=your-api-key-here
 BRING_API_UID=your-mybring-email@example.com
 BRING_CUSTOMER_NUMBER=TESTUSER_123  # Use test number for testing!
 

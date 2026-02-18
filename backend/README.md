@@ -100,7 +100,7 @@ All request payloads are validated with Zod schemas:
 | `NODE_ENV` | No | `development` | Environment mode |
 | `BRING_MODE` | No | `mock` | `mock` for demo data, `live` for real Bring API |
 | `BRING_API_UID` | Live only | — | Bring API user ID |
-| `BRING_API_KEY` | Live only | — | Bring API key |
+| `BRING_SHIPPING_API_KEY` | Live only | — | Bring API key |
 | `BRING_CLIENT_URL` | No | `localhost` | Client URL for Bring headers |
 | `DATABASE_URL` | No | — | PostgreSQL connection string (for warehouse ops) |
 | `PUSHER_APP_ID` | No | — | Pusher app ID |
@@ -118,7 +118,7 @@ All request payloads are validated with Zod schemas:
 Returns realistic demo responses without Bring credentials. Useful for development, demos, and template showcasing.
 
 ### Live Mode
-Proxies requests to Bring's real API. Requires `BRING_API_UID` and `BRING_API_KEY`.
+Proxies requests to Bring's real API. Requires `BRING_API_UID` and `BRING_SHIPPING_API_KEY`.
 
 ### Test Resources (Bring)
 - Test customer numbers: `"5"`, `"6"`, `"7"` for dummy pricing

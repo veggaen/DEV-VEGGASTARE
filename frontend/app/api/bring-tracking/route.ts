@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       ...(language && { lang: language }),
     });
 
-    const apiKey = process.env.BRING_API_KEY;
+    const apiKey = process.env.BRING_SHIPPING_API_KEY;
     const apiUid = process.env.BRING_API_UID;
 
     const headers: HeadersInit = {

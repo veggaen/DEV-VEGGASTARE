@@ -27,6 +27,7 @@ export default async function CompanyPublicPage({
       name: true,
       description: true,
       websiteUrl: true,
+      orgNumber: true,
       logo: true,
       bannerImage: true,
       ownerId: true,
@@ -43,6 +44,9 @@ export default async function CompanyPublicPage({
           image: true,
           category: true,
         },
+      },
+      orgVerification: {
+        select: { status: true },
       },
     },
   });
@@ -122,6 +126,22 @@ export default async function CompanyPublicPage({
                     ) : null}
                     <span className="opacity-70">•</span>
                     <span>{company.Product.length} products</span>
+                    <span className="opacity-70">•</span>
+                    {company.orgVerification?.status === 'VERIFIED' && company.orgNumber ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full border border-emerald-300/40 bg-emerald-500/15 px-2 py-0.5 text-emerald-200"
+                        title="Verified organization: company ownership confirmed via official registered email"
+                      >
+                        ✓ Verified organization
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full border border-amber-300/40 bg-amber-500/15 px-2 py-0.5 text-amber-100"
+                        title="Unverified organization: no confirmed legal ownership link yet"
+                      >
+                        ⚠ Unverified organization
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -173,10 +193,10 @@ export default async function CompanyPublicPage({
                 <Link
                   key={p.id}
                   href={`/products/${p.id}`}
-                  className="group border border-black/10 bg-white/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-lg dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05] rounded-lg hover:rounded-2xl"
+                  className="group border border-black/10 bg-white/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-lg dark:border-white/10 dark:bg-white/3 dark:hover:bg-white/5 rounded-lg hover:rounded-2xl"
                 >
                   <div className="flex gap-4 p-4">
-                    <div className="relative h-20 w-20 flex-none overflow-hidden bg-black/5 dark:bg-white/[0.03] rounded-md transition-[border-radius] duration-200 group-hover:rounded-xl">
+                    <div className="relative h-20 w-20 flex-none overflow-hidden bg-black/5 dark:bg-white/3 rounded-md transition-[border-radius] duration-200 group-hover:rounded-xl">
                       {p.image?.[0] ? (
                         <Image src={p.image[0]} alt={p.title} fill className="object-cover" />
                       ) : null}

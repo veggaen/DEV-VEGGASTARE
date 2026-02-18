@@ -140,6 +140,20 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
 
     // Check if this product needs physical shipping
     const needsShipping = validatedData.productType === 'PHYSICAL' || validatedData.productType === 'HYBRID';
+
+    // Server-side guard: company listings with physical logistics must have at least one warehouse.
+    if (needsShipping && validatedData.companyId) {
+      const warehouseCount = await dbPrisma.warehouseLocation.count({
+        where: { companyId: validatedData.companyId },
+      });
+
+      if (warehouseCount === 0) {
+        return {
+          error:
+            'This company needs a warehouse address before creating physical or hybrid products. Add one in Company Settings and try again.',
+        };
+      }
+    }
     
     if (needsShipping && cleanedPostalCodes.length === 0) {
       return { error: 'Please add at least one ship-from postal code for a physical product.' };

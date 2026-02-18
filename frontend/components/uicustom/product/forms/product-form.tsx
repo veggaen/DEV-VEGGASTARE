@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import UserCompanyPermission from '../../user-company-permission';
 import { fetchUserEmployeePermissions } from '@/actions/user-company-permissions';
 import { useRouter, usePathname } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { saveFormState, loadFormState, clearFormState, hasPendingFormData } from '@/lib/form-persistence';
 import { CategoryTagInput } from '../../category-tag-input';
 import { AddressInput, type AddressData } from '../../../uicustom/address-input';
@@ -55,6 +56,9 @@ const FIAT_CURRENCY_META: Record<FiatCurrencyType, { label: string; prefix: stri
   GBP: { label: 'GBP', prefix: '£' },
 };
 
+const SHIPPING_SPEC_KEYS = ['Weight (g)', 'Height (cm)', 'Length (cm)', 'Width (cm)'];
+const GENERAL_SPEC_KEYS = ['Custom', 'Material', 'Color', 'Size', 'Brand', 'Model', 'Country of Origin', 'Warranty', 'Certification'];
+
 interface PostalCodeDetails {
   postal_code: string;
   city: string;
@@ -68,6 +72,19 @@ interface PostalCodeDetails {
 
 interface PostalCodesResponse {
   postal_codes: PostalCodeDetails[];
+}
+
+interface ProductCompanyContext {
+  id: string;
+  name: string;
+  ownerId: string;
+  creatorId: string;
+  warehouseLocations: WarehouseLocation[];
+  employees: Array<{
+    userId: string;
+    role?: string;
+    permissions?: Record<string, unknown>;
+  }>;
 }
 
 interface Specification {
@@ -89,6 +106,7 @@ export const MyProductCreationForm = () => {
   // Router for login redirect
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   
   // General States
   const { user: clientUser, status: sessionStatus, isLoading: isSessionLoading } = useCurrentUserWithStatus();
@@ -122,9 +140,7 @@ export const MyProductCreationForm = () => {
   const [downloadExpiryDays, setDownloadExpiryDays] = useState<number | null>(null); // null = never expires
   
   // Shipping specs come first for physical products, then general specs
-  const shippingSpecKeys = ['Weight (g)', 'Height (cm)', 'Length (cm)', 'Width (cm)'];
-  const generalSpecKeys = ['Custom', 'Material', 'Color', 'Size', 'Brand', 'Model', 'Country of Origin', 'Warranty', 'Certification'];
-  const examplePlaceholders = [...shippingSpecKeys, ...generalSpecKeys];
+  const examplePlaceholders = [...SHIPPING_SPEC_KEYS, ...GENERAL_SPEC_KEYS];
   
   // Feature category presets - helps users categorize features
   const featureCategoryPresets = [
@@ -143,6 +159,11 @@ export const MyProductCreationForm = () => {
   const [PermissionCheckResult, setPermissionCheckResult] = useState<boolean>(false);
   const [warehouseLocations, setWarehouseLocations] = useState<WarehouseLocation[]>([]);
   const [warehouseLocationError, setWarehouseLocationError] = useState<string | null>(null);
+  const [prefilledCompanyContext, setPrefilledCompanyContext] = useState<ProductCompanyContext | null>(null);
+  const [isPrefilledCompanyLoading, setIsPrefilledCompanyLoading] = useState(false);
+  const [canManageCompanyWarehouse, setCanManageCompanyWarehouse] = useState(false);
+  const [availableFiatMethods, setAvailableFiatMethods] = useState<Array<{ type: string; displayName: string; icon: string }>>([]);
+  const [isPaymentMethodsLoading, setIsPaymentMethodsLoading] = useState(false);
   const companiesFetched = useRef(false);
   
   // Ship-from address state (for manual entry with full address)
@@ -186,12 +207,132 @@ export const MyProductCreationForm = () => {
   const priceCurrency = form.watch('priceCurrency');
   const priceCurrencyMeta = FIAT_CURRENCY_META[(priceCurrency ?? 'USD') as FiatCurrencyType];
 
+  const sourceParam = searchParams.get('source') ?? '';
+  const prefilledCompanyId = (searchParams.get('companyId') ?? '').trim();
+  const hasCompanyPrefillFromQuery = !!prefilledCompanyId;
+  const cameFromCompanyHub = sourceParam === 'company-hub' && !!prefilledCompanyId;
+  const selectedCompanyId = cameFromCompanyHub ? prefilledCompanyId : companyId;
+  const isWarehouseMissingForSelectedCompany =
+    isCompanyProduct &&
+    !!selectedCompanyId &&
+    !isPrefilledCompanyLoading &&
+    warehouseLocations.length === 0;
+  const isDigitalOnlyLiteMode = isWarehouseMissingForSelectedCompany;
+  const isTestModeEnabled = process.env.NEXT_PUBLIC_TEST_MODE === 'true';
+
+  const companySettingsHref = selectedCompanyId
+    ? `/companies/${selectedCompanyId}/settings?returnTo=${encodeURIComponent(
+        cameFromCompanyHub
+          ? `/products/create?source=company-hub&companyId=${selectedCompanyId}`
+          : hasCompanyPrefillFromQuery
+            ? `/products/create?companyId=${selectedCompanyId}`
+          : '/products/create'
+      )}`
+    : '/companies';
+
   // Update userId when clientUser loads
   useEffect(() => {
     if (!clientUser?.id) return;
     setUId(clientUser.id);
     form.setValue('userId', clientUser.id, { shouldValidate: true, shouldDirty: false, shouldTouch: false });
   }, [clientUser?.id, form]);
+
+  useEffect(() => {
+    if (!hasCompanyPrefillFromQuery || !prefilledCompanyId) return;
+
+    let cancelled = false;
+    setIsPrefilledCompanyLoading(true);
+    setIsCompanyProduct(true);
+    setCompanyId(prefilledCompanyId);
+
+    (async () => {
+      try {
+        const response = await fetch(`/api/companies/${encodeURIComponent(prefilledCompanyId)}`, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error('Failed to load selected company context');
+        }
+
+        const company = (await response.json()) as ProductCompanyContext;
+        if (cancelled) return;
+
+        setPrefilledCompanyContext(company);
+        setWarehouseLocations(company.warehouseLocations || []);
+
+        if (company.warehouseLocations?.length) {
+          setPostalCodes((prev) => (prev.length > 0 ? prev : [company.warehouseLocations[0].postalCode]));
+          setWarehouseLocationError(null);
+        } else {
+          setPostalCodes([]);
+          setWarehouseLocationError('This company has no warehouse addresses yet. Physical and hybrid listings are disabled.');
+        }
+
+        const currentUserId = clientUser?.id;
+        const employee = company.employees?.find((entry) => entry.userId === currentUserId);
+        const permissions = (employee?.permissions ?? {}) as Record<string, unknown>;
+        const canManageWarehouse =
+          company.ownerId === currentUserId ||
+          company.creatorId === currentUserId ||
+          employee?.role === 'OWNER' ||
+          employee?.role === 'MANAGER' ||
+          permissions.CAN_MANAGE_WAREHOUSES === true ||
+          permissions.CAN_EDIT_COMPANY_DETAILS === true;
+
+        setCanManageCompanyWarehouse(Boolean(canManageWarehouse));
+      } catch (error) {
+        if (cancelled) return;
+        console.error('[product-form] Failed loading company-hub context', error);
+        setWarehouseLocationError('Could not load company context from hub. Please reselect company manually.');
+      } finally {
+        if (!cancelled) {
+          setIsPrefilledCompanyLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasCompanyPrefillFromQuery, prefilledCompanyId, clientUser?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsPaymentMethodsLoading(true);
+
+    fetch('/api/payments')
+      .then((response) => (response.ok ? response.json() : { methods: [] }))
+      .then((payload) => {
+        if (cancelled) return;
+        const methods = Array.isArray(payload?.methods) ? payload.methods : [];
+        setAvailableFiatMethods(
+          methods.filter((entry: { type?: string }) => entry?.type !== 'crypto')
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAvailableFiatMethods([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsPaymentMethodsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isDigitalOnlyLiteMode) return;
+    if (productType !== 'DIGITAL') {
+      setProductType('DIGITAL');
+    }
+    if (isPhysicalProduct) {
+      setIsPhysicalProduct(false);
+    }
+    if (specifications.some((s) => SHIPPING_SPEC_KEYS.includes(s.key))) {
+      setSpecifications((prev) => prev.filter((s) => !SHIPPING_SPEC_KEYS.includes(s.key)));
+    }
+    setPostalCodes([]);
+  }, [isDigitalOnlyLiteMode, productType, isPhysicalProduct, specifications]);
 
   // Restore form state from sessionStorage after login redirect
   useEffect(() => {
@@ -535,7 +676,7 @@ export const MyProductCreationForm = () => {
     // Filter out shipping specs if not a physical product
     const availablePlaceholders = isPhysicalProduct
       ? examplePlaceholders
-      : examplePlaceholders.filter(placeholder => !shippingSpecKeys.includes(placeholder));
+      : examplePlaceholders.filter(placeholder => !SHIPPING_SPEC_KEYS.includes(placeholder));
   
     // Find next unused placeholder (skip 'Custom' as first choice for preset)
     const nextPlaceholder = availablePlaceholders.find(placeholder =>
@@ -545,7 +686,7 @@ export const MyProductCreationForm = () => {
     const newSpec: Specification = {
       key: nextPlaceholder,
       value: '',
-      type: shippingSpecKeys.includes(nextPlaceholder) ? 'number' : 'text'
+      type: SHIPPING_SPEC_KEYS.includes(nextPlaceholder) ? 'number' : 'text'
     };
   
     setSpecifications([...specifications, newSpec]);
@@ -787,6 +928,8 @@ export const MyProductCreationForm = () => {
     setPostalCodes([]);
     setWarehouseLocations([]);
     setWarehouseLocationError(null);
+    setCanManageCompanyWarehouse(false);
+    setPrefilledCompanyContext(null);
 
     if (newIsCompanyProduct && !companiesFetched.current) {
       console.log('Fetching companies...');
@@ -815,14 +958,32 @@ export const MyProductCreationForm = () => {
       if (!response.ok) {
         throw new Error('Failed to fetch company details');
       }
-      const companyDetails = await response.json();
+      const companyDetails = (await response.json()) as ProductCompanyContext;
+      setPrefilledCompanyContext(companyDetails);
       setWarehouseLocations(companyDetails.warehouseLocations || []);
-      setWarehouseLocationError(companyDetails.warehouseLocations.length === 0 ? 'Selected company does not have warehouse locations. Please enter the postal code manually.' : null);
+
+      const currentUserId = clientUser?.id;
+      const employee = companyDetails.employees?.find((entry) => entry.userId === currentUserId);
+      const permissions = (employee?.permissions ?? {}) as Record<string, unknown>;
+      const canManageWarehouse =
+        companyDetails.ownerId === currentUserId ||
+        companyDetails.creatorId === currentUserId ||
+        employee?.role === 'OWNER' ||
+        employee?.role === 'MANAGER' ||
+        permissions.CAN_MANAGE_WAREHOUSES === true ||
+        permissions.CAN_EDIT_COMPANY_DETAILS === true;
+
+      setCanManageCompanyWarehouse(Boolean(canManageWarehouse));
+
+      if (Array.isArray(companyDetails.warehouseLocations) && companyDetails.warehouseLocations.length > 0) {
+        setPostalCodes((prev) => (prev.length > 0 ? prev : [companyDetails.warehouseLocations[0].postalCode]));
+      }
+      setWarehouseLocationError(companyDetails.warehouseLocations.length === 0 ? 'Selected company does not have warehouse locations. Physical and hybrid listings are disabled until a warehouse is added.' : null);
     } catch (error) {
       console.error('Error fetching company details:', error);
       setWarehouseLocationError('Error fetching company details. Please enter the postal code manually.');
     }
-  }, []);
+  }, [clientUser?.id]);
 
   const handleSelectWarehouseLocation = (postalCodeOrEvent: string | React.ChangeEvent<HTMLInputElement>) => {
     let selectedValue;
@@ -891,7 +1052,7 @@ export const MyProductCreationForm = () => {
 
   // Check if physical product has required shipping specs filled (moved up for getMissingItems)
   const needsShippingSpecs = productType === 'PHYSICAL' || productType === 'HYBRID';
-  const hasRequiredShippingSpecs = !needsShippingSpecs || shippingSpecKeys.every(key => {
+  const hasRequiredShippingSpecs = !needsShippingSpecs || SHIPPING_SPEC_KEYS.every(key => {
     const spec = specifications.find(s => s.key === key);
     return spec && spec.value !== '' && spec.value !== 0;
   });
@@ -928,7 +1089,7 @@ export const MyProductCreationForm = () => {
 
     // Check shipping specs for physical products
     if (needsShippingSpecs && !hasRequiredShippingSpecs) {
-      const missingSpecs = shippingSpecKeys.filter(key => {
+      const missingSpecs = SHIPPING_SPEC_KEYS.filter(key => {
         const spec = specifications.find(s => s.key === key);
         return !spec || spec.value === '' || spec.value === 0;
       });
@@ -1317,27 +1478,125 @@ export const MyProductCreationForm = () => {
                     </FormItem>
                   )} />
                 </div>
+
+                <FormField control={form.control} name='acceptedFiatCurrencies' render={({ field }) => {
+                  const selected = field.value ?? [];
+
+                  return (
+                    <FormItem className={customStyles.item}>
+                      <FormLabel className={customStyles.label}>Accepted fiat currencies</FormLabel>
+                      <FormControl>
+                        <div className="flex flex-wrap gap-2">
+                          {FiatCurrencyValues.map((code) => {
+                            const isSelected = selected.includes(code);
+                            const isLocked = code === (form.getValues('priceCurrency') ?? 'USD');
+
+                            return (
+                              <button
+                                key={code}
+                                type="button"
+                                disabled={isSubmitting}
+                                title={isLocked ? `${code} is the listing currency and must stay enabled.` : undefined}
+                                onClick={() => {
+                                  if (isLocked) return;
+                                  const next = isSelected
+                                    ? selected.filter((value) => value !== code)
+                                    : [...selected, code];
+                                  field.onChange(next);
+                                }}
+                                className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
+                                  isSelected
+                                    ? 'border-emerald-500/60 bg-emerald-500/10 text-foreground'
+                                    : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                                } ${isLocked ? 'ring-1 ring-emerald-500/30' : ''}`}
+                              >
+                                {code}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </FormControl>
+                      <div className="text-xs text-muted-foreground">
+                        Buyers can pay in enabled fiat options during checkout; your listing currency stays required.
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }} />
+
+                <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs space-y-1.5">
+                  <div className="font-medium text-foreground">Payment readiness</div>
+                  <div className="text-muted-foreground">
+                    Environment mode: {isTestModeEnabled ? 'Test mode (sandbox)' : 'Live mode'}
+                  </div>
+                  <div className="text-muted-foreground">
+                    {isPaymentMethodsLoading
+                      ? 'Loading enabled checkout providers...'
+                      : availableFiatMethods.length > 0
+                        ? `Enabled fiat checkout providers: ${availableFiatMethods.map((method) => `${method.icon} ${method.displayName}`).join(', ')}`
+                        : 'No fiat providers currently enabled for this environment/runtime. Crypto checkout can still be used.'}
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Crypto Token Acceptance */}
-            <CryptoTokenSelector
-              tokens={acceptedTokens}
-              onChange={setAcceptedTokens}
-              disabled={isSubmitting}
-            />
+            <div className="space-y-2">
+              <CryptoTokenSelector
+                tokens={acceptedTokens}
+                onChange={setAcceptedTokens}
+                disabled={isSubmitting}
+              />
+              <div className="text-xs text-muted-foreground rounded-md border border-border bg-muted/20 px-3 py-2">
+                {acceptedTokens.length > 0
+                  ? `Accepted crypto tokens selected: ${acceptedTokens.length}. Buyers can still use fiat methods if enabled at checkout.`
+                  : 'No custom token list selected. Buyers can still use supported checkout methods (fiat providers and/or native crypto depending on environment).'}
+              </div>
+            </div>
 
             {/* Column 2: Options + Specifications */}
             <div className='flex flex-col gap-5 h-full'>
               {/* Product Type Selection */}
               <div className={customStyles.section}>
                 <h3 className={customStyles.sectionTitle}>Product Type</h3>
+
+                {isDigitalOnlyLiteMode && (
+                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                    <p className="font-medium">Lite mode: Digital listing only</p>
+                    <p className="mt-1">
+                      This company does not have a warehouse address yet. You can publish a digital product now, or add a warehouse to unlock physical and hybrid listings.
+                    </p>
+                    <div className="mt-2">
+                      {canManageCompanyWarehouse ? (
+                        <button
+                          type="button"
+                          onClick={() => router.push(companySettingsHref)}
+                          className="underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-100"
+                        >
+                          Add warehouse address in Company Settings
+                        </button>
+                      ) : (
+                        <span>
+                          You don&apos;t have permission to add a warehouse address for this company. Contact an owner/admin.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="grid grid-cols-3 gap-2">
                   {PRODUCT_TYPE_OPTIONS.map((option) => (
+                    (() => {
+                      const optionBlockedByWarehouse =
+                        isDigitalOnlyLiteMode && (option.value === 'PHYSICAL' || option.value === 'HYBRID');
+
+                      return (
                     <label
                       key={option.value}
+                      title={optionBlockedByWarehouse ? 'Disabled: Add a warehouse address in Company Settings to list physical or hybrid products.' : undefined}
                       className={`${customStyles.toggle} cursor-pointer flex-col items-center text-center !py-3 ${
+                        optionBlockedByWarehouse ? 'opacity-45 cursor-not-allowed' : ''
+                      } ${
                         productType === option.value ? 'ring-2 ring-emerald-500/50 bg-emerald-500/10' : ''
                       }`}
                     >
@@ -1346,6 +1605,7 @@ export const MyProductCreationForm = () => {
                         name="productType"
                         value={option.value}
                         checked={productType === option.value}
+                        disabled={optionBlockedByWarehouse}
                         onChange={(e) => {
                           const newType = e.target.value as ProductTypeType;
                           setProductType(newType);
@@ -1353,19 +1613,19 @@ export const MyProductCreationForm = () => {
                           if (newType === 'PHYSICAL' || newType === 'HYBRID') {
                             setIsPhysicalProduct(true);
                             // Add shipping specs if not already present
-                            if (specifications.length === 0 || !specifications.some(s => shippingSpecKeys.includes(s.key))) {
+                            if (specifications.length === 0 || !specifications.some(s => SHIPPING_SPEC_KEYS.includes(s.key))) {
                               const shippingSpecs: Specification[] = [
                                 { key: 'Weight (g)', value: '', type: 'number' },
                                 { key: 'Height (cm)', value: '', type: 'number' },
                                 { key: 'Length (cm)', value: '', type: 'number' },
                                 { key: 'Width (cm)', value: '', type: 'number' },
                               ];
-                              setSpecifications([...shippingSpecs, ...specifications.filter(s => !shippingSpecKeys.includes(s.key))]);
+                              setSpecifications([...shippingSpecs, ...specifications.filter(s => !SHIPPING_SPEC_KEYS.includes(s.key))]);
                             }
                           } else {
                             setIsPhysicalProduct(false);
                             // Remove shipping specs for digital-only
-                            setSpecifications(specifications.filter(s => !shippingSpecKeys.includes(s.key)));
+                            setSpecifications(specifications.filter(s => !SHIPPING_SPEC_KEYS.includes(s.key)));
                           }
                         }}
                         className="sr-only"
@@ -1374,6 +1634,8 @@ export const MyProductCreationForm = () => {
                       <span className="text-sm font-medium">{option.label}</span>
                       <span className="text-xs text-muted-foreground">{option.description}</span>
                     </label>
+                      );
+                    })()
                   ))}
                 </div>
               </div>
@@ -1482,29 +1744,48 @@ export const MyProductCreationForm = () => {
                 
                 {/* Company product toggle */}
                 <div className="space-y-2">
-                  <label htmlFor='checkbox-isCompanyProduct' className={customStyles.toggle}>
-                    <input
-                      className={customStyles.inputCheckbox}
-                      type="checkbox"
-                      id='checkbox-isCompanyProduct'
-                      checked={isCompanyProduct}
-                      onChange={() => handleCompanyProduct()}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-foreground">Company product</div>
-                      <div className="text-xs text-muted-foreground">Post on behalf of your business</div>
+                  {cameFromCompanyHub ? (
+                    <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs">
+                      <div className="text-foreground font-medium">Posting on behalf of business</div>
+                      <div className="text-muted-foreground mt-1">
+                        {isPrefilledCompanyLoading
+                          ? 'Loading company context...'
+                          : `Selected company: ${prefilledCompanyContext?.name ?? prefilledCompanyId}`}
+                      </div>
                     </div>
-                  </label>
-                  
-                  {isCompanyProduct && (
-                    <div className="pl-4 ml-2 border-l border-emerald-500/20">
-                      <UserCompanyPermission permissionTag="CAN_POST_PRODUCT_POSITION_PERMISSION" onCompanySelect={handleCompanySelect} />
-                    </div>
+                  ) : (
+                    <>
+                      <label htmlFor='checkbox-isCompanyProduct' className={customStyles.toggle}>
+                        <input
+                          className={customStyles.inputCheckbox}
+                          type="checkbox"
+                          id='checkbox-isCompanyProduct'
+                          checked={isCompanyProduct}
+                          onChange={() => handleCompanyProduct()}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-foreground">Company product</div>
+                          <div className="text-xs text-muted-foreground">Post on behalf of your business</div>
+                        </div>
+                      </label>
+
+                      {isCompanyProduct && (
+                        <div className="pl-4 ml-2 border-l border-emerald-500/20">
+                          <UserCompanyPermission permissionTag="CAN_POST_PRODUCT_POSITION_PERMISSION" onCompanySelect={handleCompanySelect} />
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {isCompanyProduct && !cameFromCompanyHub && !companyId && (
+                    <p className="text-xs text-muted-foreground pl-1">
+                      Select a company above to auto-load warehouse addresses, permissions, and company posting context.
+                    </p>
                   )}
                 </div>
 
                 {/* Shipping options - shown for PHYSICAL and HYBRID */}
-                {(productType === 'PHYSICAL' || productType === 'HYBRID') && (
+                {(productType === 'PHYSICAL' || productType === 'HYBRID') && !isDigitalOnlyLiteMode && (
                   <div className="space-y-3 mt-3">
                     <div className="text-sm font-medium text-foreground flex items-center gap-2">
                       📦 Shipping Location
@@ -1741,7 +2022,7 @@ export const MyProductCreationForm = () => {
                               value={spec.value}
                               onChange={(e) => {
                                 // For number specs, only allow numeric input
-                                const isNumberSpec = shippingSpecKeys.includes(spec.key);
+                                const isNumberSpec = SHIPPING_SPEC_KEYS.includes(spec.key);
                                 if (isNumberSpec) {
                                   const numericValue = e.target.value.replace(/[^0-9.]/g, '');
                                   handleSpecificationChange(index, 'value', numericValue);
@@ -1749,13 +2030,13 @@ export const MyProductCreationForm = () => {
                                   handleSpecificationChange(index, 'value', e.target.value);
                                 }
                               }}
-                              placeholder={shippingSpecKeys.includes(spec.key) ? "Enter number" : "Value"}
+                              placeholder={SHIPPING_SPEC_KEYS.includes(spec.key) ? "Enter number" : "Value"}
                               type="text"
-                              inputMode={shippingSpecKeys.includes(spec.key) ? "numeric" : "text"}
+                              inputMode={SHIPPING_SPEC_KEYS.includes(spec.key) ? "numeric" : "text"}
                               className={`${customStyles.input} flex-1 text-sm`}
                             />
                             {/* Only show remove button for non-shipping specs when physical/hybrid */}
-                            {!(isPhysicalProduct && shippingSpecKeys.includes(spec.key)) && (
+                            {!(isPhysicalProduct && SHIPPING_SPEC_KEYS.includes(spec.key)) && (
                               <button
                                 type="button"
                                 onClick={() => removeSpecification(index)}
@@ -1765,7 +2046,7 @@ export const MyProductCreationForm = () => {
                               </button>
                             )}
                             {/* Show locked indicator for required shipping specs */}
-                            {isPhysicalProduct && shippingSpecKeys.includes(spec.key) && (
+                            {isPhysicalProduct && SHIPPING_SPEC_KEYS.includes(spec.key) && (
                               <div className="shrink-0 p-1.5 text-muted-foreground/50" title="Required for shipping">
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />

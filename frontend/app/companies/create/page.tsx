@@ -5,7 +5,7 @@
 'use client'
 
 import { MyCompanyCreateForm } from "@/components/uicustom/company/company-create-form";
-import { Building2, ArrowLeft, Lightbulb, Shield, Globe } from "lucide-react";
+import { Building2, ArrowLeft, Lightbulb, Shield, Globe, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 const CompanyCreatePage = () => {
@@ -62,11 +62,20 @@ const CompanyCreatePage = () => {
                   </li>
                   <li className="flex gap-3">
                     <Shield className="size-4 shrink-0 mt-0.5 text-blue-500" />
-                    <span>Adding your org number helps verify your business</span>
+                    <span title="Your org link stays pending until verified through the official registered email.">Adding your org number starts legal ownership verification</span>
                   </li>
                   <li className="flex gap-3">
                     <Globe className="size-4 shrink-0 mt-0.5 text-emerald-500" />
                     <span>A website URL helps customers find you online</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <ExternalLink className="size-4 shrink-0 mt-0.5 text-violet-500" />
+                    <span>
+                      Need to register a business first?{' '}
+                      <a className="underline underline-offset-2" href="https://www.altinn.no/en/start-and-run-business/" target="_blank" rel="noreferrer">Altinn</a>{' '}
+                      /{' '}
+                      <a className="underline underline-offset-2" href="https://www.brreg.no/en/" target="_blank" rel="noreferrer">Brønnøysund</a>
+                    </span>
                   </li>
                 </ul>
               </div>

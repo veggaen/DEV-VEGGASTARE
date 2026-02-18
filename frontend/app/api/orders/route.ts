@@ -270,6 +270,29 @@ export async function POST(req: Request) {
       }
     }
 
+    try {
+      await dbPrisma.notification.create({
+        data: {
+          userId,
+          type: 'SYSTEM',
+          title: isCryptoPayment ? 'Order pending confirmation' : 'Order confirmed',
+          message: isCryptoPayment
+            ? `Order ${order.id.slice(0, 8)} is waiting for blockchain confirmation.`
+            : `Order ${order.id.slice(0, 8)} is confirmed and ready for fulfilment updates.`,
+          preview: `Order #${order.id.slice(0, 8)} • ${items?.length ?? 0} item(s) • ${totalAmount}`,
+          metadata: {
+            orderId: order.id,
+            orderStatus: order.status,
+            paymentStatus: order.Payment?.status ?? null,
+            isCryptoPayment,
+          },
+        },
+      });
+    } catch (notificationError) {
+      console.error('[api/orders] Failed to create order notification:', notificationError);
+      // Non-blocking: keep order successful even if notification write fails.
+    }
+
     const payment = order.Payment
       ? {
           id: order.Payment.id,

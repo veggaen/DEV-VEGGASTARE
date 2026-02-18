@@ -450,3 +450,37 @@ html.dark [data-theme-tinted] {
 .tickLabel {
   fill: black !important; /* Override the default fill color */
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Poll Builder light-mode compatibility layer
+ * Scope only to poll builder so we do not affect the rest of the app.
+ * This lets the legacy dark-zinc utility usage read cleanly in light mode.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+.poll-builder-theme-scope--light [class*="bg-zinc-"] {
+  background-color: hsl(var(--card)) !important;
+}
+
+.poll-builder-theme-scope--light [class*="border-zinc-"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+.poll-builder-theme-scope--light [class*="text-zinc-200"],
+.poll-builder-theme-scope--light [class*="text-zinc-300"],
+.poll-builder-theme-scope--light [class*="text-zinc-400"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+.poll-builder-theme-scope--light [class*="text-zinc-500"],
+.poll-builder-theme-scope--light [class*="text-zinc-600"],
+.poll-builder-theme-scope--light [class*="text-zinc-700"] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.poll-builder-theme-scope--light [class*="hover:bg-zinc-"]:hover {
+  background-color: hsl(var(--accent)) !important;
+}
+
+.poll-builder-theme-scope--light [class*="hover:text-zinc-"]:hover {
+  color: hsl(var(--foreground)) !important;
+}

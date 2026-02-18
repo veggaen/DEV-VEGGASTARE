@@ -18,7 +18,7 @@ type PostalCodeSuggestion = {
       const response = await fetch(`https://api.bring.com/address/api/no/postal-codes/suggestions?q=${postalCodeInput}`, {
         headers: {
           'X-Mybring-API-Uid': process.env.MYBRING_API_UID || '',
-          'X-Mybring-API-Key': process.env.MYBRING_API_KEY || '',
+          'X-Mybring-API-Key': process.env.MYBRING_SHIPPING_API_KEY || '',
           'X-Bring_Client_URL': whatENV,
           'Accept': 'application/json',
         },

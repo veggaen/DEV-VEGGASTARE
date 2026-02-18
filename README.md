@@ -2,7 +2,7 @@
 
 > **Modern marketplace for premium digital products and services.**
 
-**Last verified:** 2026-02-14
+**Last verified:** 2026-02-18
 
 **Documentation precedence:** when docs conflict, use `frontend/README.md` + `backend/README.md` for setup/runtime behavior, `MasterContext.md` for architecture invariants, and treat `docs/*` files marked Historical as audit-only.
 
