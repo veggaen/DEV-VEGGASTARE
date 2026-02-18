@@ -9,6 +9,7 @@ import { getUserById } from "@/data/user"
 import { getTwoFactorConfirmationByUserId } from "@/data/two-factor-confirmation"
 import { getAccountByUserId } from "./lib/account"
 import { recalculateVerificationTier } from "@/lib/verification-recalc"
+import { sendOauthProviderLinkedEmail } from "@/lib/mail"
 
 
 // Console.log PREFIX
@@ -93,6 +94,8 @@ export const {
         if (account.provider === 'github') oauthFlags.hasGithubAuth = true;
         if (account.provider === 'discord') oauthFlags.hasDiscordAuth = true;
 
+        const provider = account.provider as 'google' | 'github' | 'discord' | string;
+
         await dbPrisma.user.update({
           where: { id: user?.id },
           data: {
@@ -106,6 +109,23 @@ export const {
         // Recalculate verification tier with the newly set flag
         if (user?.id) {
           await recalculateVerificationTier(user.id, oauthFlags);
+
+          // Security notification for additional linked OAuth providers.
+          // This confirms account-link activity without blocking login.
+          if (
+            user.email &&
+            (provider === 'google' || provider === 'github' || provider === 'discord')
+          ) {
+            const totalLinkedAccounts = await dbPrisma.account.count({ where: { userId: user.id } });
+            if (totalLinkedAccounts >= 2) {
+              sendOauthProviderLinkedEmail(user.email, {
+                provider,
+                userName: user.name,
+              }).catch((err) => {
+                console.error(`${LOG_PREFIX} linkAccount: failed to send OAuth link notification`, err);
+              });
+            }
+          }
         }
       }
     },
