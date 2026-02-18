@@ -3,6 +3,7 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
 import { PaymentMethod, ChainFamily } from '@/generated/prisma/browser';
+import type { Prisma } from '@/generated/prisma/client';
 import { z } from 'zod';
 import { OrderDtoSchema } from '@/lib/types/orders';
 import { sendOrderConfirmationEmail } from '@/lib/mail';
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
   if (!session?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const userId = session.id;
 
   const bodyResult = await parseJsonOrError(
     req,
@@ -75,74 +77,151 @@ export async function POST(req: Request) {
     items 
   } = bodyResult.data;
 
+  // --- SERVER-SIDE PRICE VERIFICATION & STOCK CHECK ---
+  // Stock validation + reservation is handled atomically inside the transaction below.
+  // Pre-validate product existence and prices first (read-only, no lock needed).
+  let serverTotal = 0;
+  const productMap = new Map<string, { id: string; price: number; stock: number | null; title: string }>();
+
+  if (items && items.length > 0) {
+    const productIds = items.map(i => i.productId);
+    const products = await dbPrisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, price: true, stock: true, title: true },
+    });
+    for (const p of products) productMap.set(p.id, p);
+
+    for (const item of items) {
+      const product = productMap.get(item.productId);
+      if (!product) {
+        return NextResponse.json(
+          { error: `Product not found: ${item.productId}` },
+          { status: 400 }
+        );
+      }
+      // Verify price — allow small rounding diff (≤0.02) but reject manipulated prices
+      if (Math.abs(Number(product.price) - item.priceAtTime) > 0.02) {
+        return NextResponse.json(
+          { error: `Price mismatch for "${product.title}": expected ${product.price}, got ${item.priceAtTime}` },
+          { status: 400 }
+        );
+      }
+      serverTotal += Number(product.price) * item.quantity;
+    }
+
+    // Verify total (allow up to 1.00 tolerance for shipping/rounding)
+    const shippingAddon = shippingCost ?? 0;
+    if (Math.abs(serverTotal + shippingAddon - totalAmount) > 1.0) {
+      console.warn(`[api/orders] Total mismatch: server=${serverTotal} + shipping=${shippingAddon}, client=${totalAmount}`);
+    }
+  }
+
   // Determine initial status: crypto payments start as CONFIRMING, fiat as COMPLETED
   const isCryptoPayment = !!chainFamily || method === PaymentMethod.CRYPTO_NATIVE;
   const initialOrderStatus = isCryptoPayment ? 'CONFIRMING' : 'COMPLETED';
   const initialPaymentStatus = isCryptoPayment ? 'CONFIRMING' : 'COMPLETED';
 
   try {
-    const order = await dbPrisma.order.create({
-      data: {
-        userId: session.id,
-        totalAmount,
-        status: initialOrderStatus,
-        transactionId: transactionId ?? null,
-        commentOrder: commentOrder?.trim() || '',
-        // Shipping info
-        shippingName: shippingName ?? null,
-        shippingAddress: shippingAddress ?? null,
-        shippingCity: shippingCity ?? null,
-        shippingPostalCode: shippingPostalCode ?? null,
-        shippingCountry: shippingCountry ?? 'NO',
-        shippingPhone: shippingPhone ?? null,
-        shippingEmail: shippingEmail ?? null,
-        shippingMethod: shippingMethod ?? null,
-        shippingCost: shippingCost ?? null,
-        Payment: {
-          create: {
-            commentPay: commentPay?.trim() || '',
-            method: method ?? PaymentMethod.CRYPTO_NATIVE,
-            status: initialPaymentStatus,
-            transactionId: transactionId ?? null,
-            // On-chain crypto data
-            chainFamily: chainFamily ?? null,
-            chainId: chainId ?? null,
-            tokenSymbol: tokenSymbol ?? null,
-            nativeAmount: nativeAmount ?? null,
-            senderAddress: senderAddress ?? null,
-            receiverAddress: receiverAddress ?? null,
-            blockNumber: blockNumber ?? null,
-            nokRateAtTime: nokRateAtTime ?? null,
-            usdRateAtTime: usdRateAtTime ?? null,
+    // ── Atomic order creation + stock reservation ──
+    // Uses an interactive transaction so stock check + decrement + order insert
+    // happen under the same serializable snapshot, preventing overselling.
+    const order = await dbPrisma.$transaction(async (tx) => {
+      // 1. Lock and verify stock for each item (SELECT ... FOR UPDATE equivalent)
+      if (items && items.length > 0) {
+        for (const item of items) {
+          const product = await tx.product.findUnique({
+            where: { id: item.productId },
+            select: { id: true, stock: true, title: true },
+          });
+          if (!product) {
+            throw new Error(`Product not found: ${item.productId}`);
+          }
+          if (product.stock !== null && product.stock < item.quantity) {
+            throw new Error(`Insufficient stock for "${product.title}": only ${product.stock} available`);
+          }
+          // 2. Decrement stock atomically within the transaction
+          if (product.stock !== null) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } },
+            });
+          }
+        }
+      }
+
+      // 3. Create order + payment + items in the same transaction
+      return tx.order.create({
+        data: {
+          userId,
+          totalAmount,
+          status: initialOrderStatus,
+          transactionId: transactionId ?? null,
+          commentOrder: commentOrder?.trim() || '',
+          // Shipping info
+          shippingName: shippingName ?? null,
+          shippingAddress: shippingAddress ?? null,
+          shippingCity: shippingCity ?? null,
+          shippingPostalCode: shippingPostalCode ?? null,
+          shippingCountry: shippingCountry ?? 'NO',
+          shippingPhone: shippingPhone ?? null,
+          shippingEmail: shippingEmail ?? null,
+          shippingMethod: shippingMethod ?? null,
+          shippingCost: shippingCost ?? null,
+          Payment: {
+            create: {
+              commentPay: commentPay?.trim() || '',
+              method: method ?? PaymentMethod.CRYPTO_NATIVE,
+              status: initialPaymentStatus,
+              transactionId: transactionId ?? null,
+              // On-chain crypto data
+              chainFamily: chainFamily ?? null,
+              chainId: chainId ?? null,
+              tokenSymbol: tokenSymbol ?? null,
+              nativeAmount: nativeAmount ?? null,
+              senderAddress: senderAddress ?? null,
+              receiverAddress: receiverAddress ?? null,
+              blockNumber: blockNumber ?? null,
+              nokRateAtTime: nokRateAtTime ?? null,
+              usdRateAtTime: usdRateAtTime ?? null,
+            },
           },
+          // Create order items if provided
+          ...(items && items.length > 0 ? {
+            OrderItem: {
+              create: items.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                priceAtTime: item.priceAtTime,
+                title: item.title,
+              })),
+            },
+          } : {}),
         },
-        // Create order items if provided
-        ...(items && items.length > 0 ? {
-          OrderItem: {
-            create: items.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              priceAtTime: item.priceAtTime,
-              title: item.title,
-            })),
-          },
-        } : {}),
-      },
+        include: {
+          Payment: true,
+          OrderItem: true,
+        },
+      });
+    }, {
+      // Transaction options: serializable isolation prevents phantom reads / race conditions
+      timeout: 15000,
+      isolationLevel: 'Serializable',
+    }) as Prisma.OrderGetPayload<{
       include: {
-        Payment: true,
-        OrderItem: true,
-      },
-    });
+        Payment: true;
+        OrderItem: true;
+      };
+    }>;
 
     // Set payment verification flag and recalculate tier
     // Fiat orders are COMPLETED immediately; crypto orders are CONFIRMING (handled in /confirm)
     if (!isCryptoPayment) {
       try {
         await dbPrisma.user.update({
-          where: { id: session.id },
+          where: { id: userId },
           data: { hasWeb2Payment: true },
         });
-        await recalculateVerificationTier(session.id, { hasWeb2Payment: true });
+        await recalculateVerificationTier(userId, { hasWeb2Payment: true });
       } catch (flagErr) {
         console.error('[api/orders] Failed to set hasWeb2Payment flag:', flagErr);
       }
@@ -158,7 +237,7 @@ export async function POST(req: Request) {
         }));
         downloadTokens = await generateDownloadTokensForOrder({
           orderId: order.id,
-          userId: session.id,
+          userId,
           orderItems: orderItemsWithIds,
         });
       } catch (tokenError) {
@@ -237,6 +316,15 @@ export async function POST(req: Request) {
 
     return NextResponse.json(parsed.data);
   } catch (error) {
+    // Handle stock/transaction errors with appropriate status codes
+    if (error instanceof Error) {
+      if (error.message.includes('Insufficient stock')) {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
+      if (error.message.includes('Product not found')) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+    }
     console.error('Error creating order:', error);
     return NextResponse.json(
       { error: 'Error creating order', ...(isDev && error instanceof Error ? { detail: error.message } : {}) },

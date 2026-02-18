@@ -140,7 +140,7 @@ export default function SettingsPage() {
   }, [user?.id]);
 
   // Image validation helper
-  const validateImageFile = (file: File): boolean => {
+  const validateImageFile = useCallback((file: File): boolean => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       toast.error('Please upload a valid image file (JPG, PNG, GIF, or WebP)');
@@ -151,10 +151,10 @@ export default function SettingsPage() {
       return false;
     }
     return true;
-  };
+  }, []);
 
   // Upload image and return URL (doesn't save to profile yet)
-  const uploadImage = async (file: File): Promise<string | null> => {
+  const uploadImage = useCallback(async (file: File): Promise<string | null> => {
     try {
       const res = await edgestore.myPublicImages.upload({ file });
       return res.url;
@@ -163,7 +163,7 @@ export default function SettingsPage() {
       toast.error('Failed to upload image');
       return null;
     }
-  };
+  }, [edgestore]);
 
   // Handle banner file selection (from input, paste, or drop)
   const handleBannerFile = useCallback(async (file: File) => {
@@ -176,7 +176,7 @@ export default function SettingsPage() {
       toast.success('Banner preview ready! Click Save to apply.');
     }
     setIsUploadingBanner(false);
-  }, []);
+  }, [uploadImage, validateImageFile]);
 
   // Handle avatar file selection (from input, paste, or drop)
   const handleAvatarFile = useCallback(async (file: File) => {
@@ -189,7 +189,7 @@ export default function SettingsPage() {
       toast.success('Avatar preview ready! Click Save to apply.');
     }
     setIsUploadingAvatar(false);
-  }, []);
+  }, [uploadImage, validateImageFile]);
 
   // Handle file input change
   const handleAvatarInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2471,7 +2471,7 @@ function AddressesSettings() {
     );
   }
 
-  const AddressForm = () => (
+  const renderAddressForm = () => (
     <div className="space-y-4 p-4 border border-border dark:border-white/10 rounded-lg bg-white/50 dark:bg-white/5">
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 sm:col-span-1">
@@ -2548,7 +2548,7 @@ function AddressesSettings() {
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      {showAdd && <AddressForm />}
+      {showAdd && renderAddressForm()}
 
       {addresses.length === 0 && !showAdd && (
         <div className="text-center py-8 text-muted-foreground">
@@ -2565,7 +2565,7 @@ function AddressesSettings() {
         >
           {editId === addr.id ? (
             <div className="w-full">
-              <AddressForm />
+              {renderAddressForm()}
             </div>
           ) : (
             <>

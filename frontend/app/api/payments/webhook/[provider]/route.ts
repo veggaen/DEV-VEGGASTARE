@@ -2,20 +2,19 @@ import { NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 import { getPaymentProvider, type PaymentProviderType } from '@/lib/payments/providers';
 import { recalculateVerificationTier } from '@/lib/verification-recalc';
+import { verifyWebhookSignature } from '@/lib/payments/webhook-verify';
+import { getProviderGate } from '@/lib/payments/provider-gating';
+import { getRuntimeConfig } from '@/lib/runtime-config';
 
 /**
  * POST /api/payments/webhook/[provider]
  * Handle payment provider webhooks (Vipps, Klarna, PayPal)
  *
- * SECURITY NOTE: In production, each provider's webhook signature MUST be
- * verified before processing. Currently validates provider status via API call
- * (getStatus) as a secondary check, but the webhook payload itself is not
- * signature-verified.
- *
- * TODO (before accepting real payments):
- * - Vipps: Verify Authorization header with webhook secret
- * - Klarna: Verify X-Klarna-Hmac-Sha256 header
- * - PayPal: Verify PAYPAL-TRANSMISSION-SIG with PayPal cert
+ * SECURITY: Webhook signatures are verified per-provider before processing.
+ * - Vipps: Authorization header matched against VIPPS_WEBHOOK_SECRET
+ * - Klarna: HMAC-SHA256 via X-Klarna-Hmac-Sha256 header
+ * - PayPal: Certificate-based verification via PayPal API (PAYPAL-TRANSMISSION-SIG)
+ * In development, verification is skipped with a warning.
  */
 export async function POST(
   req: Request,
@@ -23,7 +22,19 @@ export async function POST(
 ) {
   const { provider: providerType } = await params;
 
-  const provider = getPaymentProvider(providerType as PaymentProviderType);
+  if (providerType !== 'vipps' && providerType !== 'klarna' && providerType !== 'paypal') {
+    return NextResponse.json({ error: 'Unknown provider' }, { status: 400 });
+  }
+
+  const typedProvider: PaymentProviderType = providerType;
+
+  const runtime = await getRuntimeConfig();
+  const gate = getProviderGate(typedProvider, runtime);
+  if (!gate.enabled) {
+    return NextResponse.json({ error: gate.reason ?? 'Provider disabled' }, { status: 503 });
+  }
+
+  const provider = getPaymentProvider(typedProvider);
   if (!provider) {
     return NextResponse.json({ error: 'Unknown provider' }, { status: 400 });
   }
@@ -33,7 +44,17 @@ export async function POST(
   console.log(`[webhook/${providerType}] Received from IP: ${ip}`);
 
   try {
-    const body = await req.json();
+    // Read raw body for signature verification, then parse JSON
+    const rawBody = await req.text();
+
+    // ── Signature verification (production-enforced) ──
+    const isVerified = await verifyWebhookSignature(providerType, rawBody, req.headers);
+    if (!isVerified) {
+      console.error(`[webhook/${providerType}] Signature verification FAILED from IP: ${ip}`);
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+    }
+
+    const body = JSON.parse(rawBody);
 
     // Extract session/reference ID based on provider
     let sessionId: string | undefined;

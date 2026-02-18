@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+import Image from 'next/image';
 import { motion } from "framer-motion";
 import { 
   FiUsers, FiBriefcase, FiActivity, FiSettings, FiShield,
@@ -288,7 +289,7 @@ export default function AdminPage() {
                   {stats.ai.topUsersToday.map((u) => (
                     <div key={u.userId} className="flex items-center gap-3 px-3 py-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg text-sm">
                       {u.image ? (
-                        <img src={u.image} alt="" className="h-7 w-7 rounded-full" />
+                        <Image src={u.image} alt="" width={28} height={28} unoptimized className="h-7 w-7 rounded-full object-cover" />
                       ) : (
                         <div className="h-7 w-7 rounded-full bg-zinc-200 dark:bg-zinc-700" />
                       )}

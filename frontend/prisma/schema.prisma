@@ -483,12 +483,40 @@ model Order {
   Payment       Payment?
   OrderItem     OrderItem[]
   DownloadToken DownloadToken[]
+  ReturnRequest ReturnRequest[]
 
   @@index([userId])
   @@index([status])
   @@index([fulfilmentStatus])
   @@index([createdAt])
   @@index([userId, status])
+}
+
+/// Buyer-initiated return/refund request (Norwegian Angrerettloven: 14-day withdrawal).
+/// Sellers (company or solo) process these via the return management API.
+model ReturnRequest {
+  id          String             @id @default(cuid())
+  orderId     String
+  userId      String             // Buyer who initiated the return
+  reason      ReturnReason
+  description String?            // Free-text explanation from buyer
+  status      ReturnRequestStatus @default(PENDING)
+  
+  // Seller response
+  sellerNote  String?            // Seller note to buyer
+  processedBy String?            // UserId of seller/employee who processed
+  processedAt DateTime?
+  refundAmount Float?            // Amount to refund (may differ from order total)
+  
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  Order       Order              @relation(fields: [orderId], references: [id])
+  User        User               @relation(fields: [userId], references: [id])
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
 }
 
 model OrderItem {
@@ -902,6 +930,18 @@ model AdminAuditLog {
   @@index([createdAt])
 }
 
+model RuntimeConfig {
+  id                  String   @id @default(cuid())
+  singletonKey        String   @unique @default("default")
+  paymentsLiveEnabled Boolean  @default(false)
+  bringLiveEnabled    Boolean  @default(false)
+  updatedBy           String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([updatedAt])
+}
+
 model User {
   id                                                              String                        @id @default(cuid())
   name                                                            String?
@@ -994,6 +1034,7 @@ model User {
   ContentAppeals                                                   ContentAppeal[]               @relation("ContentAppeals")
   DataExportRequests                                               DataExportRequest[]
   AccountDeletionRequests                                          AccountDeletionRequest[]
+  ReturnRequests                                                   ReturnRequest[]
 }
 
 model UserAiApiKey {
@@ -1549,6 +1590,7 @@ enum AdminTargetType {
   CONVERSATION
   WAREHOUSE
   POLL
+  RUNTIME_CONFIG
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2352,4 +2394,24 @@ enum DataRequestStatus {
   COMPLETED
   CANCELLED
   FAILED
+}
+
+/// Reason for return/refund request
+enum ReturnReason {
+  CHANGED_MIND         // Buyer changed mind (Angrerettloven 14-day right)
+  DEFECTIVE            // Product is defective or damaged
+  WRONG_ITEM           // Received wrong item
+  NOT_AS_DESCRIBED     // Product doesn't match listing
+  LATE_DELIVERY        // Delivery significantly delayed
+  OTHER                // Free-text reason
+}
+
+/// Status of a return/refund request
+enum ReturnRequestStatus {
+  PENDING              // Buyer submitted, awaiting seller review
+  APPROVED             // Seller approved return
+  REJECTED             // Seller rejected (with reason)
+  REFUNDED             // Refund processed
+  COMPLETED            // Return fully processed (item received back if physical)
+  CANCELLED            // Buyer or seller cancelled the request
 }

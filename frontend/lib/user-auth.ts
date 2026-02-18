@@ -18,7 +18,7 @@ export const MyLibUserAuth = async (): Promise<ExtendedUser | undefined> => {
  */
 export const MyLibUserIDAuth = async (): Promise<string | undefined> => {
     const session = await auth();
-    return session?.user.id;
+    return session?.user?.id;
     
 }
 
@@ -28,7 +28,7 @@ export const MyLibUserIDAuth = async (): Promise<string | undefined> => {
  */
 export const MyLibRoleAuth = async (): Promise<UserRole | undefined> => {
     const session = await auth();
-    return session?.user.role;
+    return session?.user?.role;
     
 }
 
@@ -38,6 +38,6 @@ export const MyLibRoleAuth = async (): Promise<UserRole | undefined> => {
  */
 export const MyLibEmailAuth = async (): Promise<string | null | undefined> => {
     const session = await auth();
-    return session?.user.email;
+    return session?.user?.email;
     
 }

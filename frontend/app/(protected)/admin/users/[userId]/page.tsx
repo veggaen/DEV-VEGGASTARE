@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import { toast } from 'sonner';
 import { 
   FiUser, FiArrowLeft, FiSave, FiMail, FiCalendar, FiShield,
@@ -365,10 +366,12 @@ export default function AdminUserEditPage() {
           {/* Banner */}
           <div className="relative h-48 bg-linear-to-r from-emerald-500 to-teal-600">
             {formData.banner && (
-              <img
+              <Image
                 src={formData.banner}
                 alt="Banner"
-                className="w-full h-full object-cover"
+                fill
+                unoptimized
+                className="object-cover"
               />
             )}
             <div className="absolute inset-0 bg-black/20" />

@@ -60,11 +60,16 @@ The platform uniquely combines:
 | Shopping Cart | ✅ Shipped | Add/remove items, quantity management |
 | Checkout Flow | ✅ Shipped | Address, shipping, payment flow |
 | Order Confirmation | ✅ Shipped | Post-purchase confirmation page |
+| Buyer "My Orders" | ✅ Shipped | Order history, fulfilment tracking, download links (`/my-orders`) |
+| Solo Seller "My Sales" | ✅ Shipped | Seller order visibility + metrics for solo and company sellers (`/my-sales`) |
 | Company Creation | ✅ Shipped | Register company with profile |
 | Employee Management | ✅ Shipped | Invite, assign roles (OWNER/ADMIN/MEMBER), remove |
 | Warehouse Management | ✅ Shipped | Create warehouses, manage stock per product |
 | Real-time Stock Sync | ✅ Shipped | WebSocket-based inventory updates across clients |
 | Shipping Integration | ✅ Shipped | Bring rates in checkout, method selection, booking, tracking, pickup points |
+| Returns/Refunds | ✅ Shipped | Buyer return requests, seller processing, stock restoration, 14-day Angrerettloven compliance |
+| Webhook Signatures | ✅ Shipped | Per-provider verification for Vipps/Klarna/PayPal payment webhooks |
+| Atomic Stock Reservation | ✅ Shipped | Serializable transaction prevents checkout race conditions |
 | Vipps Payment | ⏳ Planned | Norwegian mobile payment (see docs/VIPPS_REQUIREMENTS.md) |
 
 ### 3.2 Web3 & Crypto Trading

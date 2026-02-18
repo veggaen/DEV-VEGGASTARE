@@ -33,13 +33,14 @@ These rules apply across the entire codebase. Violating them will cause bugs or 
 8. **Build uses Webpack mode.** `next dev --webpack` and `next build --webpack` — not Turbopack (due to compatibility).
 9. **Environment variables are split.** Dev in `.env.local`, prod in hosting provider. Never commit secrets.
 10. **Backend CORS is restrictive in production.** Set `CORS_ORIGINS` explicitly. Default `*` is dev-only.
-11. **Payment webhooks must verify provider signatures in production.** Vipps/Klarna/PayPal each send signature headers. See `app/api/payments/webhook/[provider]/route.ts`.
+11. **Payment webhooks verify provider signatures in production.** Vipps: Authorization header vs `VIPPS_WEBHOOK_SECRET`. Klarna: HMAC-SHA256 via `X-Klarna-Hmac-Sha256`. PayPal: cert-based verification via PayPal API (`PAYPAL_WEBHOOK_ID`). In dev, verification is skipped with a warning. See `lib/payments/webhook-verify.ts`.
 12. **GATE_PASSWORD must be set via env var.** No hardcoded fallback — set `GATE_PASSWORD` in `.env`. To disable the gate, set `GATE_STATUS=false`.
 13. **Database backups must never be committed to git.** The `.gitignore` excludes `**/database-backups/`. Never override this.
 14. **Web3 mode toggle does NOT require email verification.** Toggling `web3ModeEnabled` is a simple PATCH to `/api/settings/web3-mode`. Email verification is only required for **wallet linking** (binding a wallet address to the user account).
 15. **Unified sign-out: Web2 ↔ Web3.** `useCleanLogout` handles Web2→Web3 (disconnects wallets on sign-out). `WalletDisconnectWatcher` in `Web3Providers.tsx` handles Web3→Web2 (wallet disconnect triggers `signOut`). A `cleanLogoutInProgress` flag in `use-clean-logout.ts` prevents loops.
 16. **AI generation requires authentication + auto-resolves keys.** Server uses `auto` mode: saved key → owner-only OpenAI (PLATFORM_OWNER_EMAIL) → Groq free tier (GROQ_API_KEY, Llama 3.3 70B) → error. 1 credit = 1 action (generation or refinement), 5/day. BYOK unlimited. Conversational chat thread: initial generation → Review Card with [Test Preview] [Inspect in Builder] → refinement loop ("make question 3 harder"). No dropdown, no mention of "default key".
 17. **AI prompts are sanitized server-side.** Known injection/jailbreak patterns are blocked before reaching the AI provider. Output is validated for safety before returning to the client.
+18. **Live integration toggles are DB-backed and OWNER-controlled.** `RuntimeConfig` (`paymentsLiveEnabled`, `bringLiveEnabled`) can be changed only via `PATCH /api/admin/runtime-config` (OWNER). Production payment providers are fail-closed when required provider + webhook env vars are missing.
 
 ---
 
@@ -248,6 +249,22 @@ These tags can be extracted by the aggregation script at `scripts/aggregate-cont
 
 ## Security Audit Log
 
+### 2026-02-18 — Hybrid Seller Validation & Gap Closure
+
+**Security (this session):**
+| Issue | Severity | Fix |
+|-------|----------|-----|
+| Payment webhook signatures not verified (forged webhooks could complete orders) | HIGH → FIXED | Implemented per-provider verification: Vipps (Authorization), Klarna (HMAC-SHA256), PayPal (cert-based). Created `lib/payments/webhook-verify.ts`. Dev skips with warning, prod enforces. |
+| Checkout race condition — concurrent buyers could oversell last item | MEDIUM → FIXED | Order creation + stock decrement now wrapped in single `$transaction` with `Serializable` isolation level. Stock checked + decremented inside transaction before order insert. |
+| Stock decrement was outside transaction (TOCTOU vulnerability) | MEDIUM → FIXED | Moved into atomic transaction block. Returns also restore stock transactionally. |
+
+**New features:**
+| Feature | Details |
+|---------|---------|
+| Solo seller "My Sales" dashboard | `/my-sales` page + `/api/seller/orders` API. Shows orders containing the seller's products (via userId or company ownership). Status tabs, quick metrics, expandable order cards. |
+| Buyer "My Orders" page | `/my-orders` page. Full order history with payment status, fulfilment tracking, download links, and order confirmation links. Uses existing `/api/orders/user/[userId]` API. |
+| Returns/refund request system | `ReturnRequest` Prisma model + `/api/returns` (buyer: POST/GET) + `/api/returns/[id]` (seller: PATCH/GET). 6 return reasons, state machine transitions, 14-day Angrerettloven compliance check, stock restoration on refund. |
+
 ### 2026-02-12 — Pre-Commit Security Audit
 
 **Fixed (this session):**
@@ -322,11 +339,11 @@ These tags can be extracted by the aggregation script at `scripts/aggregate-cont
 **Known remaining issues (lower priority):**
 | Issue | Severity | Status |
 |-------|----------|--------|
-| ~15 routes use raw `request.json()` without Zod validation | MEDIUM | Should add Zod schemas |
+| ~~~15 routes use raw `request.json()` without Zod validation~~ | ~~MEDIUM~~ | ✅ Verified: all 42 API routes use Zod |
 | Trade confirm has potential race condition (no DB transaction) | MEDIUM | Should use `$transaction` |
 | No CSRF token on API routes (mitigated by SameSite cookies) | MEDIUM | Consider Origin header check |
 | Anonymous engagement events on `/api/interact` | MEDIUM | Has built-in rate limit, but no auth required |
-| Payment webhook signature verification not implemented | HIGH | Must implement before accepting real payments |
+| ~~Payment webhook signature verification not implemented~~ | ~~HIGH~~ | ✅ Implemented: Vipps (Authorization header), Klarna (HMAC-SHA256), PayPal (cert-based API verification). See `lib/payments/webhook-verify.ts` |
 | Purge database-backup data from git history (BFG/filter-branch) | MEDIUM | Data still in old commits |
 
 ### 2026-02-18 — GDPR/DSA Compliance Implementation

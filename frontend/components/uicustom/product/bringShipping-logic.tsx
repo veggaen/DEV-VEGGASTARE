@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { fetchBringShippingDetails, ShippingError } from '@/lib/fetch-bring-shipping-details';
 import MyShippingDetailsDisplay from './bring-shipping-details-display';
 import { FiAlertTriangle, FiWifiOff, FiRefreshCw, FiServer } from 'react-icons/fi';
@@ -59,6 +59,12 @@ export interface ShippingDetails {
   uniqueId: string;
 }
 
+function isShippingDetails(value: unknown): value is ShippingDetails {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Record<string, unknown>;
+  return Array.isArray(candidate.consignments);
+}
+
 // Define the structure of the package specifications BRING API
 interface PackageSpecification {
     length: number;
@@ -103,7 +109,7 @@ export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ ship
   const [isLoading, setIsLoading] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
-  const fetchShipping = async () => {
+  const fetchShipping = useCallback(async () => {
     try {
       if (!shippingDetailsFromUser?.toPostalCode) return;
       setError(null);
@@ -112,6 +118,9 @@ export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ ship
 
       console.log(LOG_PREFIX, 'fetchBringShippingDetails()', shippingDetailsFromUser);
       const response = await fetchBringShippingDetails(shippingDetailsFromUser);
+      if (!isShippingDetails(response)) {
+        throw new ShippingError('API_ERROR', 'Unexpected shipping response format');
+      }
       setShippingResponse(response);
     } catch (e) {
       if (e instanceof ShippingError) {
@@ -123,11 +132,11 @@ export const MyBringShippingLogic: React.FC<MyBringShippingLogicProps> = ({ ship
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [shippingDetailsFromUser]);
 
   useEffect(() => {
     fetchShipping();
-  }, [shippingDetailsFromUser, retryCount]);
+  }, [fetchShipping, retryCount]);
 
   const handleRetry = () => {
     setRetryCount(prev => prev + 1);

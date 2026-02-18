@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+import Image from 'next/image';
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FiArrowLeft,
@@ -267,7 +268,7 @@ function PendingReviewTab() {
                     <span>{new Date(poll.createdAt).toLocaleDateString()}</span>
                     <span className="flex items-center gap-1">
                       {poll.creator.image ? (
-                        <img src={poll.creator.image} alt="" className="h-4 w-4 rounded-full" />
+                        <Image src={poll.creator.image} alt="" width={16} height={16} unoptimized className="h-4 w-4 rounded-full object-cover" />
                       ) : null}
                       {poll.creator.name ?? poll.creator.email ?? "Unknown"}
                     </span>

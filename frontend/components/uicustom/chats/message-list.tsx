@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { Button } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
@@ -253,9 +254,12 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                           <input {...getInputProps()} />
                           {editedImagePreview ? (
                             <div className="relative inline-block">
-                              <img
+                              <Image
                                 src={editedImagePreview}
                                 alt="Edited"
+                                width={80}
+                                height={80}
+                                unoptimized
                                 className="w-20 h-20 rounded-lg object-cover"
                               />
                               <button
@@ -308,9 +312,12 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                         
                         {message.imageUrl && (
                           <div className="mt-2">
-                            <img
+                            <Image
                               src={message.imageUrl}
                               alt="Attachment"
+                              width={512}
+                              height={512}
+                              unoptimized
                               className="rounded-lg max-w-full max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                               onClick={() => window.open(message.imageUrl, '_blank')}
                             />

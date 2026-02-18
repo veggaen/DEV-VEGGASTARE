@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useEdgeStore } from '@/lib/edgestore';
 import { RxCrossCircled } from "react-icons/rx";
 import { FaFileUpload } from "react-icons/fa";
@@ -209,9 +210,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         {imagePreview && (
           <div className="mb-3">
             <div className="relative inline-block">
-              <img
+              <Image
                 src={imagePreview}
                 alt="Selected image"
+                width={112}
+                height={112}
+                unoptimized
                 className="h-28 w-28 rounded-xl object-cover border border-black/10 dark:border-white/10"
               />
               <button

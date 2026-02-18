@@ -147,7 +147,6 @@ export const {
           // If JWT was invalidated (user deleted or tokenVersion mismatch),
           // clear the session so the client detects it as logged-out
           if (!token.sub) {
-            session.user = undefined as any;
             return session;
           }
 

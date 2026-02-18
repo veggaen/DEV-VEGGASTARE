@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { defaultBringLiveEnabled, getRuntimeConfig } from "@/lib/runtime-config";
 
 /**
  * Bring Booking API Integration
@@ -138,7 +139,9 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.BRING_API_KEY;
     const apiUid = process.env.BRING_API_UID;
     const customerNumber = process.env.BRING_CUSTOMER_NUMBER;
-    const isTestMode = process.env.BRING_TEST_MODE === "true";
+    const runtime = await getRuntimeConfig();
+    const bringLiveEnabled = runtime.bringLiveEnabled ?? defaultBringLiveEnabled();
+    const isTestMode = !bringLiveEnabled;
 
     if (!apiKey || !apiUid || !customerNumber) {
       console.error("[bring-booking] Missing API credentials");
@@ -178,7 +181,7 @@ export async function POST(request: NextRequest) {
           id: serviceCode,
           customerNumber: customerNumber,
         },
-        packages: packages.map((pkg: any) => ({
+        packages: packages.map((pkg) => ({
           weightInKg: pkg.weight / 1000, // Convert grams to kg
           dimensions: pkg.dimensions ? {
             heightInCm: pkg.dimensions.height,
@@ -295,7 +298,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     name: "Bring Booking API",
     version: "1.0",
-    testMode: process.env.BRING_TEST_MODE === "true",
+    testMode: !(await getRuntimeConfig()).bringLiveEnabled,
     endpoints: {
       createBooking: "POST /api/bring-booking",
       getErrors: "GET /api/bring-booking?action=errors",
