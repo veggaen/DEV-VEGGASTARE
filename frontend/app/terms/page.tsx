@@ -221,6 +221,30 @@ export default function TermsPage() {
               </p>
             </section>
 
+            {/* 8. Brukergenerert innhold og lisens (UGC licensing) */}
+            <section>
+              <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2">
+                8. Brukergenerert innhold og lisens
+              </h2>
+              <p className="mt-4 text-muted-foreground leading-relaxed">
+                Ved å laste opp innhold til Veggat (innlegg, bilder, produktannonser, avstemninger, meldinger m.m.) 
+                gir du oss en ikke-eksklusiv, verdensomspennende, gebyrfri lisens til å lagre, vise og distribuere 
+                innholdet innenfor plattformen. Du beholder alle eiendomsrettigheter.
+              </p>
+              <p className="mt-3 text-muted-foreground leading-relaxed">
+                Du garanterer at du eier eller har de nødvendige rettighetene til alt innhold du laster opp. 
+                Innhold som krenker andres opphavsrett eller immaterielle rettigheter kan fjernes uten forvarsel. 
+                For rapportering av krenkelser, se våre{" "}
+                <Link href="/community-guidelines" className="text-emerald-500 hover:underline">
+                  retningslinjer for fellesskapet
+                </Link>.
+              </p>
+              <p className="mt-3 text-muted-foreground leading-relaxed">
+                Lisensen opphører når du sletter innholdet, med unntak av kopier som allerede er delt 
+                med andre brukere (f.eks. meldinger) eller som vi er rettslig forpliktet til å beholde (f.eks. ordrehistorikk).
+              </p>
+            </section>
+
             {/* Contact box */}
             <section className="mt-12 p-6 rounded-2xl bg-muted/30 border border-border">
               <h3 className="text-lg font-semibold text-foreground">Kontaktinformasjon</h3>
@@ -252,6 +276,12 @@ export default function TermsPage() {
             <div className="mt-8 flex flex-wrap gap-4 text-sm">
               <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
                 ← Personvern og cookies
+              </Link>
+              <Link href="/community-guidelines" className="text-muted-foreground hover:text-foreground transition-colors">
+                Retningslinjer for fellesskapet →
+              </Link>
+              <Link href="/accessibility" className="text-muted-foreground hover:text-foreground transition-colors">
+                Tilgjengelighetserklæring →
               </Link>
               <Link href="/info" className="text-muted-foreground hover:text-foreground transition-colors">
                 Om oss →

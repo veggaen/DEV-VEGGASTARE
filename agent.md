@@ -271,6 +271,7 @@ Employees/contributors follow `ONBOARDING.md` instead.
 - Multi-wallet support (EVM/Solana/Bitcoin, sidebar panel, multi-chain linked wallets)
 - System account impersonation ("Take Control" from profile/hovercard, amber header banner)
 - Address & Shipping Phase 2 (shipping method selection, Bring booking + tracking, enhanced order confirmation + email)
+- GDPR/DSA compliance (full privacy policy, community guidelines, accessibility statement, data export, account deletion, content reporting + appeals)
 
 ### In Progress
 - True Reach™ score computation engine
@@ -290,8 +291,6 @@ Employees/contributors follow `ONBOARDING.md` instead.
 - User search at Pulse/feed level
 - Mobile app (React Native or PWA)
 - NFT marketplace integration
-- GDPR data subject rights (export, deletion, restriction)
-- DSA content moderation system
 - Two-factor authentication (TOTP)
 
 ---
@@ -303,8 +302,8 @@ Employees/contributors follow `ONBOARDING.md` instead.
 | Payment webhook signatures not verified | HIGH | Must implement before real payments |
 | Trade confirm has race condition (no `$transaction`) | MEDIUM | Should use DB transaction |
 | Database backups in git history (old commits) | MEDIUM | Need BFG/filter-branch cleanup |
-| GDPR data subject rights not implemented | HIGH (legal) | No export/delete/restrict endpoints |
-| DSA content moderation not started | HIGH (legal) | No reporting/appeal mechanism |
+| GDPR data export UI polish | LOW | API works, needs settings page integration |
+| DSA admin moderation dashboard | MEDIUM | API works, needs admin UI for review queue |
 | DPI tax reporting deadline passed (Jan 2026) | HIGH (legal) | Check if applicable |
 
 ---

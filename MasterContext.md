@@ -4,7 +4,7 @@
 > This file is the canonical source for architecture invariants and onboarding context.
 
 **Auto-generated sections** are marked with `<!-- @auto -->`. Manual sections are maintained by developers.  
-**Last Updated:** 2025-07-10
+**Last Updated:** 2026-02-18
 
 ---
 
@@ -328,6 +328,21 @@ These tags can be extracted by the aggregation script at `scripts/aggregate-cont
 | Anonymous engagement events on `/api/interact` | MEDIUM | Has built-in rate limit, but no auth required |
 | Payment webhook signature verification not implemented | HIGH | Must implement before accepting real payments |
 | Purge database-backup data from git history (BFG/filter-branch) | MEDIUM | Data still in old commits |
+
+### 2026-02-18 — GDPR/DSA Compliance Implementation
+
+**Added:**
+| Feature | Details |
+|---------|--------|
+| Privacy policy rewrite (GDPR Art. 13/14) | `/privacy` — 13 sections: data controller, categories, legal basis, purposes, retention, third parties w/ SCC, 7 data subject rights, automated decisions, children, cookies, security, Datatilsynet complaint |
+| Community guidelines (DSA) | `/community-guidelines` — prohibited content (10 categories), reporting process, 48hr review target, appeal mechanism (Art. 20, 6 months), consequences table, copyright/UGC licensing, Nkom as supervisory authority |
+| Accessibility statement (WCAG 2.1 AA) | `/accessibility` — conformance level, what works (7 items), known limitations (6 items), UU-tilsynet as supervisory authority |
+| Terms content licensing | `/terms` — new §8 UGC license: non-exclusive worldwide royalty-free, user retains ownership |
+| Prisma schema: 6 new models | `ContentReport`, `ModerationAction`, `ContentAppeal`, `DataExportRequest`, `AccountDeletionRequest` + 5 enums |
+| Data export API (GDPR Art. 15/20) | `actions/gdpr-data-export.ts` — exports 14 data categories as JSON |
+| Account deletion (GDPR Art. 17) | `actions/gdpr-account-deletion.ts` — 30-day grace period, order PII anonymised (bokføringsloven), cascading delete |
+| Content report API (DSA) | `actions/content-report.ts` — submit report (13 reasons), resolve (admin), appeal, moderation queue |
+| Report dialog UI | `components/uicustom/report/ReportDialog.tsx` — wired into PulseDetailModal report button |
 
 ---
 

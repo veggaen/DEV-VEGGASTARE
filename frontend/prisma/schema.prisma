@@ -980,6 +980,12 @@ model User {
   // AI Poll System
   DailyAiUsage                                                    DailyAiUsage[]
   ScheduledPolls                                                  ScheduledPoll[]
+  // GDPR / DSA Compliance
+  ContentReports                                                  ContentReport[]               @relation("ContentReports")
+  ContentReportReviews                                             ContentReport[]               @relation("ContentReportReviews")
+  ContentAppeals                                                   ContentAppeal[]               @relation("ContentAppeals")
+  DataExportRequests                                               DataExportRequest[]
+  AccountDeletionRequests                                          AccountDeletionRequest[]
 }
 
 model UserAiApiKey {
@@ -2170,4 +2176,156 @@ model ScheduledPoll {
   @@index([isActive])
   @@index([nextRunAt])
   @@index([createdBy])
+}
+
+// ─── GDPR / DSA Compliance Models ──────────────────────────────────────────────
+
+/// DSA-compliant content report submitted by a user.
+model ContentReport {
+  id               String              @id @default(cuid())
+  reporterId       String              // The user who filed the report
+  contentType      ReportContentType   // What kind of content is being reported
+  contentId        String              // The ID of the reported content (post, message, product, etc.)
+  reason           ReportReason        // Categorised reason for the report
+  description      String?             // Optional free-text description
+  status           ReportStatus        @default(PENDING)
+  reviewedById     String?             // Admin who reviewed the report
+  resolutionNote   String?             // Explanation of the resolution
+  resolvedAt       DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  Reporter         User                @relation("ContentReports", fields: [reporterId], references: [id], onDelete: Cascade)
+  ReviewedBy       User?               @relation("ContentReportReviews", fields: [reviewedById], references: [id], onDelete: SetNull)
+  ModerationAction ModerationAction?
+  Appeals          ContentAppeal[]
+
+  @@index([reporterId])
+  @@index([contentType, contentId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum ReportContentType {
+  POST          // Pulse post / Conversation
+  MESSAGE       // DM or group message
+  PRODUCT       // Product listing
+  POLL          // Poll / Quiz
+  USER_PROFILE  // User profile (name, bio, avatar)
+  IMAGE         // Uploaded image
+  OTHER
+}
+
+enum ReportReason {
+  ILLEGAL_CONTENT
+  HATE_SPEECH
+  HARASSMENT
+  VIOLENCE
+  SEXUAL_CONTENT
+  CHILD_EXPLOITATION
+  SPAM
+  SCAM
+  IMPERSONATION
+  COPYRIGHT_INFRINGEMENT
+  MISINFORMATION
+  PLATFORM_MANIPULATION
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING       // Awaiting review
+  IN_REVIEW     // Assigned to a moderator
+  RESOLVED      // Action taken (removed, warned, or dismissed)
+  DISMISSED     // Report dismissed as invalid
+}
+
+/// Tracks moderation decisions for DSA transparency and appeals (Art. 17).
+model ModerationAction {
+  id              String               @id @default(cuid())
+  reportId        String               @unique
+  action          ModerationActionType
+  reason          String               // Statement of reasons (DSA Art. 17)
+  targetUserId    String?              // User whose content was moderated
+  createdAt       DateTime             @default(now())
+  Report          ContentReport        @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([targetUserId])
+  @@index([createdAt])
+}
+
+enum ModerationActionType {
+  CONTENT_REMOVED
+  CONTENT_RESTRICTED    // Hidden from public but not deleted
+  ACCOUNT_WARNING
+  ACCOUNT_SUSPENDED
+  ACCOUNT_BANNED
+  DISMISSED             // No action taken
+  REFERRED_TO_AUTHORITY // Reported to police/NCMEC
+}
+
+/// User appeal of a moderation decision (DSA Art. 20).
+model ContentAppeal {
+  id              String        @id @default(cuid())
+  reportId        String
+  appellantId     String        // The user appealing
+  reason          String        // Why the user disagrees
+  status          AppealStatus  @default(PENDING)
+  reviewedById    String?
+  resolutionNote  String?
+  resolvedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  Report          ContentReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  Appellant       User          @relation("ContentAppeals", fields: [appellantId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([appellantId])
+  @@index([status])
+}
+
+enum AppealStatus {
+  PENDING
+  UPHELD      // Original decision stands
+  OVERTURNED  // Decision reversed
+}
+
+/// GDPR data export request (Art. 15 / Art. 20).
+model DataExportRequest {
+  id          String              @id @default(cuid())
+  userId      String
+  status      DataRequestStatus   @default(PENDING)
+  downloadUrl String?             // Signed URL to the export file (expires)
+  expiresAt   DateTime?           // When the download link expires
+  completedAt DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  User        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+/// GDPR account deletion request (Art. 17 — right to erasure).
+model AccountDeletionRequest {
+  id            String              @id @default(cuid())
+  userId        String
+  status        DataRequestStatus   @default(PENDING)
+  reason        String?             // Optional user-provided reason
+  scheduledFor  DateTime            // Deletion scheduled 30 days from request
+  cancelledAt   DateTime?           // If user cancelled the request
+  completedAt   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  User          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+enum DataRequestStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  FAILED
 }

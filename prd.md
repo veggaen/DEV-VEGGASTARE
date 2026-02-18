@@ -3,7 +3,7 @@
 > Living PRD for the Veggat marketplace and social platform.
 
 **Version:** 1.0  
-**Last Updated:** 2026-02-14  
+**Last Updated:** 2026-02-18  
 **Status:** Active Development
 
 ---
@@ -160,8 +160,11 @@ The platform uniquely combines:
 ### 4.4 Compliance
 - Norwegian consumer law compliance for Vipps integration
 - 14-day right of withdrawal (Angrerett)
-- GDPR-aligned data handling
 - Price display with VAT (MVA) included
+- **GDPR (implemented):** Full Art. 13/14 privacy policy, data export (Art. 15/20), account deletion with 30-day grace (Art. 17), automated decision disclosure (Art. 22)
+- **DSA (implemented):** Community guidelines, content reporting with 13 reason categories, moderation actions with statement of reasons (Art. 17), appeal mechanism within 6 months (Art. 20), 48-hour review target
+- **Accessibility:** WCAG 2.1 AA partial conformance, accessibility statement per UU-tilsynet requirements
+- **Legal pages:** /privacy, /terms, /community-guidelines, /accessibility — all in Norwegian
 
 ---
 
