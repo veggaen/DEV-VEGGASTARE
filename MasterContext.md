@@ -4,7 +4,7 @@
 > This file is the canonical source for architecture invariants and onboarding context.
 
 **Auto-generated sections** are marked with `<!-- @auto -->`. Manual sections are maintained by developers.  
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-18
 
 ---
 
@@ -310,6 +310,8 @@ These tags can be extracted by the aggregation script at `scripts/aggregate-cont
 | No admin notification for system alerts | `lib/admin-alerts.ts` sends email via Resend to `PLATFORM_OWNER_EMAIL` for cron failures, system warnings |
 | Progress bar hardcoded `/6` steps — would overflow with new pipeline | Server sends `totalSteps` in SSE events; PollBuilder uses dynamic denominator |
 | No scheduled poll generation capability | `ScheduledPoll` model + `/api/cron/daily-poll` route (8 AM UTC daily via Vercel cron). Polls created as PENDING_REVIEW for admin approval |
+| No middleware-level rate limiting (122 unprotected routes) | Two-layer rate limiter in `proxy.ts` (middleware): global per-IP cap (300/min) + per-tier caps (gate 5, ai 8, analytics 15, wallet 10, trade 20, admin 30, message 40, write 40, social 60, external 60, read 120). Edge-compatible in-memory store. Routes with `@/lib/rate-limit` keep their stricter per-user limits on top. |
+| No admin dashboard for AI/polls monitoring | `/admin` now fetches live stats from `/api/admin/stats` (platform totals + AI quota metrics). `/admin/polls` page for pending review queue + scheduled template CRUD via `/api/admin/polls`. |
 
 **New env vars:**
 | Variable | Where | Purpose |
@@ -319,7 +321,7 @@ These tags can be extracted by the aggregation script at `scripts/aggregate-cont
 **Known remaining issues (lower priority):**
 | Issue | Severity | Status |
 |-------|----------|--------|
-| ~120 API routes still lack rate limiting | HIGH | `lib/rate-limit.ts` exists, 6 more routes added this session |
+| ~~120 API routes lack rate limiting~~ | ~~HIGH~~ | **RESOLVED** — middleware-level rate limiter in `proxy.ts` covers all API routes (2 layers: global + per-tier) |
 | ~15 routes use raw `request.json()` without Zod validation | MEDIUM | Should add Zod schemas |
 | Trade confirm has potential race condition (no DB transaction) | MEDIUM | Should use `$transaction` |
 | No CSRF token on API routes (mitigated by SameSite cookies) | MEDIUM | Consider Origin header check |
