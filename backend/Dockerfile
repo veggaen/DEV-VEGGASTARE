@@ -9,6 +9,8 @@ WORKDIR /usr/src
 
 # Copy dependency manifests first (Docker layer cache: only re-install when deps change)
 COPY package*.json ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
 RUN npm ci
 
 # Copy source + build
@@ -27,6 +29,8 @@ WORKDIR /usr/src
 
 # Copy only production deps
 COPY package*.json ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
 RUN npm ci --omit=dev
 
 # Copy built output + generated Prisma client from builder
