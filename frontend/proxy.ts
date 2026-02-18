@@ -389,6 +389,20 @@ export default function proxy(req: NextRequest) {
 
   if (isAuthRoute) {
     if (isLoggedIn) {
+      // Keep logged-in users on the verification flow if OAuth linking fails.
+      // Without this, /auth/error gets bounced to DEFAULT_LOGIN_REDIRECT (/nexus).
+      if (pathname === "/auth/error") {
+        const oauthError = nextUrl.searchParams.get("error") || "OAuthCallbackError";
+        return applySecurityHeaders(
+          NextResponse.redirect(
+            new URL(`/settings?section=verification&oauthError=${encodeURIComponent(oauthError)}`, nextUrl)
+          ),
+          requestId,
+          nonce,
+          pathname
+        );
+      }
+
       return applySecurityHeaders(
         NextResponse.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl)),
         requestId,

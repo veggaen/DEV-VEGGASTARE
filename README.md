@@ -79,6 +79,20 @@ DEV-VEGGASTARE/
 
 ### Prerequisites
 
+### Root Terminal Shortcuts (VS Code)
+
+From `DEV-VEGGASTARE/` you can run:
+
+- `npm run start` → alias for `start:project`
+- `npm run stop` → alias for `stop:project`
+- `npm run restart` → alias for `restart:project`
+- `npm run start:project` → starts backend in a second terminal window, then runs frontend in the current terminal
+- `npm run start:project:task` → triggers VS Code default `dev` task (frontend + backend in parallel split terminals)
+- `npm run stop:project` → stops listeners on ports `3000`, `3001`, `3002`
+- `npm run restart:project` → stop then start
+
+`start:project` now checks if dev ports are already busy, shuts old listeners down, and then launches cleanly.
+
 - **Node.js** 20+ and **npm**
 - **PostgreSQL** database (local or hosted — we use Neon)
 - Environment variables configured (see sub-READMEs)
