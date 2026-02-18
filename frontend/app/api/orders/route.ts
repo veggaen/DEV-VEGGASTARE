@@ -182,6 +182,8 @@ export async function POST(req: Request) {
           shippingCountry: shippingCountry ?? 'NO',
           transactionId: transactionId ?? undefined,
           downloadLinks: downloadTokens.length > 0 ? downloadTokens : undefined,
+          shippingMethodName: shippingMethod ?? undefined,
+          shippingCost: shippingCost ?? undefined,
         });
       } catch (emailError) {
         console.error('[api/orders] Failed to send confirmation email:', emailError);

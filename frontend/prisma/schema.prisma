@@ -465,6 +465,13 @@ model Order {
   shippingMethod     String?   // e.g. "PAKKE_I_POSTKASSEN", "SERVICEPAKKE"
   shippingCost       Float?
   
+  // Bring shipment tracking (populated after booking)
+  trackingNumber       String?
+  trackingUrl          String?
+  bringConsignmentId   String?
+  estimatedDelivery    DateTime?
+  shippingServiceName  String?   // Human-readable e.g. "Pakke i postkassen"
+  
   User          User        @relation(fields: [userId], references: [id])
   Payment       Payment?
   OrderItem     OrderItem[]
