@@ -39,6 +39,11 @@ const truncateDescription = (description: string | null) => {
 };
 
 const CompanyCard = ({ company }: { company: PublicCompany }) => {
+  const createdAtDate = new Date(company.createdAt);
+  const foundedLabel = Number.isNaN(createdAtDate.getTime())
+    ? 'Founded recently'
+    : `Founded ${formatDistanceToNow(createdAtDate, { addSuffix: true })}`;
+
   return (
     <Link
       href={`/companies/${company.id}`}
@@ -88,7 +93,7 @@ const CompanyCard = ({ company }: { company: PublicCompany }) => {
 
         <div className="mt-4 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
           <span>{company._count.employees} {company._count.employees === 1 ? 'member' : 'members'}</span>
-          <span>Founded {formatDistanceToNow(new Date(company.createdAt), { addSuffix: true })}</span>
+          <span>{foundedLabel}</span>
         </div>
       </div>
     </Link>

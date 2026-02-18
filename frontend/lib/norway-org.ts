@@ -165,53 +165,20 @@ export async function searchNorwegianOrganizationsByPrefix(
   limit = 6
 ): Promise<NorwayOrgSuggestion[]> {
   const orgPrefix = normalizeNorwegianOrgNumber(orgPrefixRaw);
-  if (orgPrefix.length < 3) return [];
+  if (orgPrefix.length < 9) return [];
 
-  const endpoint = `https://data.brreg.no/enhetsregisteret/api/enheter?organisasjonsnummer=${encodeURIComponent(orgPrefix)}&size=${Math.max(1, Math.min(limit, 10))}`;
+  const lookup = await lookupNorwegianOrganization(orgPrefix);
+  if (!lookup.found) return [];
 
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-
-    const res = await fetch(endpoint, {
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-      signal: controller.signal,
-    });
-
-    clearTimeout(timer);
-
-    if (!res.ok) {
-      return [];
-    }
-
-    const payload = (await res.json()) as Record<string, any>;
-    const entries = Array.isArray(payload?._embedded?.enheter)
-      ? payload._embedded.enheter
-      : [];
-
-    return entries
-      .map((entry: Record<string, any>) => {
-        const orgNumber = normalizeNorwegianOrgNumber(entry.organisasjonsnummer);
-        if (!orgNumber) return null;
-
-        const orgFormCode = entry.organisasjonsform?.kode as string | undefined;
-        const orgFormLabel = entry.organisasjonsform?.beskrivelse as string | undefined;
-
-        return {
-          orgNumber,
-          legalName: ((entry.navn as string | undefined) ?? '').trim(),
-          orgFormCode,
-          orgFormLabel,
-          suggestedOrgType: mapBrregOrgType(orgFormCode, orgFormLabel),
-          officialEmail: pickOfficialEmail(entry),
-          websiteUrl: (entry.hjemmeside as string | undefined)?.trim(),
-        } satisfies NorwayOrgSuggestion;
-      })
-      .filter((entry: NorwayOrgSuggestion | null): entry is NorwayOrgSuggestion => Boolean(entry))
-      .filter((entry: NorwayOrgSuggestion) => entry.orgNumber.startsWith(orgPrefix))
-      .slice(0, Math.max(1, Math.min(limit, 10)));
-  } catch {
-    return [];
-  }
+  return [
+    {
+      orgNumber: lookup.orgNumber,
+      legalName: lookup.legalName?.trim() || 'Registered organization',
+      orgFormCode: lookup.orgFormCode,
+      orgFormLabel: lookup.orgFormLabel,
+      suggestedOrgType: lookup.suggestedOrgType,
+      officialEmail: lookup.officialEmail,
+      websiteUrl: lookup.websiteUrl,
+    },
+  ].slice(0, Math.max(1, Math.min(limit, 10)));
 }

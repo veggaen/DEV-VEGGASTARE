@@ -97,6 +97,7 @@ export const MyCompanyCreateForm = () => {
   const [success, setSuccess] = useState<string | undefined>('');
   const [orgLookupState, setOrgLookupState] = useState<'idle' | 'loading' | 'found' | 'not-found' | 'error'>('idle');
   const [orgLookupData, setOrgLookupData] = useState<NorwayOrgLookupResult | null>(null);
+  const [orgAutofilledFields, setOrgAutofilledFields] = useState<string[]>([]);
   const [orgSuggestions, setOrgSuggestions] = useState<NorwayOrgSuggestion[]>([]);
   const [showOrgSuggestions, setShowOrgSuggestions] = useState(false);
 
@@ -189,6 +190,7 @@ export const MyCompanyCreateForm = () => {
       const resetTimer = setTimeout(() => {
         setOrgLookupState('idle');
         setOrgLookupData(null);
+        setOrgAutofilledFields([]);
       }, 0);
       return () => clearTimeout(resetTimer);
     }
@@ -197,6 +199,7 @@ export const MyCompanyCreateForm = () => {
       const resetTimer = setTimeout(() => {
         setOrgLookupState('idle');
         setOrgLookupData(null);
+        setOrgAutofilledFields([]);
       }, 0);
       return () => clearTimeout(resetTimer);
     }
@@ -216,21 +219,26 @@ export const MyCompanyCreateForm = () => {
         if (!res.ok || !payload.found) {
           setOrgLookupState('not-found');
           setOrgLookupData(payload);
+          setOrgAutofilledFields([]);
           return;
         }
 
         setOrgLookupState('found');
         setOrgLookupData(payload);
+        const autofilled: string[] = [];
 
         // Optional autofill (non-destructive: only fill empty fields)
         if (payload.legalName && !getValues('name')?.trim()) {
           setValue('name', payload.legalName, { shouldDirty: true });
+          autofilled.push('Name');
         }
         if (payload.websiteUrl && !getValues('websiteUrl')?.trim()) {
           setValue('websiteUrl', payload.websiteUrl, { shouldDirty: true });
+          autofilled.push('Website');
         }
         if (payload.suggestedOrgType && !getValues('orgType')) {
           setValue('orgType', payload.suggestedOrgType, { shouldDirty: true });
+          autofilled.push('Org type');
         }
 
         if (payload.address) {
@@ -247,11 +255,18 @@ export const MyCompanyCreateForm = () => {
             const next = [...locations];
             next[0] = patched;
             setValue('warehouseLocations', next, { shouldDirty: true });
+            if (!first.address && payload.address.address) autofilled.push('Warehouse address');
+            if (!first.city && payload.address.city) autofilled.push('Warehouse city');
+            if (!first.postalCode && payload.address.postalCode) autofilled.push('Warehouse postal code');
+            if (!first.country && payload.address.country) autofilled.push('Warehouse country');
           }
         }
+
+        setOrgAutofilledFields(autofilled);
       } catch {
         if (cancelled) return;
         setOrgLookupState('error');
+        setOrgAutofilledFields([]);
       }
     }, 450);
 
@@ -596,6 +611,13 @@ export const MyCompanyCreateForm = () => {
                       </div>
                     </FormDescription>
 
+                    {normalizeNorwegianOrgNumber(field.value).length >= 3 && normalizeNorwegianOrgNumber(field.value).length < 9 && (
+                      <div className="rounded-md border border-sky-300/50 bg-sky-50 dark:bg-sky-950/30 px-3 py-2 text-xs text-sky-800 dark:text-sky-300 inline-flex items-start gap-1.5">
+                        <Info className="h-3.5 w-3.5 mt-0.5" />
+                        Keep typing all 9 digits to fetch official Brønnøysund company details and autofill fields.
+                      </div>
+                    )}
+
                     {orgLookupState === 'loading' && (
                       <div className="text-xs text-zinc-500 inline-flex items-center gap-1.5">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -610,15 +632,31 @@ export const MyCompanyCreateForm = () => {
                           Match found: {orgLookupData.legalName || 'Registered organization'}
                         </div>
                         <div>
-                          Fields auto-filled where empty. Official company-email verification will be required before this org is linked.
+                          Org number: {formatNorwegianOrgNumber(orgLookupData.orgNumber)}
+                          {orgLookupData.orgFormLabel ? ` • ${orgLookupData.orgFormLabel}` : ''}
                         </div>
+                        {orgLookupData.officialEmail ? <div>Official email: {orgLookupData.officialEmail}</div> : null}
+                        {orgLookupData.websiteUrl ? <div>Website: {orgLookupData.websiteUrl}</div> : null}
+                        <div>
+                          {orgAutofilledFields.length > 0
+                            ? `Fields auto-filled where empty: ${orgAutofilledFields.join(', ')}.`
+                            : 'Official details fetched. Existing field values were kept.'}
+                        </div>
+                        <div>Official company-email verification will still be required before this org is linked.</div>
                       </div>
                     )}
 
                     {orgLookupState === 'not-found' && (
                       <div className="rounded-md border border-amber-300/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-300 inline-flex items-start gap-1.5">
                         <AlertCircle className="h-3.5 w-3.5 mt-0.5" />
-                        No company found for this number. You can still create a company profile, but it will stay unverified.
+                        {orgLookupData?.message || 'No company found for this number.'} You can still create a company profile, but it will stay unverified.
+                      </div>
+                    )}
+
+                    {orgLookupState === 'error' && (
+                      <div className="rounded-md border border-amber-300/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-300 inline-flex items-start gap-1.5">
+                        <AlertCircle className="h-3.5 w-3.5 mt-0.5" />
+                        Could not reach Brønnøysund right now. You can continue manually and verify later.
                       </div>
                     )}
 
