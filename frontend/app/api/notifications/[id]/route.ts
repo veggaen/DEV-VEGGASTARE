@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { dbPrisma as db } from "@/lib/db";
+import { z } from 'zod';
+
+const NotificationPatchSchema = z.object({
+  isRead: z.boolean().optional(),
+  isArchived: z.boolean().optional(),
+}).strict();
 
 // GET /api/notifications/[id] - Get a single notification
 export async function GET(
@@ -49,8 +55,12 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const body = await request.json();
-    const { isRead, isArchived } = body;
+    const json = await request.json();
+    const parsed = NotificationPatchSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid payload", issues: parsed.error.issues }, { status: 400 });
+    }
+    const { isRead, isArchived } = parsed.data;
 
     // Verify ownership
     const existing = await db.notification.findUnique({

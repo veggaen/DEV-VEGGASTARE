@@ -2,6 +2,19 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { dbPrisma as db } from "@/lib/db";
 import { MuteType } from "@/generated/prisma/browser";
+import { z } from 'zod';
+
+const CreateMuteSchema = z.object({
+  mutedUserId: z.string().optional(),
+  conversationId: z.string().optional(),
+  companyId: z.string().optional(),
+  muteType: z.enum(["ALL", "MESSAGES_ONLY", "ENGAGEMENT_ONLY", "MENTIONS_ONLY"]).default("ALL"),
+  reason: z.string().max(500).optional(),
+  expiresAt: z.string().datetime().optional().nullable(),
+}).refine(
+  (data) => data.mutedUserId || data.conversationId || data.companyId,
+  { message: "Must specify mutedUserId, conversationId, or companyId" }
+);
 
 // GET /api/notifications/mutes - Get user's muted users/conversations
 export async function GET() {
@@ -40,32 +53,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
+    const json = await request.json();
+    const parsed = CreateMuteSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid payload", issues: parsed.error.issues },
+        { status: 400 }
+      );
+    }
     const { 
       mutedUserId, 
       conversationId, 
       companyId, 
-      muteType = "ALL", 
+      muteType, 
       reason, 
       expiresAt 
-    } = body;
-
-    // Must have at least one target
-    if (!mutedUserId && !conversationId && !companyId) {
-      return NextResponse.json(
-        { error: "Must specify mutedUserId, conversationId, or companyId" },
-        { status: 400 }
-      );
-    }
-
-    // Validate muteType
-    const validMuteTypes: MuteType[] = ["ALL", "MESSAGES_ONLY", "ENGAGEMENT_ONLY", "MENTIONS_ONLY"];
-    if (!validMuteTypes.includes(muteType as MuteType)) {
-      return NextResponse.json(
-        { error: "Invalid muteType" },
-        { status: 400 }
-      );
-    }
+    } = parsed.data;
 
     // Build unique constraint check
     const whereClause: {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
 /**
  * Bring Booking API Integration
@@ -9,6 +10,35 @@ import { NextRequest, NextResponse } from "next/server";
  * IMPORTANT: Use X-Bring-Test-Indicator: true for testing!
  * This creates test bookings that won't generate real shipments or charges.
  */
+
+const BringPartySchema = z.object({
+  name: z.string().min(1).max(200),
+  address: z.string().min(1).max(500),
+  postalCode: z.string().min(1).max(20),
+  city: z.string().min(1).max(200),
+  countryCode: z.string().length(2).default("NO"),
+  email: z.string().email().max(254).optional(),
+  phone: z.string().max(30).optional(),
+});
+
+const BringPackageSchema = z.object({
+  weight: z.number().positive().max(100_000), // grams
+  dimensions: z.object({
+    height: z.number().positive().max(500),
+    width: z.number().positive().max(500),
+    length: z.number().positive().max(500),
+  }).optional(),
+  description: z.string().max(200).optional(),
+});
+
+const BringBookingBodySchema = z.object({
+  sender: BringPartySchema,
+  recipient: BringPartySchema,
+  packages: z.array(BringPackageSchema).min(1).max(50),
+  serviceCode: z.string().max(20).default("5800"),
+  shippingDate: z.string().max(30).optional(),
+  orderId: z.string().max(100).optional(),
+});
 
 const BRING_BOOKING_API = "https://api.bring.com/booking/api";
 
@@ -86,24 +116,23 @@ interface BookingResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    
+    const json = await request.json();
+    const parsed = BringBookingBodySchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid payload", issues: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+
     const {
       sender,
       recipient,
       packages,
-      serviceCode = "5800", // Default: Pakke til hentested (pickup point)
+      serviceCode,
       shippingDate,
       orderId,
-    } = body;
-
-    // Validate required fields
-    if (!sender || !recipient || !packages?.length) {
-      return NextResponse.json(
-        { error: "Missing required fields: sender, recipient, packages" },
-        { status: 400 }
-      );
-    }
+    } = parsed.data;
 
     // Get credentials from environment
     const apiKey = process.env.BRING_API_KEY;

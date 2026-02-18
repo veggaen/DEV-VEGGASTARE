@@ -10,6 +10,11 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { verifyCodeHash } from '@/lib/phone-verification';
 import { calculateVerificationScore, determineUserVerificationTier } from '@/lib/view-strength';
 import { PhoneVerifyResponseSchema } from '@/lib/types/phone-verification';
+import { z } from 'zod';
+
+const PhoneVerifyBodySchema = z.object({
+  code: z.string().length(6).regex(/^\d{6}$/, 'Code must be 6 digits'),
+});
 
 const LOG_PREFIX = '[api/auth/phone/verify]';
 const MAX_ATTEMPTS = 3;
@@ -42,15 +47,15 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = await req.json();
-    const { code } = body;
-
-    if (!code || typeof code !== 'string' || code.length !== 6) {
+    const json = await req.json();
+    const parsed = PhoneVerifyBodySchema.safeParse(json);
+    if (!parsed.success) {
       return respond(400, {
         error: 'Invalid code',
         message: 'Please enter a 6-digit verification code',
       });
     }
+    const { code } = parsed.data;
 
     // Get pending verification
     const verification = await dbPrisma.phoneVerification.findFirst({

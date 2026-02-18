@@ -9,6 +9,23 @@ import {
   sanitizeFields 
 } from '@/lib/admin';
 import { AdminAction, AdminTargetType, UserRole } from '@/generated/prisma/browser';
+import { z } from 'zod';
+
+const AdminUserPatchSchema = z.object({
+  reason: z.string().max(500).optional(),
+  name: z.string().min(1).max(200).optional(),
+  email: z.string().email().max(254).optional(),
+  image: z.string().url().max(2048).optional().nullable(),
+  banner: z.string().url().max(2048).optional().nullable(),
+  bio: z.string().max(2000).optional().nullable(),
+  role: z.enum(['USER', 'ADMIN', 'OWNER']).optional(),
+  verificationTier: z.string().max(50).optional(),
+  verificationScore: z.number().min(0).max(1000).optional(),
+}).passthrough();
+
+const AdminUserDeleteSchema = z.object({
+  reason: z.string().max(500).optional(),
+});
 
 const LOG_PREFIX = '[api/admin/users/[userId]]';
 
@@ -123,8 +140,12 @@ export async function PATCH(
   const { userId } = await context.params;
 
   try {
-    const body = await request.json();
-    const { reason, ...updateFields } = body;
+    const json = await request.json();
+    const parsed = AdminUserPatchSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 });
+    }
+    const { reason, ...updateFields } = parsed.data;
 
     // Get current user data for audit log
     const currentUser = await dbPrisma.user.findUnique({
@@ -163,8 +184,8 @@ export async function PATCH(
         );
       }
 
-      // Validate role value
-      if (!['USER', 'ADMIN', 'OWNER'].includes(updateFields.role)) {
+      // Validate role value (already validated by Zod schema, but belt-and-suspenders)
+      if (!updateFields.role || !['USER', 'ADMIN', 'OWNER'].includes(updateFields.role)) {
         return NextResponse.json(
           { error: 'Invalid role value' },
           { status: 400 }
@@ -173,7 +194,7 @@ export async function PATCH(
     }
 
     // Sanitize to only allowed fields
-    const sanitizedData = sanitizeFields(updateFields, ADMIN_USER_EDITABLE_FIELDS);
+    const sanitizedData = sanitizeFields(updateFields, ADMIN_USER_EDITABLE_FIELDS) as Record<string, unknown>;
 
     if (Object.keys(sanitizedData).length === 0) {
       return NextResponse.json(
@@ -262,7 +283,8 @@ export async function DELETE(
 
   try {
     const body = await request.json().catch(() => ({}));
-    const { reason } = body;
+    const deleteParsed = AdminUserDeleteSchema.safeParse(body);
+    const { reason } = deleteParsed.success ? deleteParsed.data : { reason: undefined };
 
     // Get user data for audit log before deletion
     const user = await dbPrisma.user.findUnique({

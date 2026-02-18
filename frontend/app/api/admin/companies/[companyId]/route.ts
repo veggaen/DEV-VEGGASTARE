@@ -9,6 +9,24 @@ import {
   sanitizeFields 
 } from '@/lib/admin';
 import { AdminAction, AdminTargetType } from '@/generated/prisma/browser';
+import { z } from 'zod';
+
+const AdminCompanyPatchSchema = z.object({
+  reason: z.string().max(500).optional(),
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(5000).optional().nullable(),
+  websiteUrl: z.string().url().max(2048).optional().nullable(),
+  logo: z.string().url().max(2048).optional().nullable(),
+  bannerImage: z.string().url().max(2048).optional().nullable(),
+  colorScheme: z.string().max(100).optional().nullable(),
+  orgNumber: z.string().max(50).optional().nullable(),
+  orgType: z.string().max(50).optional().nullable(),
+  usesShipping: z.boolean().optional(),
+}).passthrough();
+
+const AdminCompanyDeleteSchema = z.object({
+  reason: z.string().max(500).optional(),
+});
 
 const LOG_PREFIX = '[api/admin/companies/[companyId]]';
 
@@ -121,8 +139,12 @@ export async function PATCH(
   const { companyId } = await context.params;
 
   try {
-    const body = await request.json();
-    const { reason, ...updateFields } = body;
+    const json = await request.json();
+    const parsed = AdminCompanyPatchSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 });
+    }
+    const { reason, ...updateFields } = parsed.data;
 
     // Get current company data for audit log
     const currentCompany = await dbPrisma.company.findUnique({
@@ -146,7 +168,7 @@ export async function PATCH(
     }
 
     // Sanitize to only allowed fields
-    const sanitizedData = sanitizeFields(updateFields, ADMIN_COMPANY_EDITABLE_FIELDS);
+    const sanitizedData = sanitizeFields(updateFields, ADMIN_COMPANY_EDITABLE_FIELDS) as Record<string, unknown>;
 
     if (Object.keys(sanitizedData).length === 0) {
       return NextResponse.json(
@@ -226,7 +248,8 @@ export async function DELETE(
 
   try {
     const body = await request.json().catch(() => ({}));
-    const { reason } = body;
+    const deleteParsed = AdminCompanyDeleteSchema.safeParse(body);
+    const { reason } = deleteParsed.success ? deleteParsed.data : { reason: undefined };
 
     // Get company data for audit log before deletion
     const company = await dbPrisma.company.findUnique({

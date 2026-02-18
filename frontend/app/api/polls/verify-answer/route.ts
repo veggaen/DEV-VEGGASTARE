@@ -10,21 +10,24 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+
+const VerifyAnswerSchema = z.object({
+  userAnswer: z.string().min(1).max(1000),
+  correctAnswer: z.string().min(1).max(1000),
+  questionText: z.string().max(2000).optional(),
+});
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { userAnswer, correctAnswer, questionText } = body as {
-      userAnswer?: string;
-      correctAnswer?: string;
-      questionText?: string;
-    };
-
-    if (!userAnswer || !correctAnswer) {
-      return NextResponse.json({ isCorrect: false, error: "Missing fields" }, { status: 400 });
+    const json = await req.json();
+    const parsed = VerifyAnswerSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ isCorrect: false, error: "Invalid payload" }, { status: 400 });
     }
+    const { userAnswer, correctAnswer, questionText } = parsed.data;
 
     if (!GROQ_API_KEY) {
       // No API key configured — fail closed (fuzzy result stands)

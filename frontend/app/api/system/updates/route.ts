@@ -8,6 +8,14 @@ import {
   ensureSystemAccount,
   formatChangelogContent,
 } from "@/lib/system-account";
+import { z } from 'zod';
+
+const SystemUpdateSchema = z.object({
+  title: z.string().min(1).max(500),
+  content: z.string().max(10000).optional(),
+  changes: z.array(z.string().max(1000)).max(50).optional(),
+  tags: z.array(z.string().max(50)).max(20).optional(),
+});
 
 // GET /api/system/updates - Get system updates/changelogs
 export async function GET(request: Request) {
@@ -87,15 +95,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
-    const { title, content, changes, tags } = body;
-
-    if (!title) {
+    const json = await request.json();
+    const parsed = SystemUpdateSchema.safeParse(json);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Title is required" },
+        { error: "Invalid payload", issues: parsed.error.issues },
         { status: 400 }
       );
     }
+    const { title, content, changes, tags } = parsed.data;
 
     // If changes array is provided, format it as changelog
     // Otherwise use raw content

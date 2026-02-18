@@ -6,6 +6,11 @@ import {
   FriendRequestsListResponseSchema,
 } from '@/lib/types/friend-requests';
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
+import { z } from 'zod';
+
+const FriendRequestBodySchema = z.object({
+  userId: z.string().min(1),
+});
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -107,11 +112,12 @@ export async function POST(request: NextRequest) {
   if (!rl.success) return rateLimitedResponse(rl);
 
   try {
-    const { userId } = await request.json();
-
-    if (!userId) {
+    const json = await request.json();
+    const parsed = FriendRequestBodySchema.safeParse(json);
+    if (!parsed.success) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
+    const { userId } = parsed.data;
 
     if (session.id === userId) {
       return NextResponse.json({ error: 'Cannot send friend request to yourself' }, { status: 400 });

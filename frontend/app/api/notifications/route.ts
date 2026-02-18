@@ -2,6 +2,27 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { dbPrisma as db } from "@/lib/db";
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
+import { z } from 'zod';
+
+const CreateNotificationSchema = z.object({
+  userId: z.string().min(1),
+  type: z.enum([
+    "HEARTBEAT", "VIBE", "REPULSE", "REPLY", "SYNC", "DM",
+    "GROUP_MESSAGE", "MENTION", "HOT_PULSE", "MILESTONE",
+    "VIBE_CHECK", "SYSTEM", "TRADE_REQUEST", "TRADE_ACCEPTED",
+    "TRADE_COMPLETED", "TRADE_CANCELLED",
+  ]),
+  title: z.string().min(1).max(500),
+  message: z.string().min(1).max(2000),
+  emoji: z.string().max(20).optional(),
+  preview: z.string().max(500).optional(),
+  imageUrl: z.string().url().max(2048).optional().nullable(),
+  actorId: z.string().optional(),
+  conversationId: z.string().optional(),
+  messageId: z.string().optional(),
+  groupKey: z.string().max(200).optional(),
+  metadata: z.any().optional().nullable(),
+});
 
 // GET /api/notifications - Fetch user notifications
 export async function GET(request: Request) {
@@ -83,7 +104,11 @@ export async function POST(request: Request) {
     const rl = await checkRateLimit(getClientIdentifier(request, session.user.id), 'write');
     if (!rl.success) return rateLimitedResponse(rl);
 
-    const body = await request.json();
+    const json = await request.json();
+    const parsed = CreateNotificationSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid payload", issues: parsed.error.issues }, { status: 400 });
+    }
     let {
       userId,
       type,
@@ -97,7 +122,7 @@ export async function POST(request: Request) {
       messageId,
       groupKey,
       metadata,
-    } = body;
+    } = parsed.data;
 
     // SECURITY: Prevent IDOR — non-admin users can only create notifications where
     // actorId is themselves. They cannot impersonate other users as notification senders.
