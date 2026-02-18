@@ -984,7 +984,6 @@ model UserAiApiKey {
   authTag           String
   keyFingerprint    String
   isDefault         Boolean    @default(false)
-  useKeyForResearch Boolean    @default(true)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
   User              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2144,22 +2143,6 @@ model DailyAiUsage {
 
   @@unique([userId, date])
   @@index([userId])
-}
-
-/// Tracks monthly search API usage for budget capping.
-/// One row per month (format: "2026-02"). Hard cap on Brave prevents overage.
-model SearchUsage {
-  id               String    @id @default(cuid())
-  month            String    // Format: "YYYY-MM" e.g. "2026-02"
-  braveCount       Int       @default(0)
-  ddgCount         Int       @default(0)
-  limitReached     Boolean   @default(false)
-  limitReachedAt   DateTime?
-  ownerNotifiedAt  DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  @@unique([month])
 }
 
 /// Scheduled poll templates for automated cron-based poll generation.

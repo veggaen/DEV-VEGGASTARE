@@ -4,6 +4,13 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import AppProviders from "@/components/providers/app-providers";
 
+/**
+ * Force all pages dynamic — the root layout calls auth() (reads cookies),
+ * and AppProviders uses SessionProvider / ThemeProvider (client contexts).
+ * Next.js 16 doesn't always infer this, causing useContext prerender errors.
+ */
+export const dynamic = "force-dynamic";
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {

@@ -6,15 +6,6 @@ import { MyLibUserAuth } from "@/lib/user-auth";
 import { ensureUser } from "@/lib/ensure-user";
 import { getUserAiKeyForGeneration, upsertUserAiKey } from "@/lib/ai-key-store";
 import { checkDailyQuota, incrementDailyUsage, DAILY_LIMIT } from "@/lib/daily-ai-quota";
-import {
-  researchTopic,
-  validatePoll,
-  applyCorrections,
-  buildResearchContext,
-  isPicoClawEnabled,
-  type ResearchResult,
-  type ValidationResult,
-} from "@/lib/picoclaw";
 
 // Allow up to 60s for AI generation (Hobby plan max)
 export const maxDuration = 60;
@@ -28,7 +19,7 @@ export const maxDuration = 60;
 // Free tier: 5 generations/user/day using platform key. BYOK: unlimited.
 //
 // Events:
-//   { step: 1-8, label: string, status: "active"|"done"|"error", totalSteps: 8 }
+//   { step: 1-6, label: string, status: "active"|"done"|"error", totalSteps: 6 }
 //   { step: "result", data: <pollJSON>, _meta: {..., freeRemaining: number} }
 //   { step: "error", message: string }
 //
@@ -211,11 +202,6 @@ Rules:
 - Avoid ambiguous prompts with multiple valid answers unless explicitly intended. Favor single, unambiguous correctness conditions.
 - For TEXT answers: use short, specific answers (1-3 words preferred) that are unambiguous. The system uses fuzzy matching, but shorter answers reduce false positives.
 
-NOTE ON RESEARCH CONTEXT: You may receive a "RESEARCH CONTEXT" section appended to this prompt with verified web search data. When present:
-- Use those facts as the PRIMARY source for questions — they are more recent than your training data.
-- If research contradicts your training knowledge, prefer the research and note the discrepancy in deepExplanation.
-- Create questions that test understanding of the researched facts, not just trivia.
-- Reference specific data points (statistics, dates, events) from the research in your explanations.
 `;
 
 const QUESTION_TYPES = new Set([
@@ -253,7 +239,6 @@ const StreamRequestSchema = z.object({
     apiKey: z.string().optional(),
     rememberKey: z.boolean().optional(),
     model: z.string().optional(),
-    useKeyForResearch: z.boolean().optional(),
   }).optional(),
 });
 
@@ -265,23 +250,15 @@ type ResolvedAuth = {
   savedKeyProvider?: string;
 };
 
-/** Resolved auth for both generation and research (may differ) */
-type ResolvedAuthPair = {
-  generation: ResolvedAuth;
-  research: { apiKey?: string; provider?: string; model?: string } | null;
-};
-
 // ── Progress step definitions ──────────────────────────────────────────────
 
 const GENERATION_STEPS = [
-  { step: 1, label: "Searching the web for verified data…" },
-  { step: 2, label: "Analyzing research results…" },
-  { step: 3, label: "Constructing unambiguous, meaningful questions…" },
-  { step: 4, label: "Building layered explanations (Why? + Still don't understand?)…" },
-  { step: 5, label: "Assembling quiz structure…" },
-  { step: 6, label: "Fact-checking answers against sources…" },
-  { step: 7, label: "Running final validation & certainty check…" },
-  { step: 8, label: "Assigning trust score…" },
+  { step: 1, label: "Analyzing topic depth & sourcing data…" },
+  { step: 2, label: "Constructing unambiguous, meaningful questions…" },
+  { step: 3, label: "Building layered explanations (Why? + Still don't understand?)…" },
+  { step: 4, label: "Assembling quiz structure…" },
+  { step: 5, label: "Running final validation & certainty check…" },
+  { step: 6, label: "Assigning trust score…" },
 ];
 
 /** Total steps — sent to client so progress bar denominator is always correct */
@@ -441,36 +418,6 @@ async function resolveGenerationAuth(reqBody: z.infer<typeof StreamRequestSchema
   }
 
   throw new Error("AI generation is not available right now. Please provide your own API key, or try again later.");
-}
-
-// ── Research auth resolution ───────────────────────────────────────────────
-// If user has BYOK with useKeyForResearch=true, their key is used for PicoClaw
-// research too. Otherwise, research uses the platform Groq key (free).
-
-async function resolveResearchAuth(
-  reqBody: z.infer<typeof StreamRequestSchema>,
-  generationAuth: ResolvedAuth,
-  userId: string
-): Promise<{ apiKey?: string; provider?: string; model?: string } | null> {
-  const useKeyForResearch = reqBody.aiAuth?.useKeyForResearch !== false; // default true
-
-  // If BYOK and user wants their key used for research too
-  if (useKeyForResearch && (generationAuth.usedSavedKey || reqBody.aiAuth?.mode === "one_time")) {
-    return {
-      apiKey: generationAuth.apiKey,
-      provider: generationAuth.provider,
-      model: generationAuth.model,
-    };
-  }
-
-  // Otherwise use platform Groq for research (free, fast)
-  const groqKey = sanitizeApiKey(process.env.GROQ_API_KEY);
-  if (groqKey) {
-    return { apiKey: groqKey, provider: "groq", model: "llama-3.3-70b-versatile" };
-  }
-
-  // No research key available — research will still work with PicoClaw's own key
-  return null;
 }
 
 // ── Provider call ──────────────────────────────────────────────────────────
@@ -640,7 +587,7 @@ export async function POST(req: NextRequest) {
         effectivePrompt = `EXISTING QUIZ JSON:\n${JSON.stringify(existingQuiz, null, 2)}\n\nUSER REQUEST:\n${prompt}\n\nReturn the ENTIRE updated quiz as valid JSON.`;
       }
 
-      // Step 1: Web research (PicoClaw sidecar — real search, not theater)
+      // Step 1: Auth + quota check
       await sendEvent(writer, {
         step: 1,
         label: isRefinement ? "Analyzing your feedback…" : GENERATION_STEPS[0].label,
@@ -655,9 +602,6 @@ export async function POST(req: NextRequest) {
         await sendEvent(writer, { step: "error", message: authErr?.message || "Auth failed." });
         return;
       }
-
-      // Resolve research auth (BYOK or platform Groq)
-      const researchAuth = await resolveResearchAuth(parsedBody.data, auth, userId);
 
       // Daily quota check — only for platform key (not BYOK / saved key)
       const mode = parsedBody.data.aiAuth?.mode || "auto";
@@ -678,53 +622,26 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Perform web research via PicoClaw (if enabled and not a refinement)
-      let research: ResearchResult | null = null;
-      if (!isRefinement && isPicoClawEnabled()) {
-        try {
-          research = await researchTopic(prompt, {
-            userApiKey: researchAuth?.apiKey,
-            provider: researchAuth?.provider,
-            model: researchAuth?.model,
-          });
-        } catch (researchErr) {
-          console.warn("[PicoClaw] Research failed, continuing without:", researchErr);
-          // Non-fatal — generation continues without research data
-        }
-      }
-
       await sendEvent(writer, {
         step: 1,
-        label: isRefinement
-          ? "Analyzing your feedback…"
-          : research
-            ? `Found ${research.facts.length} facts, ${research.misconceptions.length} misconceptions`
-            : GENERATION_STEPS[0].label,
+        label: isRefinement ? "Analyzing your feedback…" : GENERATION_STEPS[0].label,
         status: "done",
         totalSteps: TOTAL_STEPS,
       });
 
-      // Step 2: Analyzing research / calling AI
+      // Step 2: AI generation call
       // This is the long step (20-60s). Send periodic heartbeat sub-steps so the
       // client sees continuous activity instead of a single spinner.
       const HEARTBEAT_MESSAGES = [
-        isRefinement ? "Applying changes…" : (research ? "Injecting research context into AI prompt…" : "Analyzing topic depth & sourcing data…"),
+        isRefinement ? "Applying changes…" : "Querying AI model…",
         `Querying ${auth.provider === "GROQ" ? "Groq (Llama 3.3)" : auth.provider === "OPENAI" ? "GPT-4o" : auth.provider === "ANTHROPIC" ? "Claude" : auth.provider === "GROK" ? "Grok" : auth.provider}…`,
-        research ? "Building questions grounded in verified data…" : "Cross-referencing multiple knowledge sources…",
+        "Cross-referencing multiple knowledge sources…",
         "Building answer reasoning chains…",
         "Evaluating question complexity & difficulty curve…",
         "Preparing structured quiz output…",
         "Almost there — finalizing AI response…",
       ];
       await sendEvent(writer, { step: 2, label: HEARTBEAT_MESSAGES[0], status: "active", totalSteps: TOTAL_STEPS });
-
-      // If we have research data, inject it into the system prompt
-      if (research) {
-        const researchContext = buildResearchContext(research);
-        if (researchContext) {
-          activeSystemPrompt = activeSystemPrompt + researchContext;
-        }
-      }
 
       let heartbeatIdx = 1;
       const heartbeatInterval = setInterval(async () => {
@@ -776,7 +693,7 @@ export async function POST(req: NextRequest) {
 
       await sendEvent(writer, { step: 3, label: GENERATION_STEPS[2].label, status: "done", totalSteps: TOTAL_STEPS });
 
-      // Step 4: Building explanations
+      // Step 4: Assembling quiz structure
       await sendEvent(writer, { step: 4, label: GENERATION_STEPS[3].label, status: "active", totalSteps: TOTAL_STEPS });
 
       if (!pollData.flow || !Array.isArray(pollData.flow)) {
@@ -787,11 +704,6 @@ export async function POST(req: NextRequest) {
       const optionCounterRef = { value: 0 };
       pollData.questions = pollData.questions.map((q: any, i: number) => ensureQuestionQuality(q, i, optionCounterRef));
       pollData.flow = pollData.questions.map((q: any) => ({ type: "QUESTION", id: q.id }));
-
-      await sendEvent(writer, { step: 4, label: GENERATION_STEPS[3].label, status: "done", totalSteps: TOTAL_STEPS });
-
-      // Step 5: Assembling quiz structure
-      await sendEvent(writer, { step: 5, label: GENERATION_STEPS[4].label, status: "active", totalSteps: TOTAL_STEPS });
 
       // Validate unique IDs
       const qIds = new Set<string>();
@@ -816,69 +728,29 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      await sendEvent(writer, { step: 5, label: GENERATION_STEPS[4].label, status: "done", totalSteps: TOTAL_STEPS });
+      await sendEvent(writer, { step: 4, label: GENERATION_STEPS[3].label, status: "done", totalSteps: TOTAL_STEPS });
 
-      // Step 6: Fact-checking via PicoClaw (if enabled)
-      await sendEvent(writer, { step: 6, label: GENERATION_STEPS[5].label, status: "active", totalSteps: TOTAL_STEPS });
+      // Step 5: Final validation & certainty check
+      await sendEvent(writer, { step: 5, label: GENERATION_STEPS[4].label, status: "active", totalSteps: TOTAL_STEPS });
 
-      let validation: ValidationResult | null = null;
-      let correctionsApplied = 0;
-      if (!isRefinement && isPicoClawEnabled()) {
-        try {
-          validation = await validatePoll(pollData, prompt);
-          if (validation && validation.corrections.length > 0) {
-            correctionsApplied = applyCorrections(pollData, validation.corrections, 80);
-            if (correctionsApplied > 0) {
-              console.log(`[PicoClaw] Applied ${correctionsApplied} high-confidence corrections`);
-            }
-          }
-        } catch (validateErr) {
-          console.warn("[PicoClaw] Validation failed, continuing without:", validateErr);
-        }
-      }
-
-      await sendEvent(writer, {
-        step: 6,
-        label: validation
-          ? `Fact-checked: ${validation.corrections.length} issues found, ${correctionsApplied} auto-fixed`
-          : GENERATION_STEPS[5].label,
-        status: "done",
-        totalSteps: TOTAL_STEPS,
-      });
-
-      // Step 7: Final validation & certainty check
-      await sendEvent(writer, { step: 7, label: GENERATION_STEPS[6].label, status: "active", totalSteps: TOTAL_STEPS });
-
-      // Re-validate structure after any corrections were applied
+      // Re-validate structure
       pollData.flow = pollData.questions.map((q: any) => ({ type: "QUESTION", id: q.id }));
 
-      await sendEvent(writer, { step: 7, label: GENERATION_STEPS[6].label, status: "done", totalSteps: TOTAL_STEPS });
+      await sendEvent(writer, { step: 5, label: GENERATION_STEPS[4].label, status: "done", totalSteps: TOTAL_STEPS });
 
-      // Step 8: Trust score
-      await sendEvent(writer, { step: 8, label: GENERATION_STEPS[7].label, status: "active", totalSteps: TOTAL_STEPS });
+      // Step 6: Trust score
+      await sendEvent(writer, { step: 6, label: GENERATION_STEPS[5].label, status: "active", totalSteps: TOTAL_STEPS });
 
       const truthfulness = estimateTruthfulness(pollData.questions);
 
-      // Boost trust score if PicoClaw validated successfully
-      if (validation?.factuallySound) {
-        truthfulness.score = Math.min(96, truthfulness.score + 8);
-        truthfulness.researchDepth = "High";
-      }
-      if (research && research.facts.length > 3) {
-        truthfulness.score = Math.min(96, truthfulness.score + 5);
-      }
-
-      const qualityBlock = `\n\n---\nAI Verification\n- Estimated truthfulness/quality: ${truthfulness.score}/100\n- ${truthfulness.explanation}${research ? `\n- Web research: ${research.summary}` : ""}\n- For critical domains, verify with trusted sources before publishing.`;
+      const qualityBlock = `\n\n---\nAI Verification\n- Estimated truthfulness/quality: ${truthfulness.score}/100\n- ${truthfulness.explanation}\n- For critical domains, verify with trusted sources before publishing.`;
       pollData.description = `${asString(pollData.description).trim()}${qualityBlock}`.trim();
 
       pollData.aiGenerated = true;
       pollData.trustFactor = truthfulness.score >= 80 ? "High" : truthfulness.score >= 55 ? "Medium" : "Low";
       pollData.trustScore = truthfulness.score;
       pollData.researchDepth = truthfulness.researchDepth;
-      pollData.researchSummary = research?.summary || truthfulness.researchSummary;
-      pollData.webResearched = !!research;
-      pollData.factChecked = !!validation;
-      pollData.correctionsApplied = correctionsApplied;
+      pollData.researchSummary = truthfulness.researchSummary;
 
       // If topic seems vague/speculative, add a note
       if (pollData.trustFactor === "Low" || pollData.trustFactor === "Medium") {
@@ -893,7 +765,7 @@ export async function POST(req: NextRequest) {
         freeUsed = newCount;
       }
 
-      await sendEvent(writer, { step: 8, label: GENERATION_STEPS[7].label, status: "done", totalSteps: TOTAL_STEPS });
+      await sendEvent(writer, { step: 6, label: GENERATION_STEPS[5].label, status: "done", totalSteps: TOTAL_STEPS });
 
       // Final result
       await sendEvent(writer, {
@@ -914,10 +786,6 @@ export async function POST(req: NextRequest) {
             freeUsed: freeUsed,
             freeLimit: DAILY_LIMIT,
             isRefinement,
-            webResearched: !!research,
-            factChecked: !!validation,
-            searchProvider: research?.searchProvider || null,
-            correctionsApplied,
           },
         },
       });

@@ -17,9 +17,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const OWNER_EMAIL = process.env.PLATFORM_OWNER_EMAIL;
 
 export type AdminAlertType =
-  | "SEARCH_BUDGET_EXHAUSTED"
   | "CRON_FAILURE"
-  | "PICOCLAW_DOWN"
   | "SYSTEM_WARNING";
 
 interface AlertPayload {
@@ -30,9 +28,7 @@ interface AlertPayload {
 }
 
 const ALERT_SUBJECTS: Record<AdminAlertType, string> = {
-  SEARCH_BUDGET_EXHAUSTED: "⚠️ Brave Search Budget Reached — Using DDG",
   CRON_FAILURE: "🚨 Scheduled Poll Cron Failed",
-  PICOCLAW_DOWN: "🔴 PicoClaw Sidecar Unreachable",
   SYSTEM_WARNING: "⚠️ Veggat System Warning",
 };
 
@@ -79,30 +75,4 @@ export async function sendAdminAlert(payload: AlertPayload): Promise<void> {
   }
 }
 
-/**
- * Convenience: notify owner that Brave search budget is exhausted.
- */
-export async function notifySearchBudgetExhausted(
-  month: string,
-  braveCount: number,
-  braveLimit: number
-): Promise<void> {
-  await sendAdminAlert({
-    type: "SEARCH_BUDGET_EXHAUSTED",
-    title: "Brave Search Monthly Limit Reached",
-    message: `Brave API searches hit the limit (${braveCount}/${braveLimit}) for ${month}. All research will use DuckDuckGo (free) until next month. No charges will be incurred.`,
-    data: { month, braveCount, braveLimit, fallback: "DuckDuckGo" },
-  });
-}
 
-/**
- * Convenience: notify owner that PicoClaw sidecar is unreachable.
- */
-export async function notifyPicoClawDown(error: string): Promise<void> {
-  await sendAdminAlert({
-    type: "PICOCLAW_DOWN",
-    title: "PicoClaw Sidecar Unreachable",
-    message: `PicoClaw at ${process.env.PICOCLAW_URL || "(not configured)"} failed to respond. Poll generation will continue without web research. Error: ${error}`,
-    data: { picoClawUrl: process.env.PICOCLAW_URL, error },
-  });
-}

@@ -2631,12 +2631,11 @@ export function PollBuilder({
   });
   const [aiApiKey, setAiApiKey] = useState("");
   const [aiRememberKey, setAiRememberKey] = useState(true);
-  const [aiUseKeyForResearch, setAiUseKeyForResearch] = useState(true); // BYOK: also use key for PicoClaw research
   const [aiSavedKeys, setAiSavedKeys] = useState<SavedAiKeyMeta[]>([]);
   const [aiKeysLoading, setAiKeysLoading] = useState(false);
   const [aiGenerationMeta, setAiGenerationMeta] = useState<AiGenerationMeta | null>(null);
   const [aiProgressSteps, setAiProgressSteps] = useState<AiProgressStep[]>([]);
-  const [aiTotalSteps, setAiTotalSteps] = useState(8); // server sends totalSteps, default 8
+  const [aiTotalSteps, setAiTotalSteps] = useState(6); // server sends totalSteps, default 6
   const [aiHeartbeatLog, setAiHeartbeatLog] = useState<string[]>([]); // accumulated heartbeat messages
   const [aiElapsed, setAiElapsed] = useState(0); // seconds since generation started
   const aiElapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -4431,7 +4430,7 @@ export function PollBuilder({
     setAiError(null);
     setAiGenerationMeta(null);
     setAiProgressSteps([]);
-    setAiTotalSteps(8); // reset to default, server will update
+    setAiTotalSteps(6); // reset to default, server will update
     setAiHeartbeatLog([]);
     setAiElapsed(0);
     // Start elapsed timer
@@ -4460,7 +4459,7 @@ export function PollBuilder({
         aiAuth: {
           mode: isByok ? "one_time" : "auto",
           provider: isByok ? aiProvider : undefined,
-          ...(isByok ? { apiKey: aiApiKey, rememberKey: aiRememberKey, model: aiModel || undefined, useKeyForResearch: aiUseKeyForResearch } : {}),
+          ...(isByok ? { apiKey: aiApiKey, rememberKey: aiRememberKey, model: aiModel || undefined } : {}),
         },
       };
 
@@ -5350,15 +5349,6 @@ export function PollBuilder({
                       <Settings className="w-3 h-3" />
                       Manage keys
                     </a>
-                  </div>
-
-                  {/* Use key for research toggle */}
-                  <div className="flex items-center gap-2.5 pb-1">
-                    <Switch id="use-key-research" checked={aiUseKeyForResearch} onCheckedChange={setAiUseKeyForResearch} />
-                    <Label htmlFor="use-key-research" className="text-[12px] text-zinc-400">
-                      Also use for web research
-                    </Label>
-                    <span className="text-[10px] text-zinc-600">(improves accuracy)</span>
                   </div>
 
                   {/* Apply button */}
