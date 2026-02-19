@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { sanitizeApiKey, normalizeProvider } from "@/lib/ai-key-crypto";
+import { sanitizeApiKey } from "@/lib/ai-key-crypto";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { ensureUser } from "@/lib/ensure-user";
 import { getUserAiKeyForGeneration, upsertUserAiKey } from "@/lib/ai-key-store";
@@ -251,6 +251,48 @@ type ResolvedAuth = {
   savedKeyProvider?: string;
 };
 
+function normalizeGenerationProvider(input: unknown): ResolvedAuth["provider"] {
+  if (typeof input !== "string") return "GROQ";
+  const value = input.trim().toUpperCase();
+  if (value === "OPENAI" || value === "OPENROUTER" || value === "ANTHROPIC" || value === "GROK" || value === "GROQ") {
+    return value;
+  }
+  return "GROQ";
+}
+
+function canPersistProvider(provider: ResolvedAuth["provider"]): provider is "OPENAI" | "OPENROUTER" | "ANTHROPIC" {
+  return provider === "OPENAI" || provider === "OPENROUTER" || provider === "ANTHROPIC";
+}
+
+function defaultModelForProvider(provider: ResolvedAuth["provider"]): string {
+  switch (provider) {
+    case "GROQ":
+      return "llama-3.3-70b-versatile";
+    case "OPENROUTER":
+      return "openai/gpt-4o-mini";
+    case "ANTHROPIC":
+      return "claude-3-5-haiku-latest";
+    case "GROK":
+      return "grok-3-mini";
+    case "OPENAI":
+    default:
+      return process.env.OPENAI_MODEL || "gpt-4o-mini";
+  }
+}
+
+function formatProviderStatus(provider: ResolvedAuth["provider"], model?: string): string {
+  const providerName = provider === "OPENAI"
+    ? "OpenAI"
+    : provider === "OPENROUTER"
+      ? "OpenRouter"
+      : provider === "ANTHROPIC"
+        ? "Anthropic"
+        : provider === "GROK"
+          ? "Grok"
+          : "Groq";
+  return model ? `${providerName} (${model})` : providerName;
+}
+
 // ── Progress step definitions ──────────────────────────────────────────────
 
 const GENERATION_STEPS = [
@@ -365,29 +407,44 @@ function ensureQuestionQuality(q: any, questionIndex: number, globalOptionCounte
 
 async function resolveGenerationAuth(reqBody: z.infer<typeof StreamRequestSchema>, userId: string, userEmail?: string | null): Promise<ResolvedAuth> {
   const mode = reqBody.aiAuth?.mode || "auto";
-  const provider = normalizeProvider(reqBody.aiAuth?.provider);
-  const model = reqBody.aiAuth?.model?.trim() || undefined;
+  const requestedProvider = reqBody.aiAuth?.provider
+    ? normalizeGenerationProvider(reqBody.aiAuth.provider)
+    : undefined;
+  const requestedModel = reqBody.aiAuth?.model?.trim() || undefined;
 
   // BYOK: user typed a key in the UI
   if (mode === "one_time") {
+    const provider = requestedProvider || "OPENAI";
     const oneTimeKey = sanitizeApiKey(reqBody.aiAuth?.apiKey);
     if (!oneTimeKey) throw new Error("Please paste an API key.");
-    if (reqBody.aiAuth?.rememberKey) {
+    if (reqBody.aiAuth?.rememberKey && canPersistProvider(provider)) {
       const ensured = await ensureUser({ id: userId } as any);
       if (ensured.success) {
         await upsertUserAiKey({ userId: ensured.userId, provider, apiKey: oneTimeKey, setDefault: true });
       }
     }
-    return { provider, apiKey: oneTimeKey, model };
+    return { provider, apiKey: oneTimeKey, model: requestedModel || defaultModelForProvider(provider) };
   }
 
   // Auto mode: try saved key first → then platform key
   try {
-    const ensured = await ensureUser({ id: userId } as any);
-    if (ensured.success) {
-      const saved = await getUserAiKeyForGeneration({ userId: ensured.userId, provider: mode === "saved" ? provider : undefined as any });
-      if (saved) {
-        return { provider: saved.provider, apiKey: saved.apiKey, model, usedSavedKey: true, savedKeyProvider: saved.provider };
+    const savedPreference = requestedProvider && canPersistProvider(requestedProvider)
+      ? requestedProvider
+      : undefined;
+
+    if (!requestedProvider || canPersistProvider(requestedProvider)) {
+      const ensured = await ensureUser({ id: userId } as any);
+      if (ensured.success) {
+        const saved = await getUserAiKeyForGeneration({ userId: ensured.userId, provider: savedPreference });
+        if (saved && (!savedPreference || saved.provider === savedPreference)) {
+          return {
+            provider: saved.provider,
+            apiKey: saved.apiKey,
+            model: requestedModel || defaultModelForProvider(saved.provider),
+            usedSavedKey: true,
+            savedKeyProvider: saved.provider,
+          };
+        }
       }
     }
   } catch {
@@ -395,31 +452,51 @@ async function resolveGenerationAuth(reqBody: z.infer<typeof StreamRequestSchema
   }
 
   // Platform key fallback
-  // Owner + paid users get OpenAI platform key
   const ownerEmail = process.env.PLATFORM_OWNER_EMAIL;
   const isOwner = ownerEmail && userEmail && userEmail.toLowerCase() === ownerEmail.toLowerCase();
   const paidEntitlement = await getPaidAiEntitlement(userId);
+  const hasPremiumAccess = isOwner || paidEntitlement.hasAccess;
+  const openaiKey = sanitizeApiKey(process.env.OPENAI_API_KEY);
+  const groqKey = sanitizeApiKey(process.env.GROQ_API_KEY);
 
-  if (isOwner || paidEntitlement.hasAccess) {
-    const ownerKey = sanitizeApiKey(process.env.OPENAI_API_KEY);
-    if (ownerKey) {
-      return { provider: "OPENAI", apiKey: ownerKey, model: process.env.OPENAI_MODEL || model || "gpt-4o-mini" };
+  if (requestedProvider === "OPENROUTER" || requestedProvider === "ANTHROPIC" || requestedProvider === "GROK") {
+    throw new Error(`To use ${formatProviderStatus(requestedProvider, requestedModel)}, add your own API key in “Set up your own AI”.`);
+  }
+
+  if (requestedProvider === "OPENAI") {
+    if (hasPremiumAccess && openaiKey) {
+      return { provider: "OPENAI", apiKey: openaiKey, model: requestedModel || defaultModelForProvider("OPENAI") };
+    }
+    throw new Error("OpenAI platform access is premium-only. Use Groq (free) or add your own OpenAI key.");
+  }
+
+  if (requestedProvider === "GROQ") {
+    if (groqKey) {
+      return { provider: "GROQ", apiKey: groqKey, model: requestedModel || defaultModelForProvider("GROQ") };
+    }
+    throw new Error("Groq is not configured right now. Please add your own API key, or try again later.");
+  }
+
+  // Premium path (owner + paid): platform OpenAI is available, optional Groq preference
+  if (hasPremiumAccess) {
+    if (openaiKey) {
+      return { provider: "OPENAI", apiKey: openaiKey, model: requestedModel || defaultModelForProvider("OPENAI") };
+    }
+    if (groqKey) {
+      return { provider: "GROQ", apiKey: groqKey, model: requestedModel || defaultModelForProvider("GROQ") };
     }
     if (paidEntitlement.hasAccess) {
       throw new Error("Premium AI is temporarily unavailable. Please contact support.");
     }
   }
 
-  // Everyone else: Groq free tier (Llama 3.3 70B) — fast & free
-  const groqKey = sanitizeApiKey(process.env.GROQ_API_KEY);
+  // Everyone else: Groq free tier only (never default to platform OpenAI)
   if (groqKey) {
-    return { provider: "GROQ", apiKey: groqKey, model: model || "llama-3.3-70b-versatile" };
+    return { provider: "GROQ", apiKey: groqKey, model: requestedModel || defaultModelForProvider("GROQ") };
   }
 
-  // Backwards compat fallback: OpenAI if GROQ_API_KEY not configured
-  const platformKey = sanitizeApiKey(process.env.OPENAI_API_KEY);
-  if (platformKey && isOwner) {
-    return { provider: "OPENAI", apiKey: platformKey, model: process.env.OPENAI_MODEL || model || "gpt-4o-mini" };
+  if (openaiKey && isOwner) {
+    return { provider: "OPENAI", apiKey: openaiKey, model: requestedModel || defaultModelForProvider("OPENAI") };
   }
 
   throw new Error("AI generation is not available right now. Please provide your own API key, or try again later.");
@@ -429,14 +506,14 @@ async function resolveGenerationAuth(reqBody: z.infer<typeof StreamRequestSchema
 
 const PROVIDER_TIMEOUT_MS = 90_000; // 90s — generous for large quiz generation
 
-async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ"; apiKey: string; prompt: string; model?: string; systemPrompt?: string; }): Promise<string> {
+async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ"; apiKey: string; prompt: string; model?: string; systemPrompt?: string; }): Promise<{ content: string; model: string }> {
   const systemPrompt = input.systemPrompt || SYSTEM_PROMPT;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
 
   try {
   if (input.provider === "GROQ") {
-    const model = input.model || "llama-3.3-70b-versatile";
+    const model = input.model || defaultModelForProvider("GROQ");
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.apiKey}` },
@@ -457,25 +534,26 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
     const completion = await response.json();
     const content = completion.choices?.[0]?.message?.content;
     if (!content) throw new Error("No response from Groq.");
-    return content;
+    return { content, model };
   }
 
   if (input.provider === "ANTHROPIC") {
+    const model = input.model || defaultModelForProvider("ANTHROPIC");
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": input.apiKey, "anthropic-version": "2023-06-01" },
       signal: controller.signal,
-      body: JSON.stringify({ model: input.model || "claude-3-5-haiku-latest", max_tokens: 16384, temperature: 0.7, system: systemPrompt, messages: [{ role: "user", content: input.prompt.trim() }] }),
+      body: JSON.stringify({ model, max_tokens: 16384, temperature: 0.7, system: systemPrompt, messages: [{ role: "user", content: input.prompt.trim() }] }),
     });
     if (!response.ok) { const e = await response.text(); console.error("Anthropic error:", response.status, e); throw new Error(`AI service error (${response.status}).`); }
     const completion = await response.json();
     const content = completion?.content?.find((i: any) => i?.type === "text")?.text;
     if (!content) throw new Error("No response from AI.");
-    return content;
+    return { content, model };
   }
   // Grok (xAI) uses an OpenAI-compatible API
   if (input.provider === "GROK") {
-    const model = input.model || "grok-3-mini";
+    const model = input.model || defaultModelForProvider("GROK");
     const response = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.apiKey}` },
@@ -486,10 +564,10 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
     const completion = await response.json();
     const content = completion.choices?.[0]?.message?.content;
     if (!content) throw new Error("No response from Grok.");
-    return content;
+    return { content, model };
   }
   const endpoint = input.provider === "OPENROUTER" ? "https://openrouter.ai/api/v1/chat/completions" : "https://api.openai.com/v1/chat/completions";
-  const model = input.model || (input.provider === "OPENROUTER" ? "openai/gpt-4o-mini" : process.env.OPENAI_MODEL || "gpt-4o-mini");
+  const model = input.model || (input.provider === "OPENROUTER" ? defaultModelForProvider("OPENROUTER") : defaultModelForProvider("OPENAI"));
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.apiKey}`, ...(input.provider === "OPENROUTER" ? { "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://veggat.com", "X-Title": "VeggaStare Poll Generator" } : {}) },
@@ -500,7 +578,7 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
   const completion = await response.json();
   const content = completion.choices?.[0]?.message?.content;
   if (!content) throw new Error("No response from AI.");
-  return content;
+  return { content, model };
 
   } catch (err: any) {
     if (err?.name === "AbortError") {
@@ -660,7 +738,7 @@ export async function POST(req: NextRequest) {
       // client sees continuous activity instead of a single spinner.
       const HEARTBEAT_MESSAGES = [
         isRefinement ? "Applying changes…" : "Querying AI model…",
-        `Querying ${auth.provider === "GROQ" ? "Groq (Llama 3.3)" : auth.provider === "OPENAI" ? "GPT-4o" : auth.provider === "ANTHROPIC" ? "Claude" : auth.provider === "GROK" ? "Grok" : auth.provider}…`,
+        `Querying ${formatProviderStatus(auth.provider, auth.model)}…`,
         "Cross-referencing multiple knowledge sources…",
         "Building answer reasoning chains…",
         "Evaluating question complexity & difficulty curve…",
@@ -680,8 +758,11 @@ export async function POST(req: NextRequest) {
       }, 8000);
 
       let content: string;
+      let resolvedModel: string | null = null;
       try {
-        content = await callProvider({ provider: auth.provider, apiKey: auth.apiKey, prompt: effectivePrompt, model: auth.model, systemPrompt: activeSystemPrompt });
+        const providerResult = await callProvider({ provider: auth.provider, apiKey: auth.apiKey, prompt: effectivePrompt, model: auth.model, systemPrompt: activeSystemPrompt });
+        content = providerResult.content;
+        resolvedModel = providerResult.model;
       } catch (providerErr: any) {
         clearInterval(heartbeatInterval);
         await sendEvent(writer, { step: "error", message: providerErr?.message || "AI provider failed." });
@@ -811,6 +892,7 @@ export async function POST(req: NextRequest) {
             researchSummary: pollData.researchSummary,
             trustNote: pollData.trustNote || null,
             provider: auth.provider,
+            model: resolvedModel,
             mode,
             usedSavedKey: auth.usedSavedKey || false,
             savedKeyProvider: auth.savedKeyProvider || null,

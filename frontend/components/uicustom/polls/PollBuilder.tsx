@@ -226,6 +226,7 @@ interface AiGenerationMeta {
   researchSummary?: string;
   trustNote?: string | null;
   provider?: AiProvider;
+  model?: string | null;
   mode?: AiKeySource;
   usedSavedKey?: boolean;
   savedKeyProvider?: string;
@@ -332,6 +333,17 @@ const AI_PROVIDER_OPTIONS: AiProviderOptionDef[] = [
     ],
   },
 ];
+
+function formatGenerationSourceLabel(meta?: AiGenerationMeta | null): string {
+  if (!meta?.provider) return "AI";
+  const providerDef = AI_PROVIDER_OPTIONS.find((p) => p.value === meta.provider);
+  const providerLabel = providerDef?.label || meta.provider;
+  const modelRaw = (meta.model || "").trim();
+  if (!modelRaw) return providerLabel;
+
+  const modelLabel = providerDef?.models.find((m) => m.value === modelRaw)?.label || modelRaw;
+  return `${providerLabel} ${modelLabel}`;
+}
 
 // Default values
 const DEFAULT_SLIDER_CONFIG: SliderConfig = {
@@ -2628,9 +2640,9 @@ export function PollBuilder({
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiKeySource, setAiKeySource] = useState<AiKeySource>("auto");
-  const [aiProvider, setAiProvider] = useState<AiProvider>("OPENAI");
+  const [aiProvider, setAiProvider] = useState<AiProvider>("GROQ");
   const [aiModel, setAiModel] = useState<string>(() => {
-    const defaultProvider = AI_PROVIDER_OPTIONS.find(p => p.value === "OPENAI");
+    const defaultProvider = AI_PROVIDER_OPTIONS.find(p => p.value === "GROQ");
     return defaultProvider?.models.find(m => m.isDefault)?.value || defaultProvider?.models[0]?.value || "";
   });
   const [aiApiKey, setAiApiKey] = useState("");
@@ -4462,8 +4474,9 @@ export function PollBuilder({
         } : {}),
         aiAuth: {
           mode: isByok ? "one_time" : "auto",
-          provider: isByok ? aiProvider : undefined,
-          ...(isByok ? { apiKey: aiApiKey, rememberKey: aiRememberKey, model: aiModel || undefined } : {}),
+          provider: aiProvider,
+          model: aiModel || undefined,
+          ...(isByok ? { apiKey: aiApiKey, rememberKey: aiRememberKey } : {}),
         },
       };
 
@@ -4616,7 +4629,7 @@ export function PollBuilder({
       const qCount = generated.questions?.length || 0;
       const trustLabel = meta?.trustFactor || "Medium";
       const trustScore = typeof meta?.trustScore === "number" ? ` (${meta.trustScore}/100)` : "";
-      const providerLabel = meta?.provider || "AI";
+      const providerLabel = formatGenerationSourceLabel(meta);
 
       setAiChatMessages((prev) => [...prev, {
         id: `ai-${Date.now()}`,
@@ -4662,7 +4675,7 @@ export function PollBuilder({
       // Stop elapsed timer
       if (aiElapsedRef.current) { clearInterval(aiElapsedRef.current); aiElapsedRef.current = null; }
     }
-  }, [aiKeySource, aiApiKey, aiPrompt, aiProvider, aiRememberKey, currentUser, aiHasGenerated, data]);
+  }, [aiKeySource, aiApiKey, aiPrompt, aiProvider, aiModel, aiRememberKey, currentUser, aiHasGenerated, data]);
 
   const handleSave = useCallback(async () => {
     if (!data.title.trim()) {
