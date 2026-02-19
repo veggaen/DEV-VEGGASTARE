@@ -1563,7 +1563,7 @@ const FeedPage: React.FC = () => {
 
           {/* Advanced Poll Builder Modal */}
           <Dialog open={showPollBuilder} onOpenChange={(open) => { setShowPollBuilder(open); if (!open) setAiGenerateOpen(false); }}>
-            <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto bg-background border-border">
+            <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto bg-background border-border p-3 sm:p-6">
               <DialogHeader className="pb-0">
                 <div className="flex items-center justify-between">
                   <DialogTitle className="flex items-center gap-2.5 text-lg">
@@ -1726,6 +1726,7 @@ const FeedPage: React.FC = () => {
           {/* Use ReachPollV3 for REACH Assessment polls (interactive drag/drop experience), regular modal for others */}
           {isReachAuditPoll ? (
             <ReachPollV3
+              key={selectedAdvancedPollId ?? 'reach-none'}
               pollId={selectedAdvancedPollId}
               onClose={closePoll}
               onComplete={(responseId) => {
@@ -1755,6 +1756,7 @@ const FeedPage: React.FC = () => {
             />
           ) : (
             <PollTakerModal
+              key={selectedAdvancedPollId ?? 'poll-none'}
               pollId={selectedAdvancedPollId}
               onClose={closePoll}
               onComplete={(responseId) => {

@@ -139,6 +139,15 @@ export function fuzzyTextMatch(userAnswer: string, correctAnswer: string): boole
   // ── 2. Token-set match (same words, any order) ──
   const userTokens = tokenize(userAnswer);
   const correctTokens = tokenize(correctAnswer);
+
+  // For multi-word canonical answers, require enough user-token coverage.
+  // This prevents accepting very short one-word typos for longer phrases
+  // (e.g. "reefa" for "great barrier reef").
+  const minRequiredTokens = Math.ceil(correctTokens.length / 2);
+  if (correctTokens.length > 1 && userTokens.length < minRequiredTokens) {
+    return false;
+  }
+
   if (
     userTokens.length > 0 &&
     correctTokens.length > 0 &&
