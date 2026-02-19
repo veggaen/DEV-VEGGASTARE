@@ -52,13 +52,35 @@ export function SliderQuestion({
     latestValueRef.current = value;
   }, [value]);
 
-  // Calculate number of steps
-  const totalSteps = Math.round((maxValue - minValue) / step) + 1;
-  const labels = stepLabels || DEFAULT_LABELS.slice(0, totalSteps);
+  const safeMin = Number.isFinite(minValue) ? minValue : 1;
+  const safeMax = Number.isFinite(maxValue) && maxValue > safeMin ? maxValue : safeMin + 1;
+  const hasCustomStepLabels = Array.isArray(stepLabels) && stepLabels.length >= 2;
+
+  // If explicit step labels exist, they define the visual+interaction domain.
+  // This keeps snap points, fill amount, and highlighted steps perfectly aligned.
+  const totalSteps = hasCustomStepLabels
+    ? stepLabels.length
+    : Math.max(2, Math.round((safeMax - safeMin) / (step > 0 ? step : 1)) + 1);
+
+  const effectiveStep = hasCustomStepLabels
+    ? (safeMax - safeMin) / Math.max(1, totalSteps - 1)
+    : (step > 0 ? step : 1);
+
+  const labels = hasCustomStepLabels
+    ? stepLabels
+    : DEFAULT_LABELS.slice(0, totalSteps);
+
+  const clampStepIndex = (index: number) => Math.max(0, Math.min(index, totalSteps - 1));
+  const toValueFromIndex = (index: number) => {
+    const raw = safeMin + clampStepIndex(index) * effectiveStep;
+    return Number(raw.toFixed(6));
+  };
+  const formatNumeric = (num: number) =>
+    Number.isInteger(num) ? `${num}` : `${num.toFixed(6).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1")}`;
 
   // Convert value to step index (0-based)
-  const currentStepIndex = value !== undefined 
-    ? Math.round((value - minValue) / step)
+  const currentStepIndex = value !== undefined
+    ? clampStepIndex(Math.round((value - safeMin) / effectiveStep))
     : null;
 
   // Get color based on step position - with dark mode support
@@ -116,9 +138,9 @@ export function SliderQuestion({
   // Handle step selection (click or drag)
   const selectStep = useCallback((stepIndex: number) => {
     if (disabled || stepIndex < 0 || stepIndex >= totalSteps) return;
-    const newValue = minValue + stepIndex * step;
+    const newValue = toValueFromIndex(stepIndex);
     onChange(newValue);
-  }, [disabled, minValue, step, totalSteps, onChange]);
+  }, [disabled, totalSteps, onChange, toValueFromIndex]);
 
   // Handle click on step button
   const handleStepClick = useCallback((stepIndex: number) => {
@@ -141,12 +163,12 @@ export function SliderQuestion({
     
     const stepIndex = getStepFromPosition(clientX);
     if (stepIndex !== null) {
-      const newValue = minValue + stepIndex * step;
+      const newValue = toValueFromIndex(stepIndex);
       if (newValue !== latestValueRef.current) {
         selectStep(stepIndex);
       }
     }
-  }, [disabled, isDragging, getStepFromPosition, minValue, step, selectStep]);
+  }, [disabled, isDragging, getStepFromPosition, selectStep, toValueFromIndex]);
 
   const handlePanEnd = useCallback(() => {
     setIsDragging(false);
@@ -181,12 +203,12 @@ export function SliderQuestion({
     const touch = event.touches[0];
     const stepIndex = getStepFromPosition(touch.clientX);
     if (stepIndex !== null) {
-      const newValue = minValue + stepIndex * step;
+      const newValue = toValueFromIndex(stepIndex);
       if (newValue !== latestValueRef.current) {
         selectStep(stepIndex);
       }
     }
-  }, [disabled, isDragging, getStepFromPosition, minValue, step, selectStep]);
+  }, [disabled, isDragging, getStepFromPosition, selectStep, toValueFromIndex]);
 
   const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
@@ -243,7 +265,7 @@ export function SliderQuestion({
       const stepIndex = getStepFromPosition(e.clientX);
       if (stepIndex !== null) {
         // Calculate the new value and compare against ref (avoids stale closure)
-        const newValue = minValue + stepIndex * step;
+        const newValue = toValueFromIndex(stepIndex);
         if (newValue !== latestValueRef.current) {
           selectStep(stepIndex);
         }
@@ -275,7 +297,7 @@ export function SliderQuestion({
       e.preventDefault(); // Prevent scrolling
       const stepIndex = getStepFromPosition(e.touches[0].clientX);
       if (stepIndex !== null) {
-        const newValue = minValue + stepIndex * step;
+        const newValue = toValueFromIndex(stepIndex);
         if (newValue !== latestValueRef.current) {
           selectStep(stepIndex);
         }
@@ -300,11 +322,11 @@ export function SliderQuestion({
       window.removeEventListener('touchmove', handleGlobalTouchMove);
       window.removeEventListener('touchend', handleGlobalTouchEnd);
     };
-  }, [isDragging, justClickedButton, getStepFromPosition, minValue, step, selectStep]);
+  }, [isDragging, justClickedButton, getStepFromPosition, selectStep, toValueFromIndex]);
 
   // Calculate progress percentage
   const progressPercent = currentStepIndex !== null
-    ? (currentStepIndex / (totalSteps - 1)) * 100
+    ? (currentStepIndex / Math.max(1, totalSteps - 1)) * 100
     : 0;
 
   return (
@@ -324,7 +346,7 @@ export function SliderQuestion({
         tabIndex={disabled ? -1 : 0}
         aria-valuemin={minValue}
         aria-valuemax={maxValue}
-        aria-valuenow={value}
+        aria-valuenow={currentStepIndex !== null ? toValueFromIndex(currentStepIndex) : value}
         aria-label={questionText}
         aria-disabled={disabled}
         onKeyDown={handleKeyDown}
@@ -484,7 +506,7 @@ export function SliderQuestion({
                       : "text-muted-foreground"
                   )}
                 >
-                  {minValue + index * step}
+                  {formatNumeric(toValueFromIndex(index))}
                 </span>
               </div>
             );
@@ -512,7 +534,7 @@ export function SliderQuestion({
           >
             <span className="text-sm text-muted-foreground">Your selection: </span>
             <span className="font-bold text-primary text-lg">
-              {labels[currentStepIndex ?? 0]} ({value})
+              {labels[currentStepIndex ?? 0]} ({formatNumeric(currentStepIndex !== null ? toValueFromIndex(currentStepIndex) : Number(value ?? 0))})
             </span>
           </motion.div>
         )}

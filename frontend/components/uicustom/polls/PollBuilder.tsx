@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -4709,7 +4709,7 @@ export function PollBuilder({
         onClick={clearSelection}
       >
         {/* Quick Start Guide � compact inline stepper */}
-        <div className="flex items-center gap-4 px-3 py-2 rounded-lg bg-zinc-900/40 border border-zinc-800/40">
+        <div className="hidden sm:flex items-center gap-4 px-3 py-2 rounded-lg bg-zinc-900/40 border border-zinc-800/40">
           {[
             { n: "1", label: "Add questions" },
             { n: "2", label: "Drag to reorder" },
@@ -4725,9 +4725,9 @@ export function PollBuilder({
         </div>
 
         {/* Header � toolbar */}
-        <div className="flex items-center justify-between gap-3 px-1">
+        <div className="sticky top-0 z-20 -mx-3 sm:-mx-6 px-3 sm:px-7 py-1.5 bg-background/95 backdrop-blur-sm flex flex-wrap items-center justify-between gap-1.5 sm:gap-3">
           {/* Left: Import / Export */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 sm:gap-1">
             <DropdownMenu>
               <Tooltip delayDuration={400}>
                 <DropdownMenuTrigger asChild>
@@ -4794,7 +4794,7 @@ export function PollBuilder({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <span className="w-px h-5 bg-zinc-800 mx-1" />
+            <span className="hidden sm:block w-px h-5 bg-zinc-800 mx-1" />
 
             {/* Undo / Redo */}
             <Tooltip>
@@ -4814,7 +4814,7 @@ export function PollBuilder({
               <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
             </Tooltip>
 
-            <span className="w-px h-5 bg-zinc-800 mx-1" />
+            <span className="hidden sm:block w-px h-5 bg-zinc-800 mx-1" />
 
             {/* Clear */}
             <Tooltip>
@@ -4936,7 +4936,7 @@ export function PollBuilder({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <span className="w-px h-5 bg-zinc-800 mx-0.5" />
+            <span className="hidden sm:block w-px h-5 bg-zinc-800 mx-0.5" />
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -5161,7 +5161,7 @@ export function PollBuilder({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="rounded-xl border border-violet-500/20 bg-linear-to-b from-violet-500/5 to-transparent flex flex-col" style={{ maxHeight: "560px" }}>
+            <div className="rounded-xl border border-violet-500/20 bg-linear-to-b from-violet-500/5 to-transparent flex flex-col max-h-[50vh] sm:max-h-[560px]">
               {/* Header — context-aware for chat vs BYOK view */}
               <div className="flex items-center justify-between p-3 border-b border-zinc-800/50">
                 <div className="flex items-center gap-2">
@@ -5228,9 +5228,9 @@ export function PollBuilder({
 
               {/* ─── BYOK Full-Panel View ─── */}
               {aiShowByok && (
-                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-[120px] max-h-[460px] scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4 min-h-[120px] max-h-[40vh] sm:max-h-[460px] scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
                   {/* Explainer */}
-                  <div className="rounded-xl bg-linear-to-br from-violet-500/10 to-fuchsia-500/5 border border-violet-500/15 p-4 flex items-start gap-3">
+                  <div className="rounded-xl bg-linear-to-br from-violet-500/10 to-fuchsia-500/5 border border-violet-500/15 p-3 sm:p-4 flex items-start gap-3">
                     <div className="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center shrink-0 mt-0.5">
                       <HelpCircle className="w-4 h-4 text-violet-400" />
                     </div>
@@ -5391,7 +5391,7 @@ export function PollBuilder({
 
               {/* ─── Chat View (hidden when BYOK is open) ─── */}
               {/* Chat Thread — scrollable */}
-              <div ref={aiChatScrollRef} className={cn("flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-[120px] max-h-[340px]", aiShowByok && "hidden")}>
+              <div ref={aiChatScrollRef} className={cn("flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-[100px] max-h-[30vh] sm:max-h-[340px]", aiShowByok && "hidden")}>
                 {/* Empty state */}
                 {aiChatMessages.length === 0 && !aiGenerating && (
                   <div className="text-center py-8 text-zinc-600 text-sm">
@@ -5493,7 +5493,7 @@ export function PollBuilder({
                       />
                     </div>
                     {/* Scrollable step log with heartbeat history */}
-                    <div ref={aiProgressLogRef} className="max-h-[180px] overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                    <div ref={aiProgressLogRef} className="max-h-[120px] sm:max-h-[180px] overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
                       {aiProgressSteps.map((ps) => (
                         <div key={ps.step}>
                           <div className="flex items-center gap-2.5 text-[12px]">
@@ -5687,26 +5687,26 @@ export function PollBuilder({
           value={data.title}
           onChange={(e) => setData((d) => ({ ...d, title: e.target.value }))}
           placeholder="Poll title..."
-          className="bg-zinc-900/40 border-zinc-800/50 focus:border-zinc-600 text-zinc-100 text-lg font-semibold h-11 placeholder:text-zinc-600"
+          className="bg-zinc-900/40 border-zinc-800/50 focus:border-zinc-600 text-zinc-100 text-base sm:text-lg font-semibold h-10 sm:h-11 placeholder:text-zinc-600"
         />
         <Textarea
           value={data.description}
           onChange={(e) => setData((d) => ({ ...d, description: e.target.value }))}
           placeholder="Add a description (optional)"
-          className="min-h-[60px] bg-zinc-900/40 border-zinc-800/50 focus:border-zinc-600 text-zinc-300 text-sm resize-none placeholder:text-zinc-600"
+          className="min-h-[48px] sm:min-h-[60px] bg-zinc-900/40 border-zinc-800/50 focus:border-zinc-600 text-zinc-300 text-sm resize-none placeholder:text-zinc-600"
         />
       </div>
 
       {/* Builder */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <h3 className="font-medium flex items-center gap-2 text-zinc-200 cursor-help">
                 <FolderOpen className="h-4 w-4 text-zinc-500" />
-                Builder ({data.flow.length})
+                <span className="hidden xs:inline">Builder</span> ({data.flow.length})
                 {data.flow.length > 0 && (
-                  <span className="text-[10px] text-zinc-600 flex items-center gap-1">
+                  <span className="text-[10px] text-zinc-600 hidden sm:flex items-center gap-1">
                     <GripVertical className="h-2.5 w-2.5" />
                     Drag to reorder
                   </span>
@@ -5742,7 +5742,7 @@ export function PollBuilder({
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Plus className="h-4 w-4" />
-                  Add Question
+                  <span className="hidden sm:inline">Add</span> Question
                   <ChevronDown className="h-3 w-3 ml-1" />
                 </Button>
               </DropdownMenuTrigger>
@@ -5791,7 +5791,7 @@ export function PollBuilder({
               )}
             >
               <FolderPlus className="h-4 w-4" />
-              Add Section
+              <span className="hidden sm:inline">Add</span> Section
             </Button>
           </div>
         </div>
@@ -6097,6 +6097,20 @@ export function PollBuilder({
           </>
         )}
       </div>
+
+      {/* Mobile sticky save bar — visible only on small screens when questions exist */}
+      {data.questions.length > 0 && (
+        <div className="sm:hidden sticky bottom-0 -mx-3 px-3 py-2 bg-background/95 backdrop-blur-sm border-t border-zinc-800/50 flex items-center justify-between gap-2 z-20">
+          <span className="text-xs text-zinc-500 truncate">
+            {data.questions.length} question{data.questions.length !== 1 ? "s" : ""}
+            {data.title ? ` · ${data.title}` : ""}
+          </span>
+          <Button onClick={handleSave} disabled={isSaving} size="sm" className="h-9 bg-primary hover:bg-primary/90 text-sm gap-1.5 shrink-0">
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {isSaving ? "Saving..." : "Save Poll"}
+          </Button>
+        </div>
+      )}
 
       {/* Import Modal */}
       <PollImportModal

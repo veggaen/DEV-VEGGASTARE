@@ -202,6 +202,9 @@ Rules:
 - Do NOT claim perfect certainty. If topic is factual/scientific, keep wording honest and avoid overclaiming.
 - Avoid ambiguous prompts with multiple valid answers unless explicitly intended. Favor single, unambiguous correctness conditions.
 - For TEXT answers: use short, specific answers (1-3 words preferred) that are unambiguous. The system uses fuzzy matching, but shorter answers reduce false positives.
+- For QUIZ questions, NEVER create impossible answer mechanics. The correctAnswer must be selectable/inputtable by the UI as configured.
+- Do not use opinion/confidence wording (e.g. "how confident", "how likely", "rate your opinion") for QUIZ questions that require a single correct answer.
+- For numeric constants/precise values, prefer TEXT or SINGLE_CHOICE instead of SLIDER/SCALE unless the numeric range and step make the exact answer selectable.
 
 `;
 
@@ -316,6 +319,57 @@ function toId(prefix: string, index: number): string {
   return `${prefix}${index + 1}`;
 }
 
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function formatNumericAnswer(value: number): string {
+  return Number.isInteger(value)
+    ? `${value}`
+    : value.toFixed(6).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+}
+
+function getNormalizedNumericConfig(type: string, rawConfig: unknown): { min: number; max: number; step: number; showValue: boolean } {
+  const config = rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig)
+    ? (rawConfig as Record<string, unknown>)
+    : {};
+
+  const fallback = type === "SCALE"
+    ? { min: 1, max: 10, step: 1 }
+    : { min: 1, max: 7, step: 1 };
+
+  let min = toFiniteNumber(config.min) ?? fallback.min;
+  let max = toFiniteNumber(config.max) ?? fallback.max;
+  let step = toFiniteNumber(config.step) ?? fallback.step;
+
+  if (max <= min) {
+    min = fallback.min;
+    max = fallback.max;
+  }
+  if (!Number.isFinite(step) || step <= 0) {
+    step = fallback.step;
+  }
+
+  return {
+    min,
+    max,
+    step,
+    showValue: config.showValue === false ? false : true,
+  };
+}
+
+function snapToStep(value: number, min: number, max: number, step: number): number {
+  const clamped = Math.min(max, Math.max(min, value));
+  const stepsFromMin = Math.round((clamped - min) / step);
+  const snapped = min + stepsFromMin * step;
+  return Number(Math.min(max, Math.max(min, snapped)).toFixed(6));
+}
+
 function estimateTruthfulness(questions: any[]): {
   score: number;
   explanation: string;
@@ -354,9 +408,60 @@ function estimateTruthfulness(questions: any[]): {
   return { score, explanation: explanationStr, trustFactor, researchDepth, researchSummary };
 }
 
-function ensureQuestionQuality(q: any, questionIndex: number, globalOptionCounterRef: { value: number }) {
+type GenerationQualityReport = {
+  missingCorrectAnswerFilled: number;
+  choiceAnswerRepaired: number;
+  numericAnswerNormalized: number;
+  numericAnswerDowngradedToText: number;
+  duplicateQuestionIdsFixed: number;
+  warnings: string[];
+};
+
+function createGenerationQualityReport(): GenerationQualityReport {
+  return {
+    missingCorrectAnswerFilled: 0,
+    choiceAnswerRepaired: 0,
+    numericAnswerNormalized: 0,
+    numericAnswerDowngradedToText: 0,
+    duplicateQuestionIdsFixed: 0,
+    warnings: [],
+  };
+}
+
+function applyQualityPenalty(baseScore: number, report: GenerationQualityReport, questionCount: number): number {
+  if (questionCount <= 0) return baseScore;
+
+  const totalFixes =
+    report.missingCorrectAnswerFilled +
+    report.choiceAnswerRepaired +
+    report.numericAnswerNormalized +
+    report.numericAnswerDowngradedToText +
+    report.duplicateQuestionIdsFixed;
+
+  const fixRate = totalFixes / questionCount;
+  const downgradePenalty = report.numericAnswerDowngradedToText * 4;
+  const ratePenalty = fixRate >= 1
+    ? 18
+    : fixRate >= 0.7
+      ? 12
+      : fixRate >= 0.4
+        ? 7
+        : fixRate >= 0.2
+          ? 3
+          : 0;
+
+  const penalty = Math.min(24, downgradePenalty + ratePenalty);
+  return Math.max(35, baseScore - penalty);
+}
+
+function ensureQuestionQuality(
+  q: any,
+  questionIndex: number,
+  globalOptionCounterRef: { value: number },
+  qualityReport: GenerationQualityReport,
+) {
   const questionId = asString(q?.id, toId("q", questionIndex));
-  const type = QUESTION_TYPES.has(q?.type) ? q.type : "SINGLE_CHOICE";
+  let type = QUESTION_TYPES.has(q?.type) ? q.type : "SINGLE_CHOICE";
   const questionText = asString(q?.questionText, `Question ${questionIndex + 1}`);
   const description = asString(q?.description, "");
   const normalizedOptions = Array.isArray(q?.options)
@@ -373,25 +478,78 @@ function ensureQuestionQuality(q: any, questionIndex: number, globalOptionCounte
       normalizedOptions.push({ id: toId("o", globalOptionCounterRef.value++), text: "Option A" });
       normalizedOptions.push({ id: toId("o", globalOptionCounterRef.value++), text: "Option B" });
     }
-    if (typeof correctAnswer !== "string" || !optionIds.includes(correctAnswer)) correctAnswer = normalizedOptions[0]?.id;
+    if (typeof correctAnswer !== "string" || !optionIds.includes(correctAnswer)) {
+      correctAnswer = normalizedOptions[0]?.id;
+      qualityReport.choiceAnswerRepaired++;
+    }
   }
   if (type === "MULTI_CHOICE" || type === "RANKING") {
     if (!Array.isArray(correctAnswer)) {
       correctAnswer = normalizedOptions.slice(0, Math.min(2, normalizedOptions.length)).map((o: any) => o.id);
+      qualityReport.choiceAnswerRepaired++;
     } else {
       correctAnswer = correctAnswer.filter((id: string) => optionIds.includes(id));
-      if (!correctAnswer.length) correctAnswer = normalizedOptions.slice(0, Math.min(2, normalizedOptions.length)).map((o: any) => o.id);
+      if (!correctAnswer.length) {
+        correctAnswer = normalizedOptions.slice(0, Math.min(2, normalizedOptions.length)).map((o: any) => o.id);
+        qualityReport.choiceAnswerRepaired++;
+      }
     }
   }
   if ((type === "TEXT" || type === "SLIDER" || type === "SCALE") && (correctAnswer == null || correctAnswer === "")) {
     correctAnswer = type === "TEXT" ? "sample answer" : "1";
+    qualityReport.missingCorrectAnswerFilled++;
   }
+
+  let normalizedSliderConfig = q?.sliderConfig;
+
+  if (type === "SLIDER" || type === "SCALE") {
+    const parsedNumericAnswer = toFiniteNumber(correctAnswer);
+
+    // If a numeric-style question has a non-numeric answer, downgrade to TEXT so
+    // the question remains answerable.
+    if (parsedNumericAnswer == null) {
+      type = "TEXT";
+      correctAnswer = asString(correctAnswer, "sample answer");
+      normalizedSliderConfig = undefined;
+      qualityReport.numericAnswerDowngradedToText++;
+    } else {
+      const numericConfig = getNormalizedNumericConfig(type, q?.sliderConfig);
+      const inRange = parsedNumericAnswer >= numericConfig.min && parsedNumericAnswer <= numericConfig.max;
+
+      // Out-of-range numeric answers are impossible to select on slider/scale.
+      // Use TEXT fallback so the poll remains logically answerable.
+      if (!inRange) {
+        type = "TEXT";
+        correctAnswer = formatNumericAnswer(parsedNumericAnswer);
+        normalizedSliderConfig = undefined;
+        qualityReport.numericAnswerDowngradedToText++;
+      } else {
+        const normalizedAnswer = type === "SCALE"
+          ? Math.round(snapToStep(parsedNumericAnswer, numericConfig.min, numericConfig.max, 1))
+          : snapToStep(parsedNumericAnswer, numericConfig.min, numericConfig.max, numericConfig.step);
+
+        if (Math.abs(normalizedAnswer - parsedNumericAnswer) > 1e-6) {
+          qualityReport.numericAnswerNormalized++;
+        }
+
+        correctAnswer = formatNumericAnswer(normalizedAnswer);
+        normalizedSliderConfig = {
+          ...(q?.sliderConfig && typeof q.sliderConfig === "object" && !Array.isArray(q.sliderConfig) ? q.sliderConfig : {}),
+          min: numericConfig.min,
+          max: numericConfig.max,
+          step: type === "SCALE" ? 1 : numericConfig.step,
+          showValue: numericConfig.showValue,
+        };
+      }
+    }
+  }
+
   return {
     id: questionId, type, questionText,
     ...(description ? { description } : {}),
     required: q?.required ?? true, allowImages: q?.allowImages ?? false,
     options: type === "TEXT" || type === "SLIDER" || type === "SCALE" || type === "SHAPE_MATCH" ? [] : normalizedOptions,
-    ...(q?.sliderConfig && { sliderConfig: q.sliderConfig }),
+    ...(normalizedSliderConfig && { sliderConfig: normalizedSliderConfig }),
     ...(correctAnswer != null && { correctAnswer }),
     explanation: asString(q?.explanation, `Correct. ${questionText} is answered using the expected response.`),
     wrongExplanation: asString(q?.wrongExplanation, `Not quite. Re-read carefully.`),
@@ -809,14 +967,33 @@ export async function POST(req: NextRequest) {
       if (!pollData.sections) pollData.sections = [];
 
       const optionCounterRef = { value: 0 };
-      pollData.questions = pollData.questions.map((q: any, i: number) => ensureQuestionQuality(q, i, optionCounterRef));
+      const qualityReport = createGenerationQualityReport();
+      pollData.questions = pollData.questions.map((q: any, i: number) =>
+        ensureQuestionQuality(q, i, optionCounterRef, qualityReport)
+      );
       pollData.flow = pollData.questions.map((q: any) => ({ type: "QUESTION", id: q.id }));
 
       // Validate unique IDs
       const qIds = new Set<string>();
       for (const q of pollData.questions) {
-        if (qIds.has(q.id)) q.id = `q_${Math.random().toString(36).slice(2, 8)}`;
+        if (qIds.has(q.id)) {
+          q.id = `q_${Math.random().toString(36).slice(2, 8)}`;
+          qualityReport.duplicateQuestionIdsFixed++;
+        }
         qIds.add(q.id);
+      }
+
+      const totalFixes =
+        qualityReport.missingCorrectAnswerFilled +
+        qualityReport.choiceAnswerRepaired +
+        qualityReport.numericAnswerNormalized +
+        qualityReport.numericAnswerDowngradedToText +
+        qualityReport.duplicateQuestionIdsFixed;
+      if (totalFixes > 0) {
+        qualityReport.warnings.push(`Auto-corrections applied: ${totalFixes}`);
+      }
+      if (qualityReport.numericAnswerDowngradedToText > 0) {
+        qualityReport.warnings.push(`Converted ${qualityReport.numericAnswerDowngradedToText} numeric question(s) to TEXT because answers were not selectable in configured ranges.`);
       }
 
       // Output content safety validation
@@ -849,13 +1026,16 @@ export async function POST(req: NextRequest) {
       await sendEvent(writer, { step: 6, label: GENERATION_STEPS[5].label, status: "active", totalSteps: TOTAL_STEPS });
 
       const truthfulness = estimateTruthfulness(pollData.questions);
+      const adjustedTrustScore = applyQualityPenalty(truthfulness.score, qualityReport, pollData.questions.length);
+      const adjustedTrustFactor: "Low" | "Medium" | "High" =
+        adjustedTrustScore >= 80 ? "High" : adjustedTrustScore >= 55 ? "Medium" : "Low";
 
-      const qualityBlock = `\n\n---\nAI Verification\n- Estimated truthfulness/quality: ${truthfulness.score}/100\n- ${truthfulness.explanation}\n- For critical domains, verify with trusted sources before publishing.`;
+      const qualityBlock = `\n\n---\nAI Verification\n- Estimated truthfulness/quality: ${adjustedTrustScore}/100\n- ${truthfulness.explanation}\n- Auto-corrections during generation: ${qualityReport.missingCorrectAnswerFilled + qualityReport.choiceAnswerRepaired + qualityReport.numericAnswerNormalized + qualityReport.numericAnswerDowngradedToText + qualityReport.duplicateQuestionIdsFixed}\n- For critical domains, verify with trusted sources before publishing.`;
       pollData.description = `${asString(pollData.description).trim()}${qualityBlock}`.trim();
 
       pollData.aiGenerated = true;
-      pollData.trustFactor = truthfulness.score >= 80 ? "High" : truthfulness.score >= 55 ? "Medium" : "Low";
-      pollData.trustScore = truthfulness.score;
+      pollData.trustFactor = adjustedTrustFactor;
+      pollData.trustScore = adjustedTrustScore;
       pollData.researchDepth = truthfulness.researchDepth;
       pollData.researchSummary = truthfulness.researchSummary;
 
@@ -864,6 +1044,13 @@ export async function POST(req: NextRequest) {
         pollData.trustNote = pollData.trustFactor === "Low"
           ? "Limited high-quality sources → Trust: Low. Consider verifying key facts."
           : "Moderate source coverage → Trust: Medium. Some claims may need verification.";
+      }
+
+      if (qualityReport.warnings.length > 0) {
+        const qualityWarning = `Generation quality notes: ${qualityReport.warnings.join(" ")}`;
+        pollData.trustNote = pollData.trustNote
+          ? `${pollData.trustNote} ${qualityWarning}`
+          : qualityWarning;
       }
 
       // Increment daily usage only for platform key users
@@ -887,10 +1074,11 @@ export async function POST(req: NextRequest) {
           _meta: {
             aiGenerated: true,
             trustFactor: pollData.trustFactor,
-            trustScore: truthfulness.score,
+            trustScore: adjustedTrustScore,
             researchDepth: truthfulness.researchDepth,
             researchSummary: pollData.researchSummary,
             trustNote: pollData.trustNote || null,
+            qualityReport,
             provider: auth.provider,
             model: resolvedModel,
             mode,

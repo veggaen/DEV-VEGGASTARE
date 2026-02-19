@@ -362,6 +362,67 @@ function findUnansweredQuestions(sections: Section[], answers: Record<string, Qu
   return unanswered;
 }
 
+function normalizeTextTokensForCoverage(input: string): string[] {
+  return input
+    .toLowerCase()
+    .replace(/[-_.,;:!?\'"()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+}
+
+function hasMinimumTokenCoverageForAiCheck(userAnswer: string, correctAnswer: string): boolean {
+  const correctTokens = normalizeTextTokensForCoverage(correctAnswer);
+  const userTokens = normalizeTextTokensForCoverage(userAnswer);
+  if (correctTokens.length <= 1) return userTokens.length >= 1;
+  return userTokens.length >= Math.ceil(correctTokens.length / 2);
+}
+
+function getNumericBoundsForQuestion(question: PollQuestion): { min: number; max: number; step: number } {
+  const cfg = question.sliderConfig ?? {};
+  const fallbackMin = question.type === "SCALE" ? 1 : 1;
+  const fallbackMax = question.type === "SCALE" ? 10 : 7;
+  const fallbackStep = question.type === "SCALE" ? 1 : 1;
+
+  const min = typeof cfg.min === "number" && Number.isFinite(cfg.min) ? cfg.min : fallbackMin;
+  const max = typeof cfg.max === "number" && Number.isFinite(cfg.max) ? cfg.max : fallbackMax;
+  const step = typeof cfg.step === "number" && Number.isFinite(cfg.step) && cfg.step > 0 ? cfg.step : fallbackStep;
+
+  if (max <= min) {
+    return { min: fallbackMin, max: fallbackMax, step: fallbackStep };
+  }
+
+  return { min, max, step };
+}
+
+function snapToSelectableValue(value: number, min: number, max: number, step: number): number {
+  const clamped = Math.min(max, Math.max(min, value));
+  const stepsFromMin = Math.round((clamped - min) / step);
+  const snapped = min + stepsFromMin * step;
+  return Math.min(max, Math.max(min, snapped));
+}
+
+function getNormalizedCorrectNumericAnswer(question: PollQuestion, rawCorrectAnswer: unknown): number | null {
+  const numeric = typeof rawCorrectAnswer === "number"
+    ? rawCorrectAnswer
+    : typeof rawCorrectAnswer === "string"
+      ? parseFloat(rawCorrectAnswer)
+      : NaN;
+
+  if (!Number.isFinite(numeric)) return null;
+
+  const { min, max, step } = getNumericBoundsForQuestion(question);
+  if (numeric < min || numeric > max) return null;
+
+  let normalized = snapToSelectableValue(numeric, min, max, step);
+  if (question.type === "SCALE") {
+    normalized = Math.round(normalized);
+  }
+
+  return Number(normalized.toFixed(6));
+}
+
 // Calculate quiz score (correct answers / total questions with correct answers)
 // Async: TEXT answers that fail fuzzy match get a second opinion from AI (Groq, ~200ms).
 async function calculateQuizScore(
@@ -428,7 +489,7 @@ async function calculateQuizScore(
         if (fuzzyTextMatch(userAnswer, correctAnswer)) {
           sectionCorrect++;
           totalCorrect++;
-        } else {
+        } else if (hasMinimumTokenCoverageForAiCheck(userAnswer, correctAnswer)) {
           // Queue for AI verification — don't mark wrong yet
           pendingAiChecks.push({
             questionId: question.id,
@@ -443,9 +504,14 @@ async function calculateQuizScore(
 
       // SLIDER/SCALE: numeric comparison
       if ((question.type === "SLIDER" || question.type === "SCALE") && typeof correctAnswer === "string") {
-        const numCorrect = parseFloat(correctAnswer);
+        const numCorrect = getNormalizedCorrectNumericAnswer(question, correctAnswer);
         const userVal = typeof userAnswer === "number" ? userAnswer : parseFloat(String(userAnswer));
-        if (!Number.isNaN(numCorrect) && !Number.isNaN(userVal) && numCorrect === userVal) {
+        if (numCorrect === null || Number.isNaN(userVal)) {
+          sectionGraded--;
+          totalGraded--;
+          return;
+        }
+        if (numCorrect !== null && !Number.isNaN(userVal) && Math.abs(numCorrect - userVal) <= 1e-6) {
           sectionCorrect++;
           totalCorrect++;
         }
@@ -507,6 +573,23 @@ export function PollTakerModal({ pollId, onClose, onComplete, previewData }: Pol
   const [missingQueue, setMissingQueue] = useState<Array<{ sectionIdx: number; questionIdx: number }>>([]);
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Reset modal-local state whenever the opened poll changes.
+  useEffect(() => {
+    if (!pollId) return;
+    setPoll(null);
+    setAnswers({});
+    setShowComments({});
+    setScreen("welcome");
+    setCurrentSectionIdx(0);
+    setCurrentQuestionIdx(0);
+    setSlideDirection(1);
+    setIsSubmitting(false);
+    setAuthRequired(false);
+    setMissingMode(false);
+    setMissingQueue([]);
+    setError(null);
+  }, [pollId, previewData]);
 
   // Preview mode: convert builder data directly, skip API fetch
   useEffect(() => {
@@ -1339,19 +1422,23 @@ function QuestionScreen({
 
       return fuzzyTextMatch(userAns, correctAns);
     }
+
+    // Slider/scale: compare against a selectable normalized numeric answer
+    if (question.type === "SLIDER" || question.type === "SCALE") {
+      const normalizedCorrect = getNormalizedCorrectNumericAnswer(question, correctAns);
+      const userVal = typeof userAns === "number" ? userAns : parseFloat(String(userAns));
+      if (normalizedCorrect === null) {
+        return null;
+      }
+      if (normalizedCorrect !== null && Number.isFinite(userVal)) {
+        return Math.abs(normalizedCorrect - userVal) <= 1e-6;
+      }
+      return false;
+    }
     
     // String comparison (single choice - exact ID match)
     if (typeof correctAns === "string" && typeof userAns === "string") {
       return correctAns === userAns;
-    }
-    
-    // Slider/scale: compare numeric value (correctAnswer stored as "6" etc.)
-    if ((question.type === "SLIDER" || question.type === "SCALE") && typeof correctAns === "string") {
-      const numCorrect = parseFloat(correctAns);
-      const userVal = typeof userAns === "number" ? userAns : parseFloat(String(userAns));
-      if (!Number.isNaN(numCorrect) && !Number.isNaN(userVal)) {
-        return numCorrect === userVal;
-      }
     }
     
     return null;
@@ -1362,8 +1449,8 @@ function QuestionScreen({
     if (question.type !== "SLIDER" && question.type !== "SCALE") return null;
 
     const selectedValue = typeof answer?.value === "number" ? answer.value : NaN;
-    const numericCorrect = typeof effectiveCorrectAnswer === "string" ? parseFloat(effectiveCorrectAnswer) : NaN;
-    if (Number.isNaN(selectedValue) || Number.isNaN(numericCorrect)) return null;
+    const numericCorrect = getNormalizedCorrectNumericAnswer(question, effectiveCorrectAnswer);
+    if (Number.isNaN(selectedValue) || numericCorrect === null) return null;
 
     const min = sliderMin;
     const max = sliderMax;
