@@ -2665,6 +2665,8 @@ export function PollBuilder({
   const [aiRefinementInput, setAiRefinementInput] = useState("");
   const [aiHasGenerated, setAiHasGenerated] = useState(false); // at least one generation completed
   const aiChatScrollRef = useRef<HTMLDivElement>(null);
+  const aiTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [aiModelDropdownOpen, setAiModelDropdownOpen] = useState(false);
   
   // Drag-and-drop state for dragging questions and sections
   const [draggingQuestionId, setDraggingQuestionId] = useState<string | null>(null);
@@ -4442,6 +4444,14 @@ export function PollBuilder({
       timestamp: Date.now(),
     }]);
 
+    // Clear input immediately so user sees their message moved to the chat thread
+    setAiPrompt("");
+    setAiRefinementInput("");
+    // Reset textarea height
+    if (aiTextareaRef.current) {
+      aiTextareaRef.current.style.height = "auto";
+    }
+
     setAiGenerating(true);
     setAiError(null);
     setAiGenerationMeta(null);
@@ -4656,8 +4666,6 @@ export function PollBuilder({
 
       const trustNote = meta?.trustNote ? `\n${meta.trustNote}` : "";
       toast.success(`${isRefinement ? "Updated" : "Generated"} poll with ${qCount} questions • Trust: ${trustLabel}${trustNote}`);
-      setAiPrompt("");
-      setAiRefinementInput("");
       if (isByok && !aiRememberKey) setAiApiKey("");
       // Don't close the panel — keep chat thread visible for refinement
     } catch (err: any) {
@@ -5194,6 +5202,90 @@ export function PollBuilder({
                   )}
                 </div>
                 <div className="flex items-center gap-1.5">
+                  {/* Active model pill — Copilot-style quick-switch */}
+                  {!aiShowByok && (
+                    <Popover open={aiModelDropdownOpen} onOpenChange={setAiModelDropdownOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/80 border border-zinc-700/40 transition-colors"
+                        >
+                          {(() => {
+                            const provDef = AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider);
+                            const modelDef = provDef?.models.find(m => m.value === aiModel);
+                            return <>{provDef?.emoji} {modelDef?.label || aiModel || "Auto"}</>;
+                          })()}
+                          <ChevronDown className="w-2.5 h-2.5 ml-0.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="end"
+                        side="bottom"
+                        className="w-72 p-0 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden"
+                      >
+                        <div className="max-h-[320px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                          {AI_PROVIDER_OPTIONS.map((provDef) => (
+                            <div key={provDef.value}>
+                              <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider bg-zinc-900/50 sticky top-0 flex items-center gap-1.5">
+                                <span>{provDef.emoji}</span>
+                                {provDef.label}
+                                {provDef.freeAvailable && (
+                                  <span className="ml-auto px-1.5 py-0 rounded text-[8px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">FREE</span>
+                                )}
+                              </div>
+                              {provDef.models.map((model) => {
+                                const isActive = aiProvider === provDef.value && aiModel === model.value;
+                                return (
+                                  <button
+                                    key={model.value}
+                                    type="button"
+                                    onClick={() => {
+                                      setAiProvider(provDef.value as AiProvider);
+                                      setAiModel(model.value);
+                                      setAiModelDropdownOpen(false);
+                                    }}
+                                    className={cn(
+                                      "w-full text-left px-3 py-2 flex items-center justify-between gap-2 transition-colors",
+                                      isActive
+                                        ? "bg-violet-500/10 text-zinc-100"
+                                        : "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200"
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <div className={cn(
+                                        "w-1.5 h-1.5 rounded-full shrink-0",
+                                        isActive ? "bg-violet-400" : "bg-zinc-700"
+                                      )} />
+                                      <span className="text-[12px] font-medium truncate">{model.label}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      {model.description && (
+                                        <span className="text-[10px] text-zinc-600">{model.description}</span>
+                                      )}
+                                      {isActive && <Check className="w-3 h-3 text-violet-400" />}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                        {/* BYOK shortcut at bottom */}
+                        <div className="border-t border-zinc-800/60 p-2">
+                          <button
+                            type="button"
+                            onClick={() => { setAiShowByok(true); setAiKeySource("byok"); setAiModelDropdownOpen(false); }}
+                            className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] text-violet-400 hover:bg-violet-500/10 transition-colors flex items-center gap-2"
+                          >
+                            <Key className="w-3 h-3" />
+                            Use your own API key
+                          </button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
                   {/* Credit counter in header */}
                   {currentUser && aiFreeUsed !== null && !aiUsingSavedKey && !aiShowByok && (
                     <Tooltip>
@@ -5591,6 +5683,7 @@ export function PollBuilder({
                     <div className="flex items-end gap-2">
                       <div className="flex-1 min-w-0">
                         <textarea
+                          ref={aiTextareaRef}
                           value={aiHasGenerated ? aiRefinementInput : aiPrompt}
                           onChange={(e) => {
                             if (aiHasGenerated) {
@@ -5643,20 +5736,21 @@ export function PollBuilder({
                         )}
                       </button>
                     </div>
-                    {/* Subtle meta row */}
+                    {/* Subtle meta row — Copilot-inspired */}
                     <div className="mt-1.5 flex items-center justify-between text-[10px] text-zinc-600">
-                      <div className="flex items-center gap-2">
-                        {currentUser && !aiShowByok && (
-                          <button
-                            type="button"
-                            onClick={() => setAiShowByok(!aiShowByok)}
-                            className="inline-flex items-center gap-1 hover:text-violet-400 transition-colors"
-                          >
-                            <Bot className="w-2.5 h-2.5" />
-                            {aiUsingSavedKey ? "Change AI key" : "Use your own AI"}
-                          </button>
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAiModelDropdownOpen(true)}
+                        className="inline-flex items-center gap-1 hover:text-zinc-400 transition-colors"
+                      >
+                        {(() => {
+                          const provDef = AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider);
+                          const modelDef = provDef?.models.find(m => m.value === aiModel);
+                          return <>{provDef?.emoji} {modelDef?.label || "Auto"}</>;
+                        })()}
+                        {aiUsingSavedKey && <Key className="w-2.5 h-2.5 text-violet-400" />}
+                        <ChevronDown className="w-2 h-2" />
+                      </button>
                       <span>Enter to send &bull; Shift+Enter for newline</span>
                     </div>
                   </div>
@@ -5673,7 +5767,21 @@ export function PollBuilder({
 
 
                 {aiError && (
-                  <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{aiError}</p>
+                  <div className="text-xs bg-red-500/10 rounded-lg px-3 py-2 space-y-1">
+                    <p className="text-red-400">{aiError}</p>
+                    {/\(40[13]\)/.test(aiError) && (
+                      <p className="text-red-400/70 text-[11px]">
+                        Your API key was rejected by the provider. Check that it&apos;s valid, has credits, and matches the selected provider.
+                        <button
+                          type="button"
+                          onClick={() => { setAiShowByok(true); setAiKeySource("byok"); setAiError(null); }}
+                          className="ml-1 text-violet-400 hover:text-violet-300 underline underline-offset-2"
+                        >
+                          Re-enter key
+                        </button>
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

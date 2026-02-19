@@ -703,7 +703,7 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
       signal: controller.signal,
       body: JSON.stringify({ model, max_tokens: 16384, temperature: 0.7, system: systemPrompt, messages: [{ role: "user", content: input.prompt.trim() }] }),
     });
-    if (!response.ok) { const e = await response.text(); console.error("Anthropic error:", response.status, e); throw new Error(`AI service error (${response.status}).`); }
+    if (!response.ok) { const e = await response.text(); console.error("Anthropic error:", response.status, e); if (response.status === 401 || response.status === 403) { throw new Error(`Anthropic rejected your API key (${response.status}). Check that it's valid at console.anthropic.com.`); } throw new Error(`AI service error (${response.status}).`); }
     const completion = await response.json();
     const content = completion?.content?.find((i: any) => i?.type === "text")?.text;
     if (!content) throw new Error("No response from AI.");
@@ -718,7 +718,7 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
       signal: controller.signal,
       body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: input.prompt.trim() }], temperature: 0.7, max_tokens: 16384 }),
     });
-    if (!response.ok) { const e = await response.text(); console.error("Grok error:", response.status, e); throw new Error(`Grok AI error (${response.status}).`); }
+    if (!response.ok) { const e = await response.text(); console.error("Grok error:", response.status, e); if (response.status === 401 || response.status === 403) { throw new Error(`Grok rejected your API key (${response.status}). Check that it's valid at console.x.ai.`); } throw new Error(`Grok AI error (${response.status}).`); }
     const completion = await response.json();
     const content = completion.choices?.[0]?.message?.content;
     if (!content) throw new Error("No response from Grok.");
@@ -732,7 +732,7 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
     signal: controller.signal,
     body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: input.prompt.trim() }], temperature: 0.7, max_tokens: 16384, response_format: { type: "json_object" } }),
   });
-  if (!response.ok) { const e = await response.text(); console.error(`${input.provider} error:`, response.status, e); throw new Error(`AI error (${response.status}).`); }
+  if (!response.ok) { const e = await response.text(); console.error(`${input.provider} error:`, response.status, e); if (response.status === 401 || response.status === 403) { throw new Error(`${input.provider === "OPENROUTER" ? "OpenRouter" : "OpenAI"} rejected your API key (${response.status}). Check that it's valid and has credits.`); } throw new Error(`AI error (${response.status}).`); }
   const completion = await response.json();
   const content = completion.choices?.[0]?.message?.content;
   if (!content) throw new Error("No response from AI.");
