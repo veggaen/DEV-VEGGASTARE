@@ -302,6 +302,8 @@ const AI_PROVIDER_OPTIONS: AiProviderOptionDef[] = [
       { value: "gpt-4o-mini", label: "GPT-4o Mini", description: "Fast & affordable" },
       { value: "gpt-4.1",     label: "GPT-4.1",     description: "Latest · coding focus" },
       { value: "gpt-4.1-mini",label: "GPT-4.1 Mini",description: "Latest mini · cheap" },
+      { value: "gpt-5.2",     label: "GPT-5.2",     description: "Next-gen quality" },
+      { value: "gpt-5.3-codex", label: "GPT-5.3 Codex", description: "Coding-focused" },
       { value: "o4-mini",     label: "o4-mini",      description: "Reasoning model" },
     ],
   },
@@ -333,6 +335,17 @@ const AI_PROVIDER_OPTIONS: AiProviderOptionDef[] = [
     ],
   },
 ];
+
+function inferProviderFromApiKey(input: string): AiProvider | null {
+  const key = input.trim().toLowerCase();
+  if (!key) return null;
+  if (key.startsWith("gsk_")) return "GROQ";
+  if (key.startsWith("sk-or-")) return "OPENROUTER";
+  if (key.startsWith("sk-ant-")) return "ANTHROPIC";
+  if (key.startsWith("xai-")) return "GROK";
+  if (key.startsWith("sk-proj-") || key.startsWith("sk-")) return "OPENAI";
+  return null;
+}
 
 function formatGenerationSourceLabel(meta?: AiGenerationMeta | null): string {
   if (!meta?.provider) return "AI";
@@ -2667,6 +2680,25 @@ export function PollBuilder({
   const aiChatScrollRef = useRef<HTMLDivElement>(null);
   const aiTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [aiModelDropdownOpen, setAiModelDropdownOpen] = useState(false);
+  const detectedByokProvider = useMemo(() => inferProviderFromApiKey(aiApiKey), [aiApiKey]);
+  const unlockedProviderSet = useMemo(() => {
+    const unlocked = new Set<AiProvider>(["GROQ"]);
+    aiSavedKeys.forEach((k) => unlocked.add(k.provider));
+    if (detectedByokProvider) unlocked.add(detectedByokProvider);
+    return unlocked;
+  }, [aiSavedKeys, detectedByokProvider]);
+  const freeProviderDefs = useMemo(
+    () => AI_PROVIDER_OPTIONS.filter((p) => p.value === "GROQ"),
+    []
+  );
+  const unlockedByokProviderDefs = useMemo(
+    () => AI_PROVIDER_OPTIONS.filter((p) => p.value !== "GROQ" && unlockedProviderSet.has(p.value)),
+    [unlockedProviderSet]
+  );
+  const hasLockedByokProviders = useMemo(
+    () => AI_PROVIDER_OPTIONS.some((p) => p.value !== "GROQ" && !unlockedProviderSet.has(p.value)),
+    [unlockedProviderSet]
+  );
   
   // Drag-and-drop state for dragging questions and sections
   const [draggingQuestionId, setDraggingQuestionId] = useState<string | null>(null);
@@ -4466,7 +4498,22 @@ export function PollBuilder({
     try {
       // Build payload — server decides: saved key > platform key (auto mode)
       // If user expanded BYOK and typed a key, send it as one_time
-      const isByok = aiKeySource === "byok" && aiApiKey.trim();
+      const trimmedByokKey = aiApiKey.trim();
+      const isByok = aiKeySource === "byok" && trimmedByokKey;
+      const detectedProvider = isByok ? inferProviderFromApiKey(trimmedByokKey) : null;
+      const effectiveProvider = (detectedProvider || aiProvider) as AiProvider;
+      const effectiveProviderDef = AI_PROVIDER_OPTIONS.find((p) => p.value === effectiveProvider);
+      const currentModelMatchesProvider = !!effectiveProviderDef?.models.some((m) => m.value === aiModel);
+      const fallbackModel = effectiveProviderDef?.models.find((m) => m.isDefault)?.value || effectiveProviderDef?.models[0]?.value;
+      const effectiveModel = currentModelMatchesProvider ? aiModel : (fallbackModel || aiModel || undefined);
+
+      if (detectedProvider && detectedProvider !== aiProvider) {
+        setAiProvider(detectedProvider);
+      }
+      if (effectiveModel && effectiveModel !== aiModel) {
+        setAiModel(effectiveModel);
+      }
+
       const payload: any = {
         prompt,
         ...(isRefinement ? {
@@ -4484,9 +4531,9 @@ export function PollBuilder({
         } : {}),
         aiAuth: {
           mode: isByok ? "one_time" : "auto",
-          provider: aiProvider,
-          model: aiModel || undefined,
-          ...(isByok ? { apiKey: aiApiKey, rememberKey: aiRememberKey } : {}),
+          provider: effectiveProvider,
+          model: effectiveModel,
+          ...(isByok ? { apiKey: trimmedByokKey, rememberKey: aiRememberKey } : {}),
         },
       };
 
@@ -5221,17 +5268,18 @@ export function PollBuilder({
                       <PopoverContent
                         align="end"
                         side="bottom"
-                        className="w-72 p-0 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden"
+                        className="w-80 p-0 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden"
                       >
-                        <div className="max-h-[320px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-                          {AI_PROVIDER_OPTIONS.map((provDef) => (
+                        <div className="max-h-[320px] overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent" onWheel={(e) => e.stopPropagation()}>
+                          <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider bg-zinc-900/50 sticky top-0 z-10">
+                            Works now (free)
+                          </div>
+                          {freeProviderDefs.map((provDef) => (
                             <div key={provDef.value}>
-                              <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider bg-zinc-900/50 sticky top-0 flex items-center gap-1.5">
+                              <div className="px-3 py-1 text-[10px] text-zinc-600 flex items-center gap-1.5">
                                 <span>{provDef.emoji}</span>
                                 {provDef.label}
-                                {provDef.freeAvailable && (
-                                  <span className="ml-auto px-1.5 py-0 rounded text-[8px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">FREE</span>
-                                )}
+                                <span className="ml-auto px-1.5 py-0 rounded text-[8px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">FREE</span>
                               </div>
                               {provDef.models.map((model) => {
                                 const isActive = aiProvider === provDef.value && aiModel === model.value;
@@ -5269,16 +5317,76 @@ export function PollBuilder({
                               })}
                             </div>
                           ))}
+
+                          {unlockedByokProviderDefs.length > 0 && (
+                            <>
+                              <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider bg-zinc-900/50 sticky top-0 z-10 border-t border-zinc-800/60">
+                                Your key models
+                              </div>
+                              {unlockedByokProviderDefs.map((provDef) => (
+                                <div key={provDef.value}>
+                                  <div className="px-3 py-1 text-[10px] text-zinc-600 flex items-center gap-1.5">
+                                    <span>{provDef.emoji}</span>
+                                    {provDef.label}
+                                    <span className="ml-auto text-[9px] text-violet-400">BYOK</span>
+                                  </div>
+                                  {provDef.models.map((model) => {
+                                    const isActive = aiProvider === provDef.value && aiModel === model.value;
+                                    return (
+                                      <button
+                                        key={model.value}
+                                        type="button"
+                                        onClick={() => {
+                                          setAiProvider(provDef.value as AiProvider);
+                                          setAiModel(model.value);
+                                          setAiModelDropdownOpen(false);
+                                        }}
+                                        className={cn(
+                                          "w-full text-left px-3 py-2 flex items-center justify-between gap-2 transition-colors",
+                                          isActive
+                                            ? "bg-violet-500/10 text-zinc-100"
+                                            : "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200"
+                                        )}
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <div className={cn(
+                                            "w-1.5 h-1.5 rounded-full shrink-0",
+                                            isActive ? "bg-violet-400" : "bg-zinc-700"
+                                          )} />
+                                          <span className="text-[12px] font-medium truncate">{model.label}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                          {model.description && (
+                                            <span className="text-[10px] text-zinc-600">{model.description}</span>
+                                          )}
+                                          {isActive && <Check className="w-3 h-3 text-violet-400" />}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ))}
+                            </>
+                          )}
                         </div>
-                        {/* BYOK shortcut at bottom */}
-                        <div className="border-t border-zinc-800/60 p-2">
+                        <div className="border-t border-zinc-800/60 p-2 space-y-1.5">
+                          {hasLockedByokProviders && (
+                            <button
+                              type="button"
+                              onClick={() => { setAiShowByok(true); setAiKeySource("byok"); setAiModelDropdownOpen(false); }}
+                              className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] text-zinc-300 hover:bg-zinc-800/80 transition-colors flex items-center gap-2"
+                            >
+                              <Lock className="w-3 h-3 text-zinc-500" />
+                              Unlock OpenAI / Claude / OpenRouter with your key
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => { setAiShowByok(true); setAiKeySource("byok"); setAiModelDropdownOpen(false); }}
                             className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] text-violet-400 hover:bg-violet-500/10 transition-colors flex items-center gap-2"
                           >
                             <Key className="w-3 h-3" />
-                            Use your own API key
+                            Bring your own API key
                           </button>
                         </div>
                       </PopoverContent>
@@ -5448,11 +5556,24 @@ export function PollBuilder({
                     <Label className="text-[12px] text-zinc-400">Paste your API key</Label>
                     <Input
                       value={aiApiKey}
-                      onChange={(e) => { setAiApiKey(e.target.value); setAiKeySource("byok"); }}
+                      onChange={(e) => {
+                        const nextKey = e.target.value;
+                        setAiApiKey(nextKey);
+                        setAiKeySource("byok");
+                        const inferred = inferProviderFromApiKey(nextKey);
+                        if (inferred && inferred !== aiProvider) {
+                          setAiProvider(inferred);
+                        }
+                      }}
                       type="password"
                       placeholder={`Paste your ${AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider)?.label || "API"} key here`}
                       className="h-10 bg-zinc-900/80 border-zinc-700/50 text-sm font-mono placeholder:font-sans focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/20"
                     />
+                    {detectedByokProvider && (
+                      <p className="text-[11px] text-zinc-500">
+                        Detected key type: {AI_PROVIDER_OPTIONS.find((p) => p.value === detectedByokProvider)?.label || detectedByokProvider}. We&apos;ll use this provider automatically.
+                      </p>
+                    )}
                   </div>
 
                   {/* Remember + Manage */}
@@ -5475,7 +5596,7 @@ export function PollBuilder({
                       className="w-full rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium py-2.5 transition-colors flex items-center justify-center gap-2"
                     >
                       <Check className="w-4 h-4" />
-                      Use this key and start generating
+                      Continue with {AI_PROVIDER_OPTIONS.find((p) => p.value === (detectedByokProvider || aiProvider))?.label || "this provider"}
                     </button>
                   )}
                 </div>
@@ -5768,7 +5889,13 @@ export function PollBuilder({
 
                 {aiError && (
                   <div className="text-xs bg-red-500/10 rounded-lg px-3 py-2 space-y-1">
-                    <p className="text-red-400">{aiError}</p>
+                    {aiError.includes("add your own API key in") ? (
+                      <p className="text-red-400">
+                        Selected model requires your own API key. Open key setup to unlock this provider.
+                      </p>
+                    ) : (
+                      <p className="text-red-400">{aiError}</p>
+                    )}
                     {/\(40[13]\)/.test(aiError) && (
                       <p className="text-red-400/70 text-[11px]">
                         Your API key was rejected by the provider. Check that it&apos;s valid, has credits, and matches the selected provider.

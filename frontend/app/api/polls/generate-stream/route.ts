@@ -263,6 +263,35 @@ function normalizeGenerationProvider(input: unknown): ResolvedAuth["provider"] {
   return "GROQ";
 }
 
+function inferProviderFromApiKey(input: string): ResolvedAuth["provider"] | null {
+  const key = input.trim().toLowerCase();
+  if (!key) return null;
+  if (key.startsWith("gsk_")) return "GROQ";
+  if (key.startsWith("sk-or-")) return "OPENROUTER";
+  if (key.startsWith("sk-ant-")) return "ANTHROPIC";
+  if (key.startsWith("xai-")) return "GROK";
+  if (key.startsWith("sk-proj-") || key.startsWith("sk-")) return "OPENAI";
+  return null;
+}
+
+function isModelLikelyForProvider(provider: ResolvedAuth["provider"], model: string): boolean {
+  const m = model.trim().toLowerCase();
+  if (!m) return false;
+  switch (provider) {
+    case "GROQ":
+      return m.startsWith("llama-") || m.startsWith("mixtral-") || m.includes("qwen") || m.includes("gemma");
+    case "OPENROUTER":
+      return m.includes("/");
+    case "ANTHROPIC":
+      return m.startsWith("claude");
+    case "GROK":
+      return m.startsWith("grok-");
+    case "OPENAI":
+    default:
+      return m.startsWith("gpt-") || m.startsWith("o");
+  }
+}
+
 function canPersistProvider(provider: ResolvedAuth["provider"]): provider is "OPENAI" | "OPENROUTER" | "ANTHROPIC" {
   return provider === "OPENAI" || provider === "OPENROUTER" || provider === "ANTHROPIC";
 }
@@ -572,8 +601,13 @@ async function resolveGenerationAuth(reqBody: z.infer<typeof StreamRequestSchema
 
   // BYOK: user typed a key in the UI
   if (mode === "one_time") {
-    const provider = requestedProvider || "OPENAI";
     const oneTimeKey = sanitizeApiKey(reqBody.aiAuth?.apiKey);
+    const inferredProvider = oneTimeKey ? inferProviderFromApiKey(oneTimeKey) : null;
+    const provider = inferredProvider || requestedProvider || "OPENAI";
+    const resolvedModel = requestedModel && isModelLikelyForProvider(provider, requestedModel)
+      ? requestedModel
+      : defaultModelForProvider(provider);
+
     if (!oneTimeKey) throw new Error("Please paste an API key.");
     if (reqBody.aiAuth?.rememberKey && canPersistProvider(provider)) {
       const ensured = await ensureUser({ id: userId } as any);
@@ -581,7 +615,7 @@ async function resolveGenerationAuth(reqBody: z.infer<typeof StreamRequestSchema
         await upsertUserAiKey({ userId: ensured.userId, provider, apiKey: oneTimeKey, setDefault: true });
       }
     }
-    return { provider, apiKey: oneTimeKey, model: requestedModel || defaultModelForProvider(provider) };
+    return { provider, apiKey: oneTimeKey, model: resolvedModel };
   }
 
   // Auto mode: try saved key first → then platform key
@@ -687,6 +721,10 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
     if (!response.ok) {
       const e = await response.text();
       console.error("Groq error:", response.status, e);
+      if (response.status === 401 || response.status === 403) {
+        const looksOpenAiKey = /^sk-(proj-)?/i.test(input.apiKey) && !/^sk-or-/i.test(input.apiKey) && !/^sk-ant-/i.test(input.apiKey);
+        throw new Error(`Groq rejected your API key (${response.status}).${looksOpenAiKey ? " This looks like an OpenAI key — switch provider to OpenAI or paste a Groq key." : " Please check that your Groq key is valid."}`);
+      }
       throw new Error(`Groq AI error (${response.status}). ${response.status === 429 ? "Rate limit reached — try again in a moment." : ""}`);
     }
     const completion = await response.json();
