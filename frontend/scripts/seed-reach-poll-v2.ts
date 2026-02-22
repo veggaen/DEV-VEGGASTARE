@@ -242,7 +242,7 @@ const PHASES: PhaseDef[] = [
       {
         localId: "trading",
         type: "SINGLE_CHOICE",
-        text: "Did you know we have OSRS-style P2P trading?",
+        text: "Did you know we have BROWSERGAME-style P2P trading?",
         description: "🎮 You can trade items with other users in a retro RuneScape-style trade window — offer, confirm, complete!",
         required: true,
         visual: "cards",

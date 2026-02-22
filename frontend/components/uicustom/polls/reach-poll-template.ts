@@ -22,7 +22,7 @@
  * 
  * Updated: 2026-02-12
  * Reflects shipped features: Velocity pillar, verification tiers, Web3 wallets,
- * OSRS-style P2P trading, theme toggle, poll weighted voting, VeggaSystem bot.
+ * BROWSERGAME-style P2P trading, theme toggle, poll weighted voting, VeggaSystem bot.
  */
 
 import { PollBuilderData, PollSection, PollQuestion, PollType } from "./PollBuilder";
@@ -265,7 +265,7 @@ This isn't a test — there are no right or wrong answers. We genuinely want to 
     {
       order: 11,
       type: "SINGLE_CHOICE",
-      questionText: "Did you know we have OSRS-style P2P trading?",
+      questionText: "Did you know we have BROWSERGAME-style P2P trading?",
       description: "🎮 You can trade items with other users in a retro RuneScape-style trade window — offer, confirm, complete!",
       required: true,
       allowImages: false,

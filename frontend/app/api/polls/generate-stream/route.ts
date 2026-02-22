@@ -310,7 +310,7 @@ function defaultModelForProvider(provider: ResolvedAuth["provider"]): string {
     case "OPENROUTER":
       return "openai/gpt-4o-mini";
     case "ANTHROPIC":
-      return "claude-3-5-haiku-latest";
+      return "claude-haiku-4-5-20251001";
     case "GROK":
       return "grok-3-mini";
     case "GOOGLE":

@@ -289,7 +289,7 @@ Reown AppKit (WalletConnect v2)
 ### Trade Flow
 
 1. Trade window opens (parallel route `@modal/(.)trade/[id]`)
-2. Items placed in offer slots (OSRS-style grid)
+2. Items placed in offer slots (BROWSERGAME-style grid)
 3. Both parties confirm offers via Pusher
 4. Accept triggers `useSignMessage` for wallet verification
 5. Server action records trade, broadcasts completion

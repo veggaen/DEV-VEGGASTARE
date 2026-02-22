@@ -483,3 +483,150 @@ html.dark [data-theme-tinted] {
 .poll-builder-theme-scope--light [class*="hover:text-zinc-"]:hover {
   color: hsl(var(--foreground)) !important;
 }
+
+/* ─── AI Chat + Landing Page Visual Effects ─────────────────────────────────── */
+
+/* Mouse spotlight — follows cursor via CSS custom properties set in JS.
+   Automatically hidden on touch devices and when reduced motion is preferred. */
+.hero-spotlight {
+  /* position: fixed escapes every overflow:hidden container, so the glow
+     renders over the full viewport — no clip line at the hero boundary. */
+  background: radial-gradient(
+    650px circle at var(--spotlight-x, 50vw) var(--spotlight-y, 50vh),
+    rgba(34, 197, 94, 0.06),
+    transparent 40%
+  );
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  will-change: background;
+  opacity: var(--spotlight-opacity, 0);
+  transition: opacity 0.65s ease-out;
+}
+@media (pointer: coarse) { .hero-spotlight { display: none; } }
+@media (prefers-reduced-motion: reduce) { .hero-spotlight { display: none; } }
+
+/* Glassmorphism panel — for AI chat widget and modal overlays */
+.glass-panel {
+  background: rgba(10, 10, 10, 0.72);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+html:not(.dark) .glass-panel {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+/* Desktop chat container — brightens on hover and on input focus */
+.chat-desktop-panel {
+  transition: box-shadow 0.4s ease, border-color 0.4s ease;
+}
+.chat-desktop-panel:hover {
+  box-shadow:
+    0 0 50px rgba(34,197,94,0.10),
+    0 8px 32px rgba(0,0,0,0.4),
+    inset 0 -40px 60px -30px rgba(34,197,94,0.04);
+  border-color: rgba(34, 197, 94, 0.22) !important;
+}
+.chat-desktop-panel:focus-within {
+  box-shadow:
+    0 0 60px rgba(34,197,94,0.14),
+    0 8px 40px rgba(0,0,0,0.45),
+    inset 0 -50px 70px -30px rgba(34,197,94,0.06);
+  border-color: rgba(34, 197, 94, 0.32) !important;
+}
+
+/* Chat input wrapper — neutral, no green glow */
+.chat-input-wrapper {
+  transition: border-color 0.3s ease;
+}
+
+/* Bottom input area — no green tinting */
+.chat-input-area {
+  transition: background 0.3s ease;
+}
+
+/* Send button — pulse glow on hover when active */
+.chat-send-btn:not(:disabled):hover {
+  box-shadow: 0 0 18px rgba(34,197,94,0.45);
+}
+
+/* Scroll-reveal animation (driven by Intersection Observer via JS) */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* AI chat typing indicator dots */
+@keyframes typing-dot {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+.typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  animation: typing-dot 1.4s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot { animation: none; opacity: 0.7; }
+}
+
+/* AI chat panel slide-in animation */
+@keyframes slide-up-fade {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.chat-panel-enter {
+  animation: slide-up-fade 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-panel-enter { animation: none; }
+}
+
+/* Emerald glow ring — shared focus style for AI chat inputs */
+.ai-input-ring:focus-within {
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35);
+  outline: none;
+}
+
+/* Hero feature chip entry — CSS keyframe instead of framer-motion for lower overhead */
+@keyframes heroChipIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Portrait orientation: taller inline chat panel so it fills the hero bottom nicely */
+@media (orientation: portrait) {
+  .chat-desktop-panel {
+    height: clamp(280px, 50dvh, 560px) !important;
+  }
+}
+
+/* AI chat message bubble animations */
+@keyframes message-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.message-bubble-enter {
+  animation: message-in 0.18s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .message-bubble-enter { animation: none; }
+}

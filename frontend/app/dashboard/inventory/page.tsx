@@ -49,7 +49,7 @@ export default function InventoryPage() {
             Token Inventory
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Your OSRS-style crypto bag — switch chains, split stacks, and trade with others
+            Your BROWSERGAME-style crypto bag — switch chains, split stacks, and trade with others
           </p>
         </div>
       </div>

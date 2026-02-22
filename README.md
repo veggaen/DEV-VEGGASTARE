@@ -6,7 +6,7 @@
 
 **Documentation precedence:** when docs conflict, use `frontend/README.md` + `backend/README.md` for setup/runtime behavior, `MasterContext.md` for architecture invariants, and treat `docs/*` files marked Historical as audit-only.
 
-A full-stack Web3-enabled marketplace built with **Next.js 16**, **React 19**, and **TypeScript**. Features curated product listings, warehouse management, company dashboards, crypto P2P trading with OSRS-style inventory, social features (Pulse feed, conversations, follow/sync), an advanced poll system, and the proprietary **True Reach™** 7-pillar engagement metric.
+A full-stack Web3-enabled marketplace built with **Next.js 16**, **React 19**, and **TypeScript**. Features curated product listings, warehouse management, company dashboards, crypto P2P trading with BROWSERGAME-style inventory, social features (Pulse feed, conversations, follow/sync), an advanced poll system, and the proprietary **True Reach™** 7-pillar engagement metric.
 
 **Live:** [veggat.com](https://www.veggat.com)
 
@@ -138,7 +138,7 @@ npm run dev                      # → Frontend :3000 + Backend :3001/:3002
 
 ### Web3 & Crypto Trading
 - **Wallet Connection** — Reown/WalletConnect AppKit, Coinbase Wallet, Phantom (Solana)
-- **OSRS-Style Inventory** — Drag-and-drop crypto inventory grid with item management
+- **BROWSERGAME-Style Inventory** — Drag-and-drop crypto inventory grid with item management
 - **P2P Trading** — Real-time trade windows with offer/accept/decline flow, wallet confirmation on accept
 - **VeggaSystem Bot** — Hardcoded system account for platform operations
 

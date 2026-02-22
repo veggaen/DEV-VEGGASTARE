@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import * as React from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, useMotionValue, useSpring, MotionValue } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { MyLoginButton } from "@/components/uicustom/auth/buttons/login-button";
 import { FaLock, FaUnlockAlt } from "react-icons/fa";
@@ -884,19 +884,125 @@ function CenterGrowText({
 export default function HomeHero({
   isLoggedIn,
   userName,
+  children,
 }: {
   isLoggedIn: boolean;
   userName?: string | null;
+  children?: React.ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
   const { prefs } = useUiPreferences();
-  
+
   // Fancy effects only show when logged in AND user has enabled them in preferences
   const showFancyEffects = isLoggedIn && prefs.enableGradientSpheres;
   // Gradient/glow hover effects only when colorful hover is enabled
   const showFancyHover = prefs.hoverEffects === "colorful";
   const showAnimations = !reduceMotion && prefs.pageAnimations !== "none";
-  
+
+  // Mouse spotlight + magnetic button refs
+  const heroRef = React.useRef<HTMLDivElement>(null);
+  const isTouchRef = React.useRef(false);
+  React.useEffect(() => {
+    isTouchRef.current = window.matchMedia("(pointer: coarse)").matches;
+  }, []);
+
+  // ── Global spotlight tracking ──────────────────────────────────────────
+  // position: fixed on .hero-spotlight escapes overflow:hidden so the effect
+  // covers the full viewport (including navbar). We track on window so there
+  // is no clip line between the hero section and the rest of the page.
+  //
+  // Performance: RAF-throttled — DOM writes batched to once per animation
+  // frame instead of every mousemove pixel.
+  //
+  // Smart suppression: when hovering the large .chat-desktop-panel the
+  // spotlight fades out and the panel's own CSS glow takes over. Small
+  // interactive children (buttons, inputs) re-enable the spotlight so the
+  // mouse glow still tracks the cursor there.
+  React.useEffect(() => {
+    if (isTouchRef.current || reduceMotion) return;
+
+    let rafId: number | null = null;
+    let pendingX = 0;
+    let pendingY = 0;
+    let pendingTarget: Element | null = null;
+
+    const flush = () => {
+      rafId = null;
+      document.documentElement.style.setProperty("--spotlight-x", pendingX + "px");
+      document.documentElement.style.setProperty("--spotlight-y", pendingY + "px");
+
+      // Bounding-rect hit test — more reliable than closest() because
+      // framer-motion wraps elements in internal divs that can break
+      // ancestor traversal when e.target lands on an internal wrapper.
+      const panel = document.querySelector(".chat-desktop-panel");
+      let suppress = false;
+      if (panel) {
+        const r = panel.getBoundingClientRect();
+        if (pendingX >= r.left && pendingX <= r.right && pendingY >= r.top && pendingY <= r.bottom) {
+          // Inside panel bounds — keep spotlight for small interactive elements
+          const overInteractive = !!pendingTarget?.closest(
+            "button, input, textarea, a, select, [role='button'], [role='link'], label"
+          );
+          suppress = !overInteractive;
+        }
+      }
+
+      document.documentElement.style.setProperty("--spotlight-opacity", suppress ? "0" : "1");
+    };
+
+    const onMove = (e: MouseEvent) => {
+      pendingX = e.clientX;
+      pendingY = e.clientY;
+      pendingTarget = e.target as Element;
+
+      if (rafId === null) {
+        rafId = requestAnimationFrame(flush);
+      }
+    };
+
+    const onLeave = () => {
+      if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+      document.documentElement.style.setProperty("--spotlight-opacity", "0");
+    };
+
+    window.addEventListener("mousemove", onMove, { passive: true });
+    document.documentElement.addEventListener("mouseleave", onLeave);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      document.documentElement.removeEventListener("mouseleave", onLeave);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [reduceMotion]);
+
+  const browseX = useMotionValue(0);
+  const browseY = useMotionValue(0);
+  const browseSpringX = useSpring(browseX, { stiffness: 300, damping: 20 });
+  const browseSpringY = useSpring(browseY, { stiffness: 300, damping: 20 });
+
+  // Magnetic spring values for Open Pulse button
+  const pulseX = useMotionValue(0);
+  const pulseY = useMotionValue(0);
+  const pulseSpringX = useSpring(pulseX, { stiffness: 300, damping: 20 });
+  const pulseSpringY = useSpring(pulseY, { stiffness: 300, damping: 20 });
+
+  const makeMagneticHandlers = React.useCallback((
+    xVal: MotionValue<number>,
+    yVal: MotionValue<number>,
+  ) => ({
+    onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => {
+      if (isTouchRef.current || reduceMotion) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      xVal.set((e.clientX - centerX) * 0.2);
+      yVal.set((e.clientY - centerY) * 0.2);
+    },
+    onMouseLeave: () => {
+      xVal.set(0);
+      yVal.set(0);
+    },
+  }), [reduceMotion]);
+
   const headline = "Where choices know no limits";
   const mountAtRef = React.useRef<number | null>(null);
   const [whereGlowUntilMs, setWhereGlowUntilMs] = React.useState(0);
@@ -960,7 +1066,25 @@ export default function HomeHero({
   const settlePulseDelay = headlineStart + 3.0;
 
   return (
-    <div className="relative flex h-[calc(100vh-102px)] max-h-full w-full items-center justify-center overflow-hidden">
+    <div
+      ref={heroRef}
+      className="relative flex flex-col min-h-[calc(100dvh-var(--app-header,72px))] w-full"
+    >
+      {/* Mouse spotlight — hidden on touch devices + reduced-motion via CSS */}
+      <div className="hero-spotlight" aria-hidden="true" />
+
+      {/* Top edge scrim — softens orbs / spotlight near the fixed navbar */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-0 left-0 right-0 z-[2] h-20 bg-linear-to-b from-white/60 dark:from-black/35 to-transparent"
+      />
+
+      {/* Bottom edge fade — smooth transition into below-fold */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 left-0 right-0 z-[2] h-24 bg-linear-to-t from-white/60 dark:from-black/35 to-transparent"
+      />
+
       {/* Conditional animated background - only shows for logged in users with fancy mode enabled */}
       {showFancyEffects && (
         <div className="pointer-events-none absolute inset-0 noise-overlay">
@@ -993,11 +1117,26 @@ export default function HomeHero({
       )}
 
       <motion.div
-        className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-6 px-6 text-center xl:max-w-6xl"
+        className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-6 px-6 text-center xl:max-w-6xl"
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
       >
+        {/* Trust badge — entry signal */}
+        <motion.div
+          className="inline-flex items-center gap-2 rounded-full border border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50/80 dark:bg-emerald-500/[0.08] px-3.5 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300/70 backdrop-blur-sm"
+          initial={{ opacity: 0, y: -8, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ delay: 0.04, duration: 0.45, ease: "easeOut" }}
+        >
+          <motion.span
+            className="h-1.5 w-1.5 rounded-full bg-emerald-500"
+            animate={{ opacity: [1, 0.35, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <span>Free to start · No credit card required</span>
+        </motion.div>
+
         <div className="space-y-3">
           <motion.div
             className="relative inline-block rounded-2xl px-6 py-4 -mx-6 -my-4"
@@ -1178,9 +1317,33 @@ export default function HomeHero({
           />
         </div>
 
-        {/* CTAs */}
+        {/* Feature chips — hidden in portrait, visible in landscape/desktop */}
+        <div className="portrait:hidden flex flex-wrap items-center justify-center gap-2">
+          {(
+            [
+              { emoji: "🤖", label: "6 AI Providers" },
+              { emoji: "📊", label: "Real-time Polls" },
+              { emoji: "📦", label: "Warehouse Intel" },
+              { emoji: "⚡", label: "Live Streaming" },
+            ] as const
+          ).map(({ emoji, label }, i) => (
+            <span
+              key={label}
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200/70 dark:border-white/[0.08] bg-white/60 dark:bg-white/[0.03] px-3 py-1 text-xs font-medium text-gray-500 dark:text-white/45 backdrop-blur-sm"
+              style={{
+                opacity: 0,
+                animation: `heroChipIn 0.28s ease-out ${(descriptionStart + 0.35 + i * 0.07).toFixed(2)}s forwards`,
+              }}
+            >
+              <span role="img" aria-hidden="true">{emoji}</span>
+              {label}
+            </span>
+          ))}
+        </div>
+
+        {/* CTAs — hidden in portrait, visible in landscape/desktop */}
         <motion.div
-          className="mt-6 flex flex-wrap items-center justify-center gap-3 md:mt-8"
+          className="portrait:hidden flex flex-wrap items-center justify-center gap-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: buttonsStart, duration: 0.22, ease: "easeOut" }}
@@ -1195,18 +1358,21 @@ export default function HomeHero({
               ease: "easeOut",
             }}
             className="relative group"
+            style={{ x: browseSpringX, y: browseSpringY }}
+            {...makeMagneticHandlers(browseX, browseY)}
           >
-            {/* Animated gradient border with idle pulse */}
+            {/* Animated gradient border — spins faster on hover (conic-like rotation) */}
             <motion.div
               className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-emerald-500 via-cyan-400 to-emerald-500 blur-[2px] group-hover:blur-[3px]"
               animate={{
                 backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
                 opacity: [0.5, 0.8, 0.5],
               }}
-              whileHover={{ opacity: 1 }}
+              whileHover={{ opacity: 1, rotate: 360 }}
               transition={{
                 backgroundPosition: { duration: 3, repeat: Infinity, ease: "linear" },
                 opacity: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+                rotate: { duration: 2, repeat: Infinity, ease: "linear" },
               }}
               style={{ backgroundSize: "200% 200%" }}
             />
@@ -1261,6 +1427,8 @@ export default function HomeHero({
               damping: 20,
             }}
             className="relative group"
+            style={{ x: pulseSpringX, y: pulseSpringY }}
+            {...makeMagneticHandlers(pulseX, pulseY)}
           >
             {/* Subtle idle border pulse */}
             <motion.div
@@ -1372,6 +1540,13 @@ export default function HomeHero({
           )}
         </motion.div>
       </motion.div>
+
+      {/* Children slot — used for the Ask AI chat widget on desktop */}
+      {children && (
+        <div className="relative z-10 w-full shrink-0">
+          {children}
+        </div>
+      )}
     </div>
   );
 }

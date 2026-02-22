@@ -10,7 +10,7 @@
 ## 1. What Is Veggat?
 
 Veggat is a **Web3-enabled marketplace + social platform** at [veggat.com](https://www.veggat.com).
-Users buy/sell products, trade crypto P2P (OSRS-style), post to a social feed (Pulse), take advanced polls/quizzes, and build reputation via the True Reach™ scoring system.
+Users buy/sell products, trade crypto P2P (BROWSERGAME-style), post to a social feed (Pulse), take advanced polls/quizzes, and build reputation via the True Reach™ scoring system.
 
 **Two-service monorepo:**
 

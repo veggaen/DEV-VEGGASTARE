@@ -253,7 +253,7 @@ The owner explicitly wants growth through good fundamentals, not paid marketing.
 
 - If the product genuinely solves problems (verified surveys, trusted marketplace), users tell others
 - Norwegian B2B circles are small — one happy company tells five others
-- The "OSRS-style crypto trading" is a unique hook that crypto communities share organically
+- The "BROWSERGAME-style crypto trading" is a unique hook that crypto communities share organically
 - **Flywheel:** Good product → happy users → recommendations → new users → feedback → better product
 
 ---

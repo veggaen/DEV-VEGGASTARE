@@ -113,7 +113,7 @@ export default function AccessibilityPage() {
                   </tr>
                   <tr>
                     <td className="py-2 pr-4 font-medium text-foreground/90">Krypto-handelsvindu</td>
-                    <td className="py-2 pr-4">OSRS-stil inventar-grid og dra-og-slipp kan være vanskelig med kun tastatur.</td>
+                    <td className="py-2 pr-4">BROWSERGAME-stil inventar-grid og dra-og-slipp kan være vanskelig med kun tastatur.</td>
                     <td className="py-2">Utforsker tastaturalternativer for handel.</td>
                   </tr>
                   <tr>
