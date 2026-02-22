@@ -13,7 +13,7 @@
 
 Users can:
 - Buy/sell digital products with company & warehouse management
-- Trade crypto peer-to-peer (OSRS-style inventory UI, wallet-signed trades)
+- Trade crypto peer-to-peer (BROWSERGAME-style inventory UI, wallet-signed trades)
 - Post to a social feed ("Pulse"), follow/sync with others, DM/group chat
 - Create & take advanced polls/quizzes with AI generation
 - Build reputation via the True Reach™ 7-pillar scoring system
@@ -139,7 +139,7 @@ DEV-VEGGASTARE/
 Products, categories, company profiles, employee roles (OWNER/ADMIN/MEMBER), multi-warehouse inventory with real-time Socket.IO sync, Bring/Posten shipping (mock mode by default).
 
 ### Web3 & Crypto Trading
-OSRS-style grid inventory, P2P trade windows with wallet-signed acceptance, VeggaSystem bot account (multi-chain: EVM/Solana/Bitcoin/PulseChain wallets), trade notifications with purple blink indicator. EVM (WalletConnect/Coinbase) + Solana (Phantom/Solflare). Multi-wallet support: users can link multiple wallets across chains (ChainFamily: EVM/SOLANA/BITCOIN). OWNER "Take Control" impersonation lets the owner act as VeggaSystem from profile or hovercard.
+BROWSERGAME-style grid inventory, P2P trade windows with wallet-signed acceptance, VeggaSystem bot account (multi-chain: EVM/Solana/Bitcoin/PulseChain wallets), trade notifications with purple blink indicator. EVM (WalletConnect/Coinbase) + Solana (Phantom/Solflare). Multi-wallet support: users can link multiple wallets across chains (ChainFamily: EVM/SOLANA/BITCOIN). OWNER "Take Control" impersonation lets the owner act as VeggaSystem from profile or hovercard.
 
 ### Social (Pulse)
 Real-time feed with posts/reactions, follow/sync system, DM/group conversations, UserHoverCard with quick actions, notification bell with real-time Pusher updates.
@@ -263,7 +263,7 @@ Employees/contributors follow `ONBOARDING.md` instead.
 
 ### Shipped (Q4 2025 – Q1 2026)
 - Full marketplace (products, cart, checkout, companies, warehouses, shipping)
-- Web3 trading (OSRS inventory, P2P trades, wallet auth)
+- Web3 trading (BROWSERGAME inventory, P2P trades, wallet auth)
 - Social features (Pulse feed, conversations, follow/sync, notifications)
 - Advanced poll system (AI gen, interactive preview, 7 templates, 11 Q types)
 - 12-tier verification, anti-gaming, fuzzy quiz matching

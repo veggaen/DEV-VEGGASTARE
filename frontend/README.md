@@ -130,7 +130,7 @@ frontend/
 
 ### Web3 & Crypto
 - **Wallet Connection** — Reown/WalletConnect AppKit, Coinbase Wallet, Phantom (Solana)
-- **OSRS-Style Inventory** — Grid-based crypto asset management (drag-and-drop)
+- **BROWSERGAME-Style Inventory** — Grid-based crypto asset management (drag-and-drop)
 - **P2P Trading** — Trade windows with real-time offer/accept/decline, wallet signature confirmation
 - **VeggaSystem Bot** — System account for automated platform operations
 - **Chat-Lite Dropdown** — Inline conversation access from the trading interface

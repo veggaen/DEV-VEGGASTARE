@@ -1099,6 +1099,9 @@ model User {
   DataExportRequests                                               DataExportRequest[]
   AccountDeletionRequests                                          AccountDeletionRequest[]
   ReturnRequests                                                   ReturnRequest[]
+  // AI Chat System
+  aiConversationsCreated                                           AiConversation[]              @relation("AiConversationCreator")
+  aiConvParticipations                                            AiConvParticipant[]           @relation("AiConvHumanParticipant")
 }
 
 model UserAiApiKey {
@@ -2486,4 +2489,142 @@ enum ReturnRequestStatus {
   REFUNDED             // Refund processed
   COMPLETED            // Return fully processed (item received back if physical)
   CANCELLED            // Buyer or seller cancelled the request
+}
+
+// ─── AI Chat System ─────────────────────────────────────────────────────────
+
+enum AiParticipantType {
+  HUMAN
+  AI_PLATFORM
+  AI_BYOK
+}
+
+enum AiTriggerMode {
+  MENTION
+  DEBOUNCE
+  ALL
+  MANUAL
+}
+
+enum AiResponseMode {
+  CONTEXT_ONLY
+  DEEP_ANALYSIS
+}
+
+model AiConversation {
+  id                String              @id @default(cuid())
+  title             String              @default("New Chat")
+  creatorId         String
+  creator           User                @relation("AiConversationCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  shareToken        String?             @unique
+  isPublic          Boolean             @default(false)
+  pulseId           String?
+
+  // Moderation fields
+  isSuspended       Boolean             @default(false)
+  suspendedReason   String?
+  suspendedAt       DateTime?
+  suspendedBy       String?
+  isDeleted         Boolean             @default(false)
+  deletedAt         DateTime?
+  deletedBy         String?
+
+  // Per-conversation AI trigger settings
+  triggerMode       AiTriggerMode       @default(MENTION)
+  debounceMs        Int                 @default(3000)
+  allTriggerEnabled Boolean             @default(false)
+  heartbeatEnabled  Boolean             @default(true)
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  participants      AiConvParticipant[]
+  messages          AiConvMessage[]
+
+  @@index([creatorId, createdAt(sort: Desc)])
+  @@index([isPublic, createdAt(sort: Desc)])
+}
+
+model AiConvParticipant {
+  id              String              @id @default(cuid())
+  conversationId  String
+  conversation    AiConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  type            AiParticipantType
+  userId          String?
+  user            User?               @relation("AiConvHumanParticipant", fields: [userId], references: [id], onDelete: SetNull)
+
+  // AI participant config (null for HUMAN type)
+  displayName     String?
+  aiProvider      String?
+  aiModel         String?
+  byokUserId      String?
+  isActive        Boolean             @default(true)
+  heartbeatEnabled Boolean            @default(true)
+
+  // BYOK AI response settings (controlled by the human who owns this AI)
+  responseMode    AiResponseMode      @default(CONTEXT_ONLY)
+  responseBrief   Boolean             @default(false)
+  manualOnly      Boolean             @default(false)
+
+  createdAt       DateTime            @default(now())
+  messages        AiConvMessage[]
+  reactions       AiConvReaction[]
+
+  // NOTE: In PostgreSQL, NULL != NULL in unique constraints, so multiple AI
+  // participants (userId=null) are allowed. Human uniqueness enforced in app layer.
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+}
+
+model AiConvMessage {
+  id              String              @id @default(cuid())
+  conversationId  String
+  conversation    AiConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  participantId   String
+  participant     AiConvParticipant   @relation(fields: [participantId], references: [id])
+
+  content         String              @db.Text
+  role            String              // "user" | "assistant"
+  senderType      AiParticipantType
+
+  // AI metadata (null for human messages)
+  modelUsed       String?
+  providerUsed    String?
+  tokenCount      Int?
+
+  // Sensitive data flags
+  hasSensitiveData Boolean            @default(false)
+  sensitiveTypes  String[]
+
+  createdAt       DateTime            @default(now())
+  reactions       AiConvReaction[]
+
+  @@index([conversationId, createdAt])
+}
+
+model AiConvReaction {
+  id              String              @id @default(cuid())
+  messageId       String
+  message         AiConvMessage       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  participantId   String
+  participant     AiConvParticipant   @relation(fields: [participantId], references: [id])
+  type            String              // "POSITIVE" | "NEGATIVE" | "HEARTBEAT"
+  createdAt       DateTime            @default(now())
+
+  @@unique([messageId, participantId, type])
+}
+
+model AiConvAuditLog {
+  id              String    @id @default(cuid())
+  conversationId  String?
+  actorId         String?
+  targetUserId    String?
+  action          String    // SUSPEND | UNSUSPEND | DELETE | ADMIN_VIEW | FLAG | INJECTION_BLOCKED | RATE_LIMIT_HIT
+  reason          String?
+  metadata        Json?
+  ipAddress       String?
+  createdAt       DateTime  @default(now())
+
+  @@index([conversationId])
+  @@index([actorId])
+  @@index([action, createdAt(sort: Desc)])
 }

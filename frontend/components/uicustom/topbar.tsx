@@ -48,14 +48,16 @@ type NavLinkProps = {
 	isActive: boolean;
 };
 
-const NavLink = ({ href, children, isActive }: NavLinkProps) => (
+const NavLink = ({ href, children, isActive, ...rest }: NavLinkProps & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
 	<Link
 		href={href}
 		aria-current={isActive ? "page" : undefined}
-		className={`relative px-2.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${isActive
-			? "text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800"
-			: "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-			}`}
+		{...rest}
+		className={`relative px-2.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+			isActive
+				? "text-zinc-900 dark:text-zinc-100"
+				: "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+		}`}
 	>
 		{children}
 	</Link>
@@ -253,7 +255,7 @@ const MyTopBar = () => {
 		{ href: "/pulse", label: "Pulse" },
 		...(clientUser
 			? [
-				{ href: "/dashboard", label: "Dashboard" },
+				{ href: "/ai", label: "Chat" },
 			]
 			: []),
 	];
@@ -266,7 +268,7 @@ const MyTopBar = () => {
 				{ href: "/products", label: "Products" },
 				{ href: "/pulse", label: "Pulse" },
 				{ href: "/conversations", label: "Messages" },
-				{ href: "/dashboard", label: "Dashboard" },
+				{ href: "/ai", label: "Chat" },
 				{ href: "/cart", label: "Shopping Cart" },
 				{ href: "/checkout", label: "Checkout" },
 				{ href: "/settings", label: "Settings" },
@@ -350,6 +352,67 @@ const MyTopBar = () => {
 		window.addEventListener("veggat:products-chrome", onChrome as any);
 		return () => window.removeEventListener("veggat:products-chrome", onChrome as any);
 	}, [pathname]);
+
+	// ── Nav sliding indicator ─────────────────────────────────────────────
+	const navBarRef = useRef<HTMLDivElement>(null);
+	const [navIndicator, setNavIndicator] = useState<{
+		left: number; top: number; width: number; height: number; radius: number;
+	} | null>(null);
+	const navHoverRef = useRef(false);
+
+	const computeNavPos = useCallback((el: HTMLElement | null) => {
+		const container = navBarRef.current;
+		if (!container || !el) return null;
+		const cr = container.getBoundingClientRect();
+		const er = el.getBoundingClientRect();
+		return {
+			left: er.left - cr.left,
+			top: er.top - cr.top,
+			width: er.width,
+			height: er.height,
+			radius: el.dataset.navRound === "true" ? Math.min(er.width, er.height) / 2 : 0,
+		};
+	}, []);
+
+	const snapNavToActive = useCallback(() => {
+		const container = navBarRef.current;
+		if (!container) return;
+		const activeEl = container.querySelector('[data-nav-active="true"]') as HTMLElement | null;
+		if (activeEl) {
+			const pos = computeNavPos(activeEl);
+			if (pos) setNavIndicator(pos);
+		}
+	}, [computeNavPos]);
+
+	const handleNavHover = useCallback((e: React.MouseEvent<HTMLElement>) => {
+		navHoverRef.current = true;
+		const pos = computeNavPos(e.currentTarget);
+		if (pos) setNavIndicator(pos);
+	}, [computeNavPos]);
+
+	const handleNavBarLeave = useCallback(() => {
+		navHoverRef.current = false;
+		snapNavToActive();
+	}, [snapNavToActive]);
+
+	// Snap to active route on mount, route change, scroll state change
+	useEffect(() => {
+		const raf = requestAnimationFrame(() => {
+			if (!navHoverRef.current) snapNavToActive();
+		});
+		return () => cancelAnimationFrame(raf);
+	}, [pathname, isScrolled, snapNavToActive]);
+
+	// Recompute on container resize
+	useEffect(() => {
+		const container = navBarRef.current;
+		if (!container) return;
+		const ro = new ResizeObserver(() => {
+			if (!navHoverRef.current) snapNavToActive();
+		});
+		ro.observe(container);
+		return () => ro.disconnect();
+	}, [snapNavToActive]);
 
 	// Avoid rendering the full navigation on auth screens.
 	const hideOnAuthPages = pathname.startsWith("/auth/");
@@ -435,11 +498,33 @@ const MyTopBar = () => {
 									: { duration: 0.12, ease: "easeOut", delay: 0 }
 						}
 					/>
-					<div className="mx-auto flex h-[var(--app-header)] max-w-screen-2xl items-center justify-between px-3 sm:px-4 md:px-6">
+					<div
+						ref={navBarRef}
+						className="relative mx-auto flex h-[var(--app-header)] max-w-screen-2xl items-center justify-between px-3 sm:px-4 md:px-6"
+						onMouseLeave={handleNavBarLeave}
+					>
+						{/* ── Sliding green indicator ── */}
+						{navIndicator && (
+							<div
+								aria-hidden
+								className="absolute pointer-events-none z-50 border border-emerald-500/50 dark:border-emerald-400/40 hidden md:block"
+								style={{
+									left: navIndicator.left,
+									top: navIndicator.top,
+									width: navIndicator.width,
+									height: navIndicator.height,
+									borderRadius: navIndicator.radius,
+									transition: "left 0.35s cubic-bezier(0.22,1,0.36,1), top 0.35s cubic-bezier(0.22,1,0.36,1), width 0.35s cubic-bezier(0.22,1,0.36,1), height 0.35s cubic-bezier(0.22,1,0.36,1), border-radius 0.35s cubic-bezier(0.22,1,0.36,1)",
+								}}
+							/>
+						)}
+
 						<div className="flex min-w-0 items-center gap-6">
 							<Link
 								href="/"
-								className="shrink-0 text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100"
+								data-nav-key="logo"
+								onMouseEnter={handleNavHover}
+								className="shrink-0 text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 px-1.5 py-1"
 							>
 								VeggaStare
 							</Link>
@@ -450,6 +535,9 @@ const MyTopBar = () => {
 										key={item.href}
 										href={item.href}
 										isActive={isActivePath(pathname, item.href)}
+										data-nav-key={item.href}
+										data-nav-active={isActivePath(pathname, item.href) ? "true" : undefined}
+										onMouseEnter={handleNavHover}
 									>
 										{item.href === "/pulse" ? (
 											<span className="inline-flex items-center gap-1.5">
@@ -470,41 +558,52 @@ const MyTopBar = () => {
 						<div className="flex shrink-0 items-center gap-2">
 							{/* Desktop quick actions */}
 							<div className="hidden md:flex items-center gap-1">
-								<CurrencySelector variant="ghost" size="sm" />
+								<div data-nav-key="currency" onMouseEnter={handleNavHover} className="relative group/tip [&_button:hover]:!bg-transparent">
+									<CurrencySelector variant="ghost" size="sm" />
+									<span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 rounded-md bg-zinc-900 dark:bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-white dark:text-zinc-900 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">Currency</span>
+								</div>
 
 								{clientUser && (
 									<>
 										{/* Notification Bell */}
-										<NotificationDropdown
-											notifications={notifications}
-											unreadCount={unreadCount}
-											isLoading={notificationsLoading}
-											onMarkRead={markAsRead}
-											onMarkAllRead={markAllAsRead}
-											onNotificationClick={(notif) => {
-												// Navigate based on notification type
-												if (notif.type === 'TRADE_REQUEST' && notif.metadata?.tradeId) {
-													window.location.href = `/trade/${notif.metadata.tradeId}`;
-												} else if (notif.conversationId) {
-													window.location.href = `/conversations/${notif.conversationId}`;
-												} else if (notif.pulseId) {
-													window.location.href = `/pulse/${notif.pulseId}`;
-												} else if (notif.actorId) {
-													window.location.href = `/profile/${notif.actorId}`;
-												}
-											}}
-											condensed
-										/>
+										<div data-nav-key="notifications" onMouseEnter={handleNavHover} className="relative group/tip [&_button:hover]:!bg-transparent">
+											<NotificationDropdown
+												notifications={notifications}
+												unreadCount={unreadCount}
+												isLoading={notificationsLoading}
+												onMarkRead={markAsRead}
+												onMarkAllRead={markAllAsRead}
+												onNotificationClick={(notif) => {
+													if (notif.type === 'TRADE_REQUEST' && notif.metadata?.tradeId) {
+														window.location.href = `/trade/${notif.metadata.tradeId}`;
+													} else if (notif.conversationId) {
+														window.location.href = `/conversations/${notif.conversationId}`;
+													} else if (notif.pulseId) {
+														window.location.href = `/pulse/${notif.pulseId}`;
+													} else if (notif.actorId) {
+														window.location.href = `/profile/${notif.actorId}`;
+													}
+												}}
+												condensed
+											/>
+											<span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 rounded-md bg-zinc-900 dark:bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-white dark:text-zinc-900 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">Notifications</span>
+										</div>
 										
 										{/* Mini Cart Dropdown */}
-										<MiniCartDropdown
-											userId={clientUser?.id}
-											cartCount={cartCount}
-											onCartUpdate={() => mutateCart()}
-										/>
+										<div data-nav-key="cart" onMouseEnter={handleNavHover} className="relative group/tip [&_button:hover]:!bg-transparent">
+											<MiniCartDropdown
+												userId={clientUser?.id}
+												cartCount={cartCount}
+												onCartUpdate={() => mutateCart()}
+											/>
+											<span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 rounded-md bg-zinc-900 dark:bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-white dark:text-zinc-900 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">Cart</span>
+										</div>
 
-										{/* Chat lite dropdown — replaces plain Messages link */}
-										<ChatLiteDropdown />
+										{/* Chat lite dropdown */}
+										<div data-nav-key="conversations" onMouseEnter={handleNavHover} className="relative group/tip [&_button:hover]:!bg-transparent">
+											<ChatLiteDropdown />
+											<span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 rounded-md bg-zinc-900 dark:bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-white dark:text-zinc-900 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">Conversations</span>
+										</div>
 									</>
 								)}
 							</div>
@@ -512,14 +611,17 @@ const MyTopBar = () => {
 								<SheetTrigger asChild>
 									<button
 										type="button"
-										className={`flex items-center justify-center rounded-full transition-all duration-200 hover:scale-110 ${clientUser
+										data-nav-key="avatar"
+										data-nav-round="true"
+										onMouseEnter={handleNavHover}
+										className={`flex items-center justify-center rounded-full transition-all duration-200 hover:scale-105 ${clientUser
 											? "h-14 w-14"
 											: "h-14 w-14 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
 											}`}
 										aria-label="Open menu"
 									>
 										{clientUser ? (
-											<Avatar className="h-14 w-14 border-2 border-zinc-200 dark:border-zinc-700">
+											<Avatar className="h-14 w-14">
 												<AvatarImage
 													src={clientUser.image || "/users/avatar.webp"}
 													alt="User"

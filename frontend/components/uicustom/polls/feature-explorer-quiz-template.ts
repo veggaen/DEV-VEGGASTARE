@@ -138,7 +138,7 @@ Every answer teaches you something new about the platform — even if you get it
       allowImages: false,
       options: [
         { text: "🗡️ World of Warcraft" },
-        { text: "⚔️ Old School RuneScape (OSRS)" },
+        { text: "⚔️ Old School RuneScape (BROWSERGAME)" },
         { text: "🏰 Final Fantasy XIV" },
         { text: "🎯 Diablo IV" },
       ],
@@ -470,11 +470,11 @@ export function generateFeatureExplorerTemplate(): PollBuilderData {
     // SECTION 2: FEATURES & SYSTEMS (Q3–Q6)
     // ═══════════════════════════════════════════════════════════════════════
 
-    // Q3: Trading system inspired by → OSRS (second option)
+    // Q3: Trading system inspired by → BROWSERGAME (second option)
     if (i === 3 && q.type === "SINGLE_CHOICE" && opts[1]) {
       question.correctAnswer = opts[1].id;
       question.explanation = "VeggaStare's P2P trading system is inspired by Old School RuneScape! It features a dual-panel trade window where both parties offer items, confirm, and complete the trade.";
-      question.wrongExplanation = "The correct answer is OSRS (Old School RuneScape). The trade window has the classic offer → confirm → complete flow that OSRS players will recognize.";
+      question.wrongExplanation = "The correct answer is BROWSERGAME (Old School RuneScape). The trade window has the classic offer → confirm → complete flow that BROWSERGAME players will recognize.";
       question.deepExplanation = "🎁 Discovery Bonus: The trade system features:\n\n• Dual-panel trade window (your offer vs theirs)\n• Both parties must confirm before the trade completes\n• Purple blink notification when someone wants to trade\n• Accessible via the Trade button on user hover cards\n• Real-time updates via WebSocket\n\nTry hovering over a user's avatar and clicking 'Trade'!";
     }
 

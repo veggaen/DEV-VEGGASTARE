@@ -36,7 +36,7 @@ The platform uniquely combines:
 
 ### 2.3 Traders
 - Connect wallets (Ethereum via WalletConnect, Solana via Phantom/Solflare)
-- Manage crypto inventory using an OSRS-style grid interface
+- Manage crypto inventory using an BROWSERGAME-style grid interface
 - Initiate P2P trades with wallet-verified confirmations
 - Track trade history and partner reputation
 
@@ -78,7 +78,7 @@ The platform uniquely combines:
 |---------|--------|-------------|
 | Wallet Connection | ✅ Shipped | Reown/WalletConnect, Coinbase, Phantom, Solflare |
 | Multi-Wallet Support | ✅ Shipped | Link multiple wallets per user across EVM/Solana/Bitcoin (ChainFamily enum) |
-| OSRS-Style Inventory | ✅ Shipped | Grid-based crypto asset view with drag-and-drop |
+| BROWSERGAME-Style Inventory | ✅ Shipped | Grid-based crypto asset view with drag-and-drop |
 | P2P Trade Windows | ✅ Shipped | Open trade, make offers, accept/decline |
 | Wallet Confirmation | ✅ Shipped | Signature required on trade accept |
 | Trade Notifications | ✅ Shipped | Purple blink indicator for incoming trades |

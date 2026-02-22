@@ -1,7 +1,7 @@
 /**
  * POST /api/trades/[tradeId]/ready — Mark yourself as ready + submit trade items
  *
- * The OSRS two-step flow:
+ * The BROWSERGAME two-step flow:
  * 1. Both users add items → click "Accept" → sets their ready flag.
  * 2. When both are ready → status moves to CONFIRMING.
  * 3. Phase 2 confirm is a separate endpoint (/confirm).

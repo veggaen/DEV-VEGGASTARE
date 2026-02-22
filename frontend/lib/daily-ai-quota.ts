@@ -12,7 +12,7 @@ import "server-only";
 
 import { dbPrisma } from "@/lib/db";
 
-const DAILY_LIMIT = parseInt(process.env.AI_DAILY_LIMIT || "5", 10);
+const DAILY_LIMIT = parseInt(process.env.AI_DAILY_LIMIT || "20", 10);
 
 /** Get today's date as a UTC Date object (time zeroed out). */
 function todayUTC(): Date {

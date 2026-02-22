@@ -525,7 +525,7 @@ function InventorySlotCard({
           )}
         </div>
 
-        {/* Stack Size (OSRS-style top-left overlay) */}
+        {/* Stack Size (BROWSERGAME-style top-left overlay) */}
         <div className="absolute top-0.5 left-0.5 right-0.5">
           <span
             className={`text-[9px] sm:text-[10px] font-bold leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] px-0.5 ${getStackColor(slot.amount)}`}
@@ -827,7 +827,7 @@ function FloatingGhostItem({
 // Helpers
 // ────────────────────────────────────────────────────────────
 
-/** OSRS-style stack color: white < 99K, yellow < 9.99M, green >= 10M */
+/** BROWSERGAME-style stack color: white < 99K, yellow < 9.99M, green >= 10M */
 function getStackColor(display: string): string {
   const stripped = display.replace(/[^0-9.KMBkmb]/g, "");
   const upper = stripped.toUpperCase();
