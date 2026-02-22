@@ -1,5 +1,6 @@
 "use client";
 
+import { HeroOrbit } from "@/components/uicustom/home/HeroOrbit";
 import Link from "next/link";
 import * as React from "react";
 import { motion, useReducedMotion, useMotionValue, useSpring, MotionValue } from "framer-motion";
@@ -1070,6 +1071,9 @@ export default function HomeHero({
       ref={heroRef}
       className="relative flex flex-col min-h-[calc(100dvh-var(--app-header,72px))] w-full"
     >
+      {/* Orbiting particle — revolves around hero text, reacts to mouse proximity */}
+      <HeroOrbit />
+
       {/* Mouse spotlight — hidden on touch devices + reduced-motion via CSS */}
       <div className="hero-spotlight" aria-hidden="true" />
 

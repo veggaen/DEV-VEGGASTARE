@@ -190,30 +190,84 @@ const FeatureCard = React.memo(function FeatureCard({
   );
 });
 
-// ── Step card — memoized ─────────────────────────────────────────────────────
+// ── Step card — memoized, with wave-hover on the step number ─────────────────
 
 const StepCard = React.memo(function StepCard({
   step,
   title,
   description,
   delay = 0,
+  isHovered = false,
+  isNeighbor = false,
+  onMouseEnter,
+  onMouseLeave,
 }: {
   step: string;
   title: string;
   description: string;
   delay?: number;
+  isHovered?: boolean;
+  isNeighbor?: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }) {
   return (
     <motion.div
-      className="relative flex flex-col gap-3"
+      className="relative flex flex-col gap-3 cursor-default"
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px 0px" }}
       transition={{ delay, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
-      <span className="select-none text-5xl font-black leading-none tracking-tighter text-gray-100 dark:text-white/5">
-        {step}
-      </span>
+      {/* Ambient radial glow behind the number — no border box, just soft light */}
+      <motion.div
+        className="pointer-events-none absolute -top-6 -left-6 w-32 h-32 rounded-full"
+        animate={
+          isHovered
+            ? { opacity: 1, scale: 1 }
+            : isNeighbor
+              ? { opacity: 0.35, scale: 0.9 }
+              : { opacity: 0, scale: 0.75 }
+        }
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        style={{
+          background:
+            "radial-gradient(closest-side, rgba(52,211,153,0.18) 0%, rgba(52,211,153,0.06) 50%, transparent 100%)",
+        }}
+      />
+
+      {/* Step number: ghost base + emerald overlay that fades in on hover */}
+      <div className="relative">
+        {/* Base ghost number */}
+        <motion.span
+          className="select-none text-5xl font-black leading-none tracking-tighter text-gray-200 dark:text-white/[0.07]"
+          animate={{
+            scale: isHovered ? 1.16 : isNeighbor ? 1.06 : 1,
+            x: isHovered ? 8 : isNeighbor ? 3 : 0,
+          }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          style={{ display: "block" }}
+        >
+          {step}
+        </motion.span>
+        {/* Emerald overlay — fades in on hover, no border box needed */}
+        <motion.span
+          className="absolute inset-0 select-none text-5xl font-black leading-none tracking-tighter text-emerald-400"
+          animate={{
+            opacity: isHovered ? 0.65 : isNeighbor ? 0.22 : 0,
+            scale: isHovered ? 1.16 : isNeighbor ? 1.06 : 1,
+            x: isHovered ? 8 : isNeighbor ? 3 : 0,
+          }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          aria-hidden="true"
+          style={{ display: "block" }}
+        >
+          {step}
+        </motion.span>
+      </div>
+
       <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">
         <HoverableHeading text={title} />
       </h3>
@@ -288,6 +342,9 @@ export default function BelowFoldSections() {
   const [indicatorStyle, setIndicatorStyle] = React.useState<IndicatorStyle | null>(null);
   const [indicatorVisible, setIndicatorVisible] = React.useState(false);
 
+  // ── How-it-works step hover ──────────────────────────────────────────────
+  const [hoveredStep, setHoveredStep] = React.useState<number | null>(null);
+
   // ── Feature cards sliding indicator ─────────────────────────────────────
 
   const featureContainerRef = React.useRef<HTMLDivElement>(null);
@@ -318,19 +375,14 @@ export default function BelowFoldSections() {
 
     const cr = container.getBoundingClientRect();
     const cl = cell.getBoundingClientRect();
-    const vw = window.innerWidth;
 
-    // Edge-bleed: first cell extends left to viewport edge, last extends right
-    let left = cl.left - cr.left;
-    let width = cl.width;
-    if (i === 0) {
-      left = -cr.left;
-      width = cl.width + cr.left;
-    } else if (i === STAT_COUNT - 1) {
-      width = cl.width + (vw - cr.right);
-    }
-
-    setIndicatorStyle({ left, top: cl.top - cr.top, width, height: cl.height });
+    // Indicator stays within the grid cell — no edge-bleed
+    setIndicatorStyle({
+      left: cl.left - cr.left,
+      top: cl.top - cr.top,
+      width: cl.width,
+      height: cl.height,
+    });
     setIndicatorVisible(true);
   }, []);
 
@@ -468,25 +520,28 @@ export default function BelowFoldSections() {
       <div className="mx-auto max-w-5xl px-6 py-16 sm:py-24 xl:max-w-6xl">
         <SectionHeading eyebrow="Simple by design" title="Up and running in minutes" />
 
-        <div className="grid gap-10 sm:grid-cols-3">
-          <StepCard
-            step="01"
-            title="Browse or Ask"
-            description="Explore the product catalog or open the AI chat to get personalized recommendations instantly."
-            delay={0}
-          />
-          <StepCard
-            step="02"
-            title="Vote & Decide"
-            description="Participate in live community polls. AI generates the options, the community decides the outcome."
-            delay={0.1}
-          />
-          <StepCard
-            step="03"
-            title="Track & Ship"
-            description="Monitor your orders, inventory levels, and crypto positions from one intelligent dashboard."
-            delay={0.2}
-          />
+        <div
+          className="grid gap-10 sm:grid-cols-3"
+          onMouseLeave={() => setHoveredStep(null)}
+        >
+          {(
+            [
+              { step: "01", title: "Browse or Ask", description: "Explore the product catalog or open the AI chat to get personalized recommendations instantly." },
+              { step: "02", title: "Vote & Decide", description: "Participate in live community polls. AI generates the options, the community decides the outcome." },
+              { step: "03", title: "Track & Ship", description: "Monitor your orders, inventory levels, and crypto positions from one intelligent dashboard." },
+            ] as const
+          ).map(({ step, title, description }, i) => (
+            <StepCard
+              key={step}
+              step={step}
+              title={title}
+              description={description}
+              delay={i * 0.1}
+              isHovered={hoveredStep === i}
+              isNeighbor={hoveredStep !== null && Math.abs(hoveredStep - i) === 1}
+              onMouseEnter={() => setHoveredStep(i)}
+            />
+          ))}
         </div>
       </div>
 
