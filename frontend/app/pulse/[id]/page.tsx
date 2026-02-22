@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { dbPrisma } from '@/lib/db';
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { canViewConversation } from '@/lib/conversation-permissions';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { FiArrowLeft } from 'react-icons/fi';
 import { PulseVibesSection } from '@/components/uicustom/pulse/PulseVibesSection';
@@ -32,7 +34,7 @@ interface PulsePageProps {
 async function getPulse(id: string) {
   try {
     const conversation = await dbPrisma.conversation.findUnique({
-      where: { id, visibility: 'PUBLIC' },
+      where: { id },
       select: {
         id: true,
         title: true,
@@ -40,6 +42,14 @@ async function getPulse(id: string) {
         createdAt: true,
         tags: true,
         userId: true,
+        visibility: true,
+        participants: true,
+        allowedRoles: true,
+        customViewers: true,
+        visibleToUserIds: true,
+        replyPermission: true,
+        isLocked: true,
+        type: true,
         viewCount: true,
         uniqueViewCount: true,
         repulseCount: true,
@@ -72,6 +82,13 @@ async function getPulse(id: string) {
         },
       },
     });
+
+    if (!conversation) return null;
+
+    // Check visibility permissions
+    const session = await MyLibUserAuth();
+    const user = session?.id && session?.role ? { id: session.id, role: session.role } : null;
+    if (!canViewConversation(user, conversation)) return null;
 
     return conversation;
   } catch {

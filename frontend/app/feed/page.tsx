@@ -47,6 +47,7 @@ import { PollBuilder } from '@/components/uicustom/polls/PollBuilder';
 import { PulsePollCard, type PulsePollData } from '@/components/uicustom/polls/PulsePollCard';
 import { PollTakerModal } from '@/components/uicustom/polls/PollTakerModal';
 import { ReachPollV3 } from '@/components/uicustom/polls/ReachPollV3';
+import { UserPicker } from '@/components/uicustom/social/UserPicker';
 import { Zap, Target, Rocket, PlayCircle, Copy, FileUp, Download, Sparkles, Check } from 'lucide-react';
 import { PollImportModal } from '@/components/uicustom/polls/PollImportModal';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
@@ -126,6 +127,7 @@ type ReplyPermission = 'EVERYONE' | 'PARTICIPANTS' | 'MENTIONED' | 'MODS_ONLY' |
 const VISIBILITY_OPTIONS: { value: PostVisibility; label: string; icon: React.ReactNode; description: string }[] = [
   { value: 'PUBLIC', label: 'Public', icon: <FiGlobe className="h-4 w-4" />, description: 'Anyone can see this post' },
   { value: 'PRIVATE', label: 'Private', icon: <EyeOff className="h-4 w-4" />, description: 'Only you can see this post' },
+  { value: 'SPECIFIC_USERS', label: 'Specific people', icon: <FiUserCheck className="h-4 w-4" />, description: 'Only selected users can see' },
   { value: 'PARTICIPANTS', label: 'Friends Only', icon: <FiUsers className="h-4 w-4" />, description: 'Only your friends can see' },
   { value: 'SYNCED_TO', label: 'People I sync to', icon: <UserCheck className="h-4 w-4" />, description: 'Only people you follow/sync to' },
   { value: 'SYNCED_FROM', label: 'My synced followers', icon: <Users2 className="h-4 w-4" />, description: 'Only people who sync to you' },
@@ -351,6 +353,7 @@ const FeedPage: React.FC = () => {
 
   // Visibility & permissions state
   const [visibility, setVisibility] = useState<PostVisibility>('PUBLIC');
+  const [visibleToUserIds, setVisibleToUserIds] = useState<string[]>([]);
   const [replyPermission, setReplyPermission] = useState<ReplyPermission>('EVERYONE');
 
   // Poll builder modal state
@@ -666,6 +669,9 @@ const FeedPage: React.FC = () => {
           pollQuestion: includePoll && pollQuestion.trim() ? pollQuestion.trim() : undefined,
           advancedPollId: pendingAdvancedPoll?.id, // Link the pending advanced poll
           tags,
+          ...(visibility === 'SPECIFIC_USERS' && visibleToUserIds.length > 0
+            ? { visibleToUserIds }
+            : {}),
         }),
       });
 
@@ -710,6 +716,7 @@ const FeedPage: React.FC = () => {
       setTags([]);
       setShowTagInput(false);
       setVisibility('PUBLIC');
+      setVisibleToUserIds([]);
       setReplyPermission('EVERYONE');
 
       // Refresh feed
@@ -1434,7 +1441,10 @@ const FeedPage: React.FC = () => {
                         {VISIBILITY_OPTIONS.map(opt => (
                           <DropdownMenuItem
                             key={opt.value}
-                            onClick={() => setVisibility(opt.value)}
+                            onClick={() => {
+                              setVisibility(opt.value);
+                              if (opt.value !== 'SPECIFIC_USERS') setVisibleToUserIds([]);
+                            }}
                             className="flex items-center gap-2"
                           >
                             <span className={visibility === opt.value ? 'text-primary' : 'text-muted-foreground'}>
@@ -1467,6 +1477,18 @@ const FeedPage: React.FC = () => {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
+
+                  {/* User picker for SPECIFIC_USERS visibility */}
+                  {visibility === 'SPECIFIC_USERS' && (
+                    <div className="w-full px-1 pb-1">
+                      <UserPicker
+                        selectedUserIds={visibleToUserIds}
+                        onSelectionChange={setVisibleToUserIds}
+                        placeholder="Search users to grant access…"
+                        excludeSelf={false}
+                      />
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2">
                     {/* Show current settings as badges if not default */}
@@ -1563,7 +1585,7 @@ const FeedPage: React.FC = () => {
 
           {/* Advanced Poll Builder Modal */}
           <Dialog open={showPollBuilder} onOpenChange={(open) => { setShowPollBuilder(open); if (!open) setAiGenerateOpen(false); }}>
-            <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto bg-background border-border p-3 sm:p-6">
+            <DialogContent className="w-[99vw] sm:w-[97vw] lg:w-[94vw] max-w-[1280px] max-h-[94dvh] overflow-y-auto bg-background border-border p-2 sm:p-4">
               <DialogHeader className="pb-0">
                 <div className="flex items-center justify-between">
                   <DialogTitle className="flex items-center gap-2.5 text-lg">
@@ -2000,10 +2022,13 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   
   // Visibility & Flags state
   const [localVisibility, setLocalVisibility] = useState(item.visibility || 'PUBLIC');
+  const [localVisibleToUserIds, setLocalVisibleToUserIds] = useState<string[]>(item.visibleToUserIds || []);
   const [localContentFlags, setLocalContentFlags] = useState(item.contentFlags || []);
   const [isChangingVisibility, setIsChangingVisibility] = useState(false);
   const [isFlagging, setIsFlagging] = useState(false);
   const [showFlaggedContent, setShowFlaggedContent] = useState(false);
+  const [specificUsersDialogOpen, setSpecificUsersDialogOpen] = useState(false);
+  const [pendingSpecificUserIds, setPendingSpecificUserIds] = useState<string[]>([]);
   const hasContentWarning = localContentFlags.length > 0;
 
   // Permission checks - owner of post OR platform owner/admin can manage
@@ -2281,18 +2306,33 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   };
 
   // ─── Visibility change handler ──────────────────────────────────────
-  const handleChangeVisibility = async (newVisibility: string) => {
+  const handleChangeVisibility = async (newVisibility: string, userIds?: string[]) => {
     if (isChangingVisibility) return;
-    if (newVisibility === localVisibility) return;
+
+    // For SPECIFIC_USERS, open the picker dialog if no userIds provided yet
+    if (newVisibility === 'SPECIFIC_USERS' && !userIds) {
+      setPendingSpecificUserIds(localVisibleToUserIds);
+      setSpecificUsersDialogOpen(true);
+      return;
+    }
+
+    if (newVisibility === localVisibility && newVisibility !== 'SPECIFIC_USERS') return;
     setIsChangingVisibility(true);
     try {
+      const body: Record<string, unknown> = { visibility: newVisibility };
+      if (newVisibility === 'SPECIFIC_USERS' && userIds) {
+        body.visibleToUserIds = userIds;
+      }
       const res = await fetch(`/api/conversations/${encodeURIComponent(item.id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visibility: newVisibility }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error('Failed to change visibility');
       setLocalVisibility(newVisibility);
+      if (newVisibility === 'SPECIFIC_USERS' && userIds) {
+        setLocalVisibleToUserIds(userIds);
+      }
       const labels: Record<string, string> = {
         PUBLIC: 'Public', PRIVATE: 'Private (only you)', PARTICIPANTS: 'Friends only',
         SYNCED_TO: 'People you sync to', SYNCED_FROM: 'Your synced followers',
@@ -2306,6 +2346,12 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     } finally {
       setIsChangingVisibility(false);
     }
+  };
+
+  /** Confirm the user-picker dialog and save SPECIFIC_USERS visibility */
+  const handleConfirmSpecificUsers = () => {
+    setSpecificUsersDialogOpen(false);
+    void handleChangeVisibility('SPECIFIC_USERS', pendingSpecificUserIds);
   };
 
   // ─── Content flag handlers (admin only) ─────────────────────────────
@@ -3094,6 +3140,42 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               disabled={isDeleting}
             >
               {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Specific Users Visibility Dialog */}
+      <Dialog open={specificUsersDialogOpen} onOpenChange={setSpecificUsersDialogOpen}>
+        <DialogContent onClick={(e) => e.stopPropagation()} className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choose who can see this pulse</DialogTitle>
+            <DialogDescription>
+              Only the users you select (plus admins and the creator) will be able to see this pulse.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2">
+            <UserPicker
+              selectedUserIds={pendingSpecificUserIds}
+              onSelectionChange={setPendingSpecificUserIds}
+              placeholder="Search by name or email…"
+              excludeSelf={false}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => setSpecificUsersDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmSpecificUsers}
+              disabled={pendingSpecificUserIds.length === 0 || isChangingVisibility}
+            >
+              {isChangingVisibility ? 'Saving…' : `Save (${pendingSpecificUserIds.length} user${pendingSpecificUserIds.length !== 1 ? 's' : ''})`}
             </Button>
           </DialogFooter>
         </DialogContent>
