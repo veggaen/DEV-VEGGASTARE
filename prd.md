@@ -118,7 +118,7 @@ The platform uniquely combines:
 | Streaming AI Generation | ✅ Shipped | SSE endpoint (`/api/polls/generate-stream`) with 6-step live progress UI in PollBuilder |
 | Per-Question Trust Badges | ✅ Shipped | Colour-coded trust indicator per AI-generated question (High/Medium/Low) |
 | Daily AI Quota Guard | ✅ Shipped | 5 free/day via auto-resolve (saved key > platform key). BYOK unlimited. No visible dropdown — clean UX with sleek `1/5` counter after first use |
-| Conversational AI Chat | ✅ Shipped | Chat thread in PollBuilder: initial generation → Review Card → refinement loop ("make Q3 harder"). Groq default (Llama 3.3 70B), owner-only OpenAI, BYOK for Grok/Claude/OpenRouter |
+| Conversational AI Chat | ✅ Shipped | Chat thread in PollBuilder: initial generation → Review Card → refinement loop ("make Q3 harder"). Groq default (Llama 3.3 70B), BYOK for 6 providers (OpenAI, Anthropic, Google Gemini, Grok, OpenRouter, Groq) with auto-detect from key prefix |
 | Interactive Preview | ✅ Shipped | PollTakerModal in preview mode: simulates full 5-screen quiz experience (welcome → sections → questions → completion → results) with no API calls, triggered from builder |
 | 7 Example Templates | ✅ Shipped | 5 external templates (Verify Demo, Feedback & Discovery, Feature Explorer, Canna Coco, Tony Vegan+Eggs) + 2 inline (Quick Feedback 6Q, Product Preference 8Q) |
 | Shape-Match Reliability | ✅ Shipped | Padded hit zones, proper swap logic, real-time drag hover feedback |

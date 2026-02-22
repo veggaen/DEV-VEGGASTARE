@@ -8,8 +8,8 @@ import { getUserAiKeyForGeneration, upsertUserAiKey } from "@/lib/ai-key-store";
 import { checkDailyQuota, incrementDailyUsage, DAILY_LIMIT } from "@/lib/daily-ai-quota";
 import { getPaidAiEntitlement } from "@/lib/ai-paid-entitlement";
 
-// Allow up to 60s for AI generation (Hobby plan max)
-export const maxDuration = 60;
+// Allow up to 300s for AI generation (Vercel Pro plan)
+export const maxDuration = 300;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STREAMING POLL GENERATION ENDPOINT
@@ -231,6 +231,8 @@ BEHAVIOR:
 - Preserve all metadata (type, sections, etc.).
 `;
 
+// (Multi-phase system prompts removed — Vercel Pro allows single-call generation up to 270s)
+
 const StreamRequestSchema = z.object({
   prompt: z.string().min(3),
   context: z.object({
@@ -243,11 +245,12 @@ const StreamRequestSchema = z.object({
     apiKey: z.string().optional(),
     rememberKey: z.boolean().optional(),
     model: z.string().optional(),
+    thinking: z.boolean().optional(),
   }).optional(),
 });
 
 type ResolvedAuth = {
-  provider: "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ";
+  provider: "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ" | "GOOGLE";
   apiKey: string;
   model?: string;
   usedSavedKey?: boolean;
@@ -257,20 +260,22 @@ type ResolvedAuth = {
 function normalizeGenerationProvider(input: unknown): ResolvedAuth["provider"] {
   if (typeof input !== "string") return "GROQ";
   const value = input.trim().toUpperCase();
-  if (value === "OPENAI" || value === "OPENROUTER" || value === "ANTHROPIC" || value === "GROK" || value === "GROQ") {
+  if (value === "OPENAI" || value === "OPENROUTER" || value === "ANTHROPIC" || value === "GROK" || value === "GROQ" || value === "GOOGLE") {
     return value;
   }
   return "GROQ";
 }
 
 function inferProviderFromApiKey(input: string): ResolvedAuth["provider"] | null {
-  const key = input.trim().toLowerCase();
-  if (!key) return null;
-  if (key.startsWith("gsk_")) return "GROQ";
-  if (key.startsWith("sk-or-")) return "OPENROUTER";
-  if (key.startsWith("sk-ant-")) return "ANTHROPIC";
-  if (key.startsWith("xai-")) return "GROK";
-  if (key.startsWith("sk-proj-") || key.startsWith("sk-")) return "OPENAI";
+  const key = input.trim();
+  const lower = key.toLowerCase();
+  if (!lower) return null;
+  if (lower.startsWith("gsk_")) return "GROQ";
+  if (lower.startsWith("sk-or-")) return "OPENROUTER";
+  if (lower.startsWith("sk-ant-")) return "ANTHROPIC";
+  if (lower.startsWith("xai-")) return "GROK";
+  if (key.startsWith("AIza")) return "GOOGLE";
+  if (lower.startsWith("sk-proj-") || lower.startsWith("sk-")) return "OPENAI";
   return null;
 }
 
@@ -286,14 +291,16 @@ function isModelLikelyForProvider(provider: ResolvedAuth["provider"], model: str
       return m.startsWith("claude");
     case "GROK":
       return m.startsWith("grok-");
+    case "GOOGLE":
+      return m.startsWith("gemini");
     case "OPENAI":
     default:
       return m.startsWith("gpt-") || m.startsWith("o");
   }
 }
 
-function canPersistProvider(provider: ResolvedAuth["provider"]): provider is "OPENAI" | "OPENROUTER" | "ANTHROPIC" {
-  return provider === "OPENAI" || provider === "OPENROUTER" || provider === "ANTHROPIC";
+function canPersistProvider(provider: ResolvedAuth["provider"]): provider is "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GOOGLE" | "GROK" {
+  return provider === "OPENAI" || provider === "OPENROUTER" || provider === "ANTHROPIC" || provider === "GOOGLE" || provider === "GROK";
 }
 
 function defaultModelForProvider(provider: ResolvedAuth["provider"]): string {
@@ -306,6 +313,8 @@ function defaultModelForProvider(provider: ResolvedAuth["provider"]): string {
       return "claude-3-5-haiku-latest";
     case "GROK":
       return "grok-3-mini";
+    case "GOOGLE":
+      return "gemini-2.5-flash";
     case "OPENAI":
     default:
       return process.env.OPENAI_MODEL || "gpt-4o-mini";
@@ -321,7 +330,9 @@ function formatProviderStatus(provider: ResolvedAuth["provider"], model?: string
         ? "Anthropic"
         : provider === "GROK"
           ? "Grok"
-          : "Groq";
+          : provider === "GOOGLE"
+            ? "Google"
+            : "Groq";
   return model ? `${providerName} (${model})` : providerName;
 }
 
@@ -409,28 +420,68 @@ function estimateTruthfulness(questions: any[]): {
   if (!questions.length) {
     return { score: 45, explanation: "No questions generated.", trustFactor: "Low", researchDepth: "Low", researchSummary: "No data." };
   }
-  let explanationCount = 0, wrongCount = 0, deepCount = 0, answerCount = 0;
-  let layeredCount = 0, realWorldCount = 0;
-  for (const q of questions) {
-    if (q.explanation && q.explanation.length > 10) explanationCount++;
-    if (q.wrongExplanation && q.wrongExplanation.length > 10) wrongCount++;
-    if (q.deepExplanation && q.deepExplanation.length > 10) deepCount++;
-    if (q.correctAnswer != null) answerCount++;
-    if (q.deepExplanation && q.deepExplanation.includes("\n")) layeredCount++;
-    if (q.explanation && /real[- ]world|practical|example|everyday|common/i.test(q.explanation)) realWorldCount++;
-  }
+
   const total = questions.length;
+
+  // ── Coverage checks (presence, >10 chars) ──
+  let explanationCount = 0, wrongCount = 0, deepCount = 0, answerCount = 0;
+  // ── Quality checks (graduated depth) ──
+  let explanationHighQuality = 0;   // >80 chars = substantive
+  let wrongHighQuality = 0;          // >60 chars
+  let deepHighQuality = 0;           // >120 chars with multiple paragraphs
+  let layeredCount = 0, realWorldCount = 0;
+  // ── Diversity checks ──
+  let optionCountSum = 0;
+  const typeSeen = new Set<string>();
+
+  for (const q of questions) {
+    const expLen = q.explanation?.length || 0;
+    const wrongLen = q.wrongExplanation?.length || 0;
+    const deepLen = q.deepExplanation?.length || 0;
+
+    if (expLen > 10) explanationCount++;
+    if (expLen > 80) explanationHighQuality++;
+    if (wrongLen > 10) wrongCount++;
+    if (wrongLen > 60) wrongHighQuality++;
+    if (deepLen > 10) deepCount++;
+    if (deepLen > 120 && (q.deepExplanation.match(/\n/g)?.length || 0) >= 2) deepHighQuality++;
+    if (q.correctAnswer != null) answerCount++;
+    if (deepLen > 10 && q.deepExplanation.includes("\n")) layeredCount++;
+    if (expLen > 10 && /real[- ]world|practical|example|everyday|common/i.test(q.explanation)) realWorldCount++;
+    if (Array.isArray(q.options)) optionCountSum += q.options.length;
+    if (q.type) typeSeen.add(q.type);
+  }
+
+  // ── Ratios ──
   const explanationCoverage = explanationCount / total;
   const wrongCoverage = wrongCount / total;
   const deepCoverage = deepCount / total;
   const answerCoverage = answerCount / total;
   const layeredCoverage = layeredCount / total;
   const realWorldCoverage = realWorldCount / total;
-  const raw = 30 + explanationCoverage * 20 + wrongCoverage * 16 + deepCoverage * 16 + answerCoverage * 20 + layeredCoverage * 14 + realWorldCoverage * 10;
-  const score = Math.min(96, Math.max(35, Math.round(raw)));
+  // Quality tiers (percentage of those that exist that are also high-quality)
+  const expQualityRatio = explanationCount > 0 ? explanationHighQuality / explanationCount : 0;
+  const wrongQualityRatio = wrongCount > 0 ? wrongHighQuality / wrongCount : 0;
+  const deepQualityRatio = deepCount > 0 ? deepHighQuality / deepCount : 0;
+  const avgOptionsPerQ = optionCountSum / total;
+
+  // ── Scoring (base 20, max theoretical ~100) ──
+  // Coverage tier (presence): max 40 pts
+  const coveragePts = explanationCoverage * 10 + wrongCoverage * 8 + deepCoverage * 8 + answerCoverage * 14;
+  // Quality tier (depth/substance): max 30 pts
+  const qualityPts = expQualityRatio * 10 + wrongQualityRatio * 8 + deepQualityRatio * 12;
+  // Richness tier (real-world, layered, option variety): max 15 pts
+  const richnessPts = layeredCoverage * 5 + realWorldCoverage * 5
+    + Math.min(5, (avgOptionsPerQ >= 4 ? 5 : avgOptionsPerQ >= 3 ? 3 : avgOptionsPerQ >= 2 ? 1 : 0));
+  // Diversity bonus: max 5 pts (for using multiple question types)
+  const diversityPts = Math.min(5, (typeSeen.size - 1) * 2.5);
+
+  const raw = 20 + coveragePts + qualityPts + richnessPts + diversityPts;
+  const score = Math.min(100, Math.max(35, Math.round(raw)));
+
   const trustFactor = score >= 80 ? "High" : score >= 55 ? "Medium" : "Low";
   const researchDepth = deepCoverage > 0.6 ? "High" : deepCoverage > 0.3 ? "Medium" : "Low";
-  const explanationStr = `${Math.round(explanationCoverage * 100)}% explanation coverage, ${Math.round(wrongCoverage * 100)}% wrong-answer coverage, ${Math.round(deepCoverage * 100)}% deep-layer coverage.`;
+  const explanationStr = `${Math.round(explanationCoverage * 100)}% explanation coverage, ${Math.round(wrongCoverage * 100)}% wrong-answer coverage, ${Math.round(deepCoverage * 100)}% deep-layer coverage. Quality: ${Math.round(expQualityRatio * 100)}% substantive.`;
   const researchSummary = score >= 70
     ? `Strong explanation coverage across ${total} questions. ${realWorldCount > 0 ? `${realWorldCount} include real-world examples.` : ""}`
     : `Moderate coverage. Some questions may lack thorough explanations.`;
@@ -694,11 +745,117 @@ async function resolveGenerationAuth(reqBody: z.infer<typeof StreamRequestSchema
   throw new Error("AI generation is not available right now. Please provide your own API key, or try again later.");
 }
 
+// ── Provider error formatter ───────────────────────────────────────────────
+// Parses each provider's JSON error body and returns an actionable message.
+
+const PROVIDER_CONSOLE_URLS: Record<string, string> = {
+  OPENAI:     "platform.openai.com/api-keys",
+  OPENROUTER: "openrouter.ai/keys",
+  ANTHROPIC:  "console.anthropic.com/settings/keys",
+  GROK:       "console.x.ai",
+  GROQ:       "console.groq.com/keys",
+  GOOGLE:     "aistudio.google.com/apikey",
+};
+
+function formatProviderError(
+  provider: "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ" | "GOOGLE",
+  status: number,
+  rawBody: string,
+  apiKey?: string,
+): string {
+  const label = provider === "OPENROUTER" ? "OpenRouter"
+    : provider === "ANTHROPIC" ? "Anthropic"
+    : provider === "GROQ"      ? "Groq"
+    : provider === "GROK"      ? "Grok (xAI)"
+    : provider === "GOOGLE"    ? "Google Gemini"
+    : "OpenAI";
+  const consoleUrl = PROVIDER_CONSOLE_URLS[provider] ?? "the provider dashboard";
+
+  // All providers use { error: { message } }; Google also uses array form
+  let parsed: any = null;
+  try { parsed = JSON.parse(rawBody); } catch { /* keep raw text */ }
+  const apiMsg: string | null =
+    parsed?.error?.message
+    ?? parsed?.[0]?.error?.message
+    ?? parsed?.message
+    ?? null;
+
+  const bodyLower = (apiMsg ?? rawBody).toLowerCase();
+
+  // ── 401 / 403: bad API key ──────────────────────────────────────────────
+  if (status === 401 || status === 403) {
+    if (provider === "GROQ") {
+      const looksOpenAiKey = /^sk-(proj-)?/i.test(apiKey ?? "") && !/^sk-or-/i.test(apiKey ?? "") && !/^sk-ant-/i.test(apiKey ?? "");
+      return looksOpenAiKey
+        ? "Groq rejected your key — this looks like an OpenAI key. Switch provider to OpenAI or paste a Groq key (starts with gsk_)."
+        : `Groq rejected your API key. Verify it at ${consoleUrl}.`;
+    }
+    return `${label} rejected your API key. Verify it at ${consoleUrl}.`;
+  }
+
+  // ── Credit/billing keywords (used by both 429 and 400/402 checks) ────────
+  const creditKeywords = ["credit", "billing", "balance", "quota", "insufficient_quota", "payment", "low", "exceeded your current"];
+
+  // ── 429: quota exhausted (OpenAI/OpenRouter) OR rate limit ───────────────
+  // OpenAI sends insufficient_quota as 429, not 402 — detect it by error code/type/message.
+  if (status === 429) {
+    const isQuota =
+      parsed?.error?.code === "insufficient_quota" ||
+      parsed?.error?.type === "insufficient_quota" ||
+      creditKeywords.some(k => bodyLower.includes(k));
+    if (isQuota) {
+      return apiMsg
+        ? `${label} billing error: ${apiMsg}`
+        : `${label}: Your quota is exhausted. Top up your account at ${consoleUrl}.`;
+    }
+    return apiMsg
+      ? `${label} rate limit: ${apiMsg}`
+      : `${label} rate limit reached — try again in a moment, or upgrade your plan for higher limits.`;
+  }
+
+  // ── 402 or credit/billing 400 ───────────────────────────────────────────
+  if (status === 402 || (status === 400 && creditKeywords.some(k => bodyLower.includes(k)))) {
+    return apiMsg
+      ? `${label} billing error: ${apiMsg}`
+      : `${label}: Insufficient credits. Top up your account at ${consoleUrl}.`;
+  }
+
+  // ── 404 or model-not-found 400 ──────────────────────────────────────────
+  const modelKeywords = ["model", "not found", "does not exist", "invalid_model", "no such"];
+  if (status === 404 || (status === 400 && modelKeywords.some(k => bodyLower.includes(k)))) {
+    return apiMsg
+      ? `${label} model error: ${apiMsg}`
+      : `${label}: Model not found. Check the model name is correct for your account tier.`;
+  }
+
+  // ── Google-specific: API_KEY_INVALID buried in a 400 ───────────────────
+  if (provider === "GOOGLE" && status === 400 && rawBody.includes("API_KEY_INVALID")) {
+    return `Google rejected your API key. Verify it at ${consoleUrl}.`;
+  }
+
+  // ── Any 400 with a clear API message ────────────────────────────────────
+  if (status === 400 && apiMsg) {
+    return `${label}: ${apiMsg}`;
+  }
+
+  // ── 503 / 529: overloaded ───────────────────────────────────────────────
+  if (status === 503 || status === 529) {
+    return `${label} is currently overloaded. Please try again in a few seconds.`;
+  }
+
+  // ── Fallback ────────────────────────────────────────────────────────────
+  return apiMsg
+    ? `${label} error (${status}): ${apiMsg}`
+    : `${label} AI error (${status}). Check your key has the right permissions and try again.`;
+}
+
 // ── Provider call ──────────────────────────────────────────────────────────
 
-const PROVIDER_TIMEOUT_MS = 90_000; // 90s — generous for large quiz generation
+// Must stay under Vercel Pro's 300s hard function limit — our abort fires at 270s
+// so the clean "took too long" SSE error reaches the client before Vercel cuts the connection.
+const PROVIDER_TIMEOUT_MS = 270_000; // 270s — fires before Vercel Pro's 300s hard limit
 
-async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ"; apiKey: string; prompt: string; model?: string; systemPrompt?: string; }): Promise<{ content: string; model: string }> {
+async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ" | "GOOGLE"; apiKey: string; prompt: string; model?: string; systemPrompt?: string; thinking?: boolean; }): Promise<{ content: string; model: string }> {
   const systemPrompt = input.systemPrompt || SYSTEM_PROMPT;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
@@ -721,11 +878,7 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
     if (!response.ok) {
       const e = await response.text();
       console.error("Groq error:", response.status, e);
-      if (response.status === 401 || response.status === 403) {
-        const looksOpenAiKey = /^sk-(proj-)?/i.test(input.apiKey) && !/^sk-or-/i.test(input.apiKey) && !/^sk-ant-/i.test(input.apiKey);
-        throw new Error(`Groq rejected your API key (${response.status}).${looksOpenAiKey ? " This looks like an OpenAI key — switch provider to OpenAI or paste a Groq key." : " Please check that your Groq key is valid."}`);
-      }
-      throw new Error(`Groq AI error (${response.status}). ${response.status === 429 ? "Rate limit reached — try again in a moment." : ""}`);
+      throw new Error(formatProviderError("GROQ", response.status, e, input.apiKey));
     }
     const completion = await response.json();
     const content = completion.choices?.[0]?.message?.content;
@@ -735,13 +888,31 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
 
   if (input.provider === "ANTHROPIC") {
     const model = input.model || defaultModelForProvider("ANTHROPIC");
+    // Anthropic extended thinking: when enabled, use budget_tokens and remove temperature
+    const useThinking = !!input.thinking;
+    const anthropicBody: any = {
+      model,
+      // 5000 tokens = safety hard cap (~50-62s at Anthropic's 80-100 t/s output speed).
+      // The real budget control is done in the prompt via server-side question-count injection
+      // (see below), which reduces natural generation to ~2500 tokens (~25-30s).
+      max_tokens: useThinking ? 32768 : 16384,
+      system: systemPrompt,
+      messages: [{ role: "user", content: input.prompt.trim() }],
+      ...(useThinking
+        ? { thinking: { type: "enabled", budget_tokens: 16384 } }
+        : { temperature: 0.7 }),
+    };
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": input.apiKey, "anthropic-version": "2023-06-01" },
       signal: controller.signal,
-      body: JSON.stringify({ model, max_tokens: 16384, temperature: 0.7, system: systemPrompt, messages: [{ role: "user", content: input.prompt.trim() }] }),
+      body: JSON.stringify(anthropicBody),
     });
-    if (!response.ok) { const e = await response.text(); console.error("Anthropic error:", response.status, e); if (response.status === 401 || response.status === 403) { throw new Error(`Anthropic rejected your API key (${response.status}). Check that it's valid at console.anthropic.com.`); } throw new Error(`AI service error (${response.status}).`); }
+    if (!response.ok) {
+      const e = await response.text();
+      console.error("Anthropic error:", response.status, e);
+      throw new Error(formatProviderError("ANTHROPIC", response.status, e, input.apiKey));
+    }
     const completion = await response.json();
     const content = completion?.content?.find((i: any) => i?.type === "text")?.text;
     if (!content) throw new Error("No response from AI.");
@@ -754,23 +925,78 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.apiKey}` },
       signal: controller.signal,
-      body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: input.prompt.trim() }], temperature: 0.7, max_tokens: 16384 }),
+      body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: input.prompt.trim() }], temperature: 0.7, max_tokens: 16384, response_format: { type: "json_object" } }),
     });
-    if (!response.ok) { const e = await response.text(); console.error("Grok error:", response.status, e); if (response.status === 401 || response.status === 403) { throw new Error(`Grok rejected your API key (${response.status}). Check that it's valid at console.x.ai.`); } throw new Error(`Grok AI error (${response.status}).`); }
+    if (!response.ok) {
+      const e = await response.text();
+      console.error("Grok error:", response.status, e);
+      throw new Error(formatProviderError("GROK", response.status, e, input.apiKey));
+    }
     const completion = await response.json();
     const content = completion.choices?.[0]?.message?.content;
     if (!content) throw new Error("No response from Grok.");
     return { content, model };
   }
+  // Google Gemini — uses the Gemini REST API with generateContent
+  if (input.provider === "GOOGLE") {
+    const model = input.model || defaultModelForProvider("GOOGLE");
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${input.apiKey}`;
+    // Gemini 2.5 thinking: when enabled, set thinkingConfig with a budget
+    const useThinking = !!input.thinking && (model.includes("2.5") || model.includes("2-5"));
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `${systemPrompt}\n\n${input.prompt.trim()}` }] }],
+        generationConfig: {
+          temperature: useThinking ? undefined : 0.7,
+          maxOutputTokens: useThinking ? 16384 : 16384,
+          responseMimeType: "application/json",
+          ...(useThinking ? { thinkingConfig: { thinkingBudget: 8192 } } : {}),
+        },
+      }),
+    });
+    if (!response.ok) {
+      const e = await response.text();
+      console.error("Google Gemini error:", response.status, e);
+      throw new Error(formatProviderError("GOOGLE", response.status, e, input.apiKey));
+    }
+    const result = await response.json();
+    const content = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!content) throw new Error("No response from Google Gemini.");
+    return { content, model };
+  }
   const endpoint = input.provider === "OPENROUTER" ? "https://openrouter.ai/api/v1/chat/completions" : "https://api.openai.com/v1/chat/completions";
   const model = input.model || (input.provider === "OPENROUTER" ? defaultModelForProvider("OPENROUTER") : defaultModelForProvider("OPENAI"));
+  // OpenAI GPT-5.x / GPT-4.1 / o-series thinking: use reasoning param
+  const isOSeries = model.startsWith("o");
+  const isGpt5 = model.startsWith("gpt-5");
+  const isGpt41 = model.startsWith("gpt-4.1");
+  const isNewModel = isOSeries || isGpt5 || isGpt41; // newer models use max_completion_tokens
+  const useThinking = !!input.thinking && (isOSeries || isGpt5);
+  const openaiBody: any = {
+    model,
+    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: input.prompt.trim() }],
+    // GPT-5.x, GPT-4.1, and o-series require max_completion_tokens; older models use max_tokens
+    ...(isNewModel ? { max_completion_tokens: 16384 } : { max_tokens: 16384 }),
+    response_format: { type: "json_object" },
+    // o-series models don't support temperature
+    ...(isOSeries ? {} : { temperature: 0.7 }),
+    ...(useThinking && isOSeries ? { reasoning_effort: "high" } : {}),
+    ...(useThinking && isGpt5 ? { reasoning: { effort: "high" } } : {}),
+  };
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.apiKey}`, ...(input.provider === "OPENROUTER" ? { "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://veggat.com", "X-Title": "VeggaStare Poll Generator" } : {}) },
     signal: controller.signal,
-    body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: input.prompt.trim() }], temperature: 0.7, max_tokens: 16384, response_format: { type: "json_object" } }),
+    body: JSON.stringify(openaiBody),
   });
-  if (!response.ok) { const e = await response.text(); console.error(`${input.provider} error:`, response.status, e); if (response.status === 401 || response.status === 403) { throw new Error(`${input.provider === "OPENROUTER" ? "OpenRouter" : "OpenAI"} rejected your API key (${response.status}). Check that it's valid and has credits.`); } throw new Error(`AI error (${response.status}).`); }
+  if (!response.ok) {
+    const e = await response.text();
+    console.error(`${input.provider} error:`, response.status, e);
+    throw new Error(formatProviderError(input.provider, response.status, e, input.apiKey));
+  }
   const completion = await response.json();
   const content = completion.choices?.[0]?.message?.content;
   if (!content) throw new Error("No response from AI.");
@@ -778,7 +1004,11 @@ async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHRO
 
   } catch (err: any) {
     if (err?.name === "AbortError") {
-      throw new Error("AI took too long to respond. Try requesting fewer questions or a simpler topic.");
+      throw new Error(
+        "Generation timed out. To fix: (1) Request fewer questions — 10 or less works best. " +
+        "(2) Switch to Groq — it's free and generates 5× faster than Anthropic/Google. " +
+        "(3) If using Anthropic/Grok, try a smaller/faster model like Claude Haiku or Grok Mini."
+      );
     }
     throw err;
   } finally {
@@ -922,6 +1152,9 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // (Multi-phase handlers removed — Vercel Pro 300s timeout allows single-call generation)
+      const questionCountCapped: number | null = null;
+
       await sendEvent(writer, {
         step: 1,
         label: isRefinement ? "Analyzing your feedback…" : GENERATION_STEPS[0].label,
@@ -956,7 +1189,8 @@ export async function POST(req: NextRequest) {
       let content: string;
       let resolvedModel: string | null = null;
       try {
-        const providerResult = await callProvider({ provider: auth.provider, apiKey: auth.apiKey, prompt: effectivePrompt, model: auth.model, systemPrompt: activeSystemPrompt });
+        const thinking = parsedBody.data.aiAuth?.thinking ?? false;
+        const providerResult = await callProvider({ provider: auth.provider, apiKey: auth.apiKey, prompt: effectivePrompt, model: auth.model, systemPrompt: activeSystemPrompt, thinking });
         content = providerResult.content;
         resolvedModel = providerResult.model;
       } catch (providerErr: any) {
@@ -1129,6 +1363,7 @@ export async function POST(req: NextRequest) {
             premiumAiMode: paidEntitlement.mode,
             creditPackRemaining: paidEntitlement.mode === "credit_pack" && freeUsed != null ? Math.max(0, freeLimit - freeUsed) : null,
             isRefinement,
+            questionCountCapped: questionCountCapped ?? null,
           },
         },
       });

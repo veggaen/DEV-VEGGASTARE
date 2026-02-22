@@ -2,7 +2,7 @@
 
 > **Purpose:** Single-file onboarding for any AI agent (Claude, GPT, Gemini, Copilot, etc.).  
 > Read this file first → you'll understand the entire project, methodology, and current state.  
-> **Last Updated:** 2026-02-18
+> **Last Updated:** 2026-02-19
 
 ---
 
@@ -84,7 +84,7 @@ DEV-VEGGASTARE/
 │   │   ├── ui/                  # shadcn/ui primitives
 │   │   └── uicustom/           # Custom composites (polls/, crypto-related/, etc.)
 │   ├── actions/                 # Server actions (~27 files)
-│   ├── prisma/schema.prisma     # CANONICAL schema (1920 lines, 77 models, 39 enums)
+│   ├── prisma/schema.prisma     # CANONICAL schema (~2490 lines, 77 models, 39 enums)
 │   ├── lib/                     # Utilities (rate-limit, fuzzy-text-match, view-strength, etc.)
 │   ├── hooks/                   # Custom React hooks
 │   ├── schemas/                 # Zod validation schemas
@@ -128,7 +128,7 @@ DEV-VEGGASTARE/
 | 13 | **Database backups never committed to git.** |
 | 14 | **Web3 toggle ≠ email verification.** Only wallet linking requires email verification. |
 | 15 | **Unified sign-out.** `useCleanLogout` + `WalletDisconnectWatcher` keep Web2↔Web3 sessions in sync. |
-| 16 | **AI generation: auto-resolve chain.** saved key → owner OpenAI → Groq free tier → error. 5/day free, BYOK unlimited. |
+| 16 | **AI generation: auto-resolve chain.** saved key → owner OpenAI → Groq free tier → error. 5/day free, BYOK unlimited. 6 providers: OpenAI, Anthropic, Google Gemini, Grok, OpenRouter, Groq. |
 | 17 | **AI prompts sanitized server-side.** Injection patterns blocked, output validated. |
 
 ---
@@ -155,7 +155,7 @@ Key capabilities:
 - **Two-tier quiz feedback** — explanation → "Still don't understand?" → deepExplanation
 - **Verification-weighted voting** — poll response power scales with user's verification tier
 - **Anti-gaming** — min dwell time, rate limits, straightline detection, IP hashing
-- **BYOK** — Bring your own API key (OpenAI, Anthropic, Grok, Groq, OpenRouter)
+- **BYOK** — Bring your own API key (OpenAI, Anthropic, Google Gemini, Grok, Groq, OpenRouter) with auto-detection from key prefix
 - **DB-backed daily quota** — 5 free AI generations/day via PostgreSQL (survives cold starts)
 - **Scheduled daily polls** — Cron-based templates with PENDING_REVIEW admin approval flow
 
@@ -169,7 +169,7 @@ NextAuth v5 with Google/GitHub/Discord OAuth, email/password, magic links, 12-ti
 
 ## 7. Database Overview
 
-**77 Prisma models, 39 enums, 1920 lines** in `frontend/prisma/schema.prisma`.
+**77 Prisma models, 39 enums, ~2490 lines** in `frontend/prisma/schema.prisma`.
 
 Core entity relationships:
 ```
@@ -196,7 +196,7 @@ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID, NEXT_PUBLIC_PUSHER_KEY/CLUSTER
 RESEND_API_KEY, GATE_PASSWORD, EDGE_STORE_ACCESS_KEY/SECRET_KEY
 NEXT_PUBLIC_BACKEND_URL (http://localhost:3001)
 NEXT_PUBLIC_WS_URL (http://localhost:3002)
-OPENAI_API_KEY, GROQ_API_KEY, PLATFORM_OWNER_EMAIL, BYOK_ENCRYPTION_KEY
+OPENAI_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY, PLATFORM_OWNER_EMAIL, BYOK_ENCRYPTION_KEY
 ```
 
 ### Backend `.env`

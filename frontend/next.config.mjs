@@ -1,9 +1,13 @@
 // @ts-check
+import { fileURLToPath } from "node:url";
+
+const outputFileTracingRoot = fileURLToPath(new URL(".", import.meta.url));
  
 /**
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+    outputFileTracingRoot,
     // Expose Vercel's VERCEL_ENV to client-side code for Pusher channel scoping
     env: {
         NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV || '',
@@ -36,6 +40,7 @@ const nextConfig = {
         ignoreBuildErrors: false,
     },
     images: {
+        formats: ['image/avif', 'image/webp'],
         remotePatterns: [
             {
               protocol: 'https',

@@ -53,6 +53,7 @@ import {
   HelpCircle,
   Zap,
   Bot,
+  BrainCircuit,
 } from "lucide-react";
 import {
   Popover,
@@ -195,7 +196,7 @@ interface PollBuilderProps {
   onAiGenerateClose?: () => void;
 }
 
-type AiProvider = "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ";
+type AiProvider = "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ" | "GOOGLE";
 // No dropdown — server auto-resolves: saved key > platform key
 // User can opt-in to BYOK via "Use my key" expansion
 type AiKeySource = "auto" | "byok";
@@ -230,6 +231,7 @@ interface AiGenerationMeta {
   mode?: AiKeySource;
   usedSavedKey?: boolean;
   savedKeyProvider?: string;
+  questionCountCapped?: number | null;
 }
 
 interface AiProgressStep {
@@ -240,11 +242,18 @@ interface AiProgressStep {
   completedAt?: number; // timestamp when step completed
 }
 
+type AiModelCapability = "vision" | "tools" | "reasoning" | "fast" | "cheap" | "flagship" | "coding" | "long-context";
+type AiModelGroup = "recommended" | "standard" | "legacy";
+
 interface AiModelOption {
   value: string;
   label: string;
   description?: string;
   isDefault?: boolean;
+  capabilities?: AiModelCapability[];
+  group?: AiModelGroup;
+  /** Model supports extended thinking / reasoning mode */
+  supportsThinking?: boolean;
 }
 
 interface AiProviderOptionDef {
@@ -258,6 +267,18 @@ interface AiProviderOptionDef {
   models: AiModelOption[];
 }
 
+/** Capability badge config for rendering */
+const CAPABILITY_BADGES: Record<AiModelCapability, { label: string; color: string; tip: string }> = {
+  vision:         { label: "Vision",    color: "bg-blue-500/15 text-blue-400 border-blue-500/20",      tip: "Supports image inputs (screenshots, photos)" },
+  tools:          { label: "Tools",     color: "bg-amber-500/15 text-amber-400 border-amber-500/20",    tip: "Function calling & tool use" },
+  reasoning:      { label: "Reasoning", color: "bg-purple-500/15 text-purple-400 border-purple-500/20",  tip: "Chain-of-thought reasoning for complex tasks" },
+  fast:           { label: "Fast",      color: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20", tip: "Optimised for speed" },
+  cheap:          { label: "Cheap",     color: "bg-lime-500/15 text-lime-400 border-lime-500/20",        tip: "Very low cost per request" },
+  flagship:       { label: "Flagship",  color: "bg-violet-500/15 text-violet-400 border-violet-500/20",  tip: "Top-tier model — best quality" },
+  coding:         { label: "Code",      color: "bg-cyan-500/15 text-cyan-400 border-cyan-500/20",       tip: "Optimised for code generation" },
+  "long-context": { label: "Long ctx",  color: "bg-orange-500/15 text-orange-400 border-orange-500/20",  tip: "Extended context window" },
+};
+
 const AI_PROVIDER_OPTIONS: AiProviderOptionDef[] = [
   {
     value: "GROQ",
@@ -268,9 +289,9 @@ const AI_PROVIDER_OPTIONS: AiProviderOptionDef[] = [
     freeAvailable: true,
     pricingNote: "Free tier available",
     models: [
-      { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B", description: "Best quality · versatile", isDefault: true },
-      { value: "llama-3.1-8b-instant",    label: "Llama 3.1 8B",  description: "Fastest · lightweight" },
-      { value: "mixtral-8x7b-32768",      label: "Mixtral 8×7B",  description: "Good balance · 32K context" },
+      { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B", description: "Best quality · versatile", isDefault: true, capabilities: ["fast", "tools"], group: "recommended" },
+      { value: "llama-3.1-8b-instant",    label: "Llama 3.1 8B",  description: "Ultra-fast responses", capabilities: ["fast", "cheap"], group: "standard" },
+      { value: "mixtral-8x7b-32768",      label: "Mixtral 8×7B",  description: "Good balance · 32K context", capabilities: ["long-context"], group: "standard" },
     ],
   },
   {
@@ -282,43 +303,44 @@ const AI_PROVIDER_OPTIONS: AiProviderOptionDef[] = [
     freeAvailable: true,
     pricingNote: "Free models available",
     models: [
-      { value: "openai/gpt-4o",                        label: "GPT-4o",             description: "OpenAI flagship", isDefault: true },
-      { value: "openai/gpt-4o-mini",                   label: "GPT-4o Mini",        description: "Fast & cheap" },
-      { value: "anthropic/claude-sonnet-4-20250514",    label: "Claude Sonnet 4",    description: "Great reasoning" },
-      { value: "google/gemini-2.5-pro-preview",         label: "Gemini 2.5 Pro",     description: "Google flagship" },
-      { value: "meta-llama/llama-3.3-70b-instruct",    label: "Llama 3.3 70B",      description: "Open source · free" },
+      { value: "openai/gpt-4o",                        label: "GPT-4o",             description: "OpenAI multimodal",     isDefault: true, capabilities: ["vision", "tools"], group: "recommended" },
+      { value: "openai/gpt-4o-mini",                   label: "GPT-4o Mini",        description: "Fast & affordable",     capabilities: ["vision", "fast", "cheap"], group: "standard" },
+      { value: "anthropic/claude-sonnet-4-20250514",    label: "Claude Sonnet 4",    description: "Great reasoning",       capabilities: ["reasoning", "tools"], group: "recommended" },
+      { value: "google/gemini-2.5-pro-preview",         label: "Gemini 2.5 Pro",     description: "Google flagship",       capabilities: ["vision", "tools", "long-context"], group: "recommended" },
+      { value: "meta-llama/llama-3.3-70b-instruct",    label: "Llama 3.3 70B",      description: "Open source · free",    capabilities: ["fast", "tools"], group: "standard" },
     ],
   },
   {
     value: "OPENAI",
     label: "OpenAI",
     emoji: "🧠",
-    tagline: "GPT-4o & o-series reasoning",
+    tagline: "GPT-5 · GPT-4 · o-series reasoning",
     getKeyUrl: "https://platform.openai.com/api-keys",
     freeAvailable: false,
-    pricingNote: "Pay-as-you-go (~$0.01/quiz)",
+    pricingNote: "Pay-as-you-go",
     models: [
-      { value: "gpt-4o",      label: "GPT-4o",      description: "Flagship · best quality", isDefault: true },
-      { value: "gpt-4o-mini", label: "GPT-4o Mini", description: "Fast & affordable" },
-      { value: "gpt-4.1",     label: "GPT-4.1",     description: "Latest · coding focus" },
-      { value: "gpt-4.1-mini",label: "GPT-4.1 Mini",description: "Latest mini · cheap" },
-      { value: "gpt-5.2",     label: "GPT-5.2",     description: "Next-gen quality" },
-      { value: "gpt-5.3-codex", label: "GPT-5.3 Codex", description: "Coding-focused" },
-      { value: "o4-mini",     label: "o4-mini",      description: "Reasoning model" },
+      { value: "gpt-5.2",       label: "GPT-5.2",       description: "Latest flagship · most capable",     isDefault: true,  capabilities: ["flagship", "vision", "tools", "reasoning"], group: "recommended", supportsThinking: true },
+      { value: "gpt-5.1",       label: "GPT-5.1",       description: "Stable · well-tested",               capabilities: ["vision", "tools", "reasoning"], group: "standard", supportsThinking: true },
+      { value: "gpt-4.1",       label: "GPT-4.1",       description: "Optimised for code · 1M context",    capabilities: ["coding", "tools", "long-context"], group: "standard" },
+      { value: "gpt-4.1-mini",  label: "GPT-4.1 Mini",  description: "Fast coding · affordable",           capabilities: ["coding", "fast", "cheap"], group: "standard" },
+      { value: "gpt-4.1-nano",  label: "GPT-4.1 Nano",  description: "Ultra-cheap · lightweight",          capabilities: ["fast", "cheap"], group: "standard" },
+      { value: "gpt-4o",        label: "GPT-4o",        description: "Multimodal · vision + audio",        capabilities: ["vision", "tools"], group: "legacy" },
+      { value: "gpt-4o-mini",   label: "GPT-4o Mini",   description: "Fast multimodal",                    capabilities: ["vision", "fast", "cheap"], group: "legacy" },
+      { value: "o4-mini",       label: "o4-mini",       description: "Deep reasoning model",               capabilities: ["reasoning"], group: "standard", supportsThinking: true },
     ],
   },
   {
     value: "ANTHROPIC",
-    label: "Claude (Anthropic)",
+    label: "Anthropic",
     emoji: "🎭",
-    tagline: "Deep reasoning & nuance",
+    tagline: "Claude family · deep reasoning",
     getKeyUrl: "https://console.anthropic.com/settings/keys",
     freeAvailable: false,
-    pricingNote: "Pay-as-you-go (~$0.01/quiz)",
+    pricingNote: "Pay-as-you-go",
     models: [
-      { value: "claude-sonnet-4-20250514",  label: "Claude Sonnet 4",  description: "Best balance · recommended", isDefault: true },
-      { value: "claude-opus-4-20250514",    label: "Claude Opus 4",    description: "Most capable · premium" },
-      { value: "claude-3-5-haiku-latest",   label: "Claude 3.5 Haiku", description: "Fastest · cheapest" },
+      { value: "claude-sonnet-4-20250514",  label: "Claude Sonnet 4.6", description: "Most efficient for everyday tasks", isDefault: true, capabilities: ["flagship", "vision", "tools", "reasoning"], group: "recommended", supportsThinking: true },
+      { value: "claude-opus-4-20250514",    label: "Claude Opus 4.6",   description: "Most capable for ambitious work",  capabilities: ["flagship", "vision", "tools", "reasoning", "coding"], group: "recommended", supportsThinking: true },
+      { value: "claude-3-5-haiku-latest",   label: "Claude Haiku 4.5",  description: "Fastest for quick answers",        capabilities: ["fast", "cheap", "tools"], group: "standard" },
     ],
   },
   {
@@ -330,20 +352,56 @@ const AI_PROVIDER_OPTIONS: AiProviderOptionDef[] = [
     freeAvailable: false,
     pricingNote: "Pay-as-you-go",
     models: [
-      { value: "grok-3",      label: "Grok 3",      description: "Flagship · most capable", isDefault: true },
-      { value: "grok-3-mini", label: "Grok 3 Mini", description: "Fast & efficient" },
+      { value: "grok-3",      label: "Grok 3",      description: "Flagship · most capable",      isDefault: true, capabilities: ["flagship", "vision", "tools"], group: "recommended" },
+      { value: "grok-3-mini", label: "Grok 3 Mini", description: "Fast & efficient",             capabilities: ["fast", "cheap"], group: "standard" },
+    ],
+  },
+  {
+    value: "GOOGLE",
+    label: "Google",
+    emoji: "🔷",
+    tagline: "Gemini family · 2M context · multimodal",
+    getKeyUrl: "https://aistudio.google.com/apikey",
+    freeAvailable: true,
+    pricingNote: "Free tier + pay-as-you-go",
+    models: [
+      { value: "gemini-2.5-pro",        label: "Gemini 2.5 Pro",        description: "State-of-the-art reasoning · 2M context",  isDefault: true,  capabilities: ["flagship", "vision", "tools", "reasoning", "long-context"], group: "recommended", supportsThinking: true },
+      { value: "gemini-2.5-flash",      label: "Gemini 2.5 Flash",      description: "Fast & balanced · 1M context",             capabilities: ["vision", "tools", "fast", "long-context"], group: "recommended", supportsThinking: true },
+      { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", description: "Ultra-fast · lowest cost",                  capabilities: ["fast", "cheap"], group: "standard" },
+      { value: "gemini-2.0-flash",      label: "Gemini 2.0 Flash",      description: "Previous gen · still capable",              capabilities: ["vision", "tools", "fast"], group: "legacy" },
     ],
   },
 ];
 
+const AI_PROMPT_STARTERS = [
+  "Build a 10-question product-market-fit survey for a new SaaS app",
+  "Create a beginner-friendly climate change quiz with layered explanations",
+  "Make a customer satisfaction poll for e-commerce checkout experience",
+  "Generate a short onboarding quiz to verify feature understanding",
+];
+
+const AI_REFINEMENT_STARTERS = [
+  "Make question 3 harder and add a practical real-world scenario",
+  "Shorten all questions while keeping the same meaning",
+  "Add two trick questions with strong wrong explanations",
+  "Convert this into a more beginner-friendly version",
+];
+
+function pickRandomStarter(starters: string[]): string {
+  if (!starters.length) return "";
+  return starters[Math.floor(Math.random() * starters.length)] || starters[0];
+}
+
 function inferProviderFromApiKey(input: string): AiProvider | null {
-  const key = input.trim().toLowerCase();
-  if (!key) return null;
-  if (key.startsWith("gsk_")) return "GROQ";
-  if (key.startsWith("sk-or-")) return "OPENROUTER";
-  if (key.startsWith("sk-ant-")) return "ANTHROPIC";
-  if (key.startsWith("xai-")) return "GROK";
-  if (key.startsWith("sk-proj-") || key.startsWith("sk-")) return "OPENAI";
+  const key = input.trim();
+  const lower = key.toLowerCase();
+  if (!lower) return null;
+  if (lower.startsWith("gsk_")) return "GROQ";
+  if (lower.startsWith("sk-or-")) return "OPENROUTER";
+  if (lower.startsWith("sk-ant-")) return "ANTHROPIC";
+  if (lower.startsWith("xai-")) return "GROK";
+  if (key.startsWith("AIza")) return "GOOGLE"; // Google API keys are case-sensitive
+  if (lower.startsWith("sk-proj-") || lower.startsWith("sk-")) return "OPENAI";
   return null;
 }
 
@@ -2646,6 +2704,7 @@ export function PollBuilder({
   const [showPreview, setShowPreview] = useState(false);
   const [showInteractivePreview, setShowInteractivePreview] = useState(false);
   const [justCopied, setJustCopied] = useState(false);
+  const [showPollMetaEditor, setShowPollMetaEditor] = useState(false);
   
   // AI Generation state
   const currentUser = useCurrentUser();
@@ -2653,15 +2712,47 @@ export function PollBuilder({
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiKeySource, setAiKeySource] = useState<AiKeySource>("auto");
-  const [aiProvider, setAiProvider] = useState<AiProvider>("GROQ");
+  // Hydrate default provider from cached saved-key data (instant, no flash)
+  const [aiProvider, setAiProvider] = useState<AiProvider>(() => {
+    if (typeof window === "undefined") return "GROQ";
+    try {
+      const cached = sessionStorage.getItem("veggat:ai-keys");
+      if (cached) {
+        const keys: SavedAiKeyMeta[] = JSON.parse(cached);
+        const def = keys.find(k => k.isDefault) || keys[0];
+        if (def?.provider) return def.provider;
+      }
+    } catch {}
+    return "GROQ";
+  });
   const [aiModel, setAiModel] = useState<string>(() => {
-    const defaultProvider = AI_PROVIDER_OPTIONS.find(p => p.value === "GROQ");
+    let providerValue: string = "GROQ";
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("veggat:ai-keys");
+        if (cached) {
+          const keys: SavedAiKeyMeta[] = JSON.parse(cached);
+          const def = keys.find(k => k.isDefault) || keys[0];
+          if (def?.provider) providerValue = def.provider;
+        }
+      } catch {}
+    }
+    const defaultProvider = AI_PROVIDER_OPTIONS.find(p => p.value === providerValue);
     return defaultProvider?.models.find(m => m.isDefault)?.value || defaultProvider?.models[0]?.value || "";
   });
   const [aiApiKey, setAiApiKey] = useState("");
   const [aiRememberKey, setAiRememberKey] = useState(true);
-  const [aiSavedKeys, setAiSavedKeys] = useState<SavedAiKeyMeta[]>([]);
-  const [aiKeysLoading, setAiKeysLoading] = useState(false);
+  const [aiSavedKeys, setAiSavedKeys] = useState<SavedAiKeyMeta[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const cached = sessionStorage.getItem("veggat:ai-keys");
+      return cached ? JSON.parse(cached) : [];
+    } catch { return []; }
+  });
+  const [aiKeysLoading, setAiKeysLoading] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return !sessionStorage.getItem("veggat:ai-keys");
+  });
   const [aiGenerationMeta, setAiGenerationMeta] = useState<AiGenerationMeta | null>(null);
   const [aiProgressSteps, setAiProgressSteps] = useState<AiProgressStep[]>([]);
   const [aiTotalSteps, setAiTotalSteps] = useState(6); // server sends totalSteps, default 6
@@ -2677,9 +2768,12 @@ export function PollBuilder({
   const [aiChatMessages, setAiChatMessages] = useState<AiChatMessage[]>([]);
   const [aiRefinementInput, setAiRefinementInput] = useState("");
   const [aiHasGenerated, setAiHasGenerated] = useState(false); // at least one generation completed
+  const [aiPromptStarter] = useState(() => pickRandomStarter(AI_PROMPT_STARTERS));
+  const [aiRefinementStarter] = useState(() => pickRandomStarter(AI_REFINEMENT_STARTERS));
   const aiChatScrollRef = useRef<HTMLDivElement>(null);
   const aiTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [aiModelDropdownOpen, setAiModelDropdownOpen] = useState(false);
+  const [aiThinking, setAiThinking] = useState(false); // extended thinking / reasoning mode toggle
   const detectedByokProvider = useMemo(() => inferProviderFromApiKey(aiApiKey), [aiApiKey]);
   const unlockedProviderSet = useMemo(() => {
     const unlocked = new Set<AiProvider>(["GROQ"]);
@@ -2695,24 +2789,115 @@ export function PollBuilder({
     () => AI_PROVIDER_OPTIONS.filter((p) => p.value !== "GROQ" && unlockedProviderSet.has(p.value)),
     [unlockedProviderSet]
   );
+  const lockedByokProviderDefs = useMemo(
+    () => AI_PROVIDER_OPTIONS.filter((p) => p.value !== "GROQ" && !unlockedProviderSet.has(p.value)),
+    [unlockedProviderSet]
+  );
   const hasLockedByokProviders = useMemo(
     () => AI_PROVIDER_OPTIONS.some((p) => p.value !== "GROQ" && !unlockedProviderSet.has(p.value)),
     [unlockedProviderSet]
   );
+  // hasQuotaBypass: true when user is actively using BYOK (key pasted or a saved
+  // key exists for the currently selected provider). This drives the green dot,
+  // violet styling, and the source-status banner in real-time.
+  const providerHasSavedKey = aiSavedKeys.some(k => k.provider === aiProvider);
+  const hasQuotaBypass = aiKeySource === "byok" || aiUsingSavedKey || providerHasSavedKey;
+  const limitReachedWithoutBypass = aiFreeUsed !== null && aiFreeUsed >= aiFreeLimit && !hasQuotaBypass;
+  const activeProviderDef = AI_PROVIDER_OPTIONS.find((p) => p.value === aiProvider);
+  const activeModelDef = activeProviderDef?.models.find((m) => m.value === aiModel);
+  const currentModelSupportsThinking = !!activeModelDef?.supportsThinking;
+  const activeStarterSuggestion = aiHasGenerated ? aiRefinementStarter : aiPromptStarter;
+
+  // Time-based generation warning — only show if generation is running long
+  // Vercel Pro has a 300s limit; warn at 240s. No preemptive warnings.
+  const generationTimeWarning = useMemo(() => {
+    if (!aiGenerating || aiElapsed < 240) return null;
+    return `Generation has been running for ${Math.floor(aiElapsed / 60)}m ${aiElapsed % 60}s — approaching the 300s server limit.`;
+  }, [aiGenerating, aiElapsed]);
+  const aiUsagePercent = aiFreeUsed !== null && aiFreeLimit > 0
+    ? Math.max(0, Math.min(100, Math.round((aiFreeUsed / aiFreeLimit) * 100)))
+    : 0;
+  const aiSourceStatus = useMemo(() => {
+    const provLabel = activeProviderDef?.label || "provider";
+    // Priority 1: actively using a pasted BYOK key
+    if (aiKeySource === "byok" && aiApiKey.trim()) {
+      return {
+        title: `Your key · ${provLabel}`,
+        subtitle: "Unlimited — using your pasted API key",
+        tone: "bg-violet-500/10 text-violet-300 border-violet-500/30",
+      };
+    }
+    // Priority 2: server confirmed a saved key was used for the last generation
+    if (aiUsingSavedKey) {
+      return {
+        title: `Your key · ${aiGenerationMeta?.savedKeyProvider || provLabel}`,
+        subtitle: "Unlimited — using your stored API key",
+        tone: "bg-violet-500/10 text-violet-300 border-violet-500/30",
+      };
+    }
+    // Priority 3: current provider has a saved key (even before generation)
+    if (providerHasSavedKey) {
+      return {
+        title: `Saved key · ${provLabel}`,
+        subtitle: "Unlimited — your stored key will be used",
+        tone: "bg-violet-500/10 text-violet-300 border-violet-500/30",
+      };
+    }
+    // Priority 4: BYOK mode selected but no key pasted yet
+    if (aiKeySource === "byok") {
+      return {
+        title: `Your key · ${provLabel}`,
+        subtitle: "Paste your API key to get started",
+        tone: "bg-violet-500/10 text-violet-300 border-violet-500/30",
+      };
+    }
+    // Priority 5: Free tier
+    if (aiFreeUsed === null) {
+      return {
+        title: "Free tier",
+        subtitle: "Powered by Groq · no key needed",
+        tone: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+      };
+    }
+    const remaining = Math.max(0, aiFreeLimit - aiFreeUsed);
+    return {
+      title: "Free tier",
+      subtitle: `${remaining} of ${aiFreeLimit} free generations left today`,
+      tone: remaining === 0
+        ? "bg-red-500/10 text-red-300 border-red-500/30"
+        : "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+    };
+  }, [aiUsingSavedKey, aiKeySource, aiApiKey, aiFreeUsed, aiFreeLimit, activeProviderDef, aiGenerationMeta, providerHasSavedKey]);
+  const requestProviderKey = useCallback((provider: AiProvider, model?: string) => {
+    setAiProvider(provider);
+    if (model) setAiModel(model);
+    setAiShowByok(true);
+    setAiKeySource("byok");
+    setAiError(null);
+  }, []);
   
   // Drag-and-drop state for dragging questions and sections
   const [draggingQuestionId, setDraggingQuestionId] = useState<string | null>(null);
   const [draggingFromSectionId, setDraggingFromSectionId] = useState<string | null>(null); // Track source section
   const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
 
-  // Auto-set default model when provider changes
+  // Auto-set default model when provider changes — but only if current model
+  // is not already valid for the new provider (prevents overriding explicit picks).
+  // Also reset sticky aiUsingSavedKey so banners react to the new selection.
   useEffect(() => {
     const providerDef = AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider);
     if (providerDef) {
-      const defaultModel = providerDef.models.find(m => m.isDefault)?.value || providerDef.models[0]?.value || "";
-      setAiModel(defaultModel);
+      const currentModelValid = providerDef.models.some(m => m.value === aiModel);
+      if (!currentModelValid) {
+        const defaultModel = providerDef.models.find(m => m.isDefault)?.value || providerDef.models[0]?.value || "";
+        setAiModel(defaultModel);
+      }
     }
-  }, [aiProvider]);
+    // Clear sticky saved-key flag — the banner should reflect the *current*
+    // selection, not what was used for the last generation. If the new provider
+    // has a saved key the server will re-set this flag on the next generation.
+    setAiUsingSavedKey(false);
+  }, [aiProvider]); // intentionally excludes aiModel — only react to provider switch
   const [mergeSectionTarget, setMergeSectionTarget] = useState<string | null>(null); // Target section for merging
   const [dragSource, setDragSource] = useState<'workbench' | 'builder' | null>(null);
   const [dropTargetSectionId, setDropTargetSectionId] = useState<string | null>(null);
@@ -4421,17 +4606,24 @@ export function PollBuilder({
   // Save poll
   // AI Poll Generation
   const loadSavedAiKeys = useCallback(async () => {
-    setAiKeysLoading(true);
+    // Only show loading spinner when there's no cached data at all
+    const hasCachedData = (() => {
+      try { return !!sessionStorage.getItem("veggat:ai-keys"); } catch { return false; }
+    })();
+    if (!hasCachedData) setAiKeysLoading(true);
+
     try {
       const res = await fetch("/api/users/ai-keys", { cache: "no-store" });
       if (!res.ok) {
         setAiSavedKeys([]);
+        try { sessionStorage.removeItem("veggat:ai-keys"); } catch {}
         return;
       }
 
       const data = await res.json();
       const keys = Array.isArray(data?.keys) ? data.keys : [];
       setAiSavedKeys(keys);
+      try { sessionStorage.setItem("veggat:ai-keys", JSON.stringify(keys)); } catch {}
 
       const defaultKey = keys.find((k: SavedAiKeyMeta) => k.isDefault) || keys[0];
       if (defaultKey?.provider) {
@@ -4439,6 +4631,7 @@ export function PollBuilder({
       }
     } catch {
       setAiSavedKeys([]);
+      try { sessionStorage.removeItem("veggat:ai-keys"); } catch {}
     } finally {
       setAiKeysLoading(false);
     }
@@ -4487,6 +4680,7 @@ export function PollBuilder({
     setAiGenerating(true);
     setAiError(null);
     setAiGenerationMeta(null);
+    setAiUsingSavedKey(false);
     setAiProgressSteps([]);
     setAiTotalSteps(6); // reset to default, server will update
     setAiHeartbeatLog([]);
@@ -4534,52 +4728,18 @@ export function PollBuilder({
           provider: effectiveProvider,
           model: effectiveModel,
           ...(isByok ? { apiKey: trimmedByokKey, rememberKey: aiRememberKey } : {}),
+          ...(aiThinking && currentModelSupportsThinking ? { thinking: true } : {}),
         },
       };
 
       // 3 minute timeout — AI calls can take 60-90s; give plenty of headroom
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 180_000);
-
-      const res = await fetch("/api/polls/generate-stream", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || `Generation failed (${res.status})`);
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("Streaming not supported");
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let generated: any = null;
-
-      // Process a single SSE line ("data: {...}")
-      const processLine = (line: string) => {
-        if (!line.startsWith("data: ")) return;
-        const event = JSON.parse(line.slice(6));
-
-        if (event.step === "error") {
-          throw new Error(event.message || "Generation failed");
-        }
-
-        if (event.step === "result") {
-          generated = event.data;
-          return;
-        }
-
+      // ── Reusable SSE stream helper ──────────────────────────────────────────
+      // Handles step progress events via state setters; returns the "result" data.
+      // Used for both single-phase and each phase of multi-phase generation.
+      const handleStepEvent = (event: any) => {
         // Heartbeat sub-steps (step 2.1, 2.2, etc.) — accumulate in log
         if (typeof event.step === "number" && !Number.isInteger(event.step)) {
           setAiHeartbeatLog((prev) => [...prev, event.label]);
-          // Also update parent step label so the main row shows latest status
           const parentStep = Math.floor(event.step);
           setAiProgressSteps((prev) => {
             const existing = prev.findIndex((s) => s.step === parentStep);
@@ -4592,10 +4752,8 @@ export function PollBuilder({
           });
           return;
         }
-
         if (typeof event.step === "number") {
           const now = Date.now();
-          // Update totalSteps from server if provided
           if (typeof event.totalSteps === "number" && event.totalSteps > 0) {
             setAiTotalSteps(event.totalSteps);
           }
@@ -4609,51 +4767,59 @@ export function PollBuilder({
                 completedAt: event.status === "done" ? now : undefined,
               };
             } else {
-              updated.push({
-                step: event.step, label: event.label, status: event.status,
-                startedAt: event.status === "active" ? now : undefined,
-              });
+              updated.push({ step: event.step, label: event.label, status: event.status, startedAt: event.status === "active" ? now : undefined });
             }
             return updated;
           });
         }
       };
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          try {
-            processLine(line);
-          } catch (parseErr) {
-            if (parseErr instanceof SyntaxError) {
-              // Ignore JSON parse errors on partial chunks
-            } else {
-              throw parseErr;
-            }
+      const runStream = async (fetchPayload: any): Promise<any> => {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 120_000);
+        const res = await fetch("/api/polls/generate-stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(fetchPayload),
+          signal: ctrl.signal,
+        });
+        clearTimeout(t);
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.error || `Generation failed (${res.status})`);
+        }
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("Streaming not supported");
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let result: any = null;
+        const processLine = (line: string) => {
+          if (!line.startsWith("data: ")) return;
+          const event = JSON.parse(line.slice(6));
+          if (event.step === "error") throw new Error(event.message || "Generation failed");
+          if (event.step === "result") { result = event.data; return; }
+          handleStepEvent(event);
+        };
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() || "";
+          for (const ln of lines) {
+            try { processLine(ln); } catch (e) { if (!(e instanceof SyntaxError)) throw e; }
           }
         }
-      }
-
-      // ─── CRITICAL: process any remaining data left in the buffer ───
-      // The final SSE event may not have a trailing \n\n, leaving it
-      // stranded in `buffer` when the stream closes.
-      if (buffer.trim()) {
-        try {
-          processLine(buffer.trim());
-        } catch (trailingErr) {
-          if (trailingErr instanceof SyntaxError) {
-            // JSON parse error on trailing partial data — ignore
-          } else {
-            throw trailingErr;
-          }
+        // Process any remaining data stranded in the buffer
+        if (buffer.trim()) {
+          try { processLine(buffer.trim()); } catch (e) { if (!(e instanceof SyntaxError)) throw e; }
         }
-      }
+        return result;
+      };
+
+      // ── Single-call generation (Vercel Pro 300s timeout) ──────────────────
+      let generated: any = null;
+      generated = await runStream(payload);
 
       if (!generated) {
         throw new Error("No result received from AI");
@@ -4714,6 +4880,8 @@ export function PollBuilder({
       const trustNote = meta?.trustNote ? `\n${meta.trustNote}` : "";
       toast.success(`${isRefinement ? "Updated" : "Generated"} poll with ${qCount} questions • Trust: ${trustLabel}${trustNote}`);
       if (isByok && !aiRememberKey) setAiApiKey("");
+      // Refresh saved-keys cache so newly saved keys appear immediately
+      if (isByok && aiRememberKey) loadSavedAiKeys();
       // Don't close the panel — keep chat thread visible for refinement
     } catch (err: any) {
       console.error("AI generate error:", err);
@@ -4780,7 +4948,7 @@ export function PollBuilder({
         </div>
 
         {/* Header � toolbar */}
-        <div className="sticky top-0 z-20 -mx-3 sm:-mx-6 px-3 sm:px-7 py-1.5 bg-background/95 backdrop-blur-sm flex flex-wrap items-center justify-between gap-1.5 sm:gap-3">
+        <div className="z-20 -mx-3 sm:-mx-6 px-3 sm:px-7 py-1.5 bg-background/95 backdrop-blur-sm flex flex-wrap items-center justify-between gap-1.5 sm:gap-3">
           {/* Left: Import / Export */}
           <div className="flex items-center gap-0.5 sm:gap-1">
             <DropdownMenu>
@@ -4884,6 +5052,34 @@ export function PollBuilder({
 
           {/* Right: Examples, Settings, Preview, Save */}
           <div className="flex items-center gap-1">
+            <Popover open={showPollMetaEditor} onOpenChange={setShowPollMetaEditor}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 text-zinc-500 hover:text-zinc-200 text-xs gap-1.5">
+                  <FileText className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Details</span>
+                  {!data.title.trim() && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" side="bottom" className="w-[92vw] sm:w-[440px] bg-zinc-950 border-zinc-800 p-3 space-y-2">
+                <div className="space-y-1">
+                  <p className="text-xs text-zinc-300 font-medium">Poll details</p>
+                  <p className="text-[11px] text-zinc-500">Optional to edit now — you can keep building first.</p>
+                </div>
+                <Input
+                  value={data.title}
+                  onChange={(e) => setData((d) => ({ ...d, title: e.target.value }))}
+                  placeholder="Poll title..."
+                  className="bg-zinc-900/40 border-zinc-800/60 focus:border-zinc-600 text-zinc-100 h-9"
+                />
+                <Textarea
+                  value={data.description}
+                  onChange={(e) => setData((d) => ({ ...d, description: e.target.value }))}
+                  placeholder="Add a description (optional)"
+                  className="min-h-[72px] bg-zinc-900/40 border-zinc-800/60 focus:border-zinc-600 text-zinc-300 text-sm resize-none"
+                />
+              </PopoverContent>
+            </Popover>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-8 text-zinc-500 hover:text-zinc-200 text-xs gap-1.5">
@@ -5216,186 +5412,71 @@ export function PollBuilder({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="rounded-xl border border-violet-500/20 bg-linear-to-b from-violet-500/5 to-transparent flex flex-col max-h-[50vh] sm:max-h-[560px]">
+            <div className="relative rounded-xl border border-violet-500/20 bg-linear-to-b from-violet-500/5 to-transparent flex flex-col max-h-[72dvh] lg:max-h-[68dvh]">
               {/* Header — context-aware for chat vs BYOK view */}
               <div className="flex items-center justify-between p-3 border-b border-zinc-800/50">
                 <div className="flex items-center gap-2">
-                  {aiShowByok ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => { setAiShowByok(false); setAiKeySource("auto"); }}
-                        className="w-7 h-7 rounded-lg bg-zinc-800/60 hover:bg-zinc-700/60 flex items-center justify-center transition-colors"
-                      >
-                        <ChevronLeft className="w-4 h-4 text-zinc-400" />
-                      </button>
-                      <div>
-                        <h4 className="text-sm font-medium text-zinc-200">Set up your own AI</h4>
-                        <p className="text-[11px] text-zinc-500">Connect an API key for unlimited generation</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
-                        <Sparkles className="w-4 h-4 text-violet-400" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-medium text-zinc-200">AI Generate</h4>
-                        <p className="text-[11px] text-zinc-500">
-                          {aiHasGenerated ? "Chat with AI to refine your poll" : "Describe the poll you want to create"}
-                        </p>
-                      </div>
-                    </>
-                  )}
+                  <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-violet-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-zinc-200">AI Generate</h4>
+                    <p className="text-[11px] text-zinc-500">
+                      {aiHasGenerated ? "Chat with AI to refine your poll" : "Describe the poll you want to create"}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {/* Active model pill — Copilot-style quick-switch */}
+                  {/* Active model pill — clickable to open model picker */}
                   {!aiShowByok && (
-                    <Popover open={aiModelDropdownOpen} onOpenChange={setAiModelDropdownOpen}>
-                      <PopoverTrigger asChild>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/80 border border-zinc-700/40 transition-colors"
+                          onClick={() => setAiModelDropdownOpen(true)}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border transition-all cursor-pointer",
+                            hasQuotaBypass
+                              ? "bg-violet-500/10 text-violet-300 border-violet-500/25 hover:bg-violet-500/15 hover:border-violet-500/35"
+                              : "bg-zinc-800/80 text-zinc-400 border-zinc-700/40 hover:bg-zinc-700/60 hover:text-zinc-300 hover:border-zinc-600/50"
+                          )}
                         >
+                          {hasQuotaBypass && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
                           {(() => {
                             const provDef = AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider);
                             const modelDef = provDef?.models.find(m => m.value === aiModel);
                             return <>{provDef?.emoji} {modelDef?.label || aiModel || "Auto"}</>;
                           })()}
-                          <ChevronDown className="w-2.5 h-2.5 ml-0.5" />
+                          <ChevronDown className="w-2.5 h-2.5" />
                         </button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        align="end"
-                        side="bottom"
-                        className="w-80 p-0 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden"
-                      >
-                        <div className="max-h-[320px] overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent" onWheel={(e) => e.stopPropagation()}>
-                          <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider bg-zinc-900/50 sticky top-0 z-10">
-                            Works now (free)
-                          </div>
-                          {freeProviderDefs.map((provDef) => (
-                            <div key={provDef.value}>
-                              <div className="px-3 py-1 text-[10px] text-zinc-600 flex items-center gap-1.5">
-                                <span>{provDef.emoji}</span>
-                                {provDef.label}
-                                <span className="ml-auto px-1.5 py-0 rounded text-[8px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">FREE</span>
-                              </div>
-                              {provDef.models.map((model) => {
-                                const isActive = aiProvider === provDef.value && aiModel === model.value;
-                                return (
-                                  <button
-                                    key={model.value}
-                                    type="button"
-                                    onClick={() => {
-                                      setAiProvider(provDef.value as AiProvider);
-                                      setAiModel(model.value);
-                                      setAiModelDropdownOpen(false);
-                                    }}
-                                    className={cn(
-                                      "w-full text-left px-3 py-2 flex items-center justify-between gap-2 transition-colors",
-                                      isActive
-                                        ? "bg-violet-500/10 text-zinc-100"
-                                        : "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200"
-                                    )}
-                                  >
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      <div className={cn(
-                                        "w-1.5 h-1.5 rounded-full shrink-0",
-                                        isActive ? "bg-violet-400" : "bg-zinc-700"
-                                      )} />
-                                      <span className="text-[12px] font-medium truncate">{model.label}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                      {model.description && (
-                                        <span className="text-[10px] text-zinc-600">{model.description}</span>
-                                      )}
-                                      {isActive && <Check className="w-3 h-3 text-violet-400" />}
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          ))}
-
-                          {unlockedByokProviderDefs.length > 0 && (
-                            <>
-                              <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider bg-zinc-900/50 sticky top-0 z-10 border-t border-zinc-800/60">
-                                Your key models
-                              </div>
-                              {unlockedByokProviderDefs.map((provDef) => (
-                                <div key={provDef.value}>
-                                  <div className="px-3 py-1 text-[10px] text-zinc-600 flex items-center gap-1.5">
-                                    <span>{provDef.emoji}</span>
-                                    {provDef.label}
-                                    <span className="ml-auto text-[9px] text-violet-400">BYOK</span>
-                                  </div>
-                                  {provDef.models.map((model) => {
-                                    const isActive = aiProvider === provDef.value && aiModel === model.value;
-                                    return (
-                                      <button
-                                        key={model.value}
-                                        type="button"
-                                        onClick={() => {
-                                          setAiProvider(provDef.value as AiProvider);
-                                          setAiModel(model.value);
-                                          setAiModelDropdownOpen(false);
-                                        }}
-                                        className={cn(
-                                          "w-full text-left px-3 py-2 flex items-center justify-between gap-2 transition-colors",
-                                          isActive
-                                            ? "bg-violet-500/10 text-zinc-100"
-                                            : "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200"
-                                        )}
-                                      >
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <div className={cn(
-                                            "w-1.5 h-1.5 rounded-full shrink-0",
-                                            isActive ? "bg-violet-400" : "bg-zinc-700"
-                                          )} />
-                                          <span className="text-[12px] font-medium truncate">{model.label}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                          {model.description && (
-                                            <span className="text-[10px] text-zinc-600">{model.description}</span>
-                                          )}
-                                          {isActive && <Check className="w-3 h-3 text-violet-400" />}
-                                        </div>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              ))}
-                            </>
-                          )}
-                        </div>
-                        <div className="border-t border-zinc-800/60 p-2 space-y-1.5">
-                          {hasLockedByokProviders && (
-                            <button
-                              type="button"
-                              onClick={() => { setAiShowByok(true); setAiKeySource("byok"); setAiModelDropdownOpen(false); }}
-                              className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] text-zinc-300 hover:bg-zinc-800/80 transition-colors flex items-center gap-2"
-                            >
-                              <Lock className="w-3 h-3 text-zinc-500" />
-                              Unlock OpenAI / Claude / OpenRouter with your key
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => { setAiShowByok(true); setAiKeySource("byok"); setAiModelDropdownOpen(false); }}
-                            className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] text-violet-400 hover:bg-violet-500/10 transition-colors flex items-center gap-2"
-                          >
-                            <Key className="w-3 h-3" />
-                            Bring your own API key
-                          </button>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        {hasQuotaBypass
+                          ? `Connected · ${activeProviderDef?.label || "your key"} — click to switch model`
+                          : "Click to change model"}
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {/* Credit counter in header */}
-                  {currentUser && aiFreeUsed !== null && !aiUsingSavedKey && !aiShowByok && (
+                  {/* Connected key indicator in header */}
+                  {hasQuotaBypass && !aiShowByok && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <Key className="w-2.5 h-2.5" />
+                          {aiUsingSavedKey ? "Saved" : "Active"}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        {aiUsingSavedKey
+                          ? `Using your saved ${aiGenerationMeta?.savedKeyProvider || activeProviderDef?.label} key · Unlimited`
+                          : `Using your ${activeProviderDef?.label} key · Unlimited`}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  {/* Credit counter in header — free tier only */}
+                  {currentUser && aiFreeUsed !== null && !hasQuotaBypass && !aiShowByok && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className={cn(
@@ -5419,198 +5500,177 @@ export function PollBuilder({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 text-zinc-500 hover:text-zinc-300"
-                    onClick={() => { if (aiShowByok) { setAiShowByok(false); setAiKeySource("auto"); } else { onAiGenerateClose?.(); setAiError(null); } }}
+                    onClick={() => { onAiGenerateClose?.(); setAiError(null); setAiShowByok(false); }}
                   >
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
 
-              {/* ─── BYOK Full-Panel View ─── */}
-              {aiShowByok && (
-                <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4 min-h-[120px] max-h-[40vh] sm:max-h-[460px] scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-                  {/* Explainer */}
-                  <div className="rounded-xl bg-linear-to-br from-violet-500/10 to-fuchsia-500/5 border border-violet-500/15 p-3 sm:p-4 flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center shrink-0 mt-0.5">
-                      <HelpCircle className="w-4 h-4 text-violet-400" />
+              {currentUser && (
+                <div className="px-3 py-1.5 border-b border-zinc-800/40 bg-zinc-950/30">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium", aiSourceStatus.tone)}>
+                      {aiUsingSavedKey || aiKeySource === "byok" ? <Key className="w-2.5 h-2.5" /> : <Sparkles className="w-2.5 h-2.5" />}
+                      {aiSourceStatus.title}
+                      <span className="text-zinc-500 font-normal">— {aiSourceStatus.subtitle}</span>
                     </div>
-                    <div>
-                      <p className="text-[13px] text-zinc-200 font-medium mb-1">What is an API key?</p>
-                      <p className="text-[12px] text-zinc-400 leading-relaxed">
-                        An API key is like a password that lets our app talk to an AI service on your behalf.
-                        Pick a provider below, create a free account, copy the key, and paste it here. Takes ~2 minutes.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Provider cards — spacious grid */}
-                  <div className="space-y-2">
-                    <Label className="text-[12px] text-zinc-400 font-medium">Choose a provider</Label>
-                    <div className="grid gap-2">
-                      {AI_PROVIDER_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setAiProvider(opt.value as AiProvider)}
-                          className={cn(
-                            "w-full text-left rounded-xl border p-3.5 transition-all",
-                            aiProvider === opt.value
-                              ? "border-violet-500/50 bg-violet-500/10 ring-1 ring-violet-500/20"
-                              : "border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700/60 hover:bg-zinc-900/60"
-                          )}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <span className="text-xl shrink-0">{opt.emoji}</span>
-                              <div className="min-w-0">
-                                <div className="text-[13px] text-zinc-200 font-medium">{opt.label}</div>
-                                <div className="text-[11px] text-zinc-500">{opt.tagline}</div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              {opt.freeAvailable && (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                                  FREE
-                                </span>
-                              )}
-                              <span className="text-[10px] text-zinc-600">{opt.pricingNote}</span>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Model selector for chosen provider */}
-                  {(() => {
-                    const providerDef = AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider);
-                    if (!providerDef || providerDef.models.length <= 1) return null;
-                    return (
-                      <div className="space-y-2">
-                        <Label className="text-[12px] text-zinc-400 font-medium">Choose a model</Label>
-                        <div className="grid gap-1.5">
-                          {providerDef.models.map((model) => (
-                            <button
-                              key={model.value}
-                              type="button"
-                              onClick={() => setAiModel(model.value)}
-                              className={cn(
-                                "w-full text-left rounded-lg border px-3 py-2.5 transition-all",
-                                aiModel === model.value
-                                  ? "border-violet-500/50 bg-violet-500/10 ring-1 ring-violet-500/20"
-                                  : "border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700/60 hover:bg-zinc-900/60"
-                              )}
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                  <div className={cn(
-                                    "w-2 h-2 rounded-full shrink-0 transition-colors",
-                                    aiModel === model.value ? "bg-violet-400" : "bg-zinc-700"
-                                  )} />
-                                  <span className="text-[13px] text-zinc-200 font-medium">{model.label}</span>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  {model.description && (
-                                    <span className="text-[10px] text-zinc-500">{model.description}</span>
-                                  )}
-                                  {model.isDefault && (
-                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-zinc-800/80 text-zinc-500 border border-zinc-700/40">
-                                      DEFAULT
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
+                    {!hasQuotaBypass && aiFreeUsed !== null && (
+                      <div className="w-16 h-1 rounded-full bg-zinc-800 overflow-hidden">
+                        <div className={cn("h-full transition-all duration-500", aiUsagePercent >= 100 ? "bg-red-500/70" : "bg-emerald-500/70")} style={{ width: `${aiUsagePercent}%` }} />
                       </div>
-                    );
-                  })()}
-
-                  {/* Step-by-step for selected provider */}
-                  <div className="rounded-xl bg-zinc-800/30 border border-zinc-800/50 p-4 space-y-3">
-                    <div className="text-[12px] text-zinc-200 font-medium flex items-center gap-2">
-                      <Zap className="w-3.5 h-3.5 text-violet-400" />
-                      Quick setup — {AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider)?.label}
-                    </div>
-                    <ol className="text-[12px] text-zinc-400 space-y-2 list-decimal list-inside leading-relaxed">
-                      <li>
-                        <a
-                          href={AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider)?.getKeyUrl || "#"}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-violet-400 hover:text-violet-300 inline-flex items-center gap-1 underline underline-offset-2"
-                        >
-                          Open {AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider)?.label} dashboard
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </li>
-                      <li>Sign up or log in (Google/GitHub works)</li>
-                      <li>Create a new API key and copy it</li>
-                      <li>Paste it below — done!</li>
-                    </ol>
-                  </div>
-
-                  {/* Key input — larger */}
-                  <div className="space-y-2">
-                    <Label className="text-[12px] text-zinc-400">Paste your API key</Label>
-                    <Input
-                      value={aiApiKey}
-                      onChange={(e) => {
-                        const nextKey = e.target.value;
-                        setAiApiKey(nextKey);
-                        setAiKeySource("byok");
-                        const inferred = inferProviderFromApiKey(nextKey);
-                        if (inferred && inferred !== aiProvider) {
-                          setAiProvider(inferred);
-                        }
-                      }}
-                      type="password"
-                      placeholder={`Paste your ${AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider)?.label || "API"} key here`}
-                      className="h-10 bg-zinc-900/80 border-zinc-700/50 text-sm font-mono placeholder:font-sans focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/20"
-                    />
-                    {detectedByokProvider && (
-                      <p className="text-[11px] text-zinc-500">
-                        Detected key type: {AI_PROVIDER_OPTIONS.find((p) => p.value === detectedByokProvider)?.label || detectedByokProvider}. We&apos;ll use this provider automatically.
-                      </p>
                     )}
                   </div>
-
-                  {/* Remember + Manage */}
-                  <div className="flex items-center justify-between gap-2 pb-1">
-                    <div className="flex items-center gap-2.5">
-                      <Switch id="remember-ai-key" checked={aiRememberKey} onCheckedChange={setAiRememberKey} />
-                      <Label htmlFor="remember-ai-key" className="text-[12px] text-zinc-400">Remember this key</Label>
-                    </div>
-                    <a href="/settings?section=ai" className="text-[12px] text-violet-400 hover:text-violet-300 inline-flex items-center gap-1 transition-colors">
-                      <Settings className="w-3 h-3" />
-                      Manage keys
-                    </a>
-                  </div>
-
-                  {/* Apply button */}
-                  {aiApiKey.trim() && (
-                    <button
-                      type="button"
-                      onClick={() => { setAiShowByok(false); setAiKeySource("byok"); }}
-                      className="w-full rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium py-2.5 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Check className="w-4 h-4" />
-                      Continue with {AI_PROVIDER_OPTIONS.find((p) => p.value === (detectedByokProvider || aiProvider))?.label || "this provider"}
-                    </button>
-                  )}
                 </div>
               )}
 
-              {/* ─── Chat View (hidden when BYOK is open) ─── */}
+              {/* ─── Provider Key Overlay (floating, no layout shift) ─── */}
+              {aiShowByok && (() => {
+                const currentProvDef = AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider);
+                const keyValid = !!aiApiKey.trim() && !!detectedByokProvider;
+                const keyMismatch = !!aiApiKey.trim() && detectedByokProvider && detectedByokProvider !== aiProvider;
+                const detectedProvDef = detectedByokProvider ? AI_PROVIDER_OPTIONS.find(p => p.value === detectedByokProvider) : null;
+                return (
+                  <div className={cn(
+                    "pointer-events-none absolute inset-x-3 z-30",
+                    currentUser ? "top-24" : "top-14",
+                    "sm:inset-x-auto sm:right-3 sm:w-80"
+                  )}>
+                    <div className="pointer-events-auto rounded-xl border border-violet-500/25 bg-zinc-900/97 shadow-2xl shadow-black/60 backdrop-blur-md p-3 space-y-2.5">
+                      {/* Header — compact */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{currentProvDef?.emoji || "🔑"}</span>
+                          <p className="text-[13px] text-zinc-100 font-medium">
+                            {aiApiKey.trim() && keyValid
+                              ? `${detectedProvDef?.label || currentProvDef?.label} connected`
+                              : `Connect ${currentProvDef?.label || "provider"}`}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setAiShowByok(false); if (!aiApiKey.trim()) setAiKeySource("auto"); }}
+                          className="text-zinc-500 hover:text-zinc-300 transition-colors p-0.5 rounded hover:bg-zinc-800/50"
+                          title="Close"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Key input */}
+                      <div className="relative">
+                        <Input
+                          value={aiApiKey}
+                          onChange={(e) => {
+                            const nextKey = e.target.value;
+                            setAiApiKey(nextKey);
+                            setAiKeySource("byok");
+                            const inferred = inferProviderFromApiKey(nextKey);
+                            if (inferred && inferred !== aiProvider) {
+                              setAiProvider(inferred);
+                            }
+                          }}
+                          type="password"
+                          placeholder={`Paste your ${currentProvDef?.label || ""} API key here`}
+                          className="h-9 bg-zinc-900/80 border-zinc-700/50 text-sm font-mono placeholder:font-sans focus:border-violet-500/40 pr-9"
+                        />
+                        {aiApiKey.trim() && (
+                          <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                            {keyValid ? (
+                              <div className="w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                                <Check className="w-2.5 h-2.5 text-emerald-400" />
+                              </div>
+                            ) : (
+                              <div className="w-4 h-4 rounded-full bg-amber-500/20 flex items-center justify-center">
+                                <HelpCircle className="w-2.5 h-2.5 text-amber-400" />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Detection hint */}
+                      {aiApiKey.trim() && detectedProvDef && (
+                        <p className="text-[10px] text-emerald-400/80 flex items-center gap-1">
+                          <Check className="w-2.5 h-2.5" />
+                          Detected {detectedProvDef.emoji} {detectedProvDef.label}
+                          {keyMismatch && <span className="text-zinc-500">(switched)</span>}
+                        </p>
+                      )}
+
+                      {/* Connect + get key row */}
+                      <div className="flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAiShowByok(false);
+                            setAiKeySource("byok");
+                            setTimeout(() => setAiModelDropdownOpen(true), 180);
+                          }}
+                          disabled={!aiApiKey.trim()}
+                          className={cn(
+                            "h-8 px-3.5 rounded-lg text-[12px] font-medium transition-all inline-flex items-center gap-1.5",
+                            aiApiKey.trim() && keyValid
+                              ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                              : aiApiKey.trim()
+                                ? "bg-violet-600 hover:bg-violet-500 text-white"
+                                : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                          )}
+                        >
+                          {aiApiKey.trim() && keyValid
+                            ? <><Check className="w-3 h-3" /> Use {detectedProvDef?.label || currentProvDef?.label}</>
+                            : <><Key className="w-3 h-3" /> Connect</>}
+                        </button>
+                        <a
+                          href={currentProvDef?.getKeyUrl || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-violet-400 hover:text-violet-300 inline-flex items-center gap-1 transition-colors"
+                        >
+                          Get a key <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                      </div>
+
+                      {/* Save toggle — minimal */}
+                      <div className="flex items-center gap-2 pt-1 border-t border-zinc-800/40">
+                        <Switch id="remember-ai-key-inline" checked={aiRememberKey} onCheckedChange={setAiRememberKey} />
+                        <Label htmlFor="remember-ai-key-inline" className="text-[10px] text-zinc-500 cursor-pointer">Save to account</Label>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ─── Chat View ─── */}
               {/* Chat Thread — scrollable */}
-              <div ref={aiChatScrollRef} className={cn("flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-[100px] max-h-[30vh] sm:max-h-[340px]", aiShowByok && "hidden")}>
+              <div ref={aiChatScrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-[160px] max-h-[42dvh] sm:max-h-[44dvh] lg:max-h-[46dvh]">
                 {/* Empty state */}
                 {aiChatMessages.length === 0 && !aiGenerating && (
-                  <div className="text-center py-8 text-zinc-600 text-sm">
-                    <Sparkles className="w-6 h-6 mx-auto mb-2 text-violet-500/40" />
-                    <p>Tell the AI what kind of poll to create.</p>
-                    <p className="text-[11px] mt-1">e.g. &quot;10 questions about space, mix of choice and slider&quot;</p>
+                  <div className="py-5 text-zinc-600 text-sm space-y-3">
+                    <div className="text-center">
+                      <Sparkles className="w-6 h-6 mx-auto mb-2 text-violet-500/40" />
+                      <p>Tell the AI what kind of poll to create.</p>
+                      <p className="text-[11px] mt-1">Use the suggestion below or write your own prompt.</p>
+                    </div>
+                    {activeStarterSuggestion && (
+                      <div className="flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (aiHasGenerated) {
+                              setAiRefinementInput(activeStarterSuggestion);
+                            } else {
+                              setAiPrompt(activeStarterSuggestion);
+                            }
+                            setTimeout(() => aiTextareaRef.current?.focus(), 0);
+                          }}
+                          className="max-w-full text-left rounded-lg border border-zinc-800/70 bg-zinc-900/40 hover:bg-zinc-800/60 hover:border-zinc-700/70 transition-colors px-2.5 py-2 text-[11px] text-zinc-300 truncate"
+                          title={activeStarterSuggestion}
+                        >
+                          {activeStarterSuggestion}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -5764,7 +5824,7 @@ export function PollBuilder({
               </div>
 
               {/* Input area — ChatGPT-inspired (hidden when BYOK view is active) */}
-              <div className={cn("p-3 space-y-2", aiShowByok && "hidden")}>
+              <div className="p-3 space-y-2">
                 {/* Sign-in required */}
                 {!currentUser && (
                   <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex items-center gap-2.5">
@@ -5777,7 +5837,7 @@ export function PollBuilder({
                 )}
 
                 {/* Daily limit reached — friendly upsell */}
-                {currentUser && aiFreeUsed !== null && aiFreeUsed >= aiFreeLimit && !aiShowByok && aiKeySource !== "byok" && (
+                {currentUser && limitReachedWithoutBypass && !aiShowByok && (
                   <div className="rounded-lg border border-violet-500/20 bg-linear-to-r from-violet-500/10 to-fuchsia-500/10 p-3 space-y-2">
                     <div className="text-[12px] text-violet-200 font-medium flex items-center gap-1.5">
                       <Zap className="w-3.5 h-3.5 shrink-0 text-violet-400" />
@@ -5799,8 +5859,9 @@ export function PollBuilder({
                 )}
 
                 {/* Prompt input — ChatGPT-style rounded container */}
-                {currentUser && (aiFreeUsed === null || aiFreeUsed < aiFreeLimit || aiKeySource === "byok") && (
-                  <div className="rounded-2xl border border-zinc-700/40 bg-zinc-900/70 backdrop-blur-sm px-3 py-2.5 ring-1 ring-zinc-800/50 focus-within:ring-2 focus-within:ring-violet-500/30 transition-all">
+                {currentUser && !limitReachedWithoutBypass && (
+                  <div className="space-y-2">
+                    <div className="rounded-2xl border border-zinc-700/40 bg-zinc-900/70 backdrop-blur-sm px-3 py-2.5 ring-1 ring-zinc-800/50 focus-within:ring-2 focus-within:ring-violet-500/30 transition-all">
                     <div className="flex items-end gap-2">
                       <div className="flex-1 min-w-0">
                         <textarea
@@ -5839,14 +5900,14 @@ export function PollBuilder({
                           "shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full transition-all",
                           aiGenerating ||
                           !(aiHasGenerated ? aiRefinementInput.trim() : aiPrompt.trim()) ||
-                          (aiFreeUsed !== null && aiFreeUsed >= aiFreeLimit && aiKeySource !== "byok")
+                          limitReachedWithoutBypass
                             ? "bg-zinc-700/50 text-zinc-500 cursor-not-allowed"
                             : "bg-violet-600 text-white hover:bg-violet-500 shadow-sm shadow-violet-500/20"
                         )}
                         disabled={
                           aiGenerating ||
                           !(aiHasGenerated ? aiRefinementInput.trim() : aiPrompt.trim()) ||
-                          (aiFreeUsed !== null && aiFreeUsed >= aiFreeLimit && aiKeySource !== "byok")
+                          limitReachedWithoutBypass
                         }
                         onClick={() => handleAiGenerate(aiHasGenerated ? aiRefinementInput.trim() : undefined)}
                       >
@@ -5857,42 +5918,340 @@ export function PollBuilder({
                         )}
                       </button>
                     </div>
-                    {/* Subtle meta row — Copilot-inspired */}
+                    {/* ─── Model picker row — VS Code / ChatGPT inspired ─── */}
                     <div className="mt-1.5 flex items-center justify-between text-[10px] text-zinc-600">
-                      <button
-                        type="button"
-                        onClick={() => setAiModelDropdownOpen(true)}
-                        className="inline-flex items-center gap-1 hover:text-zinc-400 transition-colors"
-                      >
-                        {(() => {
-                          const provDef = AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider);
-                          const modelDef = provDef?.models.find(m => m.value === aiModel);
-                          return <>{provDef?.emoji} {modelDef?.label || "Auto"}</>;
-                        })()}
-                        {aiUsingSavedKey && <Key className="w-2.5 h-2.5 text-violet-400" />}
-                        <ChevronDown className="w-2 h-2" />
-                      </button>
-                      <span>Enter to send &bull; Shift+Enter for newline</span>
+                      <Popover open={aiModelDropdownOpen} onOpenChange={setAiModelDropdownOpen}>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className={cn(
+                              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 transition-all",
+                              hasQuotaBypass
+                                ? "bg-violet-500/8 hover:bg-violet-500/15 text-violet-300 hover:text-violet-200"
+                                : "hover:bg-zinc-800/60 hover:text-zinc-300",
+                              aiModelDropdownOpen && (hasQuotaBypass ? "bg-violet-500/15 text-violet-200" : "bg-zinc-800/60 text-zinc-300")
+                            )}
+                          >
+                            {hasQuotaBypass && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                            {(() => {
+                              const provDef = AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider);
+                              const modelDef = provDef?.models.find(m => m.value === aiModel);
+                              return <><span className="text-[11px]">{provDef?.emoji}</span> <span className="font-medium">{modelDef?.label || "Auto"}</span></>;
+                            })()}
+                            <ChevronDown className={cn("w-2.5 h-2.5 transition-transform", aiModelDropdownOpen && "rotate-180")} />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="start"
+                          side="top"
+                          className="w-[340px] p-0 bg-zinc-950 border border-zinc-800/80 rounded-xl shadow-2xl overflow-hidden"
+                        >
+                          <div className="max-h-[380px] overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent" onWheel={(e) => e.stopPropagation()}>
+                            {/* ── Free providers (GROQ) ── */}
+                            {freeProviderDefs.map((provDef) => (
+                              <div key={provDef.value}>
+                                <div className="px-3 py-1.5 text-[10px] text-zinc-500 flex items-center gap-1.5 bg-zinc-900/40 sticky top-0 z-10 border-b border-zinc-800/30">
+                                  <span>{provDef.emoji}</span>
+                                  <span className="font-semibold uppercase tracking-wider">{provDef.label}</span>
+                                  <span className="ml-auto px-1.5 py-0 rounded text-[8px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">FREE</span>
+                                </div>
+                                {provDef.models.map((model) => {
+                                  const isActive = aiProvider === provDef.value && aiModel === model.value;
+                                  return (
+                                    <Tooltip key={model.value}>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setAiProvider(provDef.value as AiProvider);
+                                            setAiModel(model.value);
+                                            setAiModelDropdownOpen(false);
+                                          }}
+                                          className={cn(
+                                            "w-full text-left px-3 py-2 flex items-center gap-2.5 transition-colors group",
+                                            isActive
+                                              ? "bg-violet-500/10 text-zinc-100"
+                                              : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+                                          )}
+                                        >
+                                          <div className={cn(
+                                            "w-1.5 h-1.5 rounded-full shrink-0 transition-colors",
+                                            isActive ? "bg-violet-400" : "bg-zinc-700 group-hover:bg-zinc-500"
+                                          )} />
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-[12px] font-medium">{model.label}</span>
+                                              {model.capabilities?.map((cap) => {
+                                                const badge = CAPABILITY_BADGES[cap];
+                                                return badge ? (
+                                                  <span key={cap} className={cn("px-1 py-0 rounded text-[8px] font-semibold border", badge.color)}>
+                                                    {badge.label}
+                                                  </span>
+                                                ) : null;
+                                              }).filter(Boolean).slice(0, 3)}
+                                            </div>
+                                            {model.description && (
+                                              <p className="text-[10px] text-zinc-600 mt-0.5">{model.description}</p>
+                                            )}
+                                          </div>
+                                          {isActive && <Check className="w-3.5 h-3.5 text-violet-400 shrink-0" />}
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="right" className="text-xs max-w-[200px]">
+                                        {model.description || model.label}
+                                        {model.capabilities?.length ? (
+                                          <span className="block text-zinc-500 mt-0.5">
+                                            {model.capabilities.map(c => CAPABILITY_BADGES[c]?.label).filter(Boolean).join(" · ")}
+                                          </span>
+                                        ) : null}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  );
+                                })}
+                              </div>
+                            ))}
+
+                            {/* ── Loading skeleton for BYOK providers ── */}
+                            {aiKeysLoading && unlockedByokProviderDefs.length === 0 && (
+                              <div className="border-t border-zinc-800/30">
+                                <div className="px-3 py-1.5 text-[10px] text-zinc-500 flex items-center gap-1.5 bg-zinc-900/40">
+                                  <span className="font-semibold uppercase tracking-wider">Loading your keys…</span>
+                                </div>
+                                {[1, 2].map((i) => (
+                                  <div key={i} className="px-3 py-2 flex items-center gap-2.5 animate-pulse">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-700" />
+                                    <div className="flex-1 space-y-1">
+                                      <div className="h-3 w-24 rounded bg-zinc-800" />
+                                      <div className="h-2 w-32 rounded bg-zinc-800/60" />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* ── Unlocked BYOK providers ── */}
+                            {unlockedByokProviderDefs.map((provDef) => (
+                              <div key={provDef.value}>
+                                <div className="px-3 py-1.5 text-[10px] text-zinc-500 flex items-center gap-1.5 bg-zinc-900/40 sticky top-0 z-10 border-b border-zinc-800/30 border-t border-t-zinc-800/20">
+                                  <span>{provDef.emoji}</span>
+                                  <span className="font-semibold uppercase tracking-wider">{provDef.label}</span>
+                                  <span className="ml-auto inline-flex items-center gap-0.5 text-[8px] font-bold text-violet-400">
+                                    <Key className="w-2 h-2" /> Connected
+                                  </span>
+                                </div>
+
+                                {/* Recommended models first */}
+                                {provDef.models.filter(m => m.group === "recommended").map((model) => {
+                                  const isActive = aiProvider === provDef.value && aiModel === model.value;
+                                  return (
+                                    <Tooltip key={model.value}>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setAiProvider(provDef.value as AiProvider);
+                                            setAiModel(model.value);
+                                            setAiModelDropdownOpen(false);
+                                          }}
+                                          className={cn(
+                                            "w-full text-left px-3 py-2 flex items-center gap-2.5 transition-colors group",
+                                            isActive
+                                              ? "bg-violet-500/10 text-zinc-100"
+                                              : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+                                          )}
+                                        >
+                                          <div className={cn(
+                                            "w-1.5 h-1.5 rounded-full shrink-0 transition-colors",
+                                            isActive ? "bg-violet-400" : "bg-zinc-700 group-hover:bg-zinc-500"
+                                          )} />
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-[12px] font-medium">{model.label}</span>
+                                              {model.capabilities?.slice(0, 3).map((cap) => {
+                                                const badge = CAPABILITY_BADGES[cap];
+                                                return badge ? (
+                                                  <span key={cap} className={cn("px-1 py-0 rounded text-[8px] font-semibold border", badge.color)}>
+                                                    {badge.label}
+                                                  </span>
+                                                ) : null;
+                                              })}
+                                            </div>
+                                            <p className="text-[10px] text-zinc-600 mt-0.5">{model.description}</p>
+                                          </div>
+                                          {isActive && <Check className="w-3.5 h-3.5 text-violet-400 shrink-0" />}
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="right" className="text-xs max-w-[200px]">
+                                        {model.description || model.label}
+                                        {model.capabilities?.length ? (
+                                          <span className="block text-zinc-500 mt-0.5">
+                                            {model.capabilities.map(c => CAPABILITY_BADGES[c]?.label).filter(Boolean).join(" · ")}
+                                          </span>
+                                        ) : null}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  );
+                                })}
+
+                                {/* Standard/other models as collapsible "More models" */}
+                                {provDef.models.filter(m => m.group !== "recommended").length > 0 && (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <button
+                                        type="button"
+                                        className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-500 hover:text-zinc-400 hover:bg-zinc-800/40 flex items-center gap-2 transition-colors"
+                                      >
+                                        <ChevronRight className="w-3 h-3" />
+                                        More models
+                                        <span className="text-[9px] text-zinc-600">({provDef.models.filter(m => m.group !== "recommended").length})</span>
+                                      </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" side="right" className="bg-zinc-900 border-zinc-700 min-w-[260px] p-0">
+                                      <div className="px-3 py-1.5 text-[10px] text-zinc-500 font-semibold uppercase tracking-wider border-b border-zinc-800/40">
+                                        {provDef.emoji} {provDef.label} — All models
+                                      </div>
+                                      {provDef.models.filter(m => m.group !== "recommended").map((model) => {
+                                        const isActive = aiProvider === provDef.value && aiModel === model.value;
+                                        return (
+                                          <DropdownMenuItem
+                                            key={model.value}
+                                            onClick={() => {
+                                              setAiProvider(provDef.value as AiProvider);
+                                              setAiModel(model.value);
+                                              setAiModelDropdownOpen(false);
+                                            }}
+                                            className={cn("gap-2 py-2", isActive && "bg-violet-500/10")}
+                                          >
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center gap-1.5">
+                                                <span className="text-[12px] font-medium">{model.label}</span>
+                                                {model.capabilities?.slice(0, 2).map((cap) => {
+                                                  const badge = CAPABILITY_BADGES[cap];
+                                                  return badge ? (
+                                                    <span key={cap} className={cn("px-1 py-0 rounded text-[8px] font-semibold border", badge.color)}>
+                                                      {badge.label}
+                                                    </span>
+                                                  ) : null;
+                                                })}
+                                              </div>
+                                              {model.description && <p className="text-[10px] text-zinc-500">{model.description}</p>}
+                                            </div>
+                                            {isActive && <Check className="w-3 h-3 text-violet-400" />}
+                                          </DropdownMenuItem>
+                                        );
+                                      })}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* ── Connect more providers ── */}
+                          {hasLockedByokProviders && (
+                            <div className="border-t border-zinc-800/60 p-2 space-y-0.5">
+                              <div className="px-2 py-1 text-[9px] text-zinc-600 uppercase tracking-wider font-semibold">
+                                Add a provider
+                              </div>
+                              {lockedByokProviderDefs.map((provDef) => (
+                                <button
+                                  key={provDef.value}
+                                  type="button"
+                                  onClick={() => {
+                                    requestProviderKey(provDef.value as AiProvider);
+                                    setAiModelDropdownOpen(false);
+                                  }}
+                                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 flex items-center gap-2 transition-colors group"
+                                >
+                                  <span className="text-sm">{provDef.emoji}</span>
+                                  <span>{provDef.label}</span>
+                                  <span className="text-[9px] text-zinc-600">{provDef.tagline}</span>
+                                  <Key className="w-3 h-3 ml-auto text-zinc-700 group-hover:text-violet-400 transition-colors" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                      {/* ─── Thinking toggle ─── */}
+                      {currentModelSupportsThinking && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={() => setAiThinking((t) => !t)}
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 transition-all text-[10px] font-medium",
+                                aiThinking
+                                  ? "bg-purple-500/15 text-purple-400 border border-purple-500/25 hover:bg-purple-500/25"
+                                  : "text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/50"
+                              )}
+                            >
+                              <BrainCircuit className={cn("w-3 h-3", aiThinking && "text-purple-400")} />
+                              {aiThinking ? "Thinking" : "Think"}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-[220px]">
+                            {aiThinking
+                              ? "Extended thinking ON — model reasons step-by-step before answering. Slower but higher quality."
+                              : "Enable extended thinking for deeper reasoning. Uses more tokens and takes longer."}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      <span className="text-zinc-600">
+                        {hasQuotaBypass
+                          ? "Unlimited"
+                          : aiFreeUsed === null
+                            ? "Free"
+                            : `${Math.max(0, aiFreeLimit - aiFreeUsed)} left`}
+                        {" · ↵ send"}
+                      </span>
                     </div>
+                    </div>
+
+                  {/* Time-based generation warning — only when approaching server limit */}
+                  {generationTimeWarning && (
+                    <div className="flex items-start gap-2 rounded-lg bg-amber-500/8 border border-amber-500/20 px-3 py-2 text-[11px] text-amber-400/90">
+                      <span className="mt-px shrink-0">⚡</span>
+                      <span>{generationTimeWarning} Try Groq for faster results.</span>
+                    </div>
+                  )}
                   </div>
                 )}
 
-                {/* Saved key badge */}
+                {/* Saved key indicator */}
                 {aiUsingSavedKey && !aiShowByok && (
-                  <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium bg-violet-500/10 text-violet-400 border border-violet-500/20">
-                    <Key className="w-3 h-3" />
-                    Using your saved key{aiGenerationMeta?.savedKeyProvider ? ` (${aiGenerationMeta.savedKeyProvider})` : ""}
-                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium bg-violet-500/10 text-violet-400 border border-violet-500/20 cursor-default">
+                        <Key className="w-3 h-3" />
+                        Using saved key{aiGenerationMeta?.savedKeyProvider ? ` · ${aiGenerationMeta.savedKeyProvider}` : ""}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="text-xs">
+                      Your stored API key is being used. Manage keys in Settings.
+                    </TooltipContent>
+                  </Tooltip>
                 )}
 
 
 
                 {aiError && (
-                  <div className="text-xs bg-red-500/10 rounded-lg px-3 py-2 space-y-1">
+                  <div className="text-xs bg-red-500/10 border border-red-500/15 rounded-lg px-3 py-2 space-y-1.5">
                     {aiError.includes("add your own API key in") ? (
-                      <p className="text-red-400">
-                        Selected model requires your own API key. Open key setup to unlock this provider.
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <Key className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                        <p className="text-red-400">
+                          This model needs an API key.{" "}
+                          <button
+                            type="button"
+                            onClick={() => { setAiShowByok(true); setAiKeySource("byok"); setAiError(null); }}
+                            className="text-violet-400 hover:text-violet-300 underline underline-offset-2 font-medium"
+                          >
+                            Connect provider
+                          </button>
+                        </p>
+                      </div>
                     ) : (
                       <p className="text-red-400">{aiError}</p>
                     )}
@@ -5915,22 +6274,6 @@ export function PollBuilder({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Basic Info */}
-      <div className="space-y-3 px-1">
-        <Input
-          value={data.title}
-          onChange={(e) => setData((d) => ({ ...d, title: e.target.value }))}
-          placeholder="Poll title..."
-          className="bg-zinc-900/40 border-zinc-800/50 focus:border-zinc-600 text-zinc-100 text-base sm:text-lg font-semibold h-10 sm:h-11 placeholder:text-zinc-600"
-        />
-        <Textarea
-          value={data.description}
-          onChange={(e) => setData((d) => ({ ...d, description: e.target.value }))}
-          placeholder="Add a description (optional)"
-          className="min-h-[48px] sm:min-h-[60px] bg-zinc-900/40 border-zinc-800/50 focus:border-zinc-600 text-zinc-300 text-sm resize-none placeholder:text-zinc-600"
-        />
-      </div>
 
       {/* Builder */}
       <div className="space-y-3">

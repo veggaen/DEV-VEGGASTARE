@@ -46,7 +46,7 @@ export default async function RootLayout({ children, modal }: { children: React.
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.className} myanimation transition-colors min-h-[100dvh] flex flex-col bg-background text-foreground`}
+        className={`${inter.className} myanimation min-h-dvh flex flex-col bg-background text-foreground`}
         suppressHydrationWarning={true}
       >
       <AppProviders session={session}>

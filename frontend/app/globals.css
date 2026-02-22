@@ -307,7 +307,6 @@ body {
 
 body {
   min-height: 100dvh;
-  background-attachment: fixed;
   background-size: 200% 200%;
 }
 

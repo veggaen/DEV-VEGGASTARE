@@ -1125,6 +1125,7 @@ enum AiProvider {
   ANTHROPIC
   GROK
   GROQ
+  GOOGLE
 }
 
 model VerificationToken {

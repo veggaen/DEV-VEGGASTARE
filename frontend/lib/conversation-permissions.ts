@@ -25,6 +25,7 @@ export type ConversationForPermissions = Pick<
   | 'replyPermission'
   | 'allowedRoles'
   | 'customViewers'
+  | 'visibleToUserIds'
   | 'isLocked'
 >;
 
@@ -71,6 +72,10 @@ export function canViewConversation(
         conversation.customViewers.includes(user.id) ||
         conversation.participants.includes(user.id)
       );
+
+    case 'SPECIFIC_USERS':
+      // Check if user is in the visibleToUserIds list
+      return conversation.visibleToUserIds.includes(user.id);
 
     default:
       return false;
@@ -201,6 +206,13 @@ export function buildVisibilityWhereClause(user: PermissionUser | null): object 
         AND: [
           { visibility: 'CUSTOM' },
           { customViewers: { has: user.id } },
+        ],
+      },
+      // Specific users visibility where they're in the allowed list
+      {
+        AND: [
+          { visibility: 'SPECIFIC_USERS' },
+          { visibleToUserIds: { has: user.id } },
         ],
       },
     ],

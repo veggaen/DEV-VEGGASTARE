@@ -38,6 +38,7 @@ const createConversationSchema = z.object({
   tags: z.array(z.string().trim().min(1).max(50)).max(20).optional().default([]),
   allowedRoles: z.array(z.string().trim().min(1).max(50)).max(20).optional().default([]),
   customViewers: z.array(z.string().trim().min(1).max(200)).max(200).optional().default([]),
+  visibleToUserIds: z.array(z.string().trim().min(1).max(200)).max(200).optional().default([]),
   initialMessage: z.string().trim().max(5000).optional().nullable(),
   initialImageUrl: z.string().trim().max(2048).optional().nullable(),
   pollQuestion: z.string().trim().max(500).optional().nullable(),
@@ -82,6 +83,7 @@ export async function POST(req: Request) {
       initialMessage,
       initialImageUrl,
       pollQuestion,
+      visibleToUserIds,
     } = bodyResult.data;
 
     // Process participants - can be user IDs or emails
@@ -192,6 +194,7 @@ export async function POST(req: Request) {
         tags,
         allowedRoles,
         customViewers,
+        visibleToUserIds,
       },
     });
 
@@ -440,6 +443,13 @@ export async function GET(req: Request) {
               AND: [
                 { visibility: 'CUSTOM' },
                 { customViewers: { has: userId } },
+              ],
+            },
+            // Specific users visibility where they're in the allowed list
+            {
+              AND: [
+                { visibility: 'SPECIFIC_USERS' },
+                { visibleToUserIds: { has: userId } },
               ],
             },
           ],

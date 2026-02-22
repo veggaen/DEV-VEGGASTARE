@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -14,7 +15,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { FollowStateProvider } from "@/hooks/useFollowState";
 import { CurrencyRatesProvider } from "@/hooks/useCurrencyRates";
 
-import Web3Providers from "@/components/crypto-related/Web3Providers";
+// Lazy-load Web3 providers — heavy bundle (Wagmi, Solana, AppKit) only needed
+// on pages that use crypto features, not for initial paint.
+const Web3Providers = dynamic(
+  () => import("@/components/crypto-related/Web3Providers"),
+  { ssr: false }
+);
 
 import MyTopBar from "@/components/uicustom/topbar";
 import SiteFooter from "@/components/uicustom/site-footer";
