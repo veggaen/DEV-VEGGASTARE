@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { MyLibUserAuth } from "@/lib/user-auth";
-import { getUserAiKeyForGeneration } from "@/lib/ai-key-store";
+import { getUserAiKeyForGeneration, upsertUserAiKey } from "@/lib/ai-key-store";
 import { checkDailyQuota, incrementDailyUsage } from "@/lib/daily-ai-quota";
 import { dbPrisma } from "@/lib/db";
 import {
@@ -36,6 +36,13 @@ const requestSchema = z.object({
     .enum(["OPENAI", "OPENROUTER", "ANTHROPIC", "GOOGLE", "GROK", "GROQ"])
     .optional()
     .default("GOOGLE"),
+  /** Optional inline BYOK — lets the client send a one-time API key */
+  aiAuth: z.object({
+    mode: z.literal("one_time"),
+    apiKey: z.string().min(8).max(256),
+    provider: z.enum(["OPENAI", "OPENROUTER", "ANTHROPIC", "GOOGLE", "GROK", "GROQ"]),
+    rememberKey: z.boolean().optional(),
+  }).optional(),
 });
 
 // ── System prompt ──────────────────────────────────────────────────────────
@@ -414,20 +421,38 @@ export async function POST(req: NextRequest) {
     apiKey = PLATFORM_GOOGLE_KEY;
     resolvedModel = defaultModelForProvider("GOOGLE");
   } else {
-    // ── Authenticated: try BYOK first, then platform key ─────────────────
-    try {
-      const byok = await getUserAiKeyForGeneration({ userId: session.id!, provider: requestedProvider });
-      // Only use the BYOK key if it is for the same provider the user selected.
-      // The key store falls back to the user's default key which may be from a
-      // different provider — passing that to the wrong API causes 404 model errors.
-      if (byok?.apiKey && byok.provider === requestedProvider) {
-        apiKey = byok.apiKey;
-        resolvedProvider = requestedProvider;
-        resolvedModel = body.model || defaultModelForProvider(requestedProvider);
-        usingPlatformKey = false;
+    // ── Authenticated: try inline BYOK → saved BYOK → platform key ───────
+    // 1. Inline one-time key (sent directly from the client)
+    if (body.aiAuth?.mode === "one_time" && body.aiAuth.apiKey) {
+      apiKey = body.aiAuth.apiKey.trim();
+      resolvedProvider = body.aiAuth.provider;
+      resolvedModel = body.model || defaultModelForProvider(resolvedProvider);
+      usingPlatformKey = false;
+
+      // Optionally persist the key for future use
+      if (body.aiAuth.rememberKey && session.id) {
+        upsertUserAiKey({
+          userId: session.id,
+          provider: resolvedProvider,
+          apiKey: apiKey,
+        }).catch(() => {}); // fire-and-forget
       }
-    } catch {
-      // No saved BYOK key — fall through to platform
+    }
+
+    // 2. Saved BYOK key
+    if (usingPlatformKey) {
+      try {
+        const byok = await getUserAiKeyForGeneration({ userId: session.id!, provider: requestedProvider });
+        // Only use the BYOK key if it is for the same provider the user selected.
+        if (byok?.apiKey && byok.provider === requestedProvider) {
+          apiKey = byok.apiKey;
+          resolvedProvider = requestedProvider;
+          resolvedModel = body.model || defaultModelForProvider(requestedProvider);
+          usingPlatformKey = false;
+        }
+      } catch {
+        // No saved BYOK key — fall through to platform
+      }
     }
 
     if (usingPlatformKey) {

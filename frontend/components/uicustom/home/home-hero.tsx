@@ -1004,7 +1004,7 @@ export default function HomeHero({
     },
   }), [reduceMotion]);
 
-  const headline = "Where choices know no limits";
+  const headline = "Where every choice is yours";
   const mountAtRef = React.useRef<number | null>(null);
   const [whereGlowUntilMs, setWhereGlowUntilMs] = React.useState(0);
   const [titleGlowUntilMs, setTitleGlowUntilMs] = React.useState(0);
@@ -1019,7 +1019,7 @@ export default function HomeHero({
   const descriptionStart = reduceMotion ? 0.35 : titleStart + 1.5;
   const headlineStart = descriptionStart; // Same time as description
   const descriptionText =
-    "A clean, animated marketplace experience filled with tasteful motion, shipping intelligence, warehouse logistics, and a UI that stays out of your way.";
+    "A marketplace built around AI and community. Choose from six models or bring your own keys for unlimited access. Real-time polls with verification-weighted voting, smart logistics, and a 12-tier trust system that actually means something.";
   
   // Buttons come in early during the sequence - don't make users wait
   const buttonsStart = reduceMotion ? 0.26 : titleStart + 1.0;
@@ -1138,7 +1138,7 @@ export default function HomeHero({
             animate={{ opacity: [1, 0.35, 1] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           />
-          <span>Free to start · No credit card required</span>
+          <span>Free to start · No card needed</span>
         </motion.div>
 
         <div className="space-y-3">
@@ -1325,10 +1325,10 @@ export default function HomeHero({
         <div className="portrait:hidden flex flex-wrap items-center justify-center gap-2">
           {(
             [
-              { emoji: "🤖", label: "6 AI Providers" },
-              { emoji: "📊", label: "Real-time Polls" },
-              { emoji: "📦", label: "Warehouse Intel" },
-              { emoji: "⚡", label: "Live Streaming" },
+              { emoji: "🤖", label: "6 AI Models" },
+              { emoji: "📊", label: "Live Polls" },
+              { emoji: "🛡️", label: "12-Tier Verification" },
+              { emoji: "🔑", label: "Bring Your Key" },
             ] as const
           ).map(({ emoji, label }, i) => (
             <span
@@ -1480,11 +1480,11 @@ export default function HomeHero({
                   </svg>
                 </span>
               </span>
-              <span>Open Pulse</span>
+              <span>Live Polls</span>
             </Link>
           </motion.div>
 
-          {/* Authenticate: only for non-logged-in users - stealth style */}
+          {/* Sign in: only for non-logged-in users - stealth style */}
           {!isLoggedIn && (
             <motion.div
               initial={{ opacity: 0, y: 18 }}
@@ -1502,7 +1502,7 @@ export default function HomeHero({
                       <FaUnlockAlt size={16} className="opacity-50 group-hover:opacity-100" />
                     </span>
                   </span>
-                  <span>Authenticate</span>
+                  <span>Sign in</span>
                 </button>
               </MyLoginButton>
             </motion.div>
@@ -1538,7 +1538,7 @@ export default function HomeHero({
                   <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
                   <circle cx="12" cy="12" r="3" />
                 </motion.svg>
-                <span>Nexus settings</span>
+                <span>Settings</span>
               </Link>
             </motion.div>
           )}

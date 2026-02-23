@@ -520,24 +520,60 @@ html:not(.dark) .glass-panel {
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   border: 1px solid rgba(0, 0, 0, 0.07);
 }
+html:not(.dark) .chat-desktop-panel:hover {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  box-shadow:
+    0 0 40px rgba(16,185,129,0.06),
+    0 8px 32px rgba(0,0,0,0.08);
+}
+html:not(.dark) .chat-desktop-panel:focus-within {
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  box-shadow:
+    0 0 50px rgba(16,185,129,0.08),
+    0 8px 40px rgba(0,0,0,0.10);
+}
 
-/* Desktop chat container — brightens on hover and on input focus */
+/* Desktop chat container — feature-card-style hover with gradient accent + border glow */
 .chat-desktop-panel {
-  transition: box-shadow 0.4s ease, border-color 0.4s ease;
+  transition: box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+/* Gradient accent overlay — matches feature card accentClass pattern */
+.chat-desktop-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to bottom right, rgba(16,185,129,0.04), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+.chat-desktop-panel:hover::before,
+.chat-desktop-panel:focus-within::before {
+  opacity: 1;
+}
+.chat-desktop-panel > * {
+  position: relative;
+  z-index: 1;
 }
 .chat-desktop-panel:hover {
   box-shadow:
     0 0 50px rgba(34,197,94,0.10),
-    0 8px 32px rgba(0,0,0,0.4),
+    0 8px 40px rgba(0,0,0,0.25),
     inset 0 -40px 60px -30px rgba(34,197,94,0.04);
-  border-color: rgba(34, 197, 94, 0.22) !important;
+  border-color: rgba(34, 197, 94, 0.30) !important;
 }
 .chat-desktop-panel:focus-within {
   box-shadow:
     0 0 60px rgba(34,197,94,0.14),
-    0 8px 40px rgba(0,0,0,0.45),
+    0 8px 40px rgba(0,0,0,0.35),
     inset 0 -50px 70px -30px rgba(34,197,94,0.06);
-  border-color: rgba(34, 197, 94, 0.32) !important;
+  border-color: rgba(34, 197, 94, 0.40) !important;
 }
 
 /* Chat input wrapper — neutral, no green glow */

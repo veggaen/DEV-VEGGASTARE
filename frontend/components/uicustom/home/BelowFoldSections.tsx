@@ -398,9 +398,9 @@ export default function BelowFoldSections() {
       {/* ── Features grid ──────────────────────────────────────────────────── */}
       <div className="mx-auto max-w-5xl px-6 py-16 sm:py-24 xl:max-w-6xl">
         <SectionHeading
-          eyebrow="What's inside"
-          title="Everything you need in one place"
-          subtitle="Built for builders, creators, and decision-makers who move fast."
+          eyebrow="Platform"
+          title="One platform, built for this"
+          subtitle="For teams and creators who move fast."
         />
 
         <div
@@ -426,8 +426,8 @@ export default function BelowFoldSections() {
           <FeatureCard
             delay={0}
             href="/ai"
-            title="Multi-provider AI"
-            description="Switch between 6 AI models — Groq, Gemini, ChatGPT, Claude, Grok, and OpenRouter. Use platform keys or bring your own for unlimited access."
+            title="AI Chat"
+            description="Six AI models including GPT, Claude, and Gemini. Free on platform keys — or bring your own for unlimited access."
             icon={AI_ICON}
             accentClass="from-violet-500/6 to-transparent"
             onMouseEnter={handleFeatureEnter}
@@ -435,8 +435,8 @@ export default function BelowFoldSections() {
           <FeatureCard
             delay={0.1}
             href="/pulse"
-            title="Live Polls & Pulse"
-            description="AI-generated community polls with real-time voting. Create, share, and watch results stream in — instant consensus, no waiting."
+            title="Live Polls"
+            description="AI-generated polls with real-time voting and verification-weighted results. Create, share, and watch the community decide — powered by True Reach™."
             icon={POLL_ICON}
             accentClass="from-emerald-500/6 to-transparent"
             onMouseEnter={handleFeatureEnter}
@@ -444,8 +444,8 @@ export default function BelowFoldSections() {
           <FeatureCard
             delay={0.2}
             href="/dashboard/inventory"
-            title="Warehouse Intelligence"
-            description="Real-time inventory tracking, shipping logistics, and crypto portfolio management — unified into one clean, animated dashboard."
+            title="Inventory & Logistics"
+            description="Warehouse tracking, shipping rates, and order management from a single dashboard."
             icon={BOX_ICON}
             accentClass="from-sky-500/6 to-transparent"
             onMouseEnter={handleFeatureEnter}
@@ -486,10 +486,10 @@ export default function BelowFoldSections() {
           <div className="grid grid-cols-2 divide-x divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-4 sm:divide-y-0">
             {(
               [
-                { value: "6", label: "AI Providers" },
-                { value: "Live", label: "Poll Streaming" },
-                { value: "Free", label: "To Get Started" },
-                { value: "< 1s", label: "Response Time" },
+                { value: "6", label: "AI Models" },
+                { value: "BYOK", label: "Your Keys, No Limits" },
+                { value: "$0", label: "To Start" },
+                { value: "12", label: "Trust Tiers" },
               ] as const
             ).map(({ value, label }, i) => (
               <motion.div
@@ -518,7 +518,7 @@ export default function BelowFoldSections() {
 
       {/* ── How it works ────────────────────────────────────────────────────── */}
       <div className="mx-auto max-w-5xl px-6 py-16 sm:py-24 xl:max-w-6xl">
-        <SectionHeading eyebrow="Simple by design" title="Up and running in minutes" />
+        <SectionHeading eyebrow="How it works" title="Three steps to get started" />
 
         <div
           className="grid gap-10 sm:grid-cols-3"
@@ -526,9 +526,9 @@ export default function BelowFoldSections() {
         >
           {(
             [
-              { step: "01", title: "Browse or Ask", description: "Explore the product catalog or open the AI chat to get personalized recommendations instantly." },
-              { step: "02", title: "Vote & Decide", description: "Participate in live community polls. AI generates the options, the community decides the outcome." },
-              { step: "03", title: "Track & Ship", description: "Monitor your orders, inventory levels, and crypto positions from one intelligent dashboard." },
+              { step: "01", title: "Browse or Ask", description: "Explore products or ask AI for recommendations. Six models included, or bring your own key." },
+              { step: "02", title: "Vote & Decide", description: "Join live polls where AI generates the options and verification-weighted voting ensures trusted results." },
+              { step: "03", title: "Track & Ship", description: "Track orders, inventory, and shipping from one dashboard." },
             ] as const
           ).map(({ step, title, description }, i) => (
             <StepCard
@@ -556,11 +556,10 @@ export default function BelowFoldSections() {
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
             <h2 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
-              <HoverableHeading text="Ready to explore Freedom Store?" />
+              <HoverableHeading text="Start exploring Freedom Store™" />
             </h2>
             <p className="max-w-md text-sm leading-relaxed text-gray-400 dark:text-white/40">
-              The marketplace where AI, community polls, and smart logistics come together — free to
-              start, built to scale.
+              AI, live polls, verification, and logistics in one marketplace — free to start.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               {/* Browse products — primary CTA with animated gradient border */}
@@ -630,7 +629,7 @@ export default function BelowFoldSections() {
                       </svg>
                     </span>
                   </span>
-                  <span>Open Pulse</span>
+                  <span>Live Polls</span>
                 </Link>
               </MagneticButton>
 

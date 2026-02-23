@@ -63,18 +63,42 @@ type Provider = (typeof PROVIDERS)[number];
 
 const PROVIDER_LABELS: Record<Provider, string> = {
   GOOGLE: "Gemini Flash",
-  GROQ: "Groq (Llama)",
+  GROQ: "Llama (Groq)",
   OPENAI: "ChatGPT",
   ANTHROPIC: "Claude",
   OPENROUTER: "OpenRouter",
   GROK: "Grok",
 };
 
+/** Provider console URLs for "Get a key" links */
+const PROVIDER_KEY_URLS: Partial<Record<Provider, string>> = {
+  OPENAI: "https://platform.openai.com/api-keys",
+  ANTHROPIC: "https://console.anthropic.com/settings/keys",
+  GOOGLE: "https://aistudio.google.com/apikey",
+  GROQ: "https://console.groq.com/keys",
+  GROK: "https://console.x.ai",
+  OPENROUTER: "https://openrouter.ai/keys",
+};
+
+/** Detect provider from API key prefix — same logic as PollBuilder */
+function inferProviderFromApiKey(input: string): Provider | null {
+  const key = input.trim();
+  const lower = key.toLowerCase();
+  if (!lower) return null;
+  if (lower.startsWith("gsk_")) return "GROQ";
+  if (lower.startsWith("sk-or-")) return "OPENROUTER";
+  if (lower.startsWith("sk-ant-")) return "ANTHROPIC";
+  if (lower.startsWith("xai-")) return "GROK";
+  if (key.startsWith("AIza")) return "GOOGLE";
+  if (lower.startsWith("sk-proj-") || lower.startsWith("sk-")) return "OPENAI";
+  return null;
+}
+
 const SUGGESTED_PROMPTS = [
-  "What is VeggaStare?",
-  "How does True Reach™ work?",
-  "How do I create and publish a poll?",
-  "What AI providers can I use?",
+  "What can I do here?",
+  "How do live polls work?",
+  "How do I create a poll?",
+  "Which AI models are available?",
 ];
 
 /** Default model per provider for the chat widget */
@@ -196,6 +220,16 @@ export default function LandingChatWidget({ isLoggedIn, userId: _userId }: Landi
   const [showLongMsgGate, setShowLongMsgGate] = useState(false);
   const [sensitiveBanner, setSensitiveBanner] = useState<string[] | null>(null);
 
+  // ── BYOK (Bring Your Own Key) state ─────────────────────────────────────
+  const [byokKey, setByokKey] = useState("");
+  const [byokRemember, setByokRemember] = useState(false);
+  const [showByokPanel, setShowByokPanel] = useState(false);
+  const detectedByokProvider = React.useMemo(() => inferProviderFromApiKey(byokKey), [byokKey]);
+  /** The effective provider — BYOK detection overrides the dropdown */
+  const activeProvider = detectedByokProvider ?? provider;
+  /** Whether a valid inline BYOK key is active */
+  const byokActive = byokKey.trim().length >= 8 && detectedByokProvider !== null;
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -217,15 +251,20 @@ export default function LandingChatWidget({ isLoggedIn, userId: _userId }: Landi
     }
   }, [isLoggedIn, state.messages]);
 
-  // Scroll to bottom
+  // Scroll to bottom — only within the chat container, never the page
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
+    const el = messagesEndRef.current;
+    if (!el) return;
+    const container = el.closest(".overflow-y-auto");
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: reduceMotion ? "auto" : "smooth" });
+    }
   }, [state.messages, reduceMotion]);
 
-  // Focus input when panel opens
+  // Focus input when panel opens — preventScroll stops the page from jumping
   useEffect(() => {
     if (state.panel === "lite") {
-      setTimeout(() => inputRef.current?.focus(), 100);
+      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
     }
   }, [state.panel]);
 
@@ -342,8 +381,16 @@ export default function LandingChatWidget({ isLoggedIn, userId: _userId }: Landi
         body: JSON.stringify({
           messages: apiMessages,
           sessionId,
-          provider,
-          model: widgetModel(provider),
+          provider: activeProvider,
+          model: widgetModel(activeProvider),
+          ...(byokActive && {
+            aiAuth: {
+              mode: "one_time" as const,
+              apiKey: byokKey.trim(),
+              provider: detectedByokProvider!,
+              rememberKey: byokRemember,
+            },
+          }),
         }),
         signal: abort.signal,
       });
@@ -421,15 +468,15 @@ export default function LandingChatWidget({ isLoggedIn, userId: _userId }: Landi
           trimmed,
           fullAiContent,
           [...sensitiveTypes, ...responseSensitiveTypes],
-          provider,
-          widgetModel(provider),
+          activeProvider,
+          widgetModel(activeProvider),
         );
       }
     } catch (err: any) {
       if (err?.name === "AbortError") return;
-      dispatch({ type: "SET_ERROR", error: "Connection error. Please try again." });
+      dispatch({ type: "SET_ERROR", error: "Connection lost. Try again." });
     }
-  }, [state.input, state.isStreaming, state.messages, state.sessionId, isLoggedIn, provider, createSession, saveMessagePair]);
+  }, [state.input, state.isStreaming, state.messages, state.sessionId, isLoggedIn, activeProvider, byokActive, byokKey, byokRemember, detectedByokProvider, createSession, saveMessagePair]);
 
   // Desktop-specific open/close state (independent of mobile panel state)
   const [desktopOpen, setDesktopOpen] = useState(true);
@@ -497,8 +544,17 @@ export default function LandingChatWidget({ isLoggedIn, userId: _userId }: Landi
                 onExpand={handleExpand}
                 onSuggest={(text) => {
                   dispatch({ type: "SET_INPUT", value: text });
-                  setTimeout(() => inputRef.current?.focus(), 0);
+                  setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 0);
                 }}
+                byokKey={byokKey}
+                setByokKey={setByokKey}
+                byokRemember={byokRemember}
+                setByokRemember={setByokRemember}
+                showByokPanel={showByokPanel}
+                setShowByokPanel={setShowByokPanel}
+                byokActive={byokActive}
+                detectedByokProvider={detectedByokProvider}
+                activeProvider={activeProvider}
               />
             </motion.div>
           )}
@@ -548,9 +604,18 @@ export default function LandingChatWidget({ isLoggedIn, userId: _userId }: Landi
                 onExpand={handleExpand}
                 onSuggest={(text) => {
                   dispatch({ type: "SET_INPUT", value: text });
-                  setTimeout(() => inputRef.current?.focus(), 0);
+                  setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 0);
                 }}
                 desktopMode
+                byokKey={byokKey}
+                setByokKey={setByokKey}
+                byokRemember={byokRemember}
+                setByokRemember={setByokRemember}
+                showByokPanel={showByokPanel}
+                setShowByokPanel={setShowByokPanel}
+                byokActive={byokActive}
+                detectedByokProvider={detectedByokProvider}
+                activeProvider={activeProvider}
               />
             </motion.div>
           ) : (
@@ -567,7 +632,7 @@ export default function LandingChatWidget({ isLoggedIn, userId: _userId }: Landi
               <span className="text-emerald-400 text-lg group-hover:scale-110 transition-transform">✦</span>
               <div className="flex-1 text-left">
                 <span className="text-sm font-medium text-foreground">Ask AI</span>
-                <span className="text-xs text-muted-foreground ml-2">Click to open chat</span>
+                <span className="text-xs text-muted-foreground ml-2">Tap to expand</span>
               </div>
               {state.messages.length > 0 && (
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-black">
@@ -605,6 +670,16 @@ interface ChatPanelInnerProps {
   onExpand: () => void;
   onSuggest: (text: string) => void;
   desktopMode?: boolean;
+  // BYOK props
+  byokKey: string;
+  setByokKey: (v: string) => void;
+  byokRemember: boolean;
+  setByokRemember: (v: boolean) => void;
+  showByokPanel: boolean;
+  setShowByokPanel: (v: boolean) => void;
+  byokActive: boolean;
+  detectedByokProvider: Provider | null;
+  activeProvider: Provider;
 }
 
 function ChatPanelInner({
@@ -614,6 +689,8 @@ function ChatPanelInner({
   messagesEndRef, inputRef, reduceMotion,
   onSend, onClose, onExpand, onSuggest,
   desktopMode = false,
+  byokKey, setByokKey, byokRemember, setByokRemember,
+  showByokPanel, setShowByokPanel, byokActive, detectedByokProvider, activeProvider,
 }: ChatPanelInnerProps) {
   // Auto-resize textarea to fit content (enables Shift+Enter multi-line)
   const latestInput = state.input;
@@ -662,6 +739,23 @@ function ChatPanelInner({
               ))}
             </select>
           )}
+          {/* BYOK toggle */}
+          {isLoggedIn && (
+            <button
+              onClick={() => setShowByokPanel(!showByokPanel)}
+              className={`p-1.5 rounded-lg transition-colors ${
+                byokActive
+                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                  : "hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground"
+              }`}
+              title={byokActive ? `Using your ${PROVIDER_LABELS[activeProvider]} key` : "Bring your own key"}
+              aria-label="Toggle BYOK panel"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.778-7.778zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+              </svg>
+            </button>
+          )}
           {/* Expand to full chat page */}
           <button
             onClick={onExpand}
@@ -686,6 +780,131 @@ function ChatPanelInner({
         </div>
       </div>
 
+      {/* ── BYOK Panel ── */}
+      <AnimatePresence>
+        {showByokPanel && isLoggedIn && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden shrink-0"
+          >
+            <div className="px-3 py-2.5 border-b border-black/8 dark:border-white/10 bg-black/2 dark:bg-white/[0.02] space-y-2">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
+                  {byokActive ? (
+                    <>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      {PROVIDER_LABELS[activeProvider]} connected
+                    </>
+                  ) : (
+                    <>🔑 Bring your own key</>
+                  )}
+                </p>
+                <button
+                  onClick={() => setShowByokPanel(false)}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+                  title="Close"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Key input */}
+              <div className="relative">
+                <input
+                  value={byokKey}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setByokKey(next);
+                    // Auto-switch provider dropdown to match detected key
+                    const inferred = inferProviderFromApiKey(next);
+                    if (inferred && inferred !== provider) setProvider(inferred);
+                  }}
+                  type="password"
+                  placeholder={`Paste your ${PROVIDER_LABELS[provider]} API key`}
+                  className="w-full h-8 bg-black/4 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg text-xs font-mono placeholder:font-sans px-2.5 pr-8 text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-emerald-500/40 transition-colors"
+                />
+                {byokKey.trim() && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                    {byokActive ? (
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/20">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-emerald-400">
+                          <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                      </span>
+                    ) : (
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-500/20">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-amber-400">
+                          <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
+                        </svg>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Auto-detect hint */}
+              {byokKey.trim() && detectedByokProvider && (
+                <p className="text-[10px] text-emerald-400/80 flex items-center gap-1">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
+                  Detected {PROVIDER_LABELS[detectedByokProvider]}
+                  {detectedByokProvider !== provider && <span className="text-muted-foreground">(switched)</span>}
+                </p>
+              )}
+
+              {/* Bottom row: clear/connect + get key link + remember */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {byokActive ? (
+                    <button
+                      onClick={() => { setByokKey(""); setShowByokPanel(false); }}
+                      className="h-6 px-2.5 rounded-md bg-red-500/10 text-red-400 text-[10px] font-medium hover:bg-red-500/20 transition-colors"
+                    >
+                      Disconnect
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowByokPanel(false)}
+                      disabled={!byokKey.trim()}
+                      className={`h-6 px-2.5 rounded-md text-[10px] font-medium transition-colors ${
+                        byokKey.trim()
+                          ? "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+                          : "bg-black/4 dark:bg-white/5 text-muted-foreground cursor-not-allowed"
+                      }`}
+                    >
+                      Connect
+                    </button>
+                  )}
+                  <a
+                    href={PROVIDER_KEY_URLS[byokActive ? activeProvider : provider] ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-emerald-400/70 hover:text-emerald-300 transition-colors"
+                  >
+                    Get a key ↗
+                  </a>
+                </div>
+                {/* Remember toggle */}
+                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={byokRemember}
+                    onChange={(e) => setByokRemember(e.target.checked)}
+                    className="h-3 w-3 rounded border-black/20 dark:border-white/20 accent-emerald-500"
+                  />
+                  <span className="text-[10px] text-muted-foreground">Save</span>
+                </label>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Sensitive data warning */}
       <AnimatePresence>
         {sensitiveBanner && (
@@ -699,7 +918,7 @@ function ChatPanelInner({
             <div className="flex items-start gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-300">
               <span className="mt-0.5 shrink-0">⚠</span>
               <span className="flex-1">
-                Your message contains {sensitiveBanner.join(" and ")} data. Avoid sharing personal information.
+                Your message may contain {sensitiveBanner.join(" and ")} data. Avoid sharing personal details.
               </span>
               <button onClick={() => setSensitiveBanner(null)} className="shrink-0 text-amber-400 hover:text-amber-200 leading-none">✕</button>
             </div>
@@ -715,12 +934,12 @@ function ChatPanelInner({
             <div className={`text-emerald-400 ${desktopMode ? "text-4xl" : "text-3xl"}`}>✦</div>
             <div className="space-y-1">
               <p className="text-sm font-medium text-foreground">
-                {isLoggedIn ? `Chat with ${PROVIDER_LABELS[provider]}` : "Ask me anything"}
+                {isLoggedIn ? `Chat with ${PROVIDER_LABELS[provider]}` : "Ask anything about Freedom Store™"}
               </p>
               <p className="text-xs text-muted-foreground max-w-[240px] mx-auto">
                 {isLoggedIn
-                  ? "I can answer questions about VeggaStare, help with features, or just chat."
-                  : "Free preview powered by Gemini. Sign in for AI provider choice and chat history."}
+                  ? "Ask about features, get recommendations, or just chat."
+                  : "Free preview powered by Gemini. Sign in to pick your AI model and save history."}
               </p>
             </div>
             {/* Suggested prompts */}
@@ -740,7 +959,7 @@ function ChatPanelInner({
                 href="/sign-in"
                 className="text-[11px] text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition-colors"
               >
-                Sign in for more
+                Sign in for full access
               </a>
             )}
           </div>
@@ -780,7 +999,7 @@ function ChatPanelInner({
             <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border-t border-red-500/20 text-xs text-red-400">
               <span className="flex-1">
                 {state.error === "RATE_LIMITED"
-                  ? `Rate limit reached.${state.rateLimitReset ? ` Try again after ${new Date(state.rateLimitReset).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.` : " Please wait."} ${!isLoggedIn ? "Sign in for more." : ""}`
+                  ? `Too many requests.${state.rateLimitReset ? ` Try again after ${new Date(state.rateLimitReset).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.` : " Please wait."} ${!isLoggedIn ? "Sign in for higher limits." : ""}`
                   : state.error}
               </span>
               <button onClick={() => dispatch({ type: "CLEAR_ERROR" })} className="shrink-0 hover:text-red-200">✕</button>
@@ -799,7 +1018,7 @@ function ChatPanelInner({
             className="overflow-hidden shrink-0"
           >
             <div className="flex flex-col gap-2 px-4 py-3 bg-emerald-500/10 border-t border-emerald-500/20 text-xs">
-              <span className="text-emerald-300">Long messages require an account — free &amp; 10 seconds to sign up.</span>
+              <span className="text-emerald-300">Longer messages need an account — free, takes 10 seconds.</span>
               <div className="flex gap-2">
                 <a href="/sign-in" className="flex-1 text-center py-1.5 rounded-lg bg-emerald-500 text-black text-xs font-semibold hover:bg-emerald-400 transition-colors">Sign in</a>
                 <button onClick={() => setShowLongMsgGate(false)} className="px-3 py-1.5 rounded-lg bg-white/10 text-muted-foreground hover:bg-white/15 transition-colors">Dismiss</button>
@@ -820,7 +1039,7 @@ function ChatPanelInner({
               if (showLongMsgGate && e.target.value.length <= ANON_MAX_LENGTH) setShowLongMsgGate(false);
             }}
             onKeyDown={handleKeyDown}
-            placeholder={desktopMode ? "Ask anything about VeggaStare…" : "Ask anything…"}
+            placeholder="Ask anything…"
             rows={1}
             disabled={state.isStreaming}
             className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none max-h-32 disabled:opacity-50"

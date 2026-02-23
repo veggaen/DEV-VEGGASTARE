@@ -2,7 +2,7 @@ import "server-only";
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 
-export const AI_PROVIDER_VALUES = ["OPENAI", "OPENROUTER", "ANTHROPIC", "GOOGLE", "GROK"] as const;
+export const AI_PROVIDER_VALUES = ["OPENAI", "OPENROUTER", "ANTHROPIC", "GOOGLE", "GROK", "GROQ"] as const;
 
 export type AiProviderId = (typeof AI_PROVIDER_VALUES)[number];
 
