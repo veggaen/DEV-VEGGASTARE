@@ -80,6 +80,7 @@ export const fetchProductsWithDetails = async ({
       skip,
       take: perPage,
       where: whereClause,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: {
         id: true,
         title: true,

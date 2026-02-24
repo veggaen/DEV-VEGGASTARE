@@ -76,7 +76,11 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(parsed.data);
+    return NextResponse.json(parsed.data, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
+    });
   } catch (error) {
     console.error('Failed to fetch sellers:', error);
     return NextResponse.json({ error: 'Failed to fetch sellers' }, { status: 500 });
