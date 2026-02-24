@@ -48,6 +48,9 @@ export const ProductsListItemSchema = z
     user: ProductUserSummarySchema.nullable().optional(),
     company: ProductCompanySummarySchema.nullable().optional(),
 
+    // Product type
+    productType: z.enum(['PHYSICAL', 'DIGITAL', 'HYBRID']).optional().default('PHYSICAL'),
+
     // Web3 fields
     acceptedTokens: z.array(z.object({
       symbol: z.string(),

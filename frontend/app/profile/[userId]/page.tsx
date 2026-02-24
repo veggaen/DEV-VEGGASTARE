@@ -1306,6 +1306,45 @@ export default function ProfilePage() {
             <TabsContent value="reach" className="mt-6">
               {/* True Reach Analytics - 7 Pillar System */}
               <div className="space-y-6">
+                {/* Empty state for users with no engagement data yet */}
+                {(profile?.reach?.trueReachScore === 0 || !profile?.reach?.trueReachScore) &&
+                  (profile?.reach?.totalViews ?? 0) === 0 && (
+                  <div
+                    className="rounded-2xl border-2 p-8 text-center"
+                    style={{
+                      borderColor: isDark
+                        ? `${bannerColors?.primaryContrast || '#10b981'}20`
+                        : `${bannerColors?.primaryContrast || '#10b981'}30`,
+                      backgroundColor: isDark
+                        ? `${bannerColors?.primaryContrast || '#10b981'}06`
+                        : `${bannerColors?.primaryContrast || '#10b981'}04`,
+                    }}
+                  >
+                    <div
+                      className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl text-3xl"
+                      style={{ backgroundColor: `${bannerColors?.primaryContrast || '#10b981'}15` }}
+                    >
+                      📊
+                    </div>
+                    <h3 className="text-base font-semibold text-foreground mb-1">No reach data yet</h3>
+                    <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                      {isOwnProfile
+                        ? 'Start posting pulses and engaging with others — your 7-pillar reach score will build up here.'
+                        : 'This user hasn\'t built any reach data yet.'}
+                    </p>
+                    {isOwnProfile && (
+                      <Link href="/pulse">
+                        <button
+                          className="mt-4 px-4 py-2 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90"
+                          style={{ backgroundColor: bannerColors?.primaryContrast || '#10b981' }}
+                        >
+                          Create a pulse
+                        </button>
+                      </Link>
+                    )}
+                  </div>
+                )}
+
                 {/* Header with Overall Score + Dual Metrics */}
                 <div
                   className="rounded-2xl border-2 p-6 bg-surface-1/50 shadow-sm"
@@ -1329,8 +1368,8 @@ export default function ProfilePage() {
                         True Reach Analytics
                       </h3>
                       <p className="text-sm text-muted-foreground mt-1 max-w-lg">
-                        Real engagement metrics that matter - not vanity follower counts.
-                        Based on 6 pillars measuring actual impact.
+                        Real engagement metrics that matter — not vanity follower counts.
+                        Based on 7 pillars measuring actual impact.
                       </p>
                     </div>
 

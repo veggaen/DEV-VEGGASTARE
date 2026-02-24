@@ -83,6 +83,23 @@ export async function POST(req: Request) {
       console.error('[api/orders/confirm] Failed to set hasWeb3Payment flag:', flagErr);
     }
 
+    // Auto-fulfil digital-only orders
+    try {
+      const orderItems = await dbPrisma.orderItem.findMany({
+        where: { orderId },
+        select: { Product: { select: { productType: true } } },
+      });
+      const allDigital = orderItems.length > 0 && orderItems.every((oi) => oi.Product?.productType === 'DIGITAL');
+      if (allDigital) {
+        await dbPrisma.order.update({
+          where: { id: orderId },
+          data: { fulfilmentStatus: 'DELIVERED', deliveredAt: new Date() },
+        });
+      }
+    } catch (autoFulfilErr) {
+      console.error('[api/orders/confirm] Auto-fulfil digital order failed:', autoFulfilErr);
+    }
+
     return NextResponse.json({ 
       success: true, 
       orderId, 

@@ -6,7 +6,7 @@ import { PaymentMethod, ChainFamily } from '@/generated/prisma/browser';
 import type { Prisma } from '@/generated/prisma/client';
 import { z } from 'zod';
 import { OrderDtoSchema } from '@/lib/types/orders';
-import { sendOrderConfirmationEmail } from '@/lib/mail';
+import { sendOrderConfirmationEmail, sendSellerOrderNotification, sendWarehouseOrderNotification } from '@/lib/mail';
 import { generateDownloadTokensForOrder } from '@/lib/download-tokens';
 import { recalculateVerificationTier } from '@/lib/verification-recalc';
 
@@ -246,6 +246,26 @@ export async function POST(req: Request) {
       }
     }
 
+    // Auto-fulfil digital-only orders — no warehouse packing needed
+    if (order.status === 'COMPLETED' && items && items.length > 0) {
+      try {
+        const productIds = items.map((i) => i.productId);
+        const productTypes = await dbPrisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { productType: true },
+        });
+        const allDigital = productTypes.length > 0 && productTypes.every((p) => p.productType === 'DIGITAL');
+        if (allDigital) {
+          await dbPrisma.order.update({
+            where: { id: order.id },
+            data: { fulfilmentStatus: 'DELIVERED', deliveredAt: new Date() },
+          });
+        }
+      } catch (autoFulfilErr) {
+        console.error('[api/orders] Auto-fulfil digital order failed:', autoFulfilErr);
+      }
+    }
+
     // Send order confirmation email
     const emailTo = shippingEmail || session.email;
     if (emailTo) {
@@ -268,6 +288,122 @@ export async function POST(req: Request) {
         console.error('[api/orders] Failed to send confirmation email:', emailError);
         // Don't fail the order if email fails
       }
+    }
+
+    // ── Notify sellers + warehouse employees (non-blocking, fire-and-forget) ──
+    if (items && items.length > 0) {
+      (async () => {
+        try {
+          // Fetch products with their owners, companies, and warehouse info
+          const productIds = items.map((i) => i.productId);
+          const productsWithOwners = await dbPrisma.product.findMany({
+            where: { id: { in: productIds } },
+            select: {
+              id: true,
+              productType: true,
+              userId: true,
+              companyId: true,
+              User: { select: { email: true, name: true } },
+              Company: {
+                select: {
+                  id: true,
+                  name: true,
+                  Employee: {
+                    where: { role: 'OWNER' },
+                    select: { User: { select: { email: true } } },
+                  },
+                  Warehouse: {
+                    select: {
+                      id: true,
+                      name: true,
+                      Employee: {
+                        select: { User: { select: { email: true } } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          // Group items by seller (userId or company owner)
+          const sellerMap = new Map<string, { email: string; items: typeof items; isDigital: boolean }>();
+          for (const product of productsWithOwners) {
+            const item = items.find((i) => i.productId === product.id);
+            if (!item) continue;
+
+            const isDigital = product.productType === 'DIGITAL';
+            let sellerEmail: string | null = null;
+
+            if (product.Company?.Employee?.[0]?.User?.email) {
+              sellerEmail = product.Company.Employee[0].User.email;
+            } else if (product.User?.email) {
+              sellerEmail = product.User.email;
+            }
+
+            if (sellerEmail) {
+              const existing = sellerMap.get(sellerEmail);
+              if (existing) {
+                existing.items.push(item);
+                if (!isDigital) existing.isDigital = false;
+              } else {
+                sellerMap.set(sellerEmail, { email: sellerEmail, items: [item], isDigital });
+              }
+            }
+
+            // Warehouse notification for physical/hybrid products from companies
+            if (product.productType !== 'DIGITAL' && product.Company?.Warehouse) {
+              for (const warehouse of product.Company.Warehouse) {
+                const employeeEmails = warehouse.Employee
+                  ?.map((e: { User: { email: string | null } }) => e.User?.email)
+                  .filter(Boolean) as string[];
+
+                if (employeeEmails.length > 0) {
+                  try {
+                    await sendWarehouseOrderNotification(employeeEmails, {
+                      orderId: order.id,
+                      items: [{ title: item.title, quantity: item.quantity }],
+                      buyerName: shippingName || 'Customer',
+                      shippingAddress: shippingAddress || '',
+                      shippingCity: shippingCity || '',
+                      shippingPostalCode: shippingPostalCode || '',
+                      shippingCountry: shippingCountry || 'NO',
+                      shippingPhone: shippingPhone ?? undefined,
+                      shippingMethodName: shippingMethod ?? undefined,
+                      warehouseName: warehouse.name || product.Company!.name,
+                    });
+                  } catch (whErr) {
+                    console.error(`[api/orders] Warehouse email failed for ${warehouse.id}:`, whErr);
+                  }
+                }
+              }
+            }
+          }
+
+          // Send seller notifications
+          for (const [, seller] of sellerMap) {
+            try {
+              await sendSellerOrderNotification(seller.email, {
+                orderId: order.id,
+                items: seller.items,
+                totalAmount,
+                buyerName: shippingName || 'Customer',
+                shippingAddress: shippingAddress ?? undefined,
+                shippingCity: shippingCity ?? undefined,
+                shippingPostalCode: shippingPostalCode ?? undefined,
+                shippingCountry: shippingCountry ?? undefined,
+                shippingPhone: shippingPhone ?? undefined,
+                shippingMethodName: shippingMethod ?? undefined,
+                isDigital: seller.isDigital,
+              });
+            } catch (sellerErr) {
+              console.error(`[api/orders] Seller email failed for ${seller.email}:`, sellerErr);
+            }
+          }
+        } catch (notifyErr) {
+          console.error('[api/orders] Seller/warehouse notification error:', notifyErr);
+        }
+      })();
     }
 
     try {

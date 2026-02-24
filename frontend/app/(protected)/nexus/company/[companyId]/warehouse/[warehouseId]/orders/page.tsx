@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 import {
   FiPackage,
@@ -23,6 +24,8 @@ import {
   FiLoader,
   FiAlertTriangle,
   FiArrowLeft,
+  FiUserCheck,
+  FiUserX,
 } from "react-icons/fi";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -47,6 +50,8 @@ interface FulfilmentOrder {
   totalAmount: number;
   status: string;
   fulfilmentStatus: string;
+  claimedByUserId: string | null;
+  claimedAt: string | null;
   shippedAt: string | null;
   deliveredAt: string | null;
   trackingNumber: string | null;
@@ -92,8 +97,10 @@ const BRING_SERVICES: Record<string, string> = {
 export default function WarehouseOrdersPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const companyId = params.companyId as string;
   const warehouseId = params.warehouseId as string;
+  const currentUserId = session?.user?.id;
 
   const [orders, setOrders] = useState<FulfilmentOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +108,7 @@ export default function WarehouseOrdersPage() {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [shippingOrder, setShippingOrder] = useState<string | null>(null);
   const [shipError, setShipError] = useState<string | null>(null);
+  const [claimingOrder, setClaimingOrder] = useState<string | null>(null);
   const [tabCounts, setTabCounts] = useState<Record<string, number>>({});
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -215,6 +223,43 @@ export default function WarehouseOrdersPage() {
     }
   };
 
+  const handleClaim = async (orderId: string) => {
+    setClaimingOrder(orderId);
+    try {
+      const res = await fetch(
+        `/api/companies/${companyId}/orders/${orderId}/claim`,
+        { method: "POST" }
+      );
+      if (res.ok) {
+        await fetchOrders();
+      } else {
+        const data = await res.json();
+        setShipError(data.error || "Claim failed");
+      }
+    } catch {
+      setShipError("Network error");
+    } finally {
+      setClaimingOrder(null);
+    }
+  };
+
+  const handleUnclaim = async (orderId: string) => {
+    setClaimingOrder(orderId);
+    try {
+      const res = await fetch(
+        `/api/companies/${companyId}/orders/${orderId}/claim`,
+        { method: "DELETE" }
+      );
+      if (res.ok) {
+        await fetchOrders();
+      }
+    } catch {
+      setShipError("Network error");
+    } finally {
+      setClaimingOrder(null);
+    }
+  };
+
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("nb-NO", {
       day: "2-digit",
@@ -312,6 +357,9 @@ export default function WarehouseOrdersPage() {
             {orders.map((order) => {
               const isExpanded = expandedOrder === order.id;
               const isShipping = shippingOrder === order.id;
+              const isClaiming = claimingOrder === order.id;
+              const isMyClaim = order.claimedByUserId === currentUserId;
+              const isClaimedByOther = !!order.claimedByUserId && !isMyClaim;
               const isDigitalOnly = order.items.every(
                 (i) => i.product.productType === "DIGITAL"
               );
@@ -370,6 +418,18 @@ export default function WarehouseOrdersPage() {
                     </div>
 
                     <div className="flex items-center gap-4">
+                      {isMyClaim && (
+                        <span className="text-xs bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <FiUserCheck className="w-3 h-3" />
+                          Min
+                        </span>
+                      )}
+                      {isClaimedByOther && (
+                        <span className="text-xs bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <FiUserCheck className="w-3 h-3" />
+                          Tatt
+                        </span>
+                      )}
                       {isDigitalOnly && (
                         <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">
                           Digital
@@ -472,6 +532,48 @@ export default function WarehouseOrdersPage() {
 
                         {/* Action Panel */}
                         <div>
+                          {/* Claim / Unclaim buttons */}
+                          {(order.fulfilmentStatus === "UNFULFILLED" || order.fulfilmentStatus === "PROCESSING") && !isDigitalOnly && (
+                            <div className="mb-4">
+                              {!order.claimedByUserId && (
+                                <button
+                                  onClick={() => handleClaim(order.id)}
+                                  disabled={isClaiming}
+                                  className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium rounded-lg px-4 py-2.5 text-sm transition-colors flex items-center justify-center gap-2"
+                                >
+                                  {isClaiming ? (
+                                    <FiLoader className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <FiUserCheck className="w-4 h-4" />
+                                  )}
+                                  Ta ordre for pakking
+                                </button>
+                              )}
+                              {isMyClaim && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2 text-sm text-sky-300 bg-sky-500/10 border border-sky-500/20 rounded-lg px-3 py-2">
+                                    <FiUserCheck className="w-4 h-4" />
+                                    Du har tatt denne ordren
+                                  </div>
+                                  <button
+                                    onClick={() => handleUnclaim(order.id)}
+                                    disabled={isClaiming}
+                                    className="w-full text-zinc-400 hover:text-zinc-200 text-xs py-1 transition-colors flex items-center justify-center gap-1"
+                                  >
+                                    <FiUserX className="w-3 h-3" />
+                                    Slipp ordre
+                                  </button>
+                                </div>
+                              )}
+                              {isClaimedByOther && (
+                                <div className="flex items-center gap-2 text-sm text-orange-300 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2">
+                                  <FiUserCheck className="w-4 h-4" />
+                                  Tatt av en annen — venter på pakking
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {order.fulfilmentStatus === "UNFULFILLED" && !isDigitalOnly && (
                             <div>
                               <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">

@@ -17,6 +17,8 @@
     "lint": "npm run lint --prefix frontend",
     "prisma:generate": "npx --prefix frontend prisma generate",
     "prisma:studio": "npx --prefix frontend prisma studio",
+    "push:dev": "git add -A && git commit -m \"update\" && set VEGGAT_OWNER=1 && git push origin dev",
+    "push:main": "git checkout main && git pull origin main && git merge dev && set VEGGAT_OWNER=1 && git push origin main && git checkout dev",
     "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
