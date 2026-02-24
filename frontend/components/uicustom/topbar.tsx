@@ -252,10 +252,10 @@ const MyTopBar = () => {
 	const nav: Array<{ href: string; label: string }> = [
 		{ href: "/", label: "Home" },
 		{ href: "/products", label: "Products" },
-		{ href: "/pulse", label: "Pulse" },
+		{ href: "/pulse", label: "Polls" },
 		...(clientUser
 			? [
-				{ href: "/ai", label: "Chat" },
+				{ href: "/ai", label: "AI" },
 			]
 			: []),
 	];
@@ -266,22 +266,22 @@ const MyTopBar = () => {
 			return [
 				{ href: "/", label: "Home" },
 				{ href: "/products", label: "Products" },
-				{ href: "/pulse", label: "Pulse" },
+				{ href: "/pulse", label: "Polls" },
 				{ href: "/conversations", label: "Messages" },
-				{ href: "/ai", label: "Chat" },
-				{ href: "/cart", label: "Shopping Cart" },
+				{ href: "/ai", label: "AI Chat" },
+				{ href: "/cart", label: "Cart" },
 				{ href: "/checkout", label: "Checkout" },
 				{ href: "/settings", label: "Settings" },
-				{ href: "/info", label: "Info / Contact" },
-				{ href: "/privacy", label: "Privacy & cookies" },
+				{ href: "/info", label: "Contact" },
+				{ href: "/privacy", label: "Privacy" },
 			];
 		}
 		return [
 			{ href: "/", label: "Home" },
 			{ href: "/products", label: "Products" },
-			{ href: "/pulse", label: "Pulse" },
-			{ href: "/info", label: "Info / Contact" },
-			{ href: "/privacy", label: "Privacy & cookies" },
+			{ href: "/pulse", label: "Polls" },
+			{ href: "/info", label: "Contact" },
+			{ href: "/privacy", label: "Privacy" },
 		];
 	}, [clientUser]);
 
@@ -602,7 +602,7 @@ const MyTopBar = () => {
 										{/* Chat lite dropdown */}
 										<div data-nav-key="conversations" onMouseEnter={handleNavHover} className="relative group/tip [&_button:hover]:!bg-transparent">
 											<ChatLiteDropdown />
-											<span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 rounded-md bg-zinc-900 dark:bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-white dark:text-zinc-900 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">Conversations</span>
+								<span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 rounded-md bg-zinc-900 dark:bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-white dark:text-zinc-900 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">Messages</span>
 										</div>
 									</>
 								)}
@@ -679,7 +679,7 @@ const MyTopBar = () => {
 													Welcome
 												</SheetTitle>
 												<SheetDescription className="text-xs text-zinc-500 dark:text-zinc-400">
-													Sign in to access all features
+													Sign in to unlock all features
 												</SheetDescription>
 											</SheetHeader>
 										)}

@@ -64,50 +64,50 @@
 
 /* Scrollbar (subtle + less obstructive) */
 ::-webkit-scrollbar {
-	  width: 8px;
-	  height: 8px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-	  background: var(--scrollbar-track);
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-	  background-color: var(--scrollbar-thumb);
-	  border-radius: 999px;
-	  border: 2px solid transparent;
-	  background-clip: content-box;
+  background-color: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	  background-color: var(--scrollbar-thumb-hover);
+  background-color: var(--scrollbar-thumb-hover);
 }
 
 /* Products page scroll container - hide scrollbar completely */
 .productProvider [data-app-scroll-container="true"] {
-	overflow-y: auto;
-	-ms-overflow-style: none; /* IE and Edge */
-	scrollbar-width: none; /* Firefox */
+  overflow-y: auto;
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 .productProvider [data-app-scroll-container="true"]::-webkit-scrollbar {
-	display: none; /* Chrome, Safari, Opera */
+  display: none; /* Chrome, Safari, Opera */
 }
 
 /* Fade mask for content scrolling behind sticky elements */
 .fade-mask-bottom {
-	-webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
-	mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
 }
 
 .fade-mask-top {
-	-webkit-mask-image: linear-gradient(to top, black 80%, transparent 100%);
-	mask-image: linear-gradient(to top, black 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to top, black 80%, transparent 100%);
+  mask-image: linear-gradient(to top, black 80%, transparent 100%);
 }
 
 /* Smooth scroll behavior for feed */
 .scroll-smooth-feed {
-	scroll-behavior: smooth;
+  scroll-behavior: smooth;
 }
  
 @layer base {
@@ -124,38 +124,41 @@
      * CLEAN LIGHT THEME - Pure white base, neutral grays (no blue tint)
      * Enhanced surface contrast for better visual hierarchy
      * ───────────────────────────────────────────────────────────────────────── */
-    --background: 0 0% 99%;          /* #fcfcfc - Near white (slightly off-white) */
-    --foreground: 0 0% 9%;           /* #171717 - zinc-900 */
+
+    /* Base colors */
+    --background: 0 0% 99%; /* #fcfcfc - Near white (slightly off-white) */
+    --foreground: 0 0% 9%; /* #171717 - zinc-900 */
 
     /* Surface hierarchy for depth (more pronounced for light mode) */
-    --surface-1: 0 0% 100%;          /* #ffffff - raised cards (white stands out) */
-    --surface-2: 0 0% 97%;           /* #f7f7f7 - subtle panels */
-    --surface-3: 0 0% 94%;           /* #f0f0f0 - distinct raised areas */
+    --surface-1: 0 0% 100%; /* #ffffff - raised cards (white stands out) */
+    --surface-2: 0 0% 97%; /* #f7f7f7 - subtle panels */
+    --surface-3: 0 0% 94%; /* #f0f0f0 - distinct raised areas */
 
-    --card: 0 0% 100%;               /* Pure white cards for contrast against bg */
-    --card-foreground: 0 0% 9%;
+    /* Component colors */
+    --card: 0 0% 100%; /* #ffffff - Pure white cards for contrast against bg */
+    --card-foreground: 0 0% 9%; /* #171717 */
  
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 9%;
+    --popover: 0 0% 100%; /* #ffffff */
+    --popover-foreground: 0 0% 9%; /* #171717 */
  
-    --primary: 0 0% 9%;              /* Dark primary */
-    --primary-foreground: 0 0% 100%; /* White text on primary */
+    --primary: 0 0% 9%; /* #171717 - Dark primary */
+    --primary-foreground: 0 0% 100%; /* #ffffff - White text on primary */
  
-    --secondary: 0 0% 94%;           /* More visible secondary */
-    --secondary-foreground: 0 0% 9%;
+    --secondary: 0 0% 94%; /* #f0f0f0 - More visible secondary */
+    --secondary-foreground: 0 0% 9%; /* #171717 */
  
-    --muted: 0 0% 94%;               /* More visible muted (#f0f0f0) */
-    --muted-foreground: 0 0% 40%;    /* Darker muted text for better readability */
+    --muted: 0 0% 94%; /* #f0f0f0 - More visible muted (#f0f0f0) */
+    --muted-foreground: 0 0% 40%; /* #666666 - Darker muted text for better readability */
  
-    --accent: 0 0% 96%;              /* zinc-100 - accent surfaces */
-    --accent-foreground: 0 0% 9%;
+    --accent: 0 0% 96%; /* #f5f5f5 - zinc-100 - accent surfaces */
+    --accent-foreground: 0 0% 9%; /* #171717 */
  
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%; /* #ef4444 */
+    --destructive-foreground: 0 0% 100%; /* #ffffff */
 
-    --border: 0 0% 87%;              /* More visible borders (#dedede) */
-    --input: 0 0% 97%;               /* Very light input backgrounds */
-    --ring: 0 0% 50%;                /* Darker focus rings for visibility */
+    --border: 0 0% 87%; /* #dedede - More visible borders (#dedede) */
+    --input: 0 0% 97%; /* #f7f7f7 - Very light input backgrounds */
+    --ring: 0 0% 50%; /* #808080 - Darker focus rings for visibility */
  
     --radius: 0.5rem;
 
@@ -165,9 +168,9 @@
     --scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
 
     /* Profile/accent theming (overridden per-page when on user profiles) */
-    --theme-accent: 0 0% 9%;
-    --theme-accent-foreground: 0 0% 100%;
-    --theme-accent-muted: 0 0% 96%;
+    --theme-accent: 0 0% 9%; /* #171717 */
+    --theme-accent-foreground: 0 0% 100%; /* #ffffff */
+    --theme-accent-muted: 0 0% 96%; /* #f5f5f5 */
   }
  
   .dark {
@@ -175,47 +178,50 @@
      * CLEAN DARK THEME - True black base, neutral zinc grays (NO blue tint)
      * Think: Linear.app, Vercel dashboard, premium dark mode
      * ───────────────────────────────────────────────────────────────────────── */
-    --background: 0 0% 0%;           /* #000000 - True black */
-    --foreground: 0 0% 98%;          /* #fafafa - Near white */
+
+    /* Base colors */
+    --background: 0 0% 0%; /* #000000 - True black */
+    --foreground: 0 0% 98%; /* #fafafa - Near white */
 
     /* Surface hierarchy for depth (zinc-based, no blue undertones) */
-    --surface-1: 0 0% 4%;            /* #0a0a0a - flush/cards (zinc-950) */
-    --surface-2: 0 0% 7%;            /* #121212 - slight elevation */
-    --surface-3: 0 0% 10%;           /* #1a1a1a - raised panels (zinc-900) */
+    --surface-1: 0 0% 4%; /* #0a0a0a - flush/cards (zinc-950) */
+    --surface-2: 0 0% 7%; /* #121212 - slight elevation */
+    --surface-3: 0 0% 10%; /* #1a1a1a - raised panels (zinc-900) */
  
-    --card: 0 0% 5%;                 /* #0d0d0d - cards slightly lifted from bg */
-    --card-foreground: 0 0% 98%;
+    /* Component colors */
+    --card: 0 0% 5%; /* #0d0d0d - cards slightly lifted from bg */
+    --card-foreground: 0 0% 98%; /* #fafafa */
  
-    --popover: 0 0% 7%;              /* #121212 - popover surface */
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 7%; /* #121212 - popover surface */
+    --popover-foreground: 0 0% 98%; /* #fafafa */
  
-    --primary: 0 0% 98%;             /* Near white primary */
-    --primary-foreground: 0 0% 4%;   /* Dark text on primary */
+    --primary: 0 0% 98%; /* #fafafa - Near white primary */
+    --primary-foreground: 0 0% 4%; /* #0a0a0a - Dark text on primary */
  
-    --secondary: 0 0% 10%;           /* #1a1a1a - secondary surfaces */
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 0 0% 10%; /* #1a1a1a - secondary surfaces */
+    --secondary-foreground: 0 0% 98%; /* #fafafa */
  
-    --muted: 0 0% 14%;               /* #242424 - muted backgrounds (zinc-800) */
-    --muted-foreground: 0 0% 64%;    /* #a3a3a3 - muted text (zinc-400) */
+    --muted: 0 0% 14%; /* #242424 - muted backgrounds (zinc-800) */
+    --muted-foreground: 0 0% 64%; /* #a3a3a3 - muted text (zinc-400) */
  
-    --accent: 0 0% 14%;              /* #242424 - accent surfaces */
-    --accent-foreground: 0 0% 98%;
+    --accent: 0 0% 14%; /* #242424 - accent surfaces */
+    --accent-foreground: 0 0% 98%; /* #fafafa */
  
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%; /* #7f1d1d */
+    --destructive-foreground: 0 0% 98%; /* #fafafa */
  
-    --border: 0 0% 13%;              /* #212121 - softer borders (zinc-850) */
-    --input: 0 0% 10%;               /* #1a1a1a - input backgrounds */
-    --ring: 160 84% 39%;             /* emerald-600 toned - softer focus rings */
+    --border: 0 0% 13%; /* #212121 - softer borders (zinc-850) */
+    --input: 0 0% 10%; /* #1a1a1a - input backgrounds */
+    --ring: 160 84% 39%; /* #10b77f - emerald-600 toned - softer focus rings */
 
     --scrollbar-track: transparent;
     --scrollbar-thumb: rgba(255, 255, 255, 0.12);
     --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
 
     /* Profile/accent theming (overridden per-page when on user profiles) */
-    --theme-accent: 0 0% 98%;
-    --theme-accent-foreground: 0 0% 4%;
-    --theme-accent-muted: 0 0% 14%;
+    --theme-accent: 0 0% 98%; /* #fafafa */
+    --theme-accent-foreground: 0 0% 4%; /* #0a0a0a */
+    --theme-accent-muted: 0 0% 14%; /* #242424 */
   }
 }
 /*  
@@ -322,11 +328,22 @@ body {
  * Profile pages with [data-theme-tinted] get their own accent-based tints
  * ───────────────────────────────────────────────────────────────────────────── */
 
-/* Light mode: pure white, subtle neutral grain for depth */
+/* Light mode: crisp off-white base with a focused emerald halo at the very top
+   (behind the hero title) + a sky-blue whisper top-right for dimension.
+   The gradient fades to clean white by mid-page so the chat widget area stays fresh. */
 html:not(.dark) body,
 body.light-mode {
-  background-color: #fcfcfc;
-  background-image: none;
+  background-color: #ffffff;
+  /* Soft halo above the hero — faint enough that text pops, present enough to add depth.
+     Three tightly-positioned radials: emerald glow from top-center, sky hint top-right,
+     violet whisper top-left. Fixed so they anchor to the viewport (hero stays in the glow,
+     below-fold content is clean white). */
+  background-image:
+    radial-gradient(ellipse 90% 38% at 50% -6%,  rgba(56, 189, 248, 0.10) 0%, transparent 58%),
+    radial-gradient(ellipse 45% 22% at 92%  4%,  rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 35% 16% at 8%   4%,  rgba(14, 165, 233, 0.05) 0%, transparent 48%);
+  background-size: 100% 100%;
+  background-attachment: fixed;
 }
 
 /* Dark mode: true black, clean and premium */
@@ -504,6 +521,14 @@ html.dark [data-theme-tinted] {
   opacity: var(--spotlight-opacity, 0);
   transition: opacity 0.65s ease-out;
 }
+/* Light mode spotlight: stronger and warmer so it reads on the near-white bg */
+html:not(.dark) .hero-spotlight {
+  background: radial-gradient(
+    580px circle at var(--spotlight-x, 50vw) var(--spotlight-y, 50vh),
+    rgba(16, 185, 129, 0.14),
+    transparent 40%
+  );
+}
 @media (pointer: coarse) { .hero-spotlight { display: none; } }
 @media (prefers-reduced-motion: reduce) { .hero-spotlight { display: none; } }
 
@@ -520,24 +545,60 @@ html:not(.dark) .glass-panel {
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   border: 1px solid rgba(0, 0, 0, 0.07);
 }
+html:not(.dark) .chat-desktop-panel:hover {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  box-shadow:
+    0 0 40px rgba(16,185,129,0.06),
+    0 8px 32px rgba(0,0,0,0.08);
+}
+html:not(.dark) .chat-desktop-panel:focus-within {
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  box-shadow:
+    0 0 50px rgba(16,185,129,0.08),
+    0 8px 40px rgba(0,0,0,0.10);
+}
 
-/* Desktop chat container — brightens on hover and on input focus */
+/* Desktop chat container — feature-card-style hover with gradient accent + border glow */
 .chat-desktop-panel {
-  transition: box-shadow 0.4s ease, border-color 0.4s ease;
+  transition: box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+/* Gradient accent overlay — matches feature card accentClass pattern */
+.chat-desktop-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to bottom right, rgba(16,185,129,0.04), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+.chat-desktop-panel:hover::before,
+.chat-desktop-panel:focus-within::before {
+  opacity: 1;
+}
+.chat-desktop-panel > * {
+  position: relative;
+  z-index: 1;
 }
 .chat-desktop-panel:hover {
   box-shadow:
     0 0 50px rgba(34,197,94,0.10),
-    0 8px 32px rgba(0,0,0,0.4),
+    0 8px 40px rgba(0,0,0,0.25),
     inset 0 -40px 60px -30px rgba(34,197,94,0.04);
-  border-color: rgba(34, 197, 94, 0.22) !important;
+  border-color: rgba(34, 197, 94, 0.30) !important;
 }
 .chat-desktop-panel:focus-within {
   box-shadow:
     0 0 60px rgba(34,197,94,0.14),
-    0 8px 40px rgba(0,0,0,0.45),
+    0 8px 40px rgba(0,0,0,0.35),
     inset 0 -50px 70px -30px rgba(34,197,94,0.06);
-  border-color: rgba(34, 197, 94, 0.32) !important;
+  border-color: rgba(34, 197, 94, 0.40) !important;
 }
 
 /* Chat input wrapper — neutral, no green glow */

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { MyLibUserAuth } from "@/lib/user-auth";
-import { getUserAiKeyForGeneration } from "@/lib/ai-key-store";
+import { getUserAiKeyForGeneration, upsertUserAiKey } from "@/lib/ai-key-store";
 import { checkDailyQuota, incrementDailyUsage } from "@/lib/daily-ai-quota";
+import { getPaidAiEntitlement } from "@/lib/ai-paid-entitlement";
 import { dbPrisma } from "@/lib/db";
 import {
   checkInjection,
@@ -36,6 +37,13 @@ const requestSchema = z.object({
     .enum(["OPENAI", "OPENROUTER", "ANTHROPIC", "GOOGLE", "GROK", "GROQ"])
     .optional()
     .default("GOOGLE"),
+  /** Optional inline BYOK — lets the client send a one-time API key */
+  aiAuth: z.object({
+    mode: z.literal("one_time"),
+    apiKey: z.string().min(8).max(256),
+    provider: z.enum(["OPENAI", "OPENROUTER", "ANTHROPIC", "GOOGLE", "GROK", "GROQ"]),
+    rememberKey: z.boolean().optional(),
+  }).optional(),
 });
 
 // ── System prompt ──────────────────────────────────────────────────────────
@@ -48,12 +56,18 @@ const CHAT_SYSTEM_PROMPT = `You are VeggaStare AI, a helpful, concise, and frien
 - Keep responses appropriately concise unless the user asks for detail.`;
 
 // ── Platform keys ──────────────────────────────────────────────────────────
-// Accept both GOOGLE_API_KEY and GOOGLE_AI_API_KEY so either env var name works.
+// Free tier: Google + Groq (free APIs) — available to all authenticated users.
+// Paid tier: OpenAI + Anthropic — available to owner and users with purchased credits.
 const PLATFORM_GOOGLE_KEY = process.env.GOOGLE_API_KEY ?? process.env.GOOGLE_AI_API_KEY ?? "";
 const PLATFORM_GROQ_KEY = process.env.GROQ_API_KEY ?? "";
 const PLATFORM_GROK_KEY = process.env.GROK_API_KEY ?? "";
-// Owner-only platform keys — not exposed to regular users for cost control
 const PLATFORM_OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
+const PLATFORM_ANTHROPIC_KEY = process.env.CLAUDE_API_KEY ?? process.env.ANTHROPIC_API_KEY ?? "";
+
+/** Providers that cost real money — require premium access or BYOK */
+const PAID_PROVIDERS = new Set<Provider>(["OPENAI", "ANTHROPIC"]);
+/** Providers where we have a free platform key */
+const FREE_PROVIDERS = new Set<Provider>(["GOOGLE", "GROQ", "GROK"]);
 
 // ── Provider helpers (adapted from poll builder) ───────────────────────────
 
@@ -391,6 +405,7 @@ export async function POST(req: NextRequest) {
   let apiKey = "";
   let resolvedModel = defaultModelForProvider(requestedProvider);
   let usingPlatformKey = true;
+  let costTier: "free" | "premium" | "byok" = "free";
 
   if (!session) {
     // ── Anonymous: platform Google only ──────────────────────────────────
@@ -414,78 +429,159 @@ export async function POST(req: NextRequest) {
     apiKey = PLATFORM_GOOGLE_KEY;
     resolvedModel = defaultModelForProvider("GOOGLE");
   } else {
-    // ── Authenticated: try BYOK first, then platform key ─────────────────
-    try {
-      const byok = await getUserAiKeyForGeneration({ userId: session.id!, provider: requestedProvider });
-      // Only use the BYOK key if it is for the same provider the user selected.
-      // The key store falls back to the user's default key which may be from a
-      // different provider — passing that to the wrong API causes 404 model errors.
-      if (byok?.apiKey && byok.provider === requestedProvider) {
-        apiKey = byok.apiKey;
-        resolvedProvider = requestedProvider;
-        resolvedModel = body.model || defaultModelForProvider(requestedProvider);
-        usingPlatformKey = false;
+    // ── Authenticated: try inline BYOK → saved BYOK → platform key ───────
+    // 1. Inline one-time key (sent directly from the client)
+    if (body.aiAuth?.mode === "one_time" && body.aiAuth.apiKey) {
+      apiKey = body.aiAuth.apiKey.trim();
+      resolvedProvider = body.aiAuth.provider;
+      resolvedModel = body.model || defaultModelForProvider(resolvedProvider);
+      usingPlatformKey = false;
+      costTier = "byok";
+
+      // Optionally persist the key for future use
+      if (body.aiAuth.rememberKey && session.id) {
+        upsertUserAiKey({
+          userId: session.id,
+          provider: resolvedProvider,
+          apiKey: apiKey,
+        }).catch(() => {}); // fire-and-forget
       }
-    } catch {
-      // No saved BYOK key — fall through to platform
+    }
+
+    // 2. Saved BYOK key
+    if (usingPlatformKey) {
+      try {
+        const byok = await getUserAiKeyForGeneration({ userId: session.id!, provider: requestedProvider });
+        // Only use the BYOK key if it is for the same provider the user selected.
+        if (byok?.apiKey && byok.provider === requestedProvider) {
+          apiKey = byok.apiKey;
+          resolvedProvider = requestedProvider;
+          resolvedModel = body.model || defaultModelForProvider(requestedProvider);
+          usingPlatformKey = false;
+          costTier = "byok";
+        }
+      } catch {
+        // No saved BYOK key — fall through to platform
+      }
     }
 
     if (usingPlatformKey) {
-      // Resolve owner status first — used for both provider selection and quota bypass
+      // Resolve owner status — used for premium access and quota bypass
       const ownerEmail = process.env.PLATFORM_OWNER_EMAIL;
       const sessionEmail = (session as any).email || (session as any).user?.email || null;
       const isOwner = !!(ownerEmail && sessionEmail && sessionEmail.toLowerCase() === ownerEmail.toLowerCase());
 
+      // Check paid entitlement (credit packs / daily cap products)
+      const paidEntitlement = await getPaidAiEntitlement(session.id!);
+      const hasPremiumAccess = isOwner || paidEntitlement.hasAccess;
+
+      // ── Free-tier providers (Google, Groq, Grok) ──────────────────────
       if (requestedProvider === "GOOGLE") {
         if (!PLATFORM_GOOGLE_KEY) {
-          return NextResponse.json({ error: "AI_NOT_CONFIGURED", message: "Google AI is not configured on this platform. Add your own Google API key in Settings → AI Keys." }, { status: 503 });
+          return NextResponse.json({ error: "AI_NOT_CONFIGURED", message: "Google AI is not configured on this platform. Add your own Google API key via BYOK." }, { status: 503 });
         }
         apiKey = PLATFORM_GOOGLE_KEY;
         resolvedProvider = "GOOGLE";
-        resolvedModel = defaultModelForProvider("GOOGLE");
+        resolvedModel = body.model || defaultModelForProvider("GOOGLE");
       } else if (requestedProvider === "GROQ") {
         if (!PLATFORM_GROQ_KEY) {
           return NextResponse.json(
-            { error: "BYOK_REQUIRED", message: `To use Groq without a saved key, add your Groq API key in Settings → AI Keys. Get one free at ${PROVIDER_CONSOLE_URLS["GROQ"]}.`, provider: "GROQ" },
+            { error: "BYOK_REQUIRED", message: `Groq is not configured. Add your key via BYOK — free at ${PROVIDER_CONSOLE_URLS["GROQ"]}.`, provider: "GROQ" },
             { status: 402 }
           );
         }
         apiKey = PLATFORM_GROQ_KEY;
         resolvedProvider = "GROQ";
-        resolvedModel = defaultModelForProvider("GROQ");
+        resolvedModel = body.model || defaultModelForProvider("GROQ");
       } else if (requestedProvider === "GROK") {
         if (!PLATFORM_GROK_KEY) {
           return NextResponse.json(
-            { error: "BYOK_REQUIRED", message: `To use Grok, add your xAI API key in Settings → AI Keys. Get one at ${PROVIDER_CONSOLE_URLS["GROK"]}.`, provider: "GROK" },
+            { error: "BYOK_REQUIRED", message: `Grok is not configured. Add your xAI key via BYOK — get one at ${PROVIDER_CONSOLE_URLS["GROK"]}.`, provider: "GROK" },
             { status: 402 }
           );
         }
         apiKey = PLATFORM_GROK_KEY;
         resolvedProvider = "GROK";
-        resolvedModel = defaultModelForProvider("GROK");
-      } else if (requestedProvider === "OPENAI" && isOwner && PLATFORM_OPENAI_KEY) {
-        // Owner can use the platform OpenAI key — regular users must BYOK
+        resolvedModel = body.model || defaultModelForProvider("GROK");
+
+      // ── Paid-tier providers (OpenAI, Anthropic) — owner or purchased credits ──
+      } else if (requestedProvider === "OPENAI") {
+        if (!hasPremiumAccess) {
+          return NextResponse.json(
+            { error: "PREMIUM_REQUIRED", message: "OpenAI models require Premium AI credits. Purchase a credit pack, or add your own key via BYOK.", provider: "OPENAI" },
+            { status: 402 }
+          );
+        }
+        if (!PLATFORM_OPENAI_KEY) {
+          return NextResponse.json(
+            { error: "AI_NOT_CONFIGURED", message: "OpenAI is temporarily unavailable. Try another model or use your own API key." },
+            { status: 503 }
+          );
+        }
         apiKey = PLATFORM_OPENAI_KEY;
         resolvedProvider = "OPENAI";
-        resolvedModel = defaultModelForProvider("OPENAI");
+        resolvedModel = body.model || defaultModelForProvider("OPENAI");
+        costTier = "premium";
+
+      } else if (requestedProvider === "ANTHROPIC") {
+        if (!hasPremiumAccess) {
+          return NextResponse.json(
+            { error: "PREMIUM_REQUIRED", message: "Anthropic models require Premium AI credits. Purchase a credit pack, or add your own key via BYOK.", provider: "ANTHROPIC" },
+            { status: 402 }
+          );
+        }
+        if (!PLATFORM_ANTHROPIC_KEY) {
+          return NextResponse.json(
+            { error: "AI_NOT_CONFIGURED", message: "Anthropic is temporarily unavailable. Try another model or use your own API key." },
+            { status: 503 }
+          );
+        }
+        apiKey = PLATFORM_ANTHROPIC_KEY;
+        resolvedProvider = "ANTHROPIC";
+        resolvedModel = body.model || defaultModelForProvider("ANTHROPIC");
+        costTier = "premium";
+
       } else {
-        // ANTHROPIC / OPENROUTER (and OPENAI for non-owner) — BYOK required
+        // OPENROUTER — BYOK only (no platform key)
         const label = PROVIDER_LABELS[requestedProvider];
         return NextResponse.json(
-          { error: "BYOK_REQUIRED", message: `To use ${label}, add your API key in Settings → AI Keys. Get one at ${PROVIDER_CONSOLE_URLS[requestedProvider]}.`, provider: requestedProvider },
+          { error: "BYOK_REQUIRED", message: `To use ${label}, add your API key via BYOK. Get one at ${PROVIDER_CONSOLE_URLS[requestedProvider]}.`, provider: requestedProvider },
           { status: 402 }
         );
       }
 
-      // Quota check — owner is exempt (unlimited platform usage)
+      // ── Quota / credit check (owner is exempt) ────────────────────────
       if (!isOwner) {
-        const quota = await checkDailyQuota(session.id!);
-        if (!quota.allowed) {
-          return NextResponse.json(
-            { error: "QUOTA_EXCEEDED", message: "Daily free AI limit reached. Add your own API key in Settings → AI Keys for unlimited access.", remaining: 0 },
-            { status: 429 }
-          );
+        if (paidEntitlement.mode === "credit_pack") {
+          // Credit pack: finite pool of generations
+          if (paidEntitlement.remainingCredits <= 0) {
+            return NextResponse.json(
+              { error: "CREDITS_EXHAUSTED", message: "Your AI credit pack is used up. Purchase more credits to continue using premium models, or switch to a free model.", remaining: 0 },
+              { status: 429 }
+            );
+          }
+        } else if (paidEntitlement.mode === "daily_cap") {
+          // Daily cap: elevated daily limit
+          const quota = await checkDailyQuota(session.id!, paidEntitlement.dailyLimit);
+          if (!quota.allowed) {
+            return NextResponse.json(
+              { error: "QUOTA_EXCEEDED", message: `Daily limit (${paidEntitlement.dailyLimit}) reached. Your quota resets tomorrow, or switch to a free model.`, remaining: 0 },
+              { status: 429 }
+            );
+          }
+        } else {
+          // Free tier: standard daily limit
+          const quota = await checkDailyQuota(session.id!);
+          if (!quota.allowed) {
+            return NextResponse.json(
+              { error: "QUOTA_EXCEEDED", message: "Daily free AI limit reached. Purchase Premium AI credits for more, add your own key via BYOK, or switch to a free model.", remaining: 0 },
+              { status: 429 }
+            );
+          }
         }
+        incrementDailyUsage(session.id!).catch(() => {});
+      } else if (costTier === "premium") {
+        // Owner using paid API — still increment so usage is visible in admin
         incrementDailyUsage(session.id!).catch(() => {});
       }
     }
@@ -515,13 +611,16 @@ export async function POST(req: NextRequest) {
     systemPrompt: CHAT_SYSTEM_PROMPT,
   });
 
+  // Always attach metadata headers so the client UI can show cost hints
+  const headers = new Headers(streamResponse.headers);
+  headers.set("X-Ai-Cost-Tier", costTier);            // "free" | "premium" | "byok"
+  headers.set("X-Ai-Provider", resolvedProvider);
+  headers.set("X-Ai-Model", resolvedModel);
   if (sensitiveCheck.found) {
-    const headers = new Headers(streamResponse.headers);
     headers.set("X-Sensitive-Types", sensitiveCheck.types.join(","));
-    return new Response(streamResponse.body, { status: streamResponse.status, headers });
   }
 
-  return streamResponse;
+  return new Response(streamResponse.body, { status: streamResponse.status, headers });
 }
 
 // ── GET — list sessions for authenticated user ─────────────────────────────
