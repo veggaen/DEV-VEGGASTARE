@@ -6,7 +6,7 @@ import { useUiPreferences } from "@/components/providers/ui-preferences";
 interface FancySphereProps {
   position: "top-right" | "bottom-left" | "top-left" | "bottom-right" | "center";
   size?: "sm" | "md" | "lg" | "xl";
-  color?: "blue" | "purple" | "pink" | "emerald" | "cyan" | "indigo";
+  color?: "blue" | "purple" | "pink" | "emerald" | "cyan" | "indigo" | "brand";
   delay?: number;
   /** Override: force disable regardless of preferences */
   forceDisable?: boolean;
@@ -34,6 +34,9 @@ const colorMap = {
   emerald: "rgba(16,185,129,0.1), rgba(52,211,153,0.06)",
   cyan: "rgba(6,182,212,0.1), rgba(34,211,238,0.06)",
   indigo: "rgba(99,102,241,0.1), rgba(129,140,248,0.06)",
+  // "brand" uses CSS variables - light: sky, dark: emerald
+  // We use a placeholder here, actual color is injected via CSS var in the component
+  brand: "hsl(var(--brand-accent) / 0.1), hsl(var(--brand-accent-light) / 0.06)",
 };
 
 /** Animated gradient sphere - only renders when enableGradientSpheres is true AND user is authenticated */
