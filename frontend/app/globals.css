@@ -34,9 +34,27 @@
   --color-theme-accent-foreground: hsl(var(--theme-accent-foreground));
   --color-theme-accent-muted: hsl(var(--theme-accent-muted));
 
+  /* Legacy emerald-accent (deprecated - use brand-accent instead) */
   --color-emerald-accent: hsl(var(--emerald-accent));
   --color-emerald-accent-hover: hsl(var(--emerald-accent-hover));
   --color-emerald-accent-muted: hsl(var(--emerald-accent-muted));
+
+  /* ─── BRAND ACCENT COLORS ─────────────────────────────────────────────────
+   * Use these for all accent styling. Automatically switches:
+   * Light mode: sky-500 (blue)  |  Dark mode: emerald-500 (green)
+   * 
+   * Usage examples:
+   *   bg-brand-accent        → solid accent background
+   *   text-brand-accent      → accent text color
+   *   border-brand-accent    → accent border
+   *   bg-brand-accent/10     → 10% opacity accent (for subtle backgrounds)
+   *   ring-brand-accent      → focus ring in accent color
+   * ─────────────────────────────────────────────────────────────────────── */
+  --color-brand-accent: hsl(var(--brand-accent));
+  --color-brand-accent-hover: hsl(var(--brand-accent-hover));
+  --color-brand-accent-light: hsl(var(--brand-accent-light));
+  --color-brand-accent-muted: hsl(var(--brand-accent-muted));
+  --color-brand-accent-foreground: hsl(var(--brand-accent-foreground));
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -158,7 +176,7 @@
 
     --border: 0 0% 87%; /* #dedede - More visible borders (#dedede) */
     --input: 0 0% 97%; /* #f7f7f7 - Very light input backgrounds */
-    --ring: 0 0% 50%; /* #808080 - Darker focus rings for visibility */
+    --ring: var(--brand-accent); /* Uses brand accent for focus rings */
  
     --radius: 0.5rem;
 
@@ -171,6 +189,19 @@
     --theme-accent: 0 0% 9%; /* #171717 */
     --theme-accent-foreground: 0 0% 100%; /* #ffffff */
     --theme-accent-muted: 0 0% 96%; /* #f5f5f5 */
+
+    /* ─────────────────────────────────────────────────────────────────────────
+     * BRAND ACCENT COLORS — The single source of truth for accent styling
+     * Light mode: sky-500 (#0ea5e9) — fresh, modern blue
+     * Change these values to instantly update all accent colors site-wide
+     * HSL format: hue saturation% lightness%
+     * ───────────────────────────────────────────────────────────────────────── */
+    --brand-accent: 199 89% 48%;           /* sky-500: #0ea5e9 */
+    --brand-accent-hover: 200 98% 39%;     /* sky-600: #0284c7 */
+    --brand-accent-light: 198 93% 60%;     /* sky-400: #38bdf8 */
+    --brand-accent-muted: 199 89% 48%;     /* sky-500 at lower opacity (use with /10, /20 etc) */
+    --brand-accent-foreground: 0 0% 100%;  /* white text on accent */
+    --brand-accent-glow: 199, 89%, 48%;    /* For rgba() usage: rgb(14, 165, 233) */
   }
  
   .dark {
@@ -212,7 +243,7 @@
  
     --border: 0 0% 13%; /* #212121 - softer borders (zinc-850) */
     --input: 0 0% 10%; /* #1a1a1a - input backgrounds */
-    --ring: 160 84% 39%; /* #10b77f - emerald-600 toned - softer focus rings */
+    --ring: var(--brand-accent); /* Uses brand accent for focus rings */
 
     --scrollbar-track: transparent;
     --scrollbar-thumb: rgba(255, 255, 255, 0.12);
@@ -222,6 +253,17 @@
     --theme-accent: 0 0% 98%; /* #fafafa */
     --theme-accent-foreground: 0 0% 4%; /* #0a0a0a */
     --theme-accent-muted: 0 0% 14%; /* #242424 */
+
+    /* ─────────────────────────────────────────────────────────────────────────
+     * BRAND ACCENT COLORS — Dark mode uses emerald-500 (#10b981)
+     * This creates the signature green glow in dark mode
+     * ───────────────────────────────────────────────────────────────────────── */
+    --brand-accent: 160 84% 39%;           /* emerald-500: #10b981 */
+    --brand-accent-hover: 161 94% 30%;     /* emerald-600: #059669 */
+    --brand-accent-light: 160 84% 46%;     /* emerald-400: #34d399 */
+    --brand-accent-muted: 160 84% 39%;     /* emerald-500 at lower opacity */
+    --brand-accent-foreground: 0 0% 100%;  /* white text on accent */
+    --brand-accent-glow: 160, 84%, 39%;    /* For rgba() usage: rgb(16, 185, 129) */
   }
 }
 /*  
