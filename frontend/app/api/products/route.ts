@@ -54,7 +54,12 @@ export const GET = async (request: Request) => {
       );
     }
 
-    return NextResponse.json(parsed.data, { status: 200 });
+    return NextResponse.json(parsed.data, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+      },
+    });
   } catch (error) {
     console.error(`${LOG_PREFIX} Failed to fetch products:`, error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });

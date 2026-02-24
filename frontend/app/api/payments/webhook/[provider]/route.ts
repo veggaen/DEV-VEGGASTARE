@@ -270,13 +270,11 @@ export async function POST(
                                 where: { role: 'OWNER' },
                                 select: { User: { select: { email: true } } },
                               },
-                              Warehouse: {
+                              WarehouseLocation: {
+                                where: { isActive: true },
                                 select: {
                                   id: true,
                                   name: true,
-                                  Employee: {
-                                    select: { User: { select: { email: true } } },
-                                  },
                                 },
                               },
                             },
@@ -313,9 +311,11 @@ export async function POST(
                 }
 
                 // Warehouse notification for physical products
-                if (product.productType !== 'DIGITAL' && product.Company?.Warehouse) {
-                  for (const wh of product.Company.Warehouse) {
-                    const whEmails = wh.Employee?.map((e: { User: { email: string | null } }) => e.User?.email).filter(Boolean) as string[];
+                if (product.productType !== 'DIGITAL' && product.Company?.WarehouseLocation?.length) {
+                  const whEmails = product.Company.Employee
+                    ?.map((e: { User: { email: string | null } }) => e.User?.email)
+                    .filter(Boolean) as string[];
+                  for (const wh of product.Company.WarehouseLocation) {
                     if (whEmails.length > 0) {
                       await sendWarehouseOrderNotification(whEmails, {
                         orderId: fullOrder.id,

@@ -17,17 +17,45 @@ interface Product extends Omit<PrismaProduct, 'specifications'> {
 
 export const fetchProductById = cache(async (id: string): Promise<Product | null> => {
   try {
-    // Fetch product data from the database
+    // Fetch product data from the database — use select instead of include
+    // to avoid pulling entire Company/WarehouseLocation rows
     const productData = await dbPrisma.product.findUnique({
       where: { id },
       include: {
         Company: {
-          include: {
-            WarehouseLocation: true,
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            colorScheme: true,
+            ownerId: true,
+            WarehouseLocation: {
+              where: { isActive: true },
+              select: {
+                id: true,
+                name: true,
+                city: true,
+                country: true,
+              },
+            },
           },
         },
-        Inventory: true,
-        ProductAcceptedToken: true,
+        Inventory: {
+          select: {
+            id: true,
+            quantity: true,
+            warehouseId: true,
+          },
+        },
+        ProductAcceptedToken: {
+          select: {
+            id: true,
+            symbol: true,
+            family: true,
+            decimals: true,
+            tokenAddress: true,
+          },
+        },
       },
     });
 

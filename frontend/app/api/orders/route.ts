@@ -312,13 +312,11 @@ export async function POST(req: Request) {
                     where: { role: 'OWNER' },
                     select: { User: { select: { email: true } } },
                   },
-                  Warehouse: {
+                  WarehouseLocation: {
+                    where: { isActive: true },
                     select: {
                       id: true,
                       name: true,
-                      Employee: {
-                        select: { User: { select: { email: true } } },
-                      },
                     },
                   },
                 },
@@ -352,11 +350,13 @@ export async function POST(req: Request) {
             }
 
             // Warehouse notification for physical/hybrid products from companies
-            if (product.productType !== 'DIGITAL' && product.Company?.Warehouse) {
-              for (const warehouse of product.Company.Warehouse) {
-                const employeeEmails = warehouse.Employee
-                  ?.map((e: { User: { email: string | null } }) => e.User?.email)
-                  .filter(Boolean) as string[];
+            if (product.productType !== 'DIGITAL' && product.Company?.WarehouseLocation?.length) {
+              // Use company owner/employees for warehouse notifications
+              const employeeEmails = product.Company.Employee
+                ?.map((e: { User: { email: string | null } }) => e.User?.email)
+                .filter(Boolean) as string[];
+
+              for (const warehouse of product.Company.WarehouseLocation) {
 
                 if (employeeEmails.length > 0) {
                   try {

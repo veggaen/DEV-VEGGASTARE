@@ -131,7 +131,7 @@
   "overrides": {
     "@reown/appkit": "$@reown/appkit",
     "cookie": "^0.7.0",
-    "fast-xml-parser": "^5.3.4",
+    "fast-xml-parser": ">=5.3.6",
     "hono": "^4.11.7",
     "lodash": "^4.17.22"
   }
