@@ -93,6 +93,7 @@ export const fetchProductsWithDetails = async ({
         specifications: true,
         userId: true,
         companyId: true,
+        productType: true,
         ProductAcceptedToken: {
           select: {
             symbol: true,
@@ -147,6 +148,7 @@ export const fetchProductsWithDetails = async ({
         specifications: (p as any).specifications ?? null,
         userId: String(p.userId),
         companyId: p.companyId ? String(p.companyId) : null,
+        productType: p.productType ?? 'PHYSICAL',
         createdAt: toIsoString(p.createdAt),
         updatedAt: toIsoString(p.updatedAt),
         user,

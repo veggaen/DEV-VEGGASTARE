@@ -242,11 +242,11 @@ export default function SidebarWalletPanel({
   const hasAnyWallet = displayWallets.length > 0;
 
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
-        <FiZap className="h-4 w-4 text-emerald-500" />
-        <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+    <div>
+      {/* Section label */}
+      <div className="flex items-center gap-2 px-1 pb-2">
+        <FiZap className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
           Web3 Wallets
         </span>
         {hasAnyWallet && (
@@ -266,7 +266,7 @@ export default function SidebarWalletPanel({
       </div>
 
       {/* Body */}
-      <div className="p-2.5 space-y-1.5">
+      <div className="space-y-1.5">
         {/* Wallet list */}
         {displayWallets.map((w) => (
           <WalletRow
@@ -316,3 +316,4 @@ export default function SidebarWalletPanel({
     </div>
   );
 }
+

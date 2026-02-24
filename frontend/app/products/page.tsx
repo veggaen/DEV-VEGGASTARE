@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { CiStar } from "react-icons/ci";
 import { MdAdd } from "react-icons/md";
+import { FiShoppingCart, FiCheck, FiZap, FiPackage, FiLayers } from "react-icons/fi";
+import { useRouter } from "next/navigation";
+import { useCart } from "@/contexts/cart-context";
 import Image from "next/image";
 import Link from "next/link";
 import ProductsSkeleton from '@/components/uicustom/skeletons/products-skeleton';
@@ -33,121 +35,179 @@ const DEBUG_PRODUCTS =
 	process.env.NODE_ENV !== 'production' &&
 	process.env.NEXT_PUBLIC_DEBUG_PRODUCTS === '1';
 
+const PRODUCT_TYPE_META: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
+	DIGITAL: { label: "Digital", icon: FiZap, color: "text-violet-500 bg-violet-500/10 border-violet-500/20" },
+	PHYSICAL: { label: "Physical", icon: FiPackage, color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },
+	HYBRID: { label: "Hybrid", icon: FiLayers, color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
+};
+
 const ProductCard = React.memo(
 	({ product, priority }: { product: ExtendedProduct; priority?: boolean }) => {
 		const reduceMotion = useReducedMotion();
 		const { prefs } = useUiPreferences();
 		const showFancyHover = prefs.hoverEffects === "colorful";
-		
+		const router = useRouter();
+		const { addItem } = useCart();
+		const [adding, setAdding] = useState(false);
+		const [added, setAdded] = useState(false);
+
+		const handleAddToCart = useCallback(async (e: React.MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			setAdding(true);
+			const ok = await addItem(product.id);
+			setAdding(false);
+			if (ok) {
+				setAdded(true);
+				setTimeout(() => setAdded(false), 2000);
+			}
+		}, [addItem, product.id]);
+
+		const handleBuyNow = useCallback(async (e: React.MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			const ok = await addItem(product.id);
+			if (ok) {
+				router.push("/checkout");
+			}
+		}, [addItem, product.id, router]);
+
+		const typeMeta = PRODUCT_TYPE_META[(product as any).productType ?? "PHYSICAL"] ?? PRODUCT_TYPE_META.PHYSICAL;
+		const TypeIcon = typeMeta.icon;
+		const outOfStock = product.stock === 0;
+
 		return (
-			<div className="group flex flex-col overflow-hidden rounded-lg border border-black/10 dark:border-white/10 bg-white/35 dark:bg-white/[0.02] hover:bg-white/50 dark:hover:bg-white/[0.03] transition-colors">
-				<div className="relative">
+			<div className={`group flex flex-col overflow-hidden rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-zinc-900/70 shadow-sm ${outOfStock ? "opacity-60 pointer-events-none" : "hover:-translate-y-1 hover:shadow-lg hover:shadow-black/[0.08] dark:hover:shadow-black/30"} transition-all duration-300`}>
+				{/* ── Image / Carousel ── */}
+				<Link href={`/products/${product.id}`} className="relative overflow-hidden">
 					<Carousel>
 						<CarouselContent>
 							{product.image.map((image, idx) => (
 								<CarouselItem key={idx}>
-									<AspectRatio ratio={1 / 1}>
+									<AspectRatio ratio={4 / 5}>
 										<Image
 											src={image}
 											alt={product.title}
 											fill
 											sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
 											priority={Boolean(priority && idx === 0)}
-											className="object-cover"
+											className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
 										/>
 									</AspectRatio>
 								</CarouselItem>
 							))}
 						</CarouselContent>
-						<CarouselPrevious className="opacity-0 group-hover:opacity-100 transition-opacity" />
-						<CarouselNext className="opacity-0 group-hover:opacity-100 transition-opacity" />
+						<CarouselPrevious className="left-1.5 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" />
+						<CarouselNext className="right-1.5 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" />
 					</Carousel>
 
-					<div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-black/35 to-transparent" />
-					<div className="absolute left-3 bottom-3 flex gap-2">
-						<motion.span
-							initial={reduceMotion ? false : { opacity: 0, y: -14 }}
-							animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-							transition={
-								reduceMotion
-									? undefined
-									: { type: "spring", stiffness: 620, damping: 24, mass: 0.7 }
-							}
-							className="rounded-sm bg-black/50 text-white text-[11px] px-1.5 py-0.5"
-						>
+					{/* Gradient overlay */}
+					<div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/50 to-transparent" />
+
+					{/* Badges row — category + product type */}
+					<div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center gap-1.5">
+						<span className="inline-flex items-center rounded-md bg-black/55 backdrop-blur-sm text-white text-[10px] font-medium tracking-wide px-1.5 py-0.5">
 							{product.category}
-						</motion.span>
+						</span>
+						<span className={`inline-flex items-center gap-0.5 rounded-md border backdrop-blur-sm text-[10px] font-medium px-1.5 py-0.5 ${typeMeta.color}`}>
+							<TypeIcon className="h-2.5 w-2.5" />
+							{typeMeta.label}
+						</span>
+					</div>
+
+					{/* Out of stock overlay */}
+					{outOfStock && (
+						<div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
+							<span className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-zinc-800">Out of stock</span>
+						</div>
+					)}
+				</Link>
+
+				{/* ── Card body ── */}
+				<div className="flex flex-col gap-1.5 p-3 pb-2 grow">
+					{/* Title — linked */}
+					<Link href={`/products/${product.id}`} className="group/title">
+						<h2 className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-snug group-hover/title:text-sky-600 dark:group-hover/title:text-sky-400 transition-colors">
+							{product.title}
+						</h2>
+					</Link>
+
+					{/* Description */}
+					<p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+						{product.description}
+					</p>
+
+					{/* Seller + stock row */}
+					<div className="flex items-center justify-between gap-2 mt-0.5">
+						<p className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate min-w-0">
+							<span className="mr-1">by</span>
+							{product.company ? (
+								<Link
+									href={`/companies/${product.company.id}`}
+									className={`font-medium transition-colors ${showFancyHover ? "hover:text-fuchsia-500 dark:hover:text-fuchsia-400" : "hover:text-zinc-700 dark:hover:text-zinc-200"}`}
+								>
+									{product.company.name}
+								</Link>
+							) : product.user ? (
+								<Link
+									href={`/profile/${product.user.id}`}
+									className={`font-medium transition-colors ${showFancyHover ? "hover:text-sky-500 dark:hover:text-sky-400" : "hover:text-zinc-700 dark:hover:text-zinc-200"}`}
+								>
+									{product.user.name}
+								</Link>
+							) : (
+								<span>Unknown</span>
+							)}
+						</p>
+						{product.stock > 0 && product.stock <= 5 && (
+							<span className="shrink-0 text-[10px] font-medium text-amber-500 dark:text-amber-400">
+								Only {product.stock} left
+							</span>
+						)}
 					</div>
 				</div>
 
-				<div className="p-3 md:p-4 flex flex-col gap-2 grow">
-					<div className="min-w-0">
-						<h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 truncate">{product.title}</h2>
-						<p className="text-sm text-zinc-600 dark:text-zinc-300 truncate">{product.description}</p>
-						<p className="text-xs text-zinc-500 dark:text-zinc-400 truncate flex items-center gap-1">
-							<span className="opacity-80">Seller:</span>
-							{product.company ? (
-								<Link href={`/companies/${product.company.id}`} className="group/seller inline-flex items-center" aria-label={`View company ${product.company.name}`}>
-									<motion.span
-										whileHover={reduceMotion ? undefined : { y: -1, scale: 1.03 }}
-										whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-										transition={reduceMotion ? undefined : { type: "spring", stiffness: 520, damping: 30, mass: 0.6 }}
-										className={
-											"relative inline-flex items-center rounded-full px-2 py-0.5 border border-transparent " +
-											"text-zinc-600 dark:text-zinc-300 " +
-											"group-hover/seller:border-zinc-300/70 dark:group-hover/seller:border-zinc-600/60 " +
-											(showFancyHover
-												? "group-hover/seller:bg-linear-to-r group-hover/seller:from-indigo-500/10 group-hover/seller:via-fuchsia-500/10 group-hover/seller:to-emerald-500/10 "
-												: "group-hover/seller:bg-neutral-100 dark:group-hover/seller:bg-neutral-800 ") +
-											"group-hover/seller:text-zinc-900 dark:group-hover/seller:text-zinc-100"
-										}
-									>
-										{product.company.name}
-									</motion.span>
-								</Link>
-							) : product.user ? (
-								<Link href={`/profile/${product.user.id}`} className="group/seller inline-flex items-center" aria-label={`View seller ${product.user.name}`}>
-									<motion.span
-										whileHover={reduceMotion ? undefined : { y: -1, scale: 1.03 }}
-										whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-										transition={reduceMotion ? undefined : { type: "spring", stiffness: 520, damping: 30, mass: 0.6 }}
-										className={
-											"relative inline-flex items-center rounded-full px-2 py-0.5 border border-transparent " +
-											"text-zinc-600 dark:text-zinc-300 " +
-											"group-hover/seller:border-zinc-300/70 dark:group-hover/seller:border-zinc-600/60 " +
-											(showFancyHover
-												? "group-hover/seller:bg-linear-to-r group-hover/seller:from-indigo-500/10 group-hover/seller:via-fuchsia-500/10 group-hover/seller:to-emerald-500/10 "
-												: "group-hover/seller:bg-neutral-100 dark:group-hover/seller:bg-neutral-800 ") +
-											"group-hover/seller:text-zinc-900 dark:group-hover/seller:text-zinc-100"
-										}
-									>
-										{product.user.name}
-									</motion.span>
-								</Link>
+				{/* ── Price + Actions footer ── */}
+				<div className="border-t border-black/[0.05] dark:border-white/[0.05] px-3 py-2.5 mt-auto">
+					{/* Price */}
+					<div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-2">
+						<PriceAmount
+							amount={product.price}
+							currency={product.priceCurrency || 'USD'}
+							acceptsWeb3={Array.isArray(product.acceptedTokens) && product.acceptedTokens.length > 0}
+							acceptedCryptos={product.acceptedTokens?.map((tok) => tok.symbol)}
+						/>
+					</div>
+
+					{/* Action buttons — full-width row */}
+					<div className="flex items-center gap-1.5">
+						<Button
+							type="button"
+							variant="default"
+							className="flex-1 h-8 rounded-lg text-xs font-semibold"
+							onClick={handleBuyNow}
+							disabled={outOfStock}
+						>
+							Buy Now
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="icon"
+							className="h-8 w-8 rounded-lg border-zinc-200 dark:border-zinc-700 shrink-0"
+							title="Add to cart"
+							onClick={handleAddToCart}
+							disabled={adding || outOfStock}
+						>
+							{adding ? (
+								<span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+							) : added ? (
+								<FiCheck className="h-3.5 w-3.5 text-emerald-500" />
 							) : (
-								<span className="text-zinc-600 dark:text-zinc-300">Unknown</span>
+								<FiShoppingCart className="h-3.5 w-3.5" />
 							)}
-						</p>
+						</Button>
 					</div>
-
-					<div className="mt-auto flex items-center justify-between gap-3">
-						<div className="flex items-center gap-1 text-zinc-500 dark:text-zinc-400">
-							<CiStar className="h-4 w-4 text-yellow-500" />
-						</div>
-
-						<div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-							<PriceAmount 
-								amount={product.price} 
-								currency={product.priceCurrency || 'USD'} 
-								acceptsWeb3={Array.isArray(product.acceptedTokens) && product.acceptedTokens.length > 0}
-								acceptedCryptos={product.acceptedTokens?.map((t) => t.symbol)}
-							/>
-						</div>
-					</div>
-
-					<Button asChild variant="vegaNormalBtn" className="w-full rounded-md">
-						<Link href={`/products/${product.id}`}>View</Link>
-					</Button>
 				</div>
 			</div>
 		);

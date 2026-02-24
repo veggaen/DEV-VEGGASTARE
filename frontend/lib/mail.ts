@@ -611,11 +611,181 @@ export const sendOrderConfirmationEmail = async (
             THORSEN SOFTWARE ENK | Org.nr: 937051107 | Blåskjellveien 5B, 4310 Hommersåk
           </p>
           <p style="margin: 8px 0 0; color: #999; font-size: 12px;">
-            <a href="${whatENV}/terms" style="color: #666;">Kjøpsvilkår</a> | 
+            <a href="${whatENV}/terms" style="color: #666;">Kjøpsvilkår</a> |
             <a href="${whatENV}/privacy" style="color: #666;">Personvernerklæring</a>
           </p>
         </div>
       </div>
     `,
   });
+};
+
+// ─── Seller notification: new sale ──────────────────────────────────────────
+interface SellerOrderNotificationData {
+  orderId: string;
+  items: { title: string; quantity: number; priceAtTime: number }[];
+  totalAmount: number;
+  buyerName: string;
+  shippingAddress?: string;
+  shippingCity?: string;
+  shippingPostalCode?: string;
+  shippingCountry?: string;
+  shippingPhone?: string;
+  shippingMethodName?: string;
+  labelUrl?: string;
+  trackingNumber?: string;
+  isDigital: boolean;
+}
+
+export const sendSellerOrderNotification = async (
+  sellerEmail: string,
+  data: SellerOrderNotificationData
+): Promise<void> => {
+  const itemsHtml = data.items
+    .map(
+      (item) => `
+    <tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #eee;">${item.title}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;">$${(item.priceAtTime * item.quantity).toFixed(2)}</td>
+    </tr>`
+    )
+    .join('');
+
+  const shippingHtml = !data.isDigital && data.shippingAddress
+    ? `
+    <h3 style="color:#333;border-bottom:2px solid #eee;padding-bottom:8px;margin-top:24px;">📦 Ship to</h3>
+    <div style="background:#f8f9fa;padding:16px;border-radius:8px;">
+      <p style="margin:0;color:#333;font-weight:600;">${data.buyerName}</p>
+      <p style="margin:4px 0 0;color:#666;">${data.shippingAddress}</p>
+      <p style="margin:4px 0 0;color:#666;">${data.shippingPostalCode} ${data.shippingCity}</p>
+      <p style="margin:4px 0 0;color:#666;">${data.shippingCountry}</p>
+      ${data.shippingPhone ? `<p style="margin:4px 0 0;color:#666;">📞 ${data.shippingPhone}</p>` : ''}
+      ${data.shippingMethodName ? `<p style="margin:8px 0 0;color:#333;"><strong>Shipping method:</strong> ${data.shippingMethodName}</p>` : ''}
+    </div>
+    ${data.labelUrl ? `
+    <div style="margin-top:12px;">
+      <a href="${data.labelUrl}" style="display:inline-block;background:#2563eb;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">
+        🏷️ Download Shipping Label
+      </a>
+    </div>` : ''}
+    ${data.trackingNumber ? `<p style="margin-top:8px;color:#666;font-size:13px;">Tracking: <strong>${data.trackingNumber}</strong></p>` : ''}
+  `
+    : data.isDigital
+      ? `<p style="color:#10b981;font-weight:600;margin-top:16px;">✅ Digital product — no shipping needed. Download links have been sent to the buyer.</p>`
+      : '';
+
+  await sendEmailViaResend({
+    from: 'Veggat-Orders@veggat.com',
+    to: sellerEmail,
+    subject: `New sale! Order #${data.orderId}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#fff;">
+        <div style="background:linear-gradient(to right,#10b981,#059669);padding:24px;border-radius:8px 8px 0 0;">
+          <h1 style="color:white;margin:0;font-size:22px;">You made a sale! 🎉</h1>
+        </div>
+        <div style="padding:24px;">
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:16px;border-radius:8px;margin-bottom:20px;">
+            <p style="margin:0;color:#333;"><strong>Order ID:</strong> ${data.orderId}</p>
+            <p style="margin:4px 0 0;color:#333;"><strong>Total:</strong> $${data.totalAmount.toFixed(2)}</p>
+          </div>
+          <h3 style="color:#333;border-bottom:2px solid #eee;padding-bottom:8px;">Items sold</h3>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="background:#f8f9fa;">
+              <th style="padding:10px 12px;text-align:left;">Product</th>
+              <th style="padding:10px 12px;text-align:center;">Qty</th>
+              <th style="padding:10px 12px;text-align:right;">Subtotal</th>
+            </tr></thead>
+            <tbody>${itemsHtml}</tbody>
+          </table>
+          ${shippingHtml}
+          <div style="margin-top:24px;text-align:center;">
+            <a href="${whatENV}/my-sales" style="display:inline-block;background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
+              View your sales dashboard →
+            </a>
+          </div>
+        </div>
+        <div style="background:#f8f9fa;padding:12px;text-align:center;border-radius:0 0 8px 8px;">
+          <p style="margin:0;color:#999;font-size:12px;">Veggat Marketplace · <a href="${whatENV}" style="color:#666;">veggat.com</a></p>
+        </div>
+      </div>
+    `,
+  });
+};
+
+// ─── Warehouse employee notification: new order to fulfil ───────────────────
+interface WarehouseOrderNotificationData {
+  orderId: string;
+  items: { title: string; quantity: number }[];
+  buyerName: string;
+  shippingAddress: string;
+  shippingCity: string;
+  shippingPostalCode: string;
+  shippingCountry: string;
+  shippingPhone?: string;
+  shippingMethodName?: string;
+  labelUrl?: string;
+  trackingNumber?: string;
+  warehouseName: string;
+}
+
+export const sendWarehouseOrderNotification = async (
+  employeeEmails: string[],
+  data: WarehouseOrderNotificationData
+): Promise<void> => {
+  if (employeeEmails.length === 0) return;
+
+  const itemsHtml = data.items
+    .map(
+      (item) =>
+        `<li style="padding:4px 0;"><strong>${item.title}</strong> × ${item.quantity}</li>`
+    )
+    .join('');
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#fff;">
+      <div style="background:linear-gradient(to right,#f59e0b,#d97706);padding:24px;border-radius:8px 8px 0 0;">
+        <h1 style="color:white;margin:0;font-size:22px;">📦 New order to fulfil</h1>
+        <p style="color:#fef3c7;margin:8px 0 0;font-size:14px;">Warehouse: ${data.warehouseName}</p>
+      </div>
+      <div style="padding:24px;">
+        <div style="background:#fffbeb;border:1px solid #fde68a;padding:16px;border-radius:8px;margin-bottom:20px;">
+          <p style="margin:0;color:#333;font-weight:bold;">Order #${data.orderId}</p>
+        </div>
+        <h3 style="color:#333;border-bottom:2px solid #eee;padding-bottom:8px;">Items to pack</h3>
+        <ul style="list-style:none;padding:0;">${itemsHtml}</ul>
+        <h3 style="color:#333;border-bottom:2px solid #eee;padding-bottom:8px;margin-top:24px;">Ship to</h3>
+        <div style="background:#f8f9fa;padding:16px;border-radius:8px;">
+          <p style="margin:0;color:#333;font-weight:600;">${data.buyerName}</p>
+          <p style="margin:4px 0 0;color:#666;">${data.shippingAddress}</p>
+          <p style="margin:4px 0 0;color:#666;">${data.shippingPostalCode} ${data.shippingCity}</p>
+          <p style="margin:4px 0 0;color:#666;">${data.shippingCountry}</p>
+          ${data.shippingPhone ? `<p style="margin:4px 0 0;color:#666;">📞 ${data.shippingPhone}</p>` : ''}
+          ${data.shippingMethodName ? `<p style="margin:8px 0 0;color:#333;"><strong>Method:</strong> ${data.shippingMethodName}</p>` : ''}
+        </div>
+        ${data.labelUrl ? `
+        <div style="margin-top:16px;text-align:center;">
+          <a href="${data.labelUrl}" style="display:inline-block;background:#d97706;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
+            🏷️ Download Shipping Label
+          </a>
+        </div>` : ''}
+        ${data.trackingNumber ? `<p style="text-align:center;margin-top:8px;color:#666;font-size:13px;">Tracking: <strong>${data.trackingNumber}</strong></p>` : ''}
+      </div>
+      <div style="background:#f8f9fa;padding:12px;text-align:center;border-radius:0 0 8px 8px;">
+        <p style="margin:0;color:#999;font-size:12px;">Veggat Warehouse Notification · <a href="${whatENV}" style="color:#666;">veggat.com</a></p>
+      </div>
+    </div>
+  `;
+
+  // Send to all warehouse employees in parallel
+  await Promise.allSettled(
+    employeeEmails.map((email) =>
+      sendEmailViaResend({
+        from: 'Veggat-Warehouse@veggat.com',
+        to: email,
+        subject: `📦 Order #${data.orderId} — Ready to fulfil (${data.warehouseName})`,
+        html,
+      })
+    )
+  );
 };

@@ -1270,15 +1270,41 @@ export async function POST(req: NextRequest) {
 
       // Output content safety validation
       const allText = JSON.stringify(pollData).toLowerCase();
-      const UNSAFE_OUTPUT_PATTERNS = [
-        /\bapi[_-]?key\b/,
-        /\bsk-[a-z0-9]{20,}/,
-        /\bpassword\s*[:=]/,
-        /\b(hack|exploit|inject|phish)\b.*\b(tutorial|how[- ]to|guide)\b/,
+      const UNSAFE_OUTPUT_PATTERNS: { pattern: RegExp; label: string }[] = [
+        { pattern: /\bapi[_-]?key\b/, label: "api_key_leak" },
+        { pattern: /\bsk-[a-z0-9]{20,}/, label: "secret_key_leak" },
+        { pattern: /\bpassword\s*[:=]/, label: "password_leak" },
+        // Only block when exploit/hack words appear in an INSTRUCTIONAL context
+        // (e.g. "how to hack a server tutorial") — not educational quiz content
+        // about security concepts. Require closer proximity (≤80 chars between).
+        { pattern: /\b(hack|exploit|inject|phish)(ing)?\b.{0,80}\b(step[- ]by[- ]step|tutorial|walkthrough)\b/, label: "exploit_tutorial" },
+        { pattern: /\b(step[- ]by[- ]step|tutorial|walkthrough)\b.{0,80}\b(hack|exploit|inject|phish)(ing)?\b/, label: "exploit_tutorial_rev" },
       ];
-      for (const pattern of UNSAFE_OUTPUT_PATTERNS) {
+      for (const { pattern, label } of UNSAFE_OUTPUT_PATTERNS) {
         if (pattern.test(allText)) {
-          console.warn("[AI output safety] Blocked suspicious output:", pattern.source);
+          // ── Detailed audit log for Vercel / server logs ──
+          // Extract the matched snippet for owner review
+          const match = allText.match(pattern);
+          const matchSnippet = match
+            ? allText.slice(Math.max(0, match.index! - 60), match.index! + match[0].length + 60)
+            : "(no snippet)";
+
+          console.warn(
+            "[AI output safety] BLOCKED",
+            JSON.stringify({
+              label,
+              pattern: pattern.source,
+              userId,
+              userEmail: userEmail || "unknown",
+              isOwner,
+              prompt: rawPrompt.slice(0, 500),
+              provider: auth.provider,
+              model: resolvedModel || auth.model || "unknown",
+              matchSnippet: matchSnippet.slice(0, 300),
+              timestamp: new Date().toISOString(),
+            })
+          );
+
           await sendEvent(writer, { step: "error", message: "AI produced unexpected content. Please try a different topic." });
           return;
         }

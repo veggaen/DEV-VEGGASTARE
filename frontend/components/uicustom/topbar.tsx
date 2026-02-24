@@ -18,7 +18,8 @@ import { FaUser } from "react-icons/fa";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { TbHexagons } from "react-icons/tb";
-import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiSliders, FiShield, FiBell, FiLock, FiDollarSign, FiSun, FiMoon, FiMonitor, FiTrash2, FiEye, FiEyeOff, FiBellOff, FiVolume2, FiVolumeX, FiKey, FiCamera, FiEdit2, FiExternalLink, FiCopy, FiLink, FiRefreshCw, FiCheck, FiPackage, FiZap } from "react-icons/fi";
+import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiSliders, FiShield, FiBell, FiLock, FiDollarSign, FiSun, FiMoon, FiMonitor, FiTrash2, FiEye, FiEyeOff, FiBellOff, FiVolume2, FiVolumeX, FiKey, FiCamera, FiEdit2, FiExternalLink, FiCopy, FiLink, FiRefreshCw, FiCheck, FiPackage, FiZap, FiHome, FiGrid, FiCreditCard, FiSettings, FiHelpCircle } from "react-icons/fi";
+import { PulseHeart } from "@/components/uicustom/icons/PulseIcons";
 import {
 	Sheet,
 	SheetContent,
@@ -117,6 +118,18 @@ const MyTopBar = () => {
 	const [walletRefreshToken, setWalletRefreshToken] = useState(0);
 	const [menuPane, setMenuPane] = useState<"nav" | "settings">("nav");
 	const cleanLogout = useCleanLogout();
+	const [emailCopied, setEmailCopied] = useState(false);
+	const copyEmail = useCallback(async () => {
+		if (!clientUser?.email) return;
+		try {
+			await navigator.clipboard.writeText(clientUser.email);
+			setEmailCopied(true);
+			toast.success("Email copied");
+			setTimeout(() => setEmailCopied(false), 2000);
+		} catch {
+			toast.error("Failed to copy");
+		}
+	}, [clientUser?.email]);
 	const collapseForProducts = pathname.startsWith("/products") && isMobile && !productsTopbarVisible;
 	const menuSwipeRef = useRef<{ x: number; y: number; t: number } | null>(null);
 	const onMenuTouchStart = (e: React.TouchEvent) => {
@@ -260,28 +273,53 @@ const MyTopBar = () => {
 			: []),
 	];
 
-	const menuLinks = useMemo(() => {
-		// Mobile/sheet menu has full navigation
+	const menuGroups = useMemo(() => {
 		if (clientUser) {
 			return [
-				{ href: "/", label: "Home" },
-				{ href: "/products", label: "Products" },
-				{ href: "/pulse", label: "Polls" },
-				{ href: "/conversations", label: "Messages" },
-				{ href: "/ai", label: "AI Chat" },
-				{ href: "/cart", label: "Cart" },
-				{ href: "/checkout", label: "Checkout" },
-				{ href: "/settings", label: "Settings" },
-				{ href: "/info", label: "Contact" },
-				{ href: "/privacy", label: "Privacy" },
+				{
+					label: "Explore",
+					items: [
+						{ href: "/", label: "Home", icon: FiHome },
+						{ href: "/products", label: "Products", icon: FiPackage },
+						{ href: "/pulse", label: "Polls", icon: PulseHeart },
+						{ href: "/ai", label: "AI Chat", icon: FiZap },
+					],
+				},
+				{
+					label: "Account",
+					items: [
+						{ href: "/dashboard", label: "Dashboard", icon: FiGrid },
+						{ href: "/conversations", label: "Messages", icon: FiMessageSquare },
+						{ href: "/cart", label: "Cart", icon: FiShoppingCart },
+						{ href: "/checkout", label: "Checkout", icon: FiCreditCard },
+						{ href: "/settings", label: "Settings", icon: FiSettings },
+					],
+				},
+				{
+					label: "Info",
+					items: [
+						{ href: "/info", label: "Contact", icon: FiHelpCircle },
+						{ href: "/privacy", label: "Privacy", icon: FiLock },
+					],
+				},
 			];
 		}
 		return [
-			{ href: "/", label: "Home" },
-			{ href: "/products", label: "Products" },
-			{ href: "/pulse", label: "Polls" },
-			{ href: "/info", label: "Contact" },
-			{ href: "/privacy", label: "Privacy" },
+			{
+				label: "Explore",
+				items: [
+					{ href: "/", label: "Home", icon: FiHome },
+					{ href: "/products", label: "Products", icon: FiPackage },
+					{ href: "/pulse", label: "Polls", icon: PulseHeart },
+				],
+			},
+			{
+				label: "Info",
+				items: [
+					{ href: "/info", label: "Contact", icon: FiHelpCircle },
+					{ href: "/privacy", label: "Privacy", icon: FiLock },
+				],
+			},
 		];
 	}, [clientUser]);
 
@@ -646,33 +684,51 @@ const MyTopBar = () => {
 									<div className="flex h-full flex-col">
 										{/* User Profile Header */}
 										{clientUser ? (
-											<Link
-												href="/profile"
-												onClick={() => setMenuOpen(false)}
-												className="flex flex-col items-center gap-3 p-6 border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors group"
-												title="View Profile"
-											>
-												<Avatar className="h-20 w-20 border-2 border-zinc-200 dark:border-zinc-700 group-hover:border-emerald-400 transition-colors">
-													<AvatarImage
-														src={clientUser.image || "/users/avatar.webp"}
-														alt="User"
-													/>
-													<AvatarFallback className="bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 text-xl">
-														<FaUser className="h-8 w-8" />
-													</AvatarFallback>
-												</Avatar>
-												<div className="text-center">
-													<div className="text-base font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-														{clientUser.name ?? "Account"}
+											<>
+												<Link
+													href="/profile"
+													onClick={() => setMenuOpen(false)}
+													className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors group"
+													title="View Profile"
+												>
+													<Avatar className="h-10 w-10 shrink-0 ring-2 ring-background shadow-sm group-hover:ring-sky-400/50 transition-all">
+														<AvatarImage
+															src={clientUser.image || "/users/avatar.webp"}
+															alt="User"
+														/>
+														<AvatarFallback className="bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 text-sm">
+															<FaUser className="h-4 w-4" />
+														</AvatarFallback>
+													</Avatar>
+													<div className="min-w-0 flex-1">
+														<div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+															{clientUser.name ?? "Account"}
+														</div>
+														<div className="text-[11px] text-zinc-400 dark:text-zinc-500 group-hover:text-sky-500 transition-colors">
+															View profile →
+														</div>
 													</div>
-													<div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+												</Link>
+												{/* Email — one-click copy */}
+												<div className="mx-3 mb-2 flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800">
+													<span className="text-xs text-zinc-500 dark:text-zinc-400 truncate font-mono min-w-0">
 														{clientUser.email}
-													</div>
-													<div className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-														Click to view profile
-													</div>
+													</span>
+													<button
+														type="button"
+														onClick={copyEmail}
+														className="shrink-0 p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+														title="Copy email address"
+													>
+														{emailCopied ? (
+															<FiCheck className="h-3.5 w-3.5 text-emerald-500" />
+														) : (
+															<FiCopy className="h-3.5 w-3.5 text-zinc-400" />
+														)}
+													</button>
 												</div>
-											</Link>
+												<div className="border-b border-zinc-100 dark:border-zinc-800" />
+											</>
 										) : (
 											<SheetHeader className="border-b border-zinc-100 dark:border-zinc-800 p-6">
 												<SheetTitle className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
@@ -714,42 +770,61 @@ const MyTopBar = () => {
 										<div className="flex-1 overflow-y-auto">
 											{/* Navigation Pane */}
 											{(!clientUser || menuPane === "nav") && (
-												<div className="p-4">
-													{/* Navigation links */}
-													<nav className="space-y-1">
-														{menuLinks.map((item) => (
-															<Link
-																key={item.href}
-																href={item.href}
-																onClick={() => setMenuOpen(false)}
-																className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition-colors ${isActivePath(pathname, item.href)
-																	? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium"
-																	: "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100"
-																	}`}
-															>
-																{item.label}
-															</Link>
+												<div className="p-3">
+													{/* Grouped navigation */}
+													<nav className="space-y-4">
+														{menuGroups.map((group) => (
+															<div key={group.label}>
+																<div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+																	{group.label}
+																</div>
+																<div className="space-y-0.5">
+																	{group.items.map((item) => {
+																		const active = isActivePath(pathname, item.href);
+																		const Icon = item.icon;
+																		return (
+																			<Link
+																				key={item.href}
+																				href={item.href}
+																				onClick={() => setMenuOpen(false)}
+																				className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${active ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100"}`}
+																			>
+																				<Icon className={`h-4 w-4 shrink-0 ${active ? "text-sky-500" : "text-zinc-400 dark:text-zinc-500"}`} />
+																				<span>{item.label}</span>
+																				{item.href === "/pulse" && (
+																					<span className="relative flex h-1.5 w-1.5 ml-0.5 shrink-0">
+																						<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+																						<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+																					</span>
+																				)}
+																			</Link>
+																		);
+																	})}
+																</div>
+															</div>
 														))}
 													</nav>
 
-													{/* Nexus button in nav pane */}
+													{/* Nexus — flat command palette shortcut */}
 													{clientUser && (
-														<button
-															type="button"
-															onClick={() => {
-																setMenuOpen(false);
-																setTimeout(() => setNexusOpen(true), 0);
-															}}
-															className="mt-4 flex w-full items-center gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-														>
-															<TbHexagons className="h-5 w-5" />
-															<span className="font-medium">Nexus</span>
-															<span className="ml-auto text-[10px] text-zinc-400">⌘K</span>
-														</button>
+														<div className="mt-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
+															<button
+																type="button"
+																onClick={() => {
+																	setMenuOpen(false);
+																	setTimeout(() => setNexusOpen(true), 0);
+																}}
+																className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+															>
+																<TbHexagons className="h-4 w-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
+																<span>Nexus</span>
+																<kbd className="ml-auto text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
+															</button>
+														</div>
 													)}
 
-													{/* Web3 Wallets — multi-wallet display with linked + live wallets */}
-													<div className={clientUser ? 'mt-2' : 'mt-4'}>
+													{/* Web3 Wallets */}
+													<div className="mt-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
 														<SidebarWalletPanel
 															isLoggedIn={!!clientUser}
 															web3Enabled={effectiveWeb3ModeEnabled}
@@ -758,7 +833,6 @@ const MyTopBar = () => {
 													</div>
 												</div>
 											)}
-
 											{/* Settings Pane - Lite Mode with Hover Dropdowns */}
 											{clientUser && menuPane === "settings" && (
 												<SettingsPaneLite 

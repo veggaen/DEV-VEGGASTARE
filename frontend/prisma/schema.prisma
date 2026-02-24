@@ -492,6 +492,8 @@ model Order {
   // Fulfilment status (separate from payment status)
   fulfilmentStatus     FulfilmentStatus @default(UNFULFILLED)
   fulfilledById        String?          // Employee who shipped the order
+  claimedByUserId      String?          // Warehouse worker who claimed for packing
+  claimedAt            DateTime?        // When the order was claimed
   shippedAt            DateTime?
   deliveredAt          DateTime?
   
@@ -512,6 +514,7 @@ model Order {
   @@index([userId])
   @@index([status])
   @@index([fulfilmentStatus])
+  @@index([claimedByUserId])
   @@index([createdAt])
   @@index([userId, status])
 }

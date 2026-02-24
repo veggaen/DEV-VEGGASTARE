@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 import { getPaymentProvider, type PaymentProviderType } from '@/lib/payments/providers';
 import { recalculateVerificationTier } from '@/lib/verification-recalc';
+import { sendSellerOrderNotification, sendWarehouseOrderNotification } from '@/lib/mail';
 import { verifyWebhookSignature } from '@/lib/payments/webhook-verify';
 import { getProviderGate } from '@/lib/payments/provider-gating';
 import { getRuntimeConfig } from '@/lib/runtime-config';
@@ -230,6 +231,132 @@ export async function POST(
           } catch (flagErr) {
             console.error(`[webhook/${providerType}] Failed to set hasWeb2Payment:`, flagErr);
           }
+        }
+
+        // ── Notify sellers + warehouse employees (non-blocking) ──
+        if (orderId) {
+          (async () => {
+            try {
+              const fullOrder = await dbPrisma.order.findUnique({
+                where: { id: orderId },
+                select: {
+                  id: true,
+                  totalAmount: true,
+                  shippingName: true,
+                  shippingAddress: true,
+                  shippingCity: true,
+                  shippingPostalCode: true,
+                  shippingCountry: true,
+                  shippingPhone: true,
+                  shippingMethod: true,
+                  labelUrl: true,
+                  trackingNumber: true,
+                  OrderItem: {
+                    select: {
+                      title: true,
+                      quantity: true,
+                      priceAtTime: true,
+                      productId: true,
+                      Product: {
+                        select: {
+                          productType: true,
+                          userId: true,
+                          companyId: true,
+                          User: { select: { email: true } },
+                          Company: {
+                            select: {
+                              name: true,
+                              Employee: {
+                                where: { role: 'OWNER' },
+                                select: { User: { select: { email: true } } },
+                              },
+                              Warehouse: {
+                                select: {
+                                  id: true,
+                                  name: true,
+                                  Employee: {
+                                    select: { User: { select: { email: true } } },
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              });
+              if (!fullOrder) return;
+
+              const sellerMap = new Map<string, { email: string; items: { title: string; quantity: number; priceAtTime: number }[]; isDigital: boolean }>();
+
+              for (const oi of fullOrder.OrderItem) {
+                const product = oi.Product;
+                if (!product) continue;
+                const isDigital = product.productType === 'DIGITAL';
+                let sellerEmail: string | null = null;
+                if (product.Company?.Employee?.[0]?.User?.email) {
+                  sellerEmail = product.Company.Employee[0].User.email;
+                } else if (product.User?.email) {
+                  sellerEmail = product.User.email;
+                }
+                if (sellerEmail) {
+                  const existing = sellerMap.get(sellerEmail);
+                  const itemData = { title: oi.title, quantity: oi.quantity, priceAtTime: oi.priceAtTime };
+                  if (existing) {
+                    existing.items.push(itemData);
+                    if (!isDigital) existing.isDigital = false;
+                  } else {
+                    sellerMap.set(sellerEmail, { email: sellerEmail, items: [itemData], isDigital });
+                  }
+                }
+
+                // Warehouse notification for physical products
+                if (product.productType !== 'DIGITAL' && product.Company?.Warehouse) {
+                  for (const wh of product.Company.Warehouse) {
+                    const whEmails = wh.Employee?.map((e: { User: { email: string | null } }) => e.User?.email).filter(Boolean) as string[];
+                    if (whEmails.length > 0) {
+                      await sendWarehouseOrderNotification(whEmails, {
+                        orderId: fullOrder.id,
+                        items: [{ title: oi.title, quantity: oi.quantity }],
+                        buyerName: fullOrder.shippingName || 'Customer',
+                        shippingAddress: fullOrder.shippingAddress || '',
+                        shippingCity: fullOrder.shippingCity || '',
+                        shippingPostalCode: fullOrder.shippingPostalCode || '',
+                        shippingCountry: fullOrder.shippingCountry || 'NO',
+                        shippingPhone: fullOrder.shippingPhone ?? undefined,
+                        shippingMethodName: fullOrder.shippingMethod ?? undefined,
+                        labelUrl: fullOrder.labelUrl ?? undefined,
+                        trackingNumber: fullOrder.trackingNumber ?? undefined,
+                        warehouseName: wh.name || product.Company!.name,
+                      });
+                    }
+                  }
+                }
+              }
+
+              for (const [, seller] of sellerMap) {
+                await sendSellerOrderNotification(seller.email, {
+                  orderId: fullOrder.id,
+                  items: seller.items,
+                  totalAmount: fullOrder.totalAmount,
+                  buyerName: fullOrder.shippingName || 'Customer',
+                  shippingAddress: fullOrder.shippingAddress ?? undefined,
+                  shippingCity: fullOrder.shippingCity ?? undefined,
+                  shippingPostalCode: fullOrder.shippingPostalCode ?? undefined,
+                  shippingCountry: fullOrder.shippingCountry ?? undefined,
+                  shippingPhone: fullOrder.shippingPhone ?? undefined,
+                  shippingMethodName: fullOrder.shippingMethod ?? undefined,
+                  labelUrl: fullOrder.labelUrl ?? undefined,
+                  trackingNumber: fullOrder.trackingNumber ?? undefined,
+                  isDigital: seller.isDigital,
+                });
+              }
+            } catch (notifyErr) {
+              console.error(`[webhook/${providerType}] Seller/warehouse notify error:`, notifyErr);
+            }
+          })();
         }
       }
     }

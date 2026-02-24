@@ -14,6 +14,7 @@ import { ProfileThemeProvider } from "@/components/providers/profile-theme-provi
 import { Toaster } from "@/components/ui/sonner";
 import { FollowStateProvider } from "@/hooks/useFollowState";
 import { CurrencyRatesProvider } from "@/hooks/useCurrencyRates";
+import { CartProvider } from "@/contexts/cart-context";
 
 // Lazy-load Web3 providers — heavy bundle (Wagmi, Solana, AppKit) only needed
 // on pages that use crypto features, not for initial paint.
@@ -85,6 +86,7 @@ export default function AppProviders({
               <FollowStateProvider>
                 <CurrencyRatesProvider>
                   <Web3Providers>
+                    <CartProvider>
                     <UpdateBanner />
                     <MyTopBar />
                     <ImpersonationBanner />
@@ -97,6 +99,7 @@ export default function AppProviders({
                     <CookieBanner />
                     <DevBanner />
                     <Toaster />
+                    </CartProvider>
                   </Web3Providers>
                 </CurrencyRatesProvider>
               </FollowStateProvider>

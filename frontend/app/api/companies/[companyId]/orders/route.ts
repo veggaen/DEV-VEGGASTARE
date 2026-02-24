@@ -93,6 +93,8 @@ export async function GET(
         totalAmount: o.totalAmount,
         status: o.status,
         fulfilmentStatus: o.fulfilmentStatus,
+        claimedByUserId: o.claimedByUserId,
+        claimedAt: o.claimedAt,
         shippedAt: o.shippedAt,
         deliveredAt: o.deliveredAt,
         trackingNumber: o.trackingNumber,
