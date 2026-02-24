@@ -15,15 +15,38 @@ import * as React from "react";
 import { useReducedMotion } from "framer-motion";
 
 // Subtle palette — cycles slowly so it doesn't feel noisy
-const PALETTE: [number, number, number][] = [
+const DARK_PALETTE: [number, number, number][] = [
   [52, 211, 153],  // emerald-400
   [56, 189, 248],  // sky-400
+  [139, 92, 246],  // violet-400
+];
+
+const LIGHT_PALETTE: [number, number, number][] = [
+  [56, 189, 248],  // sky-400 (was emerald)
+  [52, 211, 153],  // emerald-400 (was sky)
   [139, 92, 246],  // violet-400
 ];
 
 export function NeonCursorTrail() {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const reduceMotion = useReducedMotion();
+
+  const isDarkRef = React.useRef(true);
+  const [isDark, setIsDark] = React.useState(true);
+
+  React.useEffect(() => {
+    const check = () => document.documentElement.classList.contains("dark");
+    isDarkRef.current = check();
+    setIsDark(check());
+
+    const obs = new MutationObserver(() => {
+      const d = check();
+      isDarkRef.current = d;
+      setIsDark(d);
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
 
   React.useEffect(() => {
     if (reduceMotion) return;
@@ -75,7 +98,8 @@ export function NeonCursorTrail() {
 
       // Skip rendering when idle — RAF still runs to keep decay going
       if (hist.length >= 2 && idle < 30) {
-        const [r, g, b] = PALETTE[Math.floor(colorTick / 6) % PALETTE.length];
+        const palette = isDarkRef.current ? DARK_PALETTE : LIGHT_PALETTE;
+        const [r, g, b] = palette[Math.floor(colorTick / 6) % palette.length];
 
         // Tapered line segments — thin at tail, wider at tip
         for (let i = 1; i < hist.length; i++) {
@@ -112,7 +136,7 @@ export function NeonCursorTrail() {
       window.removeEventListener("resize", onResize);
       cancelAnimationFrame(rafId);
     };
-  }, [reduceMotion]);
+  }, [reduceMotion, isDark]);
 
   if (reduceMotion) return null;
 

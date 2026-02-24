@@ -1,6 +1,6 @@
 "use client";
 
-import { HeroOrbit } from "@/components/uicustom/home/HeroOrbit";
+import { HeroOrbit, type OrbPosRef, type CollisionRectsRef } from "@/components/uicustom/home/HeroOrbit";
 import Link from "next/link";
 import * as React from "react";
 import { motion, useReducedMotion, useMotionValue, useSpring, MotionValue } from "framer-motion";
@@ -17,6 +17,19 @@ type IgniteState = {
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
+}
+
+/** Returns true when the page is in dark mode (watches Tailwind's dark class). */
+function useIsDark() {
+  const [isDark, setIsDark] = React.useState(true);
+  React.useEffect(() => {
+    const check = () => document.documentElement.classList.contains("dark");
+    setIsDark(check());
+    const obs = new MutationObserver(() => setIsDark(check()));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+  return isDark;
 }
 
 // ============================================================================
@@ -62,6 +75,112 @@ function buildFixedPositionStages(words: string[]): KineticStage[] {
   stages.push({ revealed: words.map((w) => w.length), activeWordIdx: -1, activeCharIdx: -1 });
   return stages;
 }
+
+// ── Clean hero title — matches SectionHeading style with subtle per-char hover ──
+// Same-letter resonance: hovering any letter highlights ALL matching letters.
+const HeroTitleText = React.forwardRef<HTMLSpanElement, {
+  text: string;
+  onHoverChange?: (isHovering: boolean) => void;
+  orbHoveredIdx?: number | null;
+}>(function HeroTitleText({
+  text,
+  onHoverChange,
+  orbHoveredIdx,
+}, ref) {
+  const reduceMotion = useReducedMotion();
+  const isDark = useIsDark();
+  const [hoveredIdx, setHoveredIdx] = React.useState<number | null>(null);
+
+  // Mouse takes priority; orb is secondary source
+  const effectiveIdx = hoveredIdx ?? orbHoveredIdx ?? null;
+  // True when only the orb is driving the effect (no mouse hover active)
+  const orbOnly = hoveredIdx === null && orbHoveredIdx !== null;
+
+  const handleLeave = React.useCallback(() => {
+    setHoveredIdx(null);
+    onHoverChange?.(false);
+  }, [onHoverChange]);
+
+  // The letter currently being hovered (lowercase for comparison)
+  const hoveredChar = effectiveIdx !== null ? text[effectiveIdx]?.toLowerCase() : null;
+
+  // Notify parent when orb hover triggers
+  React.useEffect(() => {
+    if (orbHoveredIdx != null && hoveredIdx == null) {
+      onHoverChange?.(true);
+    } else if (orbHoveredIdx == null && hoveredIdx == null) {
+      onHoverChange?.(false);
+    }
+  }, [orbHoveredIdx, hoveredIdx, onHoverChange]);
+
+  if (reduceMotion) return <span ref={ref}>{text}</span>;
+
+  return (
+    <span ref={ref} className="cursor-default" onPointerLeave={handleLeave}>
+      {Array.from(text).map((char, i) => {
+        if (char === " ") {
+          return (
+            <span key={i} className="inline-block" style={{ width: "0.28em" }}>
+              &nbsp;
+            </span>
+          );
+        }
+
+        const dist = effectiveIdx !== null ? Math.abs(i - effectiveIdx) : Infinity;
+        // Mouse hover: full 2-char ripple. Orb: direct hit only — no spreading,
+        // so the glow stays on the letter the orb is actually touching.
+        let intensity = orbOnly
+          ? (dist === 0 ? 0.9 : 0)
+          : (dist === 0 ? 1 : dist === 1 ? 0.55 : dist === 2 ? 0.22 : 0);
+
+        // Same-letter resonance only applies during mouse hover
+        const isSameLetter = !orbOnly && hoveredChar !== null && char.toLowerCase() === hoveredChar;
+        const resonance = isSameLetter && dist > 2;
+
+        if (resonance) {
+          intensity = 0.7;
+        }
+
+        const active = intensity > 0;
+
+        // Resonance siblings use a sky-blue tint; direct hover uses emerald
+        // Light mode: darker shades so colours pop against white
+        const emeraldRgb = isDark ? "52, 211, 153" : "5, 150, 105";
+        const skyRgb     = isDark ? "56, 189, 248" : "2, 132, 199";
+        const color = resonance
+          ? `rgba(${skyRgb}, ${0.5 + 0.3 * intensity})`
+          : `rgba(${emeraldRgb}, ${0.5 + 0.5 * intensity})`;
+        const shadowColor = resonance
+          ? `rgba(${skyRgb}, ${0.35 * intensity})`
+          : `rgba(${emeraldRgb}, ${0.35 * intensity})`;
+
+        return (
+          <span
+            key={i}
+            className="inline-block origin-bottom"
+            style={{
+              color: active ? color : undefined,
+              textShadow: active
+                ? `0 0 ${12 * intensity}px ${shadowColor}${resonance ? `, 0 0 ${22 * intensity}px rgba(56, 189, 248, 0.18)` : ""}`
+                : "none",
+              transform: `scale(${active ? 1 + (resonance ? 0.12 : 0.08) * intensity : 1}) translateY(${
+                active ? -(resonance ? 3 : 2) * intensity : 0
+              }px)`,
+              transition:
+                "color 0.12s ease-out, text-shadow 0.12s ease-out, transform 0.12s ease-out",
+            }}
+            onPointerEnter={() => {
+              setHoveredIdx(i);
+              onHoverChange?.(true);
+            }}
+          >
+            {char}
+          </span>
+        );
+      })}
+    </span>
+  );
+});
 
 function KineticTitle({
   text,
@@ -245,20 +364,23 @@ function KineticTitle({
   );
 }
 
-function KineticDescription({
-  text,
-  className,
-  startDelay = 0,
-  startSpeed = 65,
-  endSpeed = 12,
-}: {
+const KineticDescription = React.forwardRef<HTMLParagraphElement, {
   text: string;
   className?: string;
   startDelay?: number;
   startSpeed?: number;
   endSpeed?: number;
-}) {
+  orbGlowIdx?: number | null;
+}>(function KineticDescription({
+  text,
+  className,
+  startDelay = 0,
+  startSpeed = 65,
+  endSpeed = 12,
+  orbGlowIdx,
+}, ref) {
   const reduceMotion = useReducedMotion();
+  const isDark = useIsDark();
 
   // Split into words to prevent mid-word line breaks
   const words = React.useMemo(() => String(text ?? "").split(/\s+/).filter(Boolean), [text]);
@@ -334,6 +456,7 @@ function KineticDescription({
 
   return (
     <motion.p
+      ref={ref}
       className={className}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -348,9 +471,12 @@ function KineticDescription({
           return (
             <React.Fragment key={wIdx}>
               {/* Each word as inline-block prevents mid-word breaks */}
-              <span className="inline-block whitespace-nowrap" style={{ willChange: 'contents' }}>
+              <span className="inline-block whitespace-nowrap" data-orb-desc-word={wIdx} style={{ willChange: 'contents' }}>
                 {Array.from(word).map((ch, cIdx) => {
                   const charGlobalIdx = startIdx + cIdx;
+                  // Orb proximity glow — smooth falloff over ±5 chars
+                  const orbDist = orbGlowIdx != null ? Math.abs(charGlobalIdx - orbGlowIdx) : Infinity;
+                  const orbIntensity = orbDist <= 5 ? 1 - orbDist / 6 : 0;
                   return (
                     <motion.span
                       key={cIdx}
@@ -362,7 +488,17 @@ function KineticDescription({
                           : { opacity: 0, y: 2 }
                       }
                       transition={{ duration: 0.12, ease: "easeOut" }}
-                      style={{ willChange: 'opacity, transform' }}
+                      style={{
+                        willChange: 'opacity, transform',
+                        ...(orbIntensity > 0
+                          ? {
+                              color: `rgba(${isDark ? "52, 211, 153" : "5, 150, 105"}, ${0.5 + 0.5 * orbIntensity})`,
+                              textShadow: `0 0 ${8 * orbIntensity}px rgba(${isDark ? "52,211,153" : "5,150,105"},${0.4 * orbIntensity})`,
+                              transform: `translateY(${-2 * orbIntensity}px) scale(${1 + 0.06 * orbIntensity})`,
+                              transition: 'color 0.15s, text-shadow 0.15s, transform 0.15s',
+                            }
+                          : { transition: 'color 0.3s, text-shadow 0.3s, transform 0.3s' }),
+                      }}
                     >
                       {ch}
                     </motion.span>
@@ -377,23 +513,26 @@ function KineticDescription({
       </span>
     </motion.p>
   );
-}
+});
 
 // Kinetic Headline - round-robin character expansion with dramatic pop and color effects
-function KineticHeadline({
-  text,
-  className,
-  startDelay = 0,
-  baseSpeed = 150,
-  onAnimationComplete,
-}: {
+const KineticHeadline = React.forwardRef<HTMLSpanElement, {
   text: string;
   className?: string;
   startDelay?: number;
   baseSpeed?: number;
   onAnimationComplete?: () => void;
-}) {
+  orbHoveredPosition?: { wordIdx: number; charIdx: number } | null;
+}>(function KineticHeadline({
+  text,
+  className,
+  startDelay = 0,
+  baseSpeed = 150,
+  onAnimationComplete,
+  orbHoveredPosition,
+}, ref) {
   const reduceMotion = useReducedMotion();
+  const isDark = useIsDark();
   const { prefs } = useUiPreferences();
   const showFancyHover = prefs.hoverEffects === "colorful";
   const words = React.useMemo(() => text.split(/\s+/).filter(Boolean), [text]);
@@ -482,9 +621,9 @@ function KineticHeadline({
   }, [hoveredPosition]);
 
   const getHoverEffect = React.useCallback((wordIdx: number, charIdx: number, char: string, isRevealed: boolean) => {
-    // Check active hover
-    const activePos = hoveredPosition || (fadeOutProgress > 0 ? lastHoverPosition : null);
-    const effectMultiplier = hoveredPosition ? 1 : fadeOutProgress;
+    // Check active hover — mouse takes priority, then orb, then fade-out
+    const activePos = hoveredPosition || orbHoveredPosition || (fadeOutProgress > 0 ? lastHoverPosition : null);
+    const effectMultiplier = hoveredPosition ? 1 : orbHoveredPosition ? 0.85 : fadeOutProgress;
     
     // Allow hover as soon as character is revealed, don't wait for introDone
     if (!isRevealed || !activePos) return { scale: 1, glow: false, intensity: 0, wordGlow: false };
@@ -524,10 +663,10 @@ function KineticHeadline({
     }
 
     return { scale: 1, glow: false, intensity: 0, wordGlow: false };
-  }, [hoveredPosition, lastHoverPosition, fadeOutProgress]);
+  }, [hoveredPosition, orbHoveredPosition, lastHoverPosition, fadeOutProgress]);
 
   if (reduceMotion) {
-    return <span className={className}>{text}</span>;
+    return <span ref={ref} className={className}>{text}</span>;
   }
 
   const currentStage = stages[stageIndex] || { revealed: words.map((w) => w.length), activeWordIdx: -1, activeCharIdx: -1 };
@@ -535,6 +674,7 @@ function KineticHeadline({
 
   return (
     <motion.span
+      ref={ref}
       className={className}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -546,7 +686,7 @@ function KineticHeadline({
         {words.map((word, wordIdx) => {
           const revealedCount = revealed[wordIdx] || 0;
           return (
-            <span key={`word-${wordIdx}`} className="relative inline-block">
+            <span key={`word-${wordIdx}`} className="relative inline-block" data-orb-word={wordIdx}>
               {/* Invisible placeholder for fixed width */}
               <span className="invisible pointer-events-none" aria-hidden="true">{word.toUpperCase()}</span>
               {/* Actual characters positioned absolutely */}
@@ -559,9 +699,9 @@ function KineticHeadline({
                   // Emerald/cyan gradient based on position
                   const charPosition = wordIdx * 10 + charIdx;
                   const hueBase = 140 + (charPosition * 15) % 80;
-                  const glowColor = `hsl(${hueBase}, 75%, 65%)`;
-                  // Solid hover color when fancy is disabled (emerald for consistency)
-                  const solidHoverColor = "rgb(52, 211, 153)"; // emerald-400
+                  const glowColor = isDark ? `hsl(${hueBase}, 75%, 65%)` : `hsl(${hueBase}, 70%, 35%)`;
+                  // Solid hover color when fancy is disabled — darker in light mode for contrast
+                  const solidHoverColor = isDark ? "rgb(52, 211, 153)" : "rgb(5, 150, 105)";
                   
                   // Idle animation: subtle color pulse based on character position (no movement)
                   const idlePhase = (charPosition * 0.3) % (2 * Math.PI);
@@ -638,7 +778,7 @@ function KineticHeadline({
       </span>
     </motion.span>
   );
-}
+});
 
 // ============================================================================
 
@@ -892,6 +1032,7 @@ export default function HomeHero({
   children?: React.ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
+  const isDark = useIsDark();
   const { prefs } = useUiPreferences();
 
   // Fancy effects only show when logged in AND user has enabled them in preferences
@@ -1035,6 +1176,174 @@ export default function HomeHero({
   // TM should reset immediately when hover ends; do not tie to the lingering title glow timer.
   const tmActive = !reduceMotion && (titleAreaHovering || titleHoverActive);
 
+  // Slow continuous color swap between T (emerald) and M (violet)
+  const [tmColorSwapped, setTmColorSwapped] = React.useState(false);
+  React.useEffect(() => {
+    const id = window.setInterval(() => setTmColorSwapped((p) => !p), 3000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // ── Orb → text hover bridge ─────────────────────────────────────────────────
+  // HeroOrbit writes its screen position to this ref every frame (no re-renders).
+  // A separate ~20fps check loop compares orb position to text element bounding
+  // rects and sets hover states when the orb passes over/near text.
+  const orbPosRef = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 }) as OrbPosRef;
+  const titleTextRef = React.useRef<HTMLSpanElement>(null);
+  const headlineRef = React.useRef<HTMLSpanElement>(null);
+  const tmRef = React.useRef<HTMLSpanElement>(null);
+  const badgeRef = React.useRef<HTMLDivElement>(null);
+  const descRef = React.useRef<HTMLParagraphElement>(null);
+  const collisionRectsRef = React.useRef<{ left: number; top: number; right: number; bottom: number; radius?: number }[]>([]) as CollisionRectsRef;
+
+  // Orb-driven hover indices (separate from mouse hover)
+  const [orbTitleIdx, setOrbTitleIdx] = React.useState<number | null>(null);
+  const [orbHeadlinePos, setOrbHeadlinePos] = React.useState<{ wordIdx: number; charIdx: number } | null>(null);
+  const [orbTmHover, setOrbTmHover] = React.useState<"T" | "M" | null>(null);
+  const [orbTitleAreaHover, setOrbTitleAreaHover] = React.useState(false);
+  const [orbBadgeGlow, setOrbBadgeGlow] = React.useState(false);
+  const [orbDescGlowIdx, setOrbDescGlowIdx] = React.useState<number | null>(null);
+
+  // Merge orb hover into tmActive
+  const tmActiveWithOrb = tmActive || orbTmHover !== null || orbTitleAreaHover;
+
+  // Detection loop — runs at ~20fps via setInterval to avoid re-render storms
+  React.useEffect(() => {
+    if (reduceMotion) return;
+
+    const ORB_RADIUS = 5;        // px — orb must visually touch the text to trigger hover
+    const ORB_BADGE_RADIUS = 6;  // px — badge glow, slightly larger to catch near-hits
+
+    const check = () => {
+      const { x: ox, y: oy } = orbPosRef.current;
+      if (ox === 0 && oy === 0) return; // not initialized yet
+
+      // ── Title text ("Freedom Store") ────────────────────────────────────
+      const titleEl = titleTextRef.current;
+      if (titleEl) {
+        const rect = titleEl.getBoundingClientRect();
+        const inRange =
+          ox >= rect.left - ORB_RADIUS &&
+          ox <= rect.right + ORB_RADIUS &&
+          oy >= rect.top - ORB_RADIUS &&
+          oy <= rect.bottom + ORB_RADIUS;
+
+        if (inRange) {
+          // Find the closest letter by fractional position within the element
+          const chars = titleTextMain.length;
+          const frac = clamp((ox - rect.left) / rect.width, 0, 1);
+          const idx = Math.round(frac * (chars - 1));
+          setOrbTitleIdx(idx);
+          setOrbTitleAreaHover(true);
+        } else {
+          setOrbTitleIdx((prev) => (prev !== null ? null : prev));
+          setOrbTitleAreaHover(false);
+        }
+      }
+
+      // ── Headline ("Where every choice is yours") ────────────────────────
+      const headlineEl = headlineRef.current;
+      if (headlineEl) {
+        const rect = headlineEl.getBoundingClientRect();
+        const inRange =
+          ox >= rect.left - ORB_RADIUS &&
+          ox <= rect.right + ORB_RADIUS &&
+          oy >= rect.top - ORB_RADIUS &&
+          oy <= rect.bottom + ORB_RADIUS;
+
+        if (inRange) {
+          // Find the word spans inside the headline for position lookup
+          const wordSpans = headlineEl.querySelectorAll<HTMLElement>("[data-orb-word]");
+          let bestWord = 0;
+          let bestChar = 0;
+          let bestDist = Infinity;
+
+          wordSpans.forEach((span) => {
+            const wIdx = parseInt(span.dataset.orbWord || "0", 10);
+            const sr = span.getBoundingClientRect();
+            // Check each character position within the word's width
+            const word = headline.split(/\s+/)[wIdx] || "";
+            for (let c = 0; c < word.length; c++) {
+              const charX = sr.left + (sr.width / word.length) * (c + 0.5);
+              const charY = sr.top + sr.height / 2;
+              const d = Math.hypot(ox - charX, oy - charY);
+              if (d < bestDist) {
+                bestDist = d;
+                bestWord = wIdx;
+                bestChar = c;
+              }
+            }
+          });
+
+          if (bestDist < ORB_RADIUS * 1.5) {
+            setOrbHeadlinePos({ wordIdx: bestWord, charIdx: bestChar });
+          } else {
+            setOrbHeadlinePos(null);
+          }
+        } else {
+          setOrbHeadlinePos((prev) => (prev !== null ? null : prev));
+        }
+      }
+
+      // ── TM superscript ──────────────────────────────────────────────────
+      const tmEl = tmRef.current;
+      if (tmEl) {
+        const rect = tmEl.getBoundingClientRect();
+        const inRange =
+          ox >= rect.left - ORB_RADIUS &&
+          ox <= rect.right + ORB_RADIUS &&
+          oy >= rect.top - ORB_RADIUS &&
+          oy <= rect.bottom + ORB_RADIUS;
+
+        if (inRange) {
+          const mid = rect.left + rect.width / 2;
+          setOrbTmHover(ox < mid ? "T" : "M");
+        } else {
+          setOrbTmHover((prev) => (prev !== null ? null : prev));
+        }
+      }
+
+      // ── Badge ("Free to start · No card needed") ────────────────────────
+      const badgeEl = badgeRef.current;
+      if (badgeEl) {
+        const rect = badgeEl.getBoundingClientRect();
+        const inRange =
+          ox >= rect.left - ORB_BADGE_RADIUS &&
+          ox <= rect.right + ORB_BADGE_RADIUS &&
+          oy >= rect.top - ORB_BADGE_RADIUS &&
+          oy <= rect.bottom + ORB_BADGE_RADIUS;
+        setOrbBadgeGlow(inRange);
+
+        // Provide badge rect for bounce collision (screen-space)
+        collisionRectsRef.current = [
+          { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, radius: rect.height / 2 },
+        ];
+      }
+
+      // ── Description text ────────────────────────────────────────────────
+      const descEl = descRef.current;
+      if (descEl) {
+        const rect = descEl.getBoundingClientRect();
+        const inRange =
+          ox >= rect.left - ORB_RADIUS &&
+          ox <= rect.right + ORB_RADIUS &&
+          oy >= rect.top - ORB_RADIUS &&
+          oy <= rect.bottom + ORB_RADIUS;
+
+        if (inRange) {
+          // Estimate character index from fractional X position
+          const totalLen = descriptionText.replace(/\s+/g, "").length;
+          const frac = clamp((ox - rect.left) / rect.width, 0, 1);
+          setOrbDescGlowIdx(Math.round(frac * (totalLen - 1)));
+        } else {
+          setOrbDescGlowIdx((prev) => (prev !== null ? null : prev));
+        }
+      }
+    };
+
+    const id = window.setInterval(check, 50); // ~20fps
+    return () => window.clearInterval(id);
+  }, [reduceMotion, headline, titleTextMain, descriptionText]);
+
   React.useEffect(() => {
     if (mountAtRef.current == null) mountAtRef.current = performance.now();
   }, []);
@@ -1072,7 +1381,15 @@ export default function HomeHero({
       className="relative flex flex-col min-h-[calc(100dvh-var(--app-header,72px))] w-full"
     >
       {/* Orbiting particle — revolves around hero text, reacts to mouse proximity */}
-      <HeroOrbit />
+      <HeroOrbit
+        orbPosRef={orbPosRef}
+        collisionRectsRef={collisionRectsRef}
+        onBounce={() => {
+          // Extra flash on badge when orb bounces off it
+          setOrbBadgeGlow(true);
+          setTimeout(() => setOrbBadgeGlow(false), 350);
+        }}
+      />
 
       {/* Mouse spotlight — hidden on touch devices + reduced-motion via CSS */}
       <div className="hero-spotlight" aria-hidden="true" />
@@ -1080,28 +1397,29 @@ export default function HomeHero({
       {/* Top edge scrim — softens orbs / spotlight near the fixed navbar */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute top-0 left-0 right-0 z-[2] h-20 bg-linear-to-b from-white/60 dark:from-black/35 to-transparent"
+        className="pointer-events-none absolute top-0 left-0 right-0 z-[2] h-20 bg-linear-to-b from-white/25 dark:from-black/35 to-transparent"
       />
 
       {/* Bottom edge fade — smooth transition into below-fold */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 left-0 right-0 z-[2] h-24 bg-linear-to-t from-white/60 dark:from-black/35 to-transparent"
+        className="pointer-events-none absolute bottom-0 left-0 right-0 z-[2] h-24 bg-linear-to-t from-white/25 dark:from-black/35 to-transparent"
       />
 
       {/* Conditional animated background - only shows for logged in users with fancy mode enabled */}
       {showFancyEffects && (
         <div className="pointer-events-none absolute inset-0 noise-overlay">
           <div className="absolute inset-0" />
-          {/* Orb 1 - uses more color stops for smoother gradients on different monitors */}
+          {/* Orb 1 - screen blend on dark, multiply on light (screen × white = invisible) */}
           <motion.div
             className="absolute right-8 top-8 h-[520px] w-[520px] rounded-full"
             animate={showAnimations ? { x: [0, -18, 0], y: [0, 12, 0], opacity: [0.16, 0.26, 0.16], scale: [1, 1.05, 1] } : { opacity: 0.2 }}
             transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
             style={{
-              background:
-                "radial-gradient(closest-side, rgba(34,197,94,0.24) 0%, rgba(34,197,94,0.18) 25%, rgba(16,185,129,0.12) 50%, rgba(34,197,94,0.04) 75%, rgba(34,197,94,0) 100%)",
-              mixBlendMode: "screen",
+              background: isDark
+                ? "radial-gradient(closest-side, rgba(34,197,94,0.24) 0%, rgba(34,197,94,0.18) 25%, rgba(16,185,129,0.12) 50%, rgba(34,197,94,0.04) 75%, rgba(34,197,94,0) 100%)"
+                : "radial-gradient(closest-side, rgba(16,185,129,0.22) 0%, rgba(16,185,129,0.14) 30%, rgba(5,150,105,0.07) 60%, rgba(16,185,129,0) 100%)",
+              mixBlendMode: isDark ? "screen" : "multiply",
               filter: "blur(60px)",
             }}
           />
@@ -1111,9 +1429,10 @@ export default function HomeHero({
             animate={showAnimations ? { x: [0, 24, 0], y: [0, -14, 0], opacity: [0.12, 0.22, 0.12], scale: [1, 1.04, 1] } : { opacity: 0.15 }}
             transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
             style={{
-              background:
-                "radial-gradient(closest-side, rgba(56,189,248,0.18) 0%, rgba(56,189,248,0.12) 30%, rgba(167,139,250,0.08) 55%, rgba(56,189,248,0.02) 80%, rgba(56,189,248,0) 100%)",
-              mixBlendMode: "screen",
+              background: isDark
+                ? "radial-gradient(closest-side, rgba(56,189,248,0.18) 0%, rgba(56,189,248,0.12) 30%, rgba(167,139,250,0.08) 55%, rgba(56,189,248,0.02) 80%, rgba(56,189,248,0) 100%)"
+                : "radial-gradient(closest-side, rgba(56,189,248,0.18) 0%, rgba(56,189,248,0.12) 30%, rgba(99,102,241,0.07) 55%, rgba(56,189,248,0) 80%, rgba(56,189,248,0) 100%)",
+              mixBlendMode: isDark ? "screen" : "multiply",
               filter: "blur(60px)",
             }}
           />
@@ -1126,19 +1445,45 @@ export default function HomeHero({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
       >
-        {/* Trust badge — entry signal */}
+        {/* Trust badge — entry signal + orb collision target */}
         <motion.div
-          className="inline-flex items-center gap-2 rounded-full border border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50/80 dark:bg-emerald-500/[0.08] px-3.5 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300/70 backdrop-blur-sm"
+          ref={badgeRef}
+          className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium backdrop-blur-sm ${
+            orbBadgeGlow
+              ? "border-emerald-500/90 dark:border-emerald-400/50 bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-200"
+              : "border-emerald-400/70 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/[0.08] text-emerald-700 dark:text-emerald-300/70"
+          }`}
           initial={{ opacity: 0, y: -8, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ delay: 0.04, duration: 0.45, ease: "easeOut" }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            scale: orbBadgeGlow ? [1, 1.06, 1] : 1,
+          }}
+          transition={orbBadgeGlow
+            ? { scale: { duration: 0.35, ease: "easeOut" } }
+            : { delay: 0.04, duration: 0.45, ease: "easeOut" }
+          }
+          style={orbBadgeGlow ? {
+            boxShadow: "0 0 16px rgba(52,211,153,0.35), 0 0 32px rgba(52,211,153,0.15), inset 0 0 12px rgba(52,211,153,0.1)",
+          } : undefined}
         >
           <motion.span
             className="h-1.5 w-1.5 rounded-full bg-emerald-500"
-            animate={{ opacity: [1, 0.35, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            animate={orbBadgeGlow
+              ? { opacity: 1, scale: [1, 1.8, 1] }
+              : { opacity: [1, 0.35, 1] }
+            }
+            transition={orbBadgeGlow
+              ? { scale: { duration: 0.4, ease: "easeOut" } }
+              : { duration: 2, repeat: Infinity, ease: "easeInOut" }
+            }
           />
-          <span>Free to start · No card needed</span>
+          <span
+            style={orbBadgeGlow ? {
+              textShadow: "0 0 12px rgba(52,211,153,0.55), 0 0 24px rgba(52,211,153,0.25)",
+              transition: "text-shadow 0.2s ease-out",
+            } : { transition: "text-shadow 0.4s ease-out" }}
+          >Free to start · No card needed</span>
         </motion.div>
 
         <div className="space-y-3">
@@ -1183,10 +1528,12 @@ export default function HomeHero({
             )}
 
             <KineticHeadline
+              ref={headlineRef}
               text={headline}
               className="relative text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-200/80 cursor-pointer"
               startDelay={headlineStart}
               baseSpeed={100}
+              orbHoveredPosition={orbHeadlinePos}
               onAnimationComplete={() => {
                 // Trigger glow after headline animation finishes
                 setWhereGlowUntilMs(Date.now() + 10000);
@@ -1195,7 +1542,8 @@ export default function HomeHero({
           </motion.div>
 
           <motion.div
-            className="relative mt-1 text-balance text-4xl font-semibold tracking-[0.02em] text-gray-900 dark:text-white drop-shadow-sm sm:text-6xl lg:text-7xl 2xl:text-8xl"
+            className="relative mt-1 text-4xl font-semibold tracking-tight text-emerald-950 dark:text-white drop-shadow-sm sm:text-6xl lg:text-7xl 2xl:text-8xl"
+            style={!isDark ? { textShadow: "0 2px 24px rgba(16,185,129,0.12), 0 1px 4px rgba(0,0,0,0.06)" } : undefined}
             onPointerEnter={() => {
               if (reduceMotion) return;
               setTitleAreaHovering(true);
@@ -1210,21 +1558,27 @@ export default function HomeHero({
               setTitleGlowUntilMs((cur) => Math.max(cur, Date.now() + extraMs));
             }}
           >
-            <span className="relative inline-flex items-baseline">
-              <KineticTitle
+            <motion.span
+              className="relative inline-flex items-baseline"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: titleStart, ease: "easeOut" }}
+            >
+              <HeroTitleText
+                ref={titleTextRef}
                 text={titleTextMain}
-                startDelay={titleStart}
-                baseSpeed={140}
+                orbHoveredIdx={orbTitleIdx}
                 onHoverChange={(isHovering) => setTitleHoverActive(isHovering)}
               />
 
               {/* TM: bouncy entrance (T then M), smaller at rest; on hover it jumps higher + grows + gets a rainbow tint */}
               <motion.span
+                ref={tmRef}
                 aria-label="Trademark"
                 className="relative z-20 ml-1 inline-flex whitespace-nowrap leading-none tracking-tight"
                 style={{ top: "-0.62em", left: "0.10em", position: "relative", fontSize: "0.44em" }}
                 initial={false}
-                animate={tmActive ? { y: -11, scale: 1.38, rotate: -6 } : { y: 0, scale: 1, rotate: 0 }}
+                animate={tmActiveWithOrb ? { y: -11, scale: 1.38, rotate: -6 } : { y: 0, scale: 1, rotate: 0 }}
                 transition={{ type: "spring", stiffness: 520, damping: 18, mass: 0.6 }}
               >
                 {/* Soft glow layer - only shown when fancy hover enabled */}
@@ -1233,7 +1587,7 @@ export default function HomeHero({
                     aria-hidden
                     className="pointer-events-none absolute -inset-4 -z-10 rounded-full blur-lg"
                     initial={false}
-                    animate={tmActive ? { opacity: 0.42, scale: 1 } : { opacity: 0, scale: 0.94 }}
+                    animate={tmActiveWithOrb ? { opacity: 0.42, scale: 1 } : { opacity: 0, scale: 0.94 }}
                     transition={{ duration: 0.25, ease: "easeOut" }}
                     style={{
                       background:
@@ -1246,8 +1600,8 @@ export default function HomeHero({
                 <motion.span
                   className="relative z-10 inline-flex text-gray-900 dark:text-white"
                   style={{
-                    filter: showFancyHover && tmActive ? "drop-shadow(0 0 10px rgba(167,139,250,0.28))" : "none",
-                    textShadow: showFancyHover && tmActive
+                    filter: showFancyHover && tmActiveWithOrb ? "drop-shadow(0 0 10px rgba(167,139,250,0.28))" : "none",
+                    textShadow: showFancyHover && tmActiveWithOrb
                       ? "0 0 10px rgba(96,165,250,0.25), 0 0 18px rgba(167,139,250,0.18)"
                       : "none",
                   }}
@@ -1255,69 +1609,91 @@ export default function HomeHero({
                   transition={undefined}
                 >
                   <motion.span
-                    className="inline-block cursor-pointer text-gray-900 dark:text-white"
+                    className="inline-block cursor-pointer"
                     initial={{ opacity: 0, y: -18, scale: 0.7 }}
                     animate={{ 
                       opacity: 1, 
                       y: 0, 
-                      scale: tmLetterHover === "T" ? (tmActive ? 1.34 : 1.24) : tmActive ? 1.12 : 1,
-                      rotate: tmLetterHover === "T" ? -10 : 0,
+                      scale: (tmLetterHover ?? orbTmHover) === "T" ? (tmActiveWithOrb ? 1.34 : 1.24) : tmActiveWithOrb ? 1.12 : 1,
+                      rotate: (tmLetterHover ?? orbTmHover) === "T" ? -10 : 0,
                     }}
                     transition={{ delay: browseDelay, type: "spring", stiffness: 760, damping: 16, mass: 0.6 }}
                     onPointerEnter={() => setTmLetterHover("T")}
                     onPointerLeave={() => setTmLetterHover(null)}
                     style={
-                      tmLetterHover === "T" && showFancyHover
+                      (tmLetterHover ?? orbTmHover) === "T" && showFancyHover
                         ? {
-                            color: "#e5fff7",
-                            textShadow:
-                              "0 0 8px rgba(34,197,94,0.55), 0 0 14px rgba(56,189,248,0.45), 0 0 18px rgba(167,139,250,0.35), 0 0 26px rgba(236,72,153,0.25)",
-                            filter: "drop-shadow(0 0 12px rgba(34,197,94,0.25))",
+                            color: isDark ? "#e5fff7" : "#022c22",
+                            textShadow: isDark
+                              ? "0 0 8px rgba(34,197,94,0.55), 0 0 14px rgba(56,189,248,0.45), 0 0 18px rgba(167,139,250,0.35), 0 0 26px rgba(236,72,153,0.25)"
+                              : "0 2px 8px rgba(4,120,87,0.25)",
+                            filter: isDark ? "drop-shadow(0 0 12px rgba(34,197,94,0.25))" : "none",
                           }
-                        : undefined
+                        : {
+                            // Dark mode: use light pastel tones (they glow on black)
+                            // Light mode: use deep saturated tones (they read on white)
+                            color: isDark
+                              ? (tmColorSwapped ? (tmActiveWithOrb ? "#ddd6fe" : "#c4b5fd") : (tmActiveWithOrb ? "#6ee7b7" : "#34d399"))
+                              : (tmColorSwapped ? (tmActiveWithOrb ? "#6d28d9" : "#7c3aed") : (tmActiveWithOrb ? "#059669" : "#047857")),
+                            textShadow: isDark
+                              ? (tmColorSwapped ? (tmActiveWithOrb ? "0 0 8px rgba(167,139,250,0.35)" : "0 0 4px rgba(167,139,250,0.18)") : (tmActiveWithOrb ? "0 0 8px rgba(52,211,153,0.35)" : "0 0 4px rgba(52,211,153,0.18)"))
+                              : "none",
+                            transition: "color 2.5s ease-in-out, text-shadow 2.5s ease-in-out",
+                          }
                     }
                   >
                     T
                   </motion.span>
                   <motion.span
-                    className="inline-block cursor-pointer text-gray-900 dark:text-white"
+                    className="inline-block cursor-pointer"
                     initial={{ opacity: 0, y: -18, scale: 0.7 }}
                     animate={{ 
                       opacity: 1, 
                       y: 0, 
-                      scale: tmLetterHover === "M" ? (tmActive ? 1.34 : 1.24) : tmActive ? 1.12 : 1,
-                      rotate: tmLetterHover === "M" ? 10 : 0,
+                      scale: (tmLetterHover ?? orbTmHover) === "M" ? (tmActiveWithOrb ? 1.34 : 1.24) : tmActiveWithOrb ? 1.12 : 1,
+                      rotate: (tmLetterHover ?? orbTmHover) === "M" ? 10 : 0,
                     }}
                     transition={{ delay: browseDelay + 0.3, type: "spring", stiffness: 760, damping: 16, mass: 0.6 }}
                     onPointerEnter={() => setTmLetterHover("M")}
                     onPointerLeave={() => setTmLetterHover(null)}
                     style={
-                      tmLetterHover === "M" && showFancyHover
+                      (tmLetterHover ?? orbTmHover) === "M" && showFancyHover
                         ? {
-                            color: "#fff7ff",
-                            textShadow:
-                              "0 0 8px rgba(236,72,153,0.55), 0 0 14px rgba(167,139,250,0.45), 0 0 18px rgba(56,189,248,0.35), 0 0 26px rgba(250,204,21,0.22)",
-                            filter: "drop-shadow(0 0 12px rgba(236,72,153,0.22))",
+                            color: isDark ? "#fff7ff" : "#2e1065",
+                            textShadow: isDark
+                              ? "0 0 8px rgba(236,72,153,0.55), 0 0 14px rgba(167,139,250,0.45), 0 0 18px rgba(56,189,248,0.35), 0 0 26px rgba(250,204,21,0.22)"
+                              : "0 2px 8px rgba(109,40,217,0.20)",
+                            filter: isDark ? "drop-shadow(0 0 12px rgba(236,72,153,0.22))" : "none",
                           }
-                        : undefined
+                        : {
+                            color: isDark
+                              ? (tmColorSwapped ? (tmActiveWithOrb ? "#6ee7b7" : "#34d399") : (tmActiveWithOrb ? "#ddd6fe" : "#c4b5fd"))
+                              : (tmColorSwapped ? (tmActiveWithOrb ? "#059669" : "#047857") : (tmActiveWithOrb ? "#6d28d9" : "#7c3aed")),
+                            textShadow: isDark
+                              ? (tmColorSwapped ? (tmActiveWithOrb ? "0 0 8px rgba(52,211,153,0.35)" : "0 0 4px rgba(52,211,153,0.18)") : (tmActiveWithOrb ? "0 0 8px rgba(167,139,250,0.35)" : "0 0 4px rgba(167,139,250,0.18)"))
+                              : "none",
+                            transition: "color 2.5s ease-in-out, text-shadow 2.5s ease-in-out",
+                          }
                     }
                   >
                     M
                   </motion.span>
                 </motion.span>
               </motion.span>
-            </span>
+            </motion.span>
           </motion.div>
         </div>
 
         {/* Description comes after title with slow-to-fast animation */}
         <div className="w-full min-h-[3.25rem] sm:min-h-[3rem] mt-10 sm:mt-12">
           <KineticDescription
+            ref={descRef}
             text={descriptionText}
             className={`mx-auto max-w-3xl text-pretty text-sm text-gray-600 dark:text-white/75 sm:text-base transition-[color,text-shadow] duration-700 ease-out hover:text-gray-800 dark:hover:text-white/85 ${showFancyHover ? "hover:[text-shadow:0_0_18px_rgba(56,189,248,0.16)]" : ""}`}
             startDelay={descriptionStart}
             startSpeed={45}
             endSpeed={12}
+            orbGlowIdx={orbDescGlowIdx}
           />
         </div>
 
