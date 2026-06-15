@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbPrisma } from "@/lib/db";
 import { auth } from "@/auth";
+import { resolveVisibleEmail } from '@/lib/email-visibility';
 
 type Params = { companyId: string };
 
@@ -21,12 +22,14 @@ export async function GET(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const viewerId = session.user.id;
+    const viewerRole = session.user.role;
 
     const { companyId } = await params;
 
     // Verify user is employee of this company
     const employee = await dbPrisma.employee.findUnique({
-      where: { userId_companyId: { userId: session.user.id, companyId } },
+      where: { userId_companyId: { userId: viewerId, companyId } },
     });
 
     if (!employee) {
@@ -59,7 +62,7 @@ export async function GET(
         where,
         include: {
           User: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, name: true, email: true, emailDisplayMode: true },
           },
           OrderItem: {
             where: { Product: { companyId } },
@@ -114,7 +117,17 @@ export async function GET(
           method: o.shippingMethod,
           cost: o.shippingCost,
         },
-        customer: o.User,
+        customer: {
+          id: o.User.id,
+          name: o.User.name,
+          email: resolveVisibleEmail({
+            targetUserId: o.User.id,
+            targetEmail: o.User.email,
+            targetEmailDisplayMode: o.User.emailDisplayMode,
+            viewerUserId: viewerId,
+            viewerRole: viewerRole,
+          }),
+        },
         items: o.OrderItem.map((item) => ({
           id: item.id,
           quantity: item.quantity,

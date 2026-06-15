@@ -15,7 +15,7 @@ import { useSearchParams } from 'next/navigation';
 import { MyLoginAction } from '@/actions/login';
 import { signIn } from 'next-auth/react';
 import { MySocialAuth } from '@/components/uicustom/auth/buttons/social';
-import { FiMail, FiLock, FiArrowRight, FiShield, FiZap, FiUsers, FiSun, FiMoon } from 'react-icons/fi';
+import { FiMail, FiLock, FiArrowRight, FiShield, FiZap, FiUsers, FiSun, FiMoon, FiLink } from 'react-icons/fi';
 
 const LOG_PREFIX = '[frontend/app/auth/login/page.tsx]';
 
@@ -163,6 +163,25 @@ export default function LoginPage() {
           <div className="mb-6">
             <MySocialAuth />
           </div>
+
+          {/* Web3 — browse as visitor with wallet */}
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const { ModalController } = await import('@reown/appkit-controllers');
+                ModalController.open({ view: 'Connect' });
+                // After connecting, AppKit auto-redirects or the user navigates away.
+                // The wallet state persists via wagmi cookie storage.
+              } catch {
+                // AppKit not loaded yet — ignore
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 h-11 text-sm font-medium rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:border-sky-500/50 dark:hover:border-emerald-500/50 transition-colors mb-6"
+          >
+            <FiLink className="w-4 h-4" />
+            <span>Connect with Web3</span>
+          </button>
 
           {/* Divider */}
           <div className="relative my-6">

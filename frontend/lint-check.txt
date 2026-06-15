@@ -1,0 +1,9 @@
+﻿
+C:\Users\v3gga\Documents\DEV-VEGGASTARE\frontend\app\warehouses\[...id]\page.tsx
+  120:6  warning  React Hook useEffect has missing dependencies: 'getWarehouseDetails' and 'warehouseId'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\v3gga\Documents\DEV-VEGGASTARE\frontend\app\warehouses\page.tsx
+  101:6  warning  React Hook useEffect has a missing dependency: 'pusherClient'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+Ô£û 2 problems (0 errors, 2 warnings)
+

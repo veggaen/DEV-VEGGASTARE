@@ -26,10 +26,12 @@ export const EvmWalletListItemSchema = z
   .object({
     id: z.string().min(1),
     label: z.string().min(1),
+    family: z.nativeEnum(ChainFamily),
     address: z.string().min(1),
     chainId: z.number().int().positive().nullable(),
     isDefault: z.boolean(),
     verifiedAt: IsoDateStringSchema.nullable(),
+    donationTotalUsd: z.number().default(0),
     createdAt: IsoDateStringSchema,
   })
   .strict();

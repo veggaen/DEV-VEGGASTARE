@@ -1,179 +1,227 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "dev:cleanup",
-      "type": "shell",
-      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/dev-stop.ps1",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "silent",
-        "panel": "shared",
-        "showReuseMessage": false
-      }
-    },
-    {
-      "label": "dev",
-      "detail": "Clean ports then start frontend + backend side-by-side",
-      "dependsOn": ["dev:cleanup", "dev:servers"],
-      "dependsOrder": "sequence",
-      "problemMatcher": [],
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "presentation": {
-        "reveal": "always"
-      }
-    },
-    {
-      "label": "dev:servers",
-      "detail": "Launch FE + BE in split panes (triggered after cleanup)",
-      "dependsOn": ["dev:frontend", "dev:backend"],
-      "dependsOrder": "parallel",
-      "problemMatcher": []
-    },
-    {
-      "label": "dev:frontend",
-      "type": "shell",
-      "command": "npm run dev",
-      "options": {
-        "cwd": "${workspaceFolder}/frontend"
-      },
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "next",
-        "pattern": { "regexp": "^(.*)$", "message": 1 },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "Starting...",
-          "endsPattern": "Ready in"
-        }
-      },
-      "presentation": {
-        "group": "dev",
-        "reveal": "always",
-        "panel": "dedicated",
-        "showReuseMessage": false
-      }
-    },
-    {
-      "label": "dev:backend",
-      "type": "shell",
-      "command": "npm run dev",
-      "options": {
-        "cwd": "${workspaceFolder}/backend"
-      },
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "backend",
-        "pattern": { "regexp": "^(.*)$", "message": 1 },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "nodemon",
-          "endsPattern": "Server running"
-        }
-      },
-      "presentation": {
-        "group": "dev",
-        "reveal": "always",
-        "panel": "dedicated",
-        "showReuseMessage": false
-      }
-    },
-    {
-      "label": "dev:frontend-only",
-      "type": "shell",
-      "command": "npm run dev",
-      "options": {
-        "cwd": "${workspaceFolder}/frontend"
-      },
-      "isBackground": true,
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      }
-    },
-    {
-      "label": "dev:backend-only",
-      "type": "shell",
-      "command": "npm run dev",
-      "options": {
-        "cwd": "${workspaceFolder}/backend"
-      },
-      "isBackground": true,
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      }
-    },
-    {
-      "label": "lint",
-      "type": "shell",
-      "command": "npm run lint",
-      "options": {
-        "cwd": "${workspaceFolder}/frontend"
-      },
-      "problemMatcher": ["$eslint-stylish"],
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      }
-    },
-    {
-      "label": "prisma:generate",
-      "type": "shell",
-      "command": "npx prisma generate",
-      "options": {
-        "cwd": "${workspaceFolder}/frontend"
-      },
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      }
-    },
-    {
-      "label": "prisma:migrate",
-      "detail": "Create a new migration (prompts for name)",
-      "type": "shell",
-      "command": "npx prisma migrate dev",
-      "options": {
-        "cwd": "${workspaceFolder}/frontend"
-      },
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      }
-    },
-    {
-      "label": "prisma:studio",
-      "type": "shell",
-      "command": "npx prisma studio",
-      "options": {
-        "cwd": "${workspaceFolder}/frontend"
-      },
-      "isBackground": true,
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      }
-    },
-    {
-      "label": "build plugin",
-      "type": "shell",
-      "command": "g++",
-      "args": [
-        "VegasPlugin.cpp",
-        "-shared",
-        "-o",
-        "VegasPlugin.dll",
-        "-I",
-        "path/to/ark_api/include"
-      ],
-      "group": "build"
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "dev:cleanup",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/dev-stop.ps1",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "silent",
+				"panel": "shared",
+				"showReuseMessage": false
+			}
+		},
+		{
+			"label": "dev",
+			"detail": "Clean ports then start frontend + backend side-by-side",
+			"dependsOn": [
+				"dev:cleanup",
+				"dev:servers"
+			],
+			"dependsOrder": "sequence",
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"reveal": "always"
+			}
+		},
+		{
+			"label": "dev:servers",
+			"detail": "Launch FE + BE in split panes (triggered after cleanup)",
+			"dependsOn": [
+				"dev:frontend",
+				"dev:backend"
+			],
+			"dependsOrder": "parallel",
+			"problemMatcher": []
+		},
+		{
+			"label": "dev:frontend",
+			"type": "shell",
+			"command": "npm run dev",
+			"options": {
+				"cwd": "${workspaceFolder}/frontend"
+			},
+			"isBackground": true,
+			"problemMatcher": {
+				"owner": "next",
+				"pattern": {
+					"regexp": "^(.*)$",
+					"message": 1
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "Starting...",
+					"endsPattern": "Ready in"
+				}
+			},
+			"presentation": {
+				"group": "dev",
+				"reveal": "always",
+				"panel": "dedicated",
+				"showReuseMessage": false
+			}
+		},
+		{
+			"label": "dev:backend",
+			"type": "shell",
+			"command": "npm run dev",
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"isBackground": true,
+			"problemMatcher": {
+				"owner": "backend",
+				"pattern": {
+					"regexp": "^(.*)$",
+					"message": 1
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "nodemon",
+					"endsPattern": "Server running"
+				}
+			},
+			"presentation": {
+				"group": "dev",
+				"reveal": "always",
+				"panel": "dedicated",
+				"showReuseMessage": false
+			}
+		},
+		{
+			"label": "dev:frontend-only",
+			"type": "shell",
+			"command": "npm run dev",
+			"options": {
+				"cwd": "${workspaceFolder}/frontend"
+			},
+			"isBackground": true,
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "dev:backend-only",
+			"type": "shell",
+			"command": "npm run dev",
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"isBackground": true,
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "lint",
+			"type": "shell",
+			"command": "npm run lint",
+			"options": {
+				"cwd": "${workspaceFolder}/frontend"
+			},
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "prisma:generate",
+			"type": "shell",
+			"command": "npx prisma generate",
+			"options": {
+				"cwd": "${workspaceFolder}/frontend"
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "prisma:migrate",
+			"detail": "Create a new migration (prompts for name)",
+			"type": "shell",
+			"command": "npx prisma migrate dev",
+			"options": {
+				"cwd": "${workspaceFolder}/frontend"
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "prisma:studio",
+			"type": "shell",
+			"command": "npx prisma studio",
+			"options": {
+				"cwd": "${workspaceFolder}/frontend"
+			},
+			"isBackground": true,
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "build plugin",
+			"type": "shell",
+			"command": "g++",
+			"args": [
+				"VegasPlugin.cpp",
+				"-shared",
+				"-o",
+				"VegasPlugin.dll",
+				"-I",
+				"path/to/ark_api/include"
+			],
+			"group": "build"
+		},
+		{
+			"label": "local-rpc:31337",
+			"detail": "Ganache on :8545, chain 31337 (\"Anvil\" slot — swap to real Anvil after foundryup install)",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"ganache",
+				"--server.host",
+				"127.0.0.1",
+				"--server.port",
+				"8545",
+				"--chain.chainId",
+				"31337",
+				"--wallet.deterministic"
+			],
+			"isBackground": true
+		},
+		{
+			"label": "local-rpc:1337",
+			"detail": "Ganache on :7545, chain 1337",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"ganache",
+				"--server.host",
+				"127.0.0.1",
+				"--server.port",
+				"7545",
+				"--chain.chainId",
+				"1337",
+				"--wallet.deterministic"
+			],
+			"isBackground": true
+		}
+	]
 }

@@ -1,5 +1,3 @@
-import { MyNavbarProtected } from "./_components/navbar";
-
 interface ProtectedLayoutProps {
     children: React.ReactNode
 }

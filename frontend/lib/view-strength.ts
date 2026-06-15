@@ -280,6 +280,9 @@ export function determineUserVerificationTier(user: Partial<User> & {
   hasWeb3Payment?: boolean;
   phoneVerified?: Date | null;
   emailVerified?: Date | null;
+}, options?: {
+  /** Highest single-wallet donation total (USD) across all verified wallets */
+  maxWalletDonationUsd?: number;
 }): VerificationTier {
   // Check verification states
   const hasGoogle = user.hasGoogleAuth ?? false;
@@ -293,6 +296,7 @@ export function determineUserVerificationTier(user: Partial<User> & {
   const hasWallet = user.hasVerifiedWallet ?? false;
   const hasEmailVerified = user.emailVerified != null;
   const isWeb3Mode = (user as any).web3ModeEnabled ?? false;
+  const maxDonation = options?.maxWalletDonationUsd ?? 0;
   
   // Fully verified: Google + Phone + Both Payments + Wallet
   if (hasGoogle && hasPhone && hasBothPayments && hasWallet) {
@@ -318,6 +322,13 @@ export function determineUserVerificationTier(user: Partial<User> & {
   if (hasGoogle && hasWallet) {
     return 'WEB3_VERIFIED';
   }
+
+  // ── Donation-based trust escalation (Web3-only auth) ──────────
+  // $10K+ donation with verified wallet = equivalent to Web3 Verified
+  // (strong on-chain commitment, no OAuth needed)
+  if (hasWallet && maxDonation >= 10_000) {
+    return 'WEB3_VERIFIED';
+  }
   
   // Web2 payment only
   if (hasWeb2Payment) {
@@ -338,6 +349,12 @@ export function determineUserVerificationTier(user: Partial<User> & {
   if (hasGoogle) {
     return 'SOCIAL_VERIFIED';
   }
+
+  // $1K+ donation with verified wallet = equivalent to Social Verified
+  // (significant financial commitment proves real human, not bot)
+  if (hasWallet && maxDonation >= 1_000) {
+    return 'SOCIAL_VERIFIED';
+  }
   
   // Discord or GitHub OAuth
   if (hasDiscord || hasGithub) {
@@ -345,6 +362,7 @@ export function determineUserVerificationTier(user: Partial<User> & {
   }
   
   // Web3 basic - wallet with signed message but no payment
+  // Donations < $100 with signature = still low verification
   if (hasWallet) {
     return 'WEB3_BASIC';
   }
@@ -376,8 +394,12 @@ export function calculateVerificationScore(user: Partial<User> & {
   hasWeb3Payment?: boolean;
   phoneVerified?: Date | null;
   emailVerified?: Date | null;
+}, options?: {
+  /** Highest single-wallet donation total (USD) */
+  maxWalletDonationUsd?: number;
 }): number {
   let score = 0;
+  const maxDonation = options?.maxWalletDonationUsd ?? 0;
   
   // Email verified: +10
   if (user.emailVerified) score += 10;
@@ -405,6 +427,20 @@ export function calculateVerificationScore(user: Partial<User> & {
   
   // Web3 wallet: +15
   if (user.hasVerifiedWallet) score += 15;
+  
+  // ── Donation-based score boost ──────────────────────────────
+  // Significant donations from verified wallets add trust.
+  // Diminishing returns: first $1K matters most, slows after that.
+  //   $5    → +1
+  //   $100  → +3
+  //   $1K   → +8  (reaches OAuth-equivalent territory)
+  //   $10K  → +12
+  //   $1M+  → +15 (max donation bonus)
+  if (maxDonation >= 1_000_000) score += 15;
+  else if (maxDonation >= 10_000) score += 12;
+  else if (maxDonation >= 1_000) score += 8;
+  else if (maxDonation >= 100) score += 3;
+  else if (maxDonation >= 5) score += 1;
   
   // Payments: +15 each
   if (user.hasWeb2Payment) score += 15;

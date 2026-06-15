@@ -16,7 +16,7 @@ export const MyRegisterAction = async (values: z.infer<typeof MyAuthRegisterSche
   const validateFields = MyAuthRegisterSchema.safeParse(values);
 
   if (!validateFields.success) {
-    return { error: 'Invalid fields' }; // todo: json
+    return { error: 'Invalid fields' };
   }
 
   const { email, password, name, referredBy, image } = validateFields.data;
@@ -24,7 +24,7 @@ export const MyRegisterAction = async (values: z.infer<typeof MyAuthRegisterSche
 
   const existingUser = await getUserByEmail(email);
   if (existingUser?.email === email) {
-    return { error: 'Email already exists' }; // todo:
+    return { error: 'Email already exists' };
   }
 
   await dbPrisma.user.create({

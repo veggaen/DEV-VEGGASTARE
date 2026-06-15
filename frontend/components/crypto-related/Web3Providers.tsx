@@ -4,7 +4,6 @@ import React, { ReactNode, useEffect, useMemo, useRef } from "react";
 import { WagmiProvider, useAccount } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { reconnect } from "@wagmi/core";
-import { signOut, useSession } from "next-auth/react";
 
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
@@ -17,22 +16,20 @@ import { WalletRuntimeProvider } from "./WalletRuntimeContext";
 
 // AppKit for polished wallet modal UX
 import { wagmiConfig, AppKitInitializer } from "./AppKitInit";
-import { cleanLogoutInProgress } from "@/hooks/use-clean-logout";
 import { useWallet as useSolWallet } from "@solana/wallet-adapter-react";
 
 /* ------------------------------------------------------------------ */
 /*  WalletDisconnectWatcher                                           */
-/*  Watches EVM (wagmi) + Solana wallet connections.                  */
-/*  If the user was connected and then disconnects (without our own   */
-/*  cleanLogout flow), we also sign them out of their Web2 session    */
-/*  to keep the session unified.                                      */
+/*  Previously: also signed out Web2 session when wallets disconnect. */
+/*  NOW: Wallet disconnects are completely independent of Web2 auth.  */
+/*  Sign-out uses useCleanLogout which explicitly clears wallets.     */
+/*  This watcher only logs disconnect events for debugging.           */
 /* ------------------------------------------------------------------ */
 function WalletDisconnectWatcher() {
   const { isConnected: evmConnected } = useAccount();
   const { connected: solConnected } = useSolWallet();
-  const { data: session } = useSession();
 
-  // Track previous connection states
+  // Track previous connection states for logging
   const prevEvmRef = useRef(false);
   const prevSolRef = useRef(false);
 
@@ -60,12 +57,8 @@ function WalletDisconnectWatcher() {
     prevEvmRef.current = evmConnected;
     prevSolRef.current = solConnected;
 
-    // User WAS connected → now disconnected → has active Web2 session
-    if (wasConnected && !isConnected && session?.user && !cleanLogoutInProgress) {
-      console.info("[WalletDisconnectWatcher] Wallet disconnected externally — signing out Web2 session");
-      signOut({ callbackUrl: "/auth/login" });
-    }
-  }, [evmConnected, solConnected, session]);
+    // All wallets disconnected — Web2 session preserved (no sign-out triggered)
+  }, [evmConnected, solConnected]);
 
   return null;
 }

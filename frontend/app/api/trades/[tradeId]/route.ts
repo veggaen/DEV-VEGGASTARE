@@ -45,6 +45,23 @@ export async function GET(req: NextRequest, ctx: RouteParams) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    if (trade.status !== 'COMPLETED' && trade.status !== 'CANCELLED' && trade.status !== 'EXPIRED' && trade.expiresAt.getTime() < Date.now()) {
+      const expiredTrade = await db.trade.update({
+        where: { id: tradeId },
+        data: {
+          status: 'EXPIRED',
+          cancelledAt: new Date(),
+          cancelReason: 'Trade session expired',
+        },
+        include: {
+          Initiator: { select: { id: true, name: true, image: true } },
+          Responder: { select: { id: true, name: true, image: true } },
+          Items: { orderBy: { createdAt: 'asc' } },
+        },
+      });
+      return NextResponse.json(expiredTrade, { headers: rateLimitHeaders(rl) });
+    }
+
     return NextResponse.json(trade, { headers: rateLimitHeaders(rl) });
   } catch (err) {
     console.error("[TRADE_GET]", err);

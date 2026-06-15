@@ -142,6 +142,7 @@ export async function POST(req: Request) {
       },
       select: {
         id: true,
+        userId: true,
         reachScore: true,
         reachLifetime: true,
         reachMomentum: true,
@@ -202,6 +203,35 @@ export async function POST(req: Request) {
         where: { conversationId: pulse.id, userId: { not: null } },
       });
 
+      // Count new followers of the pulse author gained in last 24h (growth signal)
+      const newFollowersFromContent = await dbPrisma.follow.count({
+        where: {
+          followingId: pulse.userId,
+          createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
+      });
+
+      // Count organic visits (views with external referrer) and unique referrer sources
+      const referrerViews = await dbPrisma.viewEvent.findMany({
+        where: {
+          conversationId: pulse.id,
+          referrer: { not: null },
+        },
+        select: { referrer: true },
+      });
+      const newOrganicVisits = referrerViews.length;
+      const uniqueReferrerDomains = new Set<string>();
+      for (const rv of referrerViews) {
+        if (rv.referrer) {
+          try {
+            uniqueReferrerDomains.add(new URL(rv.referrer).hostname);
+          } catch {
+            uniqueReferrerDomains.add(rv.referrer);
+          }
+        }
+      }
+      const uniqueReferrerSources = uniqueReferrerDomains.size;
+
       // Count repeat engagers (loyalty: users with >2 distinct days)
       const loyalUsers = await dbPrisma.engagementEvent.findMany({
         where: { conversationId: pulse.id, userId: { not: null } },
@@ -232,12 +262,12 @@ export async function POST(req: Request) {
           ? (engagementAgg._count ?? 0) / repeatEngagers
           : 0,
         totalAudience: pulse.uniqueViewCount + uniqueEngagerRows.length,
-        newFollowersFromContent: 0, // TODO: wire from Follow model
-        newOrganicVisits: 0, // TODO: track external referrers
+        newFollowersFromContent,
+        newOrganicVisits,
         previousAudienceSize: Math.max(pulse.uniqueViewCount, 1),
-        uniqueReferrerSources: 0, // TODO: count distinct referrer domains
+        uniqueReferrerSources,
         returnVisits,
-        avgTimeOnReturn: 60, // TODO: compute from dwell events
+        avgTimeOnReturn: 60, // Estimate — no dwell-time tracking model yet
         totalVisits: pulse.viewCount,
         momentumDelta1h: recentViews._sum.strength ?? 0,
         momentumDelta24h: recentEngagements._sum.strength ?? 0,

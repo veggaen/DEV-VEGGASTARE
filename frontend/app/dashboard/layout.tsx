@@ -1,15 +1,20 @@
-import { MyMenuSide } from "@/components/uicustom/sidemenumainauth"
+/**
+ * @fileOverview  Dashboard layout — dock-aware wrapper that positions the sidebar
+ *                on any edge (left, right, top, bottom) based on user preference.
+ * @stability     evolving
+ */
 
-export default function DashboardLayout({ children } : { children: React.ReactNode }) {
-    return (
-      <section className="flex w-full min-h-[calc(100dvh-var(--app-header))] justify-start p-0 m-0">
-        {/* Include shared UI here e.g. a header or sidebar */}
-        <nav className="LeftSideNavBar m-0 p-0 shrink-0">
-        <MyMenuSide />
-        </nav>
-        <div className="flex flex-col w-full">
-          {children}
-        </div>
-      </section>
-    )
+import { DashboardDockProvider } from "@/contexts/dashboard-dock-context";
+import { DashboardShell } from "@/components/uicustom/dashboard-shell";
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <DashboardDockProvider>
+      <DashboardShell>{children}</DashboardShell>
+    </DashboardDockProvider>
+  );
 }

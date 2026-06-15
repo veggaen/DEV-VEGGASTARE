@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 import { z } from 'zod';
+import { resolveVisibleEmail } from '@/lib/email-visibility';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -34,8 +35,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const viewerId = session.user.id;
+  const viewerRole = session.user.role as string | undefined;
+
   // Rate limiting
-  const identifier = getClientIdentifier(request, session.user.id);
+  const identifier = getClientIdentifier(request, viewerId);
   const rateLimitResult = await checkRateLimit(identifier, 'read');
   if (!rateLimitResult.success) {
     return rateLimitedResponse(rateLimitResult);
@@ -56,7 +60,7 @@ export async function GET(request: NextRequest) {
   try {
     // Find all products owned by this user (directly or via their companies)
     const userCompanies = await dbPrisma.employee.findMany({
-      where: { userId: session.user.id, role: 'OWNER' },
+      where: { userId: viewerId, role: 'OWNER' },
       select: { companyId: true },
     });
     const companyIds = userCompanies.map((c: { companyId: string }) => c.companyId);
@@ -64,7 +68,7 @@ export async function GET(request: NextRequest) {
     // Products where userId matches OR companyId is one the user owns
     const productFilter = {
       OR: [
-        { userId: session.user.id },
+        { userId: viewerId },
         ...(companyIds.length > 0 ? [{ companyId: { in: companyIds } }] : []),
       ],
     };
@@ -105,8 +109,20 @@ export async function GET(request: NextRequest) {
               },
             },
           },
-          Payment: { select: { method: true, status: true } },
-          User: { select: { id: true, name: true, email: true } },
+          Payment: {
+            select: {
+              method: true,
+              status: true,
+              receiverAddress: true,
+              senderAddress: true,
+              chainFamily: true,
+              chainId: true,
+              tokenSymbol: true,
+              nativeAmount: true,
+              transactionId: true,
+            },
+          },
+          User: { select: { id: true, name: true, email: true, emailDisplayMode: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -147,7 +163,13 @@ export async function GET(request: NextRequest) {
       customer: {
         id: o.User.id,
         name: o.User.name,
-        email: o.User.email,
+        email: resolveVisibleEmail({
+          targetUserId: o.User.id,
+          targetEmail: o.User.email,
+          targetEmailDisplayMode: o.User.emailDisplayMode,
+          viewerUserId: viewerId,
+          viewerRole: viewerRole,
+        }),
       },
       items: o.OrderItem.map(oi => ({
         id: oi.id,
@@ -156,7 +178,19 @@ export async function GET(request: NextRequest) {
         title: oi.title,
         product: oi.Product,
       })),
-      payment: o.Payment ? { method: o.Payment.method, status: o.Payment.status } : null,
+      payment: o.Payment
+        ? {
+            method: o.Payment.method,
+            status: o.Payment.status,
+            receiverAddress: o.Payment.receiverAddress ?? null,
+            senderAddress: o.Payment.senderAddress ?? null,
+            chainFamily: o.Payment.chainFamily ?? null,
+            chainId: o.Payment.chainId ?? null,
+            tokenSymbol: o.Payment.tokenSymbol ?? null,
+            nativeAmount: o.Payment.nativeAmount ?? null,
+            transactionId: o.Payment.transactionId ?? null,
+          }
+        : null,
     }));
 
     return NextResponse.json({

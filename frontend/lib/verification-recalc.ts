@@ -65,11 +65,25 @@ export async function recalculateVerificationTier(
       return null;
     }
 
+    // Query highest single-wallet donation total for donation-based trust
+    let maxWalletDonationUsd = 0;
+    try {
+      const topWallet = await dbPrisma.wallet.findFirst({
+        where: { ownerUserId: userId, verifiedAt: { not: null } },
+        orderBy: { donationTotalUsd: 'desc' },
+        select: { donationTotalUsd: true },
+      });
+      maxWalletDonationUsd = topWallet?.donationTotalUsd ?? 0;
+    } catch {
+      // donationTotalUsd column may not exist yet (pre-migration) — ignore
+    }
+
     // Merge current DB state with any overrides (for just-changed flags)
     const merged = { ...user, ...overrides };
+    const donationOpts = { maxWalletDonationUsd };
 
-    const tier = determineUserVerificationTier(merged);
-    const score = calculateVerificationScore(merged);
+    const tier = determineUserVerificationTier(merged, donationOpts);
+    const score = calculateVerificationScore(merged, donationOpts);
 
     await dbPrisma.user.update({
       where: { id: userId },

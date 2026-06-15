@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, type ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
@@ -12,9 +12,10 @@ import AppKitButton from "../crypto-related/AppKitButton";
 import NetworkSyncBridge from "@/components/crypto-related/NetworkSyncBridge";
 import { MyDialogbarNavigator } from "@/app/(protected)/_components/dialog-bar";
 import { useTheme } from "next-themes";
-import { signIn, signOut } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { FaUser } from "react-icons/fa";
+import { FaUser, FaDiscord, FaGithub } from "react-icons/fa";
+import { FcGoogle } from "react-icons/fc";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { TbHexagons } from "react-icons/tb";
@@ -37,11 +38,14 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { useUiPreferences } from "@/components/providers/ui-preferences";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import usePusher from "@/hooks/usePusher";
-import { useCallback } from "react";
 import { MiniCartDropdown } from "@/components/uicustom/mini-cart-dropdown";
 import { ChatLiteDropdown } from "@/components/uicustom/chat-lite-dropdown";
 import { useCleanLogout } from "@/hooks/use-clean-logout";
-import { useAccount, useChainId, useChains, useSwitchChain } from "wagmi";
+import { useAccount, useChainId, useChains, useSwitchChain, useConnections, useDisconnect } from "wagmi";
+import { useAppKitAccount } from "@reown/appkit/react";
+import { CopyChip } from "@/components/uicustom/CopyChip";
+import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
+import { isLocalChain } from "@/lib/is-local-chain";
 
 type NavLinkProps = {
 	href: string;
@@ -71,6 +75,66 @@ function isActivePath(pathname: string, href: string) {
 
 // Fetcher for SWR
 const fetcher = (url: string) => fetch(url).then(res => res.ok ? res.json() : { items: [] });
+
+/** Key for sessionStorage flag that prevents OAuth redirect loops */
+const OAUTH_BRIDGE_KEY_PREFIX = 'veggat_oauth_bridge_';
+
+/** Map AppKit authProvider → NextAuth provider id (only ones we have configured) */
+const APPKIT_TO_NEXTAUTH: Record<string, string> = {
+	google: 'google',
+	discord: 'discord',
+	github: 'github',
+};
+
+/**
+ * Always-rendered zero-UI component that auto-bridges AppKit social login → NextAuth OAuth.
+ * When a user signs in via AppKit's social login (Google, Discord, GitHub), this detects
+ * "AppKit has an email but NextAuth doesn't" and triggers the corresponding NextAuth
+ * OAuth sign-in. Because the user just authenticated with the provider, it auto-approves.
+ *
+ * @stability stable — extracted so it runs regardless of auth state or sidebar visibility.
+ */
+function AppKitOAuthBridge() {
+	const { embeddedWalletInfo } = useAppKitAccount();
+	const { status: sessionStatus, data: session } = useSession();
+
+	const appKitEmail = embeddedWalletInfo?.user?.email as string | undefined;
+	const appKitAuthProvider = embeddedWalletInfo?.authProvider as string | undefined;
+	const nextAuthEmail = session?.user?.email;
+
+	const bridgeTriggeredRef = useRef(false);
+
+	useEffect(() => {
+		// Wait for session to finish loading — avoid false positives
+		if (sessionStatus === 'loading') return;
+		// Only bridge if AppKit has an email but NextAuth doesn't
+		if (!appKitEmail || nextAuthEmail) return;
+		// One-shot per component mount
+		if (bridgeTriggeredRef.current) return;
+
+		// Determine which NextAuth provider to bridge to
+		const nextAuthProvider = appKitAuthProvider ? APPKIT_TO_NEXTAUTH[appKitAuthProvider] : undefined;
+		// Fall back to 'google' if we can't detect the provider (legacy behaviour)
+		const bridgeProvider = nextAuthProvider || 'google';
+
+		// Check per-email flag in sessionStorage to prevent redirect loops
+		const bridgeKey = `${OAUTH_BRIDGE_KEY_PREFIX}${appKitEmail}`;
+		if (sessionStorage.getItem(bridgeKey)) return;
+
+		bridgeTriggeredRef.current = true;
+
+		// Small delay to let wallet registry finish saving to sessionStorage
+		const timer = setTimeout(() => {
+			console.log(`[AppKitOAuthBridge] Auto-bridging AppKit ${appKitAuthProvider ?? 'unknown'} → NextAuth ${bridgeProvider}:`, appKitEmail);
+			sessionStorage.setItem(bridgeKey, String(Date.now()));
+			signIn(bridgeProvider, { callbackUrl: window.location.pathname || '/products' });
+		}, 1200);
+		return () => clearTimeout(timer);
+	}, [appKitEmail, nextAuthEmail, sessionStatus, appKitAuthProvider]);
+
+	// Zero-UI: this component only fires the side-effect
+	return null;
+}
 
 const MyTopBar = () => {
 	const pathname = usePathname();
@@ -118,18 +182,6 @@ const MyTopBar = () => {
 	const [walletRefreshToken, setWalletRefreshToken] = useState(0);
 	const [menuPane, setMenuPane] = useState<"nav" | "settings">("nav");
 	const cleanLogout = useCleanLogout();
-	const [emailCopied, setEmailCopied] = useState(false);
-	const copyEmail = useCallback(async () => {
-		if (!clientUser?.email) return;
-		try {
-			await navigator.clipboard.writeText(clientUser.email);
-			setEmailCopied(true);
-			toast.success("Email copied");
-			setTimeout(() => setEmailCopied(false), 2000);
-		} catch {
-			toast.error("Failed to copy");
-		}
-	}, [clientUser?.email]);
 	const collapseForProducts = pathname.startsWith("/products") && isMobile && !productsTopbarVisible;
 	const menuSwipeRef = useRef<{ x: number; y: number; t: number } | null>(null);
 	const onMenuTouchStart = (e: React.TouchEvent) => {
@@ -454,11 +506,12 @@ const MyTopBar = () => {
 
 	// Avoid rendering the full navigation on auth screens.
 	const hideOnAuthPages = pathname.startsWith("/auth/");
-	if (hideOnAuthPages) return <NetworkSyncBridge />;
+	if (hideOnAuthPages) return <><NetworkSyncBridge /><AppKitOAuthBridge /></>;
 
 	return (
 		<>
 			<NetworkSyncBridge />
+			<AppKitOAuthBridge />
 
 			<MyDialogbarNavigator
 				open={nexusOpen}
@@ -541,11 +594,11 @@ const MyTopBar = () => {
 						className="relative mx-auto flex h-[var(--app-header)] max-w-screen-2xl items-center justify-between px-3 sm:px-4 md:px-6"
 						onMouseLeave={handleNavBarLeave}
 					>
-						{/* ── Sliding green indicator ── */}
+						{/* ── Sliding accent indicator ── */}
 						{navIndicator && (
 							<div
 								aria-hidden
-								className="absolute pointer-events-none z-50 border border-emerald-500/50 dark:border-emerald-400/40 hidden md:block"
+								className="absolute pointer-events-none z-50 border border-sky-500/50 dark:border-emerald-400/40 hidden md:block"
 								style={{
 									left: navIndicator.left,
 									top: navIndicator.top,
@@ -580,8 +633,8 @@ const MyTopBar = () => {
 										{item.href === "/pulse" ? (
 											<span className="inline-flex items-center gap-1.5">
 												<span className="relative flex h-2 w-2">
-													<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-													<span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+													<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 dark:bg-emerald-400 opacity-75" />
+													<span className="relative inline-flex h-2 w-2 rounded-full bg-sky-500 dark:bg-emerald-500" />
 												</span>
 												<span>{item.label}</span>
 											</span>
@@ -595,56 +648,74 @@ const MyTopBar = () => {
 
 						<div className="flex shrink-0 items-center gap-2">
 							{/* Desktop quick actions */}
+							<TooltipProvider delayDuration={200}>
 							<div className="hidden md:flex items-center gap-1">
-								<div data-nav-key="currency" onMouseEnter={handleNavHover} className="relative group/tip [&_button:hover]:!bg-transparent">
-									<CurrencySelector variant="ghost" size="sm" />
-									<span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 rounded-md bg-zinc-900 dark:bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-white dark:text-zinc-900 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">Currency</span>
-								</div>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<div data-nav-key="currency" onMouseEnter={handleNavHover} className="relative [&_button:hover]:!bg-transparent">
+											<CurrencySelector variant="ghost" size="sm" />
+										</div>
+									</TooltipTrigger>
+									<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Currency</TooltipContent>
+								</Tooltip>
 
 								{clientUser && (
 									<>
 										{/* Notification Bell */}
-										<div data-nav-key="notifications" onMouseEnter={handleNavHover} className="relative group/tip [&_button:hover]:!bg-transparent">
-											<NotificationDropdown
-												notifications={notifications}
-												unreadCount={unreadCount}
-												isLoading={notificationsLoading}
-												onMarkRead={markAsRead}
-												onMarkAllRead={markAllAsRead}
-												onNotificationClick={(notif) => {
-													if (notif.type === 'TRADE_REQUEST' && notif.metadata?.tradeId) {
-														window.location.href = `/trade/${notif.metadata.tradeId}`;
-													} else if (notif.conversationId) {
-														window.location.href = `/conversations/${notif.conversationId}`;
-													} else if (notif.pulseId) {
-														window.location.href = `/pulse/${notif.pulseId}`;
-													} else if (notif.actorId) {
-														window.location.href = `/profile/${notif.actorId}`;
-													}
-												}}
-												condensed
-											/>
-											<span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 rounded-md bg-zinc-900 dark:bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-white dark:text-zinc-900 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">Notifications</span>
-										</div>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<div data-nav-key="notifications" onMouseEnter={handleNavHover} className="relative [&_button:hover]:!bg-transparent">
+													<NotificationDropdown
+														notifications={notifications}
+														unreadCount={unreadCount}
+														isLoading={notificationsLoading}
+														onMarkRead={markAsRead}
+														onMarkAllRead={markAllAsRead}
+														onNotificationClick={(notif) => {
+															if (notif.type === 'TRADE_REQUEST' && notif.metadata?.tradeId) {
+																window.location.href = `/trade/${notif.metadata.tradeId}`;
+															} else if (notif.conversationId) {
+																window.location.href = `/conversations/${notif.conversationId}`;
+															} else if (notif.pulseId) {
+																window.location.href = `/pulse/${notif.pulseId}`;
+															} else if (notif.actorId) {
+																window.location.href = `/profile/${notif.actorId}`;
+															}
+														}}
+														condensed
+													/>
+												</div>
+											</TooltipTrigger>
+											<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Notifications</TooltipContent>
+										</Tooltip>
 										
 										{/* Mini Cart Dropdown */}
-										<div data-nav-key="cart" onMouseEnter={handleNavHover} className="relative group/tip [&_button:hover]:!bg-transparent">
-											<MiniCartDropdown
-												userId={clientUser?.id}
-												cartCount={cartCount}
-												onCartUpdate={() => mutateCart()}
-											/>
-											<span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 rounded-md bg-zinc-900 dark:bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-white dark:text-zinc-900 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">Cart</span>
-										</div>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<div data-nav-key="cart" onMouseEnter={handleNavHover} className="relative [&_button:hover]:!bg-transparent">
+													<MiniCartDropdown
+														userId={clientUser?.id}
+														cartCount={cartCount}
+														onCartUpdate={() => mutateCart()}
+													/>
+												</div>
+											</TooltipTrigger>
+											<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Cart</TooltipContent>
+										</Tooltip>
 
 										{/* Chat lite dropdown */}
-										<div data-nav-key="conversations" onMouseEnter={handleNavHover} className="relative group/tip [&_button:hover]:!bg-transparent">
-											<ChatLiteDropdown />
-								<span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 rounded-md bg-zinc-900 dark:bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-white dark:text-zinc-900 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">Messages</span>
-										</div>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<div data-nav-key="conversations" onMouseEnter={handleNavHover} className="relative [&_button:hover]:!bg-transparent">
+													<ChatLiteDropdown />
+												</div>
+											</TooltipTrigger>
+											<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Messages</TooltipContent>
+										</Tooltip>
 									</>
 								)}
 							</div>
+							</TooltipProvider>
 							<Sheet open={menuOpen} onOpenChange={setMenuOpen}>
 								<SheetTrigger asChild>
 									<button
@@ -709,35 +780,57 @@ const MyTopBar = () => {
 														</div>
 													</div>
 												</Link>
-												{/* Email — one-click copy */}
-												<div className="mx-3 mb-2 flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800">
-													<span className="text-xs text-zinc-500 dark:text-zinc-400 truncate font-mono min-w-0">
-														{clientUser.email}
-													</span>
+												{/* Quick-copy strips: email + active wallet */}
+												<SidebarQuickCopyStrips email={clientUser.email ?? undefined} />
+												{/* Theme quick-toggle */}
+												<div className="mx-3 mb-2 flex items-center gap-2">
 													<button
 														type="button"
-														onClick={copyEmail}
-														className="shrink-0 p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-														title="Copy email address"
+														onClick={() => setTheme("light")}
+														className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors ${
+															resolvedTheme === "light"
+																? "bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/30"
+																: "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-transparent"
+														}`}
 													>
-														{emailCopied ? (
-															<FiCheck className="h-3.5 w-3.5 text-emerald-500" />
-														) : (
-															<FiCopy className="h-3.5 w-3.5 text-zinc-400" />
-														)}
+														<FiSun className="h-3 w-3" /> Light
+													</button>
+													<button
+														type="button"
+														onClick={() => setTheme("dark")}
+														className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors ${
+															resolvedTheme === "dark"
+																? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+																: "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-transparent"
+														}`}
+													>
+														<FiMoon className="h-3 w-3" /> Dark
+													</button>
+													<button
+														type="button"
+														onClick={() => setTheme("system")}
+														className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors ${
+															resolvedTheme !== "light" && resolvedTheme !== "dark"
+																? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/30"
+																: "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-transparent"
+														}`}
+													>
+														<FiMonitor className="h-3 w-3" /> System
 													</button>
 												</div>
 												<div className="border-b border-zinc-100 dark:border-zinc-800" />
 											</>
 										) : (
-											<SheetHeader className="border-b border-zinc-100 dark:border-zinc-800 p-6">
-												<SheetTitle className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-													Welcome
-												</SheetTitle>
-												<SheetDescription className="text-xs text-zinc-500 dark:text-zinc-400">
-													Sign in to unlock all features
-												</SheetDescription>
-											</SheetHeader>
+										<>
+										<SheetHeader className="border-b border-zinc-100 dark:border-zinc-800 p-6">
+											<SheetTitle className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+												Welcome
+											</SheetTitle>
+											<SheetDescription className="text-xs text-zinc-500 dark:text-zinc-400">
+												Sign in to unlock all features
+											</SheetDescription>
+										</SheetHeader>
+										</>
 										)}
 
 										{/* Two-Pane Tab Navigation */}
@@ -793,8 +886,8 @@ const MyTopBar = () => {
 																				<span>{item.label}</span>
 																				{item.href === "/pulse" && (
 																					<span className="relative flex h-1.5 w-1.5 ml-0.5 shrink-0">
-																						<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-																						<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+																						<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 dark:bg-emerald-400 opacity-75" />
+																						<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-emerald-500" />
 																					</span>
 																				)}
 																			</Link>
@@ -823,14 +916,17 @@ const MyTopBar = () => {
 														</div>
 													)}
 
-													{/* Web3 Wallets */}
-													<div className="mt-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
-														<SidebarWalletPanel
-															isLoggedIn={!!clientUser}
-															web3Enabled={effectiveWeb3ModeEnabled}
-															onClose={() => setMenuOpen(false)}
-														/>
-													</div>
+													{/* Web3 Wallets — only for logged-in users */}
+													{clientUser && (
+														<div className="mt-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
+															<SidebarWalletPanel
+																isLoggedIn={!!clientUser}
+																web3Enabled={effectiveWeb3ModeEnabled}
+																onClose={() => setMenuOpen(false)}
+																userName={clientUser?.name}
+															/>
+														</div>
+													)}
 												</div>
 											)}
 											{/* Settings Pane - Lite Mode with Hover Dropdowns */}
@@ -858,20 +954,54 @@ const MyTopBar = () => {
 												</button>
 											) : (
 												<>
+													{/* Web3 connect — top option */}
 													<button
 														type="button"
-														onClick={() => signIn("google", { callbackUrl: "/products" })}
-														className="w-full rounded-xl bg-zinc-900 dark:bg-white px-4 py-3 text-sm font-medium text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
+														onClick={async () => {
+															try {
+																const { ModalController } = await import('@reown/appkit-controllers');
+																ModalController.open({ view: 'Connect' });
+																setMenuOpen(false);
+															} catch { /* AppKit not ready */ }
+														}}
+														className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 dark:bg-white px-4 py-3 text-sm font-medium text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
 													>
-														Continue with Google
+														<FiLink className="w-4 h-4" />
+														Connect with Web3
 													</button>
-													<button
-														type="button"
-														onClick={() => signIn("github", { callbackUrl: "/products" })}
-														className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-													>
-														Continue with GitHub
-													</button>
+
+													{/* OAuth providers row */}
+													<div className="flex gap-2">
+														<button
+															type="button"
+															onClick={() => signIn("google", { callbackUrl: "/products" })}
+															className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+															title="Continue with Google"
+														>
+															<FcGoogle className="h-4 w-4" />
+															Google
+														</button>
+														<button
+															type="button"
+															onClick={() => signIn("discord", { callbackUrl: "/products" })}
+															className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+															title="Continue with Discord"
+														>
+															<FaDiscord className="h-4 w-4 text-[#5865F2]" />
+															Discord
+														</button>
+														<button
+															type="button"
+															onClick={() => signIn("github", { callbackUrl: "/products" })}
+															className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+															title="Continue with GitHub"
+														>
+															<FaGithub className="h-4 w-4" />
+															GitHub
+														</button>
+													</div>
+
+													{/* Sign in / Sign up links */}
 													<div className="flex gap-2 pt-1">
 														<Link
 															href="/auth/login"
@@ -902,22 +1032,176 @@ const MyTopBar = () => {
 	);
 };
 
+/**
+ * Quick-copy strips for sidebar header: email + active wallet address.
+ * Shows NextAuth email, or falls back to AppKit social login email.
+ * Active wallet row shows connector name (MetaMask, Coinbase, etc.) + address + chain.
+ *
+ * NOTE: The auto-bridge useEffect was extracted to AppKitOAuthBridge (rendered unconditionally
+ * in MyTopBar) so it fires even when the user has no NextAuth session.
+ * The manual fallback button still lives here for auth'd users who got stuck.
+ */
+function SidebarQuickCopyStrips({ email: nextAuthEmail }: { email?: string }) {
+	const { address, isConnected, connector } = useAccount();
+	const connections = useConnections();
+	const activeChainId = useChainId();
+	const chains = useChains();
+	const { override } = useActiveWalletOverride();
+	const { embeddedWalletInfo } = useAppKitAccount();
+	const { status: sessionStatus } = useSession();
+
+	// Email: prefer NextAuth session email, fall back to AppKit social login email
+	const appKitEmail = embeddedWalletInfo?.user?.email as string | undefined;
+	// BUG WORKAROUND (AppKit 1.8.x): embeddedWalletInfo.authProvider returns "email" even
+	// for Google/Discord social logins. Read the real provider from localStorage.
+	let appKitAuthProvider = embeddedWalletInfo?.authProvider as string | undefined;
+	if (!appKitAuthProvider || appKitAuthProvider === 'email') {
+		try {
+			const storedSocial = typeof window !== 'undefined'
+				? localStorage.getItem('@appkit/connected_social')
+				: null;
+			if (storedSocial && storedSocial !== 'email') {
+				appKitAuthProvider = storedSocial;
+			}
+		} catch { /* SSR or storage blocked */ }
+	}
+	const displayEmail = nextAuthEmail || appKitEmail;
+
+	const effectiveAddress = override?.address ?? address;
+	const effectiveChainId = override?.chainId ?? activeChainId;
+	const effectiveConnected = Boolean(effectiveAddress) && (Boolean(override?.address) || isConnected);
+	const activeConn = effectiveAddress
+		? connections.find((c) => c.accounts.some((a) => a.toLowerCase() === effectiveAddress.toLowerCase()))
+		: undefined;
+	const effectiveConnector = activeConn?.connector ?? connector;
+	const chain = chains.find((c) => c.id === effectiveChainId);
+	const trimmed = effectiveAddress ? `${effectiveAddress.slice(0, 6)}…${effectiveAddress.slice(-4)}` : null;
+	const normalizedAuthProvider = appKitAuthProvider?.trim().toLowerCase();
+	const authProviderLabel = normalizedAuthProvider
+		? ({ google: "Google", discord: "Discord", github: "GitHub", apple: "Apple", x: "X (Twitter)", farcaster: "Farcaster" }[normalizedAuthProvider] ?? normalizedAuthProvider)
+		: undefined;
+	const isAuthConnector = effectiveConnector?.type === "AUTH" || effectiveConnector?.id === "auth" || effectiveConnector?.name === "Auth";
+
+	// Friendly name for the active connector
+	const connectorNameMap: Record<string, string> = {
+		metaMask: "MetaMask", MetaMask: "MetaMask",
+		"io.metamask": "MetaMask", "io.metamask.flask": "MetaMask Flask",
+		coinbaseWalletSDK: "Coinbase", "Coinbase Wallet": "Coinbase",
+		"com.coinbase.wallet": "Coinbase",
+		walletConnect: "WalletConnect", WalletConnect: "WalletConnect",
+		Auth: "Reown", injected: "Browser Wallet", Injected: "Browser Wallet",
+	};
+	const walletName = override?.address
+		? "Local RPC"
+		: isAuthConnector
+		? authProviderLabel
+			? `Reown via ${authProviderLabel}`
+			: "Reown"
+		: effectiveConnector
+			? (connectorNameMap[effectiveConnector.name] ?? connectorNameMap[effectiveConnector.id] ?? effectiveConnector.name)
+			: null;
+
+	// Always render for logged-in users — show email + wallet or placeholder
+	const hasEmail = !!displayEmail;
+	const hasWallet = effectiveConnected;
+
+	// If nothing to show at all, still show a connect-wallet hint
+	return (
+		<div className="mx-3 mb-2 space-y-1">
+			{/* Email row */}
+			{hasEmail && (
+				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800">
+					<span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 shrink-0 w-10">
+						Email
+					</span>
+					<span className="text-xs text-zinc-600 dark:text-zinc-300 truncate font-mono min-w-0 flex-1">
+						{displayEmail}
+					</span>
+					<CopyChip text={displayEmail!} label="Copy email" size="xs" />
+				</div>
+			)}
+			{/* Active wallet row */}
+			{hasWallet && trimmed ? (
+				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50 border border-sky-500/30 dark:border-emerald-500/30">
+					<span className="h-1.5 w-1.5 rounded-full bg-sky-400 dark:bg-emerald-400 shrink-0" />
+					{walletName && (
+						<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-600 dark:text-emerald-400 shrink-0">
+							{isAuthConnector && normalizedAuthProvider === "google" ? <FcGoogle className="h-3 w-3" /> : null}
+							{isAuthConnector && normalizedAuthProvider === "discord" ? <FaDiscord className="h-3 w-3 text-[#5865F2]" /> : null}
+							{isAuthConnector && normalizedAuthProvider === "github" ? <FaGithub className="h-3 w-3" /> : null}
+							{walletName}
+						</span>
+					)}
+					<span className="text-xs text-zinc-600 dark:text-zinc-300 truncate font-mono min-w-0 flex-1" title={effectiveAddress}>
+						{trimmed}
+					</span>
+					{chain && (
+						<span className={`text-[9px] rounded px-1.5 py-0.5 shrink-0 inline-flex items-center gap-1 ${
+							isLocalChain(chain.id)
+								? "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-700"
+								: "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
+						}`}>
+							{isLocalChain(chain.id) && <span className="font-mono font-bold">&gt;_RPC</span>}
+							{chain.name}
+						</span>
+					)}
+					<CopyChip text={effectiveAddress!} label="Copy wallet address" size="xs" />
+				</div>
+			) : nextAuthEmail ? (
+				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50 border border-dashed border-zinc-200 dark:border-zinc-700">
+					<span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 shrink-0 w-10">
+						Wallet
+					</span>
+					<span className="text-[11px] text-zinc-400 dark:text-zinc-500 italic">
+						No active wallet — connect below ↓
+					</span>
+				</div>
+			) : null}
+			{/* AppKit Social → OAuth bridge fallback button.
+			   The auto-bridge above fires once. If it failed or auto-bridge
+			   was blocked, the user can click this manually. */}
+			{appKitEmail && !nextAuthEmail && sessionStatus !== 'loading' && (() => {
+				const fallbackProvider = appKitAuthProvider ? (APPKIT_TO_NEXTAUTH[appKitAuthProvider] ?? 'google') : 'google';
+				const providerLabel = { google: 'Google', discord: 'Discord', github: 'GitHub' }[fallbackProvider] ?? 'Google';
+				return (
+					<button
+						type="button"
+						onClick={() => {
+							sessionStorage.removeItem(`${OAUTH_BRIDGE_KEY_PREFIX}${appKitEmail}`);
+							signIn(fallbackProvider, { callbackUrl: window.location.pathname || '/products' });
+						}}
+						className="w-full flex items-center gap-2 rounded-lg px-3 py-1.5 bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 text-[11px] font-medium text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/40 transition-colors"
+					>
+						<span className="h-1.5 w-1.5 rounded-full bg-sky-400 shrink-0 animate-pulse" />
+						Sign in with {providerLabel} to unlock all features →
+					</button>
+				);
+			})()}
+		</div>
+	);
+}
+
 // Compact wallet info shown inside the sidebar Sheet wallet section
 function SidebarWalletInfo() {
 	const { address, isConnected } = useAccount();
 	const activeChainId = useChainId();
 	const chains = useChains();
 	const { switchChain, status: switchStatus } = useSwitchChain();
+	const { override } = useActiveWalletOverride();
 	const [copied, setCopied] = useState(false);
 
-	if (!isConnected || !address) return null;
+	const effectiveAddress = override?.address ?? address;
+	const effectiveChainId = override?.chainId ?? activeChainId;
+	const effectiveConnected = Boolean(effectiveAddress) && (Boolean(override?.address) || isConnected);
 
-	const trimmed = `${address.slice(0, 6)}…${address.slice(-4)}`;
-	const activeChain = chains.find((c) => c.id === activeChainId);
+	if (!effectiveConnected || !effectiveAddress) return null;
+
+	const trimmed = `${effectiveAddress.slice(0, 6)}…${effectiveAddress.slice(-4)}`;
+	const activeChain = chains.find((c) => c.id === effectiveChainId);
 
 	const copyAddress = async () => {
 		try {
-			await navigator.clipboard.writeText(address);
+			await navigator.clipboard.writeText(effectiveAddress);
 			setCopied(true);
 			toast.success("Address copied");
 			setTimeout(() => setCopied(false), 2000);
@@ -931,8 +1215,8 @@ function SidebarWalletInfo() {
 			{/* Address row */}
 			<div className="flex items-center justify-between gap-2">
 				<div className="flex items-center gap-1.5 min-w-0">
-					<span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
-					<span className="text-xs font-mono text-zinc-700 dark:text-zinc-300 truncate" title={address}>
+					<span className="h-2 w-2 rounded-full bg-sky-400 dark:bg-emerald-400 shrink-0" />
+					<span className="text-xs font-mono text-zinc-700 dark:text-zinc-300 truncate" title={effectiveAddress}>
 						{trimmed}
 					</span>
 				</div>
@@ -943,7 +1227,7 @@ function SidebarWalletInfo() {
 					title="Copy full address"
 				>
 					{copied ? (
-						<FiCheck className="h-3.5 w-3.5 text-emerald-500" />
+						<FiCheck className="h-3.5 w-3.5 text-sky-500 dark:text-emerald-500" />
 					) : (
 						<FiCopy className="h-3.5 w-3.5 text-zinc-400" />
 					)}
@@ -957,10 +1241,10 @@ function SidebarWalletInfo() {
 				</span>
 				<select
 					className="text-xs rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-1.5 py-0.5 text-zinc-700 dark:text-zinc-300 max-w-[140px]"
-					value={activeChainId ?? ""}
+					value={effectiveChainId ?? ""}
 					onChange={(e) => {
 						const id = Number(e.target.value);
-						if (id !== activeChainId) switchChain({ chainId: id });
+						if (id !== effectiveChainId) switchChain({ chainId: id });
 					}}
 					disabled={switchStatus === "pending"}
 				>
@@ -1118,7 +1402,7 @@ function SettingsPaneLite({
 						<Link
 							href="/settings?section=wallet"
 							onClick={() => setMenuOpen(false)}
-							className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
+							className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-sky-500 dark:hover:text-emerald-400 transition-colors"
 						>
 							Manage →
 						</Link>
@@ -1132,14 +1416,14 @@ function SettingsPaneLite({
 						{/* Connected wallet info: address, copy, network */}
 						<SidebarWalletInfo />
 
-						{/* Inventory shortcut */}
+						{/* Trading shortcut */}
 						<Link
-							href="/dashboard/inventory"
+							href="/dashboard/trading"
 							onClick={() => setMenuOpen(false)}
 							className="flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
 						>
-							<FiPackage className="h-3.5 w-3.5 text-emerald-500" />
-							<span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Token Inventory</span>
+							<FiPackage className="h-3.5 w-3.5 text-sky-500 dark:text-emerald-500" />
+							<span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Trading</span>
 							<span className="ml-auto text-[10px] text-zinc-400">→</span>
 						</Link>
 
@@ -1372,7 +1656,7 @@ function SettingsItemWithHover({
 										onClick={(e) => handleQuickAction(action, e)}
 										className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
 											isActive
-												? 'bg-emerald-500 text-white shadow-sm'
+												? 'bg-sky-500 dark:bg-emerald-500 text-white shadow-sm'
 												: isDanger
 													? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60'
 													: 'bg-white dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-600 shadow-sm'

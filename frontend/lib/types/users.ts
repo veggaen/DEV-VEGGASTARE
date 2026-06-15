@@ -154,7 +154,7 @@ export const UserSearchResultItemSchema = z
   .object({
     id: z.string().min(1),
     name: z.string(),
-    email: z.string(),
+    email: z.string().nullable(),
     image: z.string(),
     role: z.string().nullable(),
     bio: z.string().nullable(),

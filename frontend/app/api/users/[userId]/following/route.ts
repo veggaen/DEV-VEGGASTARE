@@ -2,6 +2,7 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { UserFollowListResponseSchema } from '@/lib/types/users';
+import { resolveVisibleEmail } from '@/lib/email-visibility';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -37,6 +38,7 @@ export async function GET(
             id: true,
             name: true,
             email: true,
+            emailDisplayMode: true,
             image: true,
             bio: true,
             _count: {
@@ -69,7 +71,13 @@ export async function GET(
     const users = following.map(f => ({
       id: f.following.id,
       name: f.following.name,
-      email: f.following.email,
+      email: resolveVisibleEmail({
+        targetUserId: f.following.id,
+        targetEmail: f.following.email,
+        targetEmailDisplayMode: f.following.emailDisplayMode,
+        viewerUserId: session?.id,
+        viewerRole: session?.role,
+      }),
       image: f.following.image,
       bio: f.following.bio,
       followerCount: f.following._count.followers,

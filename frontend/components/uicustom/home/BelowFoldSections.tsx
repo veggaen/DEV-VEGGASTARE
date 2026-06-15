@@ -4,6 +4,19 @@ import * as React from "react";
 import { motion, useReducedMotion, useMotionValue, useSpring, type MotionValue } from "framer-motion";
 import Link from "next/link";
 
+/** Returns true when the page is in dark mode (watches Tailwind's dark class). */
+function useIsDark() {
+  const [isDark, setIsDark] = React.useState(true);
+  React.useEffect(() => {
+    const check = () => document.documentElement.classList.contains("dark");
+    setIsDark(check());
+    const obs = new MutationObserver(() => setIsDark(check()));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+  return isDark;
+}
+
 // ── Shared hoverable heading ──────────────────────────────────────────────────
 // Plain <span>s with CSS transitions — no framer-motion per-character overhead.
 
@@ -15,7 +28,11 @@ function HoverableHeading({
   className?: string;
 }) {
   const reduceMotion = useReducedMotion();
+  const isDark = useIsDark();
   const [hoveredIdx, setHoveredIdx] = React.useState<number | null>(null);
+
+  // Brand accent RGB: sky-500 in light, emerald-400 in dark
+  const accentRgb = isDark ? "52, 211, 153" : "14, 165, 233";
 
   if (reduceMotion) return <span className={className}>{text}</span>;
 
@@ -40,9 +57,9 @@ function HoverableHeading({
             key={i}
             className="inline-block origin-bottom"
             style={{
-              color: active ? `rgba(52, 211, 153, ${0.5 + 0.5 * intensity})` : undefined,
+              color: active ? `rgba(${accentRgb}, ${0.5 + 0.5 * intensity})` : undefined,
               textShadow: active
-                ? `0 0 ${12 * intensity}px rgba(52, 211, 153, ${0.35 * intensity})`
+                ? `0 0 ${12 * intensity}px rgba(${accentRgb}, ${0.35 * intensity})`
                 : "none",
               transform: `scale(${active ? 1 + 0.1 * intensity : 1}) translateY(${
                 active ? -2 * intensity : 0
@@ -211,6 +228,7 @@ const StepCard = React.memo(function StepCard({
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }) {
+  const isDark = useIsDark();
   return (
     <motion.div
       className="relative flex flex-col gap-3 cursor-default"
@@ -233,8 +251,9 @@ const StepCard = React.memo(function StepCard({
         }
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         style={{
-          background:
-            "radial-gradient(closest-side, rgba(52,211,153,0.18) 0%, rgba(52,211,153,0.06) 50%, transparent 100%)",
+          background: isDark
+            ? "radial-gradient(closest-side, rgba(52,211,153,0.18) 0%, rgba(52,211,153,0.06) 50%, transparent 100%)"
+            : "radial-gradient(closest-side, rgba(14,165,233,0.18) 0%, rgba(14,165,233,0.06) 50%, transparent 100%)",
         }}
       />
 
@@ -252,9 +271,9 @@ const StepCard = React.memo(function StepCard({
         >
           {step}
         </motion.span>
-        {/* Emerald overlay — fades in on hover, no border box needed */}
+        {/* Brand accent overlay — fades in on hover, no border box needed */}
         <motion.span
-          className="absolute inset-0 select-none text-5xl font-black leading-none tracking-tighter text-emerald-400"
+          className="absolute inset-0 select-none text-5xl font-black leading-none tracking-tighter text-sky-400 dark:text-emerald-400"
           animate={{
             opacity: isHovered ? 0.65 : isNeighbor ? 0.22 : 0,
             scale: isHovered ? 1.16 : isNeighbor ? 1.06 : 1,
@@ -290,7 +309,7 @@ const SectionHeading = React.memo(function SectionHeading({
   return (
     <div className="mb-12 text-center">
       <motion.p
-        className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400/60"
+        className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-600 dark:text-emerald-400/60"
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}
@@ -411,7 +430,7 @@ export default function BelowFoldSections() {
           {/* Sliding indicator — matches hovered card, fades on leave */}
           {featureIndicatorStyle !== null && (
             <div
-              className="absolute pointer-events-none z-10 rounded-2xl border border-emerald-500/50 dark:border-emerald-400/40"
+              className="absolute pointer-events-none z-10 rounded-2xl border border-sky-500/50 dark:border-emerald-400/40"
               style={{
                 left: featureIndicatorStyle.left,
                 top: featureIndicatorStyle.top,
@@ -443,8 +462,8 @@ export default function BelowFoldSections() {
           />
           <FeatureCard
             delay={0.2}
-            href="/dashboard/inventory"
-            title="Inventory & Logistics"
+            href="/dashboard/trading"
+            title="Trading & Inventory"
             description="Warehouse tracking, shipping rates, and order management from a single dashboard."
             icon={BOX_ICON}
             accentClass="from-sky-500/6 to-transparent"
@@ -467,7 +486,7 @@ export default function BelowFoldSections() {
           {/* Sliding indicator — 4 positions, all 4 borders, smooth CSS transition */}
           {indicatorStyle !== null && (
             <div
-              className="absolute pointer-events-none z-10 border border-emerald-500/50 dark:border-emerald-400/40 rounded-sm"
+              className="absolute pointer-events-none z-10 border border-sky-500/50 dark:border-emerald-400/40 rounded-sm"
               style={{
                 left: indicatorStyle.left,
                 top: indicatorStyle.top,
@@ -566,7 +585,7 @@ export default function BelowFoldSections() {
               <MagneticButton>
                 {/* Animated gradient border */}
                 <motion.div
-                  className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-emerald-500 via-cyan-400 to-emerald-500 blur-[2px] group-hover:blur-[3px]"
+                  className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-sky-500 via-cyan-400 to-sky-500 dark:from-emerald-500 dark:via-cyan-400 dark:to-emerald-500 blur-[2px] group-hover:blur-[3px]"
                   animate={{
                     backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
                     opacity: [0.5, 0.8, 0.5],
@@ -585,11 +604,11 @@ export default function BelowFoldSections() {
                   animate={{ opacity: [0, 0.06, 0] }}
                   whileHover={{ opacity: 0.2 }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  style={{ background: "radial-gradient(closest-side, rgba(34,197,94,0.25), transparent 70%)" }}
+                  style={{ background: "radial-gradient(closest-side, rgba(14,165,233,0.25), transparent 70%)" }}
                 />
                 <Link
                   href="/products"
-                  className="relative flex items-center gap-2 rounded-xl bg-emerald-600 dark:bg-black/80 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 group-hover:bg-emerald-700 dark:group-hover:bg-black/90 group-hover:text-emerald-100 dark:group-hover:text-emerald-300"
+                  className="relative flex items-center gap-2 rounded-xl bg-sky-600 dark:bg-black/80 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 group-hover:bg-sky-700 dark:group-hover:bg-black/90 group-hover:text-sky-100 dark:group-hover:text-emerald-300"
                 >
                   <span>Browse products</span>
                   <motion.svg

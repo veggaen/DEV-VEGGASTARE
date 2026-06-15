@@ -19,6 +19,7 @@ import {
   FiLock,
 } from "react-icons/fi";
 import type { InventorySlot } from "./CryptoInventory";
+import { TokenIcon } from "@/components/ui/token-icon";
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -560,7 +561,7 @@ function TradePanel({
   onRemoveItem?: (id: string) => void;
 }) {
   return (
-    <div className="flex-1 px-4 py-2 min-h-[120px]">
+    <div className="flex-1 px-4 py-2 min-h-30">
       {/* User header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
@@ -589,7 +590,7 @@ function TradePanel({
       </div>
 
       {/* Items grid */}
-      <div className="grid grid-cols-4 gap-1.5 min-h-[80px]">
+      <div className="grid grid-cols-4 gap-1.5 min-h-20">
         {items.length === 0 ? (
           <motion.div
             className="col-span-4 flex flex-col items-center justify-center py-6 text-zinc-400 dark:text-zinc-600 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg"
@@ -632,20 +633,13 @@ function TradePanel({
             >
               {/* Token icon */}
               <div className="w-5 h-5 flex items-center justify-center">
-                {item.token.logo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.token.logo}
-                    alt={item.token.symbol}
-                    className="w-full h-full rounded-full object-contain"
-                  />
-                ) : (
-                  <div className="w-full h-full rounded-full bg-linear-to-br from-zinc-300 to-zinc-500 flex items-center justify-center">
-                    <span className="text-[7px] font-bold text-white">
-                      {item.token.symbol.slice(0, 2)}
-                    </span>
-                  </div>
-                )}
+                <TokenIcon
+                  address={item.token.address}
+                  chainId={item.token.chainId}
+                  symbol={item.token.symbol}
+                  logo={item.token.logo}
+                  size={20}
+                />
               </div>
               <span className="text-[8px] font-bold text-zinc-700 dark:text-zinc-300 mt-0.5 truncate max-w-full">
                 {item.amount}

@@ -18,7 +18,20 @@ function broadcastCartUpdate(userId: string) {
 function toCartDto(cart: {
   id: string;
   userId: string;
-  CartItem: Array<{ id: string; quantity: number; Product: { id: string; title: string; price: number; image: string[] } }>;
+  CartItem: Array<{
+    id: string;
+    quantity: number;
+    Product: {
+      id: string;
+      title: string;
+      price: number;
+      image: string[];
+      productType?: string;
+      shipFromPostalId?: string | null;
+      freeShippingEnabled?: boolean;
+      freeShippingThreshold?: number | null;
+    };
+  }>;
 }) {
   return {
     id: cart.id,
@@ -31,6 +44,10 @@ function toCartDto(cart: {
         title: item.Product.title,
         price: item.Product.price,
         image: item.Product.image ?? [],
+        productType: item.Product.productType,
+        shipFromPostalId: item.Product.shipFromPostalId ?? undefined,
+        freeShippingEnabled: item.Product.freeShippingEnabled,
+        freeShippingThreshold: item.Product.freeShippingThreshold ?? null,
       },
     })),
   };

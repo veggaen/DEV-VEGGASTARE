@@ -1,380 +1,362 @@
-# agent.md — Veggat Project Intelligence Brief
+# VeggaStare — Agent Context
 
-> **Purpose:** Single-file onboarding for any AI agent (Claude, GPT, Gemini, Copilot, etc.).  
-> Read this file first → you'll understand the entire project, methodology, and current state.  
-> **Last Updated:** 2026-02-19
+> Last Updated: 2026-02-28
 
----
-
-## 1. What Is Veggat?
-
-**Veggat** is a full-stack, Web3-enabled marketplace + social platform built in TypeScript.  
-**Domain:** veggat.com | **Codebase name:** DEV-VEGGASTARE | **Owner:** v3gga (v3ggat@gmail.com)
-
-Users can:
-- Buy/sell digital products with company & warehouse management
-- Trade crypto peer-to-peer (BROWSERGAME-style inventory UI, wallet-signed trades)
-- Post to a social feed ("Pulse"), follow/sync with others, DM/group chat
-- Create & take advanced polls/quizzes with AI generation
-- Build reputation via the True Reach™ 7-pillar scoring system
+The best senior engineers in history combined technical mastery with visionary impact, shaping modern infrastructure and technology. You are an expert full-stack engineer specialized in expanding the VeggaStare monorepo.
 
 ---
 
-## 2. Architecture at a Glance
+## Main Rules
+
+Always presume dev servers are running in VSCode terminal window because I (the human Vegga from the basement) usually start this with `C:\Users\v3gga\Documents\DEV-VEGGASTARE> npm run start:project`.
+
+---
+
+## Project Structure (never change this)
 
 ```
-              ┌──────────────┐
-              │   Browser     │   React 19  ·  Web3 Wallets
-              └──────┬───────┘
-                     │ HTTPS / WSS / WalletConnect
-       ┌─────────────┼──────────────┐
-       ▼             ▼              ▼
-  ┌─────────┐  ┌──────────┐  ┌──────────┐
-  │ Vercel  │  │ Pusher   │  │ Reown    │
-  │ Edge    │  │ (Events) │  │ Cloud    │
-  └────┬────┘  └──────────┘  └──────────┘
-       ▼
-  ╔══════════════════════════════════════╗
-  ║  FRONTEND SERVICE  (Next.js 16)     ║  Port 3000
-  ║  App Router · Server Actions        ║  Deployed on Vercel
-  ║  NextAuth v5 · Prisma 7.3           ║
-  ╚════════════════╤═════════════════════╝
-                   │ PostgreSQL
-  ╔════════════════╧═════════════════════╗
-  ║  BACKEND SERVICE  (Hapi.js 21)      ║  Port 3001 (HTTP) + 3002 (WS)
-  ║  Bring Shipping · Socket.IO · Prisma 7.4   ║  Deployed on Railway
-  ╚══════════════════════════════════════╝
-```
-
-**Two services, one database.** Frontend is the primary service (auth, DB writes, API routes, UI). Backend is an "Integration Core" for shipping, warehouse sync, and third-party connectors.
-
----
-
-## 3. Tech Stack
-
-| Layer | Technology | Version |
-|-------|-----------|---------|
-| Framework | Next.js (Webpack mode, NOT Turbopack) | 16.1.6 |
-| UI | React + Tailwind CSS + shadcn/ui + Framer Motion | React 19 |
-| Auth | NextAuth v5 (Google, GitHub, Discord OAuth + email magic links) | beta.7 |
-| Database | PostgreSQL + Prisma ORM | Prisma 7 (both services) |
-| Real-time | Pusher (events/notifications) + Socket.IO (warehouse sync) | — |
-| Web3 | Reown/WalletConnect (AppKit), wagmi 2, Solana adapters | — |
-| Backend | Hapi.js + Zod 4 + Bring shipping API | 21 |
-| Email | Resend SDK (veggat.com domain) | — |
-| File Storage | EdgeStore | — |
-| Hosting | Vercel (frontend) + Railway (backend) + Neon/Supabase (DB) | — |
-| Language | TypeScript 100% | — |
-
----
-
-## 4. Codebase Map
-
-```
-DEV-VEGGASTARE/
-├── frontend/                    # PRIMARY SERVICE — Next.js 16
-│   ├── app/                     # App Router pages & API routes (~265 files)
-│   │   ├── api/                 # ~120+ API routes
-│   │   ├── feed/, pulse/        # Social feed
-│   │   ├── products/            # Marketplace
-│   │   ├── poll-test/           # Poll builder page
-│   │   ├── (protected)/         # Auth-gated routes (conversations, etc.)
-│   │   └── ...                  # cart, checkout, companies, dashboard, etc.
-│   ├── components/              # UI components (~207 files)
-│   │   ├── ui/                  # shadcn/ui primitives
-│   │   └── uicustom/           # Custom composites (polls/, crypto-related/, etc.)
-│   ├── actions/                 # Server actions (~27 files)
-│   ├── prisma/schema.prisma     # CANONICAL schema (~2490 lines, 77 models, 39 enums)
-│   ├── lib/                     # Utilities (rate-limit, fuzzy-text-match, view-strength, etc.)
-│   ├── hooks/                   # Custom React hooks
-│   ├── schemas/                 # Zod validation schemas
-│   └── generated/prisma/        # Generated Prisma client (not committed)
-│
-├── backend/                     # INTEGRATION CORE — Hapi.js 21
-│   ├── src/                     # Source (~12 files)
-│   │   ├── index.ts             # Server init
-│   │   ├── routes.ts            # /v1/* API endpoints
-│   │   ├── websocket.ts         # Socket.IO (warehouse sync)
-│   │   └── integrations/        # Bring shipping (mock + live)
-│   └── openapi/v1.yaml          # API docs
-│
-├── docs/                        # Specification documents
-├── agent.md                     # THIS FILE — AI agent onboarding
-├── MasterContext.md              # Living invariants & module map
-├── architecture.md               # System design & data flows
-└── prd.md                       # Product requirements & roadmap
+Root: C:\Users\v3gga\Documents\DEV-VEGGASTARE\
+├── package.json          # monorepo scripts: npm run start:project, dev:fe, dev:be, etc.
+├── frontend/             # Next.js 16 (React 19, App Router, Tailwind 4, shadcn/ui via Radix
+│                         #   + lucide-react + framer-motion + sonner + react-hook-form + zod)
+├── backend/              # Hapi.js + Prisma
+├── prisma/               # schema is in frontend/prisma/schema.prisma (canonical)
+│                         #   and backend/prisma/schema.prisma (synced)
+├── scripts/              # dev-start.ps1, dev-stop.ps1, aggregate-context.ts
+├── docs/                 # Feature specs, legal, integration guides
+├── MasterContext.md       # Global invariants — read before making changes
+├── architecture.md        # Service boundaries, data flows, deployment
+├── prd.md                 # Product Requirements Document — feature status tracking
+└── ONBOARDING.md          # Employee setup guide
 ```
 
 ---
 
-## 5. Critical Rules (Global Invariants)
+## Dev Workflow
 
-**Violating these will cause bugs.** Always check before making changes.
-
-| # | Rule |
-|---|------|
-| 1 | **Auth is server-side only.** Never import `auth()` in client components. |
-| 2 | **Prisma Client is generated, not committed.** Run `npx prisma generate` after schema changes. |
-| 3 | **Frontend schema is canonical.** `frontend/prisma/schema.prisma` is the source of truth. |
-| 4 | **Server actions validate with Zod.** Every mutation uses a Zod schema. |
-| 5 | **Web3 trades require wallet signature.** `useSignMessage` before confirming any P2P trade. |
-| 6 | **Pusher channels: `{feature}-{id}`** pattern (e.g., `trade-abc123`). |
-| 7 | **VeggaSystem wallets are hardcoded (multi-chain):** EVM `0x018F...636`, Solana `CKtrK...nLx`, Bitcoin `bc1q...vas`. OWNER can impersonate via API. |
-| 8 | **Webpack mode only.** `next dev --webpack` and `next build --webpack`. |
-| 9 | **Never commit secrets.** Dev in `.env.local`, prod in hosting provider. |
-| 10 | **Backend CORS is restrictive in production.** Only `*` in dev. |
-| 11 | **Payment webhooks must verify signatures** before accepting real payments. |
-| 12 | **GATE_PASSWORD via env var only.** No hardcoded fallback. |
-| 13 | **Database backups never committed to git.** |
-| 14 | **Web3 toggle ≠ email verification.** Only wallet linking requires email verification. |
-| 15 | **Unified sign-out.** `useCleanLogout` + `WalletDisconnectWatcher` keep Web2↔Web3 sessions in sync. |
-| 16 | **AI generation: auto-resolve chain.** saved key → owner OpenAI → Groq free tier → error. 5/day free, BYOK unlimited. 6 providers: OpenAI, Anthropic, Google Gemini, Grok, OpenRouter, Groq. |
-| 17 | **AI prompts sanitized server-side.** Injection patterns blocked, output validated. |
+- I always run `npm run start:project` in VSCode terminal.
+- Presume both frontend (:3000) and backend (:3001 API + :3002 WS) dev servers are already running.
+- Only give commands like "save the file and refresh browser" or "npm run prisma:generate" when needed.
+- Frontend uses Webpack mode: `next dev --webpack`, `next build --webpack`.
 
 ---
 
-## 6. Key Feature Areas
+## Existing AI Infra (use it!)
 
-### Marketplace
-Products, categories, company profiles, employee roles (OWNER/ADMIN/MEMBER), multi-warehouse inventory with real-time Socket.IO sync, Bring/Posten shipping (mock mode by default).
-
-### Web3 & Crypto Trading
-BROWSERGAME-style grid inventory, P2P trade windows with wallet-signed acceptance, VeggaSystem bot account (multi-chain: EVM/Solana/Bitcoin/PulseChain wallets), trade notifications with purple blink indicator. EVM (WalletConnect/Coinbase) + Solana (Phantom/Solflare). Multi-wallet support: users can link multiple wallets across chains (ChainFamily: EVM/SOLANA/BITCOIN). OWNER "Take Control" impersonation lets the owner act as VeggaSystem from profile or hovercard.
-
-### Social (Pulse)
-Real-time feed with posts/reactions, follow/sync system, DM/group conversations, UserHoverCard with quick actions, notification bell with real-time Pusher updates.
-
-### Polls & Quizzes
-**3 types:** SURVEY, FEEDBACK, QUIZ. **11 question types:** SINGLE_CHOICE, MULTI_CHOICE, SLIDER, SCALE, TEXT, RANKING, SHAPE_MATCH, UI_ARRANGE, NESTED + more.
-
-Key capabilities:
-- **PollBuilder** with 7 example templates, flow-based section ordering, drag-and-drop
-- **AI conversational generation** — SSE streaming (6-step pipeline), chat thread with refinement loop, Review Card
-- **Interactive preview** — full 5-screen quiz simulation (welcome → sections → questions → completion → results) via PollTakerModal
-- **Fuzzy text matching** — Levenshtein + token-set + vowel-swap for forgiving quiz answers
-- **Two-tier quiz feedback** — explanation → "Still don't understand?" → deepExplanation
-- **Verification-weighted voting** — poll response power scales with user's verification tier
-- **Anti-gaming** — min dwell time, rate limits, straightline detection, IP hashing
-- **BYOK** — Bring your own API key (OpenAI, Anthropic, Google Gemini, Grok, Groq, OpenRouter) with auto-detection from key prefix
-- **DB-backed daily quota** — 5 free AI generations/day via PostgreSQL (survives cold starts)
-- **Scheduled daily polls** — Cron-based templates with PENDING_REVIEW admin approval flow
-
-### True Reach™ (7 Pillars)
-Proprietary engagement metric: Visibility (18%), Engagement Depth (25%), Conversion Impact (18%), Loyalty (14%), Growth (10%), Recall (5%), Velocity (10%). 12-tier verification multipliers affect all scoring.
-
-### Authentication
-NextAuth v5 with Google/GitHub/Discord OAuth, email/password, magic links, 12-tier progressive verification (Anonymous → Fully Verified with 0.10x–1.20x multipliers).
+- **Models**: `UserAiApiKey`, `DailyAiUsage`, `AiConversation`, `AiConvParticipant`, `AiConvMessage`, `AiConvReaction`, `ScheduledPoll`
+- User can have multiple AI keys (OPENAI, GROQ, ANTHROPIC, etc.) stored encrypted.
+- `DailyAiUsage` already tracks quota per user per day.
+- There is already an `/ai/chat` page — new builder will live at `/ai/builder`.
 
 ---
 
-## 7. Database Overview
+## Tech Stack
 
-**77 Prisma models, 39 enums, ~2490 lines** in `frontend/prisma/schema.prisma`.
-
-Core entity relationships:
-```
-User ──< Account (OAuth)       User ──< Order ──< OrderItem ──> Product
-User ──< Employee ──> Company  Company ──< Warehouse ──< WarehouseInventory
-User ──< Follow                User ──< Friendship (via FriendRequest)
-User ──< ConversationParticipant ──> Conversation ──< Message
-User ──< PollResponse ──< PollAnswer ──> PollQuestion ──> AdvancedPoll
-User ──< Post ──< Reaction     User ──< Trade ──< TradeItem
-User ──< Wallet (multi-chain: ChainFamily EVM/SOLANA/BITCOIN)
-User ─── Impersonation (OWNER → VeggaSystem via cookies)
-User ──< Notification          User ──1 Cart ──< CartItem ──> Product
-```
-
----
-
-## 8. Environment Variables
-
-### Frontend `.env.local`
-```
-DATABASE_URL, AUTH_SECRET, NEXTAUTH_URL
-AUTH_GOOGLE_ID/SECRET, AUTH_GITHUB_ID/SECRET, AUTH_DISCORD_ID/SECRET
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID, NEXT_PUBLIC_PUSHER_KEY/CLUSTER
-RESEND_API_KEY, GATE_PASSWORD, EDGE_STORE_ACCESS_KEY/SECRET_KEY
-NEXT_PUBLIC_BACKEND_URL (http://localhost:3001)
-NEXT_PUBLIC_WS_URL (http://localhost:3002)
-OPENAI_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY, PLATFORM_OWNER_EMAIL, BYOK_ENCRYPTION_KEY
-```
-
-### Backend `.env`
-```
-PORT (3001), WS_PORT (3002), BRING_MODE (mock), DATABASE_URL
-PUSHER_APP_ID/KEY/SECRET/CLUSTER, CORS_ORIGINS
-```
+| Layer | Technology |
+|-------|-----------|
+| Frontend framework | Next.js 16 (App Router, React 19) |
+| Styling | Tailwind CSS 4, shadcn/ui (Radix primitives) |
+| Animation | Framer Motion |
+| Forms | react-hook-form + Zod validation |
+| Toasts | Sonner |
+| Icons | lucide-react, react-icons |
+| Auth | NextAuth v5 (auth.ts / auth.config.ts) |
+| ORM | Prisma (schema in frontend/prisma/schema.prisma) |
+| Backend | Hapi.js (backend/src/) |
+| Web3 | wagmi, viem, @reown/appkit, @solana/wallet-adapter |
+| Real-time | Pusher (backend WebSocket on :3002) |
+| Deployment | Vercel (frontend), Railway (backend) |
+| CI | GitHub Actions (lint, type-check, build, Prisma validation) |
 
 ---
 
-## 9. Development Workflow
+## Mandatory Rules (agent-friendly output)
 
-### Starting Dev Servers
+1. **Always start every response with a short PLAN** (bullet points).
+2. **Output either:**
+   - Full new files with exact path (e.g. `frontend/app/ai/builder/page.tsx`)
+   - OR precise git-style diffs/patches for existing files
+3. **After code, always list exact commands** I need to run (e.g. "Save file → refresh browser", `npm run prisma:generate`, `npx prisma db push` if schema changes).
+4. **Use ONLY existing tech**: Hapi.js routes in `backend/src/routes/`, Next.js Server Actions or fetch to `/api/ai/...` in frontend.
+5. **Security:**
+   - Always check user's `DailyAiUsage` quota first
+   - Use user's default `UserAiApiKey` (or platform fallback)
+   - Never expose keys
+   - Rate limit endpoints
+   - Validate all inputs with Zod
+6. **UI/UX**: Premium shadcn style (dark mode first, glassmorphism, framer-motion transitions, responsive, loading skeletons, sonner toasts, react-hook-form + zod).
+7. **Code conventions:**
+   - Server Components by default. `"use client"` only when needed.
+   - All mutations via server actions with Zod validation.
+   - Add `@fileOverview` and `@stability` tags to new files.
+   - Run `npx prisma generate` after schema changes.
 
-| Method | Command | Result |
-|--------|---------|--------|
-| **VS Code task** | `Ctrl+Shift+B` | Both servers in split terminal panels |
-| **Root CLI** | `npm run dev` | Both via concurrently (FE=cyan, BE=yellow) |
-| **Frontend only** | `npm run dev:fe` | localhost:3000 |
-| **Backend only** | `npm run dev:be` | localhost:3001 + :3002 |
+---
+
+## Response Format
+
+Every response follows: **PLAN → CODE → COMMANDS → SECURITY/UX CHECKLIST**
+
+### Few-Shot Examples
+
+**Example 1 — New Route**
+Task: "Add the /ai/builder page"
+Plan: ...
+Created `frontend/app/ai/builder/page.tsx` (full code)
+Added Hapi route `backend/src/routes/ai.ts`
+Commands: Save files → refresh http://localhost:3000/ai/builder
+
+**Example 2 — Schema change**
+Task: "Add a field to store generated code"
+Plan: ...
+Diff for `prisma/schema.prisma`
+Commands: `npm run prisma:generate && npx prisma db push`
+
+**Example 3 — Fix broken UI**
+Task: "The existing AI chat page has bad mobile UX"
+Plan: ...
+Updated `frontend/app/ai/chat/page.tsx` with responsive grid
+Commands: Save → hard refresh
+
+---
+
+## Git Rules
+
+- **Never push directly to `main`.** Always `feature-branch → dev → main` or `dev → main`.
+- **`dev`** is the staging branch (Vercel preview deployments).
+- **`main`** is production (veggat.com + Railway backend).
+- Feature branches: `feat/short-name`, `fix/short-name`, `chore/short-name`.
+
+---
+
+## Recent Feature: Seller Payment Setup (experimental)
+
+Implemented 2025-06-19. Allows sellers (users and company owners) to configure PayPal receiving email + default crypto wallet for product sales.
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `frontend/actions/seller-payment.ts` | 6 server actions: save/verify/remove PayPal, set/remove default wallet, get status |
+| `frontend/components/uicustom/settings/seller-payment-settings.tsx` | User settings → Payments section |
+| `frontend/components/uicustom/settings/company-payment-settings.tsx` | Company settings → Payments section (owner only) |
+| `frontend/app/(protected)/settings/verify-paypal/page.tsx` | PayPal email verification callback |
+| `frontend/prisma/schema.prisma` | `PaypalVerificationToken` model (token-based email verification) |
+| `frontend/lib/mail.ts` | `sendPaypalVerificationEmail()` added |
+| `frontend/lib/rate-limit.ts` | `payment` tier: 8 req/60s |
+
+### Security Measures
+- `authAndRateLimit()` on every action (auth + rate limit combined)
+- Timing-safe token comparison (`crypto.timingSafeEqual`)
+- Email normalization (lowercase + trim)
+- Zod validation with strict constraints (CUID regex, email max 254, token hex 64 chars)
+- Company ownership assertion via `assertCompanyOwner()`
+- Only verified wallets can be set as default receiving
+- Generic error messages to prevent enumeration
+- Structured audit logging via `createLogger('seller-payment')`
+- Expired token cleanup (opportunistic + on verify)
+- Token is 32 random bytes (256-bit entropy), 24h expiry, upsert pattern (1 active per entity)
+
+### Schema Additions
+- `PaypalVerificationToken` model: `id`, `email`, `token` (unique), `entityType`, `entityId`, `expires`, `createdAt`, `updatedAt`, `@@unique([entityType, entityId])`
+- User/Company models: `paypalEmail`, `paypalEmailVerifiedAt`, `defaultReceivingWalletId` fields
+
+### Checkout Integration (2026-02-27)
+Seller payment settings are now wired into the checkout flow:
+
+| Change | File |
+|--------|------|
+| `resolveCheckoutPayment()` server action | `frontend/actions/seller-payment.ts` — resolves seller wallet + PayPal per product in cart |
+| Checkout uses seller wallet | `frontend/app/checkout/page.tsx` — `receiverAddress` prefers seller's EVM wallet over platform default |
+| Seller PayPal routing | `frontend/app/api/payments/route.ts` + `frontend/lib/payments/providers.ts` — PayPal `payee.email_address` routes payment to seller |
+| Fiat orders store receiver | `frontend/app/checkout/page.tsx` — fiat orders pass seller's PayPal email as `receiverAddress` in Payment record |
+| Multi-seller handling | Platform escrow for multi-seller carts; direct payment for single-seller carts |
+| Seller info badge | Checkout shows who the payment goes to (wallet address or PayPal email) |
+
+**Resolution order** (per product): product `receiverWalletId` → company default → user default → platform fallback.
+
+---
+
+## Recent Feature: Unified Trading System (experimental)
+
+Implemented 2026-02-28. Complete trade execution tracking across all 5 trading modes with Norwegian tax compliance.
+
+### Trade Modes
+| Mode | Color | Description |
+|------|-------|-------------|
+| P2P | emerald | Two-party trades via OsrsTradeWindow |
+| SELF | purple | Self-transfers between own wallets |
+| DEX | sky | DEX swaps via KyberSwap Aggregator |
+| PAPER | amber | Simulated trades with virtual USD |
+| LOCAL | orange | Local blockchain (Anvil/Ganache) trades |
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `frontend/lib/trade-record.ts` | Shared TradeRecord creation utility (`createTradeRecord`, `createP2PTradeRecords`) |
+| `frontend/app/api/trades/history/route.ts` | GET — Paginated trade history with mode/status/date/token/tax-year filters |
+| `frontend/app/api/trades/record/route.ts` | POST — Client-side trade recording (DEX/SELF/LOCAL modes) |
+| `frontend/app/api/trades/tax-summary/route.ts` | GET — Server-side aggregated tax summary per year |
+| `frontend/app/api/trades/[tradeId]/confirm/route.ts` | POST — P2P trade confirmation (now creates TradeRecords) |
+| `frontend/actions/paper-trade.ts` | Paper buy/sell/swap (now creates TradeRecords) |
+| `frontend/components/crypto-related/TradeHistory.tsx` | Full trade history panel with filters, CSV export, pagination |
+| `frontend/components/crypto-related/PersonalTaxSummary.tsx` | Personal crypto tax widget (Skatteetaten-compatible) |
+| `frontend/components/crypto-related/DexSwapPanel.tsx` | DEX swap panel (now logs TradeRecords on success) |
+| `frontend/components/crypto-related/OsrsInventory.tsx` | Shift+click→trade transfer support |
+| `frontend/components/crypto-related/OsrsTradeWindow.tsx` | `veggat:addToTrade` CustomEvent listener |
+| `frontend/app/dashboard/trading/page.tsx` | Trading Hub: history toggle, always-visible trade panel |
+
+### Schema Additions (in `frontend/prisma/schema.prisma`)
+- `TradeRecord` model — unified execution log with sell/buy token pairs, USD/NOK pricing, tax fields
+- `TradeMode` enum — P2P, SELF, DEX, PAPER, LOCAL
+- `TradeRecordStatus` enum — PENDING, COMPLETED, FAILED, REVERTED
+- `CostBasisMethod` enum — FIFO, AVERAGE
+- `User.taxHelperEnabled`, `User.taxCostBasisMethod` fields
+
+### Trade Recording Architecture
+- **P2P**: Server-side, fire-and-forget after both parties confirm (in confirm route)
+- **Paper**: Server-side, fire-and-forget after each `$transaction` (in server actions)
+- **DEX**: Client-side, `useEffect` in DexSwapPanel fires POST to `/api/trades/record` on success
+- **SELF**: Client-side, `useEffect` in SidebarWalletPanel fires POST to `/api/trades/record` on transfer success
+- **LOCAL**: Client-side, inline POST in SidebarWalletPanel after LOCAL_RPC transfer receipt
+- All records include NOK values via `getExchangeRates()` (ECB data via Frankfurter API)
+
+### Norwegian Tax Compliance
+- 22% capital gains rate (Skatteetaten)
+- FIFO/AVERAGE cost basis method selection (saved to User record)
+- Per-trade `gainLossUsd`/`gainLossNok` and `costBasisUsd`/`costBasisNok` tracking
+- Tax year grouping with `taxYear` field + `taxExported` flag
+- CSV export for Skatteetaten RF-1159 filing
+- Server-side tax summary aggregation endpoint
+
+### Cart & Product Enhancements (2026-02-27)
+
+| Change | File |
+|--------|------|
+| Cart API: product fields | `frontend/app/api/cart/[userId]/route.ts` + `frontend/lib/types/carts.ts` + `frontend/contexts/cart-context.tsx` — `toCartDto` now includes `productType`, `shipFromPostalId`, `freeShippingEnabled`, `freeShippingThreshold` |
+| My Sales: payment routing | `frontend/app/api/seller/orders/route.ts` + `frontend/app/(protected)/my-sales/page.tsx` — expanded Payment select to include all crypto + fiat routing fields; rich payment UI with status badge, crypto details, fiat recipient |
+| Product page: accepted methods | `frontend/app/products/[...id]/ProductClient.tsx` — "Accepts:" badges showing crypto chains (from `acceptedTokens`) + fiat methods (PayPal, Vipps, Klarna) |
+
+---
+
+## E2E Testing Infrastructure (2025-07-24)
+
+Playwright-based E2E testing following a **5-Layer Pyramid** architecture. All app tests live in ONE consolidated file (`suite.spec.ts`) plus a meta-test (`master.spec.ts`) that validates the test infrastructure itself.
+
+### Architecture: Layered Pyramid + Meta-Test
+
+```
+e2e/
+├── gate-bypass.ts   ← Infrastructure: bypass site access gate
+├── auth.setup.ts    ← Infrastructure: log in and save session
+├── helpers.ts       ← Single source of truth: route arrays, timeouts, utilities
+├── suite.spec.ts    ← ALL app tests (5 layers, ~97 tests)
+└── master.spec.ts   ← Meta-test: validates test infra (route sync, file integrity, coverage)
+```
+
+**Why ONE file?** Tests that scatter across 10 files rot. One pyramid means:
+- Failures cascade UP (if health is down, skip everything above)
+- New routes added to `helpers.ts` auto-expand tests via data-driven loops
+- No duplicate coverage, no forgotten test files
+
+### The 5 Layers
+
+| Layer | Purpose | Examples |
+|-------|---------|---------|
+| **1 — Alive** (serial) | Is the system responding? | health endpoint, version, homepage |
+| **2 — Routing** | Do gates work? | Public pages → 200, protected → redirect, APIs → 401/403 |
+| **3 — Content** | Do pages render real content? | Login form inputs, register heading, legal pages |
+| **4 — Flows** | Can users complete journeys? | Login→reset nav, register→login, /feed→/pulse |
+| **5 — Data** | Are API shapes correct? | Products array, categories, pagination, SEO |
+
+### The Master Meta-Test (5 Metas)
+
+| Meta | Validates |
+|------|-----------|
+| **1 — Route Sync** | `helpers.ts` arrays match `routes.ts` source |
+| **2 — File Integrity** | All 5 required test files exist |
+| **3 — Coverage** | `suite.spec.ts` loops over all route arrays |
+| **4 — Config** | `playwright.config.ts` has correct projects |
+| **5 — Self-Check** | `master.spec.ts` itself is consistent |
+
+### Running Tests
 
 ```bash
-# Full setup from scratch
-npm install                      # root (concurrently)
-cd frontend && npm install && npx prisma generate && npx prisma migrate dev && cd ..
-cd backend && npm install && cd ..
-npm run dev                      # starts everything
+npm run test:e2e          # headless run
+npm run test:e2e:ui       # interactive UI mode
+npm run test:e2e:headed   # headed browser
+npm run test:e2e:debug    # step-through debugger
 ```
 
-### Git Branching & Deployment
+### Playwright Project Structure
 
-```
-feat/my-feature ──push──▶ CI ──PR──▶ dev ──verify──▶ main
-                                      │               │
-                                 Vercel Preview    Vercel Prod (veggat.com)
-                                                   Railway Prod (backend)
-```
+| Project | Purpose | Dependencies | Runs |
+|---------|---------|-------------|------|
+| `gate` | Bypass site access gate | — | `gate-bypass.ts` |
+| `setup` | Log in (NextAuth credentials) | gate | `auth.setup.ts` |
+| `no-auth` | All tests without login | gate | `suite.spec.ts` + `master.spec.ts` |
+| `authed` | Tests with auth session (conditional) | setup | `suite.spec.ts` (only when E2E creds set) |
 
-- **`main`** — production. Triggers Vercel + Railway deploy. Never push directly.
-- **`dev`** — staging. Push here for CI validation and Vercel previews.
-- Feature branches: `feat/`, `fix/`, `chore/` branched off `dev`.
-- CI (GitHub Actions) runs on push/PR to `main` and `dev`: path-filtered builds, type-check, lint, Prisma validation, migration drift check.
+### Key Patterns & Anti-Patterns
 
-### Environment Routing
+**NEVER DO:**
+- `networkidle` — never settles with SSE/WebSocket/streaming pages
+- `innerText.length` assertions — fragile, locale-dependent
+- `page.goto(url)` without `waitUntil: "domcontentloaded"` — hangs on first compile
+- Scatter tests into 10+ files — leads to rot and duplicate coverage
+- Test CSS classes or internal React state — tests USER BEHAVIOR
 
-| Branch / Env | Database | Pusher Prefix |
-|-------------|----------|---------------|
-| `main` (production) | `DATABASE_URL_MAINLIVE` | *(none)* |
-| `dev` / PRs (preview) | `DATABASE_URL_MAINPREVIEW` | `preview__` |
-| Local dev | `DATABASE_URL` (.env.local) | `dev__` |
+**ALWAYS DO:**
+- Use `visitPage(page, path)` from helpers.ts — handles hydration automatically
+- Use `domcontentloaded` + `waitForHydration()` for page loads
+- Set `test.setTimeout(PAGE_TIMEOUT)` on browser tests (dev-mode first-compile is slow)
+- Add routes to `helpers.ts` arrays — tests auto-expand
+- Use API-level checks for speed; browser checks only for UX
 
-### Copilot Chat Commands (owner only)
+### Learnings (hard-won)
 
-The owner (v3gga) has custom Copilot Chat commands in `.github/copilot-instructions.md`:
-- **"start my project"** — launches both dev servers
-- **"build to main"** / **"ship it"** — guarded deploy flow (dev → verify → main)
-- **"status"** — check git branch, servers, CI
+- Products API returns **raw array** (NOT `{ products: [...] }`)
+- Health API uses `dbLatencyMs` (not `latencyMs`)
+- Auth pages may render empty shells — use soft assertions
+- `/feed` redirects to `/pulse` (public alias, NOT protected)
+- `shadcn FormControl` wraps inputs — use `getByPlaceholder()` not `getByLabel()`
+- Dev server first-compile can take 30-60s per page; use 1 worker locally
+- The `authed` project is conditionally excluded when no E2E creds are set
 
-Employees/contributors follow `ONBOARDING.md` instead.
+### Environment Variables for Auth Tests
+
+- `E2E_TEST_EMAIL` — test account email (set in `.env.local`)
+- `E2E_TEST_PASSWORD` — test account password
+- `GATE_PASSWORD` — site access gate password (defaults to local value)
+- Without credentials: authenticated tests skip (3 tests), `authed` project excluded
+
+### Gate Handling
+
+The site is in private testing mode (`SITE_MODE=private`). All routes redirect to `/gate`.
+- For Playwright's own webServer: `GATE_STATUS=false` in config disables the gate
+- For reusing local dev server: `gate-bypass.ts` setup project POSTs the password
+- The gate cookie (`veggastare_access`) is shared via storageState to all dependent projects
 
 ---
 
-## 10. Current Status & Roadmap
+## Environment Routing
 
-### Shipped (Q4 2025 – Q1 2026)
-- Full marketplace (products, cart, checkout, companies, warehouses, shipping)
-- Web3 trading (BROWSERGAME inventory, P2P trades, wallet auth)
-- Social features (Pulse feed, conversations, follow/sync, notifications)
-- Advanced poll system (AI gen, interactive preview, 7 templates, 11 Q types)
-- 12-tier verification, anti-gaming, fuzzy quiz matching
-- Security hardening (rate limiting on critical routes, prompt injection guards, unified logout)
-- Multi-wallet support (EVM/Solana/Bitcoin, sidebar panel, multi-chain linked wallets)
-- System account impersonation ("Take Control" from profile/hovercard, amber header banner)
-- Address & Shipping Phase 2 (shipping method selection, Bring booking + tracking, enhanced order confirmation + email)
-- GDPR/DSA compliance (full privacy policy, community guidelines, accessibility statement, data export, account deletion, content reporting + appeals)
-
-### In Progress
-- True Reach™ score computation engine
-- BYOK UX improvement (user-friendly onboarding for non-technical users)
-
-### Planned (Near-term)
-- Poll analytics dashboard (charts, response breakdowns)
-- Velocity pillar (real-time engagement momentum)
-- Profile editing (/settings — avatar, banner, bio)
-- Vipps payment integration (Norwegian mobile payment)
-- Friend request system (mutual friendships)
-- Rate limiting on remaining ~120 routes
-
-### Planned (Future)
-- Company customer chat (live support widget)
-- Employee broadcasts
-- User search at Pulse/feed level
-- Mobile app (React Native or PWA)
-- NFT marketplace integration
-- Two-factor authentication (TOTP)
+| Branch / Env | Vercel Env | Database | Pusher Prefix |
+|-------------|-----------|----------|---------------|
+| `main` (production) | production | `DATABASE_URL_MAINLIVE` | *(none)* |
+| `dev` / PRs (preview) | preview | `DATABASE_URL_MAINPREVIEW` | `preview__` |
+| Local dev | development | `DATABASE_URL` (.env.local) | `dev__` |
 
 ---
 
-## 11. Known Technical Debt
+## Documentation Maintenance
 
-| Issue | Severity | Notes |
-|-------|----------|-------|
-| Payment webhook signatures not verified | HIGH | Must implement before real payments |
-| Trade confirm has race condition (no `$transaction`) | MEDIUM | Should use DB transaction |
-| Database backups in git history (old commits) | MEDIUM | Need BFG/filter-branch cleanup |
-| GDPR data export UI polish | LOW | API works, needs settings page integration |
-| DSA admin moderation dashboard | MEDIUM | API works, needs admin UI for review queue |
-| DPI tax reporting deadline passed (Jan 2026) | HIGH (legal) | Check if applicable |
+After completing any non-trivial change, check and update project docs if affected:
 
----
-
-## 12. Methodology & Conventions
-
-### Code Style
-- TypeScript strict mode
-- Server Components by default, "use client" only when needed
-- shadcn/ui primitives + custom composites in `components/uicustom/`
-- Framer Motion for animations
-- Zod for all input validation
-- Toast notifications via Sonner
-
-### File Organization
-- Pages: `app/{route}/page.tsx`
-- API routes: `app/api/{feature}/route.ts`
-- Server actions: `actions/{feature}.ts`
-- Components: `components/uicustom/{feature}/`
-- Schemas: `schemas/{feature}.ts`
-
-### Comment Tags (for context aggregation)
-```
-@fileOverview  — What the file does
-@stability     — stable | active | experimental
-@dependencies  — Key imports
-@crossReferences — Files that must stay in sync
-@keyInvariants — Rules that must not be violated
-@decisions     — Why things are done a certain way
-```
-
-### Git & Deployment
-- **Never push directly to `main`**. Always go `feature-branch → dev → main`.
-- Frontend deploys to Vercel (auto-deploy on push)
-- Backend deploys to Railway (Docker)
-- CI runs on push/PR to `main` and `dev` (path-filtered, type-check, lint, Prisma drift)
-- Never commit `.env`, `database-backups/`, or `generated/prisma/`
-- Run `npx prisma generate` in CI/CD before build
-- For employee/contributor workflows, see `ONBOARDING.md`
-
----
-
-## 13. Document Map
-
-| File | Purpose | Read When |
-|------|---------|-----------|
-| **agent.md** (this file) | Full project onboarding for AI agents | First — gives you the complete picture |
-| **MasterContext.md** | Living invariants, module map, audit log | Before making changes — check invariants |
-| **architecture.md** | System design, data flows, deployment, CI/CD | Before changing service boundaries |
-| **prd.md** | Product requirements, feature status, roadmap | To understand what’s shipped vs planned |
-| **ONBOARDING.md** | Employee/contributor quick-start guide | Giving someone access to the codebase |
-| **.github/copilot-instructions.md** | Owner’s Copilot Chat workflow commands | Understanding the owner’s dev flow |
-| **docs/REACH_7_PILLARS_SPECIFICATION.md** | True Reach™ metric formulas | Working on scoring/analytics |
-| **docs/NORWAY_LEGAL_COMPLIANCE.md** | GDPR, DSA, DPI, cookie, payment compliance | Working on legal/regulatory features |
-| **docs/SOCIAL_FEATURES_PLAN.md** | Friends, chat, broadcasts roadmap | Working on social features |
-| **docs/VIPPS_REQUIREMENTS.md** | Norwegian payment checklist | Working on payment integration |
-| **frontend/README.md** | Frontend setup, features, env vars | Setting up the frontend |
-| **backend/README.md** | Backend API, shipping, WebSocket | Setting up the backend |
-
-**Precedence rule:** agent.md ≈ MasterContext.md > prd.md > architecture.md > feature docs. Historical docs are audit-only.
-
----
-
-## 14. Quick Start for AI Agents
-
-1. **Read this file** — you now understand the project
-2. **Check `MasterContext.md` invariants** — before making any code changes
-3. **Find the right module** — use the Module Map in MasterContext or the Codebase Map above
-4. **Run `npx prisma generate`** — if you touch `schema.prisma`
-5. **Run `npm run build`** — to verify prod build after changes
-6. **Update `MasterContext.md`** — when adding modules, changing invariants, or shifting architecture
-7. **Update this file** — when the project state changes significantly
-
-> **Business context:** Veggat is a Norwegian platform (ENK, org.nr 937 051 107) targeting the Nordic market. Norwegian legal compliance (Forbrukerkjøpsloven, GDPR, etc.) is relevant for payment and user data features.
+| File | Update when… |
+|------|-------------|
+| `MasterContext.md` | New modules, changed invariants, new env vars, architecture shifts |
+| `agent.md` | Feature status changes, new tech, roadmap updates, new conventions |
+| `architecture.md` | Service boundaries change, new data flows, deployment changes |
+| `prd.md` | Features ship (⏳ → ✅), new features planned |
+| `README.md` | Setup steps change, new tooling |
+| `ONBOARDING.md` | Anything that affects employee workflow or setup |

@@ -143,16 +143,16 @@ const HeroTitleText = React.forwardRef<HTMLSpanElement, {
 
         const active = intensity > 0;
 
-        // Resonance siblings use a sky-blue tint; direct hover uses emerald
-        // Light mode: darker shades so colours pop against white
-        const emeraldRgb = isDark ? "52, 211, 153" : "5, 150, 105";
-        const skyRgb     = isDark ? "56, 189, 248" : "2, 132, 199";
+        // Primary hover uses brand accent; resonance siblings use a secondary tint
+        // Light mode: sky-500 blue  |  Dark mode: emerald-400 green
+        const primaryRgb   = isDark ? "52, 211, 153" : "14, 165, 233";   // emerald-400 / sky-500
+        const resonanceRgb = isDark ? "56, 189, 248" : "2, 132, 199";    // sky-400 / sky-600
         const color = resonance
-          ? `rgba(${skyRgb}, ${0.5 + 0.3 * intensity})`
-          : `rgba(${emeraldRgb}, ${0.5 + 0.5 * intensity})`;
+          ? `rgba(${resonanceRgb}, ${0.5 + 0.3 * intensity})`
+          : `rgba(${primaryRgb}, ${0.5 + 0.5 * intensity})`;
         const shadowColor = resonance
-          ? `rgba(${skyRgb}, ${0.35 * intensity})`
-          : `rgba(${emeraldRgb}, ${0.35 * intensity})`;
+          ? `rgba(${resonanceRgb}, ${0.35 * intensity})`
+          : `rgba(${primaryRgb}, ${0.35 * intensity})`;
 
         return (
           <span
@@ -196,6 +196,7 @@ function KineticTitle({
   onHoverChange?: (isHovering: boolean, char: string | null, intensity: number) => void;
 }) {
   const reduceMotion = useReducedMotion();
+  const isDark = useIsDark();
   const { prefs } = useUiPreferences();
   const showFancyHover = prefs.hoverEffects === "colorful";
   const words = React.useMemo(() => text.split(/\s+/).filter(Boolean), [text]);
@@ -308,12 +309,12 @@ function KineticTitle({
                   const hue = (charPosition * 40) % 360;
                   const glowColor = `hsl(${hue}, 80%, 65%)`;
                   
-                  // Simple mode colors - emerald that's visible in both light/dark
-                  // Intensity 1 = full color, 0.5 = weaker partner color
+                  // Simple mode colors — brand accent per theme
+                  // Light: sky-500 blue  |  Dark: emerald-500 green
                   const simpleHoverColor = hoverEffect.intensity >= 0.8 
-                    ? "rgb(16, 185, 129)" // emerald-500 for primary
+                    ? (isDark ? "rgb(16, 185, 129)" : "rgb(14, 165, 233)") // emerald-500 / sky-500
                     : hoverEffect.intensity >= 0.4 
-                      ? "rgb(52, 211, 153)" // emerald-400 for neighbors
+                      ? (isDark ? "rgb(52, 211, 153)" : "rgb(56, 189, 248)") // emerald-400 / sky-400
                       : undefined;
 
                   // Always apply scale/position effects when hovering
@@ -492,8 +493,8 @@ const KineticDescription = React.forwardRef<HTMLParagraphElement, {
                         willChange: 'opacity, transform',
                         ...(orbIntensity > 0
                           ? {
-                              color: `rgba(${isDark ? "52, 211, 153" : "5, 150, 105"}, ${0.5 + 0.5 * orbIntensity})`,
-                              textShadow: `0 0 ${8 * orbIntensity}px rgba(${isDark ? "52,211,153" : "5,150,105"},${0.4 * orbIntensity})`,
+                              color: `rgba(${isDark ? "52, 211, 153" : "14, 165, 233"}, ${0.5 + 0.5 * orbIntensity})`,
+                              textShadow: `0 0 ${8 * orbIntensity}px rgba(${isDark ? "52,211,153" : "14,165,233"},${0.4 * orbIntensity})`,
                               transform: `translateY(${-2 * orbIntensity}px) scale(${1 + 0.06 * orbIntensity})`,
                               transition: 'color 0.15s, text-shadow 0.15s, transform 0.15s',
                             }
@@ -696,12 +697,12 @@ const KineticHeadline = React.forwardRef<HTMLSpanElement, {
                   const isNew = wordIdx === activeWordIdx && charIdx === activeCharIdx && !introDone;
                   const hoverEffect = getHoverEffect(wordIdx, charIdx, char, isRevealed);
 
-                  // Emerald/cyan gradient based on position
+                  // Brand accent gradient based on position
                   const charPosition = wordIdx * 10 + charIdx;
-                  const hueBase = 140 + (charPosition * 15) % 80;
-                  const glowColor = isDark ? `hsl(${hueBase}, 75%, 65%)` : `hsl(${hueBase}, 70%, 35%)`;
-                  // Solid hover color when fancy is disabled — darker in light mode for contrast
-                  const solidHoverColor = isDark ? "rgb(52, 211, 153)" : "rgb(5, 150, 105)";
+                  const hueBase = isDark ? 140 + (charPosition * 15) % 80 : 190 + (charPosition * 12) % 30;
+                  const glowColor = isDark ? `hsl(${hueBase}, 75%, 65%)` : `hsl(${hueBase}, 70%, 45%)`;
+                  // Solid hover color when fancy is disabled — brand accent per theme
+                  const solidHoverColor = isDark ? "rgb(52, 211, 153)" : "rgb(14, 165, 233)";
                   
                   // Idle animation: subtle color pulse based on character position (no movement)
                   const idlePhase = (charPosition * 0.3) % (2 * Math.PI);
@@ -806,6 +807,7 @@ function DroppingWords({
   onGlowHover?: (hoverMs: number) => void;
 }) {
   const reduceMotion = useReducedMotion();
+  const isDark = useIsDark();
   const { prefs } = useUiPreferences();
   const showFancyHover = prefs.hoverEffects === "colorful";
   const words = React.useMemo(() => String(text ?? "").split(/\s+/).filter(Boolean), [text]);
@@ -877,11 +879,9 @@ function DroppingWords({
               animate={
                 i === glowWordIndex && glowActive
                   ? {
-                      textShadow: [
-                        "0 0 10px rgba(34,197,94,0.22)",
-                        "0 0 24px rgba(34,197,94,0.55)",
-                        "0 0 14px rgba(34,197,94,0.35)",
-                      ],
+                      textShadow: isDark
+                        ? ["0 0 10px rgba(34,197,94,0.22)", "0 0 24px rgba(34,197,94,0.55)", "0 0 14px rgba(34,197,94,0.35)"]
+                        : ["0 0 10px rgba(14,165,233,0.22)", "0 0 24px rgba(14,165,233,0.55)", "0 0 14px rgba(14,165,233,0.35)"],
                     }
                   : undefined
               }
@@ -889,14 +889,14 @@ function DroppingWords({
               className={
                 "inline-flex" +
                 (showFancyHover && i === glowWordIndex && glowActive
-                  ? " text-emerald-100"
+                  ? (isDark ? " text-emerald-100" : " text-sky-100")
                   : "")
               }
               style={
                 showFancyHover && i === glowWordIndex && glowActive
                   ? {
-                      textShadow: "0 0 14px rgba(34,197,94,0.35)",
-                      filter: "drop-shadow(0 0 8px rgba(34,197,94,0.18))",
+                      textShadow: isDark ? "0 0 14px rgba(34,197,94,0.35)" : "0 0 14px rgba(14,165,233,0.35)",
+                      filter: isDark ? "drop-shadow(0 0 8px rgba(34,197,94,0.18))" : "drop-shadow(0 0 8px rgba(14,165,233,0.18))",
                     }
                   : undefined
               }
@@ -1450,8 +1450,8 @@ export default function HomeHero({
           ref={badgeRef}
           className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium backdrop-blur-sm ${
             orbBadgeGlow
-              ? "border-emerald-500/90 dark:border-emerald-400/50 bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-200"
-              : "border-emerald-400/70 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/[0.08] text-emerald-700 dark:text-emerald-300/70"
+              ? "border-sky-500/90 dark:border-emerald-400/50 bg-sky-100 dark:bg-emerald-500/15 text-sky-700 dark:text-emerald-200"
+              : "border-sky-400/70 dark:border-emerald-500/20 bg-sky-50 dark:bg-emerald-500/[0.08] text-sky-700 dark:text-emerald-300/70"
           }`}
           initial={{ opacity: 0, y: -8, scale: 0.95 }}
           animate={{
@@ -1464,11 +1464,13 @@ export default function HomeHero({
             : { delay: 0.04, duration: 0.45, ease: "easeOut" }
           }
           style={orbBadgeGlow ? {
-            boxShadow: "0 0 16px rgba(52,211,153,0.35), 0 0 32px rgba(52,211,153,0.15), inset 0 0 12px rgba(52,211,153,0.1)",
+            boxShadow: isDark
+              ? "0 0 16px rgba(52,211,153,0.35), 0 0 32px rgba(52,211,153,0.15), inset 0 0 12px rgba(52,211,153,0.1)"
+              : "0 0 16px rgba(14,165,233,0.35), 0 0 32px rgba(14,165,233,0.15), inset 0 0 12px rgba(14,165,233,0.1)",
           } : undefined}
         >
           <motion.span
-            className="h-1.5 w-1.5 rounded-full bg-emerald-500"
+            className="h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-emerald-500"
             animate={orbBadgeGlow
               ? { opacity: 1, scale: [1, 1.8, 1] }
               : { opacity: [1, 0.35, 1] }
@@ -1480,7 +1482,9 @@ export default function HomeHero({
           />
           <span
             style={orbBadgeGlow ? {
-              textShadow: "0 0 12px rgba(52,211,153,0.55), 0 0 24px rgba(52,211,153,0.25)",
+              textShadow: isDark
+                ? "0 0 12px rgba(52,211,153,0.55), 0 0 24px rgba(52,211,153,0.25)"
+                : "0 0 12px rgba(14,165,233,0.55), 0 0 24px rgba(14,165,233,0.25)",
               transition: "text-shadow 0.2s ease-out",
             } : { transition: "text-shadow 0.4s ease-out" }}
           >Free to start · No card needed</span>
@@ -1490,13 +1494,11 @@ export default function HomeHero({
           <motion.div
             className="relative inline-block rounded-2xl px-6 py-4 -mx-6 -my-4"
             // one-time pulse after the whole sequence settles (only if fancy enabled)
-            style={showFancyEffects ? { textShadow: "0 0 0px rgba(34,197,94,0)" } : undefined}
+            style={showFancyEffects ? { textShadow: `0 0 0px ${isDark ? "rgba(34,197,94,0)" : "rgba(14,165,233,0)"}` } : undefined}
             animate={showFancyEffects ? {
-              textShadow: [
-                "0 0 0px rgba(34,197,94,0)",
-                "0 0 18px rgba(34,197,94,0.35)",
-                "0 0 0px rgba(34,197,94,0)",
-              ],
+              textShadow: isDark
+                ? ["0 0 0px rgba(34,197,94,0)", "0 0 18px rgba(34,197,94,0.35)", "0 0 0px rgba(34,197,94,0)"]
+                : ["0 0 0px rgba(14,165,233,0)", "0 0 18px rgba(14,165,233,0.35)", "0 0 0px rgba(14,165,233,0)"],
             } : undefined}
             transition={showFancyEffects ? { delay: settlePulseDelay, duration: 1.05, ease: "easeInOut" } : undefined}
             onPointerEnter={() => {
@@ -1520,9 +1522,10 @@ export default function HomeHero({
                 }
                 transition={{ duration: whereGlowActive ? 2.2 : 4, repeat: Infinity, ease: "easeInOut" }}
                 style={{
-                  background:
-                    "radial-gradient(closest-side, rgba(34,197,94,0.25), rgba(34,197,94,0) 72%)",
-                  mixBlendMode: "screen",
+                  background: isDark
+                    ? "radial-gradient(closest-side, rgba(34,197,94,0.25), rgba(34,197,94,0) 72%)"
+                    : "radial-gradient(closest-side, rgba(14,165,233,0.25), rgba(14,165,233,0) 72%)",
+                  mixBlendMode: isDark ? "screen" : "multiply",
                 }}
               />
             )}
@@ -1530,7 +1533,7 @@ export default function HomeHero({
             <KineticHeadline
               ref={headlineRef}
               text={headline}
-              className="relative text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-200/80 cursor-pointer"
+              className="relative text-xs font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-emerald-200/80 cursor-pointer"
               startDelay={headlineStart}
               baseSpeed={100}
               orbHoveredPosition={orbHeadlinePos}
@@ -1542,8 +1545,8 @@ export default function HomeHero({
           </motion.div>
 
           <motion.div
-            className="relative mt-1 text-4xl font-semibold tracking-tight text-emerald-950 dark:text-white drop-shadow-sm sm:text-6xl lg:text-7xl 2xl:text-8xl"
-            style={!isDark ? { textShadow: "0 2px 24px rgba(16,185,129,0.12), 0 1px 4px rgba(0,0,0,0.06)" } : undefined}
+            className="relative mt-1 text-4xl font-semibold tracking-tight text-gray-950 dark:text-white drop-shadow-sm sm:text-6xl lg:text-7xl 2xl:text-8xl"
+            style={!isDark ? { textShadow: "0 2px 24px rgba(14,165,233,0.12), 0 1px 4px rgba(0,0,0,0.06)" } : undefined}
             onPointerEnter={() => {
               if (reduceMotion) return;
               setTitleAreaHovering(true);
@@ -1634,7 +1637,7 @@ export default function HomeHero({
                             // Light mode: use deep saturated tones (they read on white)
                             color: isDark
                               ? (tmColorSwapped ? (tmActiveWithOrb ? "#ddd6fe" : "#c4b5fd") : (tmActiveWithOrb ? "#6ee7b7" : "#34d399"))
-                              : (tmColorSwapped ? (tmActiveWithOrb ? "#6d28d9" : "#7c3aed") : (tmActiveWithOrb ? "#059669" : "#047857")),
+                              : (tmColorSwapped ? (tmActiveWithOrb ? "#6d28d9" : "#7c3aed") : (tmActiveWithOrb ? "#0284c7" : "#0369a1")),
                             textShadow: isDark
                               ? (tmColorSwapped ? (tmActiveWithOrb ? "0 0 8px rgba(167,139,250,0.35)" : "0 0 4px rgba(167,139,250,0.18)") : (tmActiveWithOrb ? "0 0 8px rgba(52,211,153,0.35)" : "0 0 4px rgba(52,211,153,0.18)"))
                               : "none",
@@ -1668,7 +1671,7 @@ export default function HomeHero({
                         : {
                             color: isDark
                               ? (tmColorSwapped ? (tmActiveWithOrb ? "#6ee7b7" : "#34d399") : (tmActiveWithOrb ? "#ddd6fe" : "#c4b5fd"))
-                              : (tmColorSwapped ? (tmActiveWithOrb ? "#059669" : "#047857") : (tmActiveWithOrb ? "#6d28d9" : "#7c3aed")),
+                              : (tmColorSwapped ? (tmActiveWithOrb ? "#0284c7" : "#0369a1") : (tmActiveWithOrb ? "#6d28d9" : "#7c3aed")),
                             textShadow: isDark
                               ? (tmColorSwapped ? (tmActiveWithOrb ? "0 0 8px rgba(52,211,153,0.35)" : "0 0 4px rgba(52,211,153,0.18)") : (tmActiveWithOrb ? "0 0 8px rgba(167,139,250,0.35)" : "0 0 4px rgba(167,139,250,0.18)"))
                               : "none",
@@ -1743,7 +1746,7 @@ export default function HomeHero({
           >
             {/* Animated gradient border — spins faster on hover (conic-like rotation) */}
             <motion.div
-              className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-emerald-500 via-cyan-400 to-emerald-500 blur-[2px] group-hover:blur-[3px]"
+              className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-sky-500 via-cyan-400 to-sky-500 dark:from-emerald-500 dark:via-cyan-400 dark:to-emerald-500 blur-[2px] group-hover:blur-[3px]"
               animate={{
                 backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
                 opacity: [0.5, 0.8, 0.5],
@@ -1764,12 +1767,14 @@ export default function HomeHero({
               whileHover={{ opacity: 0.25 }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               style={{
-                background: "radial-gradient(closest-side, rgba(34,197,94,0.25), transparent 70%)",
+                background: isDark
+                  ? "radial-gradient(closest-side, rgba(34,197,94,0.25), transparent 70%)"
+                  : "radial-gradient(closest-side, rgba(14,165,233,0.25), transparent 70%)",
               }}
             />
             <Link
               href="/products"
-              className="relative flex items-center gap-2 rounded-xl bg-emerald-600 dark:bg-black/80 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 group-hover:bg-emerald-700 dark:group-hover:bg-black/90 group-hover:text-emerald-100 dark:group-hover:text-emerald-300"
+              className="relative flex items-center gap-2 rounded-xl bg-sky-600 dark:bg-black/80 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 group-hover:bg-sky-700 dark:group-hover:bg-black/90 group-hover:text-sky-100 dark:group-hover:text-emerald-300"
             >
               <motion.span
                 className="inline-block"

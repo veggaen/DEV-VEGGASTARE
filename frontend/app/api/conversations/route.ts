@@ -1,5 +1,6 @@
 import { fetchUserManyDetails } from '@/data/user';
 import { dbPrisma } from '@/lib/db';
+import { resolveVisibleEmail } from '@/lib/email-visibility';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError, parseQueryOrError } from '@/lib/api-validate';
 import { pusherServer } from '@/lib/pusher';
@@ -228,13 +229,21 @@ export async function POST(req: Request) {
     const created = await dbPrisma.conversation.findUnique({
       where: { id: conversation.id },
       include: {
-        User: { select: { id: true, name: true, email: true, image: true } },
+        User: { select: { id: true, name: true, email: true, emailDisplayMode: true, image: true } },
       },
     });
 
     if (!created) {
       return NextResponse.json({ message: 'Error creating conversation' }, { status: 500 });
     }
+
+    const createdVisibleEmail = resolveVisibleEmail({
+      targetUserId: created.User.id,
+      targetEmail: created.User.email,
+      targetEmailDisplayMode: created.User.emailDisplayMode,
+      viewerUserId: session.id,
+      viewerRole: session.role,
+    });
 
     const dto = {
       id: created.id,
@@ -291,13 +300,13 @@ export async function POST(req: Request) {
       User: {
         id: created.User.id,
         name: created.User.name,
-        email: created.User.email ?? null,
+        email: createdVisibleEmail,
         image: created.User.image ?? null,
       },
       user: {
         id: created.User.id,
         name: created.User.name,
-        email: created.User.email ?? null,
+        email: createdVisibleEmail,
         image: created.User.image ?? null,
       },
     };
@@ -539,7 +548,7 @@ export async function GET(req: Request) {
             title: true,
             createdAt: true,
             User: {
-              select: { id: true, name: true, email: true, image: true },
+              select: { id: true, name: true, email: true, emailDisplayMode: true, image: true },
             },
             Message: {
               take: 1,
@@ -548,7 +557,7 @@ export async function GET(req: Request) {
           },
         },
         User: {
-          select: { id: true, name: true, email: true, image: true },
+          select: { id: true, name: true, email: true, emailDisplayMode: true, image: true },
         },
         Poll: {
           // Feed needs the question to show a longer preview than the truncated title.
@@ -654,13 +663,25 @@ export async function GET(req: Request) {
           User: {
             id: conversation.Conversation.User.id,
             name: conversation.Conversation.User.name,
-            email: conversation.Conversation.User.email ?? null,
+            email: resolveVisibleEmail({
+              targetUserId: conversation.Conversation.User.id,
+              targetEmail: conversation.Conversation.User.email,
+              targetEmailDisplayMode: conversation.Conversation.User.emailDisplayMode,
+              viewerUserId: userId,
+              viewerRole: userRole,
+            }),
             image: conversation.Conversation.User.image ?? null,
           },
           user: {
             id: conversation.Conversation.User.id,
             name: conversation.Conversation.User.name,
-            email: conversation.Conversation.User.email ?? null,
+            email: resolveVisibleEmail({
+              targetUserId: conversation.Conversation.User.id,
+              targetEmail: conversation.Conversation.User.email,
+              targetEmailDisplayMode: conversation.Conversation.User.emailDisplayMode,
+              viewerUserId: userId,
+              viewerRole: userRole,
+            }),
             image: conversation.Conversation.User.image ?? null,
           },
           lastMessage: conversation.Conversation.Message?.[0]
@@ -687,7 +708,13 @@ export async function GET(req: Request) {
         participantDetails: participantDetails.map((p) => ({
           id: p.id,
           name: p.name ?? null,
-          email: p.email ?? null,
+          email: resolveVisibleEmail({
+            targetUserId: p.id,
+            targetEmail: p.email,
+            targetEmailDisplayMode: p.emailDisplayMode,
+            viewerUserId: userId,
+            viewerRole: userRole,
+          }),
           image: p.image ?? null,
           referredBy: (p as any).referredBy ?? null,
         })),
@@ -771,13 +798,25 @@ export async function GET(req: Request) {
         User: {
           id: conversation.User.id,
           name: conversation.User.name,
-          email: conversation.User.email ?? null,
+          email: resolveVisibleEmail({
+            targetUserId: conversation.User.id,
+            targetEmail: conversation.User.email,
+            targetEmailDisplayMode: conversation.User.emailDisplayMode,
+            viewerUserId: userId,
+            viewerRole: userRole,
+          }),
           image: conversation.User.image ?? null,
         },
         user: {
           id: conversation.User.id,
           name: conversation.User.name,
-          email: conversation.User.email ?? null,
+          email: resolveVisibleEmail({
+            targetUserId: conversation.User.id,
+            targetEmail: conversation.User.email,
+            targetEmailDisplayMode: conversation.User.emailDisplayMode,
+            viewerUserId: userId,
+            viewerRole: userRole,
+          }),
           image: conversation.User.image ?? null,
         },
 

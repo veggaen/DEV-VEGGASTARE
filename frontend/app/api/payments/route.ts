@@ -27,6 +27,8 @@ const CreatePaymentSchema = z.object({
   currency: z.string().length(3).default('NOK'),
   description: z.string().max(200).default('VeggaStare Order'),
   returnUrl: z.string().url(),
+  // Seller's verified PayPal email — for P2P PayPal payments to seller
+  sellerPaypalEmail: z.string().email().max(254).optional().nullable(),
 });
 
 /**
@@ -84,6 +86,10 @@ export async function POST(req: Request) {
       customerEmail: session.email ?? undefined,
       returnUrl,
       callbackUrl: `${origin}/api/payments/webhook/${providerType}`,
+      // Forward seller PayPal email for P2P routing
+      ...(bodyResult.data.sellerPaypalEmail
+        ? { sellerEmail: bodyResult.data.sellerPaypalEmail }
+        : {}),
     });
 
     return NextResponse.json(paymentSession);

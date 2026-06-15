@@ -75,6 +75,10 @@ jobs:
 
       - run: npm ci
 
+      # Security: check for known vulnerabilities in dependencies (OWASP SCA)
+      - name: npm audit (security check)
+        run: npm audit --omit=dev --audit-level=high || true
+
       # Prisma: generate client + validate schema
       - run: npx prisma generate
       - run: npx prisma validate
@@ -129,6 +133,10 @@ jobs:
       - run: npx prisma generate
       - run: npm run lint
 
+      # Security: check for known vulnerabilities in dependencies (OWASP SCA)
+      - name: npm audit (security check)
+        run: npm audit --omit=dev --audit-level=high || true
+
   # ─── Backend checks ────────────────────────────────────────
   backend:
     name: Backend (validate · typecheck · build)
@@ -160,6 +168,10 @@ jobs:
           restore-keys: prisma-backend-${{ runner.os }}-
 
       - run: npm ci
+
+      # Security: check for known vulnerabilities in dependencies (OWASP SCA)
+      - name: npm audit (security check)
+        run: npm audit --omit=dev --audit-level=high || true
 
       # Prisma: generate client + validate schema
       - run: npx prisma generate

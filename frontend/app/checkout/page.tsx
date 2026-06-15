@@ -32,6 +32,9 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from "@solana/web3.js";
 
+/* --- Seller payment resolution --- */
+import { resolveCheckoutPayment, type CheckoutSellerPayment } from "@/actions/seller-payment";
+
 /* ============ Types ============ */
 interface CartItem {
   id: string;
@@ -76,7 +79,7 @@ function solanaRpcFor(cluster: WalletAdapterNetwork) {
   return "https://api.devnet.solana.com";
 }
 
-function receiverAddressFor(active: ReturnType<typeof useActiveNetwork>["active"]) {
+function platformReceiverFor(active: ReturnType<typeof useActiveNetwork>["active"]) {
   if (active.kind === "evm") {
     if (active.chainId === 369) return process.env.NEXT_PUBLIC_RECEIVER_PLS ?? "0x45Ce973C2363785a1FB3ca7a2714575432DD8C99";
     return process.env.NEXT_PUBLIC_RECEIVER_ETH ?? "0x45Ce973C2363785a1FB3ca7a2714575432DD8C99";
@@ -131,6 +134,9 @@ export default function CheckoutPage() {
   const [paymentTimerActive, setPaymentTimerActive] = useState(false);
   const [paymentTimeLeft, setPaymentTimeLeft] = useState(PAYMENT_TIMER_SECONDS);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /* Seller payment info (resolved from products in cart) */
+  const [sellerPayment, setSellerPayment] = useState<CheckoutSellerPayment | null>(null);
 
   /* shipping — address book + contact */
   const [selectedShipping, setSelectedShipping] = useState<SelectedShipping | null>(null);
@@ -239,7 +245,17 @@ export default function CheckoutPage() {
       const res = await fetch(`/api/cart/${user.id}`);
       if (!res.ok) throw new Error("Failed to fetch cart");
       const data = await res.json();
-      setItems(data.items ?? []);
+      const cartItems: CartItem[] = data.items ?? [];
+      setItems(cartItems);
+
+      // Resolve seller payment info for products in cart
+      if (cartItems.length > 0) {
+        const productIds = cartItems.map((it) => it.product.id);
+        const spRes = await resolveCheckoutPayment({ productIds });
+        if ('data' in spRes) {
+          setSellerPayment(spRes.data);
+        }
+      }
     } catch (e) {
       console.error(e);
       setError("Unable to load cart. Please try again.");
@@ -304,7 +320,19 @@ export default function CheckoutPage() {
     return "";
   }, [active, evm.address, sol.publicKey]);
 
-  const receiverAddress = useMemo(() => receiverAddressFor(active), [active]);
+  /**
+   * Receiver address — prefer seller's configured wallet, fall back to platform.
+   * For EVM payments, the seller wallet is used as-is (it's already an EVM address).
+   * For Solana, we fall back to platform since seller wallets are EVM-only for now.
+   */
+  const receiverAddress = useMemo(() => {
+    // If seller has a unified EVM wallet and we're on EVM, use it
+    if (active.kind === "evm" && sellerPayment?.unifiedReceiverWallet) {
+      return sellerPayment.unifiedReceiverWallet;
+    }
+    // Fall back to platform receiver
+    return platformReceiverFor(active);
+  }, [active, sellerPayment]);
 
   /* network label */
   const networkLabel = useMemo(() => {
@@ -600,6 +628,8 @@ export default function CheckoutPage() {
           method: paymentMethod.toUpperCase(),
           commentOrder: `${items.length} items`,
           commentPay: `Fiat payment via ${paymentMethod}`,
+          // For fiat, store seller's PayPal email as receiverAddress for traceability
+          receiverAddress: sellerPayment?.unifiedPaypalEmail ?? null,
           shippingName: shippingContact.name,
           shippingAddress: resolvedAddress?.addressLine1 ?? "",
           shippingCity: resolvedAddress?.city ?? "",
@@ -627,6 +657,12 @@ export default function CheckoutPage() {
       if (order?.id) bookShipment(order.id);
 
       // 2. Create payment session with provider
+      const isPaypal = paymentMethod === 'paypal';
+      // PayPal: route return through capture endpoint so we can call capturePayment()
+      const returnUrl = isPaypal
+        ? `${window.location.origin}/api/payments/paypal/capture?orderId=${order.id}`
+        : `${window.location.origin}/order-confirmation?orderId=${order.id}`;
+
       const sessionRes = await fetch("/api/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -635,7 +671,11 @@ export default function CheckoutPage() {
           provider: paymentMethod,
           amount: Math.round(grandTotalUSD * 100), // cents/øre
           currency: paymentMethod === "vipps" ? "NOK" : "USD",
-          returnUrl: `${window.location.origin}/order-confirmation?orderId=${order.id}`,
+          returnUrl,
+          // Pass seller PayPal email so provider can route payment to seller
+          ...(isPaypal && sellerPayment?.unifiedPaypalEmail
+            ? { sellerPaypalEmail: sellerPayment.unifiedPaypalEmail }
+            : {}),
         }),
       });
       if (!sessionRes.ok) {
@@ -644,8 +684,10 @@ export default function CheckoutPage() {
       }
       const session = await sessionRes.json();
 
-      // 3. Clear cart
-      await fetch(`/api/cart/${user?.id}`, { method: "DELETE" });
+      // 3. Clear cart (for PayPal, cart is cleared after capture returns)
+      if (!isPaypal) {
+        await fetch(`/api/cart/${user?.id}`, { method: "DELETE" });
+      }
 
       // 4. Redirect to provider
       if (session.redirectUrl) {
@@ -942,6 +984,27 @@ export default function CheckoutPage() {
                 ))}
               </div>
             </div>
+
+            {/* Seller payment info / multi-seller warning */}
+            {sellerPayment && (
+              <div className="mt-3">
+                {sellerPayment.multiSeller && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400 mb-2">
+                    ⚠ Items from multiple sellers — payment goes to platform escrow.
+                  </div>
+                )}
+                {!sellerPayment.multiSeller && paymentMethod === 'crypto' && sellerPayment.unifiedReceiverWallet && active.kind === "evm" && (
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
+                    Paying seller directly → <span className="font-mono">{sellerPayment.unifiedReceiverWallet.slice(0, 6)}…{sellerPayment.unifiedReceiverWallet.slice(-4)}</span>
+                  </div>
+                )}
+                {!sellerPayment.multiSeller && paymentMethod === 'paypal' && sellerPayment.unifiedPaypalEmail && (
+                  <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-xs text-blue-700 dark:text-blue-400">
+                    PayPal payment to seller: <span className="font-medium">{sellerPayment.unifiedPaypalEmail}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Crypto payment details (only when crypto selected) */}
             {paymentMethod === 'crypto' && (

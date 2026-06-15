@@ -1,4 +1,5 @@
 import { dbPrisma } from '@/lib/db';
+import { resolveVisibleEmail } from '@/lib/email-visibility';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { pusherServer } from '@/lib/pusher';
 import { NextResponse } from 'next/server';
@@ -23,12 +24,21 @@ const LOG_PREFIX = '[api/conversations/[id]]';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
-function toConversationAdminDto(conversation: any) {
+function toConversationAdminDto(
+  conversation: any,
+  viewer?: { userId?: string | null; role?: string | null }
+) {
   const user = conversation?.User
     ? {
         id: String(conversation.User.id),
         name: conversation.User.name ?? null,
-        email: conversation.User.email ?? null,
+        email: resolveVisibleEmail({
+          targetUserId: String(conversation.User.id),
+          targetEmail: conversation.User.email ?? null,
+          targetEmailDisplayMode: conversation.User.emailDisplayMode,
+          viewerUserId: viewer?.userId,
+          viewerRole: viewer?.role,
+        }),
         image: conversation.User.image ?? null,
       }
     : null;
@@ -327,7 +337,7 @@ export async function GET(
       where: { id: conversationId },
       include: {
         User: {
-          select: { id: true, name: true, email: true, image: true },
+          select: { id: true, name: true, email: true, emailDisplayMode: true, image: true },
         },
       },
     });
@@ -344,7 +354,10 @@ export async function GET(
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
-    const dto = toConversationAdminDto(conversation);
+    const dto = toConversationAdminDto(conversation, {
+      userId,
+      role: userRole,
+    });
     const parsed = ConversationAdminResponseSchema.safeParse(dto);
     if (!parsed.success) {
       console.error(LOG_PREFIX, 'GET - invalid DTO:', parsed.error.issues);
@@ -460,14 +473,17 @@ export async function PATCH(
       data: updateData,
       include: {
         User: {
-          select: { id: true, name: true, email: true, image: true },
+          select: { id: true, name: true, email: true, emailDisplayMode: true, image: true },
         },
       },
     });
 
     console.log(LOG_PREFIX, `Updated conversation ${conversationId}:`, Object.keys(updateData));
 
-    const dto = toConversationAdminDto(updated);
+    const dto = toConversationAdminDto(updated, {
+      userId,
+      role: userRole,
+    });
     const parsed = ConversationAdminResponseSchema.safeParse(dto);
     if (!parsed.success) {
       console.error(LOG_PREFIX, 'PATCH - invalid DTO:', parsed.error.issues);

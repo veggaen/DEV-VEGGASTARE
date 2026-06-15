@@ -4,7 +4,6 @@ import crypto from "crypto";
 
 import { parseJsonOrError } from "@/lib/api-validate";
 import { MyLibUserAuth } from "@/lib/user-auth";
-import { getUserById } from "@/data/user";
 import { getTwoFactortokenByEmail } from "@/data/two-factor-token";
 import { dbPrisma } from "@/lib/db";
 import { sendTwoFactorTokenEmail } from "@/lib/mail";
@@ -29,20 +28,16 @@ export async function POST(req: NextRequest) {
 	const rl = await checkRateLimit(getClientIdentifier(req), "wallet");
 	if (!rl.success) return rateLimitedResponse(rl);
 
+	// Use session data only — avoids a redundant DB round-trip.
+	// All needed fields (id, web3ModeEnabled, isTwoFactorEnabled, email)
+	// are already populated by the JWT callback in auth.ts.
 	const me = await MyLibUserAuth();
 	if (!me?.id) {
 		const dto = { error: "Unauthorized" };
 		const parsed = WalletErrorResponseSchema.safeParse(dto);
 		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 401 });
 	}
-
-	const dbUser = await getUserById(me.id);
-	if (!dbUser?.id) {
-		const dto = { error: "Unauthorized" };
-		const parsed = WalletErrorResponseSchema.safeParse(dto);
-		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 401 });
-	}
-	if (!dbUser.web3ModeEnabled) {
+	if (!me.web3ModeEnabled) {
 		const dto = { error: "Enable Web3 mode first." };
 		const parsed = WalletErrorResponseSchema.safeParse(dto);
 		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 403 });
@@ -52,17 +47,17 @@ export async function POST(req: NextRequest) {
 	if (!bodyResult.ok) return bodyResult.response;
 
 	// 2FA-gate wallet linking when enabled. We keep this lightweight: a short-lived email code.
-	if (dbUser.isTwoFactorEnabled) {
+	if (me.isTwoFactorEnabled) {
 		const code = bodyResult.data.code;
 		if (!code) {
-			const twoFactorToken = await generateTwoFactorToken(dbUser.email ?? "");
+			const twoFactorToken = await generateTwoFactorToken(me.email ?? "");
 			await sendTwoFactorTokenEmail(twoFactorToken.email, twoFactorToken.token);
 			const dto = { twoFactor: true };
 			const parsed = WalletTwoFactorResponseSchema.safeParse(dto);
 			return NextResponse.json(parsed.success ? parsed.data : dto, { status: 200 });
 		}
 
-		const twoFactorToken = await getTwoFactortokenByEmail(dbUser.email ?? "");
+		const twoFactorToken = await getTwoFactortokenByEmail(me.email ?? "");
 		if (!twoFactorToken) {
 			const dto = { error: "Invalid code" };
 			const parsed = WalletErrorResponseSchema.safeParse(dto);
@@ -118,18 +113,19 @@ export async function POST(req: NextRequest) {
 	].filter(Boolean).join("\n");
 
 	// Keep at most one active challenge per user/address/family.
-	await dbPrisma.walletVerificationChallenge.deleteMany({
-		where: {
-			userId: dbUser.id,
-			family: ChainFamily.EVM,
-			address,
-			usedAt: null,
-		},
-	});
-
-	const challenge = await dbPrisma.walletVerificationChallenge.create({
-		data: {
-			userId: dbUser.id,
+	// Delete old + create new can run in parallel (create has no FK on old rows)
+	const [, challenge] = await Promise.all([
+		dbPrisma.walletVerificationChallenge.deleteMany({
+			where: {
+				userId: me.id,
+				family: ChainFamily.EVM,
+				address,
+				usedAt: null,
+			},
+		}),
+		dbPrisma.walletVerificationChallenge.create({
+			data: {
+				userId: me.id,
 			family: ChainFamily.EVM,
 			address,
 			chainId,
@@ -138,7 +134,8 @@ export async function POST(req: NextRequest) {
 			message,
 			expires,
 		},
-	});
+	}),
+	]);
 
 	const dto = {
 		challengeId: challenge.id,

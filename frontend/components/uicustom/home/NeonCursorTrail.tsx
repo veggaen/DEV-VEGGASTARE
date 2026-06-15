@@ -22,8 +22,8 @@ const DARK_PALETTE: [number, number, number][] = [
 ];
 
 const LIGHT_PALETTE: [number, number, number][] = [
-  [56, 189, 248],  // sky-400 (was emerald)
-  [52, 211, 153],  // emerald-400 (was sky)
+  [14, 165, 233],  // sky-500
+  [56, 189, 248],  // sky-400
   [139, 92, 246],  // violet-400
 ];
 

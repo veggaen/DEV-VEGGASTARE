@@ -20,11 +20,12 @@ import {
   FiLink, FiEdit2, FiGrid, FiActivity, FiUsers, FiCamera, FiUpload, FiX, FiTrendingUp,
   FiRepeat, FiEye, FiBarChart2, FiZap
 } from 'react-icons/fi';
-import { Pin, Shield } from 'lucide-react';
+import { Pin, Shield, ArrowLeftRight } from 'lucide-react';
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 import { formatDistanceToNow } from 'date-fns';
 import { VEGGA_SYSTEM } from '@/lib/vegga-system-constants';
 import { toast } from 'sonner';
+import { useAccount, useChainId } from 'wagmi';
 import {
   Chart as ChartJS,
   RadialLinearScale,
@@ -203,6 +204,8 @@ export default function ProfilePage() {
   const router = useRouter();
   const currentUser = useCurrentUser();
   const { edgestore } = useEdgeStore();
+  const { isConnected: walletConnected } = useAccount();
+  const chainId = useChainId();
   const userId = params.userId as string;
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -819,6 +822,43 @@ export default function ProfilePage() {
                       ) : (
                         <FiMessageCircle className="h-4 w-4" />
                       )}
+                    </Button>
+
+                    {/* Request Trade */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        if (!walletConnected) {
+                          toast.info('Connect your wallet to start a trade', {
+                            description: 'Enable Web3 in settings and connect a wallet first.',
+                            action: {
+                              label: 'Open Settings',
+                              onClick: () => router.push('/settings?section=wallet'),
+                            },
+                          });
+                          return;
+                        }
+                        try {
+                          const res = await fetch('/api/trades', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ responderId: userId, chainId }),
+                          });
+                          if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.error ?? 'Failed to create trade');
+                          }
+                          const trade = await res.json();
+                          router.push(`/dashboard/trading?trade=${trade.id}&partner=${userId}`);
+                        } catch (err: unknown) {
+                          toast.error(err instanceof Error ? err.message : 'Trade request failed');
+                        }
+                      }}
+                      className="rounded-lg border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                      title={`Trade with ${profile.name || 'this user'}`}
+                    >
+                      <ArrowLeftRight className="h-4 w-4" />
                     </Button>
 
                     {/* Take Control — OWNER only, for system account */}

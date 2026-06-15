@@ -20,6 +20,21 @@ import { CheckCircle, ArrowLeft, Save, ExternalLink } from "lucide-react";
 
 type ChainFamily = "EVM" | "SOLANA";
 type FiatCurrency = "USD" | "NOK" | "EUR" | "GBP";
+type RepoAccessMode = "COLLABORATOR" | "TEAM";
+type RepoAccessPermission = "pull" | "push" | "maintain" | "admin";
+
+type RepoAccessConfig = {
+  owner: string;
+  repo: string;
+  mode: RepoAccessMode;
+  permission: RepoAccessPermission;
+  org?: string;
+  teamSlug?: string;
+  defaultBranch?: string;
+  previewBranch?: string;
+  devBranch?: string;
+  notes?: string;
+};
 
 type AcceptedToken = {
   family: ChainFamily;
@@ -61,6 +76,19 @@ const CONDITION_OPTIONS = [
   { value: "FAIR", label: "Fair" },
   { value: "POOR", label: "Poor" },
 ] as const;
+
+const EMPTY_REPO_ACCESS: RepoAccessConfig = {
+  owner: "",
+  repo: "",
+  mode: "COLLABORATOR",
+  permission: "pull",
+  org: "",
+  teamSlug: "",
+  defaultBranch: "",
+  previewBranch: "",
+  devBranch: "",
+  notes: "",
+};
 
 function normalizeToken(row: AcceptedToken): AcceptedToken {
   return {
@@ -130,6 +158,8 @@ export default function EditProductClient({ productId }: { productId: string }) 
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [specifications, setSpecifications] = useState<Array<{ key: string; value: string }>>([]);
   const [acceptedTokens, setAcceptedTokens] = useState<AcceptedToken[]>([]);
+  const [repoAccessEnabled, setRepoAccessEnabled] = useState(false);
+  const [repoAccessConfig, setRepoAccessConfig] = useState<RepoAccessConfig>(EMPTY_REPO_ACCESS);
 
   const sessionUserId = (session as any)?.user?.id as string | undefined;
   const isSignedIn = Boolean(sessionUserId);
@@ -182,6 +212,43 @@ export default function EditProductClient({ productId }: { productId: string }) 
         setError("Failed to load product.");
       }
     })();
+    return () => {
+      stopped = true;
+    };
+  }, [productId]);
+
+  useEffect(() => {
+    let stopped = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/products/${productId}/repo-access`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (stopped) return;
+
+        if (data?.config) {
+          setRepoAccessEnabled(true);
+          setRepoAccessConfig({
+            owner: String(data.config.owner ?? ""),
+            repo: String(data.config.repo ?? ""),
+            mode: (data.config.mode ?? "COLLABORATOR") as RepoAccessMode,
+            permission: (data.config.permission ?? "pull") as RepoAccessPermission,
+            org: String(data.config.org ?? ""),
+            teamSlug: String(data.config.teamSlug ?? ""),
+            defaultBranch: String(data.config.defaultBranch ?? ""),
+            previewBranch: String(data.config.previewBranch ?? ""),
+            devBranch: String(data.config.devBranch ?? ""),
+            notes: String(data.config.notes ?? ""),
+          });
+        } else {
+          setRepoAccessEnabled(false);
+          setRepoAccessConfig(EMPTY_REPO_ACCESS);
+        }
+      } catch {
+        // non-blocking
+      }
+    })();
+
     return () => {
       stopped = true;
     };
@@ -328,6 +395,48 @@ export default function EditProductClient({ productId }: { productId: string }) 
         setError(res.error);
         setIsSubmitting(false);
         return;
+      }
+
+      if (repoAccessEnabled) {
+        const owner = repoAccessConfig.owner.trim();
+        const repo = repoAccessConfig.repo.trim();
+        if (!owner || !repo) {
+          setError("Product saved, but GitHub repo access needs owner and repo.");
+          setIsSubmitting(false);
+          return;
+        }
+        if (repoAccessConfig.mode === "TEAM" && !repoAccessConfig.teamSlug?.trim()) {
+          setError("Product saved, but TEAM mode requires a team slug.");
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      const repoRes = await fetch(`/api/products/${productId}/repo-access`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: repoAccessEnabled,
+          config: repoAccessEnabled
+            ? {
+                owner: repoAccessConfig.owner.trim(),
+                repo: repoAccessConfig.repo.trim(),
+                mode: repoAccessConfig.mode,
+                permission: repoAccessConfig.permission,
+                ...(repoAccessConfig.org?.trim() ? { org: repoAccessConfig.org.trim() } : {}),
+                ...(repoAccessConfig.teamSlug?.trim() ? { teamSlug: repoAccessConfig.teamSlug.trim() } : {}),
+                ...(repoAccessConfig.defaultBranch?.trim() ? { defaultBranch: repoAccessConfig.defaultBranch.trim() } : {}),
+                ...(repoAccessConfig.previewBranch?.trim() ? { previewBranch: repoAccessConfig.previewBranch.trim() } : {}),
+                ...(repoAccessConfig.devBranch?.trim() ? { devBranch: repoAccessConfig.devBranch.trim() } : {}),
+                ...(repoAccessConfig.notes?.trim() ? { notes: repoAccessConfig.notes.trim() } : {}),
+              }
+            : undefined,
+        }),
+      });
+
+      if (!repoRes.ok) {
+        const body = await repoRes.json().catch(() => ({}));
+        setError(body?.error ? `Product saved, but repo access failed: ${body.error}` : "Product saved, but repo access update failed.");
       }
 
       // If save and view, redirect immediately
@@ -695,6 +804,114 @@ export default function EditProductClient({ productId }: { productId: string }) 
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
+
+              <div className="rounded-lg border border-border bg-background p-4 space-y-3">
+                <div className="text-sm font-semibold">GitHub Repo Access</div>
+                <label className="flex items-center gap-2 text-xs text-foreground/90">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={repoAccessEnabled}
+                    onChange={(e) => setRepoAccessEnabled(e.target.checked)}
+                  />
+                  Grant buyer GitHub repo access automatically after payment
+                </label>
+
+                {repoAccessEnabled && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <Input
+                        value={repoAccessConfig.owner}
+                        onChange={(e) => setRepoAccessConfig((prev) => ({ ...prev, owner: e.target.value }))}
+                        placeholder="GitHub owner/org"
+                        className="h-8 text-xs"
+                      />
+                      <Input
+                        value={repoAccessConfig.repo}
+                        onChange={(e) => setRepoAccessConfig((prev) => ({ ...prev, repo: e.target.value }))}
+                        placeholder="Repository name"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <Select
+                        value={repoAccessConfig.mode}
+                        onValueChange={(v) => setRepoAccessConfig((prev) => ({ ...prev, mode: v as RepoAccessMode }))}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="COLLABORATOR">Collaborator</SelectItem>
+                          <SelectItem value="TEAM">Team</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={repoAccessConfig.permission}
+                        onValueChange={(v) => setRepoAccessConfig((prev) => ({ ...prev, permission: v as RepoAccessPermission }))}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pull">pull</SelectItem>
+                          <SelectItem value="push">push</SelectItem>
+                          <SelectItem value="maintain">maintain</SelectItem>
+                          <SelectItem value="admin">admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {repoAccessConfig.mode === "TEAM" && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <Input
+                          value={repoAccessConfig.org ?? ""}
+                          onChange={(e) => setRepoAccessConfig((prev) => ({ ...prev, org: e.target.value }))}
+                          placeholder="Org override (optional)"
+                          className="h-8 text-xs"
+                        />
+                        <Input
+                          value={repoAccessConfig.teamSlug ?? ""}
+                          onChange={(e) => setRepoAccessConfig((prev) => ({ ...prev, teamSlug: e.target.value }))}
+                          placeholder="Team slug (required in TEAM mode)"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <Input
+                        value={repoAccessConfig.defaultBranch ?? ""}
+                        onChange={(e) => setRepoAccessConfig((prev) => ({ ...prev, defaultBranch: e.target.value }))}
+                        placeholder="default branch"
+                        className="h-8 text-xs"
+                      />
+                      <Input
+                        value={repoAccessConfig.previewBranch ?? ""}
+                        onChange={(e) => setRepoAccessConfig((prev) => ({ ...prev, previewBranch: e.target.value }))}
+                        placeholder="preview branch"
+                        className="h-8 text-xs"
+                      />
+                      <Input
+                        value={repoAccessConfig.devBranch ?? ""}
+                        onChange={(e) => setRepoAccessConfig((prev) => ({ ...prev, devBranch: e.target.value }))}
+                        placeholder="dev branch"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+
+                    <Textarea
+                      value={repoAccessConfig.notes ?? ""}
+                      onChange={(e) => setRepoAccessConfig((prev) => ({ ...prev, notes: e.target.value }))}
+                      placeholder="Internal notes"
+                      rows={2}
+                      className="text-xs"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

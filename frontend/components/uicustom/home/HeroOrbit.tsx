@@ -43,7 +43,7 @@ const OY_AMPS   = [0.55, 0.30, 0.15] as const;
 
 // Colour palettes per theme
 const DARK_RGB  = "52,211,153";   // emerald-400 — pops on dark bg with screen blend
-const LIGHT_RGB = "16,185,129";   // emerald-500 — vibrant on tinted white with multiply blend
+const LIGHT_RGB = "14,165,233";   // sky-500 — vibrant blue on white with multiply blend
 
 export function HeroOrbit({
   orbPosRef,

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 import { CompanyDetailsResponseSchema } from '@/lib/types/company';
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { resolveVisibleEmail } from '@/lib/email-visibility';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -23,6 +25,7 @@ export async function GET(
   { params }: { params: Promise<CompanyParams> }
 ) {
   try {
+    const viewer = await MyLibUserAuth();
     const resolvedParams = await params;
     const companyId = resolvedParams.companyId ?? resolvedParams.companyid;
     console.log('Fetching details for company ID:', companyId);
@@ -39,7 +42,15 @@ export async function GET(
         User_Company_ownerIdToUser: true,
         Employee: {
           include: {
-            User: true,
+            User: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                emailDisplayMode: true,
+                image: true,
+              },
+            },
           },
         },
         WarehouseLocation: {
@@ -82,7 +93,13 @@ export async function GET(
           user: {
             id: String(employee?.User?.id ?? employee.userId),
             name: employee?.User?.name ?? null,
-            email: employee?.User?.email ?? null,
+            email: resolveVisibleEmail({
+              targetUserId: String(employee?.User?.id ?? employee.userId),
+              targetEmail: employee?.User?.email ?? null,
+              targetEmailDisplayMode: employee?.User?.emailDisplayMode,
+              viewerUserId: viewer?.id,
+              viewerRole: viewer?.role,
+            }),
             image: employee?.User?.image ?? null,
           },
           permissions: toRecordOrUndefined(employee.permissions) ?? {},
@@ -156,7 +173,13 @@ export async function GET(
         ? {
             id: String(creatorUser.id),
             name: creatorUser.name ?? null,
-            email: creatorUser.email ?? null,
+            email: resolveVisibleEmail({
+              targetUserId: String(creatorUser.id),
+              targetEmail: creatorUser.email ?? null,
+              targetEmailDisplayMode: creatorUser.emailDisplayMode,
+              viewerUserId: viewer?.id,
+              viewerRole: viewer?.role,
+            }),
             image: creatorUser.image ?? null,
           }
         : {
@@ -169,7 +192,13 @@ export async function GET(
         ? {
             id: String(ownerUser.id),
             name: ownerUser.name ?? null,
-            email: ownerUser.email ?? null,
+            email: resolveVisibleEmail({
+              targetUserId: String(ownerUser.id),
+              targetEmail: ownerUser.email ?? null,
+              targetEmailDisplayMode: ownerUser.emailDisplayMode,
+              viewerUserId: viewer?.id,
+              viewerRole: viewer?.role,
+            }),
             image: ownerUser.image ?? null,
           }
         : {

@@ -36,10 +36,15 @@ export async function GET() {
 		select: {
 			id: true,
 			label: true,
+			family: true,
 			address: true,
 			chainId: true,
 			isDefault: true,
 			verifiedAt: true,
+			donationTotalUsd: true,
+			connectorType: true,
+			authProvider: true,
+			socialEmail: true,
 			createdAt: true,
 		},
 	});
@@ -48,10 +53,15 @@ export async function GET() {
 		wallets: wallets.map((w) => ({
 			id: w.id,
 			label: w.label || 'Wallet',
+			family: w.family,
 			address: w.address,
 			chainId: w.chainId,
 			isDefault: w.isDefault,
 			verifiedAt: w.verifiedAt ? w.verifiedAt.toISOString() : null,
+			donationTotalUsd: w.donationTotalUsd,
+			connectorType: w.connectorType ?? undefined,
+			authProvider: w.authProvider ?? undefined,
+			socialEmail: w.socialEmail ?? undefined,
 			createdAt: w.createdAt.toISOString(),
 		})),
 	};

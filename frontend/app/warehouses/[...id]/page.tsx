@@ -25,6 +25,49 @@ interface ExtendedWarehouse extends WarehouseLocation {
   Inventory: InventoryItem[];
 }
 
+const LoadingTimer: FC<{ intervalDuration: number; onRefresh: () => void; refreshing: boolean }> = ({
+  intervalDuration,
+  onRefresh,
+  refreshing,
+}) => {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const updateProgress = () => {
+      setProgress((prev) => (prev >= 100 ? 0 : prev + (100 / (intervalDuration / 1000))));
+    };
+    const intervalId = setInterval(updateProgress, 1000);
+    return () => clearInterval(intervalId);
+  }, [intervalDuration]);
+
+  useEffect(() => {
+    if (refreshing) {
+      const timeoutId = window.setTimeout(() => setProgress(0), 0);
+      return () => window.clearTimeout(timeoutId);
+    }
+  }, [refreshing]);
+
+  return (
+    <div className="flex items-center">
+      <div className="relative w-6 h-6">
+        <svg className="absolute top-0 left-0 w-full h-full" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="5" fill="none" className="text-gray-300" />
+          <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="5" fill="none" className="text-blue-500" strokeDasharray="282.743" strokeDashoffset={(282.743 * (100 - progress)) / 100} />
+        </svg>
+        {refreshing && <Spinner className="absolute top-0 left-0 w-full h-full" />}
+      </div>
+      <Button
+        variant="vegaNormalBtn"
+        className="ml-4 text-sm font-medium text-blue-500 dark:text-blue-300 hover:underline"
+        onClick={onRefresh}
+        disabled={refreshing}
+      >
+        Refresh Now
+      </Button>
+    </div>
+  );
+};
+
 const WarehouseDetails = () => {
   const { id } = useParams();
   const warehouseId = Array.isArray(id) ? id[0] : id;
@@ -111,69 +154,6 @@ const WarehouseDetails = () => {
       }
     });
   }, 1000); // Throttle the updates
-
-  const LoadingTimer: FC<{ intervalDuration: number; onRefresh: () => void; refreshing: boolean }> = ({
-    intervalDuration,
-    onRefresh,
-    refreshing,
-  }) => {
-    const [progress, setProgress] = useState(0);
-
-    useEffect(() => {
-      const updateProgress = () => {
-        setProgress((prev) => (prev >= 100 ? 0 : prev + (100 / (intervalDuration / 1000))));
-      };
-
-      const intervalId = setInterval(updateProgress, 1000);
-
-      return () => clearInterval(intervalId);
-    }, [intervalDuration]);
-
-    useEffect(() => {
-      if (refreshing) {
-        const timeoutId = window.setTimeout(() => setProgress(0), 0);
-        return () => window.clearTimeout(timeoutId);
-      }
-    }, [refreshing]);
-
-    return (
-      <div className="flex items-center">
-        <div className="relative w-6 h-6">
-          <svg className="absolute top-0 left-0 w-full h-full" viewBox="0 0 100 100">
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              stroke="currentColor"
-              strokeWidth="5"
-              fill="none"
-              className="text-gray-300"
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              stroke="currentColor"
-              strokeWidth="5"
-              fill="none"
-              className="text-blue-500"
-              strokeDasharray="282.743"
-              strokeDashoffset={(282.743 * (100 - progress)) / 100}
-            />
-          </svg>
-          {refreshing && <Spinner className="absolute top-0 left-0 w-full h-full" />}
-        </div>
-        <Button
-          variant="vegaNormalBtn"
-          className="ml-4 text-sm font-medium text-blue-500 dark:text-blue-300 hover:underline"
-          onClick={onRefresh}
-          disabled={refreshing}
-        >
-          Refresh Now
-        </Button>
-      </div>
-    );
-  };
 
   if (loading) return <Spinner />;
   if (!warehouseId) return <div>Warehouse ID is required</div>;

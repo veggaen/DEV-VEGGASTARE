@@ -15,6 +15,9 @@ export type ExtendedUser = DefaultSession['user'] & {
     isOAuth: boolean;
     employee?: Employee[];
   	web3ModeEnabled: boolean;
+    identityNameSource?: 'AUTO' | 'MANUAL' | 'GOOGLE' | 'GITHUB' | 'DISCORD';
+    identityImageSource?: 'AUTO' | 'MANUAL' | 'GOOGLE' | 'GITHUB' | 'DISCORD';
+    emailDisplayMode?: 'PRIMARY' | 'HIDE';
     /** Impersonation – present when an OWNER is viewing as another user */
     isImpersonating?: boolean;
     impersonatingFromId?: string;
@@ -39,5 +42,11 @@ declare module "next-auth" {
       referredBy?: string */
       id?: string
 		web3ModeEnabled?: boolean
+      identityNameSource?: 'AUTO' | 'MANUAL' | 'GOOGLE' | 'GITHUB' | 'DISCORD'
+      identityImageSource?: 'AUTO' | 'MANUAL' | 'GOOGLE' | 'GITHUB' | 'DISCORD'
+      emailDisplayMode?: 'PRIMARY' | 'HIDE'
+      lastAuthProvider?: 'google' | 'github' | 'discord'
+      displayName?: string | null
+      displayImage?: string | null
     }
 }

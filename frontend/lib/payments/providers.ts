@@ -19,6 +19,8 @@ export interface PaymentSessionRequest {
   returnUrl: string;        // Where to redirect after payment
   callbackUrl: string;      // Webhook URL for server-to-server
   metadata?: Record<string, string>;
+  /** Seller’s verified PayPal email — routes payment directly to seller via PayPal payee. */
+  sellerEmail?: string;
 }
 
 export interface PaymentSession {
@@ -302,6 +304,12 @@ export class PayPalProvider implements PaymentProvider {
             currency_code: req.currency,
             value: (req.amount / 100).toFixed(2), // PayPal uses major units
           },
+          // Route payment to seller if their verified PayPal email is provided
+          ...(req.sellerEmail ? {
+            payee: {
+              email_address: req.sellerEmail,
+            },
+          } : {}),
         }],
         application_context: {
           return_url: req.returnUrl,
