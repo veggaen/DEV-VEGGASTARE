@@ -136,6 +136,7 @@
     "@reown/appkit": "$@reown/appkit",
     "cookie": "^0.7.0",
     "fast-xml-parser": ">=5.3.6",
+    "glob": ">=11.0.0",
     "hono": ">=4.12.18",
     "js-cookie": ">=3.0.7",
     "lodash": "$lodash",

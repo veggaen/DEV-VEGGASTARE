@@ -1,0 +1,3 @@
+# Exclude large build artifacts that cause deployment issues
+.next/trace
+
