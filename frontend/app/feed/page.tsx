@@ -2471,10 +2471,10 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     <article
       ref={viewTrackingRef}
       className={cn(
-        "group relative cursor-pointer rounded-2xl border p-4 sm:p-5 shadow-sm transition hover:shadow-md",
-        isPinnedToFeed 
-          ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50 dark:hover:bg-amber-950/30" 
-          : "border-border/60 bg-zinc-100/80 dark:bg-card/30 hover:bg-zinc-200/80 dark:hover:bg-card/50"
+        "group relative cursor-pointer rounded-2xl border p-4 sm:p-5 backdrop-blur-sm transition-[border-color,box-shadow,background-color,transform] duration-200 hover:shadow-md hover:-translate-y-px",
+        isPinnedToFeed
+          ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50 dark:hover:bg-amber-950/30"
+          : "border-border/50 bg-card/60 dark:bg-card/40 hover:border-brand-accent/30 hover:bg-card/80 dark:hover:bg-card/60"
       )}
       onClick={handleCardClick}
     >
@@ -2967,14 +2967,14 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                     type="button"
                     disabled={!currentUser || isPulsing}
                     onClick={() => void handlePulse('POSITIVE')}
-                    className={`flex items-center gap-1.5 transition-all hover:text-red-500 group ${
+                    className={`group/act -ml-1.5 flex items-center gap-1.5 rounded-full px-1.5 py-1 transition-colors hover:bg-red-500/10 hover:text-red-500 ${
                       localPulse === 'POSITIVE' ? 'text-red-500' : ''
                     } ${!currentUser ? 'opacity-60' : ''}`}
                   >
-                    <PulseHeart 
-                      size={18} 
+                    <PulseHeart
+                      size={18}
                       filled={localPulse === 'POSITIVE'}
-                      className={`transition-transform ${localPulse === 'POSITIVE' ? 'scale-110' : 'group-hover:scale-105'}`}
+                      className={`transition-transform duration-200 ${localPulse === 'POSITIVE' ? 'scale-110' : 'group-hover/act:scale-110'}`}
                     />
                     {localPositiveCount > 0 && <span className="tabular-nums">{localPositiveCount}</span>}
                   </button>
@@ -2986,8 +2986,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className={`flex items-center gap-1 cursor-default ${!currentUser ? 'opacity-60' : ''}`}>
-                    <FiMessageCircle className="h-4 w-4" />
+                  <span className={`group/act flex items-center gap-1.5 rounded-full px-1.5 py-1 cursor-default transition-colors hover:bg-sky-500/10 hover:text-sky-500 ${!currentUser ? 'opacity-60' : ''}`}>
+                    <FiMessageCircle className="h-4 w-4 transition-transform duration-200 group-hover/act:scale-110" />
                     {replyCount}
                   </span>
                 </TooltipTrigger>
@@ -2998,8 +2998,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className={`flex items-center gap-1 cursor-default ${item.hasReposted ? 'text-cyan-500' : ''} ${!currentUser ? 'opacity-60' : ''}`}>
-                    <FiRepeat className="h-4 w-4" />
+                  <span className={`group/act flex items-center gap-1.5 rounded-full px-1.5 py-1 cursor-default transition-colors hover:bg-cyan-500/10 hover:text-cyan-500 ${item.hasReposted ? 'text-cyan-500' : ''} ${!currentUser ? 'opacity-60' : ''}`}>
+                    <FiRepeat className="h-4 w-4 transition-transform duration-200 group-hover/act:scale-110" />
                     {localRepostCount}
                   </span>
                 </TooltipTrigger>
@@ -3011,7 +3011,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               {(localViewCount > 0 || (item.uniqueViewCount !== undefined && item.uniqueViewCount > 0)) && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="flex items-center gap-1 cursor-default">
+                    <span className="flex items-center gap-1.5 rounded-full px-1.5 py-1 cursor-default transition-colors hover:bg-muted/60">
                       <FiEye className="h-4 w-4" />
                       {Math.max(localViewCount, item.uniqueViewCount || 0)}
                     </span>

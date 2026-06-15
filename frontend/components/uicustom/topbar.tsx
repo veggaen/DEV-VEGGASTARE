@@ -521,9 +521,8 @@ const MyTopBar = () => {
 			/>
 			<motion.header
 				ref={headerRef}
-				className="sticky top-0 z-60 w-full overflow-hidden transition-[max-height] duration-200 ease-out"
+				className="sticky top-0 z-60 w-full"
 				style={{
-					maxHeight: collapseForProducts ? 0 : measuredHeaderHeight,
 					pointerEvents: collapseForProducts ? "none" : "auto",
 				}}
 				initial={false}
@@ -548,8 +547,8 @@ const MyTopBar = () => {
 							}
 					}
 					transition={morphTransition}
-					style={{ transformOrigin: "50% 0%", willChange: "padding, border-radius" }}
-					className="relative w-full overflow-hidden"
+					style={{ transformOrigin: "50% 0%", willChange: "padding, border-radius", maxHeight: collapseForProducts ? 0 : measuredHeaderHeight }}
+					className="relative w-full overflow-hidden transition-[max-height] duration-200 ease-out"
 				>
 					{/* Center-out background reveal (prevents the sudden square flash) */}
 					<motion.div
