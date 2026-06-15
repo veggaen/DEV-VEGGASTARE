@@ -1,5 +1,0 @@
-# Exclude build artifacts that cause Vercel artifact collection issues
-.next/package.json
-.next/trace
-
-
