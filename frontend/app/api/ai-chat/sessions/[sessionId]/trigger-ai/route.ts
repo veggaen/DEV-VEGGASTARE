@@ -23,7 +23,7 @@ export async function POST(
 ) {
   const { sessionId } = await params;
   const session = await MyLibUserAuth();
-  if (!session) {
+  if (!session?.id) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 

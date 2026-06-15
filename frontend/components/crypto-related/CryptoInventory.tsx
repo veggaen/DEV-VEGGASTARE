@@ -5,6 +5,7 @@ import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { useAccount, useChainId, useChains, useSwitchChain } from "wagmi";
 import { formatUnits } from "viem";
 import { useTokenBalances, type InventoryToken } from "@/hooks/use-token-balances";
+import { TokenIcon } from "@/components/ui/token-icon";
 import { toast } from "sonner";
 import { FiChevronDown, FiRefreshCw, FiCopy, FiScissors, FiLayers, FiSend, FiRepeat, FiPackage, FiSearch, FiTarget } from "react-icons/fi";
 
@@ -403,7 +404,7 @@ export function CryptoInventory({
           {filteredSlots.length} token{filteredSlots.length !== 1 ? "s" : ""} · {activeChain?.name ?? `Chain ${chainId}`}
         </span>
         {address && (
-          <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 truncate max-w-[100px]">
+          <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 truncate max-w-25">
             {address.slice(0, 6)}…{address.slice(-4)}
           </span>
         )}
@@ -506,23 +507,13 @@ function InventorySlotCard({
       >
         {/* Token Icon */}
         <div className="relative w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center">
-          {slot.token.logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={slot.token.logo}
-              alt={slot.token.symbol}
-              className="w-full h-full rounded-full object-contain"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-            />
-          ) : (
-            <div className="w-full h-full rounded-full bg-linear-to-br from-zinc-300 to-zinc-500 dark:from-zinc-600 dark:to-zinc-800 flex items-center justify-center">
-              <span className="text-[10px] font-bold text-white">
-                {slot.token.symbol.slice(0, 2)}
-              </span>
-            </div>
-          )}
+          <TokenIcon
+            address={slot.token.address}
+            chainId={slot.token.chainId}
+            symbol={slot.token.symbol}
+            logo={slot.token.logo}
+            size={32}
+          />
         </div>
 
         {/* Stack Size (BROWSERGAME-style top-left overlay) */}
@@ -611,7 +602,7 @@ function InventoryContextMenu({
       style={{ left: x, top: y }}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden min-w-40">
         {/* Header */}
         {slot && (
           <div className="px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
@@ -789,20 +780,13 @@ function FloatingGhostItem({
       <div className="relative w-14 h-14 rounded-xl border-2 border-emerald-500 bg-emerald-500/10 backdrop-blur-md flex flex-col items-center justify-center shadow-2xl shadow-emerald-500/30">
         {/* Token icon */}
         <div className="w-5 h-5 flex items-center justify-center">
-          {item.token.logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={item.token.logo}
-              alt={item.token.symbol}
-              className="w-full h-full rounded-full object-contain"
-            />
-          ) : (
-            <div className="w-full h-full rounded-full bg-linear-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
-              <span className="text-[7px] font-bold text-white">
-                {item.token.symbol.slice(0, 2)}
-              </span>
-            </div>
-          )}
+          <TokenIcon
+            address={item.token.address}
+            chainId={item.token.chainId}
+            symbol={item.token.symbol}
+            logo={item.token.logo}
+            size={20}
+          />
         </div>
         <span className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
           {item.amount}

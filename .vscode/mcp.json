@@ -1,0 +1,23 @@
+{
+  "servers": {
+    "next-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "next-devtools-mcp@latest"],
+      "cwd": "${workspaceFolder}/frontend"
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"],
+      "cwd": "${workspaceFolder}/frontend"
+    },
+    "playwright-test": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["playwright", "run-test-mcp-server"],
+      "cwd": "${workspaceFolder}/frontend"
+    }
+  },
+  "inputs": []
+}

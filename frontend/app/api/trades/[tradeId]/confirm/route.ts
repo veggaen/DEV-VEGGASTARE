@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { dbPrisma as db } from "@/lib/db";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import {
@@ -14,6 +15,16 @@ import {
   rateLimitedResponse,
   rateLimitHeaders,
 } from "@/lib/rate-limit";
+import { createP2PTradeRecords } from "@/lib/trade-record";
+
+const confirmSchema = z.object({
+  /** Wallet signature proving intent */
+  signature: z.string().min(1).optional(),
+  /** Connected wallet address */
+  walletAddress: z.string().min(1).optional(),
+  /** On-chain transaction hashes for transferred items */
+  txHashes: z.array(z.string().min(1)).optional(),
+});
 
 type RouteParams = { params: Promise<{ tradeId: string }> };
 
@@ -27,7 +38,15 @@ export async function POST(req: NextRequest, ctx: RouteParams) {
   const { tradeId } = await ctx.params;
 
   try {
-    const trade = await db.trade.findUnique({ where: { id: tradeId } });
+    const body = confirmSchema.safeParse(await req.json().catch(() => ({})));
+    if (!body.success) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    }
+
+    const trade = await db.trade.findUnique({
+      where: { id: tradeId },
+      include: { Items: true },
+    });
 
     if (!trade) {
       return NextResponse.json({ error: "Trade not found" }, { status: 404 });
@@ -41,10 +60,23 @@ export async function POST(req: NextRequest, ctx: RouteParams) {
         { status: 400 }
       );
     }
+    if (trade.expiresAt.getTime() < Date.now()) {
+      await db.trade.update({
+        where: { id: tradeId },
+        data: {
+          status: 'EXPIRED',
+          cancelledAt: new Date(),
+          cancelReason: 'Trade session expired',
+        },
+      });
+      return NextResponse.json({ error: 'Trade expired' }, { status: 410 });
+    }
+
+    const existingMeta = (trade.metadata as Record<string, unknown>) ?? {};
 
     // Use metadata to track who has confirmed phase 2
-    const confirmedBy: string[] = Array.isArray((trade.metadata as Record<string, unknown>)?.confirmedBy)
-      ? ((trade.metadata as Record<string, unknown>).confirmedBy as string[])
+    const confirmedBy: string[] = Array.isArray(existingMeta.confirmedBy)
+      ? (existingMeta.confirmedBy as string[])
       : [];
 
     if (confirmedBy.includes(me.id)) {
@@ -54,6 +86,20 @@ export async function POST(req: NextRequest, ctx: RouteParams) {
     confirmedBy.push(me.id);
     const bothConfirmed = confirmedBy.length >= 2;
 
+    // Store this user's tx hashes + signature in metadata
+    const isInitiator = trade.initiatorId === me.id;
+    const txKey = isInitiator ? "initiatorTxHashes" : "responderTxHashes";
+    const sigKey = isInitiator ? "initiatorSignature" : "responderSignature";
+    const newMeta = {
+      ...existingMeta,
+      confirmedBy,
+      ...(body.data.txHashes?.length ? { [txKey]: body.data.txHashes } : {}),
+      ...(body.data.signature ? { [sigKey]: body.data.signature } : {}),
+      ...(body.data.walletAddress
+        ? { [isInitiator ? "initiatorWallet" : "responderWallet"]: body.data.walletAddress }
+        : {}),
+    };
+
     if (bothConfirmed) {
       // ── Trade Complete ──
       await db.trade.update({
@@ -61,7 +107,7 @@ export async function POST(req: NextRequest, ctx: RouteParams) {
         data: {
           status: "COMPLETED",
           completedAt: new Date(),
-          metadata: { confirmedBy },
+          metadata: newMeta,
         },
       });
 
@@ -77,6 +123,37 @@ export async function POST(req: NextRequest, ctx: RouteParams) {
         })),
       });
 
+      // ── Create TradeRecords for both parties (fire-and-forget) ──
+      const initiatorItems = trade.Items.filter((i) => i.side === "INITIATOR").map((i) => ({
+        tokenSymbol: i.tokenSymbol,
+        tokenAddress: i.tokenAddress,
+        amount: i.amount,
+        displayAmount: i.displayAmount,
+        tokenDecimals: i.tokenDecimals,
+        chainId: i.chainId,
+      }));
+      const responderItems = trade.Items.filter((i) => i.side === "RESPONDER").map((i) => ({
+        tokenSymbol: i.tokenSymbol,
+        tokenAddress: i.tokenAddress,
+        amount: i.amount,
+        displayAmount: i.displayAmount,
+        tokenDecimals: i.tokenDecimals,
+        chainId: i.chainId,
+      }));
+
+      createP2PTradeRecords({
+        trade: {
+          id: tradeId,
+          initiatorId: trade.initiatorId,
+          responderId: trade.responderId,
+          chainId: trade.chainId,
+          environment: trade.environment,
+          metadata: newMeta,
+        },
+        initiatorItems,
+        responderItems,
+      }).catch((err) => console.error("[TRADE_CONFIRM] Failed to create TradeRecords:", err));
+
       return NextResponse.json(
         { ok: true, status: "COMPLETED" },
         { headers: rateLimitHeaders(rl) }
@@ -85,9 +162,7 @@ export async function POST(req: NextRequest, ctx: RouteParams) {
       // First confirmation — waiting on partner
       await db.trade.update({
         where: { id: tradeId },
-        data: {
-          metadata: { confirmedBy },
-        },
+        data: { metadata: newMeta },
       });
 
       return NextResponse.json(

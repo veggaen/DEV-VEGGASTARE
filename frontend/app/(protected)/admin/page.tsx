@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import { 
   FiUsers, FiBriefcase, FiActivity, FiSettings, FiShield,
   FiMessageSquare, FiAlertTriangle, FiArrowRight, FiCpu,
-  FiBarChart2, FiPackage, FiZap, FiClock, FiCheckCircle, FiCreditCard
+  FiBarChart2, FiPackage, FiZap, FiClock, FiCheckCircle, FiCreditCard, FiGithub
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 
@@ -86,6 +86,14 @@ const adminSections = [
     icon: FiCreditCard,
     href: "/admin/ai-credits",
     color: "blue",
+    allowedRoles: ["OWNER", "ADMIN"],
+  },
+  {
+    title: "Repo Access Ops",
+    description: "Inspect and retry GitHub repo access grants by order",
+    icon: FiGithub,
+    href: "/admin/repo-access",
+    color: "purple",
     allowedRoles: ["OWNER", "ADMIN"],
   },
   {

@@ -67,7 +67,7 @@ export async function ensureUser(session: ExtendedUser): Promise<EnsureUserResul
         image,
         // Set sensible defaults
         role: 'USER',
-        web3ModeEnabled: false,
+        web3ModeEnabled: true,
         isTwoFactorEnabled: false,
         verificationScore: 0,
         verificationTier: 'ANONYMOUS',

@@ -43,6 +43,10 @@ export default async function CompanyPublicPage({
           price: true,
           image: true,
           category: true,
+          viewCount: true,
+          Review: {
+            select: { rating: true },
+          },
         },
       },
       orgVerification: {
@@ -64,13 +68,15 @@ export default async function CompanyPublicPage({
     company.Employee.some(e => e.userId === userId)
   );
 
-  // Calculate company reach stats
-  // Note: viewCount and rating are not currently on Product model - would need to be added
-  const totalProductViews = 0; // Placeholder until Product.viewCount is added
-  const averageRating = 0; // Placeholder until Product.rating is added
+  // Calculate company reach stats from real product data
+  const totalProductViews = company.Product.reduce((sum, p) => sum + p.viewCount, 0);
+  const allRatings = company.Product.flatMap(p => p.Review.map(r => r.rating));
+  const averageRating = allRatings.length > 0
+    ? allRatings.reduce((sum, r) => sum + r, 0) / allRatings.length
+    : 0;
 
-  // For unique visitors, we'd need to track this separately - using estimate for now
-  const uniqueVisitors = Math.floor(totalProductViews * 0.7); // Estimate: 70% unique
+  // Unique visitors estimate (70% of total views)
+  const uniqueVisitors = Math.floor(totalProductViews * 0.7);
 
   return (
     <BannerThemeWrapper bannerUrl={banner} className="w-full">

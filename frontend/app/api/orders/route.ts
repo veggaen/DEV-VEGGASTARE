@@ -9,6 +9,7 @@ import { OrderDtoSchema } from '@/lib/types/orders';
 import { sendOrderConfirmationEmail, sendSellerOrderNotification, sendWarehouseOrderNotification } from '@/lib/mail';
 import { generateDownloadTokensForOrder } from '@/lib/download-tokens';
 import { recalculateVerificationTier } from '@/lib/verification-recalc';
+import { grantRepoAccessForOrder } from '@/lib/github-repo-access';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -116,10 +117,13 @@ export async function POST(req: Request) {
     }
   }
 
-  // Determine initial status: crypto payments start as CONFIRMING, fiat as COMPLETED
+  // Determine initial status:
+  //   - crypto payments → CONFIRMING (finalized by /api/orders/confirm after on-chain verification)
+  //   - fiat (PayPal/Vipps/Klarna) → PENDING (finalized by capture endpoint or webhook)
   const isCryptoPayment = !!chainFamily || method === PaymentMethod.CRYPTO_NATIVE;
-  const initialOrderStatus = isCryptoPayment ? 'CONFIRMING' : 'COMPLETED';
-  const initialPaymentStatus = isCryptoPayment ? 'CONFIRMING' : 'COMPLETED';
+  const isFiatProvider = method === PaymentMethod.PAYPAL || method === PaymentMethod.VIPPS || method === PaymentMethod.KLARNA;
+  const initialOrderStatus = isCryptoPayment ? 'CONFIRMING' : (isFiatProvider ? 'PENDING' : 'COMPLETED');
+  const initialPaymentStatus = isCryptoPayment ? 'CONFIRMING' : (isFiatProvider ? 'PENDING' : 'COMPLETED');
 
   try {
     // ── Atomic order creation + stock reservation ──
@@ -214,8 +218,9 @@ export async function POST(req: Request) {
     }>;
 
     // Set payment verification flag and recalculate tier
-    // Fiat orders are COMPLETED immediately; crypto orders are CONFIRMING (handled in /confirm)
-    if (!isCryptoPayment) {
+    // Fiat provider orders are PENDING → completed later by capture endpoint / webhook
+    // Only run post-creation side effects for immediately-completed orders
+    if (!isCryptoPayment && !isFiatProvider) {
       try {
         await dbPrisma.user.update({
           where: { id: userId },
@@ -228,8 +233,9 @@ export async function POST(req: Request) {
     }
 
     // Generate download tokens for digital products
+    // (Skip for fiat providers — handled in completeFiatOrder after capture)
     let downloadTokens: Awaited<ReturnType<typeof generateDownloadTokensForOrder>> = [];
-    if (items && items.length > 0) {
+    if (!isFiatProvider && items && items.length > 0) {
       try {
         const orderItemsWithIds = order.OrderItem.map((oi, idx) => ({
           id: oi.id,
@@ -267,8 +273,9 @@ export async function POST(req: Request) {
     }
 
     // Send order confirmation email
+    // (Skip for fiat providers — emails sent after capture in completeFiatOrder)
     const emailTo = shippingEmail || session.email;
-    if (emailTo) {
+    if (!isFiatProvider && emailTo) {
       try {
         await sendOrderConfirmationEmail(emailTo, {
           orderId: order.id,
@@ -291,7 +298,8 @@ export async function POST(req: Request) {
     }
 
     // ── Notify sellers + warehouse employees (non-blocking, fire-and-forget) ──
-    if (items && items.length > 0) {
+    // (Skip for fiat providers — handled after capture in completeFiatOrder)
+    if (!isFiatProvider && items && items.length > 0) {
       (async () => {
         try {
           // Fetch products with their owners, companies, and warehouse info
@@ -406,27 +414,46 @@ export async function POST(req: Request) {
       })();
     }
 
+    // In-app notification
     try {
+      const notifTitle = isCryptoPayment
+        ? 'Order pending confirmation'
+        : isFiatProvider
+          ? 'Order placed — payment pending'
+          : 'Order confirmed';
+      const notifMessage = isCryptoPayment
+        ? `Order ${order.id.slice(0, 8)} is waiting for blockchain confirmation.`
+        : isFiatProvider
+          ? `Order ${order.id.slice(0, 8)} is waiting for payment confirmation.`
+          : `Order ${order.id.slice(0, 8)} is confirmed and ready for fulfilment updates.`;
+
       await dbPrisma.notification.create({
         data: {
           userId,
           type: 'SYSTEM',
-          title: isCryptoPayment ? 'Order pending confirmation' : 'Order confirmed',
-          message: isCryptoPayment
-            ? `Order ${order.id.slice(0, 8)} is waiting for blockchain confirmation.`
-            : `Order ${order.id.slice(0, 8)} is confirmed and ready for fulfilment updates.`,
+          title: notifTitle,
+          message: notifMessage,
           preview: `Order #${order.id.slice(0, 8)} • ${items?.length ?? 0} item(s) • ${totalAmount}`,
           metadata: {
             orderId: order.id,
             orderStatus: order.status,
             paymentStatus: order.Payment?.status ?? null,
             isCryptoPayment,
+            isFiatProvider,
           },
         },
       });
     } catch (notificationError) {
       console.error('[api/orders] Failed to create order notification:', notificationError);
-      // Non-blocking: keep order successful even if notification write fails.
+    }
+
+    // Repo access: only for immediately completed orders (fiat handled in completeFiatOrder)
+    if (!isCryptoPayment && !isFiatProvider) {
+      try {
+        await grantRepoAccessForOrder(order.id, 'orders.post');
+      } catch (repoAccessError) {
+        console.error('[api/orders] Repo access grant failed:', repoAccessError);
+      }
     }
 
     const payment = order.Payment

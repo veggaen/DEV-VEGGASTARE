@@ -6,6 +6,7 @@ import {
   UserProfileGetResponseSchema,
   UserProfilePatchResponseSchema,
 } from '@/lib/types/users';
+import { resolveVisibleEmail } from '@/lib/email-visibility';
 import { z } from 'zod';
 
 const UserProfilePatchInputSchema = z.object({
@@ -65,6 +66,7 @@ export async function GET(
         id: true,
         name: true,
         email: true,
+        emailDisplayMode: true,
         image: true,
         banner: true,
         bio: true,
@@ -141,8 +143,16 @@ export async function GET(
       velocity * 0.10
     );
 
+    const visibleEmail = resolveVisibleEmail({
+      targetUserId: user.id,
+      targetEmail: user.email,
+      targetEmailDisplayMode: user.emailDisplayMode,
+      viewerUserId: session.id,
+      viewerRole: session.role,
+    });
+
     // Generate username from email or name
-    const username = user.email?.split('@')[0] 
+    const username = visibleEmail?.split('@')[0]
       || user.name?.toLowerCase().replace(/\s+/g, '') 
       || user.id.slice(0, 8);
 
@@ -151,7 +161,7 @@ export async function GET(
       id: user.id,
       name: user.name,
       username,
-      ...(isOwnProfile || isAdmin ? { email: user.email } : {}),
+      ...(visibleEmail ? { email: visibleEmail } : {}),
       image: user.image,
       banner: user.banner,
       bio: user.bio,

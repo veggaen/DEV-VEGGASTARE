@@ -2,6 +2,7 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { UserSuggestionsResponseSchema } from '@/lib/types/users';
+import { resolveVisibleEmail } from '@/lib/email-visibility';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
       id: string;
       name: string | null;
       email: string | null;
+      emailDisplayMode?: 'PRIMARY' | 'HIDE' | null;
       image: string | null;
       bio: string | null;
       reason: string;
@@ -58,7 +60,7 @@ export async function GET(request: NextRequest) {
     if (recentUserIds.size > 0) {
       const recentUsers = await dbPrisma.user.findMany({
         where: { id: { in: Array.from(recentUserIds) } },
-        select: { id: true, name: true, email: true, image: true, bio: true },
+        select: { id: true, name: true, email: true, emailDisplayMode: true, image: true, bio: true },
         take: 5,
       });
       for (const user of recentUsers) {
@@ -87,7 +89,7 @@ export async function GET(request: NextRequest) {
     if (friendIds.length > 0) {
       const friends = await dbPrisma.user.findMany({
         where: { id: { in: friendIds } },
-        select: { id: true, name: true, email: true, image: true, bio: true },
+        select: { id: true, name: true, email: true, emailDisplayMode: true, image: true, bio: true },
       });
       for (const user of friends) {
         if (!addedIds.has(user.id)) {
@@ -102,7 +104,7 @@ export async function GET(request: NextRequest) {
       where: { followerId: session.id },
       include: {
         following: {
-          select: { id: true, name: true, email: true, image: true, bio: true },
+          select: { id: true, name: true, email: true, emailDisplayMode: true, image: true, bio: true },
         },
       },
       take: 10,
@@ -129,7 +131,7 @@ export async function GET(request: NextRequest) {
         },
         include: {
           User: {
-            select: { id: true, name: true, email: true, image: true, bio: true },
+            select: { id: true, name: true, email: true, emailDisplayMode: true, image: true, bio: true },
           },
         },
         take: 10,
@@ -171,7 +173,19 @@ export async function GET(request: NextRequest) {
     const followingSet = new Set(followingStatus.map(f => f.followingId));
 
     const enrichedSuggestions = sortedSuggestions.map(s => ({
-      ...s,
+      id: s.id,
+      name: s.name,
+      email: resolveVisibleEmail({
+        targetUserId: s.id,
+        targetEmail: s.email,
+        targetEmailDisplayMode: s.emailDisplayMode,
+        viewerUserId: session.id,
+        viewerRole: session.role,
+      }),
+      image: s.image,
+      bio: s.bio,
+      reason: s.reason,
+      priority: s.priority,
       followerCount: countMap.get(s.id) || 0,
       isFollowing: followingSet.has(s.id),
     }));

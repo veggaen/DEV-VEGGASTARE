@@ -16,6 +16,7 @@ import ProgressBar from '@/components/bars/progress-bar';
 import EditEmployeePermissionsModal from '@/components/uicustom/company/edit-employee-permission';
 import { FaBriefcase } from 'react-icons/fa';
 import BannerThemeWrapper from '@/components/uicustom/banner/BannerThemeWrapper';
+import { CompanyPaymentSettings } from '@/components/uicustom/settings/company-payment-settings';
 import type { CompanyDetailsResponse } from '@/lib/types/company';
 
 export interface TagReplacement {
@@ -471,6 +472,21 @@ const CompanySettingsClient = () => {
                                     </div>
                                 )}
                             </div>
+                            {/* ─── Payment Setup (owner only) ─── */}
+                            {isOwner && (
+                                <div className="mb-8">
+                                    <CompanyPaymentSettings
+                                        companyId={company.id}
+                                        wallets={(company as any).wallets?.map((w: any) => ({
+                                            id: w.id,
+                                            label: w.label,
+                                            address: w.address,
+                                            isDefault: w.isDefault,
+                                            verifiedAt: w.verifiedAt ?? null,
+                                        })) ?? []}
+                                    />
+                                </div>
+                            )}
                             {hasInternalAccess && company.usesShipping && company.warehouseLocations && company.warehouseLocations.length > 0 && (
                                 <div className="border-t border-gray-200 dark:border-gray-700 mt-2">
                             <div className='flex justify-start items-center w-full h-10'>

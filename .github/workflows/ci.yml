@@ -43,6 +43,17 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+    # Stub env required by prisma generate postinstall during npm ci
+    env:
+      DATABASE_URL_MAINLIVE: "postgresql://stub:stub@localhost:5432/stub"
+      AUTH_SECRET: "ci-build-stub-secret-not-real"
+      AUTH_URL: "http://localhost:3000"
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      EDGE_STORE_ACCESS_KEY: "stub"
+      EDGE_STORE_SECRET_KEY: "stub"
+      NEXT_PUBLIC_PUSHER_KEY: "stub"
+      NEXT_PUBLIC_PUSHER_CLUSTER: "eu"
+      RESEND_API_KEY: "re_stub"
 
     steps:
       - uses: actions/checkout@v6
@@ -75,6 +86,10 @@ jobs:
 
       - run: npm ci
 
+      # Security: check for known vulnerabilities in dependencies (OWASP SCA)
+      - name: npm audit (security check)
+        run: npm audit --omit=dev --audit-level=high || true
+
       # Prisma: generate client + validate schema
       - run: npx prisma generate
       - run: npx prisma validate
@@ -94,16 +109,6 @@ jobs:
       # Next.js production build (includes TypeScript checking via ignoreBuildErrors: false)
       # No separate tsc --noEmit needed — Next.js build already type-checks
       - name: Build Next.js
-        env:
-          DATABASE_URL_MAINLIVE: "postgresql://stub:stub@localhost:5432/stub"
-          AUTH_SECRET: "ci-build-stub-secret-not-real"
-          AUTH_URL: "http://localhost:3000"
-          NEXT_PUBLIC_APP_URL: "http://localhost:3000"
-          EDGE_STORE_ACCESS_KEY: "stub"
-          EDGE_STORE_SECRET_KEY: "stub"
-          NEXT_PUBLIC_PUSHER_KEY: "stub"
-          NEXT_PUBLIC_PUSHER_CLUSTER: "eu"
-          RESEND_API_KEY: "re_stub"
         run: npm run build
 
   # ─── Frontend lint (parallel) ──────────────────────────────
@@ -115,6 +120,8 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+    env:
+      DATABASE_URL_MAINLIVE: "postgresql://stub:stub@localhost:5432/stub"
 
     steps:
       - uses: actions/checkout@v6
@@ -128,6 +135,10 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npm run lint
+
+      # Security: check for known vulnerabilities in dependencies (OWASP SCA)
+      - name: npm audit (security check)
+        run: npm audit --omit=dev --audit-level=high || true
 
   # ─── Backend checks ────────────────────────────────────────
   backend:
@@ -160,6 +171,10 @@ jobs:
           restore-keys: prisma-backend-${{ runner.os }}-
 
       - run: npm ci
+
+      # Security: check for known vulnerabilities in dependencies (OWASP SCA)
+      - name: npm audit (security check)
+        run: npm audit --omit=dev --audit-level=high || true
 
       # Prisma: generate client + validate schema
       - run: npx prisma generate

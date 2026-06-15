@@ -29,6 +29,9 @@ import { saveFormState, loadFormState, clearFormState, hasPendingFormData } from
 import { CategoryTagInput } from '../../category-tag-input';
 import { AddressInput, type AddressData } from '../../../uicustom/address-input';
 import { CryptoTokenSelector, type AcceptedTokenEntry } from './crypto-token-selector';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('ProductForm');
 
 // Form persistence key
 const FORM_STORAGE_KEY = 'product-create';
@@ -58,6 +61,36 @@ const FIAT_CURRENCY_META: Record<FiatCurrencyType, { label: string; prefix: stri
 
 const SHIPPING_SPEC_KEYS = ['Weight (g)', 'Height (cm)', 'Length (cm)', 'Width (cm)'];
 const GENERAL_SPEC_KEYS = ['Custom', 'Material', 'Color', 'Size', 'Brand', 'Model', 'Country of Origin', 'Warranty', 'Certification'];
+const REPO_ACCESS_SPEC_KEY = '__repo_access';
+
+type RepoAccessMode = 'COLLABORATOR' | 'TEAM';
+type RepoAccessPermission = 'pull' | 'push' | 'maintain' | 'admin';
+
+type RepoAccessDraft = {
+  owner: string;
+  repo: string;
+  mode: RepoAccessMode;
+  permission: RepoAccessPermission;
+  org: string;
+  teamSlug: string;
+  defaultBranch: string;
+  previewBranch: string;
+  devBranch: string;
+  notes: string;
+};
+
+const DEFAULT_REPO_ACCESS_DRAFT: RepoAccessDraft = {
+  owner: '',
+  repo: '',
+  mode: 'COLLABORATOR',
+  permission: 'pull',
+  org: '',
+  teamSlug: '',
+  defaultBranch: '',
+  previewBranch: '',
+  devBranch: '',
+  notes: '',
+};
 
 interface PostalCodeDetails {
   postal_code: string;
@@ -100,7 +133,8 @@ interface Feature {
   icon?: string;  // Reserved for future icon support
 }
 
-const MyLogPrefix = '[frontend/components/uicustom/forms/product-form.tsx]';
+// Legacy prefix kept for backward compat — prefer `log.*` calls
+const MyLogPrefix = '[ProductForm]';
 
 export const MyProductCreationForm = () => {
   // Router for login redirect
@@ -123,6 +157,17 @@ export const MyProductCreationForm = () => {
   
   // Crypto accepted tokens state
   const [acceptedTokens, setAcceptedTokens] = useState<AcceptedTokenEntry[]>([]);
+  const [hasVerifiedWallet, setHasVerifiedWallet] = useState<boolean | null>(null); // null = not checked yet
+  const [showWalletWarning, setShowWalletWarning] = useState(false);
+  
+  // Seller payment setup state (receiving wallet picker + PayPal status)
+  const [sellerWallets, setSellerWallets] = useState<Array<{ id: string; label: string; address: string; verifiedAt: string | null }>>([]);
+  const [sellerPaypalEmail, setSellerPaypalEmail] = useState<string | null>(null);
+  const [sellerPaypalVerified, setSellerPaypalVerified] = useState(false);
+  const [selectedReceiverWalletId, setSelectedReceiverWalletId] = useState<string | null>(null);
+  
+  const [repoAccessEnabled, setRepoAccessEnabled] = useState(false);
+  const [repoAccessDraft, setRepoAccessDraft] = useState<RepoAccessDraft>(DEFAULT_REPO_ACCESS_DRAFT);
   
   // Form restoration state
   const [hasRestoredForm, setHasRestoredForm] = useState(false);
@@ -237,6 +282,69 @@ export const MyProductCreationForm = () => {
     form.setValue('userId', clientUser.id, { shouldValidate: true, shouldDirty: false, shouldTouch: false });
   }, [clientUser?.id, form]);
 
+  // Check for verified wallet when user enables crypto tokens
+  useEffect(() => {
+    if (acceptedTokens.length === 0 || !clientUser?.id) {
+      setShowWalletWarning(false);
+      return;
+    }
+    // Only check once per session
+    if (hasVerifiedWallet !== null) {
+      setShowWalletWarning(!hasVerifiedWallet);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/wallets/evm');
+        if (!res.ok) {
+          if (!cancelled) { setHasVerifiedWallet(false); setShowWalletWarning(true); }
+          return;
+        }
+        const data = await res.json();
+        const wallets = Array.isArray(data?.wallets) ? data.wallets : [];
+        const hasVerified = wallets.some((w: { verified?: boolean }) => w.verified);
+        if (!cancelled) {
+          setHasVerifiedWallet(hasVerified);
+          setShowWalletWarning(!hasVerified);
+        }
+      } catch {
+        if (!cancelled) { setHasVerifiedWallet(false); setShowWalletWarning(true); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [acceptedTokens.length, clientUser?.id, hasVerifiedWallet]);
+
+  // ── Fetch seller payment info (wallets + PayPal status) ─────────────────
+  useEffect(() => {
+    if (!clientUser?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        // Fetch wallets
+        const wRes = await fetch('/api/wallets/evm');
+        if (wRes.ok) {
+          const wData = await wRes.json();
+          const all = Array.isArray(wData?.wallets) ? wData.wallets : [];
+          if (!cancelled) setSellerWallets(all.filter((w: any) => w.verifiedAt));
+        }
+        // Fetch PayPal status via server action (import is already available)
+        const { getSellerPaymentStatus } = await import('@/actions/seller-payment');
+        const pRes = await getSellerPaymentStatus({ target: 'user' });
+        if (!cancelled && 'data' in pRes) {
+          setSellerPaypalEmail(pRes.data.paypalEmail);
+          setSellerPaypalVerified(pRes.data.paypalEmailVerified);
+          // Default to user's default receiving wallet if set
+          if (pRes.data.defaultReceivingWalletId && !selectedReceiverWalletId) {
+            setSelectedReceiverWalletId(pRes.data.defaultReceivingWalletId);
+          }
+        }
+      } catch { /* silently fail */ }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientUser?.id]);
+
   useEffect(() => {
     if (!hasCompanyPrefillFromQuery || !prefilledCompanyId) return;
 
@@ -280,7 +388,7 @@ export const MyProductCreationForm = () => {
         setCanManageCompanyWarehouse(Boolean(canManageWarehouse));
       } catch (error) {
         if (cancelled) return;
-        console.error('[product-form] Failed loading company-hub context', error);
+        log.error('Failed loading company-hub context', error);
         setWarehouseLocationError('Could not load company context from hub. Please reselect company manually.');
       } finally {
         if (!cancelled) {
@@ -345,7 +453,7 @@ export const MyProductCreationForm = () => {
       return;
     }
 
-    console.log(`${MyLogPrefix} Restoring saved form state`);
+    log.info('Restoring saved form state');
     
     // Restore form values
     Object.entries(savedState).forEach(([key, value]) => {
@@ -418,7 +526,7 @@ export const MyProductCreationForm = () => {
       const combinedPostalCodes = pagesData.flatMap(data => data.postal_codes);
       setSuggestions(combinedPostalCodes);
     } catch (error) {
-      console.error('Error fetching postal code suggestions:', error);
+      log.error('Postal code suggestions fetch failed', error);
       setSuggestions([]);
     } finally {
       setIsLoading(false);
@@ -501,7 +609,7 @@ export const MyProductCreationForm = () => {
 				});
         uploadedUrls.push(uploadResult.url);
       } catch (error) {
-        console.error('Upload error', error);
+        log.error('Image upload failed', error);
 				setIsUploadingImages(false);
         throw error;
       }
@@ -553,7 +661,7 @@ export const MyProductCreationForm = () => {
       setIsUploadingDigitalFile(false);
       return assetData.id;
     } catch (error) {
-      console.error('Digital file upload error:', error);
+      log.error('Digital file upload failed', error);
       setIsUploadingDigitalFile(false);
       throw error;
     }
@@ -596,9 +704,10 @@ export const MyProductCreationForm = () => {
       'application/json': [],
       'audio/*': [],
       'video/*': [],
-      'font/*': [],
-      'application/font-woff': [],
-      'application/font-woff2': [],
+      'font/ttf': ['.ttf'],
+      'font/otf': ['.otf'],
+      'font/woff': ['.woff'],
+      'font/woff2': ['.woff2'],
     },
     multiple: false,
     maxSize: 100 * 1024 * 1024, // 100MB
@@ -795,11 +904,44 @@ export const MyProductCreationForm = () => {
             : spec.value,
       };
     });
-  
-      if (specifications && specifications.length > 0) {
-        values.specifications = formattedSpecifications;
-      }
 
+      if (repoAccessEnabled) {
+        const owner = repoAccessDraft.owner.trim();
+        const repo = repoAccessDraft.repo.trim();
+        if (!owner || !repo) {
+          setError('GitHub repo access requires owner and repo.');
+          return;
+        }
+        if (repoAccessDraft.mode === 'TEAM' && !repoAccessDraft.teamSlug.trim()) {
+          setError('GitHub repo access in TEAM mode requires a team slug.');
+          return;
+        }
+
+        const repoAccessPayload: Record<string, string> = {
+          owner,
+          repo,
+          mode: repoAccessDraft.mode,
+          permission: repoAccessDraft.permission,
+        };
+
+        if (repoAccessDraft.org.trim()) repoAccessPayload.org = repoAccessDraft.org.trim();
+        if (repoAccessDraft.teamSlug.trim()) repoAccessPayload.teamSlug = repoAccessDraft.teamSlug.trim();
+        if (repoAccessDraft.defaultBranch.trim()) repoAccessPayload.defaultBranch = repoAccessDraft.defaultBranch.trim();
+        if (repoAccessDraft.previewBranch.trim()) repoAccessPayload.previewBranch = repoAccessDraft.previewBranch.trim();
+        if (repoAccessDraft.devBranch.trim()) repoAccessPayload.devBranch = repoAccessDraft.devBranch.trim();
+        if (repoAccessDraft.notes.trim()) repoAccessPayload.notes = repoAccessDraft.notes.trim();
+
+        const cleanedSpecs = formattedSpecifications.filter((spec) => spec.key !== REPO_ACCESS_SPEC_KEY);
+        cleanedSpecs.push({
+          key: REPO_ACCESS_SPEC_KEY,
+          value: JSON.stringify(repoAccessPayload),
+        });
+
+        values.specifications = cleanedSpecs;
+      } else if (formattedSpecifications && formattedSpecifications.length > 0) {
+        values.specifications = formattedSpecifications.filter((spec) => spec.key !== REPO_ACCESS_SPEC_KEY);
+      }
+  
       // Format features - filter out empty entries
       const formattedFeatures = features
         .filter(f => f.text.trim().length > 0)
@@ -815,6 +957,11 @@ export const MyProductCreationForm = () => {
       // Include accepted crypto tokens
       values.acceptedTokens = acceptedTokens;
 
+      // Include selected receiver wallet
+      if (selectedReceiverWalletId) {
+        values.receiverWalletId = selectedReceiverWalletId;
+      }
+
       const data = await MyCreateProductAction(values, finalPostalCodes);
       if ('error' in data) {
         setError(data.error);
@@ -826,7 +973,7 @@ export const MyProductCreationForm = () => {
         router.push(`/products/${data.productId}`);
       }
     } catch (e) {
-      console.error(MyLogPrefix, 'Create product failed:', e);
+      log.error('Create product failed', e);
       setError('Failed to create product.');
     } finally {
       setIsSubmitting(false);
@@ -884,6 +1031,8 @@ export const MyProductCreationForm = () => {
     setDigitalAssetId('');
     setMaxDownloads(5);
     setDownloadExpiryDays(null);
+    setRepoAccessEnabled(false);
+    setRepoAccessDraft(DEFAULT_REPO_ACCESS_DRAFT);
     // Reset form but preserve userId
     const currentUserId = clientUser?.id || '';
     form.reset();
@@ -932,7 +1081,7 @@ export const MyProductCreationForm = () => {
     setPrefilledCompanyContext(null);
 
     if (newIsCompanyProduct && !companiesFetched.current) {
-      console.log('Fetching companies...');
+      log.debug('Fetching companies');
       companiesFetched.current = true; // Set this to true to avoid re-fetching
     }
   };
@@ -945,12 +1094,12 @@ export const MyProductCreationForm = () => {
       setWarehouseLocationError(null);
       setIsCompanyProduct(false)
       companiesFetched.current = false;
-      console.log(`[FormManager] 'isCompanyProduct' has been removed and states has been reset.`)
+      log.debug('Company product mode toggled off — state reset');
     }
   }, [companyId, isCompanyProduct])
 
   const handleCompanySelect = useCallback(async (companyId: string) => {
-    console.log(`Selected company ID: ${companyId}`);
+    log.debug(`Selected company: ${companyId}`);
     setCompanyId(companyId);
 
     try {
@@ -980,7 +1129,7 @@ export const MyProductCreationForm = () => {
       }
       setWarehouseLocationError(companyDetails.warehouseLocations.length === 0 ? 'Selected company does not have warehouse locations. Physical and hybrid listings are disabled until a warehouse is added.' : null);
     } catch (error) {
-      console.error('Error fetching company details:', error);
+      log.error('Company details fetch failed', error);
       setWarehouseLocationError('Error fetching company details. Please enter the postal code manually.');
     }
   }, [clientUser?.id]);
@@ -1002,7 +1151,7 @@ export const MyProductCreationForm = () => {
     } else {
       setPostalCodes(postalCodes.filter(code => code !== selectedValue));
     }
-    console.log(`Selected postal codes: ${postalCodes}`);
+    log.debug(`Postal codes selected: ${postalCodes}`);
   };
 
   const handleSelectChange = (selectedValue: string) => {
@@ -1109,17 +1258,20 @@ export const MyProductCreationForm = () => {
   const missingItems = getMissingItems();
   const hasValidationIssues = missingItems.length > 0;
 
-  // Log form state for debugging (only in development)
+  // Throttled form-state debug log — only fires once per 5 s to avoid console spam
+  const lastFormLogRef = useRef(0);
   if (process.env.NODE_ENV === 'development') {
-    console.log('Form state:', {
-      isValid: form.formState.isValid,
-      isDirty: form.formState.isDirty,
-      errors: formErrors,
-      values: form.getValues(),
-      userId: form.getValues('userId'),
-      clientUserId: clientUser?.id,
-      missingItems,
-    });
+    const now = Date.now();
+    if (now - lastFormLogRef.current > 5000) {
+      lastFormLogRef.current = now;
+      log.debug('Form state', {
+        isValid: form.formState.isValid,
+        isDirty: form.formState.isDirty,
+        errorKeys: Object.keys(formErrors),
+        userId: form.getValues('userId') ? '✓' : '✗',
+        missing: missingItems.length,
+      });
+    }
   }
 
   // Only disable button during actual submission or image upload
@@ -1168,11 +1320,20 @@ export const MyProductCreationForm = () => {
           }
           // userId now set, continue with submission
         } else {
-          setError('Failed to load user data. Please refresh the page.');
-          return;
+          // Session may still be hydrating — wait briefly and retry once
+          await new Promise(r => setTimeout(r, 1000));
+          if (clientUser?.id) {
+            form.setValue('userId', clientUser.id, { shouldValidate: true });
+          } else {
+            setError('Failed to load user data. Please refresh the page.');
+            return;
+          }
         }
       }
     }
+
+    // Sync productType to form state so validation sees the correct value
+    form.setValue('productType', productType, { shouldValidate: false });
 
     // Check shipping specs for physical products
     if (needsShippingSpecs && !hasRequiredShippingSpecs) {
@@ -1540,6 +1701,65 @@ export const MyProductCreationForm = () => {
               </div>
             </div>
 
+            {/* ─── Seller Payment Status & Wallet Picker ─────────────────── */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Receiving Payment Methods</h4>
+              
+              {/* PayPal status indicator */}
+              <div className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
+                sellerPaypalEmail && sellerPaypalVerified
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                  : sellerPaypalEmail
+                    ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                    : 'border-zinc-200 dark:border-white/10 bg-muted/20 text-muted-foreground'
+              }`}>
+                <span className="shrink-0">{sellerPaypalEmail && sellerPaypalVerified ? '✅' : sellerPaypalEmail ? '⏳' : '—'}</span>
+                <span>
+                  <strong>PayPal:</strong>{' '}
+                  {sellerPaypalEmail
+                    ? sellerPaypalVerified
+                      ? `${sellerPaypalEmail} (verified)`
+                      : `${sellerPaypalEmail} (pending verification)`
+                    : 'Not configured'}
+                </span>
+                {!sellerPaypalEmail && (
+                  <a href="/settings?section=payments" target="_blank" rel="noopener noreferrer" className="ml-auto text-[10px] font-medium hover:underline">
+                    Set up →
+                  </a>
+                )}
+              </div>
+
+              {/* Receiver wallet picker */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">
+                  Receiving wallet for this product
+                  <span className="ml-1 text-muted-foreground font-normal">(optional override)</span>
+                </label>
+                {sellerWallets.length > 0 ? (
+                  <select
+                    value={selectedReceiverWalletId ?? ''}
+                    onChange={(e) => setSelectedReceiverWalletId(e.target.value || null)}
+                    disabled={isSubmitting}
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">Use default from settings</option>
+                    {sellerWallets.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.label} — {w.address.slice(0, 6)}…{w.address.slice(-4)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="text-xs text-muted-foreground">
+                    No verified wallets.{' '}
+                    <a href="/settings?section=wallet" target="_blank" rel="noopener noreferrer" className="text-emerald-600 dark:text-emerald-400 hover:underline">
+                      Connect a wallet
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Crypto Token Acceptance */}
             <div className="space-y-2">
               <CryptoTokenSelector
@@ -1547,10 +1767,202 @@ export const MyProductCreationForm = () => {
                 onChange={setAcceptedTokens}
                 disabled={isSubmitting}
               />
+              {/* Wallet verification warning — shown inline so user doesn't lose form state */}
+              {showWalletWarning && acceptedTokens.length > 0 && (
+                <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+                  <span className="text-amber-500 shrink-0 mt-0.5">⚠️</span>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                      No verified wallet address found
+                    </p>
+                    <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80 leading-relaxed">
+                      Cryptocurrency transactions are <strong>irreversible</strong>. You need a verified wallet address to receive crypto payments.
+                      Connect and verify a wallet in your account settings first.
+                    </p>
+                    <a
+                      href="/settings?section=wallet"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:underline"
+                    >
+                      Open Wallet Settings ↗
+                    </a>
+                  </div>
+                </div>
+              )}
               <div className="text-xs text-muted-foreground rounded-md border border-border bg-muted/20 px-3 py-2">
                 {acceptedTokens.length > 0
                   ? `Accepted crypto tokens selected: ${acceptedTokens.length}. Buyers can still use fiat methods if enabled at checkout.`
                   : 'No custom token list selected. Buyers can still use supported checkout methods (fiat providers and/or native crypto depending on environment).'}
+              </div>
+            </div>
+
+            <div className={customStyles.sectionAlt}>
+              <h3 className={customStyles.sectionTitle}>GitHub Repo Access</h3>
+              <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
+                Sell access to a private GitHub repository. After purchase, the buyer&apos;s GitHub account is automatically
+                added as a collaborator or team member with the permission level you choose.
+              </p>
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={repoAccessEnabled}
+                    disabled={isSubmitting || (productType !== 'DIGITAL' && productType !== 'HYBRID')}
+                    onChange={(e) => setRepoAccessEnabled(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  Enable automatic GitHub access grant after purchase
+                </label>
+                {productType !== 'DIGITAL' && productType !== 'HYBRID' && (
+                  <p className="text-xs text-muted-foreground">
+                    Switch product type to Digital or Hybrid to enable repo access.
+                  </p>
+                )}
+
+                {repoAccessEnabled && (
+                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/10 p-3">
+                    {/* Repo identification */}
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Repository</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <Input
+                          value={repoAccessDraft.owner}
+                          onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, owner: e.target.value }))}
+                          placeholder="GitHub owner/org (e.g. v3gga)"
+                          className={customStyles.input}
+                        />
+                        <Input
+                          value={repoAccessDraft.repo}
+                          onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, repo: e.target.value }))}
+                          placeholder="Repository name (e.g. my-app)"
+                          className={customStyles.input}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Grant mode + permission */}
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Access Configuration</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <Select
+                          value={repoAccessDraft.mode}
+                          onValueChange={(value) => setRepoAccessDraft((prev) => ({ ...prev, mode: value as RepoAccessMode }))}
+                        >
+                          <SelectTrigger className={customStyles.selectTrigger}>
+                            <SelectValue placeholder="Grant mode" />
+                          </SelectTrigger>
+                          <SelectContent className={customStyles.selectContent}>
+                            <SelectItem value="COLLABORATOR" className={customStyles.selectItem}>
+                              Collaborator — direct repo access
+                            </SelectItem>
+                            <SelectItem value="TEAM" className={customStyles.selectItem}>
+                              Team — add to org team
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={repoAccessDraft.permission}
+                          onValueChange={(value) => setRepoAccessDraft((prev) => ({ ...prev, permission: value as RepoAccessPermission }))}
+                        >
+                          <SelectTrigger className={customStyles.selectTrigger}>
+                            <SelectValue placeholder="Permission" />
+                          </SelectTrigger>
+                          <SelectContent className={customStyles.selectContent}>
+                            <SelectItem value="pull" className={customStyles.selectItem}>
+                              Pull — read-only (recommended for buyers)
+                            </SelectItem>
+                            <SelectItem value="push" className={customStyles.selectItem}>
+                              Push — read + write
+                            </SelectItem>
+                            <SelectItem value="maintain" className={customStyles.selectItem}>
+                              Maintain — push + manage issues/PRs
+                            </SelectItem>
+                            <SelectItem value="admin" className={customStyles.selectItem}>
+                              Admin — full control (use carefully)
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {repoAccessDraft.mode === 'TEAM' && (
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Team Details</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <Input
+                            value={repoAccessDraft.org}
+                            onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, org: e.target.value }))}
+                            placeholder="Org name (if different from owner)"
+                            className={customStyles.input}
+                          />
+                          <Input
+                            value={repoAccessDraft.teamSlug}
+                            onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, teamSlug: e.target.value }))}
+                            placeholder="Team slug (required)"
+                            className={customStyles.input}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Branch metadata — optional context for buyers */}
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Branch Info (optional — shown to buyers)</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <Input
+                          value={repoAccessDraft.defaultBranch}
+                          onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, defaultBranch: e.target.value }))}
+                          placeholder="main"
+                          className={customStyles.input}
+                        />
+                      <Input
+                        value={repoAccessDraft.previewBranch}
+                        onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, previewBranch: e.target.value }))}
+                        placeholder="preview"
+                        className={customStyles.input}
+                      />
+                      <Input
+                        value={repoAccessDraft.devBranch}
+                        onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, devBranch: e.target.value }))}
+                        placeholder="dev"
+                        className={customStyles.input}
+                      />
+                      </div>
+                    </div>
+
+                    {/* Internal notes */}
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Internal Notes</p>
+                      <Textarea
+                        value={repoAccessDraft.notes}
+                        onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, notes: e.target.value }))}
+                        placeholder="Private notes about this access policy (not shown to buyers)"
+                        rows={2}
+                        className={customStyles.textarea}
+                      />
+                    </div>
+
+                    {/* Buyer experience preview */}
+                    {repoAccessDraft.owner && repoAccessDraft.repo && (
+                      <div className="rounded-md border border-green-500/30 bg-green-500/5 px-3 py-2.5 text-xs">
+                        <p className="font-semibold text-green-700 dark:text-green-400 mb-1">Buyer Experience Preview</p>
+                        <p className="text-muted-foreground leading-relaxed">
+                          After payment, the buyer will be prompted to enter their GitHub username.
+                          They&apos;ll receive <strong>{repoAccessDraft.permission}</strong> access to{' '}
+                          <code className="bg-muted px-1 py-0.5 rounded text-[11px]">
+                            {repoAccessDraft.owner}/{repoAccessDraft.repo}
+                          </code>
+                          {repoAccessDraft.mode === 'TEAM' && repoAccessDraft.teamSlug
+                            ? ` via the "${repoAccessDraft.teamSlug}" team`
+                            : ' as a direct collaborator'}
+                          . A confirmation email will be sent once access is granted.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

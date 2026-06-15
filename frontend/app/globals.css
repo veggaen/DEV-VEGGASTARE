@@ -2,6 +2,19 @@
 @import "tw-animate-css";
 @tailwind base;
 
+/* ─── Reown AppKit font preload fix ─────────────────────────────────────────
+ * AppKit injects <link rel="preload" href="fonts.reown.com/KHTeka-Medium.woff2">
+ * but its @font-face lives inside a shadow DOM, so the browser warns about an
+ * unused preload. This declaration satisfies the preload match.
+ * ─────────────────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: "KH Teka";
+  src: url("https://fonts.reown.com/KHTeka-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -408,12 +421,15 @@ html:not(.dark) [data-card]:hover {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.05);
 }
 
-/* Light mode: Make borders more visible */
-html:not(.dark) .border {
+/* Light mode: Make borders more visible.
+   IMPORTANT: only targets the bare Tailwind `border` utility when no explicit
+   color utility (border-sky-*, border-emerald-*, etc.) is applied.  This avoids
+   clobbering accent-coloured sliding indicators. */
+html:not(.dark) .border:not([class*="border-sky"]):not([class*="border-emerald"]):not([class*="border-red"]):not([class*="border-blue"]):not([class*="border-violet"]):not([class*="border-amber"]):not([class*="border-orange"]):not([class*="border-green"]):not([class*="border-yellow"]):not([class*="border-pink"]):not([class*="border-purple"]):not([class*="border-cyan"]):not([class*="border-indigo"]) {
   border-color: rgba(0, 0, 0, 0.12) !important;
 }
 
-html:not(.dark) .border-2 {
+html:not(.dark) .border-2:not([class*="border-sky"]):not([class*="border-emerald"]):not([class*="border-red"]):not([class*="border-blue"]):not([class*="border-violet"]):not([class*="border-amber"]):not([class*="border-orange"]):not([class*="border-green"]):not([class*="border-yellow"]):not([class*="border-pink"]):not([class*="border-purple"]):not([class*="border-cyan"]):not([class*="border-indigo"]) {
   border-color: rgba(0, 0, 0, 0.15) !important;
 }
 
@@ -563,11 +579,11 @@ html.dark [data-theme-tinted] {
   opacity: var(--spotlight-opacity, 0);
   transition: opacity 0.65s ease-out;
 }
-/* Light mode spotlight: stronger and warmer so it reads on the near-white bg */
+/* Light mode spotlight: sky-blue glow to match light-mode brand accent */
 html:not(.dark) .hero-spotlight {
   background: radial-gradient(
     580px circle at var(--spotlight-x, 50vw) var(--spotlight-y, 50vh),
-    rgba(16, 185, 129, 0.14),
+    rgba(14, 165, 233, 0.14),
     transparent 40%
   );
 }
@@ -588,15 +604,15 @@ html:not(.dark) .glass-panel {
   border: 1px solid rgba(0, 0, 0, 0.07);
 }
 html:not(.dark) .chat-desktop-panel:hover {
-  border-color: rgba(16, 185, 129, 0.35) !important;
+  border-color: rgba(14, 165, 233, 0.35) !important;
   box-shadow:
-    0 0 40px rgba(16,185,129,0.06),
+    0 0 40px rgba(14,165,233,0.06),
     0 8px 32px rgba(0,0,0,0.08);
 }
 html:not(.dark) .chat-desktop-panel:focus-within {
-  border-color: rgba(16, 185, 129, 0.45) !important;
+  border-color: rgba(14, 165, 233, 0.45) !important;
   box-shadow:
-    0 0 50px rgba(16,185,129,0.08),
+    0 0 50px rgba(14,165,233,0.08),
     0 8px 40px rgba(0,0,0,0.10);
 }
 
@@ -614,7 +630,7 @@ html:not(.dark) .chat-desktop-panel:focus-within {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(to bottom right, rgba(16,185,129,0.04), transparent);
+  background: linear-gradient(to bottom right, rgba(14,165,233,0.04), transparent);
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
@@ -633,14 +649,14 @@ html:not(.dark) .chat-desktop-panel:focus-within {
     0 0 50px rgba(34,197,94,0.10),
     0 8px 40px rgba(0,0,0,0.25),
     inset 0 -40px 60px -30px rgba(34,197,94,0.04);
-  border-color: rgba(34, 197, 94, 0.30) !important;
+  border-color: rgba(34, 197, 94, 0.30);
 }
 .chat-desktop-panel:focus-within {
   box-shadow:
     0 0 60px rgba(34,197,94,0.14),
     0 8px 40px rgba(0,0,0,0.35),
     inset 0 -50px 70px -30px rgba(34,197,94,0.06);
-  border-color: rgba(34, 197, 94, 0.40) !important;
+  border-color: rgba(34, 197, 94, 0.40);
 }
 
 /* Chat input wrapper — neutral, no green glow */
@@ -655,6 +671,9 @@ html:not(.dark) .chat-desktop-panel:focus-within {
 
 /* Send button — pulse glow on hover when active */
 .chat-send-btn:not(:disabled):hover {
+  box-shadow: 0 0 18px rgba(14,165,233,0.45);
+}
+html.dark .chat-send-btn:not(:disabled):hover {
   box-shadow: 0 0 18px rgba(34,197,94,0.45);
 }
 
@@ -713,6 +732,24 @@ html:not(.dark) .chat-desktop-panel:focus-within {
 @keyframes heroChipIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Kinetic title/description intro — GPU-composited per-character reveal.
+   Each char sets its own animation-delay inline, so the whole intro plays on
+   the compositor with zero React re-renders. Hover transforms live on an inner
+   wrapper so they never fight this keyframe. */
+@keyframes kineticCharIn {
+  from { opacity: 0; transform: translateY(0.5em) scale(0.9); filter: blur(2px); }
+  to   { opacity: 1; transform: translateY(0)     scale(1);   filter: blur(0); }
+}
+.kinetic-char {
+  display: inline-block;
+  opacity: 0;
+  animation: kineticCharIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kinetic-char { animation: none; opacity: 1; }
 }
 
 /* Portrait orientation: taller inline chat panel so it fills the hero bottom nicely */

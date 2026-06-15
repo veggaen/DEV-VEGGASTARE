@@ -4,6 +4,7 @@ import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { ValidateUserResponseSchema } from '@/lib/types/users';
+import { resolveVisibleEmail } from '@/lib/email-visibility';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -30,16 +31,24 @@ export async function POST(req: Request) {
           { name: input },
         ],
       },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, emailDisplayMode: true },
     });
 
     if (user) {
+      const visibleEmail = resolveVisibleEmail({
+        targetUserId: user.id,
+        targetEmail: user.email ?? null,
+        targetEmailDisplayMode: user.emailDisplayMode,
+        viewerUserId: session.id,
+        viewerRole: session.role,
+      });
+
       const dto = {
         isValid: true as const,
         user: {
           id: String(user.id),
           name: user.name ?? null,
-          email: user.email ?? null,
+          email: visibleEmail,
         },
       };
       const parsed = ValidateUserResponseSchema.safeParse(dto);

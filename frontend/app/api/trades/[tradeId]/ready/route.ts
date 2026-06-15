@@ -22,6 +22,7 @@ import {
 type RouteParams = { params: Promise<{ tradeId: string }> };
 
 const readySchema = z.object({
+  walletAddress: z.string().min(1).max(256).optional(),
   items: z.array(
     z.object({
       tokenAddress: z.string().min(1),
@@ -59,6 +60,27 @@ export async function POST(req: NextRequest, ctx: RouteParams) {
     if (trade.status !== "PENDING" && trade.status !== "ACCEPTED") {
       return NextResponse.json({ error: "Trade cannot be modified in this state" }, { status: 400 });
     }
+    if (trade.expiresAt.getTime() < Date.now()) {
+      await db.trade.update({
+        where: { id: tradeId },
+        data: {
+          status: 'EXPIRED',
+          cancelledAt: new Date(),
+          cancelReason: 'Trade session expired',
+        },
+      });
+      return NextResponse.json({ error: 'Trade expired' }, { status: 410 });
+    }
+
+    if (trade.chainId != null) {
+      const mismatched = body.data.items.find((item) => item.chainId !== trade.chainId);
+      if (mismatched) {
+        return NextResponse.json(
+          { error: `Item chainId ${mismatched.chainId} does not match trade chainId ${trade.chainId}` },
+          { status: 400 },
+        );
+      }
+    }
 
     const isInitiator = trade.initiatorId === me.id;
     const mySide = isInitiator ? "INITIATOR" : "RESPONDER";
@@ -85,11 +107,17 @@ export async function POST(req: NextRequest, ctx: RouteParams) {
         })),
       });
 
-      // Update ready flag
+      // Update ready flag + store wallet address in metadata
       const readyField = isInitiator ? "initiatorReady" : "responderReady";
+      const walletField = isInitiator ? "initiatorWallet" : "responderWallet";
+      const existingMeta = (trade.metadata as Record<string, unknown>) ?? {};
+      const newMeta = {
+        ...existingMeta,
+        ...(body.data.walletAddress ? { [walletField]: body.data.walletAddress } : {}),
+      };
       const t = await tx.trade.update({
         where: { id: tradeId },
-        data: { [readyField]: true, status: "ACCEPTED" },
+        data: { [readyField]: true, status: "ACCEPTED", metadata: newMeta as any },
       });
 
       // If both ready → move to CONFIRMING

@@ -3,13 +3,23 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
+import { useModalClose } from "@/hooks/use-modal-close";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CryptoInventory, type InventorySlot } from "./CryptoInventory";
+import { OsrsInventory } from "./OsrsInventory";
+import type { InventorySlot } from "./OsrsInventory";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useAccount, useChainId, useSignMessage } from "wagmi";
+import {
+  useAccount,
+  useChainId,
+  useSignMessage,
+  useWalletClient,
+  usePublicClient,
+} from "wagmi";
+import { parseUnits, type Address, type Hash } from "viem";
 import { toast } from "sonner";
 import { VEGGA_SYSTEM } from "@/lib/vegga-system-constants";
+import { TokenIcon } from "@/components/ui/token-icon";
 import {
   FiX,
   FiCheck,
@@ -169,7 +179,7 @@ function TradeItemGrid({
   onRemoveItem?: (id: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-4 gap-1.5 min-h-[100px]">
+    <div className="grid grid-cols-4 gap-1.5 min-h-25">
       {items.length === 0 ? (
         <motion.div
           className="col-span-4 flex flex-col items-center justify-center py-8 text-zinc-400 dark:text-zinc-600 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg"
@@ -198,14 +208,13 @@ function TradeItemGrid({
             title={isRemote ? `${item.amount} ${item.token.symbol}` : "Click to remove"}
           >
             <div className="w-6 h-6 flex items-center justify-center">
-              {item.token.logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.token.logo} alt={item.token.symbol} className="w-full h-full rounded-full object-contain" />
-              ) : (
-                <div className="w-full h-full rounded-full bg-linear-to-br from-zinc-300 to-zinc-500 flex items-center justify-center">
-                  <span className="text-[8px] font-bold text-white">{item.token.symbol.slice(0, 2)}</span>
-                </div>
-              )}
+              <TokenIcon
+                address={item.token.address}
+                chainId={item.token.chainId}
+                symbol={item.token.symbol}
+                logo={item.token.logo}
+                size={24}
+              />
             </div>
             <span className="text-[9px] font-bold text-zinc-700 dark:text-zinc-300 mt-0.5 truncate max-w-full">{item.amount}</span>
             <span className="text-[7px] text-zinc-400 truncate max-w-full">{item.token.symbol}</span>
@@ -226,9 +235,12 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
   const { address } = useAccount();
   const chainId = useChainId();
   const { signMessageAsync } = useSignMessage();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
 
   const [phase, setPhase] = useState<TradePhase>("offer");
   const [partner, setPartner] = useState<TradePartner | null>(null);
+  const [partnerWallet, setPartnerWallet] = useState<string | null>(null);
   const [myReady, setMyReady] = useState(false);
   const [theirReady, setTheirReady] = useState(false);
   const [myItems, setMyItems] = useState<InventorySlot[]>([]);
@@ -284,6 +296,11 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
 
         const iAmInitiator = data.initiatorId === currentUser?.id;
         setTheirReady(iAmInitiator ? data.responderReady : data.initiatorReady);
+
+        // Extract partner wallet address from trade metadata
+        const meta = (data.metadata ?? {}) as Record<string, unknown>;
+        const pWallet = iAmInitiator ? meta.responderWallet : meta.initiatorWallet;
+        if (typeof pWallet === "string" && pWallet) setPartnerWallet(pWallet);
 
         // Parse their items
         const theirSide = iAmInitiator ? "RESPONDER" : "INITIATOR";
@@ -342,6 +359,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          walletAddress: address ?? undefined,
           items: myItems.map((item) => ({
             tokenAddress: item.token.address,
             tokenSymbol: item.token.symbol,
@@ -359,45 +377,119 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
     }
   }, [myItems, tradeId]);
 
-  // ── Final Confirm (with wallet signature) ──
+  // ── Final Confirm (with on-chain transfers + wallet signature) ──
   const handleConfirm = useCallback(async () => {
     if (!address) { toast.error("Wallet not connected"); return; }
+    if (!walletClient) { toast.error("Wallet client not ready"); return; }
+    if (!publicClient) { toast.error("Network client not ready"); return; }
+    if (!partnerWallet) { toast.error("Partner wallet address unknown — wait for them to ready up"); return; }
 
     try {
-      // Request wallet signature as final confirmation
+      // ── Step 1: Sign a message proving trade intent ──
       const message = [
         `Veggat Trade Confirmation`,
         `Trade ID: ${tradeId}`,
         `VeggaSystem: ${VEGGA_SYSTEM.walletAddress}`,
         `My items: ${myItems.map((i) => `${i.amount} ${i.token.symbol}`).join(", ") || "None"}`,
+        `Their items: ${theirItems.map((i) => `${i.amount} ${i.token.symbol}`).join(", ") || "None"}`,
+        `Partner: ${partnerWallet}`,
         `Timestamp: ${new Date().toISOString()}`,
       ].join("\n");
 
-      toast.info("Please confirm in your wallet...");
+      toast.info("Step 1/2 — Sign to confirm trade intent...");
       const signature = await signMessageAsync({ message });
+
+      // ── Step 2: Execute on-chain transfers for each offered item ──
+      const txHashes: string[] = [];
+      const NATIVE_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+      if (myItems.length > 0) {
+        toast.info(`Step 2/2 — Sending ${myItems.length} item${myItems.length > 1 ? "s" : ""} on-chain...`);
+      }
+
+      for (const item of myItems) {
+        const isNative =
+          item.token.address === NATIVE_ADDRESS ||
+          item.token.address.toLowerCase() === "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+
+        if (isNative) {
+          // ── Native token transfer (ETH / MATIC / etc.) ──
+          const value = parseUnits(item.amount, item.token.decimals);
+          const hash = await walletClient.sendTransaction({
+            to: partnerWallet as Address,
+            value,
+          });
+          txHashes.push(hash);
+
+          // Wait for confirmation
+          await publicClient.waitForTransactionReceipt({
+            hash,
+            confirmations: 1,
+            timeout: 120_000,
+          });
+        } else {
+          // ── ERC-20 token transfer ──
+          const amount = parseUnits(item.amount, item.token.decimals);
+          const hash = await walletClient.writeContract({
+            address: item.token.address as Address,
+            abi: [
+              {
+                name: "transfer",
+                type: "function",
+                stateMutability: "nonpayable",
+                inputs: [
+                  { name: "to", type: "address" },
+                  { name: "amount", type: "uint256" },
+                ],
+                outputs: [{ name: "", type: "bool" }],
+              },
+            ] as const,
+            functionName: "transfer",
+            args: [partnerWallet as Address, amount],
+          });
+          txHashes.push(hash);
+
+          // Wait for confirmation
+          await publicClient.waitForTransactionReceipt({
+            hash,
+            confirmations: 1,
+            timeout: 120_000,
+          });
+        }
+      }
 
       setConfirmed(true);
 
+      // ── Step 3: Record confirmation + tx data on backend ──
       const res = await fetch(`/api/trades/${tradeId}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signature, walletAddress: address }),
+        body: JSON.stringify({
+          signature,
+          walletAddress: address,
+          txHashes,
+        }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         toast.error(data.error ?? "Confirmation failed");
         setConfirmed(false);
+      } else {
+        toast.success("Trade confirmed on-chain!");
       }
     } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes("User rejected")) {
-        toast.error("Wallet confirmation rejected");
+      if (err instanceof Error && (err.message.includes("User rejected") || err.message.includes("user rejected"))) {
+        toast.error("Transaction rejected in wallet");
+      } else if (err instanceof Error && err.message.includes("insufficient funds")) {
+        toast.error("Insufficient funds for transfer + gas");
       } else {
-        toast.error("Confirmation failed");
+        console.error("[TRADE_CONFIRM]", err);
+        toast.error("Trade confirmation failed");
       }
       setConfirmed(false);
     }
-  }, [tradeId, address, myItems, signMessageAsync]);
+  }, [tradeId, address, myItems, theirItems, signMessageAsync, walletClient, publicClient, partnerWallet]);
 
   // ── Cancel ──
   const handleCancel = useCallback(async () => {
@@ -409,9 +501,9 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
   }, [tradeId, router]);
 
   // ── Close modal ──
-  const handleClose = useCallback(() => {
-    router.back();
-  }, [router]);
+  // Safe close: back() on in-app soft nav, else fall back to the trading hub
+  // (prevents the "kicked to the homepage" jump on deep-link/refresh).
+  const handleClose = useModalClose("/dashboard/trading");
 
   // ── Loading state ──
   if (loading) {
@@ -580,9 +672,9 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
                   <h4 className="text-[10px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3 font-medium flex items-center gap-1.5">
                     <FiPackage className="h-3 w-3" /> Your Inventory
                     <FiArrowRight className="h-2.5 w-2.5 ml-1" />
-                    <span className="text-emerald-500">click to add</span>
+                    <span className="text-emerald-500">drag or click to add</span>
                   </h4>
-                  <CryptoInventory
+                  <OsrsInventory
                     compact
                     tradeMode
                     onSlotSelect={(slot) => {
@@ -657,7 +749,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
                   <FiAlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
                 </motion.div>
                 <p className="text-[10px] text-amber-700 dark:text-amber-400">
-                  Final step — your wallet will prompt for a signature to confirm this trade. No gas fees.
+                  Final step — your wallet will prompt for a signature, then send your offered items on-chain. Gas fees apply.
                 </p>
               </motion.div>
               <div className="flex gap-2">

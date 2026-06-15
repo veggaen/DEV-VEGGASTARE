@@ -10,6 +10,10 @@ interface CartItem {
     title: string;
     price: number;
     image: string[];
+    productType?: string;
+    shipFromPostalId?: string;
+    freeShippingEnabled?: boolean;
+    freeShippingThreshold?: number | null;
   };
   quantity: number;
 }

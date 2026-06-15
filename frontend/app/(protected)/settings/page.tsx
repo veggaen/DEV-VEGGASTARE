@@ -35,6 +35,7 @@ import { requestAccountDeletion, cancelAccountDeletion } from '@/actions/gdpr-ac
 import type { NotificationSettings as NotificationSettingsType, NotificationMute } from '@/components/uicustom/notifications/types';
 import { CurrencySelector, useCurrency, FIAT_CURRENCIES, CRYPTO_CURRENCIES } from '@/components/uicustom/currency-selector';
 import { VerificationDashboard } from '@/components/uicustom/verification-dashboard';
+import { SellerPaymentSettings } from '@/components/uicustom/settings/seller-payment-settings';
 import { useAddresses, type Address } from '@/hooks/use-addresses';
 import type { AddressLabel } from '@/generated/prisma/browser';
 import AppKitButton from '@/components/crypto-related/AppKitButton';
@@ -44,7 +45,7 @@ import {
   FiUser, FiLock, FiMail, FiBell, FiShield, FiSave, 
   FiEdit2, FiX, FiCheck, FiImage, FiChevronRight, FiCamera, FiUpload,
   FiArrowRight, FiInfo, FiTrendingUp, FiEye, FiUsers, FiActivity, FiSliders, FiDollarSign, FiKey, FiMapPin,
-  FiDownload, FiTrash2, FiAlertTriangle, FiFlag
+  FiDownload, FiTrash2, FiAlertTriangle, FiFlag, FiCreditCard
 } from 'react-icons/fi';
 import {
   Chart as ChartJS,
@@ -59,13 +60,14 @@ import { Radar } from 'react-chartjs-2';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
+const SECTION_IDS = ['profile', 'account', 'security', 'wallet', 'payments', 'notifications', 'privacy', 'appearance', 'currency', 'verification', 'ai', 'addresses'] as const;
+type SectionId = typeof SECTION_IDS[number];
+
 export default function SettingsPage() {
   const reduceMotion = useReducedMotion();
   const user = useCurrentUser();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const SECTION_IDS = ['profile', 'account', 'security', 'wallet', 'notifications', 'privacy', 'appearance', 'currency', 'verification', 'ai', 'addresses'] as const;
-  type SectionId = typeof SECTION_IDS[number];
   const { prefs, setPrefs, resetPrefs } = useUiPreferences();
   const formRef = useRef<HTMLFormElement>(null);
   const { update } = useSession();
@@ -330,6 +332,9 @@ export default function SettingsPage() {
       newPassword: undefined,
       role: user?.role || undefined,
       isTwoFactorEnabled: user?.isTwoFactorEnabled || undefined,
+      identityNameSource: user?.identityNameSource || 'AUTO',
+      identityImageSource: user?.identityImageSource || 'AUTO',
+      emailDisplayMode: user?.emailDisplayMode || 'PRIMARY',
     }
   });
 
@@ -354,13 +359,36 @@ export default function SettingsPage() {
   };
 
   const handleStartEdit = () => {
+    if (!isEditing) {
+      form.reset({
+        name: user?.name || undefined,
+        email: user?.email || undefined,
+        password: undefined,
+        newPassword: undefined,
+        role: user?.role || undefined,
+        isTwoFactorEnabled: user?.isTwoFactorEnabled || undefined,
+        identityNameSource: user?.identityNameSource || 'AUTO',
+        identityImageSource: user?.identityImageSource || 'AUTO',
+        emailDisplayMode: user?.emailDisplayMode || 'PRIMARY',
+      });
+    }
     setIsEditing(!isEditing);
     setError('');
     setSuccess('');
   };
 
   const handleCancelEdit = () => {
-    form.reset();
+    form.reset({
+      name: user?.name || undefined,
+      email: user?.email || undefined,
+      password: undefined,
+      newPassword: undefined,
+      role: user?.role || undefined,
+      isTwoFactorEnabled: user?.isTwoFactorEnabled || undefined,
+      identityNameSource: user?.identityNameSource || 'AUTO',
+      identityImageSource: user?.identityImageSource || 'AUTO',
+      emailDisplayMode: user?.emailDisplayMode || 'PRIMARY',
+    });
     setIsEditing(false);
     setError('');
     setSuccess('');
@@ -373,6 +401,7 @@ export default function SettingsPage() {
     { id: 'currency', label: 'Currency', icon: FiDollarSign, description: 'Display currency & crypto' },
     { id: 'security', label: 'Security', icon: FiShield, description: 'Password and authentication' },
     { id: 'wallet', label: 'Web3 & Wallet', icon: FiKey, description: 'Connect wallets & crypto' },
+    { id: 'payments', label: 'Payments', icon: FiCreditCard, description: 'PayPal & receiving wallet' },
     { id: 'verification', label: 'Verification', icon: FiTrendingUp, description: 'Trust level & Reach multiplier' },
     { id: 'ai', label: 'AI Keys', icon: FiKey, description: 'Bring your own AI key' },
     { id: 'addresses', label: 'Addresses', icon: FiMapPin, description: 'Saved shipping addresses' },
@@ -922,6 +951,101 @@ export default function SettingsPage() {
                         )}
                       />
 
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <FormField
+                          control={form.control}
+                          name="identityNameSource"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-foreground/80 dark:text-white/80">Name Source</FormLabel>
+                              <Select
+                                disabled={isPending || !isEditing}
+                                onValueChange={field.onChange}
+                                value={field.value ?? 'AUTO'}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="bg-white/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white">
+                                    <SelectValue placeholder="Choose name source" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="AUTO">Auto (active login provider)</SelectItem>
+                                  <SelectItem value="MANUAL">Manual (profile name)</SelectItem>
+                                  <SelectItem value="GOOGLE">Google</SelectItem>
+                                  <SelectItem value="GITHUB">GitHub</SelectItem>
+                                  <SelectItem value="DISCORD">Discord</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormDescription className="text-muted-foreground dark:text-white/40">
+                                Controls which linked identity name is used by default.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="identityImageSource"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-foreground/80 dark:text-white/80">Avatar Source</FormLabel>
+                              <Select
+                                disabled={isPending || !isEditing}
+                                onValueChange={field.onChange}
+                                value={field.value ?? 'AUTO'}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="bg-white/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white">
+                                    <SelectValue placeholder="Choose avatar source" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="AUTO">Auto (active login provider)</SelectItem>
+                                  <SelectItem value="MANUAL">Manual (profile avatar)</SelectItem>
+                                  <SelectItem value="GOOGLE">Google</SelectItem>
+                                  <SelectItem value="GITHUB">GitHub</SelectItem>
+                                  <SelectItem value="DISCORD">Discord</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormDescription className="text-muted-foreground dark:text-white/40">
+                                Controls which linked identity avatar is shown by default.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="emailDisplayMode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-foreground/80 dark:text-white/80">Email Visibility</FormLabel>
+                            <Select
+                              disabled={isPending || !isEditing}
+                              onValueChange={field.onChange}
+                              value={field.value ?? 'PRIMARY'}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="bg-white/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white">
+                                  <SelectValue placeholder="Choose email visibility" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="PRIMARY">Show primary email</SelectItem>
+                                <SelectItem value="HIDE">Hide email publicly</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription className="text-muted-foreground dark:text-white/40">
+                              Controls public email visibility for your profile and linked identity surfaces.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
                       {/* Profile Link */}
                       <div className="pt-4 border-t border-border dark:border-white/10">
                         <Link
@@ -1058,6 +1182,10 @@ export default function SettingsPage() {
 
               {activeSection === 'wallet' && (
                 <Web3WalletSettings />
+              )}
+
+              {activeSection === 'payments' && (
+                <SellerPaymentSettings />
               )}
 
               {activeSection === 'verification' && (

@@ -1,9 +1,20 @@
 import useSWR from "swr";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Notification, NotificationGroup } from "@/components/uicustom/notifications/types";
 import { groupNotifications } from "@/components/uicustom/notifications/types";
+import { createLogger } from "@/lib/logger";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const log = createLogger('Notifications');
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = new Error(`Notifications fetch failed: ${res.status}`);
+    (err as any).status = res.status;
+    throw err;
+  }
+  return res.json();
+};
 
 interface UseNotificationsOptions {
   limit?: number;
@@ -25,8 +36,21 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   if (limit) queryParams.set("limit", String(limit));
   if (unreadOnly) queryParams.set("unread", "true");
 
-  // Only fetch if enabled (user is logged in)
-  const swrKey = enabled ? `/api/notifications?${queryParams.toString()}` : null;
+  // Track auth failures to stop ALL revalidation (not just retries)
+  const [authFailed, setAuthFailed] = useState(false);
+  const [prevEnabled, setPrevEnabled] = useState(enabled);
+
+  // Reset auth-failed flag when enabled transitions to true
+  // (React-approved "adjust state during rendering" pattern — not an effect)
+  if (enabled !== prevEnabled) {
+    setPrevEnabled(enabled);
+    if (enabled) setAuthFailed(false);
+  }
+
+  // Pause SWR entirely after a 401/403 — no refreshInterval, no revalidateOnFocus
+  const swrKey = enabled && !authFailed
+    ? `/api/notifications?${queryParams.toString()}`
+    : null;
 
   const {
     data,
@@ -40,6 +64,14 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       refreshInterval,
       revalidateOnFocus: true,
       dedupingInterval: 5000,
+      shouldRetryOnError: false,
+      onError: (err) => {
+        const status = (err as any)?.status;
+        if (status === 401 || status === 403) {
+          setAuthFailed(true);
+          log.debug('Auth failed — pausing notifications polling');
+        }
+      },
     }
   );
 
@@ -75,7 +107,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         });
         mutate();
       } catch (error) {
-        console.error("Failed to mark notification as read:", error);
+        log.error('Failed to mark notification as read', error);
         mutate();
       }
     },
@@ -106,7 +138,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       });
       mutate();
     } catch (error) {
-      console.error("Failed to mark all notifications as read:", error);
+      log.error('Failed to mark all as read', error);
       mutate();
     }
   }, [mutate]);
@@ -137,7 +169,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         });
         mutate();
       } catch (error) {
-        console.error("Failed to archive notification:", error);
+        log.error('Failed to archive notification', error);
         mutate();
       }
     },
@@ -168,7 +200,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         });
         mutate();
       } catch (error) {
-        console.error("Failed to delete notification:", error);
+        log.error('Failed to delete notification', error);
         mutate();
       }
     },
@@ -246,7 +278,7 @@ export function useNotificationSettings() {
         if (!res.ok) throw new Error("Failed to update settings");
         mutate();
       } catch (error) {
-        console.error("Failed to update notification settings:", error);
+        log.error('Failed to update notification settings', error);
         mutate();
         throw error;
       }

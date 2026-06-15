@@ -21,7 +21,7 @@ export async function GET(
 ) {
   const { sessionId } = await params;
   const session = await MyLibUserAuth();
-  if (!session) {
+  if (!session?.id) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
@@ -64,7 +64,7 @@ export async function PATCH(
 ) {
   const { sessionId } = await params;
   const session = await MyLibUserAuth();
-  if (!session) {
+  if (!session?.id) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
@@ -101,7 +101,7 @@ export async function DELETE(
 ) {
   const { sessionId } = await params;
   const session = await MyLibUserAuth();
-  if (!session) {
+  if (!session?.id) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 

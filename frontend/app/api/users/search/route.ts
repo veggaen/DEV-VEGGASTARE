@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { parseQueryOrError } from '@/lib/api-validate';
 import { z } from 'zod';
 import { UserSearchResponseSchema } from '@/lib/types/users';
+import { resolveVisibleEmail } from '@/lib/email-visibility';
 
 const LOG_PREFIX = '[api/users/search]';
 const isDev = process.env.NODE_ENV !== 'production';
@@ -46,10 +47,23 @@ export async function GET(req: Request) {
     }
     
     // Build where clause with case-insensitive search
+    const canSeeAllEmails = currentUser.role === 'ADMIN' || currentUser.role === 'OWNER';
     const whereClause: Record<string, unknown> = {
       OR: [
         { name: { contains: q, mode: 'insensitive' } },
-        { email: { contains: q, mode: 'insensitive' } },
+        canSeeAllEmails
+          ? { email: { contains: q, mode: 'insensitive' } }
+          : {
+              AND: [
+                { email: { contains: q, mode: 'insensitive' } },
+                {
+                  OR: [
+                    { emailDisplayMode: 'PRIMARY' },
+                    { id: currentUser.id },
+                  ],
+                },
+              ],
+            },
       ],
     };
     
@@ -64,6 +78,7 @@ export async function GET(req: Request) {
         id: true,
         name: true,
         email: true,
+        emailDisplayMode: true,
         image: true,
         role: true,
         bio: true,
@@ -101,7 +116,13 @@ export async function GET(req: Request) {
     const processedUsers = users.map(user => ({
       id: user.id,
       name: user.name || 'Unknown',
-      email: user.email || '',
+      email: resolveVisibleEmail({
+        targetUserId: user.id,
+        targetEmail: user.email,
+        targetEmailDisplayMode: user.emailDisplayMode,
+        viewerUserId: currentUser.id,
+        viewerRole: currentUser.role,
+      }),
       image: user.image || '/users/avatar.webp',
       role: user.role,
       bio: user.bio || null,

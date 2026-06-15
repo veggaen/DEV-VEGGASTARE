@@ -758,9 +758,9 @@ const FeedPage: React.FC = () => {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-3 sm:px-6 lg:px-8">
-      {/* ─── Flow Sub-navbar ─── */}
-      <div className="border-b border-border/50 mb-5">
-        <div className="flex items-center gap-3 h-11">
+      {/* ─── Flow Sub-navbar (sticky — stays while the feed scrolls) ─── */}
+      <div className="sticky top-[var(--app-header-offset,0px)] z-30 -mx-3 sm:-mx-6 lg:-mx-8 mb-5 border-b border-border/50 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center gap-3 h-11 px-3 sm:px-6 lg:px-8">
           {/* Brand link - "Flow" goes to /pulse (shows all content) */}
           <Link
             href="/pulse"
@@ -970,20 +970,20 @@ const FeedPage: React.FC = () => {
           {!currentUser && (
             <div
               onClick={() => router.push('/auth/login')}
-              className="rounded-2xl border border-border/40 bg-zinc-100/80 dark:bg-zinc-900/60 p-4 cursor-pointer hover:border-primary/40 transition-colors"
+              className="group rounded-2xl border border-border/50 bg-card/70 dark:bg-zinc-900/70 backdrop-blur-xl p-4 cursor-pointer transition-[border-color,box-shadow] duration-200 hover:border-brand-accent/50 hover:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.08)]"
             >
               <div className="flex gap-3 items-center">
-                <div className="h-10 w-10 shrink-0 rounded-full bg-muted flex items-center justify-center">
-                  <FiMessageCircle className="h-5 w-5 text-muted-foreground" />
+                <div className="h-10 w-10 shrink-0 rounded-full bg-brand-accent/10 text-brand-accent flex items-center justify-center transition-colors group-hover:bg-brand-accent/15">
+                  <FiMessageCircle className="h-5 w-5" />
                 </div>
-                <div className="flex-1 py-2.5 px-4 rounded-full bg-muted/60 text-muted-foreground text-sm">
-                  Sign in to pulse your thoughts...
+                <div className="flex-1 py-2.5 px-4 rounded-full bg-muted/60 text-muted-foreground text-sm transition-colors group-hover:text-foreground/80">
+                  Sign in to pulse your thoughts…
                 </div>
               </div>
             </div>
           )}
           {currentUser && (
-            <div className="rounded-2xl border border-border/40 bg-zinc-100/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-sm transition-colors hover:border-border/60">
+            <div className="rounded-2xl border border-border/50 bg-card/70 dark:bg-zinc-900/70 backdrop-blur-xl shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-border focus-within:border-brand-accent/50 focus-within:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.10)]">
               {filter === 'polls' ? (
                 // Poll-focused compose
                 <div className="p-4 space-y-4">
@@ -1511,7 +1511,7 @@ const FeedPage: React.FC = () => {
                       onClick={handlePost}
                       disabled={isSubmitting || (!composeText.trim() && !pollQuestion.trim())}
                       size="sm"
-                      className="rounded-full px-4"
+                      className="rounded-full px-5 bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover shadow-sm shadow-brand-accent/20 transition-all active:scale-[0.97] disabled:opacity-40"
                     >
                       {isSubmitting ? <Spinner /> : <><PulsePositive className="h-4 w-4 mr-1" /> {pulseLabels.post}</>}
                     </Button>
@@ -2471,10 +2471,10 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     <article
       ref={viewTrackingRef}
       className={cn(
-        "group relative cursor-pointer rounded-2xl border p-4 sm:p-5 shadow-sm transition hover:shadow-md",
-        isPinnedToFeed 
-          ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50 dark:hover:bg-amber-950/30" 
-          : "border-border/60 bg-zinc-100/80 dark:bg-card/30 hover:bg-zinc-200/80 dark:hover:bg-card/50"
+        "group relative cursor-pointer rounded-2xl border p-4 sm:p-5 backdrop-blur-sm transition-[border-color,box-shadow,background-color,transform] duration-200 hover:shadow-md hover:-translate-y-px",
+        isPinnedToFeed
+          ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50 dark:hover:bg-amber-950/30"
+          : "border-border/50 bg-card/60 dark:bg-card/40 hover:border-brand-accent/30 hover:bg-card/80 dark:hover:bg-card/60"
       )}
       onClick={handleCardClick}
     >
@@ -2967,14 +2967,14 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                     type="button"
                     disabled={!currentUser || isPulsing}
                     onClick={() => void handlePulse('POSITIVE')}
-                    className={`flex items-center gap-1.5 transition-all hover:text-red-500 group ${
+                    className={`group/act -ml-1.5 flex items-center gap-1.5 rounded-full px-1.5 py-1 transition-colors hover:bg-red-500/10 hover:text-red-500 ${
                       localPulse === 'POSITIVE' ? 'text-red-500' : ''
                     } ${!currentUser ? 'opacity-60' : ''}`}
                   >
-                    <PulseHeart 
-                      size={18} 
+                    <PulseHeart
+                      size={18}
                       filled={localPulse === 'POSITIVE'}
-                      className={`transition-transform ${localPulse === 'POSITIVE' ? 'scale-110' : 'group-hover:scale-105'}`}
+                      className={`transition-transform duration-200 ${localPulse === 'POSITIVE' ? 'scale-110' : 'group-hover/act:scale-110'}`}
                     />
                     {localPositiveCount > 0 && <span className="tabular-nums">{localPositiveCount}</span>}
                   </button>
@@ -2986,8 +2986,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className={`flex items-center gap-1 cursor-default ${!currentUser ? 'opacity-60' : ''}`}>
-                    <FiMessageCircle className="h-4 w-4" />
+                  <span className={`group/act flex items-center gap-1.5 rounded-full px-1.5 py-1 cursor-default transition-colors hover:bg-sky-500/10 hover:text-sky-500 ${!currentUser ? 'opacity-60' : ''}`}>
+                    <FiMessageCircle className="h-4 w-4 transition-transform duration-200 group-hover/act:scale-110" />
                     {replyCount}
                   </span>
                 </TooltipTrigger>
@@ -2998,8 +2998,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className={`flex items-center gap-1 cursor-default ${item.hasReposted ? 'text-cyan-500' : ''} ${!currentUser ? 'opacity-60' : ''}`}>
-                    <FiRepeat className="h-4 w-4" />
+                  <span className={`group/act flex items-center gap-1.5 rounded-full px-1.5 py-1 cursor-default transition-colors hover:bg-cyan-500/10 hover:text-cyan-500 ${item.hasReposted ? 'text-cyan-500' : ''} ${!currentUser ? 'opacity-60' : ''}`}>
+                    <FiRepeat className="h-4 w-4 transition-transform duration-200 group-hover/act:scale-110" />
                     {localRepostCount}
                   </span>
                 </TooltipTrigger>
@@ -3011,7 +3011,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               {(localViewCount > 0 || (item.uniqueViewCount !== undefined && item.uniqueViewCount > 0)) && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="flex items-center gap-1 cursor-default">
+                    <span className="flex items-center gap-1.5 rounded-full px-1.5 py-1 cursor-default transition-colors hover:bg-muted/60">
                       <FiEye className="h-4 w-4" />
                       {Math.max(localViewCount, item.uniqueViewCount || 0)}
                     </span>

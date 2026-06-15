@@ -359,7 +359,10 @@ async function streamProvider(input: StreamInput): Promise<Response> {
 // ── POST — main chat handler ───────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const session = await MyLibUserAuth();
+  const rawSession = await MyLibUserAuth();
+  // Treat a session without a user ID as anonymous — prevents undefined
+  // from leaking into Prisma queries (Prisma 7 rejects undefined for required fields).
+  const session = rawSession?.id ? rawSession : null;
   const ip = getRequestIp(req);
 
   let body: z.infer<typeof requestSchema>;
@@ -627,7 +630,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const session = await MyLibUserAuth();
-  if (!session) {
+  if (!session?.id) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 

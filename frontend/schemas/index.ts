@@ -9,6 +9,9 @@ export const MyAuthSettingsSchema = z.object({
     isTwoFactorEnabled: z.optional(z.boolean()),
     role: z.enum([UserRole.OWNER, UserRole.ADMIN, UserRole.USER]),
     email: z.optional(z.string().email()),
+    identityNameSource: z.optional(z.enum(['AUTO', 'MANUAL', 'GOOGLE', 'GITHUB', 'DISCORD'])),
+    identityImageSource: z.optional(z.enum(['AUTO', 'MANUAL', 'GOOGLE', 'GITHUB', 'DISCORD'])),
+    emailDisplayMode: z.optional(z.enum(['PRIMARY', 'HIDE'])),
     password: z.optional(z.string().min(6)),
     newPassword: z.optional(z.string().min(6)),
 })
@@ -318,7 +321,7 @@ export const companyCreationSchema = z.object({
 
     creatorId: z.string(),
     ownerId: z.string(),
-    employees: z.array(employeeSchema).optional(), // TODO change from any soon...
+    employees: z.array(employeeSchema).optional(),
     usesShipping: z.boolean(),
     // Use a non-validated placeholder for warehouseLocations here
     warehouseLocations: z.array(baseWarehouseLocationSchema).optional(),

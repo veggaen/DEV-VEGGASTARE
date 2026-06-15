@@ -44,11 +44,37 @@ export function useCleanLogout() {
         }
       }
 
-      // 3. Clear wallet brand hints from localStorage
+      // 3. Clear wallet brand hints + AppKit state from localStorage
       try {
         localStorage.removeItem("veggastare:evm.brand");
         localStorage.removeItem("veggastare:sol.brand");
         localStorage.removeItem("fs.activeNetwork");
+        // Clear wallet registry from sessionStorage (transient wallet cards)
+        sessionStorage.removeItem("veggat_wallet_registry");
+        // Clear any AppKit/Reown social login cached state
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (
+            key &&
+            (key.startsWith("W3M_") ||
+              key.startsWith("w3m") ||
+              key.startsWith("@w3m") ||
+              key.startsWith("wc@") ||
+              key.startsWith("wagmi") ||
+              key.startsWith("-walletlink"))
+          ) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+        // Clear bridge flags from sessionStorage
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const key = sessionStorage.key(i);
+          if (key?.startsWith("veggat_oauth_bridge_")) {
+            sessionStorage.removeItem(key);
+          }
+        }
       } catch {
         // localStorage may be unavailable
       }

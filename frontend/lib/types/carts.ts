@@ -6,6 +6,10 @@ export const CartItemProductDtoSchema = z
     title: z.string().min(1),
     price: z.number().finite(),
     image: z.array(z.string()).default([]),
+    productType: z.string().optional(),
+    shipFromPostalId: z.string().optional(),
+    freeShippingEnabled: z.boolean().optional(),
+    freeShippingThreshold: z.number().finite().nullable().optional(),
   })
   .strict();
 

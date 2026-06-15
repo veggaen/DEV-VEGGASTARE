@@ -4,6 +4,7 @@ import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { recalculateVerificationTier } from '@/lib/verification-recalc';
+import { grantRepoAccessForOrder } from '@/lib/github-repo-access';
 
 /**
  * POST /api/orders/confirm
@@ -98,6 +99,12 @@ export async function POST(req: Request) {
       }
     } catch (autoFulfilErr) {
       console.error('[api/orders/confirm] Auto-fulfil digital order failed:', autoFulfilErr);
+    }
+
+    try {
+      await grantRepoAccessForOrder(orderId, 'orders.confirm');
+    } catch (repoAccessError) {
+      console.error('[api/orders/confirm] Repo access grant failed:', repoAccessError);
     }
 
     return NextResponse.json({ 

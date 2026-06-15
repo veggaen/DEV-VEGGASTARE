@@ -42,9 +42,21 @@ const rolePriority: Record<string, number> = {
         USER: 7
 };
 
+const TAG_REPLACEMENTS: { [key: string]: TagReplacement } = {
+        CAN_REMOVE_EMPLOYEE: { name: 'Can Remove Employee', description: 'Allows the user to remove employees within the company.', icon: <MdRemoveCircleOutline className="text-xl h-8 w-8" /> },
+        CAN_EDIT_PERMISSION: { name: 'Can Edit Permission', description: 'Allows the user to edit permissions of employees within the company.', icon: <MdEdit className="text-xl h-8 w-8" /> },
+        CAN_DELETE_COMPANY: { name: 'Can Delete Company', description: 'Allows the user to delete the company.', icon: <MdDelete className="text-xl h-8 w-8" /> },
+        CAN_POST_PRODUCT_POSITION_PERMISSION: { name: 'Can Post Product Position', description: 'Allows the user to post products on behalf of the company.', icon: <MdPostAdd className="text-xl h-8 w-8" /> },
+        CAN_EDIT_PRODUCT_POSITION_PERMISSION: { name: 'Can Edit Product Position', description: 'Allows the user to edit products on behalf of the company.', icon: <MdEdit className="text-xl h-8 w-8" /> },
+        CAN_ADD_EMPLOYEE: { name: 'Can Add Employee', description: 'Allows the user to add new employees to the company.', icon: <MdAddCircleOutline className="text-xl h-8 w-8" /> },
+        CAN_EDIT_EMPLOYEE_ROLE: { name: 'Can Edit Employee Role', description: 'Allows the user to edit employees role in the company.', icon: <FaBriefcase className="text-xl h-8 w-8" /> },
+};
+
 const CompanyDetails = () => {
         const params = useParams();
         const clientUser = useCurrentUser();
+        const rawCompanyId = (params as any)?.companyId ?? (params as any)?.companyid;
+        const companyId = Array.isArray(rawCompanyId) ? rawCompanyId[0] : rawCompanyId;
         const [change, setChange] = useState(false);
         const [company, setCompany] = useState<CompanyDetailsResponse | null>(null);
         const [loading, setLoading] = useState(true);
@@ -60,19 +72,6 @@ const CompanyDetails = () => {
     const [regSaving, setRegSaving] = useState(false);
     const [regError, setRegError] = useState<string | null>(null);
     const [regSuccess, setRegSuccess] = useState<string | null>(null);
-
-        const rawCompanyId = (params as any)?.companyId ?? (params as any)?.companyid;
-        const companyId = Array.isArray(rawCompanyId) ? rawCompanyId[0] : rawCompanyId;
-
-        const tagReplacements: { [key: string]: TagReplacement } = {
-                CAN_REMOVE_EMPLOYEE: { name: 'Can Remove Employee', description: 'Allows the user to remove employees within the company.', icon: <MdRemoveCircleOutline className="text-xl h-8 w-8" /> },
-                CAN_EDIT_PERMISSION: { name: 'Can Edit Permission', description: 'Allows the user to edit permissions of employees within the company.', icon: <MdEdit className="text-xl h-8 w-8" /> },
-                CAN_DELETE_COMPANY: { name: 'Can Delete Company', description: 'Allows the user to delete the company.', icon: <MdDelete className="text-xl h-8 w-8" /> },
-                CAN_POST_PRODUCT_POSITION_PERMISSION: { name: 'Can Post Product Position', description: 'Allows the user to post products on behalf of the company.', icon: <MdPostAdd className="text-xl h-8 w-8" /> },
-                CAN_EDIT_PRODUCT_POSITION_PERMISSION: { name: 'Can Edit Product Position', description: 'Allows the user to edit products on behalf of the company.', icon: <MdEdit className="text-xl h-8 w-8" /> },
-                CAN_ADD_EMPLOYEE: { name: 'Can Add Employee', description: 'Allows the user to add new employees to the company.', icon: <MdAddCircleOutline className="text-xl h-8 w-8" /> },
-                CAN_EDIT_EMPLOYEE_ROLE: { name: 'Can Edit Employee Role', description: 'Allows the user to edit employees role in the company.', icon: <FaBriefcase className="text-xl h-8 w-8" /> },
-        };
 
         const fetchCompanyDetails = useCallback(async () => {
                 if (!companyId) return;
@@ -548,7 +547,7 @@ const CompanyDetails = () => {
                                                                         <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded text-center text-gray-500 dark:text-gray-400">No permissions</div>
                                                                 ) : (
                                                                     Object.entries(employee.permissions ?? {}).map(([key, value]) => {
-                                                                        const tag = tagReplacements[key] || { name: key, description: '', icon: null };
+                                                                        const tag = TAG_REPLACEMENTS[key] || { name: key, description: '', icon: null };
                                                                         return (
                                                                             <div 
                                                                                     key={key} 

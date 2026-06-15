@@ -1,4 +1,5 @@
 import { dbPrisma } from '@/lib/db';
+import { resolveVisibleEmail } from '@/lib/email-visibility';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import {
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             email: true,
+            emailDisplayMode: true,
             image: true,
             bio: true,
             _count: {
@@ -53,6 +55,7 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             email: true,
+            emailDisplayMode: true,
             image: true,
             bio: true,
             _count: {
@@ -74,7 +77,13 @@ export async function GET(request: NextRequest) {
           user: {
             id: peer.id,
             name: peer.name,
-            email: peer.email,
+            email: resolveVisibleEmail({
+              targetUserId: peer.id,
+              targetEmail: peer.email,
+              targetEmailDisplayMode: peer.emailDisplayMode,
+              viewerUserId: session.id,
+              viewerRole: session.role,
+            }),
             image: peer.image,
             bio: peer.bio,
             followerCount: peer._count.followers,

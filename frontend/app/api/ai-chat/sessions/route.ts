@@ -14,9 +14,10 @@ const createSchema = z.object({
 // POST — create a new AI conversation session
 export async function POST(req: NextRequest) {
   const session = await MyLibUserAuth();
-  if (!session) {
+  if (!session?.id) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+  const userId = session.id;
 
   let body: z.infer<typeof createSchema>;
   try {
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     const conv = await tx.aiConversation.create({
       data: {
         title: body.title,
-        creatorId: session.id!,
+        creatorId: userId,
         isPublic: body.isPublic,
         triggerMode: body.triggerMode,
       },
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
       data: {
         conversationId: conv.id,
         type: "HUMAN",
-        userId: session.id,
+        userId: userId,
         displayName: null,
       },
     });
@@ -68,9 +69,10 @@ export async function POST(req: NextRequest) {
 // GET — list all sessions (same as the main route GET, kept here too for /sessions path)
 export async function GET(req: NextRequest) {
   const session = await MyLibUserAuth();
-  if (!session) {
+  if (!session?.id) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+  const userId = session.id;
 
   const limit = Math.min(
     parseInt(req.nextUrl.searchParams.get("limit") ?? "50", 10),
@@ -79,7 +81,7 @@ export async function GET(req: NextRequest) {
   const cursor = req.nextUrl.searchParams.get("cursor") ?? undefined;
 
   const sessions = await dbPrisma.aiConversation.findMany({
-    where: { creatorId: session.id, isDeleted: false },
+    where: { creatorId: userId, isDeleted: false },
     orderBy: { updatedAt: "desc" },
     take: limit,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

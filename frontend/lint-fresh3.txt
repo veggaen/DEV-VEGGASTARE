@@ -1,0 +1,11 @@
+node.exe : npm error could not determine executable to run
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\v3gga\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm error could...ecutable to run 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm error A complete log of this run can be found in: C:\Users\v3gga\AppData\Lo
+cal\npm-cache\_logs\2026-03-03T21_01_57_168Z-debug-0.log
+

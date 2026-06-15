@@ -9,7 +9,7 @@ import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FiCheckCircle, FiCircle, FiRefreshCw, FiArrowRight,
-  FiMail, FiSmartphone, FiShield, FiLock,
+  FiMail, FiSmartphone, FiShield, FiLock, FiXCircle,
 } from 'react-icons/fi';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -252,6 +252,7 @@ export function VerificationDashboard() {
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
   const [availableProviders, setAvailableProviders] = useState<Record<string, boolean>>({});
+  const [unlinking, setUnlinking] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const handledOauthFeedbackRef = useRef(false);
@@ -376,6 +377,29 @@ export function VerificationDashboard() {
       toast.error('Recalculation failed');
     } finally {
       setIsRecalculating(false);
+    }
+  };
+
+  const handleUnlink = async (provider: string) => {
+    const label = provider.charAt(0).toUpperCase() + provider.slice(1);
+    if (!confirm(`Unlink ${label}? This will remove the OAuth connection and lower your verification score.`)) return;
+    setUnlinking(provider);
+    try {
+      const res = await fetch('/api/auth/unlink-oauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || 'Failed to unlink');
+      }
+      toast.success(`${label} unlinked successfully`);
+      await fetchVerification();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to unlink provider');
+    } finally {
+      setUnlinking(null);
     }
   };
 
@@ -622,7 +646,11 @@ export function VerificationDashboard() {
                     {item.label}
                   </p>
                   <p className="text-xs text-muted-foreground dark:text-white/40 truncate">
-                    {isPending ? 'Check your email to confirm this link' : item.description}
+                    {isPending
+                      ? '📧 Confirmation email sent — check inbox (and spam folder)'
+                      : isComplete && (item.action === 'google' || item.action === 'github' || item.action === 'discord')
+                        ? `Linked and verified ✓`
+                        : item.description}
                   </p>
                 </div>
 
@@ -650,16 +678,41 @@ export function VerificationDashboard() {
                   </Button>
                 )}
 
-                {/* Pending: show "Resend" button */}
-                {isPending && (
+                {/* Pending: show "Resend" + "Cancel" buttons */}
+                {isPending && item.action && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleAction(item)}
+                      className="text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                    >
+                      Resend
+                      <FiMail className="w-3.5 h-3.5 ml-1" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleUnlink(item.action!)}
+                      disabled={unlinking === item.action}
+                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      title="Cancel pending link"
+                    >
+                      {unlinking === item.action ? '...' : <FiXCircle className="w-3.5 h-3.5" />}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Completed OAuth: show "Unlink" button */}
+                {isComplete && (item.action === 'google' || item.action === 'github' || item.action === 'discord') && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleAction(item)}
-                    className="shrink-0 text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                    onClick={() => handleUnlink(item.action!)}
+                    disabled={unlinking === item.action}
+                    className="shrink-0 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 text-xs"
                   >
-                    Resend
-                    <FiMail className="w-3.5 h-3.5 ml-1" />
+                    {unlinking === item.action ? '...' : 'Unlink'}
                   </Button>
                 )}
               </div>
@@ -707,11 +760,24 @@ export function VerificationDashboard() {
                       ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
                       : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                   }`}
-                  title={isPending ? 'Pending email confirmation' : 'Verified'}
+                  title={isPending ? 'Pending email confirmation — click to cancel' : 'Verified — click to unlink'}
                 >
-                  <FiCheckCircle className="w-3 h-3" />
+                  {isPending ? (
+                    <FiMail className="w-3 h-3" />
+                  ) : (
+                    <FiCheckCircle className="w-3 h-3" />
+                  )}
                   {p.charAt(0).toUpperCase() + p.slice(1)}
                   {isPending && <span className="ml-0.5 opacity-70">(pending)</span>}
+                  <button
+                    type="button"
+                    onClick={() => handleUnlink(p)}
+                    disabled={unlinking === p}
+                    className="ml-1 opacity-50 hover:opacity-100 transition-opacity"
+                    title={isPending ? 'Cancel pending link' : 'Unlink this provider'}
+                  >
+                    <FiXCircle className="w-3 h-3" />
+                  </button>
                 </span>
               );
             })}

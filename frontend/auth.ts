@@ -15,6 +15,110 @@ import { sendOauthLinkConfirmationEmail } from "@/lib/mail"
 // Console.log PREFIX
 const LOG_PREFIX = '[auth.ts] '
 const isDev = process.env.NODE_ENV !== 'production'
+const requireOauthEmailConfirmation =
+  process.env.OAUTH_LINK_REQUIRE_EMAIL_CONFIRMATION === 'true' ||
+  (!isDev && process.env.OAUTH_LINK_REQUIRE_EMAIL_CONFIRMATION !== 'false');
+
+type IdentitySource = 'AUTO' | 'MANUAL' | 'GOOGLE' | 'GITHUB' | 'DISCORD';
+type IdentityEmailMode = 'PRIMARY' | 'HIDE';
+type IdentityProvider = 'google' | 'github' | 'discord';
+
+function sourceToProvider(source?: IdentitySource): IdentityProvider | null {
+  if (source === 'GOOGLE') return 'google';
+  if (source === 'GITHUB') return 'github';
+  if (source === 'DISCORD') return 'discord';
+  return null;
+}
+
+function getProviderProfile(user: {
+  googleProfileName?: string | null;
+  googleProfileImage?: string | null;
+  githubProfileName?: string | null;
+  githubProfileImage?: string | null;
+  discordProfileName?: string | null;
+  discordProfileImage?: string | null;
+}, provider: IdentityProvider) {
+  if (provider === 'google') {
+    return {
+      name: user.googleProfileName ?? null,
+      image: user.googleProfileImage ?? null,
+    };
+  }
+  if (provider === 'github') {
+    return {
+      name: user.githubProfileName ?? null,
+      image: user.githubProfileImage ?? null,
+    };
+  }
+  return {
+    name: user.discordProfileName ?? null,
+    image: user.discordProfileImage ?? null,
+  };
+}
+
+function resolveDisplayName(user: {
+  name?: string | null;
+  googleProfileName?: string | null;
+  githubProfileName?: string | null;
+  discordProfileName?: string | null;
+}, source: IdentitySource | undefined, lastAuthProvider?: string): string | null {
+  if (source === 'MANUAL') return user.name ?? null;
+
+  const explicitProvider = sourceToProvider(source);
+  if (explicitProvider) {
+    return getProviderProfile(user, explicitProvider).name ?? user.name ?? null;
+  }
+
+  const authProvider =
+    lastAuthProvider === 'google' || lastAuthProvider === 'github' || lastAuthProvider === 'discord'
+      ? lastAuthProvider
+      : null;
+
+  if (authProvider) {
+    const providerName = getProviderProfile(user, authProvider).name;
+    if (providerName) return providerName;
+  }
+
+  return (
+    user.name ??
+    user.googleProfileName ??
+    user.githubProfileName ??
+    user.discordProfileName ??
+    null
+  );
+}
+
+function resolveDisplayImage(user: {
+  image?: string | null;
+  googleProfileImage?: string | null;
+  githubProfileImage?: string | null;
+  discordProfileImage?: string | null;
+}, source: IdentitySource | undefined, lastAuthProvider?: string): string | null {
+  if (source === 'MANUAL') return user.image ?? null;
+
+  const explicitProvider = sourceToProvider(source);
+  if (explicitProvider) {
+    return getProviderProfile(user, explicitProvider).image ?? user.image ?? null;
+  }
+
+  const authProvider =
+    lastAuthProvider === 'google' || lastAuthProvider === 'github' || lastAuthProvider === 'discord'
+      ? lastAuthProvider
+      : null;
+
+  if (authProvider) {
+    const providerImage = getProviderProfile(user, authProvider).image;
+    if (providerImage) return providerImage;
+  }
+
+  return (
+    user.image ??
+    user.googleProfileImage ??
+    user.githubProfileImage ??
+    user.discordProfileImage ??
+    null
+  );
+}
 
 const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
 const authUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL
@@ -35,7 +139,7 @@ export const {
 } = NextAuth({
     secret: authSecret,
     trustHost: true,
-    debug: false, // Disabled - too noisy. Enable manually if needed: isDev
+    debug: false,
     pages: {
       signIn: '/auth/login',
       error: '/auth/error',
@@ -46,60 +150,82 @@ export const {
 
         if ('token' in message && message.token) {
           const token = await message.token;
-          if (token) {
-            const { isOAuth, sub } = token;
-            // Rest of the code...
-
-          }
-
-          const isOAuth = token?.isOAuth;
-          if (isOAuth) {
-            //console.log(`async signOut token: ${isOAuth} and yea`, isOAuth)
-            const userId = token.sub;
-            //console.log(`event.signOut.User ID: ${userId}`);
-            
-            // Now you can use userId for further logic, such as fetching the user details
-            // Ensure you have defined and implemented getUserById or similar function to use here
-            if (userId) {
-              const existingUser = await getUserById(userId);
-              
-              //console.log(`event.signOut.User details:`, existingUser);
-
-                // Find all accounts for the user with the same provider
-                const accounts = await dbPrisma.account.findFirst({
-                  where: {
-                    userId: existingUser?.id,
-                  },
-                  orderBy: {
-                    expires_at: 'asc', // Order by expires_at ascending to have the oldest first
-                  },
-                });
-                
-                // If there are more than one account entries for the provider, delete the oldest
-                if (accounts) {
-                  await dbPrisma.account.delete({
-                    where: { id: accounts.id },
-                  });
-                  //console.log(`Deleted account data form provider: ${accounts.provider}, AccountId: ${accounts.userId}`);
-                }
-            }
-          }
+          // signOut event fires for every logout — DO NOT delete Account records here.
+          // OAuth Account records are permanent links and should only be removed
+          // via explicit "unlink" actions (/api/auth/unlink-oauth).
+          // Previously this code deleted the oldest Account on every sign-out,
+          // which broke OAuth provider linking, the AppKit→NextAuth auto-bridge,
+          // and the verification tier system.
+          void token; // keep for future use (e.g. audit logging)
         }
 
       },
       async linkAccount({ user, profile, account }){
         const provider = account.provider as 'google' | 'github' | 'discord' | string;
+        const profileAny = profile as Record<string, unknown> | null;
+        const providerProfileName =
+          typeof profileAny?.name === 'string'
+            ? profileAny.name
+            : typeof user?.name === 'string'
+              ? user.name
+              : undefined;
+        const providerProfileImage =
+          typeof profileAny?.image === 'string'
+            ? profileAny.image
+            : typeof profileAny?.picture === 'string'
+              ? profileAny.picture
+              : typeof profileAny?.avatar_url === 'string'
+                ? profileAny.avatar_url
+                : typeof user?.image === 'string'
+                  ? user.image
+                  : undefined;
+        const providerProfileEmail =
+          typeof profileAny?.email === 'string'
+            ? profileAny.email
+            : typeof user?.email === 'string'
+              ? user.email
+              : undefined;
 
-        // Mark emailVerified + sync profile image, but do NOT set hasXxxAuth yet.
-        // The user must confirm the link via a verification email first (yellow → green).
-        await dbPrisma.user.update({
-          where: { id: user?.id },
-          data: {
-            emailVerified: new Date(),
-            email: user.email,
-            image: profile.image,
-          }
-        });
+        // Mark emailVerified, but DO NOT clobber existing identity fields on link.
+        // Users may have intentionally customized name/avatar/email in settings.
+        // We only backfill missing values from the OAuth profile.
+        if (user?.id) {
+          const current = await dbPrisma.user.findUnique({
+            where: { id: user.id },
+            select: { name: true, image: true, email: true },
+          });
+
+          await dbPrisma.user.update({
+            where: { id: user.id },
+            data: {
+              emailVerified: new Date(),
+              name: current?.name ?? user.name ?? profile.name ?? undefined,
+              image: current?.image ?? profile.image ?? user.image ?? undefined,
+              email: current?.email ?? user.email ?? undefined,
+              ...(provider === 'google'
+                ? {
+                    googleProfileName: providerProfileName,
+                    googleProfileImage: providerProfileImage,
+                    googleProfileEmail: providerProfileEmail,
+                  }
+                : {}),
+              ...(provider === 'github'
+                ? {
+                    githubProfileName: providerProfileName,
+                    githubProfileImage: providerProfileImage,
+                    githubProfileEmail: providerProfileEmail,
+                  }
+                : {}),
+              ...(provider === 'discord'
+                ? {
+                    discordProfileName: providerProfileName,
+                    discordProfileImage: providerProfileImage,
+                    discordProfileEmail: providerProfileEmail,
+                  }
+                : {}),
+            }
+          });
+        }
 
         // For named OAuth providers: create a pending link record and send confirmation email.
         // hasXxxAuth is only set to true after the user clicks the confirm link in the email.
@@ -108,6 +234,25 @@ export const {
           user.email &&
           (provider === 'google' || provider === 'github' || provider === 'discord')
         ) {
+          if (!requireOauthEmailConfirmation) {
+            const flagKey =
+              provider === 'google'
+                ? 'hasGoogleAuth'
+                : provider === 'github'
+                  ? 'hasGithubAuth'
+                  : 'hasDiscordAuth';
+
+            await dbPrisma.user.update({
+              where: { id: user.id },
+              data: { [flagKey]: true },
+            });
+            await dbPrisma.pendingOAuthLink.deleteMany({
+              where: { userId: user.id, provider },
+            });
+            await recalculateVerificationTier(user.id, { [flagKey]: true });
+            return;
+          }
+
           // Upsert: replace any existing pending record for this provider (e.g. re-linking)
           const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 h
           const pending = await dbPrisma.pendingOAuthLink.upsert({
@@ -150,9 +295,19 @@ export const {
               const twoFactorConfirmation = await getTwoFactorConfirmationByUserId(existingUser.id)
               if (isDev) console.log(`${LOG_PREFIX} callbacks.signIn: 2fa check`)
               if (!twoFactorConfirmation) return false
+
+              // Reject if the 2FA confirmation is older than 10 minutes
+              const TEN_MINUTES_MS = 10 * 60 * 1000;
+              const confirmationAge = Date.now() - new Date(twoFactorConfirmation.createdAt).getTime();
+              if (confirmationAge > TEN_MINUTES_MS) {
+                if (isDev) console.log(`${LOG_PREFIX} callbacks.signIn: 2fa confirmation expired (${Math.round(confirmationAge / 1000)}s old)`);
+                await dbPrisma.twoFactorConfirmation.delete({
+                  where: { id: twoFactorConfirmation.id }
+                });
+                return false;
+              }
               
               // delete two factor confirmation for next sign in
-              // TODO: ADD EXPIRES IN... timer
               await dbPrisma.twoFactorConfirmation.delete({
                 where: { id: twoFactorConfirmation.id }
               });
@@ -204,6 +359,19 @@ export const {
 			if (session.user) {
 				session.user.web3ModeEnabled = token.web3ModeEnabled as boolean;
 			}
+
+          if (session.user) {
+            session.user.identityNameSource = token.identityNameSource as IdentitySource | undefined;
+            session.user.identityImageSource = token.identityImageSource as IdentitySource | undefined;
+            session.user.emailDisplayMode = token.emailDisplayMode as IdentityEmailMode | undefined;
+
+            if (typeof token.displayName === 'string' || token.displayName === null) {
+              session.user.name = (token.displayName as string | null) ?? session.user.name;
+            }
+            if (typeof token.displayImage === 'string' || token.displayImage === null) {
+              session.user.image = (token.displayImage as string | null) ?? session.user.image;
+            }
+          }
 
           // Pass impersonation info through to the session
           if (session.user) {
@@ -260,7 +428,11 @@ export const {
           }
 
           // ── Normal flow ──────────────────────────────────────────────
-          const existingUser = await getUserById(token.sub);
+          // Run both DB lookups in parallel to halve latency to remote DB
+          const [existingUser, existingAccount] = await Promise.all([
+            getUserById(token.sub),
+            getAccountByUserId(token.sub),
+          ]);
 
           // If user was deleted (e.g. DB wipe), invalidate the session
           if (!existingUser) {
@@ -278,8 +450,6 @@ export const {
             return { ...token, sub: undefined, email: undefined, name: undefined };
           }
 
-          const existingAccount = await getAccountByUserId(existingUser.id);
-
           token.isTwoFactorEnabled = existingUser.isTwoFactorEnabled;
           token.referredBy = existingUser.referredBy;
           token.role = existingUser.role;
@@ -288,6 +458,24 @@ export const {
           token.image = existingUser.image;
           token.isOAuth = !!existingAccount;
           token.web3ModeEnabled = existingUser.web3ModeEnabled;
+          token.identityNameSource = (existingUser.identityNameSource as IdentitySource | null) ?? 'AUTO';
+          token.identityImageSource = (existingUser.identityImageSource as IdentitySource | null) ?? 'AUTO';
+          token.emailDisplayMode = (existingUser.emailDisplayMode as IdentityEmailMode | null) ?? 'PRIMARY';
+
+          if (account?.provider === 'google' || account?.provider === 'github' || account?.provider === 'discord') {
+            token.lastAuthProvider = account.provider;
+          }
+
+          token.displayName = resolveDisplayName(
+            existingUser,
+            token.identityNameSource as IdentitySource | undefined,
+            token.lastAuthProvider as string | undefined,
+          );
+          token.displayImage = resolveDisplayImage(
+            existingUser,
+            token.identityImageSource as IdentitySource | undefined,
+            token.lastAuthProvider as string | undefined,
+          );
           token.tokenVersion = existingUser.tokenVersion;
 
           // Clear impersonation flags in normal mode

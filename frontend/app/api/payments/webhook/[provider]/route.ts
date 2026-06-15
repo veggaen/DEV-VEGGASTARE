@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 import { getPaymentProvider, type PaymentProviderType } from '@/lib/payments/providers';
-import { recalculateVerificationTier } from '@/lib/verification-recalc';
-import { sendSellerOrderNotification, sendWarehouseOrderNotification } from '@/lib/mail';
 import { verifyWebhookSignature } from '@/lib/payments/webhook-verify';
 import { getProviderGate } from '@/lib/payments/provider-gating';
 import { getRuntimeConfig } from '@/lib/runtime-config';
-
-const prisma = dbPrisma as any;
 
 function selectWebhookHeaders(headers: Headers): Record<string, string> {
   const keep = [
@@ -63,7 +59,7 @@ async function logWebhookEvent(input: {
     };
 
     if (deliveryId) {
-      await prisma.paymentWebhookEvent.upsert({
+      await dbPrisma.paymentWebhookEvent.upsert({
         where: { provider_deliveryId: { provider: input.provider, deliveryId } },
         create: eventData,
         update: eventData,
@@ -71,7 +67,7 @@ async function logWebhookEvent(input: {
       return;
     }
 
-    await prisma.paymentWebhookEvent.create({ data: eventData });
+    await dbPrisma.paymentWebhookEvent.create({ data: eventData });
   } catch (error) {
     console.error(`[webhook/${input.provider}] Failed to persist webhook event:`, error);
   }
@@ -180,27 +176,36 @@ export async function POST(
     const status = await provider.getStatus(sessionId);
 
     if (status.status === 'CAPTURED' || status.status === 'AUTHORIZED') {
-      // Find order by looking at Payment records with this transactionId
-      // Or parse orderId from the reference (e.g., "order-{orderId}-{timestamp}")
-      const orderIdMatch = sessionId.match(/^order-(.+?)-\d+$/);
-      const orderId = orderIdMatch?.[1];
+      // Extract orderId: Vipps uses "order-{orderId}-{timestamp}" format, 
+      // PayPal uses its own ID but stores our orderId in purchase_units[0].reference_id
+      let orderId: string | undefined;
+      
+      if (providerType === 'paypal') {
+        // PayPal: extract from purchase_units reference_id or look up by transactionId
+        orderId = body.resource?.purchase_units?.[0]?.reference_id;
+        if (!orderId) {
+          // Fallback: find payment by PayPal order ID stored as transactionId
+          const payment = await dbPrisma.payment.findFirst({
+            where: { transactionId: sessionId },
+            select: { orderId: true },
+          });
+          orderId = payment?.orderId ?? undefined;
+        }
+      } else {
+        // Vipps/Klarna: parse from reference format "order-{orderId}-{timestamp}"
+        const orderIdMatch = sessionId.match(/^order-(.+?)-\d+$/);
+        orderId = orderIdMatch?.[1];
+      }
 
       if (orderId) {
-        await dbPrisma.$transaction([
-          dbPrisma.order.update({
-            where: { id: orderId },
-            data: { status: 'COMPLETED', transactionId: status.transactionId ?? sessionId },
-          }),
-          dbPrisma.payment.update({
-            where: { orderId },
-            data: {
-              status: 'COMPLETED',
-              transactionId: status.transactionId ?? sessionId,
-            },
-          }),
-        ]);
+        // Use the shared completeFiatOrder function for consistent post-payment logic
+        const { completeFiatOrder } = await import('@/lib/payments/complete-fiat-order');
+        const result = await completeFiatOrder(orderId, {
+          paymentTransactionId: status.transactionId ?? sessionId,
+          source: `webhook-${providerType}`,
+        });
 
-        console.log(`[webhook/${providerType}] Order ${orderId} completed via ${providerType}`);
+        console.log(`[webhook/${providerType}] Order ${orderId} completion: ${result.success ? 'ok' : result.error}${result.alreadyCompleted ? ' (already completed)' : ''}`);
 
         const payment = await dbPrisma.payment.findUnique({ where: { orderId }, select: { id: true, status: true } });
         const orderNow = await dbPrisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
@@ -218,152 +223,25 @@ export async function POST(
           rawPayload: body,
           headers: headersForLog,
         });
-
-        // Set Web2 payment flag and recalculate verification tier
-        const order = await dbPrisma.order.findUnique({ where: { id: orderId }, select: { userId: true } });
-        if (order?.userId) {
-          try {
-            await dbPrisma.user.update({
-              where: { id: order.userId },
-              data: { hasWeb2Payment: true },
-            });
-            await recalculateVerificationTier(order.userId, { hasWeb2Payment: true });
-          } catch (flagErr) {
-            console.error(`[webhook/${providerType}] Failed to set hasWeb2Payment:`, flagErr);
-          }
-        }
-
-        // ── Notify sellers + warehouse employees (non-blocking) ──
-        if (orderId) {
-          (async () => {
-            try {
-              const fullOrder = await dbPrisma.order.findUnique({
-                where: { id: orderId },
-                select: {
-                  id: true,
-                  totalAmount: true,
-                  shippingName: true,
-                  shippingAddress: true,
-                  shippingCity: true,
-                  shippingPostalCode: true,
-                  shippingCountry: true,
-                  shippingPhone: true,
-                  shippingMethod: true,
-                  labelUrl: true,
-                  trackingNumber: true,
-                  OrderItem: {
-                    select: {
-                      title: true,
-                      quantity: true,
-                      priceAtTime: true,
-                      productId: true,
-                      Product: {
-                        select: {
-                          productType: true,
-                          userId: true,
-                          companyId: true,
-                          User: { select: { email: true } },
-                          Company: {
-                            select: {
-                              name: true,
-                              Employee: {
-                                where: { role: 'OWNER' },
-                                select: { User: { select: { email: true } } },
-                              },
-                              WarehouseLocation: {
-                                where: { isActive: true },
-                                select: {
-                                  id: true,
-                                  name: true,
-                                },
-                              },
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              });
-              if (!fullOrder) return;
-
-              const sellerMap = new Map<string, { email: string; items: { title: string; quantity: number; priceAtTime: number }[]; isDigital: boolean }>();
-
-              for (const oi of fullOrder.OrderItem) {
-                const product = oi.Product;
-                if (!product) continue;
-                const isDigital = product.productType === 'DIGITAL';
-                let sellerEmail: string | null = null;
-                if (product.Company?.Employee?.[0]?.User?.email) {
-                  sellerEmail = product.Company.Employee[0].User.email;
-                } else if (product.User?.email) {
-                  sellerEmail = product.User.email;
-                }
-                if (sellerEmail) {
-                  const existing = sellerMap.get(sellerEmail);
-                  const itemData = { title: oi.title, quantity: oi.quantity, priceAtTime: oi.priceAtTime };
-                  if (existing) {
-                    existing.items.push(itemData);
-                    if (!isDigital) existing.isDigital = false;
-                  } else {
-                    sellerMap.set(sellerEmail, { email: sellerEmail, items: [itemData], isDigital });
-                  }
-                }
-
-                // Warehouse notification for physical products
-                if (product.productType !== 'DIGITAL' && product.Company?.WarehouseLocation?.length) {
-                  const whEmails = product.Company.Employee
-                    ?.map((e: { User: { email: string | null } }) => e.User?.email)
-                    .filter(Boolean) as string[];
-                  for (const wh of product.Company.WarehouseLocation) {
-                    if (whEmails.length > 0) {
-                      await sendWarehouseOrderNotification(whEmails, {
-                        orderId: fullOrder.id,
-                        items: [{ title: oi.title, quantity: oi.quantity }],
-                        buyerName: fullOrder.shippingName || 'Customer',
-                        shippingAddress: fullOrder.shippingAddress || '',
-                        shippingCity: fullOrder.shippingCity || '',
-                        shippingPostalCode: fullOrder.shippingPostalCode || '',
-                        shippingCountry: fullOrder.shippingCountry || 'NO',
-                        shippingPhone: fullOrder.shippingPhone ?? undefined,
-                        shippingMethodName: fullOrder.shippingMethod ?? undefined,
-                        labelUrl: fullOrder.labelUrl ?? undefined,
-                        trackingNumber: fullOrder.trackingNumber ?? undefined,
-                        warehouseName: wh.name || product.Company!.name,
-                      });
-                    }
-                  }
-                }
-              }
-
-              for (const [, seller] of sellerMap) {
-                await sendSellerOrderNotification(seller.email, {
-                  orderId: fullOrder.id,
-                  items: seller.items,
-                  totalAmount: fullOrder.totalAmount,
-                  buyerName: fullOrder.shippingName || 'Customer',
-                  shippingAddress: fullOrder.shippingAddress ?? undefined,
-                  shippingCity: fullOrder.shippingCity ?? undefined,
-                  shippingPostalCode: fullOrder.shippingPostalCode ?? undefined,
-                  shippingCountry: fullOrder.shippingCountry ?? undefined,
-                  shippingPhone: fullOrder.shippingPhone ?? undefined,
-                  shippingMethodName: fullOrder.shippingMethod ?? undefined,
-                  labelUrl: fullOrder.labelUrl ?? undefined,
-                  trackingNumber: fullOrder.trackingNumber ?? undefined,
-                  isDigital: seller.isDigital,
-                });
-              }
-            } catch (notifyErr) {
-              console.error(`[webhook/${providerType}] Seller/warehouse notify error:`, notifyErr);
-            }
-          })();
-        }
       }
     }
 
     if (status.status === 'CANCELLED' || status.status === 'FAILED') {
-      const orderIdMatch = sessionId.match(/^order-(.+?)-\d+$/);
-      const orderId = orderIdMatch?.[1];
+      // Same lookup logic as above
+      let orderId: string | undefined;
+      if (providerType === 'paypal') {
+        orderId = body.resource?.purchase_units?.[0]?.reference_id;
+        if (!orderId) {
+          const payment = await dbPrisma.payment.findFirst({
+            where: { transactionId: sessionId },
+            select: { orderId: true },
+          });
+          orderId = payment?.orderId ?? undefined;
+        }
+      } else {
+        const orderIdMatch = sessionId.match(/^order-(.+?)-\d+$/);
+        orderId = orderIdMatch?.[1];
+      }
 
       if (orderId) {
         const existingOrder = await dbPrisma.order.findUnique({
@@ -413,8 +291,14 @@ export async function POST(
     }
 
     if (status.status !== 'CAPTURED' && status.status !== 'AUTHORIZED' && status.status !== 'CANCELLED' && status.status !== 'FAILED') {
-      const orderIdMatch = sessionId.match(/^order-(.+?)-\d+$/);
-      const orderId = orderIdMatch?.[1] ?? null;
+      // Resolve orderId for logging
+      let orderId: string | null = null;
+      if (providerType === 'paypal') {
+        orderId = body.resource?.purchase_units?.[0]?.reference_id ?? null;
+      } else {
+        const m = sessionId.match(/^order-(.+?)-\d+$/);
+        orderId = m?.[1] ?? null;
+      }
       const payment = orderId ? await dbPrisma.payment.findUnique({ where: { orderId }, select: { id: true, status: true } }) : null;
       const orderNow = orderId ? await dbPrisma.order.findUnique({ where: { id: orderId }, select: { status: true } }) : null;
       await logWebhookEvent({

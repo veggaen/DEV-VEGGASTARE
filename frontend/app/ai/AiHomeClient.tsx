@@ -51,7 +51,7 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
 
   const handleNewChat = useCallback(async () => {
     if (!isLoggedIn) {
-      router.push("/sign-in");
+      router.push("/auth/login");
       return;
     }
     setCreating(true);
@@ -225,7 +225,7 @@ function AnonymousHero({ onCreate, creating }: { onCreate: () => void; creating:
       </div>
       <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
         <Link
-          href="/sign-in"
+          href="/auth/login"
           className="flex-1 py-2.5 rounded-xl bg-emerald-500 text-black font-semibold text-sm hover:bg-emerald-400 transition-colors text-center"
         >
           Sign in

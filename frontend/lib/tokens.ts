@@ -10,7 +10,6 @@ import { SecurityActionType, TwoFactorToken, PasswordResetToken, VerificationTok
 export const generateTwoFactorToken = async (email: string): Promise<TwoFactorToken> => {
   const token = crypto.randomInt(100_000, 1_000_000).toString();
   const tokenExpiresTimer = 5; // minutes
-  // TODO: later change to 5 min...
   const expires = new Date(new Date().getTime() + (60 * tokenExpiresTimer) * 1000)
 
   const existingToken = await getTwoFactortokenByEmail(email);

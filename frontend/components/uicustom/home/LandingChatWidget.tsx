@@ -309,11 +309,11 @@ function ModelSelector({
         disabled={!isLoggedIn}
         className={`flex items-center gap-1.5 text-[11px] rounded-lg border transition-all ${
           isLoggedIn
-            ? "cursor-pointer hover:border-emerald-500/30 hover:bg-emerald-500/5"
+            ? "cursor-pointer hover:border-sky-500/30 dark:hover:border-emerald-500/30 hover:bg-sky-500/5 dark:hover:bg-emerald-500/5"
             : "cursor-default opacity-70"
         } ${
           byokActive
-            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+            ? "border-sky-500/30 dark:border-emerald-500/30 bg-sky-500/10 dark:bg-emerald-500/10 text-sky-400 dark:text-emerald-400"
             : "border-black/12 dark:border-white/10 text-muted-foreground"
         } px-2 py-1`}
         title={isLoggedIn ? "Choose AI model" : "Sign in to choose a model"}
@@ -326,7 +326,7 @@ function ModelSelector({
         </span>
         {byokActive && (
           <span
-            className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0"
+            className="inline-block h-1.5 w-1.5 rounded-full bg-sky-400 dark:bg-emerald-400 shrink-0"
             title="Using your API key"
           />
         )}
@@ -378,7 +378,7 @@ function ModelSelector({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search models…"
-                  className="w-full h-8 bg-white/5 border border-white/8 rounded-lg text-xs pl-8 pr-3 text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-emerald-500/30"
+                  className="w-full h-8 bg-white/5 border border-white/8 rounded-lg text-xs pl-8 pr-3 text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-sky-500/30 dark:focus:border-emerald-500/30"
                   autoFocus
                 />
               </div>
@@ -413,7 +413,7 @@ function ModelSelector({
                       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                         {prov.emoji} {prov.label}
                       </span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 dark:bg-emerald-500/15 text-sky-400 dark:text-emerald-400 border border-sky-500/20 dark:border-emerald-500/20">
                         FREE
                       </span>
                     </div>
@@ -667,14 +667,14 @@ function ModelRow({
       onClick={onClick}
       className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors group ${
         isActive
-          ? "bg-emerald-500/10 border border-emerald-500/20"
+          ? "bg-sky-500/10 dark:bg-emerald-500/10 border border-sky-500/20 dark:border-emerald-500/20"
           : "hover:bg-white/5 border border-transparent"
       } ${locked ? "opacity-60" : ""}`}
     >
       {/* Active indicator */}
       <div className="mt-1 shrink-0 w-3 flex justify-center">
         {isActive ? (
-          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+          <span className="h-2 w-2 rounded-full bg-sky-400 dark:bg-emerald-400" />
         ) : locked ? (
           <svg
             width="10"
@@ -705,7 +705,7 @@ function ModelRow({
             </span>
           )}
           {model.isDefault && (
-            <span className="text-[9px] text-emerald-400/70">★</span>
+            <span className="text-[9px] text-sky-400/70 dark:text-emerald-400/70">★</span>
           )}
         </div>
         {model.description && (
@@ -1186,12 +1186,12 @@ export default function LandingChatWidget({
               }}
               onClick={handleOpen}
               aria-label="Open AI chat"
-              className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full glass-panel shadow-lg shadow-emerald-500/10 text-sm font-medium text-foreground hover:border-emerald-400/60 hover:shadow-emerald-400/20 transition-colors"
+              className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full glass-panel shadow-lg shadow-sky-500/10 dark:shadow-emerald-500/10 text-sm font-medium text-foreground hover:border-sky-400/60 dark:hover:border-emerald-400/60 hover:shadow-sky-400/20 dark:hover:shadow-emerald-400/20 transition-colors"
             >
-              <span className="text-emerald-400 text-base">✦</span>
+              <span className="text-sky-400 dark:text-emerald-400 text-base">✦</span>
               <span>Ask AI</span>
               {state.messages.length > 0 && (
-                <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-black">
+                <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 dark:bg-emerald-500 text-[10px] font-bold text-black">
                   {state.messages.filter((m) => m.role === "user").length}
                 </span>
               )}
@@ -1258,9 +1258,9 @@ export default function LandingChatWidget({
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: reduceMotion ? 0 : 0.18 }}
                 onClick={() => setDesktopOpen(true)}
-                className="flex items-center gap-3 px-5 py-3.5 rounded-2xl glass-panel hover:border-emerald-500/30 hover:shadow-emerald-500/10 shadow-lg transition-all group max-w-2xl w-full"
+                className="flex items-center gap-3 px-5 py-3.5 rounded-2xl glass-panel hover:border-sky-500/30 dark:hover:border-emerald-500/30 hover:shadow-sky-500/10 dark:hover:shadow-emerald-500/10 shadow-lg transition-all group max-w-2xl w-full"
               >
-                <span className="text-emerald-400 text-lg group-hover:scale-110 transition-transform">
+                <span className="text-sky-400 dark:text-emerald-400 text-lg group-hover:scale-110 transition-transform">
                   ✦
                 </span>
                 <div className="flex-1 text-left">
@@ -1272,7 +1272,7 @@ export default function LandingChatWidget({
                   </span>
                 </div>
                 {state.messages.length > 0 && (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-black">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 dark:bg-emerald-500 text-[10px] font-bold text-black">
                     {state.messages.filter((m) => m.role === "user").length}
                   </span>
                 )}
@@ -1391,7 +1391,7 @@ function ChatPanelInner({
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-black/8 dark:border-white/10 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-emerald-400">✦</span>
+          <span className="text-sky-400 dark:text-emerald-400">✦</span>
           <span className="text-sm font-semibold">Ask AI</span>
           {!isLoggedIn && (
             <span
@@ -1420,7 +1420,7 @@ function ChatPanelInner({
               onClick={() => setShowByokPanel(!showByokPanel)}
               className={`p-1.5 rounded-lg transition-colors ${
                 byokActive
-                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                  ? "bg-sky-500/15 dark:bg-emerald-500/15 text-sky-400 dark:text-emerald-400 border border-sky-500/30 dark:border-emerald-500/30"
                   : "hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground"
               }`}
               title={
@@ -1512,7 +1512,7 @@ function ChatPanelInner({
                 <p className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
                   {byokActive ? (
                     <>
-                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-400 dark:bg-emerald-400 animate-pulse" />
                       {providerDef?.emoji} {providerDef?.label ?? activeProvider}{" "}
                       connected
                     </>
@@ -1545,14 +1545,14 @@ function ChatPanelInner({
                   onChange={(e) => setByokKey(e.target.value)}
                   type="password"
                   placeholder="Paste your API key…"
-                  className="w-full h-8 bg-black/4 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg text-xs font-mono placeholder:font-sans px-2.5 pr-8 text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-emerald-500/40 transition-colors"
+                  className="w-full h-8 bg-black/4 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg text-xs font-mono placeholder:font-sans px-2.5 pr-8 text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-sky-500/40 dark:focus:border-emerald-500/40 transition-colors"
                   autoComplete="off"
                 />
                 {byokKey.trim() && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2">
                     {byokActive ? (
                       <span
-                        className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/20"
+                        className="flex h-4 w-4 items-center justify-center rounded-full bg-sky-500/20 dark:bg-emerald-500/20"
                         title="Valid key detected"
                       >
                         <svg
@@ -1562,7 +1562,7 @@ function ChatPanelInner({
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="3"
-                          className="text-emerald-400"
+                          className="text-sky-400 dark:text-emerald-400"
                         >
                           <path d="M20 6L9 17l-5-5" />
                         </svg>
@@ -1592,7 +1592,7 @@ function ChatPanelInner({
               {/* Detection hint */}
               {byokKey.trim() && detectedByokProvider && (
                 <div className="flex items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
+                  <span className="inline-flex items-center gap-1 text-[10px] text-sky-400 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-500/10 border border-sky-500/20 dark:border-emerald-500/20 rounded-full px-2 py-0.5">
                     ✓ {providerDef?.emoji} {providerDef?.label}
                   </span>
                   <span className="text-[10px] text-muted-foreground/50">
@@ -1629,7 +1629,7 @@ function ChatPanelInner({
                       disabled={!byokKey.trim()}
                       className={`h-6 px-2.5 rounded-md text-[10px] font-medium transition-colors ${
                         byokKey.trim()
-                          ? "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+                          ? "bg-sky-500/15 dark:bg-emerald-500/15 text-sky-400 dark:text-emerald-400 hover:bg-sky-500/25 dark:hover:bg-emerald-500/25"
                           : "bg-black/4 dark:bg-white/5 text-muted-foreground cursor-not-allowed"
                       }`}
                     >
@@ -1644,7 +1644,7 @@ function ChatPanelInner({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[10px] text-emerald-400/70 hover:text-emerald-300 transition-colors"
+                    className="text-[10px] text-sky-400/70 dark:text-emerald-400/70 hover:text-sky-300 dark:hover:text-emerald-300 transition-colors"
                     title={`Get an API key from ${providerDef?.label ?? provider}`}
                   >
                     Get a key ↗
@@ -1658,7 +1658,7 @@ function ChatPanelInner({
                     type="checkbox"
                     checked={byokRemember}
                     onChange={(e) => setByokRemember(e.target.checked)}
-                    className="h-3 w-3 rounded border-black/20 dark:border-white/20 accent-emerald-500"
+                    className="h-3 w-3 rounded border-black/20 dark:border-white/20 accent-sky-500 dark:accent-emerald-500"
                   />
                   <span className="text-[10px] text-muted-foreground">
                     Save key
@@ -1702,7 +1702,7 @@ function ChatPanelInner({
         {state.messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
             <div
-              className={`text-emerald-400 ${desktopMode ? "text-4xl" : "text-3xl"}`}
+              className={`text-sky-400 dark:text-emerald-400 ${desktopMode ? "text-4xl" : "text-3xl"}`}
             >
               ✦
             </div>
@@ -1727,7 +1727,7 @@ function ChatPanelInner({
                 <button
                   key={prompt}
                   onClick={() => onSuggest(prompt)}
-                  className="text-[11px] px-3 py-1.5 rounded-full bg-black/4 dark:bg-white/5 border border-black/10 dark:border-white/10 text-muted-foreground hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors"
+                  className="text-[11px] px-3 py-1.5 rounded-full bg-black/4 dark:bg-white/5 border border-black/10 dark:border-white/10 text-muted-foreground hover:bg-sky-500/10 dark:hover:bg-emerald-500/10 hover:border-sky-500/30 dark:hover:border-emerald-500/30 hover:text-sky-600 dark:hover:text-emerald-300 transition-colors"
                 >
                   {prompt}
                 </button>
@@ -1735,8 +1735,8 @@ function ChatPanelInner({
             </div>
             {!isLoggedIn && (
               <a
-                href="/sign-in"
-                className="text-[11px] text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition-colors"
+                href="/auth/login"
+                className="text-[11px] text-sky-400 dark:text-emerald-400 hover:text-sky-300 dark:hover:text-emerald-300 underline underline-offset-2 transition-colors"
               >
                 Sign in for full access
               </a>
@@ -1761,7 +1761,7 @@ function ChatPanelInner({
               state.messages[state.messages.length - 1]?.content === "" && (
                 <div className="flex justify-start">
                   <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[10px] text-emerald-400 shrink-0">
+                    <div className="h-5 w-5 rounded-full bg-sky-500/20 dark:bg-emerald-500/20 border border-sky-500/30 dark:border-emerald-500/30 flex items-center justify-center text-[10px] text-sky-400 dark:text-emerald-400 shrink-0">
                       ✦
                     </div>
                     <div className="bg-black/4 dark:bg-white/5 border border-black/8 dark:border-white/8 rounded-2xl px-3 py-2">
@@ -1810,14 +1810,14 @@ function ChatPanelInner({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden shrink-0"
           >
-            <div className="flex flex-col gap-2 px-4 py-3 bg-emerald-500/10 border-t border-emerald-500/20 text-xs">
-              <span className="text-emerald-300">
+            <div className="flex flex-col gap-2 px-4 py-3 bg-sky-500/10 dark:bg-emerald-500/10 border-t border-sky-500/20 dark:border-emerald-500/20 text-xs">
+              <span className="text-sky-300 dark:text-emerald-300">
                 Longer messages need an account — free, takes 10 seconds.
               </span>
               <div className="flex gap-2">
                 <a
-                  href="/sign-in"
-                  className="flex-1 text-center py-1.5 rounded-lg bg-emerald-500 text-black text-xs font-semibold hover:bg-emerald-400 transition-colors"
+                  href="/auth/login"
+                  className="flex-1 text-center py-1.5 rounded-lg bg-sky-500 dark:bg-emerald-500 text-black text-xs font-semibold hover:bg-sky-400 dark:hover:bg-emerald-400 transition-colors"
                 >
                   Sign in
                 </a>
@@ -1845,13 +1845,13 @@ function ChatPanelInner({
               )?.label ?? model}
             </span>
             {byokActive && (
-              <span className="text-emerald-400/60">• your key</span>
+              <span className="text-sky-400/60 dark:text-emerald-400/60">• your key</span>
             )}
             {!byokActive && lastCostTier === "premium" && (
               <span className="text-amber-400/70">• premium credits</span>
             )}
             {!byokActive && lastCostTier === "free" && (
-              <span className="text-emerald-400/40">• free</span>
+              <span className="text-sky-400/40 dark:text-emerald-400/40">• free</span>
             )}
           </div>
           {!isLoggedIn &&
@@ -1886,7 +1886,7 @@ function ChatPanelInner({
           <button
             onClick={onSend}
             disabled={!state.input.trim() || state.isStreaming}
-            className="shrink-0 flex items-center justify-center h-7 w-7 rounded-lg bg-emerald-500 text-black hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors chat-send-btn"
+            className="shrink-0 flex items-center justify-center h-7 w-7 rounded-lg bg-sky-500 dark:bg-emerald-500 text-black hover:bg-sky-400 dark:hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors chat-send-btn"
             aria-label="Send"
           >
             {state.isStreaming ? (
@@ -1928,14 +1928,14 @@ function MessageBubble({
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
     >
       {!isUser && (
-        <div className="mr-2 mt-1 shrink-0 h-5 w-5 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[10px] text-emerald-400">
+        <div className="mr-2 mt-1 shrink-0 h-5 w-5 rounded-full bg-sky-500/20 dark:bg-emerald-500/20 border border-sky-500/30 dark:border-emerald-500/30 flex items-center justify-center text-[10px] text-sky-400 dark:text-emerald-400">
           ✦
         </div>
       )}
       <div
         className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word ${
           isUser
-            ? "bg-emerald-500/15 border border-emerald-500/20 text-foreground rounded-tr-sm"
+            ? "bg-sky-500/15 dark:bg-emerald-500/15 border border-sky-500/20 dark:border-emerald-500/20 text-foreground rounded-tr-sm"
             : "bg-black/4 dark:bg-white/5 border border-black/8 dark:border-white/8 text-foreground rounded-tl-sm"
         }`}
       >

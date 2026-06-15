@@ -57,6 +57,26 @@ const WarehouseInventory = () => {
     const [error, setError] = useState<string | null>(null);
     const [query, setQuery] = useState('');
 
+    const inventory = warehouse?.inventory ?? [];
+
+    const totals = useMemo(() => {
+        const skuCount = inventory.length;
+        const initialTotal = inventory.reduce((acc, item) => acc + (item.quantity ?? 0), 0);
+        const currentTotal = inventory.reduce((acc, item) => acc + (item.stock ?? 0), 0);
+        const ratio = initialTotal > 0 ? currentTotal / initialTotal : 0;
+        return { skuCount, initialTotal, currentTotal, ratio };
+    }, [inventory]);
+
+    const filteredInventory = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return inventory;
+        return inventory.filter((item) => {
+            const title = item.product?.title?.toLowerCase() ?? '';
+            const category = item.product?.category?.toLowerCase() ?? '';
+            return title.includes(q) || category.includes(q);
+        });
+    }, [inventory, query]);
+
     useEffect(() => {
         const fetchWarehouseDetails = async () => {
             try {
@@ -78,25 +98,6 @@ const WarehouseInventory = () => {
         }
     }, [companyId, warehouseId]);
 
-    const inventory = warehouse?.inventory ?? [];
-
-    const totals = useMemo(() => {
-        const skuCount = inventory.length;
-        const initialTotal = inventory.reduce((acc, item) => acc + (item.quantity ?? 0), 0);
-        const currentTotal = inventory.reduce((acc, item) => acc + (item.stock ?? 0), 0);
-        const ratio = initialTotal > 0 ? currentTotal / initialTotal : 0;
-        return { skuCount, initialTotal, currentTotal, ratio };
-    }, [inventory]);
-
-    const filteredInventory = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        if (!q) return inventory;
-        return inventory.filter((item) => {
-            const title = item.product?.title?.toLowerCase() ?? '';
-            const category = item.product?.category?.toLowerCase() ?? '';
-            return title.includes(q) || category.includes(q);
-        });
-    }, [inventory, query]);
     if (loading) return <div>Loading...</div>;
     if (error) return <div>{error}</div>;
     if (!warehouse) return <div>Warehouse not found.</div>;

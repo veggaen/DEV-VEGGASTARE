@@ -789,3 +789,32 @@ export const sendWarehouseOrderNotification = async (
     )
   );
 };
+
+// ─── PayPal Email Verification ──────────────────────────────────────────────
+
+export const sendPaypalVerificationEmail = async (
+  email: string,
+  token: string,
+  entityType: 'user' | 'company',
+  entityId: string,
+): Promise<void> => {
+  const verifyLink = `${whatENV}/settings/verify-paypal?token=${token}&type=${entityType}&id=${entityId}`;
+  const targetLabel = entityType === 'company' ? 'your company' : 'your account';
+
+  await sendEmailViaResend({
+    from: 'Veggat-Payments@veggat.com',
+    to: email,
+    subject: 'Verify Your PayPal Email — Veggat Seller Setup',
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">PayPal Email Verification</h2>
+        <p>You added this email as the PayPal receiving address for ${targetLabel} on Veggat.</p>
+        <p>Click below to confirm ownership:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verifyLink}" style="background: #0070f3; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Verify PayPal Email</a>
+        </div>
+        <p style="color: #666; font-size: 14px;">This link expires in 24 hours. If you didn't request this, you can safely ignore this email.</p>
+      </div>
+    `,
+  });
+};

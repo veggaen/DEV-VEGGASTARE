@@ -67,7 +67,17 @@ interface SellerOrder {
   };
   customer: { id: string; name: string | null; email: string | null };
   items: SellerOrderItem[];
-  payment: { method: string; status: string } | null;
+  payment: {
+    method: string;
+    status: string;
+    receiverAddress: string | null;
+    senderAddress: string | null;
+    chainFamily: string | null;
+    chainId: number | null;
+    tokenSymbol: string | null;
+    nativeAmount: string | null;
+    transactionId: string | null;
+  } | null;
 }
 
 // ─── Status Helpers ───────────────────────────────────────────
@@ -388,10 +398,93 @@ export default function MySalesPage() {
                         </div>
                       )}
 
-                      {/* Payment */}
+                      {/* Payment Routing */}
                       {order.payment && (
-                        <div className="text-xs text-zinc-500">
-                          Betaling: {order.payment.method} · {order.payment.status}
+                        <div>
+                          <h4 className="text-xs font-medium text-zinc-500 mb-2">
+                            Betaling
+                          </h4>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full border ${
+                                  order.payment.status === "COMPLETED"
+                                    ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                                    : order.payment.status === "PENDING"
+                                    ? "border-yellow-500/30 text-yellow-400 bg-yellow-500/10"
+                                    : "border-zinc-600/30 text-zinc-400 bg-zinc-500/10"
+                                }`}
+                              >
+                                {order.payment.status}
+                              </span>
+                              <span className="text-xs text-zinc-400">
+                                via {order.payment.method.replace(/_/g, " ")}
+                              </span>
+                            </div>
+
+                            {/* Crypto payment details */}
+                            {order.payment.chainFamily && (
+                              <div className="text-xs text-zinc-500 space-y-1 mt-1 pl-1">
+                                {order.payment.tokenSymbol && order.payment.nativeAmount && (
+                                  <p>
+                                    <span className="text-zinc-400">Beløp:</span>{" "}
+                                    {order.payment.nativeAmount} {order.payment.tokenSymbol}
+                                    <span className="text-zinc-600 ml-1">
+                                      ({order.payment.chainFamily}
+                                      {order.payment.chainId ? ` #${order.payment.chainId}` : ""})
+                                    </span>
+                                  </p>
+                                )}
+                                {order.payment.receiverAddress && (
+                                  <p>
+                                    <span className="text-zinc-400">Mottaker:</span>{" "}
+                                    <span className="font-mono text-emerald-400/80">
+                                      {order.payment.receiverAddress.slice(0, 6)}…
+                                      {order.payment.receiverAddress.slice(-4)}
+                                    </span>
+                                  </p>
+                                )}
+                                {order.payment.senderAddress && (
+                                  <p>
+                                    <span className="text-zinc-400">Avsender:</span>{" "}
+                                    <span className="font-mono">
+                                      {order.payment.senderAddress.slice(0, 6)}…
+                                      {order.payment.senderAddress.slice(-4)}
+                                    </span>
+                                  </p>
+                                )}
+                                {order.payment.transactionId && (
+                                  <p>
+                                    <span className="text-zinc-400">Tx:</span>{" "}
+                                    <span className="font-mono">
+                                      {order.payment.transactionId.slice(0, 10)}…
+                                      {order.payment.transactionId.slice(-6)}
+                                    </span>
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Fiat payment — show recipient + reference */}
+                            {!order.payment.chainFamily && (
+                              <div className="text-xs text-zinc-500 space-y-1 mt-1 pl-1">
+                                {order.payment.receiverAddress && (
+                                  <p>
+                                    <span className="text-zinc-400">Mottaker:</span>{" "}
+                                    <span className="text-blue-400/80">
+                                      {order.payment.receiverAddress}
+                                    </span>
+                                  </p>
+                                )}
+                                {order.payment.transactionId && (
+                                  <p>
+                                    <span className="text-zinc-400">Ref:</span>{" "}
+                                    <span className="font-mono">{order.payment.transactionId}</span>
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

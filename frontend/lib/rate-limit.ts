@@ -59,6 +59,9 @@ export const RATE_LIMITS = {
 
   // Trade operations — moderate per-user
   trade: { maxRequests: 15, windowMs: 60_000 },
+
+  // Seller payment setup — strict (email sends, wallet changes)
+  payment: { maxRequests: 8, windowMs: 60_000 },
 } as const;
 
 export type RateLimitType = keyof typeof RATE_LIMITS;

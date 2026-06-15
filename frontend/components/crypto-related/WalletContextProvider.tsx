@@ -73,12 +73,10 @@ export default function WalletContextProvider({ children }: { children: React.Re
       busyRef.current.evm = true;
       bump();
       try {
-        console.log("[connectEvm] Available connectors:", connectors.map(c => ({ id: c.id, name: c.name })));
         const connector = connectors.find((c) => c.id === connectorId) ?? connectors.find((c) => c.name === connectorId);
         if (!connector) throw new Error(`Connector ${connectorId} not found`);
 
         const id = connector.id;
-        console.log("[connectEvm] Selected connector:", id);
         if (id === "metaMask") setEvmBrandHint("MetaMask");
         else if (id === "coinbaseWalletSDK") setEvmBrandHint("Coinbase Wallet");
         else if (id === "injected") setEvmBrandHint("Injected");
@@ -121,7 +119,6 @@ export default function WalletContextProvider({ children }: { children: React.Re
       busyRef.current.sol = true;
       bump();
       try {
-        console.log("[connectSolana] Available wallets:", solWallets.map(w => w.adapter.name));
         const wallet = solWallets.find(w => w.adapter.name === walletName);
         if (!wallet) throw new Error(`Wallet ${walletName} not found`);
 

@@ -42,6 +42,7 @@ export async function fetchUserManyDetails(userIds: string[]) {
       id: true,
       name: true,
       email: true,
+            emailDisplayMode: true,
       image: true,
       referredBy: true,
     },

@@ -21,6 +21,13 @@ export const VEGGA_SYSTEM = {
   },
   /** Donation amount (USD) required for payment-based verification */
   donationAmountUsd: 1,
+  /** Verification tier donation thresholds (cumulative USD) */
+  donationTiers: {
+    /** Tier 2 — Patron: basic donation verification */
+    patron: 5,
+    /** Tier 3 — Whale: premium supporter */
+    whale: 1000,
+  },
 } as const;
 
 /** Chain family display info for UI */

@@ -76,6 +76,11 @@ model Company {
   taxHelperEnabled             TaxHelperStatus       @default(DISABLED)
   vatRegistered                Boolean               @default(false)
   vatNumber                    String?               @unique
+  // ─── Seller Payment Setup ──────────────────────────────────────
+  paypalEmail                  String?
+  paypalEmailVerifiedAt        DateTime?
+  defaultReceivingWalletId     String?
+  defaultReceivingWallet       Wallet?               @relation("CompanyDefaultWallet", fields: [defaultReceivingWalletId], references: [id], onDelete: SetNull)
 
   User_Company_creatorIdToUser User                  @relation("Company_creatorIdToUser", fields: [creatorId], references: [id])
   User_Company_ownerIdToUser   User                  @relation("Company_ownerIdToUser", fields: [ownerId], references: [id])
@@ -92,6 +97,7 @@ model Company {
   TaxReport                    TaxReport[]
   Expense                      Expense[]
   Purchase                     Purchase[]
+  TradeRecords                 TradeRecord[]
   orgVerification              CompanyOrgVerification?
 }
 
@@ -1020,7 +1026,19 @@ model User {
   isTwoFactorEnabled                                              Boolean                       @default(false)
   createdAt                                                       DateTime                      @default(now())
   updatedAt                                                       DateTime                      @updatedAt
-  web3ModeEnabled                                                 Boolean                       @default(false)
+  web3ModeEnabled                                                 Boolean                       @default(true)
+  identityNameSource                                              IdentityNameSource            @default(AUTO)
+  identityImageSource                                             IdentityImageSource           @default(AUTO)
+  emailDisplayMode                                                EmailDisplayMode              @default(PRIMARY)
+  googleProfileName                                               String?
+  googleProfileImage                                              String?
+  googleProfileEmail                                              String?
+  githubProfileName                                               String?
+  githubProfileImage                                              String?
+  githubProfileEmail                                              String?
+  discordProfileName                                              String?
+  discordProfileImage                                             String?
+  discordProfileEmail                                             String?
   banner                                                          String?
   bio                                                             String?
   hasDiscordAuth                                                  Boolean                       @default(false)
@@ -1041,6 +1059,14 @@ model User {
   lastMomentumDecay                                               DateTime?
   // ─── Session Versioning (increment to force re-login) ─────────
   tokenVersion                                                    Int                           @default(0)
+  // ─── Seller Payment Setup ──────────────────────────────────────
+  paypalEmail                                                     String?
+  paypalEmailVerifiedAt                                           DateTime?
+  defaultReceivingWalletId                                        String?
+  defaultReceivingWallet                                          Wallet?                       @relation("UserDefaultWallet", fields: [defaultReceivingWalletId], references: [id], onDelete: SetNull)
+  // ─── Personal Tax Helper (Norwegian Skatteetaten) ─────────────
+  taxHelperEnabled                                                Boolean                       @default(false)
+  taxCostBasisMethod                                              CostBasisMethod               @default(FIFO)
 
   Account                                                         Account[]
   Cart                                                            Cart?
@@ -1105,6 +1131,33 @@ model User {
   // AI Chat System
   aiConversationsCreated                                           AiConversation[]              @relation("AiConversationCreator")
   aiConvParticipations                                            AiConvParticipant[]           @relation("AiConvHumanParticipant")
+  // Donations (on-chain buff tier progression)
+  Donation                                                        Donation[]
+  // Paper Trading
+  PaperPortfolio                                                  PaperPortfolio?
+  // Unified Trade History
+  TradeRecords                                                    TradeRecord[]
+}
+
+enum IdentityNameSource {
+  AUTO
+  MANUAL
+  GOOGLE
+  GITHUB
+  DISCORD
+}
+
+enum IdentityImageSource {
+  AUTO
+  MANUAL
+  GOOGLE
+  GITHUB
+  DISCORD
+}
+
+enum EmailDisplayMode {
+  PRIMARY
+  HIDE
 }
 
 model UserAiApiKey {
@@ -1145,25 +1198,74 @@ model VerificationToken {
   @@unique([email, token])
 }
 
+/// Token for verifying PayPal email ownership (Seller Payment Setup).
+/// One token per entity (user or company) at a time.
+model PaypalVerificationToken {
+  id         String   @id @default(cuid())
+  email      String
+  token      String   @unique
+  entityType String   // "user" | "company"
+  entityId   String   // userId or companyId
+  expires    DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([entityType, entityId])
+}
+
 model Wallet {
-  id             String      @id @default(cuid())
-  label          String
-  family         ChainFamily
-  chainId        Int?
-  solanaCluster  String?
-  address        String
-  isDefault      Boolean     @default(false)
-  ownerUserId    String?
-  ownerCompanyId String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  verifiedAt     DateTime?
-  Product        Product[]
-  Company        Company?    @relation(fields: [ownerCompanyId], references: [id])
-  User           User?       @relation(fields: [ownerUserId], references: [id])
+  id               String      @id @default(cuid())
+  label            String
+  family           ChainFamily
+  chainId          Int?
+  solanaCluster    String?
+  address          String
+  isDefault        Boolean     @default(false)
+  ownerUserId      String?
+  ownerCompanyId   String?
+  /// Connector type that created this wallet (e.g. "AUTH", "injected", "walletConnect")
+  connectorType    String?
+  /// For AUTH wallets: the social provider (e.g. "google", "discord", "github")
+  authProvider     String?
+  /// For AUTH wallets: the email from the social provider
+  socialEmail      String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  verifiedAt       DateTime?
+  donationTotalUsd Float       @default(0)
+  Product                        Product[]
+  Donation                       Donation[]
+  Company                        Company?    @relation(fields: [ownerCompanyId], references: [id])
+  User                           User?       @relation(fields: [ownerUserId], references: [id])
+  DefaultWalletForUsers           User[]      @relation("UserDefaultWallet")
+  DefaultWalletForCompanies       Company[]   @relation("CompanyDefaultWallet")
 
   @@index([ownerUserId])
   @@index([ownerCompanyId])
+}
+
+/// On-chain donation records — used for buff tier progression.
+/// Each row = one transaction to the system wallet.
+model Donation {
+  id            String   @id @default(cuid())
+  userId        String
+  walletId      String
+  walletAddress String
+  txHash        String   @unique
+  nativeAmount  String   // "0.003" — original token amount
+  amountUsd     Float    // USD value at time of donation
+  chainFamily   String   // "EVM" | "SOLANA"
+  chainId       Int?
+  tokenSymbol   String   // "ETH", "SOL", "PLS", etc.
+  status        String   @default("PENDING_CONFIRMATION") // PENDING_CONFIRMATION | CONFIRMED | FAILED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  User          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Wallet        Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([walletId])
+  @@index([txHash])
 }
 
 model WalletVerificationChallenge {
@@ -1636,6 +1738,7 @@ enum ReplyPermission {
 enum SecurityActionType {
   WEB3_MODE_ENABLE
   WEB3_MODE_DISABLE
+  PAYPAL_EMAIL_VERIFY
 }
 
 enum TerminationStatus {
@@ -2217,14 +2320,15 @@ model WorkHourLog {
 // ─────────────────────────────────────────────────
 
 model Trade {
-  id             String      @id @default(cuid())
-  initiatorId    String      // user who sent the trade request
-  responderId    String      // user who received the trade request
-  chainId        Int?        // chain this trade is on (null = multi-chain)
-  family         ChainFamily @default(EVM)
-  status         TradeStatus @default(PENDING)
-  initiatorReady Boolean     @default(false)
-  responderReady Boolean     @default(false)
+  id             String           @id @default(cuid())
+  initiatorId    String           // user who sent the trade request
+  responderId    String           // user who received the trade request
+  chainId        Int?             // chain this trade is on (null = multi-chain)
+  family         ChainFamily      @default(EVM)
+  status         TradeStatus      @default(PENDING)
+  environment    TradeEnvironment @default(MAINNET)  // paper, testnet, or mainnet
+  initiatorReady Boolean          @default(false)
+  responderReady Boolean          @default(false)
   // Both must set ready=true, then status moves to CONFIRMING
   // After on-chain or off-chain settlement, status moves to COMPLETED
   completedAt    DateTime?
@@ -2275,6 +2379,118 @@ enum TradeStatus {
 enum TradeSide {
   INITIATOR
   RESPONDER
+}
+
+enum TradeEnvironment {
+  MAINNET  // Real chain, real money
+  TESTNET  // Sepolia etc., faucet tokens
+  PAPER    // Simulated — no chain interaction, DB-only
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TRADE RECORDS — Unified execution log across ALL trading modes
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Unified trade execution record — tracks ALL completed/pending trades across
+/// modes (P2P, Self, DEX, Paper, LocalChain). Single source of truth for trade
+/// history, tax reporting, and analytics. Follows OWASP data integrity principles:
+/// all monetary fields are strings to avoid floating-point precision errors.
+model TradeRecord {
+  id               String           @id @default(cuid())
+  userId           String
+  mode             TradeMode
+
+  // ── What was traded ──────────────────────────────────────────────────────
+  sellToken        String           // "ETH", "USDC", "PLS", etc.
+  sellTokenAddress String           // Contract address or "0x0000000000000000000000000000000000000000" for native
+  sellAmount       String           // BigInt string (raw, smallest unit), avoids float precision loss
+  sellDisplayAmt   String           // Human-readable e.g. "1.5"
+  sellDecimals     Int              @default(18)
+  sellChainId      Int
+
+  buyToken         String
+  buyTokenAddress  String
+  buyAmount        String
+  buyDisplayAmt    String
+  buyDecimals      Int              @default(18)
+  buyChainId       Int
+
+  // ── Price data (ISO 4217 + crypto) ────────────────────────────────────────
+  priceUsd         Float?           // USD value of the trade at execution
+  priceNok         Float?           // NOK value at execution (Norwegian tax)
+  feeUsd           Float?           // Trading fee in USD
+  feeNok           Float?           // Trading fee in NOK
+  exchangeRate     Float?           // sell/buy price ratio at execution time
+  priceSource      String?          // "coingecko" | "kyberswap" | "manual" | "paper"
+
+  // ── Context ──────────────────────────────────────────────────────────────
+  tradeId          String?          // FK to Trade (if P2P)
+  paperTradeId     String?          // FK to PaperTrade (if paper)
+  txHash           String?          // On-chain transaction hash (if real)
+  blockNumber      Int?             // Block the tx was confirmed in
+  walletAddress    String?          // Wallet that initiated the trade
+  walletId         String?          // FK to Wallet (if linked)
+  counterpartyId   String?          // Other user ID (if P2P)
+  counterpartyAddr String?          // Other user wallet address
+  environment      TradeEnvironment @default(MAINNET)
+  status           TradeRecordStatus @default(COMPLETED)
+  failReason       String?          // If status = FAILED
+
+  // ── Norwegian Tax Helper (Skatteetaten-compatible) ────────────────────────
+  /// FIFO cost basis tracking — what the sold asset originally cost to acquire
+  costBasisUsd     Float?
+  costBasisNok     Float?
+  /// Realized profit/loss (= proceeds − cost basis − fees)
+  gainLossUsd      Float?
+  gainLossNok      Float?
+  /// How long the asset was held before disposal (for formueskatt reporting)
+  holdingDays      Int?
+  /// Tax year for grouping in annual reports
+  taxYear          Int?
+  /// Whether this record has been included in a tax export
+  taxExported      Boolean          @default(false)
+  taxExportedAt    DateTime?
+
+  // ── Ownership ─────────────────────────────────────────────────────────────
+  companyId        String?          // null = personal trade, set = company trade
+  metadata         Json?            // Extra context (route info, slippage, DEX aggregator data)
+
+  executedAt       DateTime         @default(now())
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  User             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Company          Company?         @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([userId, executedAt])
+  @@index([userId, mode])
+  @@index([userId, taxYear])
+  @@index([companyId, executedAt])
+  @@index([txHash])
+  @@index([walletAddress])
+  @@index([status])
+}
+
+enum TradeMode {
+  P2P        // Peer-to-peer trade
+  SELF       // Internal transfer between own wallets
+  DEX        // DEX swap (KyberSwap, Uniswap, etc.)
+  PAPER      // Simulated paper trade
+  LOCAL      // Local chain (Anvil/Ganache) trade
+}
+
+enum TradeRecordStatus {
+  PENDING    // Trade submitted, awaiting on-chain confirmation
+  COMPLETED  // Successfully executed
+  FAILED     // Failed on-chain or cancelled
+  REVERTED   // On-chain revert
+}
+
+/// Cost basis calculation method for tax reporting.
+/// Norway's Skatteetaten accepts both FIFO and average cost.
+enum CostBasisMethod {
+  FIFO       // First In, First Out — standard Norwegian method
+  AVERAGE    // Weighted average cost — also accepted by Skatteetaten
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2630,4 +2846,94 @@ model AiConvAuditLog {
   @@index([conversationId])
   @@index([actorId])
   @@index([action, createdAt(sort: Desc)])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAPER TRADING SYSTEM — Virtual portfolio + simulated trades
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Virtual portfolio for paper trading (one per user).
+/// Tracks paper USD cash balance and token positions using real market prices.
+model PaperPortfolio {
+  id              String           @id @default(cuid())
+  userId          String           @unique
+  /// Starting virtual USD balance (user-configurable with min/max limits)
+  startingBalance Float            @default(100000)
+  /// Remaining virtual USD available to spend
+  cashBalance     Float            @default(100000)
+  /// How many times the user has reset their portfolio
+  resetCount      Int              @default(0)
+  lastResetAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  User            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Positions       PaperPosition[]
+  Trades          PaperTrade[]
+
+  @@index([userId])
+}
+
+/// Individual token position in a paper portfolio.
+/// Each unique (token, chain) combination gets one row; amounts are cumulative.
+model PaperPosition {
+  id              String          @id @default(cuid())
+  portfolioId     String
+  tokenSymbol     String          // "ETH", "USDC", etc.
+  tokenAddress    String          // contract address or "0x0" for native
+  chainId         Int             // which chain this token "lives on"
+  decimals        Int             @default(18)
+  /// Raw amount as BigInt string (smallest unit, e.g. wei)
+  amount          String          @default("0")
+  /// Human-readable display amount (e.g. "2.5")
+  displayAmount   String          @default("0")
+  /// Weighted average USD entry price across all buys
+  avgEntryPrice   Float           @default(0)
+  /// Total USD cost of all buys for this position (for P&L calc)
+  totalCostBasis  Float           @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  Portfolio       PaperPortfolio  @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, tokenSymbol, chainId])
+  @@index([portfolioId])
+}
+
+/// Record of a single paper trade execution.
+/// Every buy, sell, swap, or P2P paper transfer is recorded here.
+model PaperTrade {
+  id              String          @id @default(cuid())
+  portfolioId     String
+  type            PaperTradeType
+  // ── Sell side ──
+  sellToken       String?         // token sold (or "USD" for paper cash)
+  sellAmount      String?         // raw amount string
+  sellDisplayAmt  String?         // human-readable
+  sellPriceUsd    Float?          // USD price per unit at execution
+  // ── Buy side ──
+  buyToken        String?         // token bought (or "USD" for paper cash)
+  buyAmount       String?         // raw amount string
+  buyDisplayAmt   String?         // human-readable
+  buyPriceUsd     Float?          // USD price per unit at execution
+  // ── Metadata ──
+  chainId         Int?
+  feeUsd          Float?          // simulated trading fee in USD
+  priceSource     String?         // "coingecko" | "zerox" | "manual"
+  metadata        Json?           // route info, slippage, etc.
+  executedAt      DateTime        @default(now())
+
+  Portfolio       PaperPortfolio  @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, executedAt])
+  @@index([portfolioId, type])
+}
+
+enum PaperTradeType {
+  BUY           // buy token with paper USD
+  SELL          // sell token for paper USD
+  SWAP          // token-to-token swap (via DEX quote)
+  P2P_SEND      // sent to another user in paper P2P trade
+  P2P_RECEIVE   // received from another user in paper P2P trade
+  FAUCET        // initial token grant or reset
 }

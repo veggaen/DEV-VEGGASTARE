@@ -8,6 +8,9 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('AppKit');
 import { createAppKit } from '@reown/appkit/react';
 import { mainnet, sepolia, base, baseSepolia } from '@reown/appkit/networks';
 import type { AppKitNetwork } from '@reown/appkit/networks';
@@ -20,12 +23,41 @@ const pulsechain = {
   nativeCurrency: { name: 'Pulse', symbol: 'PLS', decimals: 18 },
 };
 
+const anvilLocal = {
+  id: 31337,
+  name: 'Anvil Local',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: [process.env.NEXT_PUBLIC_ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'] },
+  },
+  blockExplorers: {
+    default: { name: 'Local RPC', url: process.env.NEXT_PUBLIC_ANVIL_RPC_URL ?? 'http://127.0.0.1:8545' },
+  },
+};
+
+const ganacheLocal = {
+  id: 1337,
+  name: 'Ganache Local',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: [process.env.NEXT_PUBLIC_GANACHE_RPC_URL ?? 'http://127.0.0.1:7545'] },
+  },
+  blockExplorers: {
+    default: { name: 'Local RPC', url: process.env.NEXT_PUBLIC_GANACHE_RPC_URL ?? 'http://127.0.0.1:7545' },
+  },
+};
+
 // Determine if running in test mode (development with testnets)
 const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === 'true' ||
   process.env.NODE_ENV === 'development';
 
-// Project ID from WalletConnect / Reown Cloud
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ??
+// Explicit opt-in for local RPC chains outside test mode
+const enableLocalChains =
+  process.env.NEXT_PUBLIC_ENABLE_LOCAL_CHAINS === 'true' || isTestMode;
+
+// Project ID — prefer Reown AppKit (social login + WC), fall back to WalletConnect-only
+const projectId = process.env.NEXT_PUBLIC_APPKIT_PROJECT_ID ??
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ??
   process.env.NEXT_PUBLIC_PROJECT_ID ?? '';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.veggat.com';
@@ -40,10 +72,13 @@ const metadata = {
 };
 
 // Network list for AppKit — testnets first in test mode
+const localNetworks = [anvilLocal as AppKitNetwork, ganacheLocal as AppKitNetwork];
+
 const networks: [AppKitNetwork, ...AppKitNetwork[]] = isTestMode
   ? [
       sepolia,           // Ethereum testnet (primary for dev)
       baseSepolia,       // Base testnet
+    ...(enableLocalChains ? localNetworks : []),
       mainnet,           // Keep mainnet available for later testing
       base,
       // PulseChain (custom)
@@ -64,6 +99,7 @@ const networks: [AppKitNetwork, ...AppKitNetwork[]] = isTestMode
       sepolia,
       base,
       baseSepolia,
+      ...(enableLocalChains ? localNetworks : []),
       // PulseChain (custom)
       {
         id: pulsechain.id,
@@ -120,16 +156,16 @@ export function AppKitInitializer() {
         email: true, // Enable email login
         socials: ['google', 'x', 'github', 'discord', 'apple'],
         emailShowWallets: true,
-        analytics: appKitAnalyticsEnabled,
+        analytics: false, // Disabled — pulse.walletconnect returns 403
       },
       allWallets: 'SHOW',
       themeMode: 'dark', // or 'light' or 'system'
+      // Suppress 403 noise: don't check allowed origins against Reown API
+      allowUnsupportedChain: true,
     });
 
-    console.log(
-      `[AppKitInit] Initialized (${isTestMode ? 'TEST MODE - Sepolia default' : 'PROD - Mainnet default'})`,
-      projectId.slice(0, 8) + '...'
-    );
+    const source = process.env.NEXT_PUBLIC_APPKIT_PROJECT_ID ? 'Reown' : 'WalletConnect';
+    log.info(`Initialized (${isTestMode ? 'TEST' : 'PROD'}, ${source})`);
   }, []);
 
   return null;
