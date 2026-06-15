@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
+import { useModalClose } from "@/hooks/use-modal-close";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OsrsInventory } from "./OsrsInventory";
@@ -500,9 +501,9 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
   }, [tradeId, router]);
 
   // ── Close modal ──
-  const handleClose = useCallback(() => {
-    router.back();
-  }, [router]);
+  // Safe close: back() on in-app soft nav, else fall back to the trading hub
+  // (prevents the "kicked to the homepage" jump on deep-link/refresh).
+  const handleClose = useModalClose("/dashboard/trading");
 
   // ── Loading state ──
   if (loading) {

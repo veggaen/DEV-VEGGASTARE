@@ -14,15 +14,16 @@
 import { useRouter, useParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { PulseDetailModal } from '@/components/uicustom/pulse/PulseDetailModal'
+import { useModalClose } from '@/hooks/use-modal-close'
 
 export default function InterceptedPulsePage() {
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const pulseId = params.id
 
-  const handleClose = useCallback(() => {
-    router.back()
-  }, [router])
+  // Closing dismisses the modal back to the feed; falls back to /pulse when
+  // there is no safe in-app history (prevents the "kicked to homepage" jump).
+  const handleClose = useModalClose('/pulse')
 
   const handleTagClick = useCallback(
     (tag: string) => {

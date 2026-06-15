@@ -578,8 +578,16 @@ export default function BelowFoldSections() {
               <HoverableHeading text="Start exploring Freedom Store™" />
             </h2>
             <p className="max-w-md text-sm leading-relaxed text-gray-400 dark:text-white/40">
-              AI, live polls, verification, and logistics in one marketplace — free to start.
+              SaaS, shop, and crypto in one platform — free to start. Subscribe for
+              premium AI, or bring your own key for no limits.
             </p>
+            <Link
+              href="/pricing"
+              className="group/plans inline-flex items-center gap-1.5 text-sm font-semibold text-brand-accent underline-offset-4 hover:underline"
+            >
+              <span>See pricing &amp; plans</span>
+              <span aria-hidden className="transition-transform duration-300 group-hover/plans:translate-x-0.5">→</span>
+            </Link>
             <div className="flex flex-wrap items-center justify-center gap-3">
               {/* Browse products — primary CTA with animated gradient border */}
               <MagneticButton>

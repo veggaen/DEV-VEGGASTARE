@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { useModalClose } from "@/hooks/use-modal-close";
 
 interface AiModalShellProps {
   children: React.ReactNode;
@@ -10,13 +10,13 @@ interface AiModalShellProps {
 
 /**
  * Modal overlay wrapper for AI chat parallel routes.
- * Click backdrop or press Escape to close (navigate back).
+ * Click backdrop or press Escape to close (navigate back, falling back to /ai).
  */
 export default function AiModalShell({ children }: AiModalShellProps) {
-  const router = useRouter();
   const reduceMotion = useReducedMotion();
 
-  const close = useCallback(() => router.back(), [router]);
+  // Fallback to home (not /ai — that route is itself intercepted into this modal).
+  const close = useModalClose("/");
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -583,7 +583,7 @@ export default function AiConversationClient({
                 </div>
                 {!isLoggedIn && (
                   <p className="text-center text-xs text-muted-foreground mt-2">
-                    <Link href="/sign-in" className="text-emerald-400 hover:underline">Sign in</Link> to participate.
+                    <Link href="/auth/login" className="text-emerald-400 hover:underline">Sign in</Link> to participate.
                   </p>
                 )}
               </div>

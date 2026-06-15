@@ -758,9 +758,9 @@ const FeedPage: React.FC = () => {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-3 sm:px-6 lg:px-8">
-      {/* ─── Flow Sub-navbar ─── */}
-      <div className="border-b border-border/50 mb-5">
-        <div className="flex items-center gap-3 h-11">
+      {/* ─── Flow Sub-navbar (sticky — stays while the feed scrolls) ─── */}
+      <div className="sticky top-[var(--app-header-offset,0px)] z-30 -mx-3 sm:-mx-6 lg:-mx-8 mb-5 border-b border-border/50 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center gap-3 h-11 px-3 sm:px-6 lg:px-8">
           {/* Brand link - "Flow" goes to /pulse (shows all content) */}
           <Link
             href="/pulse"
@@ -970,20 +970,20 @@ const FeedPage: React.FC = () => {
           {!currentUser && (
             <div
               onClick={() => router.push('/auth/login')}
-              className="rounded-2xl border border-border/40 bg-zinc-100/80 dark:bg-zinc-900/60 p-4 cursor-pointer hover:border-primary/40 transition-colors"
+              className="group rounded-2xl border border-border/50 bg-card/70 dark:bg-zinc-900/70 backdrop-blur-xl p-4 cursor-pointer transition-[border-color,box-shadow] duration-200 hover:border-brand-accent/50 hover:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.08)]"
             >
               <div className="flex gap-3 items-center">
-                <div className="h-10 w-10 shrink-0 rounded-full bg-muted flex items-center justify-center">
-                  <FiMessageCircle className="h-5 w-5 text-muted-foreground" />
+                <div className="h-10 w-10 shrink-0 rounded-full bg-brand-accent/10 text-brand-accent flex items-center justify-center transition-colors group-hover:bg-brand-accent/15">
+                  <FiMessageCircle className="h-5 w-5" />
                 </div>
-                <div className="flex-1 py-2.5 px-4 rounded-full bg-muted/60 text-muted-foreground text-sm">
-                  Sign in to pulse your thoughts...
+                <div className="flex-1 py-2.5 px-4 rounded-full bg-muted/60 text-muted-foreground text-sm transition-colors group-hover:text-foreground/80">
+                  Sign in to pulse your thoughts…
                 </div>
               </div>
             </div>
           )}
           {currentUser && (
-            <div className="rounded-2xl border border-border/40 bg-zinc-100/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-sm transition-colors hover:border-border/60">
+            <div className="rounded-2xl border border-border/50 bg-card/70 dark:bg-zinc-900/70 backdrop-blur-xl shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-border focus-within:border-brand-accent/50 focus-within:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.10)]">
               {filter === 'polls' ? (
                 // Poll-focused compose
                 <div className="p-4 space-y-4">
@@ -1511,7 +1511,7 @@ const FeedPage: React.FC = () => {
                       onClick={handlePost}
                       disabled={isSubmitting || (!composeText.trim() && !pollQuestion.trim())}
                       size="sm"
-                      className="rounded-full px-4"
+                      className="rounded-full px-5 bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover shadow-sm shadow-brand-accent/20 transition-all active:scale-[0.97] disabled:opacity-40"
                     >
                       {isSubmitting ? <Spinner /> : <><PulsePositive className="h-4 w-4 mr-1" /> {pulseLabels.post}</>}
                     </Button>

@@ -83,17 +83,34 @@ export function HeroOrbit({
 
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
+    // ── DPR-aware sizing ──────────────────────────────────────────────────
+    // The backing store is scaled by devicePixelRatio so the orb stays crisp
+    // on retina/high-DPI displays; the context is scaled once so all draw
+    // calls keep using CSS pixels. Capped at 2 to bound fill cost.
     let W = 0;
     let H = 0;
+    let dpr = 1;
     const resize = () => {
-      W = canvas.width = canvas.offsetWidth;
-      H = canvas.height = canvas.offsetHeight;
+      W = canvas.offsetWidth;
+      H = canvas.offsetHeight;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
     window.addEventListener("resize", resize);
+
+    // ── Cached canvas screen-rect ─────────────────────────────────────────
+    // getBoundingClientRect() forces layout; calling it per frame is the main
+    // jank source. Cache it and refresh only on scroll/resize.
+    let canvasRect = canvas.getBoundingClientRect();
+    const refreshRect = () => { canvasRect = canvas.getBoundingClientRect(); };
+    window.addEventListener("resize", refreshRect, { passive: true });
+    window.addEventListener("scroll", refreshRect, { passive: true });
 
     // ── Time ──────────────────────────────────────────────────────────────
     let totalTime = 0;
@@ -104,7 +121,7 @@ export function HeroOrbit({
 
     // ── Trail ─────────────────────────────────────────────────────────────
     const trail: { x: number; y: number }[] = [];
-    const TRAIL_MAX = 80;
+    const TRAIL_MAX = 56;
 
     // ── Current canvas-space position ─────────────────────────────────────
     let px = 0;
@@ -125,9 +142,8 @@ export function HeroOrbit({
     // ── Mouse proximity → directional repulsion ───────────────────────────
     const REPEL_RADIUS = 28;
     const onMouseMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
+      const mx = e.clientX - canvasRect.left;
+      const my = e.clientY - canvasRect.top;
       const dx = px - mx;
       const dy = py - my;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -180,7 +196,6 @@ export function HeroOrbit({
       bounceOffY += bounceVy * dtSec * 60;
 
       if (collisionRectsRef) {
-        const canvasRect = canvas.getBoundingClientRect();
         const screenX = canvasRect.left + rawX + bounceOffX;
         const screenY = canvasRect.top  + rawY + bounceOffY;
 
@@ -225,8 +240,7 @@ export function HeroOrbit({
       if (trail.length > TRAIL_MAX) trail.shift();
 
       if (orbPosRef) {
-        const rect = canvas.getBoundingClientRect();
-        orbPosRef.current = { x: rect.left + px, y: rect.top + py };
+        orbPosRef.current = { x: canvasRect.left + px, y: canvasRect.top + py };
       }
 
       // ── Render ────────────────────────────────────────────────────────
@@ -235,15 +249,36 @@ export function HeroOrbit({
       const dark = isDarkRef.current;
       const rgb  = dark ? DARK_RGB : LIGHT_RGB;
 
-      // Comet tail — more opaque in light mode so it shows against white
-      for (let i = 1; i < trail.length; i++) {
-        const tf = i / trail.length;
-        ctx.beginPath();
-        ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
-        ctx.lineTo(trail[i].x, trail[i].y);
-        ctx.strokeStyle = `rgba(${rgb},${(tf * (dark ? 0.11 : 0.42)).toFixed(3)})`;
-        ctx.lineWidth = tf * (dark ? 2.4 : 2.0) + 0.2;
+      // Comet tail — a single smooth path stroked in two passes (soft wide
+      // underlay + crisp core) instead of ~80 individual segment strokes.
+      // Points are joined with quadratic curves through their midpoints so the
+      // trail reads as one flowing curve rather than faceted line segments.
+      if (trail.length > 2) {
         ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        const buildPath = () => {
+          ctx.beginPath();
+          ctx.moveTo(trail[0].x, trail[0].y);
+          for (let i = 1; i < trail.length - 1; i++) {
+            const mx = (trail[i].x + trail[i + 1].x) / 2;
+            const my = (trail[i].y + trail[i + 1].y) / 2;
+            ctx.quadraticCurveTo(trail[i].x, trail[i].y, mx, my);
+          }
+          const last = trail[trail.length - 1];
+          ctx.lineTo(last.x, last.y);
+        };
+
+        // Soft underlay (glow)
+        buildPath();
+        ctx.strokeStyle = `rgba(${rgb},${dark ? 0.10 : 0.22})`;
+        ctx.lineWidth = dark ? 5 : 4;
+        ctx.stroke();
+
+        // Crisp core
+        buildPath();
+        ctx.strokeStyle = `rgba(${rgb},${dark ? 0.28 : 0.5})`;
+        ctx.lineWidth = dark ? 1.6 : 1.4;
         ctx.stroke();
       }
 
@@ -279,6 +314,8 @@ export function HeroOrbit({
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resize);
+      window.removeEventListener("resize", refreshRect);
+      window.removeEventListener("scroll", refreshRect);
       window.removeEventListener("mousemove", onMouseMove);
     };
   }, [reduceMotion]);

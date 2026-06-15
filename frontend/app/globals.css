@@ -734,6 +734,24 @@ html.dark .chat-send-btn:not(:disabled):hover {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Kinetic title/description intro — GPU-composited per-character reveal.
+   Each char sets its own animation-delay inline, so the whole intro plays on
+   the compositor with zero React re-renders. Hover transforms live on an inner
+   wrapper so they never fight this keyframe. */
+@keyframes kineticCharIn {
+  from { opacity: 0; transform: translateY(0.5em) scale(0.9); filter: blur(2px); }
+  to   { opacity: 1; transform: translateY(0)     scale(1);   filter: blur(0); }
+}
+.kinetic-char {
+  display: inline-block;
+  opacity: 0;
+  animation: kineticCharIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kinetic-char { animation: none; opacity: 1; }
+}
+
 /* Portrait orientation: taller inline chat panel so it fills the hero bottom nicely */
 @media (orientation: portrait) {
   .chat-desktop-panel {

@@ -200,8 +200,7 @@ function KineticTitle({
   const { prefs } = useUiPreferences();
   const showFancyHover = prefs.hoverEffects === "colorful";
   const words = React.useMemo(() => text.split(/\s+/).filter(Boolean), [text]);
-  
-  const [stageIndex, setStageIndex] = React.useState(0);
+
   const [introDone, setIntroDone] = React.useState(false);
   const [hoveredChar, setHoveredChar] = React.useState<string | null>(null);
   const [hoveredPosition, setHoveredPosition] = React.useState<{ wordIdx: number; charIdx: number } | null>(null);
@@ -212,40 +211,37 @@ function KineticTitle({
     onHoverChangeRef.current = onHoverChange;
   }, [onHoverChange]);
 
-  const stages = React.useMemo(() => buildFixedPositionStages(words), [words]);
+  // Flat character count drives the CSS stagger and the single "intro done" timer.
+  const totalChars = React.useMemo(
+    () => words.reduce((sum, w) => sum + w.length, 0),
+    [words],
+  );
 
+  // Per-character animation-delay (ms). Slight ease so later chars arrive a
+  // touch quicker — matches the original feel without per-char React renders.
+  const charDelayMs = React.useCallback(
+    (flatIdx: number) => {
+      const progress = totalChars > 1 ? flatIdx / totalChars : 0;
+      const easeOut = 1 - Math.pow(1 - progress, 2);
+      const step = baseSpeed * (0.4 + easeOut * 0.6) * 0.5;
+      return startDelay * 1000 + flatIdx * step;
+    },
+    [totalChars, baseSpeed, startDelay],
+  );
+
+  // The reveal itself is pure CSS (see .kinetic-char). We only flip introDone
+  // once, after the whole intro would have finished — a single state update
+  // instead of one per character.
   React.useEffect(() => {
     if (reduceMotion) {
-      setStageIndex(stages.length - 1);
       setIntroDone(true);
       return;
     }
-
-    setStageIndex(0);
     setIntroDone(false);
-
-    let cancelled = false;
-    const run = async () => {
-      await new Promise((r) => setTimeout(r, startDelay * 1000));
-      if (cancelled) return;
-
-      const totalStages = stages.length;
-      for (let i = 1; i < totalStages; i++) {
-        if (cancelled) return;
-        setStageIndex(i);
-        const progress = i / totalStages;
-        const easeOut = 1 - Math.pow(1 - progress, 2);
-        const delay = Math.round(baseSpeed * (0.4 + easeOut * 0.6));
-        await new Promise((r) => setTimeout(r, delay));
-      }
-
-      await new Promise((r) => setTimeout(r, 150));
-      if (!cancelled) setIntroDone(true);
-    };
-    run();
-
-    return () => { cancelled = true; };
-  }, [reduceMotion, stages, startDelay, baseSpeed]);
+    const totalMs = charDelayMs(totalChars) + 600;
+    const t = window.setTimeout(() => setIntroDone(true), totalMs);
+    return () => window.clearTimeout(t);
+  }, [reduceMotion, charDelayMs, totalChars]);
 
   const getHoverEffect = React.useCallback((wordIdx: number, charIdx: number, char: string, isRevealed: boolean) => {
     // Allow hover as soon as character is revealed, don't wait for introDone
@@ -277,8 +273,8 @@ function KineticTitle({
     return <span className={className}>{text}</span>;
   }
 
-  const currentStage = stages[stageIndex] || { revealed: words.map((w) => w.length), activeWordIdx: -1, activeCharIdx: -1 };
-  const { revealed, activeWordIdx, activeCharIdx } = currentStage;
+  // Running flat index across all words → drives each char's CSS reveal delay.
+  let flatIdx = -1;
 
   return (
     <span
@@ -291,7 +287,6 @@ function KineticTitle({
     >
       <span className="inline-flex flex-wrap gap-[0.35em]">
         {words.map((word, wordIdx) => {
-          const revealedCount = revealed[wordIdx] || 0;
           return (
             <span key={`word-${wordIdx}`} className="relative inline-block">
               <span className="invisible pointer-events-none" aria-hidden="true">
@@ -299,60 +294,61 @@ function KineticTitle({
               </span>
               <span className="absolute inset-0 inline-flex">
                 {Array.from(word).map((char, charIdx) => {
-                  const isRevealed = charIdx < revealedCount;
-                  const isNew = wordIdx === activeWordIdx && charIdx === activeCharIdx && !introDone;
+                  flatIdx += 1;
+                  const myFlatIdx = flatIdx;
                   const isFirstChar = charIdx === 0;
                   const displayChar = isFirstChar ? char.toUpperCase() : char.toLowerCase();
-                  const hoverEffect = getHoverEffect(wordIdx, charIdx, char, isRevealed);
+                  // Hover is available immediately — the intro reveal is CSS-only.
+                  const hoverEffect = getHoverEffect(wordIdx, charIdx, char, true);
 
                   const charPosition = wordIdx * 10 + charIdx;
                   const hue = (charPosition * 40) % 360;
                   const glowColor = `hsl(${hue}, 80%, 65%)`;
-                  
+
                   // Simple mode colors — brand accent per theme
                   // Light: sky-500 blue  |  Dark: emerald-500 green
-                  const simpleHoverColor = hoverEffect.intensity >= 0.8 
+                  const simpleHoverColor = hoverEffect.intensity >= 0.8
                     ? (isDark ? "rgb(16, 185, 129)" : "rgb(14, 165, 233)") // emerald-500 / sky-500
-                    : hoverEffect.intensity >= 0.4 
+                    : hoverEffect.intensity >= 0.4
                       ? (isDark ? "rgb(52, 211, 153)" : "rgb(56, 189, 248)") // emerald-400 / sky-400
                       : undefined;
 
-                  // Always apply scale/position effects when hovering
-                  const scale = isNew ? 1.35 : hoverEffect.scale;
-                  const yOffset = isNew ? -3 : (hoverEffect.intensity > 0 ? -2 * hoverEffect.intensity : 0);
-                  
-                  // Glow effects only when fancy enabled
-                  const showGlow = showFancyHover && (isNew || hoverEffect.glow);
-                  const glowIntensity = isNew ? 1 : hoverEffect.intensity;
-                  
-                  // Color: fancy mode uses rainbow glow colors, simple mode uses solid emerald
-                  const hoverColor = showFancyHover 
+                  const scale = hoverEffect.scale;
+                  const yOffset = hoverEffect.intensity > 0 ? -2 * hoverEffect.intensity : 0;
+
+                  const showGlow = showFancyHover && hoverEffect.glow;
+                  const glowIntensity = hoverEffect.intensity;
+
+                  const hoverColor = showFancyHover
                     ? (showGlow ? glowColor : undefined)
                     : simpleHoverColor;
 
                   return (
+                    // Outer span owns the CSS intro reveal (GPU, no re-renders);
+                    // inner span owns hover transforms so the two never conflict.
                     <span
                       key={`char-${wordIdx}-${charIdx}`}
-                      className="inline-block origin-bottom cursor-pointer"
-                      style={{
-                        opacity: isRevealed ? 1 : 0,
-                        transform: `scale(${scale}) translateY(${yOffset}px)`,
-                        color: hoverColor,
-                        textShadow: showGlow
-                          ? `0 0 ${14 * glowIntensity}px ${glowColor}, 0 0 ${28 * glowIntensity}px ${glowColor}, 0 0 ${42 * glowIntensity}px ${glowColor}`
-                          : "none",
-                        transition: "opacity 0.2s ease-out, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease-out, text-shadow 0.2s ease-out",
-                      }}
-                      onPointerEnter={() => {
-                        // Always allow hover effects when character is revealed
-                        if (isRevealed) {
+                      className={reduceMotion ? "inline-block" : "inline-block kinetic-char"}
+                      style={reduceMotion ? undefined : { animationDelay: `${Math.round(charDelayMs(myFlatIdx))}ms` }}
+                    >
+                      <span
+                        className="inline-block origin-bottom cursor-pointer"
+                        style={{
+                          transform: `scale(${scale}) translateY(${yOffset}px)`,
+                          color: hoverColor,
+                          textShadow: showGlow
+                            ? `0 0 ${14 * glowIntensity}px ${glowColor}, 0 0 ${28 * glowIntensity}px ${glowColor}, 0 0 ${42 * glowIntensity}px ${glowColor}`
+                            : "none",
+                          transition: "transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease-out, text-shadow 0.2s ease-out",
+                        }}
+                        onPointerEnter={() => {
                           setHoveredChar(char);
                           setHoveredPosition({ wordIdx, charIdx });
                           onHoverChangeRef.current?.(true, char, 1);
-                        }
-                      }}
-                    >
-                      {displayChar}
+                        }}
+                      >
+                        {displayChar}
+                      </span>
                     </span>
                   );
                 })}
