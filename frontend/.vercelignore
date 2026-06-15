@@ -1,3 +1,5 @@
-# Exclude large build artifacts that cause deployment issues
+# Exclude build artifacts that cause Vercel artifact collection issues
+.next/package.json
 .next/trace
+
 
