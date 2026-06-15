@@ -1,13 +1,14 @@
 // @ts-check
-import { fileURLToPath } from "node:url";
 
-const outputFileTracingRoot = fileURLToPath(new URL(".", import.meta.url));
- 
 /**
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-    outputFileTracingRoot,
+    // NOTE: do not set `outputFileTracingRoot`. On Vercel with Root Directory =
+    // `frontend`, pinning the tracing root to this folder makes Next.js 16's
+    // Build Output finalizer resolve `.next` at the wrong (doubled) path and
+    // fail with `ENOENT: ... lstat '/vercel/path0/.next/package.json'`.
+    // See vercel/next.js#88579. Vercel infers the correct root automatically.
     // Expose Vercel's VERCEL_ENV to client-side code for Pusher channel scoping
     env: {
         NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV || '',
@@ -21,7 +22,12 @@ const nextConfig = {
             },
         ];
     },
-    turbopack: {},
+    // Two lockfiles exist (repo root + frontend/), so Next can't infer the
+    // workspace root. Pin it to this folder. Unlike `outputFileTracingRoot`,
+    // `turbopack.root` does not affect Vercel's `.next` output finalizer.
+    turbopack: {
+        root: import.meta.dirname,
+    },
     webpack: (config) => {
         config.externals.push("pino-pretty", "lokijs", "encoding");
 
