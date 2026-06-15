@@ -87,8 +87,10 @@ function asObject(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
-const bringApiUID = process.env.BRING_SHIPPING_API_UID;
-const bringApiKey = process.env.BRING_SHIPPING_API_KEY;
+// Accept any of the historical env-var names so the integration works
+// regardless of which naming convention is configured (local vs Vercel vs backend).
+const bringApiUID = process.env.BRING_SHIPPING_API_UID || process.env.BRING_API_UID;
+const bringApiKey = process.env.BRING_SHIPPING_API_KEY || process.env.BRING_API_KEY;
 
 function normalizePackages(input: unknown) {
   if (!Array.isArray(input)) return [];
@@ -158,6 +160,11 @@ export async function POST(req: NextRequest) {
       '5'
     ).toString();
 
+    // Whether we can call Bring directly as a fallback if the Integration Core
+    // path is unavailable. Resolved up front so the core block can decide whether
+    // to surface an error or quietly fall through.
+    const canCallBringDirect = Boolean(bringApiUID && bringApiKey);
+
     if (coreUrl && fromPostalCode && toPostalCode && packages.length > 0) {
       const coreRequestBody: IntegrationCoreBody = {
         fromCountryCode,
@@ -169,27 +176,43 @@ export async function POST(req: NextRequest) {
         customerNumber,
       };
 
-      const response = await fetch(coreUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(coreRequestBody),
-        cache: 'no-store',
-      });
-
-      const result = await response.json().catch(() => null) as { error?: string } | null;
-      if (response.ok) {
-        return new Response(JSON.stringify(result), {
-          status: 200,
+      try {
+        const response = await fetch(coreUrl, {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(coreRequestBody),
+          cache: 'no-store',
         });
-      }
 
-      // If the Integration Core is configured but returns an error, surface it.
-      const message = result?.error || response.statusText || 'Error fetching rates';
-      return new Response(JSON.stringify({ error: message }), {
-        status: response.status,
-        headers: { 'Content-Type': 'application/json' },
-      });
+        const result = await response.json().catch(() => null) as { error?: string } | null;
+        if (response.ok) {
+          return new Response(JSON.stringify(result), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Integration Core responded with an error. If we can call Bring directly,
+        // fall through to that path; otherwise surface the Core error.
+        if (!canCallBringDirect) {
+          const message = result?.error || response.statusText || 'Error fetching rates';
+          return new Response(JSON.stringify({ error: message }), {
+            status: response.status,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        console.warn('[bring-shipping] Integration Core error, falling back to direct Bring API:', response.status);
+      } catch (coreError) {
+        // Network failure reaching Integration Core (e.g. backend not running:
+        // ECONNREFUSED). Fall through to the direct Bring path when possible.
+        if (!canCallBringDirect) {
+          return new Response(
+            JSON.stringify({ error: 'The shipping service is currently unavailable. Please try again later.' }),
+            { status: 503, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        console.warn('[bring-shipping] Integration Core unreachable, falling back to direct Bring API:', coreError instanceof Error ? coreError.message : coreError);
+      }
     }
 
     // Optional fallback: call Bring directly (requires credentials). Keep for legacy deployments.
@@ -197,7 +220,7 @@ export async function POST(req: NextRequest) {
       return new Response(
         JSON.stringify({
           error:
-            'Integration Core backend is not configured/available and Bring API credentials are missing. Set NEXT_PUBLIC_INTEGRATION_CORE_URL (or INTEGRATION_CORE_URL) or BRING_SHIPPING_API_UID/BRING_SHIPPING_API_KEY.',
+            'Integration Core backend is not configured/available and Bring API credentials are missing. Set NEXT_PUBLIC_INTEGRATION_CORE_URL (or INTEGRATION_CORE_URL) or BRING_API_UID/BRING_API_KEY (legacy: BRING_SHIPPING_API_UID/BRING_SHIPPING_API_KEY).',
         }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
