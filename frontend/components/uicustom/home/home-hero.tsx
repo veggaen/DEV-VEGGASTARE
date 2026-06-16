@@ -1,6 +1,7 @@
 "use client";
 
 import { HeroOrbit, type OrbPosRef, type CollisionRectsRef } from "@/components/uicustom/home/HeroOrbit";
+import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
 import Link from "next/link";
 import * as React from "react";
 import { motion, useReducedMotion, useMotionValue, useSpring, MotionValue } from "framer-motion";
@@ -1148,19 +1149,21 @@ export default function HomeHero({
   const [titlePulseToken, setTitlePulseToken] = React.useState(0);
   const [nowMs, setNowMs] = React.useState(() => Date.now());
 
-  // NEW SEQUENCE: Title → Description + Headline together → Buttons
+  // SEQUENCE: a fast, confident cascade. Title → Description + Headline →
+  // Buttons all arrive within ~0.6s so the page feels instant and premium
+  // (was a ~3s staggered char-by-char reveal that felt slow/unfinished).
   const titleTextMain = "Freedom Store";
-  const titleStart = reduceMotion ? 0.08 : 0.1;
-  
-  // Description and Headline start at the SAME TIME (1.5s after title)
-  const descriptionStart = reduceMotion ? 0.35 : titleStart + 1.5;
+  const titleStart = reduceMotion ? 0.05 : 0.08;
+
+  // Description + headline come in right after the title, together.
+  const descriptionStart = reduceMotion ? 0.18 : titleStart + 0.22;
   const headlineStart = descriptionStart; // Same time as description
   const descriptionText =
     "A marketplace built around AI and community. Choose from six models or bring your own keys for unlimited access. Real-time polls with verification-weighted voting, smart logistics, and a 12-tier trust system that actually means something.";
-  
-  // Buttons come in early during the sequence - don't make users wait
-  const buttonsStart = reduceMotion ? 0.26 : titleStart + 1.0;
-  const welcomeStart = reduceMotion ? 0.2 : buttonsStart + 0.3;
+
+  // Buttons land almost immediately after — don't make users wait.
+  const buttonsStart = reduceMotion ? 0.22 : titleStart + 0.4;
+  const welcomeStart = reduceMotion ? 0.18 : buttonsStart + 0.15;
   
   // State for title hover effect (to animate TM)
   const [titleHoverActive, setTitleHoverActive] = React.useState(false);
@@ -1387,6 +1390,11 @@ export default function HomeHero({
         }}
       />
 
+      {/* Edge particle field — subtle floating particles along the side/top
+          edges that gently repel from the cursor. Sits at the base layer,
+          behind all hero content (which is z-10). */}
+      <HeroParticleField className="z-1" />
+
       {/* Mouse spotlight — hidden on touch devices + reduced-motion via CSS */}
       <div className="hero-spotlight" aria-hidden="true" />
 
@@ -1441,50 +1449,7 @@ export default function HomeHero({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
       >
-        {/* Trust badge — entry signal + orb collision target */}
-        <motion.div
-          ref={badgeRef}
-          className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium backdrop-blur-sm ${
-            orbBadgeGlow
-              ? "border-sky-500/90 dark:border-emerald-400/50 bg-sky-100 dark:bg-emerald-500/15 text-sky-700 dark:text-emerald-200"
-              : "border-sky-400/70 dark:border-emerald-500/20 bg-sky-50 dark:bg-emerald-500/[0.08] text-sky-700 dark:text-emerald-300/70"
-          }`}
-          initial={{ opacity: 0, y: -8, scale: 0.95 }}
-          animate={{
-            opacity: 1,
-            y: 0,
-            scale: orbBadgeGlow ? [1, 1.06, 1] : 1,
-          }}
-          transition={orbBadgeGlow
-            ? { scale: { duration: 0.35, ease: "easeOut" } }
-            : { delay: 0.04, duration: 0.45, ease: "easeOut" }
-          }
-          style={orbBadgeGlow ? {
-            boxShadow: isDark
-              ? "0 0 16px rgba(52,211,153,0.35), 0 0 32px rgba(52,211,153,0.15), inset 0 0 12px rgba(52,211,153,0.1)"
-              : "0 0 16px rgba(14,165,233,0.35), 0 0 32px rgba(14,165,233,0.15), inset 0 0 12px rgba(14,165,233,0.1)",
-          } : undefined}
-        >
-          <motion.span
-            className="h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-emerald-500"
-            animate={orbBadgeGlow
-              ? { opacity: 1, scale: [1, 1.8, 1] }
-              : { opacity: [1, 0.35, 1] }
-            }
-            transition={orbBadgeGlow
-              ? { scale: { duration: 0.4, ease: "easeOut" } }
-              : { duration: 2, repeat: Infinity, ease: "easeInOut" }
-            }
-          />
-          <span
-            style={orbBadgeGlow ? {
-              textShadow: isDark
-                ? "0 0 12px rgba(52,211,153,0.55), 0 0 24px rgba(52,211,153,0.25)"
-                : "0 0 12px rgba(14,165,233,0.55), 0 0 24px rgba(14,165,233,0.25)",
-              transition: "text-shadow 0.2s ease-out",
-            } : { transition: "text-shadow 0.4s ease-out" }}
-          >Free to start · No card needed</span>
-        </motion.div>
+        {/* (Removed: "Free to start · No card needed" trust badge + green dot) */}
 
         <div className="space-y-3">
           <motion.div
@@ -1683,42 +1648,23 @@ export default function HomeHero({
           </motion.div>
         </div>
 
-        {/* Description comes after title with slow-to-fast animation */}
+        {/* Description — quick reveal so it reads as one confident line, not a
+            slow typewriter. Near-instant char cascade keeps the kinetic feel
+            without the wait. */}
         <div className="w-full min-h-[3.25rem] sm:min-h-[3rem] mt-10 sm:mt-12">
           <KineticDescription
             ref={descRef}
             text={descriptionText}
             className={`mx-auto max-w-3xl text-pretty text-sm text-gray-600 dark:text-white/75 sm:text-base transition-[color,text-shadow] duration-700 ease-out hover:text-gray-800 dark:hover:text-white/85 ${showFancyHover ? "hover:[text-shadow:0_0_18px_rgba(56,189,248,0.16)]" : ""}`}
             startDelay={descriptionStart}
-            startSpeed={45}
-            endSpeed={12}
+            startSpeed={7}
+            endSpeed={2}
             orbGlowIdx={orbDescGlowIdx}
           />
         </div>
 
-        {/* Feature chips — hidden in portrait, visible in landscape/desktop */}
-        <div className="portrait:hidden flex flex-wrap items-center justify-center gap-2">
-          {(
-            [
-              { emoji: "🤖", label: "6 AI Models" },
-              { emoji: "📊", label: "Live Polls" },
-              { emoji: "🛡️", label: "12-Tier Verification" },
-              { emoji: "🔑", label: "Bring Your Key" },
-            ] as const
-          ).map(({ emoji, label }, i) => (
-            <span
-              key={label}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200/70 dark:border-white/[0.08] bg-white/60 dark:bg-white/[0.03] px-3 py-1 text-xs font-medium text-gray-500 dark:text-white/45 backdrop-blur-sm"
-              style={{
-                opacity: 0,
-                animation: `heroChipIn 0.28s ease-out ${(descriptionStart + 0.35 + i * 0.07).toFixed(2)}s forwards`,
-              }}
-            >
-              <span role="img" aria-hidden="true">{emoji}</span>
-              {label}
-            </span>
-          ))}
-        </div>
+        {/* (Removed: feature chip row — 6 AI Models / Live Polls / 12-Tier
+            Verification / Bring Your Key) */}
 
         {/* CTAs — hidden in portrait, visible in landscape/desktop */}
         <motion.div
