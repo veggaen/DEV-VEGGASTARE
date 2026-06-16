@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
 import { CiInboxIn } from "react-icons/ci";
 import { SiGooglebigquery } from "react-icons/si";
@@ -16,16 +16,17 @@ import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 
 export default function NexusPage() {
   const reduceMotion = useReducedMotion();
-  const router = useRouter();
   const { user, status } = useCurrentUserWithStatus();
 
-  // If the session resolved and the visitor is NOT authenticated, send them to
-  // login instead of rendering an infinite "Loading…" (this page is protected).
+  // If the session resolved and the visitor is NOT authenticated, sign out to
+  // clear any stale/invalid session cookie (which the edge middleware would
+  // otherwise treat as "logged in" and bounce us back here → redirect loop),
+  // then land on the login page. `force=1` tells middleware to let us stay.
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.replace('/auth/login?callbackUrl=%2Fnexus');
+      signOut({ callbackUrl: '/auth/login?force=1' });
     }
-  }, [status, router]);
+  }, [status]);
 
   const quickLinks = [
     {

@@ -399,7 +399,12 @@ export default function proxy(req: NextRequest) {
   }
 
   if (isAuthRoute) {
-    if (isLoggedIn) {
+    // Escape hatch: a "present but invalid" session cookie (e.g. a stale token
+    // the server can't validate) would otherwise ping-pong between a protected
+    // page and /auth/login forever. When a page explicitly sends the user here
+    // to re-authenticate (?force=1), let them stay on the auth page.
+    const forceAuth = nextUrl.searchParams.get("force") === "1";
+    if (isLoggedIn && !forceAuth) {
       // Keep logged-in users on the verification flow if OAuth linking fails.
       // Without this, /auth/error gets bounced to DEFAULT_LOGIN_REDIRECT (/nexus).
       if (pathname === "/auth/error") {
