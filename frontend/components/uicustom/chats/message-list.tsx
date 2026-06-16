@@ -12,7 +12,8 @@ import { useEdgeStore } from '@/lib/edgestore';
 import Pusher from 'pusher-js';
 import Spinner from '../spinner';
 import { cn } from '@/lib/utils';
-import { format, isToday, isYesterday, formatDistanceToNowStrict } from 'date-fns';
+import { format, isToday, isYesterday, isSameDay } from 'date-fns';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 import { ReportDialog } from '@/components/uicustom/report/ReportDialog';
 
@@ -28,6 +29,7 @@ interface Message {
 interface User {
   id: string;
   name: string;
+  image?: string | null;
 }
 
 interface MessageListProps {
@@ -53,6 +55,12 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
   useEffect(() => {
     setLocalMessages(messages); // Ensure localMessages syncs with the initial messages prop
   }, [messages]);
+
+  // Auto-scroll to the newest message whenever the list changes.
+  useEffect(() => {
+    const el = messageListRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [localMessages.length]);
 
   useEffect(() => {
     const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
@@ -164,6 +172,11 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
     return acc;
   }, {} as Record<string, string>);
 
+  const userImageMap = users.reduce((acc, user) => {
+    acc[user.id] = user.image ?? null;
+    return acc;
+  }, {} as Record<string, string | null>);
+
   // Format timestamp helper
   const formatMessageTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -185,52 +198,91 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
         <div className="flex justify-center items-center h-full">
           <div className="flex flex-col items-center gap-3">
             <Spinner />
-            <span className="text-sm text-white/50">Loading messages...</span>
+            <span className="text-sm text-muted-foreground">Loading messages…</span>
           </div>
         </div>
       ) : localMessages.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full text-white/40">
+        <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
           <div className="text-4xl mb-3">💬</div>
           <p className="text-sm">No messages yet. Start the conversation!</p>
         </div>
       ) : (
-        <div className="space-y-3 max-w-4xl mx-auto">
+        <div className="space-y-1 max-w-4xl mx-auto">
           {localMessages.map((message, idx) => {
             const isCurrentUser = message.senderId === currentUser?.id;
             const senderName = userMap[message.senderId] || message.senderId;
+            const senderImage = userImageMap[message.senderId] ?? null;
             const canModify = isCurrentUser || currentUser?.role === 'ADMIN';
             const isEditing = editingMessageId === message.id;
 
-            // Check if we should show the sender name (first message or different sender from previous)
             const prevMessage = idx > 0 ? localMessages[idx - 1] : null;
-            const showSender = !isCurrentUser && (!prevMessage || prevMessage.senderId !== message.senderId);
+            // Group consecutive messages from the same sender; show the avatar/name
+            // only on the first message of a run.
+            const isGroupStart = !prevMessage || prevMessage.senderId !== message.senderId;
+            const showSender = !isCurrentUser && isGroupStart;
+            const showAvatar = !isCurrentUser && isGroupStart;
+
+            // Date separator when the day changes (or on the very first message).
+            const showDateSeparator =
+              !prevMessage ||
+              !isSameDay(new Date(prevMessage.createdAt), new Date(message.createdAt));
+            const dateLabel = (() => {
+              const d = new Date(message.createdAt);
+              if (isToday(d)) return 'Today';
+              if (isYesterday(d)) return 'Yesterday';
+              return format(d, 'MMMM d, yyyy');
+            })();
 
             return (
+              <React.Fragment key={message.id}>
+                {showDateSeparator && (
+                  <div className="flex items-center justify-center py-4">
+                    <span className="rounded-full bg-muted px-3 py-1 text-[11px] font-medium text-muted-foreground">
+                      {dateLabel}
+                    </span>
+                  </div>
+                )}
               <div
-                key={message.id}
                 className={cn(
-                  "group flex gap-2 max-w-[85%] md:max-w-[70%]",
-                  isCurrentUser ? "ml-auto flex-row-reverse" : "mr-auto"
+                  "group flex items-end gap-2 max-w-[85%] md:max-w-[70%]",
+                  isCurrentUser ? "ml-auto flex-row-reverse" : "mr-auto",
+                  isGroupStart ? "mt-3" : "mt-0.5",
                 )}
               >
+                {/* Avatar for incoming messages (only at the start of a run) */}
+                {!isCurrentUser && (
+                  <div className="w-8 shrink-0">
+                    {showAvatar && (
+                      <UserHoverCard userId={message.senderId} userName={senderName} side="top" align="start">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={senderImage || undefined} />
+                          <AvatarFallback className="bg-linear-to-br from-indigo-500 to-purple-600 text-white text-xs">
+                            {senderName?.[0]?.toUpperCase() || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                      </UserHoverCard>
+                    )}
+                  </div>
+                )}
+
                 {/* Message Bubble */}
                 <div className="flex flex-col min-w-0">
                   {showSender && (
-                    <div className="mb-1 px-3">
+                    <div className="mb-1 px-1">
                       <UserHoverCard userId={message.senderId} userName={senderName} side="top" align="start">
-                        <span className="text-xs text-white/50 hover:text-white/70 transition-colors">
+                        <span className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
                           {senderName}
                         </span>
                       </UserHoverCard>
                     </div>
                   )}
-                  
+
                   <div
                     className={cn(
                       "relative rounded-2xl px-4 py-2.5 shadow-sm transition-all",
                       isCurrentUser
                         ? "bg-linear-to-br from-indigo-500 to-purple-600 text-white rounded-br-md"
-                        : "bg-white/10 text-white rounded-bl-md backdrop-blur-sm"
+                        : "bg-muted text-foreground rounded-bl-md border border-border/60",
                     )}
                   >
                     {isEditing ? (
@@ -240,16 +292,16 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                           type="text"
                           value={editedContent}
                           onChange={(e) => setEditedContent(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-black/20 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/30"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                           placeholder="Edit message..."
                           disabled={isSaving}
                           autoFocus
                         />
-                        
+
                         {/* Image Upload Zone */}
                         <div
                           {...getRootProps()}
-                          className="cursor-pointer rounded-lg border-2 border-dashed border-white/20 hover:border-white/40 transition-colors p-3"
+                          className="cursor-pointer rounded-lg border-2 border-dashed border-border hover:border-foreground/40 transition-colors p-3"
                         >
                           <input {...getInputProps()} />
                           {editedImagePreview ? (
@@ -327,7 +379,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                         {/* Timestamp & Edited indicator */}
                         <div className={cn(
                           "flex items-center gap-1.5 mt-1.5 text-[11px]",
-                          isCurrentUser ? "text-white/60" : "text-white/40"
+                          isCurrentUser ? "text-white/70" : "text-muted-foreground"
                         )}>
                           <span>{formatMessageTime(message.createdAt)}</span>
                           {message.editedAt && (
@@ -351,7 +403,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                     <button
                       onClick={() => handleEditClick(message)}
                       disabled={isSaving}
-                      className="p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white/80 transition-all"
+                      className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
                       title="Edit message"
                     >
                       <FiEdit2 className="h-3.5 w-3.5" />
@@ -359,7 +411,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                     <button
                       onClick={() => handleDeleteClick(message.id)}
                       disabled={isSaving}
-                      className="p-2 rounded-full hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-all"
+                      className="p-2 rounded-full hover:bg-red-500/15 text-muted-foreground hover:text-red-500 transition-all"
                       title="Delete message"
                     >
                       <FiTrash2 className="h-3.5 w-3.5" />
@@ -373,7 +425,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                   )}>
                     <button
                       onClick={() => setReportMessageId(message.id)}
-                      className="p-2 rounded-full hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-all"
+                      className="p-2 rounded-full hover:bg-red-500/15 text-muted-foreground hover:text-red-500 transition-all"
                       title="Rapporter melding"
                     >
                       <FiFlag className="h-3.5 w-3.5" />
@@ -381,6 +433,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                   </div>
                 )}
               </div>
+              </React.Fragment>
             );
           })}
         </div>
