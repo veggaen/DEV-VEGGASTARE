@@ -144,39 +144,29 @@ export const {
       signIn: '/auth/login',
       error: '/auth/error',
     },
-    // Explicit cookie config. Two reasons:
-    //  1. Versioned session-token name — the next-auth upgrade changed JWT (JWE)
-    //     encryption, so old cookies couldn't be decrypted (JWTSessionError 500s).
-    //     A new name orphans the stale cookies; new logins use the new one.
-    //  2. The OAuth security-check cookies (pkceCodeVerifier, state, nonce) MUST
-    //     be defined consistently or the GitHub/Discord callback fails with
-    //     "InvalidCheck: pkceCodeVerifier value could not be parsed". Overriding
-    //     only sessionToken left the others without consistent secure-prefixing,
-    //     so the PKCE verifier set at sign-in couldn't be read at the callback.
-    //     Define them all with matching attributes. (Google is OIDC and tolerated
-    //     the inconsistency; GitHub/Discord are OAuth + PKCE and did not.)
+    // Cookie config — use NextAuth's DEFAULT names (authjs.*). We previously
+    // renamed the session cookie to a versioned name to dodge the old
+    // JWTSessionError, but that desynced the edge middleware (which detects auth
+    // by cookie name) and created a cascade of "logged-in seen as logged-out"
+    // bugs. The original JWT-decryption error is long gone (the next-auth upgrade
+    // shipped weeks ago), so defaults are correct and self-consistent now.
+    //
+    // We still define the OAuth security-check cookies (pkceCodeVerifier, state,
+    // nonce) explicitly with consistent secure attributes, because leaving them
+    // implicit caused "InvalidCheck: pkceCodeVerifier value could not be parsed"
+    // on the GitHub/Discord (OAuth+PKCE) callbacks.
     cookies: (() => {
       const secure = process.env.AUTH_URL?.startsWith('https') ?? false;
       const prefix = secure ? '__Secure-' : '';
       const base = { httpOnly: true, sameSite: 'lax' as const, path: '/', secure };
       return {
-        // Versioned session cookie (see note above).
-        sessionToken: { name: `${prefix}veggat.session-token.v2`, options: base },
-        // Security-check cookies, defined explicitly with consistent secure
-        // attributes so the OAuth (PKCE) callback can read what sign-in set.
-        // csrfToken / callbackUrl are left to NextAuth defaults intentionally.
+        sessionToken: { name: `${prefix}authjs.session-token`, options: base },
         pkceCodeVerifier: {
           name: `${prefix}authjs.pkce.code_verifier`,
           options: { ...base, maxAge: 60 * 15 },
         },
-        state: {
-          name: `${prefix}authjs.state`,
-          options: { ...base, maxAge: 60 * 15 },
-        },
-        nonce: {
-          name: `${prefix}authjs.nonce`,
-          options: base,
-        },
+        state: { name: `${prefix}authjs.state`, options: { ...base, maxAge: 60 * 15 } },
+        nonce: { name: `${prefix}authjs.nonce`, options: base },
       };
     })(),
     events: {
