@@ -144,6 +144,22 @@ export const {
       signIn: '/auth/login',
       error: '/auth/error',
     },
+    // Versioned cookie name. The next-auth upgrade changed JWT (JWE) encryption,
+    // so cookies issued by the previous version can no longer be decrypted and
+    // were throwing `JWTSessionError: no matching decryption` on every request
+    // (500s on /, /gate, auth flow). Bumping the cookie name orphans those old
+    // cookies — they're simply ignored — and all new logins use the new one.
+    cookies: {
+      sessionToken: {
+        name: `${process.env.AUTH_URL?.startsWith('https') ? '__Secure-' : ''}veggat.session-token.v2`,
+        options: {
+          httpOnly: true,
+          sameSite: 'lax',
+          path: '/',
+          secure: process.env.AUTH_URL?.startsWith('https') ?? false,
+        },
+      },
+    },
     events: {
       async signOut(message){
         //console.log(`event.signOut token:`,message)

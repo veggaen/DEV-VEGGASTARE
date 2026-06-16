@@ -41,7 +41,14 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children, modal }: { children: React.ReactNode; modal: React.ReactNode }) {
-  const session = await auth();
+  // A failed session read (e.g. an undecryptable legacy cookie after the
+  // next-auth upgrade) must never 500 the entire site. Degrade to logged-out.
+  let session = null;
+  try {
+    session = await auth();
+  } catch (err) {
+    console.error("[RootLayout] auth() failed, rendering as logged-out:", err);
+  }
 
   return (
     <html lang="en" suppressHydrationWarning>
