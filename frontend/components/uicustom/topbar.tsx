@@ -879,9 +879,10 @@ const MyTopBar = () => {
 																				key={item.href}
 																				href={item.href}
 																				onClick={() => setMenuOpen(false)}
-																				className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${active ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100"}`}
+																				className={`group/navitem relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${active ? "bg-brand-accent/10 text-foreground font-medium" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
 																			>
-																				<Icon className={`h-4 w-4 shrink-0 ${active ? "text-sky-500" : "text-zinc-400 dark:text-zinc-500"}`} />
+																				{active && (<span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-brand-accent" />)}
+																					<Icon className={`h-4 w-4 shrink-0 transition-colors ${active ? "text-brand-accent" : "text-muted-foreground/70 group-hover/navitem:text-foreground"}`} />
 																				<span>{item.label}</span>
 																				{item.href === "/pulse" && (
 																					<span className="relative flex h-1.5 w-1.5 ml-0.5 shrink-0">
