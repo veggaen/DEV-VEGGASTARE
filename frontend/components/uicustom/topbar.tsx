@@ -174,6 +174,13 @@ const MyTopBar = () => {
 	const headerRef = useRef<HTMLElement | null>(null);
 	const { resolvedTheme, setTheme } = useTheme();
 	const [menuOpen, setMenuOpen] = useState(false);
+	// Which OAuth provider is mid-redirect, so its button can show a spinner
+	// instead of feeling unresponsive while the browser navigates to the provider.
+	const [oauthPending, setOauthPending] = useState<null | 'google' | 'discord' | 'github'>(null);
+	const startOauth = (provider: 'google' | 'discord' | 'github') => {
+		setOauthPending(provider);
+		signIn(provider, { callbackUrl: '/products' });
+	};
 	const [isMobile, setIsMobile] = useState(false);
 	const [productsTopbarVisible, setProductsTopbarVisible] = useState(true);
 	const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState<number>(72);
@@ -960,9 +967,24 @@ const MyTopBar = () => {
 														onClick={async () => {
 															try {
 																const { ModalController } = await import('@reown/appkit-controllers');
+																// If AppKit hasn't initialized yet (it's lazy-loaded), opening
+																// can no-op silently. Open, then verify it actually opened and
+																// give feedback / fall back to the email login route otherwise.
 																ModalController.open({ view: 'Connect' });
 																setMenuOpen(false);
-															} catch { /* AppKit not ready */ }
+																setTimeout(() => {
+																	const isOpen = (ModalController as unknown as { state?: { open?: boolean } })?.state?.open;
+																	if (!isOpen) {
+																		import('sonner').then(({ toast }) =>
+																			toast.error('Wallet connect is still loading — please try again in a moment, or use Google / GitHub / Discord.')
+																		);
+																	}
+																}, 600);
+															} catch {
+																import('sonner').then(({ toast }) =>
+																	toast.error('Wallet connect unavailable right now. Try Google / GitHub / Discord instead.')
+																);
+															}
 														}}
 														className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 dark:bg-white px-4 py-3 text-sm font-medium text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
 													>
@@ -974,29 +996,32 @@ const MyTopBar = () => {
 													<div className="flex gap-2">
 														<button
 															type="button"
-															onClick={() => signIn("google", { callbackUrl: "/products" })}
+															onClick={() => startOauth("google")}
+															disabled={oauthPending !== null}
 															className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
 															title="Continue with Google"
 														>
-															<FcGoogle className="h-4 w-4" />
+															{oauthPending === 'google' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FcGoogle className="h-4 w-4" />}
 															Google
 														</button>
 														<button
 															type="button"
-															onClick={() => signIn("discord", { callbackUrl: "/products" })}
+															onClick={() => startOauth("discord")}
+															disabled={oauthPending !== null}
 															className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
 															title="Continue with Discord"
 														>
-															<FaDiscord className="h-4 w-4 text-[#5865F2]" />
+															{oauthPending === 'discord' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FaDiscord className="h-4 w-4 text-[#5865F2]" />}
 															Discord
 														</button>
 														<button
 															type="button"
-															onClick={() => signIn("github", { callbackUrl: "/products" })}
+															onClick={() => startOauth("github")}
+															disabled={oauthPending !== null}
 															className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
 															title="Continue with GitHub"
 														>
-															<FaGithub className="h-4 w-4" />
+															{oauthPending === 'github' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FaGithub className="h-4 w-4" />}
 															GitHub
 														</button>
 													</div>
