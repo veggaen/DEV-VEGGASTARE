@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { type ToneId, DEFAULT_TONE } from "@/lib/voice/tone";
 
 export type ProductTitleAnimationMode = "letters" | "rsvp" | "off";
 
@@ -33,6 +34,7 @@ export type UiPreferences = {
   pageAnimations: AnimationIntensity; // Page transition animations
   hoverEffects: HoverEffectStyle;     // Simple vs colorful hover effects
   enableExperimentalEffects: boolean; // Opt-in for experimental fancy features
+  toneOfVoice: ToneId;                // Brand voice for product copy (see lib/voice/tone)
 };
 
 const DEFAULT_PREFS: UiPreferences = {
@@ -48,6 +50,7 @@ const DEFAULT_PREFS: UiPreferences = {
   pageAnimations: "subtle",
   hoverEffects: "simple",
   enableExperimentalEffects: false,
+  toneOfVoice: DEFAULT_TONE,
 };
 
 const VALID_FIAT: FiatCurrency[] = ["USD", "NOK", "EUR", "GBP", "SEK", "DKK"];
@@ -111,14 +114,19 @@ function normalize(p: Partial<UiPreferences> | null | undefined): UiPreferences 
   const hoverEffects: HoverEffectStyle = 
     VALID_HOVER_STYLES.includes(hover as HoverEffectStyle) ? (hover as HoverEffectStyle) : DEFAULT_PREFS.hoverEffects;
 
-  const enableExperimentalEffects = typeof p?.enableExperimentalEffects === "boolean" 
+  const enableExperimentalEffects = typeof p?.enableExperimentalEffects === "boolean"
     ? p.enableExperimentalEffects : DEFAULT_PREFS.enableExperimentalEffects;
 
-  return { 
-    productTitleAnimationMode, 
-    rsvpWpm, 
-    preferredFiatCurrency, 
-    preferredCryptoCurrency, 
+  const tone = p?.toneOfVoice;
+  const toneOfVoice: ToneId =
+    (["vibe", "professional", "community"] as ToneId[]).includes(tone as ToneId)
+      ? (tone as ToneId) : DEFAULT_PREFS.toneOfVoice;
+
+  return {
+    productTitleAnimationMode,
+    rsvpWpm,
+    preferredFiatCurrency,
+    preferredCryptoCurrency,
     showCryptoFirst,
     stylePreset,
     enableGradientBackgrounds,
@@ -126,6 +134,7 @@ function normalize(p: Partial<UiPreferences> | null | undefined): UiPreferences 
     pageAnimations,
     hoverEffects,
     enableExperimentalEffects,
+    toneOfVoice,
   };
 }
 
