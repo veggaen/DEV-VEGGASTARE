@@ -15,12 +15,11 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import PriceAmount from "@/components/crypto-related/PriceAmount";
 import {
   PLANS,
   type BillingPeriod,
   type Plan,
-  effectiveMonthly,
-  formatNok,
   YEARLY_DISCOUNT_MONTHS,
 } from "./plans-config";
 
@@ -44,9 +43,10 @@ function ctaHref(plan: Plan): string {
     case "byok":
       return "/settings#ai-keys";
     case "subscribe":
-      // Phase 3 wires this to a Stripe Checkout server action; until then the
-      // CTA points at account billing so the flow is never a dead end.
-      return "/account/billing";
+      // No payment provider is wired yet (no Stripe configured), so this used
+      // to 404 on a nonexistent /account/billing route. Point at contact so the
+      // CTA is never a dead end until subscription checkout is implemented.
+      return "/info#contact";
     case "contact":
       return "/info#contact";
   }
@@ -129,7 +129,9 @@ function TierCard({
   };
 
   const isFree = plan.price[period].amount === 0;
-  const priceLabel = isFree ? "Free" : formatNok(plan.price[period].amount);
+  // Plan prices are stored in NOK øre. Convert øre→NOK and let PriceAmount
+  // render in the visitor's selected currency.
+  const priceNok = plan.price[period].amount / 100;
 
   return (
     <motion.div
@@ -167,7 +169,9 @@ function TierCard({
         <p className="mt-1 min-h-10 text-sm text-muted-foreground">{plan.tagline}</p>
 
         <div className="mt-5 flex items-baseline gap-1.5">
-          <span className="text-4xl font-bold tracking-tight text-foreground">{priceLabel}</span>
+          <span className="text-4xl font-bold tracking-tight text-foreground">
+            {isFree ? "Free" : <PriceAmount amount={priceNok} currency="NOK" />}
+          </span>
           {!isFree && (
             <span className="text-sm text-muted-foreground">
               /{period === "yearly" ? "yr" : "mo"}
@@ -176,7 +180,7 @@ function TierCard({
         </div>
         {!isFree && period === "yearly" && (
           <p className="mt-1 text-xs text-muted-foreground">
-            {effectiveMonthly(plan, "yearly")}/mo billed yearly
+            <PriceAmount amount={plan.price.yearly.amount / 12 / 100} currency="NOK" />/mo billed yearly
           </p>
         )}
 
