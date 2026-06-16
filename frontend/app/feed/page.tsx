@@ -758,8 +758,12 @@ const FeedPage: React.FC = () => {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-3 sm:px-6 lg:px-8">
-      {/* ─── Flow Sub-navbar (sticky — stays while the feed scrolls) ─── */}
-      <div className="sticky top-[var(--app-header-offset,0px)] z-30 -mx-3 sm:-mx-6 lg:-mx-8 mb-5 border-b border-border/50 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+      {/* ─── Flow Sub-navbar (sticky — stays while the feed scrolls) ───
+           The page scrolls inside an inner overflow-auto container that begins
+           below the app header, so we stick at top-0 of THAT container — not at
+           var(--app-header-offset), which would push the bar a full header
+           height too low and overlap the composer below it. */}
+      <div className="sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 mb-5 border-b border-border/50 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center gap-3 h-11 px-3 sm:px-6 lg:px-8">
           {/* Brand link - "Flow" goes to /pulse (shows all content) */}
           <Link
@@ -1878,7 +1882,7 @@ const FeedPage: React.FC = () => {
 
         {/* Explore sidebar */}
         <aside className="hidden lg:block">
-          <div className="sticky top-[calc(var(--app-header-offset,0px)+16px)] space-y-4">
+          <div className="sticky top-4 space-y-4">
             {!currentUser && (
               <div className="rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-zinc-200/80 dark:hover:bg-card/30">
                 <div className="font-semibold">Welcome</div>

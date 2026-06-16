@@ -317,7 +317,7 @@ const MyTopBar = () => {
 	const nav: Array<{ href: string; label: string }> = [
 		{ href: "/", label: "Home" },
 		{ href: "/products", label: "Products" },
-		{ href: "/pulse", label: "Polls" },
+		{ href: "/pulse", label: "Pulse" },
 		...(clientUser
 			? [
 				{ href: "/ai", label: "AI" },
@@ -333,7 +333,7 @@ const MyTopBar = () => {
 					items: [
 						{ href: "/", label: "Home", icon: FiHome },
 						{ href: "/products", label: "Products", icon: FiPackage },
-						{ href: "/pulse", label: "Polls", icon: PulseHeart },
+						{ href: "/pulse", label: "Pulse", icon: PulseHeart },
 						{ href: "/ai", label: "AI Chat", icon: FiZap },
 					],
 				},
@@ -362,7 +362,7 @@ const MyTopBar = () => {
 				items: [
 					{ href: "/", label: "Home", icon: FiHome },
 					{ href: "/products", label: "Products", icon: FiPackage },
-					{ href: "/pulse", label: "Polls", icon: PulseHeart },
+					{ href: "/pulse", label: "Pulse", icon: PulseHeart },
 				],
 			},
 			{
