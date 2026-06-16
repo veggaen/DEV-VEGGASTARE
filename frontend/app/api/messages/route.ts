@@ -1,7 +1,7 @@
 import { dbPrisma } from '@/lib/db';
 import { pusherServer } from '@/lib/pusher';
 import { MyLibUserAuth } from '@/lib/user-auth';
-import { canReplyToConversation } from '@/lib/conversation-permissions';
+import { canReplyToConversation, canViewConversation } from '@/lib/conversation-permissions';
 import { NextResponse } from 'next/server';
 import { parseJsonOrError, parseQueryOrError } from '@/lib/api-validate';
 import { z } from 'zod';
@@ -224,7 +224,6 @@ export async function GET(req: Request) {
 
     // Check view permissions
     console.log(LOG_PREFIX, `GET(2/3) - checking view permissions...`);
-    const { canViewConversation } = await import('@/lib/conversation-permissions');
     const user = userId && userRole ? { id: userId, role: userRole } : null;
     const canView = canViewConversation(user, conversation);
     if (!canView) {
@@ -243,37 +242,35 @@ export async function GET(req: Request) {
       },
     });
 
-    // If logged-in, fetch which messages the user has heartbeated
+    // Participants (creator included).
+    const participantIds = conversation.participants as string[];
+    const allUserIds = [...new Set([...participantIds, conversation.userId])];
+    const messageIds = messages.map((m) => m.id);
+
+    // Run the independent follow-up queries in parallel rather than serially —
+    // pulses, reposts and participant lookups don't depend on each other.
     const heartbeatedMessageIds = new Set<string>();
     const repulsedMessageIds = new Set<string>();
-    if (userId) {
-      const userPulses = await dbPrisma.messagePulse.findMany({
-        where: {
-          messageId: { in: messages.map((m) => m.id) },
-          userId,
-        },
-        select: { messageId: true },
-      });
-      for (const p of userPulses) heartbeatedMessageIds.add(p.messageId);
-
-      const userReposts = await dbPrisma.messageRepost.findMany({
-        where: {
-          messageId: { in: messages.map((m) => m.id) },
-          userId,
-        },
-        select: { messageId: true },
-      });
-      for (const r of userReposts) repulsedMessageIds.add(r.messageId);
-    }
-
-    // Fetch users who are participants in the conversation
-    const participantIds = conversation.participants as string[];
-    // Also include the creator
-    const allUserIds = [...new Set([...participantIds, conversation.userId])];
-    const users = await dbPrisma.user.findMany({
-      where: { id: { in: allUserIds } },
-      select: { id: true, name: true, image: true },
-    });
+    const [userPulses, userReposts, users] = await Promise.all([
+      userId
+        ? dbPrisma.messagePulse.findMany({
+            where: { messageId: { in: messageIds }, userId },
+            select: { messageId: true },
+          })
+        : Promise.resolve([]),
+      userId
+        ? dbPrisma.messageRepost.findMany({
+            where: { messageId: { in: messageIds }, userId },
+            select: { messageId: true },
+          })
+        : Promise.resolve([]),
+      dbPrisma.user.findMany({
+        where: { id: { in: allUserIds } },
+        select: { id: true, name: true, image: true },
+      }),
+    ]);
+    for (const p of userPulses) heartbeatedMessageIds.add(p.messageId);
+    for (const r of userReposts) repulsedMessageIds.add(r.messageId);
 
     // Normalize response shape + validate contract.
     const creator = conversation.User
