@@ -13,6 +13,7 @@ import {
   VERIFICATION_TIER_MULTIPLIERS
 } from '@/lib/view-strength';
 import { sendAuthLevelChangeEmail } from '@/lib/mail';
+import { computeReach, type ReachInputs, type WalletSignal } from '@/lib/reach/reach-engine';
 
 const LOG_PREFIX = '[verification-recalc]';
 
@@ -57,6 +58,11 @@ export async function recalculateVerificationTier(
         web3ModeEnabled: true,
         verificationTier: true,
         verificationScore: true,
+        // True Reach engine inputs
+        bankidVerified: true,
+        vippsVerified: true,
+        emailRisk: true,
+        reachLifetime: true,
       },
     });
 
@@ -65,17 +71,22 @@ export async function recalculateVerificationTier(
       return null;
     }
 
-    // Query highest single-wallet donation total for donation-based trust
+    // Query wallets for donation-based trust + reach-engine provenance signals.
     let maxWalletDonationUsd = 0;
+    let walletSignals: WalletSignal[] = [];
     try {
-      const topWallet = await dbPrisma.wallet.findFirst({
-        where: { ownerUserId: userId, verifiedAt: { not: null } },
-        orderBy: { donationTotalUsd: 'desc' },
-        select: { donationTotalUsd: true },
+      const wallets = await dbPrisma.wallet.findMany({
+        where: { ownerUserId: userId },
+        select: { donationTotalUsd: true, verifiedAt: true, riskTier: true },
       });
-      maxWalletDonationUsd = topWallet?.donationTotalUsd ?? 0;
+      maxWalletDonationUsd = wallets.reduce((m, w) => Math.max(m, w.donationTotalUsd ?? 0), 0);
+      walletSignals = wallets.map((w) => ({
+        verified: w.verifiedAt != null,
+        riskTier: (w.riskTier as WalletSignal['riskTier']) ?? 'neutral',
+        hasHistory: (w.donationTotalUsd ?? 0) > 0 || w.riskTier === 'kyc',
+      }));
     } catch {
-      // donationTotalUsd column may not exist yet (pre-migration) — ignore
+      // columns may not exist yet (pre-migration) — ignore
     }
 
     // Merge current DB state with any overrides (for just-changed flags)
@@ -85,11 +96,31 @@ export async function recalculateVerificationTier(
     const tier = determineUserVerificationTier(merged, donationOpts);
     const score = calculateVerificationScore(merged, donationOpts);
 
+    // ── True Reach engine (lib/reach) — class-based trust + risk + reach ──
+    const reachInputs: ReachInputs = {
+      bankidVerified: merged.bankidVerified != null,
+      vippsVerified: merged.vippsVerified != null,
+      phoneVerified: merged.phoneVerified != null,
+      hasCardPayment: !!merged.hasWeb2Payment,
+      hasWeb3Spend: !!merged.hasWeb3Payment,
+      hasGoogle: !!merged.hasGoogleAuth,
+      hasGithub: !!merged.hasGithubAuth,
+      hasDiscord: !!merged.hasDiscordAuth,
+      emailVerified: merged.emailVerified != null && merged.emailRisk !== 'unverified',
+      wallets: walletSignals,
+      emailDisposable: merged.emailRisk === 'disposable',
+      emailPresentButUnverified: merged.emailRisk === 'unverified',
+      behaviorReach: merged.reachLifetime ?? 0,
+    };
+    const reach = computeReach(reachInputs);
+
     await dbPrisma.user.update({
       where: { id: userId },
       data: {
         verificationTier: tier,
         verificationScore: score,
+        trueReach: reach.trueReach,
+        riskScore: reach.riskScore,
       },
     });
 

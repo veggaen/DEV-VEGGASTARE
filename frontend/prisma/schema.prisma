@@ -1057,6 +1057,12 @@ model User {
   reachLifetime                                                   Float                         @default(0)
   reachMomentum                                                   Float                         @default(0)
   lastMomentumDecay                                               DateTime?
+  // ─── True Reach engine (lib/reach) — materialized ──────────────
+  trueReach                                                       Float                         @default(0)
+  riskScore                                                       Int                           @default(0)
+  bankidVerified                                                  DateTime?
+  vippsVerified                                                   DateTime?
+  emailRisk                                                       String?                       // 'disposable' | 'unverified' | 'ok'
   // ─── Session Versioning (increment to force re-login) ─────────
   tokenVersion                                                    Int                           @default(0)
   // ─── Seller Payment Setup ──────────────────────────────────────
@@ -1233,6 +1239,7 @@ model Wallet {
   updatedAt        DateTime    @updatedAt
   verifiedAt       DateTime?
   donationTotalUsd Float       @default(0)
+  riskTier         String?     // reach engine provenance: 'kyc' | 'neutral' | 'fresh'
   Product                        Product[]
   Donation                       Donation[]
   Company                        Company?    @relation(fields: [ownerCompanyId], references: [id])
