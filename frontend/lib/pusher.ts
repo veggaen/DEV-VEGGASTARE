@@ -1,5 +1,16 @@
-import PusherServer from 'pusher';
+import * as PusherNS from 'pusher';
 import { scopeChannel } from './pusher-channel';
+
+// `pusher` (server SDK) is CommonJS whose `module.exports` IS the constructor,
+// with no `.default`. Turbopack's ESM interop on Vercel resolves
+// `import PusherServer from 'pusher'` to the (undefined) `.default`, so
+// `class X extends PusherServer` crashed at SSR module-eval with
+// "d.default is not a constructor". Pick the callable defensively so it works
+// under every bundler/interop. The type still comes from the module namespace.
+type PusherResponse = PusherNS.Response;
+type PusherCtor = typeof import('pusher');
+const PusherServer = ((PusherNS as unknown as { default?: unknown }).default ??
+  PusherNS) as unknown as PusherCtor;
 
 const LOG_PREFIX = '[frontend/lib/pusher.ts]';
 
@@ -24,7 +35,7 @@ class ScopedPusherServer extends PusherServer {
         event: string,
         data: any,
         params?: any,
-    ): Promise<PusherServer.Response> {
+    ): Promise<PusherResponse> {
         const scoped = Array.isArray(channel)
             ? channel.map(scopeChannel)
             : scopeChannel(channel);
