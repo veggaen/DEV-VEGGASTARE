@@ -11,7 +11,7 @@ import { PollDisplay } from '@/components/uicustom/chats/poll-display';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { FiArrowLeft, FiTrash2, FiMoreVertical, FiUsers } from 'react-icons/fi';
+import { FiArrowLeft, FiTrash2, FiMoreVertical, FiUsers, FiMessageCircle } from 'react-icons/fi';
 import { formatDistanceToNowStrict } from 'date-fns';
 import Spinner from '@/components/uicustom/spinner';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
@@ -28,6 +28,13 @@ interface ConversationDetails {
   originalUserId: string | null;
   participantDetails?: Array<{ id: string; name: string | null; image: string | null }>;
 }
+
+const CONVERSATION_TYPE_LABEL: Record<string, string> = {
+  GROUP: 'Group chat',
+  PUBLIC_THREAD: 'Public thread',
+  RESTRICTED: 'Restricted',
+  PRIVATE_DM: 'Direct message',
+};
 
 export default function ConversationPage() {
   const reduceMotion = useReducedMotion();
@@ -158,13 +165,13 @@ export default function ConversationPage() {
       <motion.header
         initial={reduceMotion ? undefined : { opacity: 0, y: -10 }}
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-        className="flex items-center gap-4 border-b border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm px-4 py-3"
+        className="flex items-center gap-3 border-b border-border bg-card/70 backdrop-blur-xl px-4 py-3 z-10"
       >
         <Link
           href="/conversations"
-          className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+          className="flex items-center justify-center h-10 w-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
-          <FiArrowLeft className="h-5 w-5 text-zinc-600 dark:text-white/70" />
+          <FiArrowLeft className="h-5 w-5" />
         </Link>
 
         {conversation.type === 'PRIVATE_DM' && otherParticipant ? (
@@ -184,27 +191,31 @@ export default function ConversationPage() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
-                  <h1 className="font-semibold text-zinc-900 dark:text-white truncate">
+                  <h1 className="font-semibold text-foreground truncate">
                     {otherParticipant.name || 'Unknown'}
                   </h1>
-                  <p className="text-xs text-zinc-500 dark:text-white/50">Direct Message</p>
+                  <p className="text-xs text-muted-foreground">Direct message</p>
                 </div>
               </div>
             </UserHoverCard>
           </div>
         ) : (
-          <div className="flex-1 min-w-0">
-            <h1 className="font-semibold text-zinc-900 dark:text-white truncate">
-              {conversation.title || 'Untitled Conversation'}
-            </h1>
-            <p className="text-xs text-zinc-500 dark:text-white/50 flex items-center gap-1">
-              {conversation.type === 'GROUP' && <FiUsers className="h-3 w-3" />}
-              {conversation.type === 'GROUP' ? 'Group Chat' : conversation.type}
-            </p>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-indigo-500/15 to-purple-600/15 text-indigo-500 dark:text-indigo-300">
+              {conversation.type === 'GROUP' ? <FiUsers className="h-5 w-5" /> : <FiMessageCircle className="h-5 w-5" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="font-semibold text-foreground truncate">
+                {conversation.title || 'Untitled conversation'}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                {CONVERSATION_TYPE_LABEL[conversation.type as string] ?? 'Conversation'}
+              </p>
+            </div>
           </div>
         )}
 
-        <Button variant="ghost" size="icon" className="text-zinc-500 dark:text-white/60 hover:text-zinc-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10">
+        <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-foreground hover:bg-muted">
           <FiMoreVertical className="h-5 w-5" />
         </Button>
       </motion.header>
@@ -240,8 +251,8 @@ export default function ConversationPage() {
         </div>
       )}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-hidden">
+      {/* Messages — subtle surface so the thread reads as a distinct canvas */}
+      <div className="flex-1 overflow-hidden bg-linear-to-b from-muted/30 to-transparent dark:from-white/2">
         <MessageList
           messages={messages}
           users={users}
@@ -251,7 +262,7 @@ export default function ConversationPage() {
       </div>
 
       {/* Input */}
-      <div className="border-t border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm p-4">
+      <div className="border-t border-border bg-card/70 backdrop-blur-xl p-4">
         <MessageInput
           conversationId={conversationId!}
           onMessageSent={fetchMessages}
