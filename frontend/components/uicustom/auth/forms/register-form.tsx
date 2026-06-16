@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { CardWrapper } from '../card-wrapper';
+import { MySocialAuth } from '../buttons/social';
 import { MyFormSuccess } from '@/components/uicustom/forms/form-sucess';
 import { MyFormError } from '@/components/uicustom/forms/form-error';
 import { Button } from '@/components/ui/button';
@@ -159,12 +159,19 @@ export const MyRegisterform = () => {
     };
 
     return (
-        <CardWrapper
-            headerLabel='Create an account'
-            backButtonLabel='Already have an account? Login'
-            backButtonHref='/auth/login'
-            showSocial
-        >
+        <div className="space-y-6">
+            {/* Social auth — same prominent treatment as the login page */}
+            <MySocialAuth />
+
+            <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-zinc-200 dark:border-zinc-800" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-white dark:bg-black text-zinc-400 dark:text-zinc-500">or sign up with email</span>
+                </div>
+            </div>
+
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
                     <div className='space-y-4'>
@@ -254,6 +261,6 @@ export const MyRegisterform = () => {
                     )}
                 </form>
             </Form>
-        </CardWrapper>
+        </div>
     );
 };

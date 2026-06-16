@@ -171,10 +171,20 @@ export default function LoginPage() {
               try {
                 const { ModalController } = await import('@reown/appkit-controllers');
                 ModalController.open({ view: 'Connect' });
-                // After connecting, AppKit auto-redirects or the user navigates away.
-                // The wallet state persists via wagmi cookie storage.
+                // Verify it actually opened (AppKit lazy-loads) — otherwise tell
+                // the user instead of silently doing nothing.
+                setTimeout(() => {
+                  const isOpen = (ModalController as unknown as { state?: { open?: boolean } })?.state?.open;
+                  if (!isOpen) {
+                    import('sonner').then(({ toast }) =>
+                      toast.error('Wallet connect is still loading — try again in a moment, or use email / Google / GitHub / Discord.')
+                    );
+                  }
+                }, 600);
               } catch {
-                // AppKit not loaded yet — ignore
+                import('sonner').then(({ toast }) =>
+                  toast.error('Wallet connect unavailable right now. Try email or a social provider instead.')
+                );
               }
             }}
             className="w-full flex items-center justify-center gap-2 h-11 text-sm font-medium rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:border-sky-500/50 dark:hover:border-emerald-500/50 transition-colors mb-6"
