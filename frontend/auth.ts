@@ -10,6 +10,13 @@ import { getTwoFactorConfirmationByUserId } from "@/data/two-factor-confirmation
 import { getAccountByUserId } from "./lib/account"
 import { recalculateVerificationTier } from "@/lib/verification-recalc"
 import { sendOauthLinkConfirmationEmail } from "@/lib/mail"
+import {
+  SESSION_COOKIE_NAME,
+  PKCE_COOKIE_NAME,
+  STATE_COOKIE_NAME,
+  NONCE_COOKIE_NAME,
+  AUTH_COOKIE_OPTIONS,
+} from "@/lib/auth-cookies"
 
 
 // Console.log PREFIX
@@ -155,20 +162,17 @@ export const {
     // nonce) explicitly with consistent secure attributes, because leaving them
     // implicit caused "InvalidCheck: pkceCodeVerifier value could not be parsed"
     // on the GitHub/Discord (OAuth+PKCE) callbacks.
-    cookies: (() => {
-      const secure = process.env.AUTH_URL?.startsWith('https') ?? false;
-      const prefix = secure ? '__Secure-' : '';
-      const base = { httpOnly: true, sameSite: 'lax' as const, path: '/', secure };
-      return {
-        sessionToken: { name: `${prefix}authjs.session-token`, options: base },
-        pkceCodeVerifier: {
-          name: `${prefix}authjs.pkce.code_verifier`,
-          options: { ...base, maxAge: 60 * 15 },
-        },
-        state: { name: `${prefix}authjs.state`, options: { ...base, maxAge: 60 * 15 } },
-        nonce: { name: `${prefix}authjs.nonce`, options: base },
-      };
-    })(),
+    cookies: {
+      // Names come from lib/auth-cookies.ts — the SAME module the edge
+      // middleware reads — so the two can never drift apart again.
+      sessionToken: { name: SESSION_COOKIE_NAME, options: AUTH_COOKIE_OPTIONS },
+      pkceCodeVerifier: {
+        name: PKCE_COOKIE_NAME,
+        options: { ...AUTH_COOKIE_OPTIONS, maxAge: 60 * 15 },
+      },
+      state: { name: STATE_COOKIE_NAME, options: { ...AUTH_COOKIE_OPTIONS, maxAge: 60 * 15 } },
+      nonce: { name: NONCE_COOKIE_NAME, options: AUTH_COOKIE_OPTIONS },
+    },
     events: {
       async signOut(message){
         //console.log(`event.signOut token:`,message)

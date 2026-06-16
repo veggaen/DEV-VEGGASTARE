@@ -9,6 +9,9 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ACCESS_GATE_CONFIG } from "@/lib/site-config";
 import { makeGateCookieValue } from "@/lib/access-gate-cookie";
+// Shared with auth.ts so the middleware's session detection can never drift
+// from the actual configured cookie name.
+import { SESSION_COOKIE_NAMES } from "@/lib/auth-cookies";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API RATE LIMITING — Edge-compatible, in-memory, per-instance
@@ -323,23 +326,6 @@ function applySecurityHeaders(res: NextResponse, requestId: string, nonce: strin
 
   return res;
 }
-
-const SESSION_COOKIE_NAMES = [
-  // Current custom (versioned) cookie name — MUST match auth.ts `cookies.sessionToken`.
-  // The middleware uses cookie presence to decide auth routing; if this list is
-  // out of sync with the real cookie name, logged-in users are treated as logged
-  // out (protected pages bounce to /auth/login, /nexus shows "Loading…" forever).
-  "__Secure-veggat.session-token.v2",
-  "veggat.session-token.v2",
-
-  // next-auth v4 (legacy)
-  "__Secure-next-auth.session-token",
-  "next-auth.session-token",
-
-  // Auth.js / next-auth v5 defaults
-  "__Secure-authjs.session-token",
-  "authjs.session-token",
-];
 
 function hasSessionCookie(req: NextRequest): boolean {
   return SESSION_COOKIE_NAMES.some((name) => Boolean(req.cookies.get(name)?.value));
