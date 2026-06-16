@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import PusherClient from "pusher-js";
+import type PusherClientType from "pusher-js";
+import * as PusherJsNS from "pusher-js";
 import { scopeChannel } from '@/lib/pusher-channel';
 
 const LOG_PREFIX = '[usePusher]';
@@ -8,13 +9,21 @@ const DEBUG_PUSHER = process.env.NEXT_PUBLIC_DEBUG_PUSHER === 'true';
 const P_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY;
 const P_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
 
-let pusherClient: PusherClient | undefined;
+// pusher-js is a browser SDK. Instantiating it at module top-level ran during
+// SSR — and under the production server bundle its default export resolved to
+// undefined, so `new PusherClient(...)` threw "f is not a constructor",
+// 500-ing every SSR page (and the whole login flow). Create it lazily, only in
+// the browser, with defensive default-interop.
+let pusherClient: PusherClientType | undefined;
 
-if (!pusherClient) {
-  pusherClient = new PusherClient(P_KEY!, {
-    cluster: P_CLUSTER!,
-    forceTLS: true,
-  });
+function getPusherClient(): PusherClientType | undefined {
+  if (typeof window === 'undefined') return undefined; // never on the server
+  if (pusherClient) return pusherClient;
+  if (!P_KEY || !P_CLUSTER) return undefined;
+  const Ctor = ((PusherJsNS as unknown as { default?: unknown }).default ??
+    PusherJsNS) as unknown as typeof PusherClientType;
+  pusherClient = new Ctor(P_KEY, { cluster: P_CLUSTER, forceTLS: true });
+  return pusherClient;
 }
 
 // Track active subscriptions to avoid duplicate logs
@@ -24,6 +33,7 @@ const usePusher = <T = unknown>(channelName: string, eventName: string, callback
   const hasLoggedRef = useRef(false);
 
   useEffect(() => {
+    const pusherClient = getPusherClient();
     if (!pusherClient || !channelName) return;
 
     // Scope the channel name to the current environment

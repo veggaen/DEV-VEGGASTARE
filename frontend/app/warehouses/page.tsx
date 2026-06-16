@@ -35,10 +35,14 @@ const WarehouseOverview = () => {
   const [isPending, startTransition] = useTransition();
   const intervalDuration = 3600000; // 60 minutes
 
-  const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-    cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-    forceTLS: true,
-  });
+  // Browser-only: pusher-js must never be constructed during SSR (its default
+  // export resolves to undefined in the server bundle → "not a constructor").
+  const pusherClient = typeof window === 'undefined'
+    ? undefined
+    : new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+        forceTLS: true,
+      });
 
   const getWarehouses = async () => {
     console.log(LOG_PREFIX, 'Fetching warehouses');
@@ -68,7 +72,7 @@ const WarehouseOverview = () => {
   }, []);
 
   useEffect(() => {
-    if (showDropdown) {
+    if (showDropdown && pusherClient) {
       const channelName = `WarehouseChannel_${showDropdown}`;
       console.log(`${LOG_PREFIX} Subscribing to channel ${channelName}`);
       const channel = pusherClient.subscribe(channelName);
