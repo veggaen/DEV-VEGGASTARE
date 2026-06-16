@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
-import { useCurrentUser } from '@/hooks/use-current-user';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
 import { CiInboxIn } from "react-icons/ci";
 import { SiGooglebigquery } from "react-icons/si";
 import { 
@@ -14,7 +16,16 @@ import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 
 export default function NexusPage() {
   const reduceMotion = useReducedMotion();
-  const user = useCurrentUser();
+  const router = useRouter();
+  const { user, status } = useCurrentUserWithStatus();
+
+  // If the session resolved and the visitor is NOT authenticated, send them to
+  // login instead of rendering an infinite "Loading…" (this page is protected).
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/auth/login?callbackUrl=%2Fnexus');
+    }
+  }, [status, router]);
 
   const quickLinks = [
     {
@@ -108,7 +119,9 @@ export default function NexusPage() {
   if (!user) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
+        <div className="animate-pulse text-muted-foreground">
+          {status === 'loading' ? 'Loading…' : 'Redirecting to sign in…'}
+        </div>
       </div>
     );
   }

@@ -325,11 +325,18 @@ function applySecurityHeaders(res: NextResponse, requestId: string, nonce: strin
 }
 
 const SESSION_COOKIE_NAMES = [
-  // next-auth v4
+  // Current custom (versioned) cookie name — MUST match auth.ts `cookies.sessionToken`.
+  // The middleware uses cookie presence to decide auth routing; if this list is
+  // out of sync with the real cookie name, logged-in users are treated as logged
+  // out (protected pages bounce to /auth/login, /nexus shows "Loading…" forever).
+  "__Secure-veggat.session-token.v2",
+  "veggat.session-token.v2",
+
+  // next-auth v4 (legacy)
   "__Secure-next-auth.session-token",
   "next-auth.session-token",
 
-  // Auth.js / next-auth v5
+  // Auth.js / next-auth v5 defaults
   "__Secure-authjs.session-token",
   "authjs.session-token",
 ];
