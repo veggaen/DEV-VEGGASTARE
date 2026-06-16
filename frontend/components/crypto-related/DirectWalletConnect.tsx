@@ -39,7 +39,14 @@ export default function DirectWalletConnect({ className = "" }: { className?: st
   const direct = React.useMemo(() => {
     const seen = new Set<string>();
     return connectors
-      .filter((c) => c.id !== "walletConnect" && c.type !== "walletConnect")
+      // Exclude the Reown/AppKit-managed connectors (WalletConnect QR bridge and
+      // the embedded social "auth" connector) — this panel is for DIRECT wallets.
+      .filter((c) =>
+        c.id !== "walletConnect" &&
+        c.type !== "walletConnect" &&
+        c.id !== "auth" &&
+        c.type !== "auth" &&
+        !/auth/i.test(c.name))
       .map((c) => {
         const meta = WALLET_META[c.id] ?? { label: c.name, emoji: "👛" };
         return { connector: c, ...meta };
