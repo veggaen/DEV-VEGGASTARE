@@ -1,5 +1,5 @@
 {
-  "buildCommand": "prisma migrate deploy && next build",
+  "buildCommand": "prisma migrate deploy && next build --webpack",
   "crons": [
     {
       "path": "/api/cron/reach-decay",
