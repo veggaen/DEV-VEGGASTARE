@@ -227,8 +227,12 @@ const MyTopBar = () => {
 		}
 	}, []);
 
+	// For logged-in users, honor EITHER the session value OR the local flag.
+	// The local flag is set synchronously when they click "Enable Web3", so the
+	// UI flips instantly and correctly even before the JWT round-trip catches up
+	// (which is why the toggle "did nothing" before — it waited on a stale token).
 	const effectiveWeb3ModeEnabled = clientUser
-		? !!(clientUser as any).web3ModeEnabled
+		? (!!(clientUser as any).web3ModeEnabled || web3ModeEnabled)
 		: web3ModeEnabled;
 
 	const toggleTheme = () => {

@@ -49,7 +49,10 @@ export default function DirectWalletConnect({ className = "" }: { className?: st
         !/auth/i.test(c.name))
       .map((c) => {
         const meta = WALLET_META[c.id] ?? { label: c.name, emoji: "👛" };
-        return { connector: c, ...meta };
+        // Prefer the connector's OWN icon (EIP-6963 wallets expose a real
+        // brand icon as a data URI) so MetaMask/etc. show their true logo.
+        const connectorIcon = (c as unknown as { icon?: string }).icon;
+        return { connector: c, ...meta, icon: connectorIcon ?? meta.icon };
       })
       .filter((w) => {
         if (seen.has(w.label)) return false;
@@ -70,17 +73,19 @@ export default function DirectWalletConnect({ className = "" }: { className?: st
             type="button"
             disabled={isPending}
             onClick={() => connect({ connector: w.connector })}
-            className="flex items-center justify-center gap-2 h-11 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300 enabled:hover:bg-zinc-50 dark:enabled:hover:bg-zinc-900 transition-colors disabled:opacity-60 disabled:cursor-wait"
+            className="flex items-center gap-3 h-12 rounded-xl border border-border/70 bg-muted/20 px-3 text-sm font-medium text-foreground enabled:hover:border-brand-accent/40 enabled:hover:bg-muted/50 transition-all active:scale-[0.99] disabled:opacity-60 disabled:cursor-wait"
             title={`Connect with ${w.label}`}
           >
-            {pending ? (
-              <FiLoader className="h-4 w-4 animate-spin" />
-            ) : w.icon ? (
-              <Image src={w.icon} alt={w.label} width={18} height={18} className="rounded-sm" />
-            ) : (
-              <span className="text-base leading-none">{w.emoji}</span>
-            )}
-            <span>{pending ? "Connecting…" : w.label}</span>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-background">
+              {pending ? (
+                <FiLoader className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : w.icon ? (
+                <Image src={w.icon} alt={w.label} width={20} height={20} unoptimized className="rounded" />
+              ) : (
+                <span className="text-base leading-none">{w.emoji}</span>
+              )}
+            </span>
+            <span className="flex-1 text-left">{pending ? "Connecting…" : w.label}</span>
           </button>
         );
       })}
