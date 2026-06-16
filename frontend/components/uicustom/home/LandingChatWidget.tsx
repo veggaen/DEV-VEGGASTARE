@@ -160,24 +160,8 @@ function genId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function loadAnonHistory(): Message[] {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveAnonHistory(messages: Message[]) {
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify(messages.slice(-40)));
-  } catch {
-    /* quota exceeded — ignore */
-  }
-}
+// (Anon chat history is intentionally not persisted — the landing chat starts
+// fresh on every page load.)
 
 // ─── Capability Badge component ───────────────────────────────────────────────
 
@@ -819,20 +803,12 @@ export default function LandingChatWidget({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Load anon history on mount
+  // The landing chat intentionally starts fresh on every page load — we do NOT
+  // restore previous messages from localStorage. Clear any history left over
+  // from older builds so a refresh always begins a brand-new conversation.
   useEffect(() => {
-    if (!isLoggedIn) {
-      const history = loadAnonHistory();
-      if (history.length > 0)
-        dispatch({ type: "LOAD_HISTORY", messages: history });
-    }
-  }, [isLoggedIn]);
-
-  // Persist anon history
-  useEffect(() => {
-    if (!isLoggedIn && state.messages.length > 0)
-      saveAnonHistory(state.messages);
-  }, [isLoggedIn, state.messages]);
+    try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
+  }, []);
 
   // Scroll to bottom
   useEffect(() => {
