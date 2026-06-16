@@ -16,6 +16,8 @@ import { MyLoginAction } from '@/actions/login';
 import { signIn } from 'next-auth/react';
 import { MySocialAuth } from '@/components/uicustom/auth/buttons/social';
 import { IS_WEB3_CONFIGURED } from '@/lib/web3-config';
+import dynamic from 'next/dynamic';
+const DirectWalletConnect = dynamic(() => import('@/components/crypto-related/DirectWalletConnect'), { ssr: false });
 import { FiMail, FiLock, FiArrowRight, FiShield, FiZap, FiUsers, FiSun, FiMoon, FiLink } from 'react-icons/fi';
 
 const LOG_PREFIX = '[frontend/app/auth/login/page.tsx]';
@@ -190,11 +192,20 @@ export default function LoginPage() {
               }
             }}
             title={IS_WEB3_CONFIGURED ? 'Connect a crypto wallet' : 'Wallet connect coming soon'}
-            className="w-full flex items-center justify-center gap-2 h-11 text-sm font-medium rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 enabled:hover:text-sky-500 dark:enabled:hover:text-emerald-400 enabled:hover:border-sky-500/50 dark:enabled:hover:border-emerald-500/50 transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 h-11 text-sm font-medium rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 enabled:hover:text-sky-500 dark:enabled:hover:text-emerald-400 enabled:hover:border-sky-500/50 dark:enabled:hover:border-emerald-500/50 transition-colors mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FiLink className="w-4 h-4" />
-            <span>{IS_WEB3_CONFIGURED ? 'Connect with Web3' : 'Web3 wallet — coming soon'}</span>
+            <span>{IS_WEB3_CONFIGURED ? 'Connect with Web3 (all wallets)' : 'Web3 wallet — coming soon'}</span>
           </button>
+
+          {/* Direct wallet connect — works without Reown/AppKit, for users who
+              prefer their own wallet or if the AppKit modal is unavailable. */}
+          <div className="mb-6">
+            <p className="mb-2 text-center text-[11px] text-zinc-400 dark:text-zinc-500">
+              or connect directly
+            </p>
+            <DirectWalletConnect />
+          </div>
 
           {/* Divider */}
           <div className="relative my-6">

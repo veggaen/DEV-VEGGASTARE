@@ -295,10 +295,12 @@ function applySecurityHeaders(res: NextResponse, requestId: string, nonce: strin
     "permissions-policy",
     "camera=(), microphone=(), geolocation=(self), payment=(), usb=(), magnetometer=(), gyroscope=()"
   );
-  // Wallet SDKs (Coinbase Smart Wallet, etc.) often require popups that rely on
-  // window.opener. In dev, allow popups; in prod keep stricter isolation.
-  // Gate page also needs looser COOP to work properly
-  res.headers.set("cross-origin-opener-policy", (isDev || isGatePage) ? "same-origin-allow-popups" : "same-origin");
+  // Wallet SDKs (Coinbase / Base Account, and other popup-based connectors) need
+  // window.opener access, which a strict "same-origin" COOP blocks — Coinbase
+  // direct-connect was failing because of this. "same-origin-allow-popups" still
+  // isolates cross-origin documents but permits the popups wallets require, so
+  // direct MetaMask/Coinbase connect works everywhere (not just dev/gate).
+  res.headers.set("cross-origin-opener-policy", "same-origin-allow-popups");
 
   if (!isDev) {
     res.headers.set(
