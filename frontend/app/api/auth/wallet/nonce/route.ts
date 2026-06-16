@@ -3,7 +3,6 @@ import crypto from "crypto";
 import { getAddress } from "viem";
 import { z } from "zod";
 import { dbPrisma } from "@/lib/db";
-import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from "@/lib/rate-limit";
 
 /**
  * POST /api/auth/wallet/nonce
@@ -19,10 +18,27 @@ const BodySchema = z.object({
   address: z.string().trim().min(1).max(128),
 });
 
+// Lightweight in-memory per-IP limiter — the Redis-backed checkRateLimit() can
+// hang when Redis isn't reachable, and the edge middleware skips /api/auth/*, so
+// we guard this public endpoint here (10 nonces / IP / minute).
+const NONCE_RL = new Map<string, { count: number; reset: number }>();
+function nonceRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const e = NONCE_RL.get(ip);
+  if (!e || e.reset < now) { NONCE_RL.set(ip, { count: 1, reset: now + 60_000 }); return false; }
+  e.count += 1;
+  return e.count > 10;
+}
+
 export async function POST(req: NextRequest) {
-  // Tight rate limit — this is an unauthenticated, abuse-prone endpoint.
-  const rl = await checkRateLimit(getClientIdentifier(req), "gate");
-  if (!rl.success) return rateLimitedResponse(rl);
+  const ip =
+    req.headers.get("cf-connecting-ip") ??
+    req.headers.get("x-real-ip") ??
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    "unknown";
+  if (nonceRateLimited(ip)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
 
   const body = await req.json().catch(() => null);
   const parsed = BodySchema.safeParse(body);
