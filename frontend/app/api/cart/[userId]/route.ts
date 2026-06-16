@@ -25,6 +25,7 @@ function toCartDto(cart: {
       id: string;
       title: string;
       price: number;
+      priceCurrency?: string;
       image: string[];
       productType?: string;
       shipFromPostalId?: string | null;
@@ -43,6 +44,9 @@ function toCartDto(cart: {
         id: item.Product.id,
         title: item.Product.title,
         price: item.Product.price,
+        // Original currency the price is stored in, so the UI can convert to
+        // the user's selected currency instead of assuming USD.
+        priceCurrency: item.Product.priceCurrency ?? "USD",
         image: item.Product.image ?? [],
         productType: item.Product.productType,
         shipFromPostalId: item.Product.shipFromPostalId ?? undefined,

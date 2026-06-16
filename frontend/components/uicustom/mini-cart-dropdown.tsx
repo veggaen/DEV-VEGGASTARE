@@ -10,6 +10,8 @@ import { FiShoppingCart, FiTrash2, FiPlus, FiMinus, FiArrowRight, FiPackage, FiS
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import PriceAmount from "@/components/crypto-related/PriceAmount";
+import { useCurrencyRates } from "@/hooks/useCurrencyRates";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -19,6 +21,7 @@ interface CartItem {
     id: string;
     title: string;
     price: number;
+    priceCurrency?: string;
     image: string[];
   };
   quantity: number;
@@ -43,8 +46,14 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // Total price
-  const totalPrice = items.reduce((sum, item) => sum + item.quantity * item.product.price, 0);
+  const { convertToUSD } = useCurrencyRates();
+  // Subtotal in USD (items may be priced in different currencies). PriceAmount
+  // then renders it in the user's selected currency.
+  const totalPriceUsd = items.reduce(
+    (sum, item) =>
+      sum + item.quantity * convertToUSD(item.product.price, item.product.priceCurrency ?? "USD"),
+    0
+  );
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   // Handle client-side mounting for portal
@@ -255,11 +264,18 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                             </Link>
                             <div className="mt-1 flex items-center gap-2">
                               <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                                ${(item.product.price * item.quantity).toFixed(2)}
+                                <PriceAmount
+                                  amount={item.product.price * item.quantity}
+                                  currency={item.product.priceCurrency ?? "USD"}
+                                />
                               </span>
                               {item.quantity > 1 && (
                                 <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                                  ${item.product.price.toFixed(2)} each
+                                  <PriceAmount
+                                    amount={item.product.price}
+                                    currency={item.product.priceCurrency ?? "USD"}
+                                  />{" "}
+                                  each
                                 </span>
                               )}
                             </div>
@@ -306,7 +322,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-zinc-500 dark:text-zinc-400">Subtotal</span>
                     <span className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-                      ${totalPrice.toFixed(2)}
+                      <PriceAmount usd={totalPriceUsd} />
                     </span>
                   </div>
 

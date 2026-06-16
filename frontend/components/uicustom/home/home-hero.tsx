@@ -1,6 +1,6 @@
 "use client";
 
-import { HeroOrbit, type OrbPosRef, type CollisionRectsRef } from "@/components/uicustom/home/HeroOrbit";
+import { type OrbPosRef, type CollisionRectsRef } from "@/components/uicustom/home/HeroOrbit";
 import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
 import Link from "next/link";
 import * as React from "react";
@@ -390,19 +390,13 @@ const KineticDescription = React.forwardRef<HTMLParagraphElement, {
   const [started, setStarted] = React.useState(false);
   const innerTimeoutRef = React.useRef<number | null>(null);
 
-  // Build reveal order from center outward (by character index across all words)
-  const revealOrder = React.useMemo(() => {
-    if (totalChars <= 0) return [] as number[];
-    const center = Math.floor((totalChars - 1) / 2);
-    const indices = Array.from({ length: totalChars }, (_, i) => i);
-    indices.sort((a, b) => {
-      const da = Math.abs(a - center);
-      const db = Math.abs(b - center);
-      if (da !== db) return da - db;
-      return a - b;
-    });
-    return indices;
-  }, [totalChars]);
+  // Reveal left-to-right, the way a person actually reads. (Previously this
+  // revealed from the centre outward, so the middle of the sentence appeared
+  // first — disorienting.)
+  const revealOrder = React.useMemo(
+    () => Array.from({ length: Math.max(0, totalChars) }, (_, i) => i),
+    [totalChars]
+  );
 
   const revealed = React.useMemo(() => {
     const set = new Set<number>();
@@ -1159,7 +1153,7 @@ export default function HomeHero({
   const descriptionStart = reduceMotion ? 0.18 : titleStart + 0.22;
   const headlineStart = descriptionStart; // Same time as description
   const descriptionText =
-    "A marketplace built around AI and community. Choose from six models or bring your own keys for unlimited access. Real-time polls with verification-weighted voting, smart logistics, and a 12-tier trust system that actually means something.";
+    "A marketplace built around AI and the people who use it. Chat with six AI models — or bring your own key for unlimited access. Vote in real-time polls where verified voices carry more weight, ship smarter, and earn a place in a 12-tier trust system that actually means something.";
 
   // Buttons land almost immediately after — don't make users wait.
   const buttonsStart = reduceMotion ? 0.22 : titleStart + 0.4;
@@ -1379,16 +1373,9 @@ export default function HomeHero({
       ref={heroRef}
       className="relative flex flex-col min-h-[calc(100dvh-var(--app-header,72px))] w-full"
     >
-      {/* Orbiting particle — revolves around hero text, reacts to mouse proximity */}
-      <HeroOrbit
-        orbPosRef={orbPosRef}
-        collisionRectsRef={collisionRectsRef}
-        onBounce={() => {
-          // Extra flash on badge when orb bounces off it
-          setOrbBadgeGlow(true);
-          setTimeout(() => setOrbBadgeGlow(false), 350);
-        }}
-      />
+      {/* Orbiting green dot removed — the edge particle field below replaces it.
+          (HeroOrbit disabled per design: the dot orbiting the text was
+          distracting.) */}
 
       {/* Edge particle field — subtle floating particles along the side/top
           edges that gently repel from the cursor. Sits at the base layer,
@@ -1657,8 +1644,8 @@ export default function HomeHero({
             text={descriptionText}
             className={`mx-auto max-w-3xl text-pretty text-sm text-gray-600 dark:text-white/75 sm:text-base transition-[color,text-shadow] duration-700 ease-out hover:text-gray-800 dark:hover:text-white/85 ${showFancyHover ? "hover:[text-shadow:0_0_18px_rgba(56,189,248,0.16)]" : ""}`}
             startDelay={descriptionStart}
-            startSpeed={7}
-            endSpeed={2}
+            startSpeed={11}
+            endSpeed={5}
             orbGlowIdx={orbDescGlowIdx}
           />
         </div>

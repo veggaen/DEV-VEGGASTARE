@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import PriceAmount from "@/components/crypto-related/PriceAmount";
+import { useCurrencyRates } from "@/hooks/useCurrencyRates";
 
 interface CartItem {
   id: string;
@@ -14,6 +16,7 @@ interface CartItem {
     id: string;
     title: string;
     price: number;
+    priceCurrency?: string;
     image: string[];
   };
   quantity: number;
@@ -22,10 +25,11 @@ interface CartItem {
 const CartPage = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [totalQuantity, setTotalQuantity] = useState<number>(0);
-  const [totalPrice, setTotalPrice] = useState<number>(0);
+  const [totalPrice, setTotalPrice] = useState<number>(0); // USD
   const [loading, setLoading] = useState(true);
   const { data: session } = useSession();
   const router = useRouter();
+  const { convertToUSD } = useCurrencyRates();
 
   useEffect(() => {
     if (session) {
@@ -45,7 +49,13 @@ const CartPage = () => {
       const data = await response.json();
       setCartItems(data.items);
       const totalQuantity = data.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
-      const totalPrice = data.items.reduce((sum: number, item: any) => sum + item.quantity * item.product.price, 0);
+      // Sum in USD so mixed-currency carts total correctly; UI converts to the
+      // user's selected currency for display.
+      const totalPrice = data.items.reduce(
+        (sum: number, item: any) =>
+          sum + item.quantity * convertToUSD(item.product.price, item.product.priceCurrency ?? "USD"),
+        0
+      );
       setTotalQuantity(totalQuantity);
       setTotalPrice(totalPrice);
     } catch (error) {
@@ -155,7 +165,9 @@ const CartPage = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-lg font-semibold text-foreground truncate">{item.product.title}</h2>
-                  <p className="text-sm text-muted-foreground">${item.product.price.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    <PriceAmount amount={item.product.price} currency={item.product.priceCurrency ?? "USD"} />
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -205,7 +217,7 @@ const CartPage = () => {
               </div>
               <div className="flex justify-between text-lg font-semibold">
                 <span className="text-foreground">Total Price:</span>
-                <span className="text-emerald-600 dark:text-emerald-400">${totalPrice.toFixed(2)}</span>
+                <span className="text-emerald-600 dark:text-emerald-400"><PriceAmount usd={totalPrice} /></span>
               </div>
             </div>
             <Button

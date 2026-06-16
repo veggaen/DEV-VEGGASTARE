@@ -1,5 +1,5 @@
 {
-  "buildCommand": "prisma migrate deploy && next build --webpack",
+  "buildCommand": "for i in 1 2 3 4 5; do prisma migrate deploy && break || (echo \"migrate attempt $i failed (likely advisory-lock timeout), retrying in 6s...\"; sleep 6); done && next build --webpack",
   "crons": [
     {
       "path": "/api/cron/reach-decay",
