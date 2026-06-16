@@ -9,6 +9,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   useAccount,
@@ -930,6 +931,7 @@ function Web3EnablePrompt() {
   const [enabling, setEnabling] = useState(false);
   const [done, setDone] = useState(false);
   const [authError, setAuthError] = useState(false);
+  const { update: updateSession } = useSession();
 
   const handleEnable = async () => {
     setEnabling(true);
@@ -946,11 +948,14 @@ function Web3EnablePrompt() {
         return;
       }
       if (res.ok) {
-        // Sync to localStorage for immediate UI effect
         try { localStorage.setItem('veggastare:web3ModeEnabled', 'true'); } catch { /* ok */ }
         setDone(true);
-        // Reload to refresh session token (web3ModeEnabled flows through JWT)
-        setTimeout(() => window.location.reload(), 600);
+        // web3ModeEnabled lives in the JWT — a plain reload keeps the STALE token,
+        // so the toggle appeared to do nothing. Force a NextAuth session update
+        // (re-runs the jwt callback → re-reads web3ModeEnabled from the DB), THEN
+        // reload so the fresh value is in the cookie.
+        try { await updateSession(); } catch { /* ignore */ }
+        setTimeout(() => window.location.reload(), 400);
       }
     } catch { /* ignore */ }
     setEnabling(false);

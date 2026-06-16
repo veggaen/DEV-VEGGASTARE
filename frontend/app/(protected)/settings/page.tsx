@@ -2233,6 +2233,7 @@ function Web3WalletSettings() {
 // Web3 Mode Toggle Component
 function Web3ModeToggle() {
   const user = useCurrentUser();
+  const { update } = useSession();
   const [web3ModeEnabled, setWeb3ModeEnabled] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
 
@@ -2272,6 +2273,9 @@ function Web3ModeToggle() {
         setWeb3ModeEnabled(checked);
         // Sync to localStorage as well
         try { window.localStorage.setItem("veggastare:web3ModeEnabled", String(checked)); } catch {}
+        // web3ModeEnabled is carried in the JWT — refresh the session so the rest
+        // of the app (sidebar, gates) sees the new value, not the stale token.
+        try { await update(); } catch { /* ignore */ }
         toast.success(checked ? 'Web3 mode enabled!' : 'Web3 mode disabled.', { position: "top-center" });
       } catch {
         toast.error("Something went wrong!", { position: "top-center" });
