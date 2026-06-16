@@ -13,9 +13,29 @@
 
 import * as React from "react";
 import { useConnect } from "wagmi";
+import { signIn } from "next-auth/react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { FiLoader } from "react-icons/fi";
+
+/**
+ * After a wallet connects, run SIWE → NextAuth: fetch a nonce, ask the wallet to
+ * sign it, then signIn('wallet'). On success the user is logged into the wallet's
+ * linked account, or a new low-reach WALLET_ONLY account is created.
+ */
+async function signInWithWallet(address: string, signMessage: (msg: string) => Promise<string>) {
+  const res = await fetch("/api/auth/wallet/nonce", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address }),
+  });
+  if (!res.ok) throw new Error("Could not start wallet sign-in");
+  const { message } = await res.json();
+  const signature = await signMessage(message);
+  const result = await signIn("wallet", { address, signature, redirect: false, callbackUrl: "/products" });
+  if (result?.error) throw new Error("Wallet sign-in failed");
+  return result;
+}
 
 // Friendly metadata per connector id (icons live in /public/wallets).
 const WALLET_META: Record<string, { label: string; icon?: string; emoji?: string }> = {
@@ -27,12 +47,35 @@ const WALLET_META: Record<string, { label: string; icon?: string; emoji?: string
 };
 
 export default function DirectWalletConnect({ className = "" }: { className?: string }) {
-  const { connect, connectors, isPending, variables } = useConnect({
-    mutation: {
-      onError: (e) => toast.error(e?.message?.slice(0, 120) || "Wallet connection failed"),
-      onSuccess: () => toast.success("Wallet connected"),
-    },
-  });
+  const [authing, setAuthing] = React.useState(false);
+
+  const { connectAsync, connectors, isPending, variables } = useConnect();
+
+  const handleConnect = async (connector: (typeof connectors)[number]) => {
+    try {
+      const result = await connectAsync({ connector });
+      const account = result.accounts?.[0];
+      if (!account) throw new Error("No account returned");
+      setAuthing(true);
+      toast.loading("Sign the message in your wallet…", { id: "wallet-auth" });
+      // Get a client to sign the SIWE message.
+      const client = await connector.getProvider?.();
+      const signMessage = async (msg: string) => {
+        // EIP-1193 personal_sign
+        return (await (client as { request: (a: unknown) => Promise<string> }).request({
+          method: "personal_sign",
+          params: [msg, account],
+        }));
+      };
+      await signInWithWallet(account, signMessage);
+      toast.success("Signed in with wallet", { id: "wallet-auth" });
+      window.location.href = "/products";
+    } catch (e) {
+      toast.error((e as Error)?.message?.slice(0, 120) || "Wallet sign-in failed", { id: "wallet-auth" });
+    } finally {
+      setAuthing(false);
+    }
+  };
 
   // De-duplicate by friendly label, prefer EIP-6963 injected providers, and
   // drop the WalletConnect connector here (that's the Reown/AppKit path).
@@ -66,13 +109,14 @@ export default function DirectWalletConnect({ className = "" }: { className?: st
   return (
     <div className={`grid grid-cols-1 gap-2 ${className}`}>
       {direct.map((w) => {
-        const pending = isPending && variables?.connector === w.connector;
+        const busy = (isPending && variables?.connector === w.connector) || authing;
+        const pending = busy;
         return (
           <button
             key={w.connector.uid}
             type="button"
-            disabled={isPending}
-            onClick={() => connect({ connector: w.connector })}
+            disabled={isPending || authing}
+            onClick={() => handleConnect(w.connector)}
             className="flex items-center gap-3 h-12 rounded-xl border border-border/70 bg-muted/20 px-3 text-sm font-medium text-foreground enabled:hover:border-brand-accent/40 enabled:hover:bg-muted/50 transition-all active:scale-[0.99] disabled:opacity-60 disabled:cursor-wait"
             title={`Connect with ${w.label}`}
           >
@@ -85,7 +129,7 @@ export default function DirectWalletConnect({ className = "" }: { className?: st
                 <span className="text-base leading-none">{w.emoji}</span>
               )}
             </span>
-            <span className="flex-1 text-left">{pending ? "Connecting…" : w.label}</span>
+            <span className="flex-1 text-left">{authing ? "Sign in your wallet…" : pending ? "Connecting…" : w.label}</span>
           </button>
         );
       })}

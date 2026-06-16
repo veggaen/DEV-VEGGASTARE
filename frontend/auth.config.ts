@@ -155,5 +155,87 @@ export default {
 
         return null;
     }
+  }),
+  // Wallet sign-in (SIWE). Logged-out users authenticate by signing a nonce
+  // (issued by /api/auth/wallet/nonce). On success we log into the wallet's
+  // linked account, or create a low-reach WALLET_ONLY account. Trust/reach is
+  // computed by lib/reach (provenance-weighted), so a bare wallet is low reach.
+  Credentials({
+    id: "wallet",
+    name: "Wallet",
+    credentials: {
+      address: { label: "Address", type: "text" },
+      signature: { label: "Signature", type: "text" },
+    },
+    async authorize(credentials) {
+      try {
+        const { getAddress, verifyMessage } = await import("viem");
+        const rawAddress = String(credentials?.address ?? "");
+        const signature = String(credentials?.signature ?? "");
+        if (!rawAddress || !signature) return null;
+
+        let address: string;
+        try { address = getAddress(rawAddress); } catch { return null; }
+        const addressKey = address.toLowerCase();
+
+        // Look up the active, unexpired nonce for this address.
+        const challenge = await dbPrisma.walletLoginNonce.findFirst({
+          where: { address: addressKey, usedAt: null, expires: { gt: new Date() } },
+          orderBy: { createdAt: "desc" },
+        });
+        if (!challenge) {
+          if (isDev) console.log(`${LOG_PREFIX} wallet authorize: no valid nonce`);
+          return null;
+        }
+
+        // Verify the signature against the exact issued message.
+        const ok = await verifyMessage({
+          address: address as `0x${string}`,
+          message: challenge.message,
+          signature: signature as `0x${string}`,
+        });
+        if (!ok) {
+          if (isDev) console.log(`${LOG_PREFIX} wallet authorize: bad signature`);
+          return null;
+        }
+
+        // One-time use.
+        await dbPrisma.walletLoginNonce.update({
+          where: { id: challenge.id },
+          data: { usedAt: new Date() },
+        });
+
+        // Find the wallet's linked, verified owner → log into that account.
+        const wallet = await dbPrisma.wallet.findFirst({
+          where: { address: { equals: address, mode: "insensitive" }, ownerUserId: { not: null }, verifiedAt: { not: null } },
+          select: { User: { select: { id: true, name: true, email: true, image: true } } },
+        });
+        if (wallet?.User) return wallet.User;
+
+        // No linked account → create a low-reach WALLET_ONLY account.
+        const created = await dbPrisma.user.create({
+          data: {
+            name: `${address.slice(0, 6)}…${address.slice(-4)}`,
+            verificationTier: "WALLET_ONLY",
+            web3ModeEnabled: true,
+            Wallet: {
+              create: {
+                label: "Wallet",
+                family: "EVM",
+                address,
+                verifiedAt: new Date(),
+                connectorType: "wallet-login",
+                riskTier: "fresh",
+              },
+            },
+          },
+          select: { id: true, name: true, email: true, image: true },
+        });
+        return created;
+      } catch (e) {
+        if (isDev) console.log(`${LOG_PREFIX} wallet authorize error:`, e);
+        return null;
+      }
+    },
   })],
 } satisfies NextAuthConfig

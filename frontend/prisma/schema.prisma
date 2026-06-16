@@ -1294,6 +1294,23 @@ model WalletVerificationChallenge {
   @@index([userId, family, address])
 }
 
+// Short-lived nonce for LOGGED-OUT wallet sign-in (SIWE-style). Unlike
+// WalletVerificationChallenge (which links a wallet to an existing account and
+// requires userId), this issues a challenge to any address so a visitor can
+// authenticate / create an account with just their wallet.
+model WalletLoginNonce {
+  id        String   @id @default(cuid())
+  address   String   // checksummed EVM address (lowercased for lookup)
+  nonce     String
+  message   String
+  expires   DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([address])
+  @@index([expires])
+}
+
 model WarehouseLocation {
   id           String      @id @default(cuid())
   name         String?     // e.g. "Hovedlager Oslo"
