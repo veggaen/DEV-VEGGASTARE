@@ -23,9 +23,14 @@ function useIsDark() {
 function HoverableHeading({
   text,
   className,
+  /** When provided (0..1), the highlight position is driven externally (e.g. by
+   *  the parent card's horizontal mouse position) instead of per-character
+   *  hover. null clears it. */
+  externalFraction,
 }: {
   text: string;
   className?: string;
+  externalFraction?: number | null;
 }) {
   const reduceMotion = useReducedMotion();
   const isDark = useIsDark();
@@ -33,6 +38,19 @@ function HoverableHeading({
 
   // Brand accent RGB: sky-500 in light, emerald-400 in dark
   const accentRgb = isDark ? "52, 211, 153" : "14, 165, 233";
+
+  // Map an external 0..1 fraction onto a character index (spaces excluded so the
+  // wave lands on real letters as you read left→right).
+  const letterIndices = React.useMemo(
+    () => Array.from(text).map((c, i) => (c === " " ? -1 : i)).filter((i) => i >= 0),
+    [text]
+  );
+  const effectiveIdx = React.useMemo(() => {
+    if (externalFraction == null) return hoveredIdx;
+    if (letterIndices.length === 0) return null;
+    const pos = Math.round(externalFraction * (letterIndices.length - 1));
+    return letterIndices[Math.max(0, Math.min(letterIndices.length - 1, pos))];
+  }, [externalFraction, hoveredIdx, letterIndices]);
 
   if (reduceMotion) return <span className={className}>{text}</span>;
 
@@ -49,7 +67,7 @@ function HoverableHeading({
             </span>
           );
         }
-        const dist = hoveredIdx !== null ? Math.abs(i - hoveredIdx) : Infinity;
+        const dist = effectiveIdx !== null ? Math.abs(i - effectiveIdx) : Infinity;
         const intensity = dist === 0 ? 1 : dist === 1 ? 0.55 : dist === 2 ? 0.22 : 0;
         const active = intensity > 0;
         return (
@@ -229,6 +247,28 @@ const StepCard = React.memo(function StepCard({
   onMouseLeave?: () => void;
 }) {
   const isDark = useIsDark();
+  const reduceMotion = useReducedMotion();
+  // Horizontal mouse position over the whole card (0 = left, 1 = right), which
+  // drives the title's letter-by-letter highlight so it "reads" left→right as
+  // the cursor moves across the card.
+  const [hoverFraction, setHoverFraction] = React.useState<number | null>(null);
+  const rafRef = React.useRef<number | null>(null);
+  const pendingFrac = React.useRef(0);
+
+  const handleCardMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (reduceMotion) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    pendingFrac.current = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    if (rafRef.current == null) {
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        setHoverFraction(pendingFrac.current);
+      });
+    }
+  };
+
+  React.useEffect(() => () => { if (rafRef.current != null) cancelAnimationFrame(rafRef.current); }, []);
+
   return (
     <motion.div
       className="relative flex flex-col gap-3 cursor-default"
@@ -237,7 +277,9 @@ const StepCard = React.memo(function StepCard({
       viewport={{ once: true, margin: "-40px 0px" }}
       transition={{ delay, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseLeave={() => { onMouseLeave?.(); setHoverFraction(null); }}
+      onPointerMove={handleCardMove}
+      onPointerLeave={() => setHoverFraction(null)}
     >
       {/* Ambient radial glow behind the number — no border box, just soft light */}
       <motion.div
@@ -288,7 +330,7 @@ const StepCard = React.memo(function StepCard({
       </div>
 
       <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">
-        <HoverableHeading text={title} />
+        <HoverableHeading text={title} externalFraction={hoverFraction} />
       </h3>
       <p className="text-sm leading-relaxed text-gray-400 dark:text-white/40">{description}</p>
     </motion.div>

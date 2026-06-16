@@ -14,8 +14,26 @@ export function useVersionCheck() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [initialVersion, setInitialVersion] = useState<string | null>(null);
 
-  const refresh = useCallback(() => {
-    window.location.reload();
+  const refresh = useCallback(async () => {
+    // A plain location.reload() can re-serve the cached document, so the new
+    // deployment never actually loads (the banner appears to "do nothing").
+    // Best-effort clear the Cache Storage / service-worker caches, then do a
+    // cache-busting navigation so the fresh build is fetched.
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch {
+      /* ignore — proceed to reload regardless */
+    }
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('_v', Date.now().toString());
+      window.location.replace(url.toString());
+    } catch {
+      window.location.reload();
+    }
   }, []);
 
   useEffect(() => {

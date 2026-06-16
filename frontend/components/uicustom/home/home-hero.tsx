@@ -1,7 +1,6 @@
 "use client";
 
 import { type OrbPosRef, type CollisionRectsRef } from "@/components/uicustom/home/HeroOrbit";
-import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
 import Link from "next/link";
 import * as React from "react";
 import { motion, useReducedMotion, useMotionValue, useSpring, MotionValue } from "framer-motion";
@@ -1039,73 +1038,9 @@ export default function HomeHero({
     isTouchRef.current = window.matchMedia("(pointer: coarse)").matches;
   }, []);
 
-  // ── Global spotlight tracking ──────────────────────────────────────────
-  // position: fixed on .hero-spotlight escapes overflow:hidden so the effect
-  // covers the full viewport (including navbar). We track on window so there
-  // is no clip line between the hero section and the rest of the page.
-  //
-  // Performance: RAF-throttled — DOM writes batched to once per animation
-  // frame instead of every mousemove pixel.
-  //
-  // Smart suppression: when hovering the large .chat-desktop-panel the
-  // spotlight fades out and the panel's own CSS glow takes over. Small
-  // interactive children (buttons, inputs) re-enable the spotlight so the
-  // mouse glow still tracks the cursor there.
-  React.useEffect(() => {
-    if (isTouchRef.current || reduceMotion) return;
-
-    let rafId: number | null = null;
-    let pendingX = 0;
-    let pendingY = 0;
-    let pendingTarget: Element | null = null;
-
-    const flush = () => {
-      rafId = null;
-      document.documentElement.style.setProperty("--spotlight-x", pendingX + "px");
-      document.documentElement.style.setProperty("--spotlight-y", pendingY + "px");
-
-      // Bounding-rect hit test — more reliable than closest() because
-      // framer-motion wraps elements in internal divs that can break
-      // ancestor traversal when e.target lands on an internal wrapper.
-      const panel = document.querySelector(".chat-desktop-panel");
-      let suppress = false;
-      if (panel) {
-        const r = panel.getBoundingClientRect();
-        if (pendingX >= r.left && pendingX <= r.right && pendingY >= r.top && pendingY <= r.bottom) {
-          // Inside panel bounds — keep spotlight for small interactive elements
-          const overInteractive = !!pendingTarget?.closest(
-            "button, input, textarea, a, select, [role='button'], [role='link'], label"
-          );
-          suppress = !overInteractive;
-        }
-      }
-
-      document.documentElement.style.setProperty("--spotlight-opacity", suppress ? "0" : "1");
-    };
-
-    const onMove = (e: MouseEvent) => {
-      pendingX = e.clientX;
-      pendingY = e.clientY;
-      pendingTarget = e.target as Element;
-
-      if (rafId === null) {
-        rafId = requestAnimationFrame(flush);
-      }
-    };
-
-    const onLeave = () => {
-      if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
-      document.documentElement.style.setProperty("--spotlight-opacity", "0");
-    };
-
-    window.addEventListener("mousemove", onMove, { passive: true });
-    document.documentElement.addEventListener("mouseleave", onLeave);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      document.documentElement.removeEventListener("mouseleave", onLeave);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-    };
-  }, [reduceMotion]);
+  // (Removed the cursor "spotlight" glow — it snapped to the cursor and felt
+  // janky, and now competes with the particle field's smooth cursor-repel.
+  // The particle interaction is the single, smoother mouse affordance.)
 
   const browseX = useMotionValue(0);
   const browseY = useMotionValue(0);
@@ -1377,13 +1312,11 @@ export default function HomeHero({
           (HeroOrbit disabled per design: the dot orbiting the text was
           distracting.) */}
 
-      {/* Edge particle field — subtle floating particles along the side/top
-          edges that gently repel from the cursor. Sits at the base layer,
-          behind all hero content (which is z-10). */}
-      <HeroParticleField className="z-1" />
+      {/* Particle field is now mounted once on the landing page as a fixed
+          full-page background (see app/page.tsx), behind the navbar and all
+          sections — so it covers the whole page, not just the hero. */}
 
-      {/* Mouse spotlight — hidden on touch devices + reduced-motion via CSS */}
-      <div className="hero-spotlight" aria-hidden="true" />
+      {/* (Mouse spotlight removed — replaced by the particle field's cursor interaction) */}
 
       {/* Top edge scrim — softens orbs / spotlight near the fixed navbar */}
       <div

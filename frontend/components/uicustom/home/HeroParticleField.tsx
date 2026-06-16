@@ -34,10 +34,14 @@ const EDGE_BAND = 0.34; // fraction of width/height that counts as an "edge" ban
 export default function HeroParticleField({
   className = "",
   density = 1,
+  fixed = false,
 }: {
   className?: string;
   /** multiplier on particle count (1 = default) */
   density?: number;
+  /** Render as a fixed full-viewport background layer (covers the whole page,
+   *  stays put while scrolling) instead of filling its parent. */
+  fixed?: boolean;
 }) {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const reduce = useReducedMotion();
@@ -64,6 +68,7 @@ export default function HeroParticleField({
     const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
     const inEdgeBand = (x: number, y: number) => {
+      if (fixed) return true; // full-page mode: particles fill everywhere
       const lb = w * EDGE_BAND;
       const rb = w * (1 - EDGE_BAND);
       const tb = h * EDGE_BAND;
@@ -71,18 +76,24 @@ export default function HeroParticleField({
     };
 
     const spawn = (): Particle => {
-      // bias spawn into the edge bands
       let x: number, y: number;
-      const side = Math.random();
-      if (side < 0.4) {
-        x = rand(0, w * EDGE_BAND);
-        y = rand(0, h);
-      } else if (side < 0.8) {
-        x = rand(w * (1 - EDGE_BAND), w);
+      if (fixed) {
+        // Full-page background: spread across the whole viewport.
+        x = rand(0, w);
         y = rand(0, h);
       } else {
-        x = rand(0, w);
-        y = rand(0, h * EDGE_BAND);
+        // Hero mode: bias spawn into the left/top/right edge bands.
+        const side = Math.random();
+        if (side < 0.4) {
+          x = rand(0, w * EDGE_BAND);
+          y = rand(0, h);
+        } else if (side < 0.8) {
+          x = rand(w * (1 - EDGE_BAND), w);
+          y = rand(0, h);
+        } else {
+          x = rand(0, w);
+          y = rand(0, h * EDGE_BAND);
+        }
       }
       const depth = Math.random();
       return {
@@ -98,9 +109,14 @@ export default function HeroParticleField({
     };
 
     const resize = () => {
-      const rect = canvas.parentElement?.getBoundingClientRect();
-      w = rect?.width ?? window.innerWidth;
-      h = rect?.height ?? window.innerHeight;
+      if (fixed) {
+        w = window.innerWidth;
+        h = window.innerHeight;
+      } else {
+        const rect = canvas.parentElement?.getBoundingClientRect();
+        w = rect?.width ?? window.innerWidth;
+        h = rect?.height ?? window.innerHeight;
+      }
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.floor(w * dpr);
       canvas.height = Math.floor(h * dpr);
@@ -207,7 +223,8 @@ export default function HeroParticleField({
     draw();
 
     const ro = new ResizeObserver(resize);
-    if (canvas.parentElement) ro.observe(canvas.parentElement);
+    if (!fixed && canvas.parentElement) ro.observe(canvas.parentElement);
+    if (fixed) window.addEventListener("resize", resize);
     window.addEventListener("pointermove", onMove, { passive: true });
     window.addEventListener("pointerleave", onLeave);
 
@@ -225,17 +242,20 @@ export default function HeroParticleField({
       running = false;
       cancelAnimationFrame(raf);
       ro.disconnect();
+      if (fixed) window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerleave", onLeave);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [reduce, density]);
+  }, [reduce, density, fixed]);
 
   return (
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className={`pointer-events-none absolute inset-0 h-full w-full ${className}`}
+      className={`pointer-events-none h-full w-full ${
+        fixed ? "fixed inset-0" : "absolute inset-0"
+      } ${className}`}
     />
   );
 }
