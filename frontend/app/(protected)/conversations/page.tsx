@@ -24,7 +24,7 @@ import {
 import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { 
-  FiPlus, FiMessageCircle, FiUsers, FiLock, FiClock, 
+  FiPlus, FiMessageCircle, FiUsers, FiLock,
   FiTrash2, FiMoreVertical, FiEdit, FiShare2, FiEye, FiEyeOff,
   FiSearch, FiInbox
 } from 'react-icons/fi';
@@ -205,7 +205,7 @@ export default function ConversationsPage() {
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: index * 0.03 }}
         onClick={() => handleConversationClick(conversation.id)}
-        className="group relative cursor-pointer rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/30 p-4 transition-all hover:bg-zinc-200/80 dark:hover:bg-card/60 hover:border-border"
+        className="group relative cursor-pointer rounded-xl border border-transparent px-3 py-3 transition-colors hover:bg-muted/60 hover:border-border/60"
       >
         {isNavigating === conversation.id && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-2xl z-10">
@@ -255,8 +255,8 @@ export default function ConversationsPage() {
               </div>
             )}
 
-            {/* Title row */}
-            <div className="flex items-center gap-2 mb-1">
+            {/* Title row — name left, timestamp right (messaging convention) */}
+            <div className="flex items-center gap-2 mb-0.5">
               {conversation.isPinned && (
                 <BsPin className="h-3 w-3 text-amber-400 shrink-0" />
               )}
@@ -265,31 +265,32 @@ export default function ConversationsPage() {
                   ? otherParticipant.name || 'Direct message'
                   : conversation.title || 'Untitled conversation'}
               </h3>
-              {conversation.isLocked && <FiLock className="h-3 w-3 text-orange-400" />}
+              {conversation.isLocked && <FiLock className="h-3 w-3 text-orange-400 shrink-0" />}
+              <span className="ml-auto shrink-0 text-xs text-muted-foreground/70 tabular-nums">
+                {timeAgo}
+              </span>
             </div>
 
-            {/* Last message preview */}
-            {conversation.lastMessage && (
-              <p className="text-sm text-muted-foreground truncate mb-2">
-                {conversation.lastMessage.content}
+            {/* Last message preview + counts on one tidy line */}
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="flex-1 min-w-0 truncate text-sm text-muted-foreground">
+                {conversation.lastMessage?.content || (
+                  <span className="italic text-muted-foreground/60">No messages yet</span>
+                )}
               </p>
-            )}
-
-            {/* Meta row */}
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              {conversation.type === 'GROUP' && (
-                <span className="flex items-center gap-1">
-                  <FiUsers className="h-3 w-3" />
-                  {participants.length}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <FiMessageCircle className="h-3 w-3" />
-                {conversation.messageCount}
-              </span>
-              <span className="flex items-center gap-1">
-                <FiClock className="h-3 w-3" />
-                {timeAgo}
+              <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground/70">
+                {conversation.type === 'GROUP' && (
+                  <span className="flex items-center gap-1">
+                    <FiUsers className="h-3 w-3" />
+                    {participants.length}
+                  </span>
+                )}
+                {conversation.messageCount > 0 && (
+                  <span className="flex items-center gap-1">
+                    <FiMessageCircle className="h-3 w-3" />
+                    {conversation.messageCount}
+                  </span>
+                )}
               </span>
             </div>
           </div>
@@ -402,7 +403,7 @@ export default function ConversationsPage() {
                 </p>
               </div>
               <Link href="/conversations/new">
-                <Button className="gap-2 bg-indigo-600 hover:bg-indigo-500 text-white">
+                <Button className="gap-2 bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover">
                   <FiPlus className="h-4 w-4" />
                   New Chat
                 </Button>
@@ -460,14 +461,14 @@ export default function ConversationsPage() {
                 Start a new conversation to connect with others
               </p>
               <Link href="/conversations/new">
-                <Button className="gap-2 bg-indigo-600 hover:bg-indigo-500 text-white">
+                <Button className="gap-2 bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover">
                   <FiPlus className="h-4 w-4" />
                   Start a Conversation
                 </Button>
               </Link>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-0.5">
               {filteredConversations.map((conv, index) => renderConversationCard(conv, index))}
             </div>
           )}
