@@ -7,7 +7,11 @@ import { cn } from "@/lib/utils"
 
 const LOG_PREFIX = '[frontend/components/ui/button.tsx]'
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+  // Base: every variant inherits a subtle, consistent "alive" press feel —
+  // a gentle scale-down on click (motion-safe so reduced-motion users opt out)
+  // and a tuned transition. This gives all buttons tactile feedback app-wide
+  // without editing each call site.
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-[color,background-color,border-color,box-shadow,transform] duration-200 ease-out motion-safe:active:scale-[0.97] focus:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
