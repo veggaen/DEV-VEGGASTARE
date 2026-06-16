@@ -42,6 +42,7 @@ ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, 
 import dynamic from 'next/dynamic';
 const MomentumTimeline = dynamic(() => import('@/components/uicustom/reach/MomentumTimeline'), { ssr: false });
 const ReachBadgesComponent = dynamic(() => import('@/components/uicustom/reach/ReachBadges'), { ssr: false });
+const TrueReachCard = dynamic(() => import('@/components/uicustom/reach/TrueReachCard'), { ssr: false });
 
 interface UserProfile {
   id: string;
@@ -241,6 +242,7 @@ export default function ProfilePage() {
   // Reach analytics states
   const [momentumTrend, setMomentumTrend] = useState<{ date: string; momentum: number; views?: number }[]>([]);
   const [userBadges, setUserBadges] = useState<{ id: string; label: string; icon: string; tier: 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond'; description: string; earned: boolean; progress: number }[]>([]);
+  const [trueReach, setTrueReach] = useState<import('@/components/uicustom/reach/TrueReachCard').TrueReachData | null>(null);
 
   const isOwnProfile = currentUser?.id === userId;
 
@@ -521,6 +523,7 @@ export default function ProfilePage() {
             const reachData = await reachRes.json();
             setMomentumTrend(reachData.momentumTrend || []);
             setUserBadges(reachData.badges || []);
+            setTrueReach(reachData.trueReach || null);
           }
         } catch {
           // Non-critical — reach data is supplementary
@@ -1802,6 +1805,11 @@ export default function ProfilePage() {
                       </p>
                     </div>
                   </div>
+                )}
+
+                {/* True Reach — honest identity-trust + risk breakdown (live from engine) */}
+                {trueReach && (
+                  <TrueReachCard data={trueReach} />
                 )}
 
                 {/* Momentum Timeline (30d) */}
