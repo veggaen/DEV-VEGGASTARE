@@ -71,7 +71,7 @@ export default function ReachBadges({ badges, compact, className = '' }: ReachBa
           </div>
         ))}
         {earned.length === 0 && (
-          <span className="text-xs text-muted-foreground">No badges earned yet</span>
+          <span className="text-xs text-muted-foreground">No achievements reached yet</span>
         )}
       </div>
     );
@@ -83,7 +83,7 @@ export default function ReachBadges({ badges, compact, className = '' }: ReachBa
       {earned.length > 0 && (
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            Earned ({earned.length})
+            Reached ({earned.length})
           </h4>
           <div className="grid gap-2 sm:grid-cols-2">
             {earned.map((badge, i) => {
@@ -114,7 +114,7 @@ export default function ReachBadges({ badges, compact, className = '' }: ReachBa
       {inProgress.length > 0 && (
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            In Progress ({inProgress.length})
+            Within reach ({inProgress.length})
           </h4>
           <div className="grid gap-2 sm:grid-cols-2">
             {inProgress.map(badge => {

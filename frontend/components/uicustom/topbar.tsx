@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { TbHexagons } from "react-icons/tb";
 import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiSliders, FiShield, FiBell, FiLock, FiDollarSign, FiSun, FiMoon, FiMonitor, FiTrash2, FiEye, FiEyeOff, FiBellOff, FiVolume2, FiVolumeX, FiKey, FiCamera, FiEdit2, FiExternalLink, FiCopy, FiLink, FiRefreshCw, FiCheck, FiPackage, FiZap, FiHome, FiGrid, FiCreditCard, FiSettings, FiHelpCircle } from "react-icons/fi";
 import { PulseHeart } from "@/components/uicustom/icons/PulseIcons";
+import { IS_WEB3_CONFIGURED } from "@/lib/web3-config";
 import {
 	Sheet,
 	SheetContent,
@@ -986,10 +987,10 @@ const MyTopBar = () => {
 																);
 															}
 														}}
-														className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 dark:bg-white px-4 py-3 text-sm font-medium text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
+														disabled={!IS_WEB3_CONFIGURED} title={IS_WEB3_CONFIGURED ? "Connect a crypto wallet" : "Wallet connect coming soon"} className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 dark:bg-white px-4 py-3 text-sm font-medium text-white dark:text-zinc-900 enabled:hover:bg-zinc-800 dark:enabled:hover:bg-zinc-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 													>
 														<FiLink className="w-4 h-4" />
-														Connect with Web3
+														{IS_WEB3_CONFIGURED ? 'Connect with Web3' : 'Web3 wallet — coming soon'}
 													</button>
 
 													{/* OAuth providers row */}

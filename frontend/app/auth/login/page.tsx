@@ -15,6 +15,7 @@ import { useSearchParams } from 'next/navigation';
 import { MyLoginAction } from '@/actions/login';
 import { signIn } from 'next-auth/react';
 import { MySocialAuth } from '@/components/uicustom/auth/buttons/social';
+import { IS_WEB3_CONFIGURED } from '@/lib/web3-config';
 import { FiMail, FiLock, FiArrowRight, FiShield, FiZap, FiUsers, FiSun, FiMoon, FiLink } from 'react-icons/fi';
 
 const LOG_PREFIX = '[frontend/app/auth/login/page.tsx]';
@@ -164,15 +165,16 @@ export default function LoginPage() {
             <MySocialAuth />
           </div>
 
-          {/* Web3 — browse as visitor with wallet */}
+          {/* Web3 — browse as visitor with wallet. Disabled (not a dead button)
+              when no AppKit/WalletConnect project ID is configured. */}
           <button
             type="button"
+            disabled={!IS_WEB3_CONFIGURED}
             onClick={async () => {
+              if (!IS_WEB3_CONFIGURED) return;
               try {
                 const { ModalController } = await import('@reown/appkit-controllers');
                 ModalController.open({ view: 'Connect' });
-                // Verify it actually opened (AppKit lazy-loads) — otherwise tell
-                // the user instead of silently doing nothing.
                 setTimeout(() => {
                   const isOpen = (ModalController as unknown as { state?: { open?: boolean } })?.state?.open;
                   if (!isOpen) {
@@ -187,10 +189,11 @@ export default function LoginPage() {
                 );
               }
             }}
-            className="w-full flex items-center justify-center gap-2 h-11 text-sm font-medium rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:border-sky-500/50 dark:hover:border-emerald-500/50 transition-colors mb-6"
+            title={IS_WEB3_CONFIGURED ? 'Connect a crypto wallet' : 'Wallet connect coming soon'}
+            className="w-full flex items-center justify-center gap-2 h-11 text-sm font-medium rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 enabled:hover:text-sky-500 dark:enabled:hover:text-emerald-400 enabled:hover:border-sky-500/50 dark:enabled:hover:border-emerald-500/50 transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FiLink className="w-4 h-4" />
-            <span>Connect with Web3</span>
+            <span>{IS_WEB3_CONFIGURED ? 'Connect with Web3' : 'Web3 wallet — coming soon'}</span>
           </button>
 
           {/* Divider */}

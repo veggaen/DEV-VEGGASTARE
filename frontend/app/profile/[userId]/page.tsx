@@ -1461,6 +1461,13 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
+                {/* True Reach — honest identity-trust + risk breakdown (live from
+                    engine). The hero of the tab: real verified-identity score
+                    sits above the behavioral pillars. */}
+                {trueReach && (
+                  <TrueReachCard data={trueReach} />
+                )}
+
                 {/* Main Content Grid */}
                 <div className="grid gap-6 lg:grid-cols-5">
                   {/* Radar Chart - 2 columns */}
@@ -1807,11 +1814,6 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {/* True Reach — honest identity-trust + risk breakdown (live from engine) */}
-                {trueReach && (
-                  <TrueReachCard data={trueReach} />
-                )}
-
                 {/* Momentum Timeline (30d) */}
                 {momentumTrend.length > 0 && (
                   <div
@@ -1845,9 +1847,12 @@ export default function ProfilePage() {
                         : `${bannerColors?.primary || '#3b82f6'}35`,
                     }}
                   >
-                    <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                      🏆 Reach Badges
+                    <h4 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+                      🏆 Achievements
                     </h4>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Milestones you&apos;ve reached — and the ones within reach.
+                    </p>
                     <ReachBadgesComponent badges={userBadges} />
                   </div>
                 )}
