@@ -22,6 +22,6 @@
     "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^10.0.3"
   }
 }
