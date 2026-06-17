@@ -10,10 +10,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { VoiceProvider, VoiceProviderConfig, VoiceRoomState } from "./types";
 import { StubVoiceProvider } from "./stub-provider";
+import { LiveKitVoiceProvider } from "./livekit-provider";
 
-/** Factory — the ONE place that decides which backend powers voice. */
+/**
+ * Factory — the ONE place that decides which backend powers voice. When the
+ * public LiveKit URL is configured (keys present), real cross-user audio is used;
+ * otherwise we fall back to the fully-working local stub so the UI never breaks.
+ */
 function createVoiceProvider(cfg: VoiceProviderConfig): VoiceProvider {
-  // When LiveKit env keys exist, return new LiveKitVoiceProvider(cfg) here.
+  if (process.env.NEXT_PUBLIC_LIVEKIT_URL) {
+    return new LiveKitVoiceProvider(cfg);
+  }
   return new StubVoiceProvider(cfg);
 }
 

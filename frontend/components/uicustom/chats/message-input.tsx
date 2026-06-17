@@ -76,12 +76,50 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     });
     requestAnimationFrame(resizeTextarea);
   };
+  const [dictated, setDictated] = useState(false);
   const {
     supported: micSupported,
     listening,
     interim,
     toggle: toggleMic,
-  } = useSpeechToText({ onResult: appendDictation });
+  } = useSpeechToText({
+    onResult: (chunk) => {
+      appendDictation(chunk);
+      setDictated(true);
+    },
+  });
+
+  // Wispr-style polish: clean up the dictated text (fillers, self-corrections,
+  // punctuation) via the AI. Replaces the field with the polished result; the
+  // user can still edit before sending. Best-effort — failures keep the raw text.
+  const [polishing, setPolishing] = useState(false);
+  const handlePolish = async () => {
+    const text = content.trim();
+    if (!text || polishing) return;
+    setPolishing(true);
+    try {
+      const res = await fetch('/api/voice/polish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw: text }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.ok && data.text) {
+          setContent(data.text.slice(0, MAX_CHARS));
+          setDictated(false);
+          requestAnimationFrame(() => {
+            resizeTextarea();
+            textareaRef.current?.focus();
+          });
+        }
+      }
+    } catch {
+      // keep raw text
+    } finally {
+      setPolishing(false);
+    }
+  };
 
   const canSend = useMemo(() => Boolean(content.trim()) || Boolean(imagePreview), [content, imagePreview]);
   const isTooLong = content.length > MAX_CHARS;
@@ -365,6 +403,29 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               )}
             </IconButton>
           )}
+
+          {/* Wispr-style polish — appears after dictation, cleans the text up */}
+          <AnimatePresence>
+            {dictated && !listening && content.trim() && (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0, scale: 0.8, width: 0 }}
+                animate={{ opacity: 1, scale: 1, width: 'auto' }}
+                exit={{ opacity: 0, scale: 0.8, width: 0 }}
+                onClick={handlePolish}
+                disabled={polishing || isSending}
+                className="shrink-0 inline-flex items-center gap-1 h-9 rounded-full px-3 text-xs font-medium text-sky-600 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10 hover:bg-sky-500/20 dark:hover:bg-emerald-400/20 transition-colors whitespace-nowrap overflow-hidden"
+                title="Clean up dictated text"
+              >
+                {polishing ? (
+                  <span className="h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                ) : (
+                  <span className="text-sm leading-none">✨</span>
+                )}
+                {polishing ? 'Polishing…' : 'Polish'}
+              </motion.button>
+            )}
+          </AnimatePresence>
 
           {/* Hint + counter — fade in once the field is active */}
           <div
