@@ -8,7 +8,8 @@ import { FaFileUpload } from "react-icons/fa";
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { FiArrowUp } from 'react-icons/fi';
+import { FiArrowUp, FiSmile } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface MessageInputProps {
   conversationId: string;
@@ -41,7 +42,29 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isTextareaScrollable, setIsTextareaScrollable] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
   const draftKey = useMemo(() => `chat_draft:${conversationId}`, [conversationId]);
+
+  // Quick-access emoji row (additive — full picker can come later). Inserts at
+  // the caret so it composes naturally with typed text.
+  const QUICK_EMOJI = ['😀', '😂', '❤️', '👍', '🔥', '🎉', '🙏', '😅', '😎', '🤝', '💯', '👀'];
+  const insertEmoji = (emoji: string) => {
+    const el = textareaRef.current;
+    if (!el) {
+      setContent((c) => c + emoji);
+      return;
+    }
+    const start = el.selectionStart ?? content.length;
+    const end = el.selectionEnd ?? content.length;
+    const next = content.slice(0, start) + emoji + content.slice(end);
+    setContent(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + emoji.length;
+      el.setSelectionRange(pos, pos);
+      resizeTextarea();
+    });
+  };
 
   const canSend = useMemo(() => Boolean(content.trim()) || Boolean(imagePreview), [content, imagePreview]);
   const isTooLong = content.length > MAX_CHARS;
@@ -196,7 +219,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mt-3">
+    <form onSubmit={handleSubmit}>
       <div
         {...getRootProps()}
         className={cn(
@@ -230,6 +253,31 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           </div>
         )}
 
+        {/* Quick-emoji popover */}
+        <AnimatePresence>
+          {showEmoji && (
+            <motion.div
+              initial={{ opacity: 0, y: 6, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 6, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              className="mb-2 flex flex-wrap gap-1 rounded-2xl border border-zinc-200/80 bg-white/90 p-2 shadow-sm dark:border-white/10 dark:bg-zinc-900/90"
+            >
+              {QUICK_EMOJI.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => insertEmoji(e)}
+                  className="rounded-lg px-1.5 py-1 text-lg transition-transform hover:scale-125 hover:bg-zinc-100 dark:hover:bg-white/10"
+                  aria-label={`Insert ${e}`}
+                >
+                  {e}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex items-end gap-2">
           <button
             type="button"
@@ -239,12 +287,32 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               'shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full border transition',
               'border-zinc-200/80 dark:border-white/10',
               'bg-white/60 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10',
-              'text-zinc-700 dark:text-white/70'
+              'text-zinc-700 dark:text-white/70 hover:scale-105 active:scale-95'
             )}
             aria-label="Attach image"
             title="Attach image"
           >
             <FaFileUpload className="h-5 w-5" />
+          </button>
+
+          {/* Emoji toggle (additive) */}
+          <button
+            type="button"
+            onClick={() => setShowEmoji((s) => !s)}
+            disabled={isSending}
+            className={cn(
+              'shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full border transition',
+              'border-zinc-200/80 dark:border-white/10',
+              'bg-white/60 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10',
+              'hover:scale-105 active:scale-95',
+              showEmoji
+                ? 'text-sky-500 dark:text-emerald-400'
+                : 'text-zinc-700 dark:text-white/70',
+            )}
+            aria-label="Insert emoji"
+            title="Emoji"
+          >
+            <FiSmile className="h-5 w-5" />
           </button>
 
           <div className="flex-1 min-w-0">
@@ -312,15 +380,22 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             )}
           </div>
 
-          <button
+          <motion.button
             type="submit"
             disabled={isSending || !canSend || isTooLong}
             aria-disabled={isSending || !canSend || isTooLong}
+            // Additive micro-interaction: the send button springs to brand accent
+            // and scales up the moment a message becomes sendable, and presses in
+            // on tap — so sending "feels alive".
+            animate={{ scale: canSend && !isTooLong ? 1 : 0.92 }}
+            whileTap={canSend && !isTooLong ? { scale: 0.85 } : undefined}
+            transition={{ type: 'spring', stiffness: 600, damping: 22 }}
             className={cn(
-              'shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full transition',
-              'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900',
+              'shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full transition-colors',
+              canSend && !isTooLong && !isSending
+                ? 'bg-sky-500 text-white dark:bg-emerald-500 dark:text-zinc-900 hover:bg-sky-600 dark:hover:bg-emerald-400'
+                : 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900',
               (isSending || !canSend || isTooLong) && 'opacity-50 cursor-not-allowed',
-              !(isSending || !canSend || isTooLong) && 'hover:opacity-90'
             )}
             aria-label={isEditing ? 'Save message' : 'Send message'}
             title={isEditing ? 'Save' : 'Send'}
@@ -330,7 +405,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             ) : (
               <FiArrowUp className="h-5 w-5" />
             )}
-          </button>
+          </motion.button>
 
           {isEditing && (
             <Button

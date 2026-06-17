@@ -361,11 +361,16 @@ export default function proxy(req: NextRequest) {
   const isApiRoute = pathname.startsWith("/api") || pathname.startsWith("/trpc");
 
   // Allow /products and /products/[id] to be public, but /products/create requires auth.
-  const isPublicProductPage = 
+  const isPublicProductPage =
     (pathname === "/products" || pathname.startsWith("/products/")) &&
     pathname !== "/products/create";
 
-  const isPublicRoute = publicRoutes.includes(pathname) || isPublicProductPage;
+  // Allow /ai (home) and /ai/[id] (a conversation) to be publicly VIEWABLE — the
+  // page renders an anonymous hero / public conversations for logged-out users,
+  // and sending is gated at the page/API level. (API routes keep their own auth.)
+  const isPublicAiPage = pathname === "/ai" || pathname.startsWith("/ai/");
+
+  const isPublicRoute = publicRoutes.includes(pathname) || isPublicProductPage || isPublicAiPage;
 
   if (isApiAuthRoute) {
     return applySecurityHeaders(

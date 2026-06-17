@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/react";
 import { usePathname } from "next/navigation";
 
 import { EdgeStoreProvider } from "@/lib/edgestore";
@@ -71,6 +72,7 @@ export default function AppProviders({
               </UiPreferencesProvider>
             </ProfileThemeProvider>
             <SpeedInsights />
+            <Analytics />
           </ThemeProvider>
         </EdgeStoreProvider>
       </SessionProvider>
@@ -116,6 +118,7 @@ export default function AppProviders({
             </UiPreferencesProvider>
           </ProfileThemeProvider>
           <SpeedInsights />
+          <Analytics />
         </ThemeProvider>
       </EdgeStoreProvider>
     </SessionProvider>

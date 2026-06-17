@@ -281,13 +281,19 @@ export function ChatLiteDropdown({ className }: ChatLiteDropdownProps) {
               </div>
             ) : (
               <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                {filtered.map((convo) => (
-                  <Link
+                {filtered.map((convo, i) => (
+                  <motion.div
                     key={convo.id}
+                    // Additive: rows cascade in for a lively, modern feel.
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: Math.min(i * 0.03, 0.25), duration: 0.18, ease: 'easeOut' }}
+                  >
+                  <Link
                     href={`/conversations/${convo.id}`}
                     onClick={() => setIsOpen(false)}
                     className={cn(
-                      "flex items-start gap-3 px-4 py-3 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
+                      "flex items-start gap-3 px-4 py-3 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:pl-5",
                       convo.unreadCount > 0 &&
                         "bg-emerald-50/40 dark:bg-emerald-900/10"
                     )}
@@ -344,6 +350,7 @@ export function ChatLiteDropdown({ className }: ChatLiteDropdownProps) {
                       </span>
                     )}
                   </Link>
+                  </motion.div>
                 ))}
               </div>
             )}

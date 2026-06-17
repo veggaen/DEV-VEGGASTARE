@@ -411,28 +411,36 @@ const KineticDescription = React.forwardRef<HTMLParagraphElement, {
     if (reduceMotion) return;
     if (totalChars <= 0) return;
 
+    // Cap the WHOLE reveal to a target duration so long copy can't crawl. The
+    // old per-char setTimeout had an 8ms floor → ~2.2s+ for a ~280-char string
+    // (caught mid-reveal at 3.5s in recordings). We instead step several chars
+    // per frame (~60fps) so the full text is readable within ~MAX_REVEAL_MS,
+    // independent of length, while keeping the left-to-right cascade feel.
+    const MAX_REVEAL_MS = 900;
+    const FRAME_MS = 16;
+    const charsPerFrame = Math.max(1, Math.ceil(totalChars / (MAX_REVEAL_MS / FRAME_MS)));
+
     const startTimer = window.setTimeout(() => {
       setStarted(true);
       let i = 0;
 
       const tick = () => {
-        i += 1;
+        i = Math.min(totalChars, i + charsPerFrame);
         setRevealCount(i);
         if (i >= totalChars) return;
-        const t = totalChars <= 1 ? 1 : i / (totalChars - 1);
-        const delayMs = Math.round(startSpeed * (1 - t) + endSpeed * t);
-        innerTimeoutRef.current = window.setTimeout(tick, Math.max(8, delayMs));
+        innerTimeoutRef.current = window.setTimeout(tick, FRAME_MS);
       };
 
-      // Reveal first char quickly.
-      innerTimeoutRef.current = window.setTimeout(tick, Math.max(8, startSpeed));
+      innerTimeoutRef.current = window.setTimeout(tick, FRAME_MS);
     }, Math.max(0, Math.round(startDelay * 1000)));
 
     return () => {
       window.clearTimeout(startTimer);
       if (innerTimeoutRef.current) window.clearTimeout(innerTimeoutRef.current);
     };
-  }, [reduceMotion, totalChars, startDelay, startSpeed, endSpeed]);
+    // startSpeed/endSpeed are now superseded by the duration cap above; kept in
+    // the signature for API compatibility but intentionally not deps.
+  }, [reduceMotion, totalChars, startDelay]);
 
   const wordStartIndices = React.useMemo(() => {
     return words.reduce<number[]>((acc, word) => {
@@ -561,13 +569,22 @@ const KineticHeadline = React.forwardRef<HTMLSpanElement, {
       if (cancelled) return;
 
       const totalStages = stages.length;
+      // Cap the WHOLE staged reveal to a target duration. Measured before this:
+      // "Where every choice is yours" had ~30 stages × ~80ms ≈ 3.5s to finish,
+      // so a glance in the first 1-2s saw a clipped acronym ("WH EV C I Y").
+      // Now we spread all stages across ≈TARGET_MS so it completes within the
+      // "<1.5s fully visible" rule while keeping the cascade. baseSpeed still
+      // sets a floor/ceiling so very short titles don't reveal instantly.
+      const TARGET_MS = 1000;
+      const perStage = clamp(
+        Math.round(TARGET_MS / Math.max(1, totalStages - 1)),
+        14,
+        baseSpeed,
+      );
       for (let i = 1; i < totalStages; i++) {
         if (cancelled) return;
         setStageIndex(i);
-        const progress = i / totalStages;
-        const easeOut = 1 - Math.pow(1 - progress, 2);
-        const delay = Math.round(baseSpeed * (0.5 + easeOut * 0.5));
-        await new Promise((r) => setTimeout(r, delay));
+        await new Promise((r) => setTimeout(r, perStage));
       }
 
       await new Promise((r) => setTimeout(r, 200));
@@ -1444,7 +1461,12 @@ export default function HomeHero({
           >
             <motion.span
               className="relative inline-flex items-baseline"
-              initial={{ opacity: 0, y: 10 }}
+              // LCP fix: the title ("Freedom Store") is the Largest Contentful
+              // Paint element. Starting it at opacity:0 made the browser measure
+              // LCP only AFTER the fade finished (≈7.8s on prod). We now paint it
+              // fully opaque from the first frame and animate ONLY a subtle
+              // upward slide — LCP fires immediately, the entrance still reads.
+              initial={showAnimations ? { opacity: 1, y: 10 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: titleStart, ease: "easeOut" }}
             >

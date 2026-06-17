@@ -16,6 +16,8 @@ import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 import { ReportDialog } from '@/components/uicustom/report/ReportDialog';
+import { motion, useReducedMotion } from 'framer-motion';
+import { ScrollToBottom } from './primitives/ScrollToBottom';
 
 interface Message {
   id: string;
@@ -41,6 +43,7 @@ interface MessageListProps {
 
 export const MessageList: React.FC<MessageListProps> = ({ messages, users, conversationId, loading }) => {
   const currentUser = useCurrentUser();
+  const reduceMotion = useReducedMotion();
   const { edgestore } = useEdgeStore();
   const [localMessages, setLocalMessages] = useState<Message[]>(messages);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -191,7 +194,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
 
   return (
     <div
-      className="h-full overflow-y-auto px-4 py-6 scroll-smooth"
+      className="relative h-full overflow-y-auto px-4 py-6 scroll-smooth"
       ref={messageListRef}
     >
       {loading ? (
@@ -202,9 +205,12 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
           </div>
         </div>
       ) : localMessages.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-          <div className="text-4xl mb-3">💬</div>
-          <p className="text-sm">No messages yet. Start the conversation!</p>
+        <div className="flex flex-col items-center justify-center h-full text-center px-6">
+          <div className="grid place-items-center h-14 w-14 rounded-2xl bg-indigo-500/10 text-2xl mb-4">💬</div>
+          <p className="text-base font-medium text-foreground">No messages yet</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+            Say hello — your first message starts the conversation.
+          </p>
         </div>
       ) : (
         <div className="space-y-1 max-w-4xl mx-auto">
@@ -242,7 +248,16 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                     </span>
                   </div>
                 )}
-              <div
+              <motion.div
+                // Additive: each message slides+fades in (own messages from the
+                // right, incoming from the left) for a lively, modern feel.
+                initial={
+                  reduceMotion
+                    ? false
+                    : { opacity: 0, y: 8, x: isCurrentUser ? 12 : -12, scale: 0.98 }
+                }
+                animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 520, damping: 32, mass: 0.7 }}
                 className={cn(
                   "group flex items-end gap-2 max-w-[85%] md:max-w-[70%]",
                   isCurrentUser ? "ml-auto flex-row-reverse" : "mr-auto",
@@ -432,12 +447,15 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                     </button>
                   </div>
                 )}
-              </div>
+              </motion.div>
               </React.Fragment>
             );
           })}
         </div>
       )}
+
+      {/* Floating scroll-to-latest button (appears when scrolled up) */}
+      <ScrollToBottom containerRef={messageListRef} />
 
       {/* Report Dialog */}
       <ReportDialog

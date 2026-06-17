@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import usePusher from '@/hooks/usePusher';
@@ -8,6 +8,8 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { MessageInput } from '@/components/uicustom/chats/message-input';
 import { MessageList } from '@/components/uicustom/chats/message-list';
 import { PollDisplay } from '@/components/uicustom/chats/poll-display';
+import { TypingIndicator } from '@/components/uicustom/chats/primitives/TypingIndicator';
+import { AnimatePresence } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -102,6 +104,17 @@ export default function ConversationPage() {
   usePusher<{ messageId: string }>(channelName, 'message-deleted', useCallback((data) => {
     setMessages((prev) => prev.filter((m) => m.id !== data.messageId));
   }, []));
+
+  // Typing indicator (additive). Listens for a lightweight `typing` event from
+  // other participants; auto-clears after a short idle so it never sticks.
+  const [typingName, setTypingName] = useState<string | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  usePusher<{ userId: string; name?: string }>(channelName, 'typing', useCallback((data) => {
+    if (data.userId && data.userId === currentUser?.id) return; // ignore self
+    setTypingName(data.name || 'Someone');
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => setTypingName(null), 3000);
+  }, [currentUser?.id]));
 
   const handleCancelDeletion = async () => {
     if (!conversationId) return;
@@ -261,12 +274,22 @@ export default function ConversationPage() {
         />
       </div>
 
-      {/* Input */}
-      <div className="border-t border-border bg-card/70 backdrop-blur-xl p-4">
-        <MessageInput
-          conversationId={conversationId!}
-          onMessageSent={fetchMessages}
-        />
+      {/* Input — full-width dock shell, centered inner column that aligns with
+          the message list (max-w-4xl) so the composer never sprawls edge-to-edge. */}
+      <div className="border-t border-border bg-card/70 backdrop-blur-xl px-4 pb-4 pt-2">
+        <div className="mx-auto w-full max-w-3xl">
+          <AnimatePresence>
+            {typingName && (
+              <div className="mb-2 px-1">
+                <TypingIndicator label={`${typingName} is typing…`} />
+              </div>
+            )}
+          </AnimatePresence>
+          <MessageInput
+            conversationId={conversationId!}
+            onMessageSent={fetchMessages}
+          />
+        </div>
       </div>
     </div>
   );
