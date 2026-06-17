@@ -44,47 +44,62 @@ export function HoverFollowGrid({
   radiusClass?: string;
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const activeElRef = React.useRef<HTMLElement | null>(null);
+  // The currently-hovered element lives in STATE (not a ref) so the measurement
+  // effect re-runs — and re-attaches its observer to the NEW card — every time
+  // you move to a different card. (A ref wouldn't re-trigger the effect, which
+  // is what left the border stuck on the first expanded card.)
+  const [activeEl, setActiveEl] = React.useState<HTMLElement | null>(null);
   const [style, setStyle] = React.useState<IndicatorStyle | null>(null);
-  const [visible, setVisible] = React.useState(false);
+  const visible = activeEl !== null;
 
-  // Measure the active element relative to the container. Called on enter AND
-  // continuously while hovered (via ResizeObserver) so the indicator keeps
-  // wrapping a card that hover-EXPANDS instead of freezing at its collapsed size.
-  const measure = React.useCallback(() => {
-    const container = containerRef.current;
-    const el = activeElRef.current;
-    if (!container || !el) return;
-    const cr = container.getBoundingClientRect();
-    const cl = el.getBoundingClientRect();
-    setStyle({
-      left: cl.left - cr.left,
-      top: cl.top - cr.top,
-      width: cl.width,
-      height: cl.height,
-    });
-  }, []);
-
-  // Observe the active element's size so the border follows its expand/collapse.
+  // Re-measure + observe whichever card is active. The observer is scoped to
+  // THIS card and torn down when active changes, so cards never fight over the
+  // indicator; rAF + scroll handling keep it glued during the expand animation.
   React.useEffect(() => {
-    if (!visible || !activeElRef.current) return;
-    const ro = new ResizeObserver(() => measure());
-    ro.observe(activeElRef.current);
-    return () => ro.disconnect();
-  }, [visible, measure]);
+    const container = containerRef.current;
+    if (!activeEl || !container) return;
 
-  const onEnter = React.useCallback((el: HTMLElement) => {
-    activeElRef.current = el;
+    let raf = 0;
+    const measure = () => {
+      const cr = container.getBoundingClientRect();
+      const cl = activeEl.getBoundingClientRect();
+      setStyle({
+        left: cl.left - cr.left,
+        top: cl.top - cr.top,
+        width: cl.width,
+        height: cl.height,
+      });
+    };
     measure();
-    setVisible(true);
-  }, [measure]);
+
+    // Track the card through its height animation (~0.35s) so the border grows
+    // with it, then settle (ResizeObserver catches any later layout shifts).
+    const start = performance.now();
+    const animate = () => {
+      measure();
+      if (performance.now() - start < 450) raf = requestAnimationFrame(animate);
+    };
+    raf = requestAnimationFrame(animate);
+
+    const ro = new ResizeObserver(measure);
+    ro.observe(activeEl);
+    container.addEventListener("scroll", measure, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      container.removeEventListener("scroll", measure);
+    };
+  }, [activeEl]);
+
+  const onEnter = React.useCallback((el: HTMLElement) => setActiveEl(el), []);
 
   return (
     <HoverFollowContext.Provider value={{ onEnter }}>
       <div
         ref={containerRef}
         className={`relative ${className ?? ""}`}
-        onMouseLeave={() => { setVisible(false); activeElRef.current = null; }}
+        onMouseLeave={() => setActiveEl(null)}
       >
         {style !== null && (
           <div
