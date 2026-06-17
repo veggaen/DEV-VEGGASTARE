@@ -35,6 +35,7 @@ export default function HeroParticleField({
   className = "",
   density = 1,
   fixed = false,
+  centerFade = 0.18,
 }: {
   className?: string;
   /** multiplier on particle count (1 = default) */
@@ -42,6 +43,9 @@ export default function HeroParticleField({
   /** Render as a fixed full-viewport background layer (covers the whole page,
    *  stays put while scrolling) instead of filling its parent. */
   fixed?: boolean;
+  /** How visible particles are once they drift into the clean centre band.
+   *  Lower = fewer/dimmer stars crossing the middle (default 0.18). */
+  centerFade?: number;
 }) {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const reduce = useReducedMotion();
@@ -193,7 +197,7 @@ export default function HeroParticleField({
           : p.baseAlpha * (0.7 + 0.3 * Math.sin(t * 1.5 + p.twinkle));
 
         // fade out particles that wander into the central clean zone
-        const centreFade = inEdgeBand(p.x, p.y) ? 1 : 0.18;
+        const centreFade = inEdgeBand(p.x, p.y) ? 1 : centerFade;
         const alpha = Math.max(0, twAlpha * centreFade);
         if (alpha <= 0.01) continue;
 
@@ -247,7 +251,7 @@ export default function HeroParticleField({
       window.removeEventListener("pointerleave", onLeave);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [reduce, density, fixed]);
+  }, [reduce, density, fixed, centerFade]);
 
   return (
     <canvas

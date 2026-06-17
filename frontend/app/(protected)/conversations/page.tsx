@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
+import { HoverFollowGrid, HoverFollowItem } from '@/components/uicustom/HoverFollowGrid';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -205,7 +206,7 @@ export default function ConversationsPage() {
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: index * 0.03 }}
         onClick={() => handleConversationClick(conversation.id)}
-        className="group relative cursor-pointer rounded-xl border border-transparent px-3 py-3 transition-colors hover:bg-muted/60 hover:border-border/60"
+        className="group relative cursor-pointer rounded-xl px-3 py-3 transition-colors hover:bg-muted/50"
       >
         {isNavigating === conversation.id && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-2xl z-10">
@@ -468,9 +469,13 @@ export default function ConversationsPage() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-0.5">
-              {filteredConversations.map((conv, index) => renderConversationCard(conv, index))}
-            </div>
+            <HoverFollowGrid className="space-y-0.5" radiusClass="rounded-xl">
+              {filteredConversations.map((conv, index) => (
+                <HoverFollowItem key={conv.id}>
+                  {renderConversationCard(conv, index)}
+                </HoverFollowItem>
+              ))}
+            </HoverFollowGrid>
           )}
         </motion.div>
       </div>

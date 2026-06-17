@@ -987,7 +987,7 @@ const FeedPage: React.FC = () => {
             </div>
           )}
           {currentUser && (
-            <div className="rounded-2xl border border-border/50 bg-card/70 dark:bg-zinc-900/70 backdrop-blur-xl shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-border focus-within:border-brand-accent/50 focus-within:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.10)]">
+            <div className="rounded-[22px] border border-black/8 dark:border-white/10 bg-card/80 dark:bg-zinc-900/70 backdrop-blur-xl shadow-sm transition-all duration-200 focus-within:border-brand-accent/50 focus-within:shadow-[0_0_0_4px_hsl(var(--brand-accent)/0.10)]">
               {filter === 'polls' ? (
                 // Poll-focused compose
                 <div className="p-4 space-y-4">
@@ -1317,17 +1317,22 @@ const FeedPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Action bar */}
-                <div className="flex items-center justify-between pl-13 border-t border-border/30 pt-2">
-                  <div className="flex items-center gap-1">
+                {/* Action bar — ghost icon controls, matching the chat composer */}
+                <div className="flex items-center justify-between pl-13 border-t border-black/5 dark:border-white/8 pt-2">
+                  <div className="flex items-center gap-0.5">
                     {/* Poll Options Dropdown */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           type="button"
-                          variant={includePoll ? 'secondary' : 'ghost'}
+                          variant="ghost"
                           size="sm"
-                          className="text-muted-foreground gap-1"
+                          className={cn(
+                            'h-9 rounded-full gap-1 px-2.5 transition-colors',
+                            includePoll
+                              ? 'text-sky-600 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
+                              : 'text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10',
+                          )}
                         >
                           <FiBarChart2 className="h-4 w-4" />
                           <FiChevronDown className="h-3 w-3" />
@@ -1419,10 +1424,15 @@ const FeedPage: React.FC = () => {
                     </DropdownMenu>
                     <Button
                       type="button"
-                      variant={showTagInput ? 'secondary' : 'ghost'}
+                      variant="ghost"
                       size="sm"
                       onClick={() => setShowTagInput(!showTagInput)}
-                      className="text-muted-foreground"
+                      className={cn(
+                        'grid place-items-center h-9 w-9 rounded-full transition-colors',
+                        showTagInput
+                          ? 'text-sky-600 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
+                          : 'text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10',
+                      )}
                     >
                       <FiHash className="h-4 w-4" />
                     </Button>
@@ -1434,7 +1444,7 @@ const FeedPage: React.FC = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="text-muted-foreground gap-1"
+                          className="h-9 rounded-full gap-1 px-2.5 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10"
                         >
                           {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.icon}
                           <FiChevronDown className="h-3 w-3" />

@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
+import { HoverFollowGrid, HoverFollowItem } from "@/components/uicustom/HoverFollowGrid";
 
 interface Session {
   id: string;
@@ -138,34 +140,31 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
 
   return (
     <main className="relative min-h-dvh flex flex-col bg-background overflow-hidden">
-      {/* Ambient accent glow — quiet premium backdrop */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 h-[420px] w-[820px] rounded-full bg-emerald-500/10 dark:bg-emerald-500/[0.07] blur-[120px]"
-      />
+      {/* Edge-stars field — drifts along the left/right edges (brand accent),
+          only a few crossing the clean centre. Blends seamlessly into the
+          header because there's no hard divider over it. */}
+      <HeroParticleField className="z-0" density={0.7} centerFade={0.06} />
 
-      {/* Header */}
-      <header className="relative z-10 border-b border-black/5 dark:border-white/8 px-6 py-3.5 flex items-center justify-between backdrop-blur-sm">
-        <div className="flex items-center gap-3 min-w-0">
-          <Link
-            href="/"
-            className="text-muted-foreground hover:text-foreground transition-colors text-sm shrink-0"
-          >
-            ← Home
-          </Link>
-          <span className="text-black/15 dark:text-white/20">/</span>
-          <span className="text-sm font-semibold flex items-center gap-2 min-w-0">
-            <span className="text-emerald-500 dark:text-emerald-400">✦</span>
-            <span className="truncate">AI Chat</span>
+      {/* Header — centered + open: shares the body's max-width gutter instead of
+          pinning links to the far corners (no edge-to-edge reach on wide
+          screens). No bottom border, so it melts into the starfield. */}
+      <header className="relative z-10 w-full mx-auto max-w-3xl px-6 pt-5 pb-2 flex items-center justify-between gap-4">
+        <Link
+          href="/"
+          className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <span className="grid place-items-center h-7 w-7 rounded-full bg-black/5 dark:bg-white/8 group-hover:bg-black/10 dark:group-hover:bg-white/12 transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
           </span>
-        </div>
+          Home
+        </Link>
 
         <motion.button
           onClick={handleNewChat}
           disabled={creating}
           whileHover={reduceMotion ? undefined : { scale: 1.03 }}
           whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-emerald-500/20"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-emerald-500/25"
         >
           {creating ? (
             <span className="h-4 w-4 rounded-full border-2 border-black/40 border-t-transparent animate-spin" />
@@ -179,7 +178,7 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
       </header>
 
       {/* Body */}
-      <div className="relative z-10 flex-1 w-full mx-auto max-w-3xl px-6 py-10">
+      <div className="relative z-10 flex-1 w-full mx-auto max-w-3xl px-6 pb-10 pt-4">
         {!isLoggedIn ? (
           <AnonymousHero onCreate={handleNewChat} onPrompt={startPrompt} creating={creating} reduceMotion={!!reduceMotion} />
         ) : (
@@ -240,10 +239,10 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
                 <p className="text-sm text-muted-foreground py-8 text-center">No conversations match “{query}”.</p>
               ) : (
                 <AnimatePresence initial={false}>
-                  <div className="space-y-2.5">
+                  <HoverFollowGrid className="space-y-2.5" radiusClass="rounded-2xl">
                     {filtered.map((s, i) => (
+                      <HoverFollowItem key={s.id}>
                       <motion.div
-                        key={s.id}
                         layout
                         initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -252,7 +251,7 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
                       >
                         <Link
                           href={`/ai/${s.id}`}
-                          className="group relative flex items-center gap-3.5 px-4 py-3.5 rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] hover:border-emerald-500/30 dark:hover:border-emerald-500/25 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/5"
+                          className="group relative flex items-center gap-3.5 px-4 py-3.5 rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] transition-all duration-200"
                         >
                           {/* Avatar / spark */}
                           <span className="shrink-0 grid place-items-center h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
@@ -297,8 +296,9 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
                           </button>
                         </Link>
                       </motion.div>
+                      </HoverFollowItem>
                     ))}
-                  </div>
+                  </HoverFollowGrid>
                 </AnimatePresence>
               )}
             </div>
@@ -322,23 +322,26 @@ function SuggestionDeck({ onPrompt, reduceMotion }: { onPrompt: (p: string) => v
       initial={reduceMotion ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2, duration: 0.4 }}
-      className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-2.5"
+      className="mt-8"
     >
-      {STARTERS.map((s) => (
-        <button
-          key={s.label}
-          onClick={() => onPrompt(s.prompt)}
-          className="group flex items-start gap-3 text-left px-4 py-3.5 rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] hover:border-emerald-500/30 transition-all"
-        >
-          <span className="shrink-0 grid place-items-center h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 text-sm group-hover:scale-110 transition-transform">
-            {s.icon}
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-medium">{s.label}</span>
-            <span className="block text-xs text-muted-foreground mt-0.5 truncate">{s.prompt}</span>
-          </span>
-        </button>
-      ))}
+      <HoverFollowGrid className="grid grid-cols-1 sm:grid-cols-2 gap-2.5" radiusClass="rounded-2xl">
+        {STARTERS.map((s) => (
+          <HoverFollowItem key={s.label}>
+            <button
+              onClick={() => onPrompt(s.prompt)}
+              className="group flex w-full items-start gap-3 text-left px-4 py-3.5 rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] transition-all"
+            >
+              <span className="shrink-0 grid place-items-center h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 text-sm group-hover:scale-110 transition-transform">
+                {s.icon}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{s.label}</span>
+                <span className="block text-xs text-muted-foreground mt-0.5 truncate">{s.prompt}</span>
+              </span>
+            </button>
+          </HoverFollowItem>
+        ))}
+      </HoverFollowGrid>
     </motion.div>
   );
 }

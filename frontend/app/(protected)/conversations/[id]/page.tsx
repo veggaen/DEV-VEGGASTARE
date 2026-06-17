@@ -209,8 +209,11 @@ export default function ConversationPage() {
       <motion.header
         initial={reduceMotion ? undefined : { opacity: 0, y: -10 }}
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-        className="flex items-center gap-2.5 border-b border-black/5 dark:border-white/8 bg-background/70 backdrop-blur-xl px-3 py-2.5 z-10"
+        className="border-b border-black/5 dark:border-white/8 bg-background/70 backdrop-blur-xl px-3 py-2.5 z-10"
       >
+        {/* Centered inner row — aligns with the message column + composer dock so
+            the controls aren't stranded in the far corners on wide screens. */}
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-2.5">
         <Link
           href="/conversations"
           aria-label="Back to messages"
@@ -306,6 +309,7 @@ export default function ConversationPage() {
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </motion.header>
 
       {/* Deletion Warning Banner */}

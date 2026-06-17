@@ -197,6 +197,7 @@ export default function AiConversationClient({
       hasSensitiveData: sensitive.length > 0,
       sensitiveTypes: sensitive,
     };
+    const isFirstMessage = (conv?.messages.length ?? 0) === 0;
     setConv((prev) => prev ? { ...prev, messages: [...prev.messages, tempUserMsg] } : prev);
 
     // Stream
@@ -282,6 +283,19 @@ export default function AiConversationClient({
             sensitiveTypes: [...sensitive, ...responseSensitive],
           }),
         });
+
+        // Auto-name the conversation from the first message (ChatGPT/t3.chat
+        // style). Runs only now that the user message is persisted, and only
+        // while the title is still default (the endpoint guards that). Fire-and-
+        // forget — updates the header in place, never blocks the chat.
+        if (isFirstMessage) {
+          void fetch(`/api/ai-chat/sessions/${sessionId}/title`, { method: "POST" })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => {
+              if (d?.ok && d.title) setConv((prev) => (prev ? { ...prev, title: d.title } : prev));
+            })
+            .catch(() => {});
+        }
       }
 
       // Reload session to get persisted messages
