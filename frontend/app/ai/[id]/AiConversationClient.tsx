@@ -579,31 +579,42 @@ export default function AiConversationClient({
             )}
           </AnimatePresence>
 
-          {/* Messages */}
-          <div ref={messagesContainerRef} className="relative flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0 max-w-3xl w-full mx-auto">
-            {conv.messages.length === 0 && streamingMsgs.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full gap-4 text-center py-16">
-                <div className="text-4xl text-emerald-400/30">✦</div>
-                <p className="text-muted-foreground text-sm max-w-xs">
-                  Start the conversation. {aiParticipants.length > 0 ? `${aiParticipants.map((p) => p.displayName ?? "AI").join(", ")} ${aiParticipants.length === 1 ? "is" : "are"} ready.` : ""}
-                </p>
-              </div>
-            )}
+          {/* Messages — the SCROLLER is full-width so its scrollbar sits at the
+              pane edge (not stranded mid-screen); message content is centered
+              within via an inner max-w-3xl column. */}
+          <div ref={messagesContainerRef} className="relative flex-1 overflow-y-auto min-h-0">
+            <div className="mx-auto w-full max-w-3xl px-4 py-4 space-y-4">
+              {conv.messages.length === 0 && streamingMsgs.length === 0 && (
+                <div className="flex flex-col items-center justify-center min-h-[55vh] gap-5 text-center">
+                  <div className="grid place-items-center h-16 w-16 rounded-2xl bg-emerald-500/10 text-3xl text-emerald-500 dark:text-emerald-400">
+                    ✦
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold tracking-tight">Start the conversation</h2>
+                    <p className="text-sm text-muted-foreground mt-1.5 max-w-xs mx-auto">
+                      {aiParticipants.length > 0
+                        ? `${aiParticipants.map((p) => p.displayName ?? "AI").join(", ")} ${aiParticipants.length === 1 ? "is" : "are"} ready to help. Ask anything below.`
+                        : "Type a message below to get going."}
+                    </p>
+                  </div>
+                </div>
+              )}
 
-            {conv.messages.map((msg) => (
-              <ConvMessageBubble key={msg.id} msg={msg} userId={userId} reduceMotion={!!reduceMotion} />
-            ))}
+              {conv.messages.map((msg) => (
+                <ConvMessageBubble key={msg.id} msg={msg} userId={userId} reduceMotion={!!reduceMotion} />
+              ))}
 
-            {streamingMsgs.map((s) => (
-              <StreamingBubble key={s.id} msg={s} reduceMotion={!!reduceMotion} />
-            ))}
+              {streamingMsgs.map((s) => (
+                <StreamingBubble key={s.id} msg={s} reduceMotion={!!reduceMotion} />
+              ))}
 
-            {/* "Thinking" indicator while waiting for the first streamed token */}
-            {isStreaming && streamingMsgs.every((s) => !s.content) && (
-              <TypingIndicator label="AI is thinking…" />
-            )}
+              {/* "Thinking" indicator while waiting for the first streamed token */}
+              {isStreaming && streamingMsgs.every((s) => !s.content) && (
+                <TypingIndicator label="AI is thinking…" />
+              )}
 
-            <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} />
+            </div>
 
             {/* Floating scroll-to-latest (appears when scrolled up) */}
             <ScrollToBottom containerRef={messagesContainerRef} />
