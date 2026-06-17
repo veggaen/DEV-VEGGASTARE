@@ -18,6 +18,7 @@ import { MySocialAuth } from '@/components/uicustom/auth/buttons/social';
 import { IS_WEB3_CONFIGURED } from '@/lib/web3-config';
 import dynamic from 'next/dynamic';
 const WalletConnectChooser = dynamic(() => import('@/components/crypto-related/WalletConnectChooser'), { ssr: false });
+const AppKitSignInBridge = dynamic(() => import('@/components/crypto-related/AppKitSignInBridge'), { ssr: false });
 import { FiMail, FiLock, FiArrowRight, FiShield, FiZap, FiUsers, FiSun, FiMoon, FiLink } from 'react-icons/fi';
 
 const LOG_PREFIX = '[frontend/app/auth/login/page.tsx]';
@@ -161,6 +162,9 @@ export default function LoginPage() {
               </Link>
             </p>
           </div>
+
+          {/* Bridges an AppKit wallet connection into a real app sign-in. */}
+          {IS_WEB3_CONFIGURED && <AppKitSignInBridge />}
 
           {/* Social Auth */}
           <div className="mb-6">

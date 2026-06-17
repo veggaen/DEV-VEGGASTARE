@@ -13,29 +13,10 @@
 
 import * as React from "react";
 import { useConnect } from "wagmi";
-import { signIn } from "next-auth/react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { FiLoader } from "react-icons/fi";
-
-/**
- * After a wallet connects, run SIWE → NextAuth: fetch a nonce, ask the wallet to
- * sign it, then signIn('wallet'). On success the user is logged into the wallet's
- * linked account, or a new low-reach WALLET_ONLY account is created.
- */
-async function signInWithWallet(address: string, signMessage: (msg: string) => Promise<string>) {
-  const res = await fetch("/api/auth/wallet/nonce", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ address }),
-  });
-  if (!res.ok) throw new Error("Could not start wallet sign-in");
-  const { message } = await res.json();
-  const signature = await signMessage(message);
-  const result = await signIn("wallet", { address, signature, redirect: false, callbackUrl: "/products" });
-  if (result?.error) throw new Error("Wallet sign-in failed");
-  return result;
-}
+import { useWalletSignIn } from "@/hooks/use-wallet-sign-in";
 
 // Friendly metadata per connector id (icons live in /public/wallets).
 const WALLET_META: Record<string, { label: string; icon?: string; emoji?: string }> = {
@@ -47,33 +28,22 @@ const WALLET_META: Record<string, { label: string; icon?: string; emoji?: string
 };
 
 export default function DirectWalletConnect({ className = "" }: { className?: string }) {
-  const [authing, setAuthing] = React.useState(false);
-
   const { connectAsync, connectors, isPending, variables } = useConnect();
+  const { signInWithAddress, signingIn: authing } = useWalletSignIn();
 
   const handleConnect = async (connector: (typeof connectors)[number]) => {
     try {
       const result = await connectAsync({ connector });
       const account = result.accounts?.[0];
       if (!account) throw new Error("No account returned");
-      setAuthing(true);
-      toast.loading("Sign the message in your wallet…", { id: "wallet-auth" });
-      // Get a client to sign the SIWE message.
-      const client = await connector.getProvider?.();
-      const signMessage = async (msg: string) => {
-        // EIP-1193 personal_sign
-        return (await (client as { request: (a: unknown) => Promise<string> }).request({
-          method: "personal_sign",
-          params: [msg, account],
-        }));
-      };
-      await signInWithWallet(account, signMessage);
-      toast.success("Signed in with wallet", { id: "wallet-auth" });
-      window.location.href = "/products";
+      // Shared SIWE flow (wagmi useSignMessage under the hood) — same path the
+      // AppKit bridge uses, so there's one implementation.
+      await signInWithAddress(account);
     } catch (e) {
-      toast.error((e as Error)?.message?.slice(0, 120) || "Wallet sign-in failed", { id: "wallet-auth" });
-    } finally {
-      setAuthing(false);
+      const msg = (e as Error)?.message ?? "";
+      if (!/reject|denied|cancel/i.test(msg)) {
+        toast.error(msg.slice(0, 120) || "Wallet connection failed", { id: "wallet-auth" });
+      }
     }
   };
 
