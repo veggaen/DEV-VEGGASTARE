@@ -4,6 +4,7 @@ import { createConfig, http, cookieStorage, createStorage } from "wagmi";
 import { mainnet, sepolia, base, baseSepolia } from "wagmi/chains";
 import type { Chain } from "viem";
 import { metaMask, coinbaseWallet, injected, walletConnect } from "wagmi/connectors";
+import { getDappOrigin } from "./dapp-origin";
 
 // PulseChain (mainnet)
 export const pulsechain = {
@@ -22,7 +23,6 @@ export const pulsechain = {
 const walletConnectProjectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ??
   process.env.NEXT_PUBLIC_PROJECT_ID;
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.veggat.com";
 
 declare global {
    
@@ -53,12 +53,17 @@ function buildWagmiConfig() {
         ? [
             walletConnect({
               projectId: walletConnectProjectId,
-              metadata: {
-                name: "Veggastare",
-                description: "Veggastare marketplace",
-                url: siteUrl,
-                icons: [`${siteUrl}/next.svg`],
-              },
+              metadata: (() => {
+                // Match the page's runtime origin so WalletConnect doesn't warn
+                // of a metadata.url mismatch — see ./dapp-origin.
+                const origin = getDappOrigin();
+                return {
+                  name: "Veggastare",
+                  description: "Veggastare marketplace",
+                  url: origin,
+                  icons: [`${origin}/next.svg`],
+                };
+              })(),
             }),
           ]
         : []),

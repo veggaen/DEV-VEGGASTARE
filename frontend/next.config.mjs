@@ -4,6 +4,11 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+    // Allow an isolated build dir for a second, parallel `next dev` (used for
+    // headless browser testing alongside a developer's running server) so the
+    // two don't fight over `.next/dev/lock`. Opt-in via NEXT_DIST_DIR; normal
+    // dev/build are untouched when it's unset.
+    ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
     // NOTE: do not set `outputFileTracingRoot`. On Vercel with Root Directory =
     // `frontend`, pinning the tracing root to this folder makes Next.js 16's
     // Build Output finalizer resolve `.next` at the wrong (doubled) path and

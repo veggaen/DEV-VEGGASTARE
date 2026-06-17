@@ -16,6 +16,7 @@ import { mainnet, sepolia, base, baseSepolia } from '@reown/appkit/networks';
 import type { AppKitNetwork } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { cookieStorage, createStorage } from '@wagmi/core';
+import { getDappOrigin } from './dapp-origin';
 
 const pulsechain = {
   id: 369,
@@ -60,16 +61,20 @@ const projectId = process.env.NEXT_PUBLIC_APPKIT_PROJECT_ID ??
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ??
   process.env.NEXT_PUBLIC_PROJECT_ID ?? '';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.veggat.com';
 const appKitAnalyticsEnabled = process.env.NEXT_PUBLIC_APPKIT_ANALYTICS === 'true';
 
-// Site metadata
-const metadata = {
-  name: 'VeggaStare',
-  description: 'VeggaStare - Social marketplace platform',
-  url: siteUrl,
-  icons: [`${siteUrl}/veggastare-icon.png`],
-};
+// Site metadata. `url` must match the page's runtime origin or WalletConnect
+// warns of a mismatch, so resolve it lazily (window.location.origin) at the
+// createAppKit() call site — see getDappOrigin / ./dapp-origin.
+function buildMetadata() {
+  const origin = getDappOrigin();
+  return {
+    name: 'VeggaStare',
+    description: 'VeggaStare - Social marketplace platform',
+    url: origin,
+    icons: [`${origin}/veggastare-icon.png`],
+  };
+}
 
 // Network list for AppKit — testnets first in test mode
 const localNetworks = [anvilLocal as AppKitNetwork, ganacheLocal as AppKitNetwork];
@@ -151,7 +156,7 @@ export function AppKitInitializer() {
       projectId,
       networks,
       defaultNetwork,
-      metadata,
+      metadata: buildMetadata(),
       features: {
         email: true, // Enable email login
         socials: ['google', 'x', 'github', 'discord', 'apple'],
