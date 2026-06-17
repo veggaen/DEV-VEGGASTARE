@@ -8,8 +8,9 @@ import { FaFileUpload } from "react-icons/fa";
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { FiArrowUp, FiSmile } from 'react-icons/fi';
+import { FiArrowUp, FiSmile, FiMic } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSpeechToText } from './primitives/useSpeechToText';
 
 interface MessageInputProps {
   conversationId: string;
@@ -66,9 +67,25 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     });
   };
 
+  // Speech-to-text (Whisper-Flow style). Finalized phrases are appended to the
+  // content with sensible spacing; interim text shows as a live caption.
+  const appendDictation = (chunk: string) => {
+    setContent((c) => {
+      const sep = c && !/\s$/.test(c) ? ' ' : '';
+      return (c + sep + chunk).slice(0, MAX_CHARS);
+    });
+    requestAnimationFrame(resizeTextarea);
+  };
+  const {
+    supported: micSupported,
+    listening,
+    interim,
+    toggle: toggleMic,
+  } = useSpeechToText({ onResult: appendDictation });
+
   const canSend = useMemo(() => Boolean(content.trim()) || Boolean(imagePreview), [content, imagePreview]);
   const isTooLong = content.length > MAX_CHARS;
-  const showMeta = isFocused || content.length > 0 || Boolean(imagePreview);
+  const showMeta = isFocused || content.length > 0 || Boolean(imagePreview) || listening;
   const showCounter = isFocused || content.length > Math.floor(MAX_CHARS * 0.8) || isTooLong;
 
   // Draft persistence (text only). Skips edit mode.
@@ -329,6 +346,26 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             <FiSmile className="h-4.5 w-4.5" />
           </IconButton>
 
+          {/* Speech-to-text — only shown where the browser supports it */}
+          {micSupported && (
+            <IconButton
+              onClick={toggleMic}
+              disabled={isSending}
+              label={listening ? 'Stop dictation' : 'Dictate message'}
+              active={listening}
+            >
+              {listening ? (
+                <span className="relative grid place-items-center">
+                  <FiMic className="h-4.5 w-4.5" />
+                  {/* pulsing ring while recording */}
+                  <span className="absolute inset-0 -m-1.5 rounded-full bg-red-500/20 animate-ping" />
+                </span>
+              ) : (
+                <FiMic className="h-4.5 w-4.5" />
+              )}
+            </IconButton>
+          )}
+
           {/* Hint + counter — fade in once the field is active */}
           <div
             className={cn(
@@ -337,7 +374,16 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             )}
           >
             <span className="hidden sm:inline truncate">
-              {isTooLong ? 'Message is too long' : 'Enter to send · Shift+Enter for newline'}
+              {listening ? (
+                <span className="inline-flex items-center gap-1.5 text-red-500 dark:text-red-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                  {interim ? <span className="text-foreground/70 italic">{interim}</span> : 'Listening…'}
+                </span>
+              ) : isTooLong ? (
+                'Message is too long'
+              ) : (
+                'Enter to send · Shift+Enter for newline'
+              )}
             </span>
             <span
               className={cn(

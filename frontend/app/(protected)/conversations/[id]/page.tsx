@@ -13,7 +13,14 @@ import { AnimatePresence } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { FiArrowLeft, FiTrash2, FiMoreVertical, FiUsers, FiMessageCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiTrash2, FiMoreVertical, FiUsers, FiMessageCircle, FiUser, FiBellOff } from 'react-icons/fi';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { formatDistanceToNowStrict } from 'date-fns';
 import Spinner from '@/components/uicustom/spinner';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
@@ -50,6 +57,8 @@ export default function ConversationPage() {
   const [conversation, setConversation] = useState<ConversationDetails | null>(null);
   const [isCancellingDeletion, setIsCancellingDeletion] = useState(false);
   const [hasPoll, setHasPoll] = useState(false);
+  // Local mute preference (UI-level notification toggle for this thread).
+  const [muted, setMuted] = useState(false);
 
   const currentUser = useCurrentUser();
 
@@ -133,6 +142,26 @@ export default function ConversationPage() {
     }
   };
 
+  // Request deletion of the whole conversation, then return to the list. Mirrors
+  // the existing DELETE endpoint (the `?cancel=true` variant undoes it).
+  const handleDeleteConversation = async () => {
+    if (!conversationId) return;
+    if (!confirm('Delete this conversation? This will start the deletion process.')) return;
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' });
+      if (res.ok) {
+        router.push('/conversations');
+      } else {
+        const { toast } = await import('sonner');
+        toast.error('Could not delete the conversation.');
+      }
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      const { toast } = await import('sonner');
+      toast.error('Could not delete the conversation.');
+    }
+  };
+
   const canManage = conversation && currentUser && (
     currentUser.id === conversation.userId ||
     currentUser.id === conversation.originalUserId ||
@@ -174,17 +203,20 @@ export default function ConversationPage() {
 
   return (
     <div className="relative flex flex-col h-[calc(100vh-var(--app-header-offset,64px))]">
-      {/* Header */}
+      {/* Header — light, glassy bar that reads as part of the thread, not a
+          chunky toolbar. Hairline separator + soft blur; avatar carries a
+          presence dot; the actions menu actually does things. */}
       <motion.header
         initial={reduceMotion ? undefined : { opacity: 0, y: -10 }}
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-        className="flex items-center gap-3 border-b border-border bg-card/70 backdrop-blur-xl px-4 py-3 z-10"
+        className="flex items-center gap-2.5 border-b border-black/5 dark:border-white/8 bg-background/70 backdrop-blur-xl px-3 py-2.5 z-10"
       >
         <Link
           href="/conversations"
-          className="flex items-center justify-center h-10 w-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          aria-label="Back to messages"
+          className="grid place-items-center h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
         >
-          <FiArrowLeft className="h-5 w-5" />
+          <FiArrowLeft className="h-4.5 w-4.5" />
         </Link>
 
         {conversation.type === 'PRIVATE_DM' && otherParticipant ? (
@@ -196,41 +228,84 @@ export default function ConversationPage() {
               side="bottom"
               align="start"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={otherParticipant.image || undefined} />
-                  <AvatarFallback className="bg-linear-to-br from-indigo-500 to-purple-600 text-white">
-                    {otherParticipant.name?.[0] || '?'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <h1 className="font-semibold text-foreground truncate">
+              <div className="flex items-center gap-3 min-w-0 cursor-pointer rounded-xl -mx-1 px-1 py-0.5 hover:bg-black/3 dark:hover:bg-white/5 transition-colors">
+                <div className="relative shrink-0">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={otherParticipant.image || undefined} />
+                    <AvatarFallback className="bg-linear-to-br from-indigo-500 to-purple-600 text-white text-sm">
+                      {otherParticipant.name?.[0] || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  {/* presence dot */}
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
+                </div>
+                <div className="min-w-0 leading-tight">
+                  <h1 className="font-semibold text-[15px] text-foreground truncate">
                     {otherParticipant.name || 'Unknown'}
                   </h1>
-                  <p className="text-xs text-muted-foreground">Direct message</p>
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400/80">Active now</p>
                 </div>
               </div>
             </UserHoverCard>
           </div>
         ) : (
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-indigo-500/15 to-purple-600/15 text-indigo-500 dark:text-indigo-300">
-              {conversation.type === 'GROUP' ? <FiUsers className="h-5 w-5" /> : <FiMessageCircle className="h-5 w-5" />}
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-linear-to-br from-indigo-500/15 to-purple-600/15 text-indigo-500 dark:text-indigo-300">
+              {conversation.type === 'GROUP' ? <FiUsers className="h-4.5 w-4.5" /> : <FiMessageCircle className="h-4.5 w-4.5" />}
             </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="font-semibold text-foreground truncate">
+            <div className="flex-1 min-w-0 leading-tight">
+              <h1 className="font-semibold text-[15px] text-foreground truncate">
                 {conversation.title || 'Untitled conversation'}
               </h1>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground">
                 {CONVERSATION_TYPE_LABEL[conversation.type as string] ?? 'Conversation'}
               </p>
             </div>
           </div>
         )}
 
-        <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-foreground hover:bg-muted">
-          <FiMoreVertical className="h-5 w-5" />
-        </Button>
+        {muted && (
+          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-black/5 dark:bg-white/8 px-2 py-1 text-[10px] text-muted-foreground">
+            <FiBellOff className="h-3 w-3" /> Muted
+          </span>
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Conversation options"
+              className="rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+            >
+              <FiMoreVertical className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            {conversation.type === 'PRIVATE_DM' && otherParticipant && (
+              <DropdownMenuItem asChild>
+                <Link href={`/profile/${otherParticipant.id}`} className="cursor-pointer">
+                  <FiUser className="mr-2 h-4 w-4" /> View profile
+                </Link>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={() => setMuted((m) => !m)} className="cursor-pointer">
+              <FiBellOff className="mr-2 h-4 w-4" />
+              {muted ? 'Unmute notifications' : 'Mute notifications'}
+            </DropdownMenuItem>
+            {canManage && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleDeleteConversation}
+                  className="cursor-pointer text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                >
+                  <FiTrash2 className="mr-2 h-4 w-4" /> Delete conversation
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </motion.header>
 
       {/* Deletion Warning Banner */}
