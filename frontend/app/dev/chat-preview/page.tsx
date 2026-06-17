@@ -59,13 +59,16 @@ export default function ChatPreviewPage() {
         />
       </div>
 
-      <div className="border-t border-border bg-card/70 p-4 backdrop-blur-xl">
-        {typing && (
-          <div className="mb-2 px-1">
-            <TypingIndicator label="Alex is typing…" />
-          </div>
-        )}
-        <MessageInput conversationId="preview" onMessageSent={() => {}} />
+      {/* Mirror the real conversation page: gradient fade + centered dock. */}
+      <div className="bg-linear-to-t from-background via-background/95 to-transparent px-4 pb-4 pt-6">
+        <div className="mx-auto w-full max-w-3xl">
+          {typing && (
+            <div className="mb-2 px-1">
+              <TypingIndicator label="Alex is typing…" />
+            </div>
+          )}
+          <MessageInput conversationId="preview" onMessageSent={() => {}} />
+        </div>
       </div>
     </div>
   );

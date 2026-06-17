@@ -220,30 +220,37 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   return (
     <form onSubmit={handleSubmit}>
+      {/* Single composer surface — textarea on top, a thin toolbar below. No
+          nested rounded boxes: the card itself is the only rounded surface, and
+          the focus ring lives on it. */}
       <div
         {...getRootProps()}
         className={cn(
-          'rounded-3xl border bg-white/80 dark:bg-zinc-900/70 backdrop-blur-sm shadow-sm',
+          'group/composer relative rounded-[22px] border bg-white/90 dark:bg-zinc-900/70 backdrop-blur-md',
           'border-zinc-200/80 dark:border-white/10',
-          'px-4 py-3'
+          'shadow-sm transition-all duration-200',
+          'focus-within:border-sky-400/60 dark:focus-within:border-emerald-400/40',
+          'focus-within:shadow-[0_0_0_4px_rgba(56,189,248,0.10)] dark:focus-within:shadow-[0_0_0_4px_rgba(52,211,153,0.10)]',
+          isTooLong && 'border-red-400/70 dark:border-red-500/50 focus-within:border-red-400/70',
         )}
       >
         <input {...getInputProps()} />
 
+        {/* Image preview chip */}
         {imagePreview && (
-          <div className="mb-3">
+          <div className="px-3 pt-3">
             <div className="relative inline-block">
               <Image
                 src={imagePreview}
                 alt="Selected image"
-                width={112}
-                height={112}
+                width={96}
+                height={96}
                 unoptimized
-                className="h-28 w-28 rounded-xl object-cover border border-black/10 dark:border-white/10"
+                className="h-24 w-24 rounded-xl object-cover border border-black/10 dark:border-white/10"
               />
               <button
                 type="button"
-                className="absolute -top-2 -right-2 p-1.5 rounded-full bg-red-600 text-white hover:bg-red-700 shadow"
+                className="absolute -top-2 -right-2 grid place-items-center h-6 w-6 rounded-full bg-zinc-900/90 text-white hover:bg-red-600 shadow-md transition-colors"
                 onClick={handleRemoveImage}
                 aria-label="Remove image"
               >
@@ -261,7 +268,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 6, scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-              className="mb-2 flex flex-wrap gap-1 rounded-2xl border border-zinc-200/80 bg-white/90 p-2 shadow-sm dark:border-white/10 dark:bg-zinc-900/90"
+              className="absolute bottom-[calc(100%+8px)] left-2 z-20 flex flex-wrap gap-1 rounded-2xl border border-zinc-200/80 bg-white/95 p-2 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-zinc-900/95"
             >
               {QUICK_EMOJI.map((e) => (
                 <button
@@ -278,124 +285,97 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           )}
         </AnimatePresence>
 
-        <div className="flex items-end gap-2">
-          <button
-            type="button"
-            onClick={open}
-            disabled={isSending}
-            className={cn(
-              'shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full border transition',
-              'border-zinc-200/80 dark:border-white/10',
-              'bg-white/60 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10',
-              'text-zinc-700 dark:text-white/70 hover:scale-105 active:scale-95'
-            )}
-            aria-label="Attach image"
-            title="Attach image"
-          >
-            <FaFileUpload className="h-5 w-5" />
-          </button>
+        {/* Textarea — flush in the surface, full width */}
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Write a message…"
+          className={cn(
+            'w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-[15px] leading-relaxed',
+            'text-zinc-900 dark:text-white',
+            'placeholder:text-zinc-400 dark:placeholder:text-white/40 focus:outline-none',
+            isTextareaScrollable ? 'overflow-y-auto' : 'overflow-y-hidden',
+          )}
+          disabled={isSending}
+          rows={1}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              void handleSubmit(e as unknown as React.FormEvent);
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const files = Array.from(e.dataTransfer.files);
+            handleDrop(files);
+          }}
+        />
 
-          {/* Emoji toggle (additive) */}
-          <button
-            type="button"
+        {/* Toolbar row — ghost icon controls left, hint + counter center, send right */}
+        <div className="flex items-center gap-1 px-2.5 pb-2.5 pt-1">
+          <IconButton onClick={open} disabled={isSending} label="Attach image">
+            <FaFileUpload className="h-4.5 w-4.5" />
+          </IconButton>
+
+          <IconButton
             onClick={() => setShowEmoji((s) => !s)}
             disabled={isSending}
-            className={cn(
-              'shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full border transition',
-              'border-zinc-200/80 dark:border-white/10',
-              'bg-white/60 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10',
-              'hover:scale-105 active:scale-95',
-              showEmoji
-                ? 'text-sky-500 dark:text-emerald-400'
-                : 'text-zinc-700 dark:text-white/70',
-            )}
-            aria-label="Insert emoji"
-            title="Emoji"
+            label="Emoji"
+            active={showEmoji}
           >
-            <FiSmile className="h-5 w-5" />
-          </button>
+            <FiSmile className="h-4.5 w-4.5" />
+          </IconButton>
 
-          <div className="flex-1 min-w-0">
-            <div
-              className={cn(
-                'rounded-2xl bg-zinc-50/80 dark:bg-white/5 overflow-hidden',
-                'ring-1 ring-zinc-200/70 dark:ring-white/10',
-                'focus-within:ring-2 focus-within:ring-zinc-400/60 dark:focus-within:ring-white/20'
-              )}
-            >
-              <textarea
-                ref={textareaRef}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Write a message…"
-                className={cn(
-                  'w-full resize-none bg-transparent px-4 py-3.5 text-[15px] leading-relaxed',
-                  'text-zinc-900 dark:text-white',
-                  'placeholder:text-zinc-500 dark:placeholder:text-white/40 focus:outline-none',
-                  isTextareaScrollable ? 'overflow-y-auto pr-6' : 'overflow-y-hidden'
-                )}
-                disabled={isSending}
-                rows={1}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    void handleSubmit(e as unknown as React.FormEvent);
-                  }
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const files = Array.from(e.dataTransfer.files);
-                  handleDrop(files);
-                }}
-              />
-            </div>
-
-            {/* Reserve space to avoid layout "stutter" on focus */}
-            <div
-              className={cn(
-                'mt-1 h-4 flex items-center justify-between text-[11px] px-1',
-                'text-zinc-500 dark:text-white/40',
-                'transition-opacity duration-150',
-                showMeta ? 'opacity-100' : 'opacity-0 pointer-events-none'
-              )}
-            >
-              <span>Enter to send • Shift+Enter for newline</span>
-              <span
-                className={cn(
-                  'tabular-nums transition-opacity duration-150',
-                  showCounter ? 'opacity-100' : 'opacity-0',
-                  isTooLong && 'text-red-600 dark:text-red-400 opacity-100'
-                )}
-              >
-                {content.length}/{MAX_CHARS}
-              </span>
-            </div>
-
-            {isTooLong && (
-              <div className="mt-1 text-[11px] text-red-600 dark:text-red-400 px-1">
-                Message is too long. Shorten it to send.
-              </div>
+          {/* Hint + counter — fade in once the field is active */}
+          <div
+            className={cn(
+              'ml-1 flex-1 min-w-0 flex items-center gap-2 text-[11px] text-zinc-400 dark:text-white/35 transition-opacity duration-150',
+              showMeta ? 'opacity-100' : 'opacity-0',
             )}
+          >
+            <span className="hidden sm:inline truncate">
+              {isTooLong ? 'Message is too long' : 'Enter to send · Shift+Enter for newline'}
+            </span>
+            <span
+              className={cn(
+                'ml-auto shrink-0 tabular-nums transition-colors',
+                showCounter ? 'opacity-100' : 'opacity-0',
+                isTooLong && 'text-red-500 dark:text-red-400 font-medium opacity-100',
+              )}
+            >
+              {content.length}/{MAX_CHARS}
+            </span>
           </div>
 
+          {isEditing && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="shrink-0 h-9 rounded-full px-3 text-xs"
+              onClick={onCancelEdit}
+              disabled={isSending}
+            >
+              Cancel
+            </Button>
+          )}
+
+          {/* Send — springs to brand accent the moment a message is sendable */}
           <motion.button
             type="submit"
             disabled={isSending || !canSend || isTooLong}
             aria-disabled={isSending || !canSend || isTooLong}
-            // Additive micro-interaction: the send button springs to brand accent
-            // and scales up the moment a message becomes sendable, and presses in
-            // on tap — so sending "feels alive".
-            animate={{ scale: canSend && !isTooLong ? 1 : 0.92 }}
+            animate={{ scale: canSend && !isTooLong ? 1 : 0.9 }}
             whileTap={canSend && !isTooLong ? { scale: 0.85 } : undefined}
             transition={{ type: 'spring', stiffness: 600, damping: 22 }}
             className={cn(
-              'shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full transition-colors',
+              'shrink-0 grid place-items-center h-9 w-9 rounded-full transition-colors',
               canSend && !isTooLong && !isSending
-                ? 'bg-sky-500 text-white dark:bg-emerald-500 dark:text-zinc-900 hover:bg-sky-600 dark:hover:bg-emerald-400'
-                : 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900',
-              (isSending || !canSend || isTooLong) && 'opacity-50 cursor-not-allowed',
+                ? 'bg-sky-500 text-white dark:bg-emerald-500 dark:text-zinc-900 hover:bg-sky-600 dark:hover:bg-emerald-400 shadow-md shadow-sky-500/25 dark:shadow-emerald-500/25'
+                : 'bg-zinc-200 text-zinc-400 dark:bg-white/10 dark:text-white/30 cursor-not-allowed',
             )}
             aria-label={isEditing ? 'Save message' : 'Send message'}
             title={isEditing ? 'Save' : 'Send'}
@@ -406,20 +386,34 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               <FiArrowUp className="h-5 w-5" />
             )}
           </motion.button>
-
-          {isEditing && (
-            <Button
-              type="button"
-              variant="secondary"
-              className="shrink-0 h-10 rounded-full px-4"
-              onClick={onCancelEdit}
-              disabled={isSending}
-            >
-              Cancel
-            </Button>
-          )}
         </div>
       </div>
     </form>
   );
 };
+
+/** Ghost icon button for the composer toolbar — subtle until hovered/active. */
+const IconButton: React.FC<{
+  onClick: () => void;
+  disabled?: boolean;
+  label: string;
+  active?: boolean;
+  children: React.ReactNode;
+}> = ({ onClick, disabled, label, active, children }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    aria-label={label}
+    title={label}
+    className={cn(
+      'shrink-0 grid place-items-center h-9 w-9 rounded-full transition-colors',
+      'hover:bg-zinc-100 dark:hover:bg-white/10 active:scale-95 disabled:opacity-40',
+      active
+        ? 'text-sky-500 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
+        : 'text-zinc-500 dark:text-white/55',
+    )}
+  >
+    {children}
+  </button>
+);

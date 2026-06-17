@@ -274,9 +274,10 @@ export default function ConversationPage() {
         />
       </div>
 
-      {/* Input — full-width dock shell, centered inner column that aligns with
-          the message list (max-w-4xl) so the composer never sprawls edge-to-edge. */}
-      <div className="border-t border-border bg-card/70 backdrop-blur-xl px-4 pb-4 pt-2">
+      {/* Input — the composer floats over the thread: a soft gradient fade (not a
+          hard footer bar) lets messages scroll up behind it, with a centered
+          column that aligns with the message list so it never sprawls. */}
+      <div className="bg-linear-to-t from-background via-background/95 to-transparent px-4 pb-4 pt-6">
         <div className="mx-auto w-full max-w-3xl">
           <AnimatePresence>
             {typingName && (
