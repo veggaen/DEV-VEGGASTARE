@@ -15,16 +15,20 @@ import { toast } from "sonner";
  * On success the user logs into the wallet's linked account, or a low-reach
  * WALLET_ONLY account is created server-side (auth.config.ts).
  */
+// MODULE-LEVEL guard — shared across ALL hook instances. Critical because
+// DirectWalletConnect and AppKitSignInBridge each call this hook separately; a
+// per-instance ref wouldn't stop a direct-button click AND the AppKit bridge
+// (reacting to the same wagmi connection) from both firing the flow.
+let globalInFlight = false;
+
 export function useWalletSignIn(callbackUrl = "/products") {
   const { signMessageAsync } = useSignMessage();
   const [signingIn, setSigningIn] = React.useState(false);
-  // Guard so the AppKit bridge can't fire the flow twice for one connection.
-  const inFlight = React.useRef(false);
 
   const signInWithAddress = React.useCallback(
     async (address: string): Promise<boolean> => {
-      if (inFlight.current) return false;
-      inFlight.current = true;
+      if (globalInFlight) return false;
+      globalInFlight = true;
       setSigningIn(true);
       try {
         const res = await fetch("/api/auth/wallet/nonce", {
@@ -58,7 +62,7 @@ export function useWalletSignIn(callbackUrl = "/products") {
         });
         return false;
       } finally {
-        inFlight.current = false;
+        globalInFlight = false;
         setSigningIn(false);
       }
     },

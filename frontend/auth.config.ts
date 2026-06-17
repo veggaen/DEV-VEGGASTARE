@@ -205,33 +205,78 @@ export default {
           data: { usedAt: new Date() },
         });
 
-        // Find the wallet's linked, verified owner → log into that account.
-        const wallet = await dbPrisma.wallet.findFirst({
-          where: { address: { equals: address, mode: "insensitive" }, ownerUserId: { not: null }, verifiedAt: { not: null } },
-          select: { User: { select: { id: true, name: true, email: true, image: true } } },
+        // ── Resolve the account for this wallet ──────────────────────────────
+        // The signature proves ownership of `address`, so we can safely sign in.
+        // Look up ANY existing wallet row for this address (case-insensitive),
+        // not just verified+linked ones — otherwise we'd create a DUPLICATE user
+        // for an address that already has a (possibly unlinked/unverified) row.
+        const existingWallet = await dbPrisma.wallet.findFirst({
+          where: { address: { equals: address, mode: "insensitive" } },
+          select: {
+            id: true,
+            ownerUserId: true,
+            verifiedAt: true,
+            User: { select: { id: true, name: true, email: true, image: true } },
+          },
         });
-        if (wallet?.User) return wallet.User;
 
-        // No linked account → create a low-reach WALLET_ONLY account.
-        const created = await dbPrisma.user.create({
-          data: {
-            name: `${address.slice(0, 6)}…${address.slice(-4)}`,
-            verificationTier: "WALLET_ONLY",
-            web3ModeEnabled: true,
-            Wallet: {
-              create: {
-                label: "Wallet",
-                family: "EVM",
-                address,
-                verifiedAt: new Date(),
-                connectorType: "wallet-login",
-                riskTier: "fresh",
+        // Already owned → just sign into that account (mark verified if it wasn't).
+        if (existingWallet?.User) {
+          if (!existingWallet.verifiedAt) {
+            await dbPrisma.wallet.update({
+              where: { id: existingWallet.id },
+              data: { verifiedAt: new Date() },
+            }).catch(() => { /* non-fatal */ });
+          }
+          return existingWallet.User;
+        }
+
+        // A wallet row exists but is unowned → claim it onto a fresh account.
+        if (existingWallet && !existingWallet.ownerUserId) {
+          const claimUser = await dbPrisma.user.create({
+            data: {
+              name: `${address.slice(0, 6)}…${address.slice(-4)}`,
+              verificationTier: "WALLET_ONLY",
+              web3ModeEnabled: true,
+            },
+            select: { id: true, name: true, email: true, image: true },
+          });
+          await dbPrisma.wallet.update({
+            where: { id: existingWallet.id },
+            data: { ownerUserId: claimUser.id, verifiedAt: new Date(), riskTier: "fresh" },
+          });
+          return claimUser;
+        }
+
+        // No wallet row at all → create a low-reach WALLET_ONLY account + wallet.
+        try {
+          const created = await dbPrisma.user.create({
+            data: {
+              name: `${address.slice(0, 6)}…${address.slice(-4)}`,
+              verificationTier: "WALLET_ONLY",
+              web3ModeEnabled: true,
+              Wallet: {
+                create: {
+                  label: "Wallet",
+                  family: "EVM",
+                  address,
+                  verifiedAt: new Date(),
+                  connectorType: "wallet-login",
+                  riskTier: "fresh",
+                },
               },
             },
-          },
-          select: { id: true, name: true, email: true, image: true },
-        });
-        return created;
+            select: { id: true, name: true, email: true, image: true },
+          });
+          return created;
+        } catch {
+          // Race: another concurrent sign-in created the wallet first. Re-resolve.
+          const raced = await dbPrisma.wallet.findFirst({
+            where: { address: { equals: address, mode: "insensitive" } },
+            select: { User: { select: { id: true, name: true, email: true, image: true } } },
+          });
+          return raced?.User ?? null;
+        }
       } catch (e) {
         if (isDev) console.log(`${LOG_PREFIX} wallet authorize error:`, e);
         return null;
