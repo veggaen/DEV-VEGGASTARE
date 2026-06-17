@@ -9,8 +9,10 @@ import { MessageInput } from '@/components/uicustom/chats/message-input';
 import { MessageList } from '@/components/uicustom/chats/message-list';
 import { PollDisplay } from '@/components/uicustom/chats/poll-display';
 import { TypingIndicator } from '@/components/uicustom/chats/primitives/TypingIndicator';
+import { ChatSidebar, type SidebarMember } from '@/components/uicustom/chats/ChatSidebar';
 import { AnimatePresence } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FiArrowLeft, FiTrash2, FiMoreVertical, FiUsers, FiMessageCircle, FiUser, FiBellOff } from 'react-icons/fi';
@@ -59,6 +61,8 @@ export default function ConversationPage() {
   const [hasPoll, setHasPoll] = useState(false);
   // Local mute preference (UI-level notification toggle for this thread).
   const [muted, setMuted] = useState(false);
+  // Right rail (members + voice channel) toggle.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const currentUser = useCurrentUser();
 
@@ -201,6 +205,19 @@ export default function ConversationPage() {
     ? conversation.participantDetails.find(p => p.id !== currentUser?.id)
     : null;
 
+  // Members for the sidebar roster — prefer participantDetails, fall back to the
+  // users seen in the thread. The conversation owner is labeled.
+  const dmMembers: SidebarMember[] = (
+    conversation.participantDetails && conversation.participantDetails.length > 0
+      ? conversation.participantDetails
+      : (users as Array<{ id: string; name: string | null; image: string | null }>)
+  ).map((u) => ({
+    id: u.id,
+    name: u.name ?? 'Member',
+    image: u.image ?? null,
+    label: u.id === conversation.userId ? 'Owner' : undefined,
+  }));
+
   return (
     <div className="relative flex flex-col h-[calc(100vh-var(--app-header-offset,64px))]">
       {/* Header — light, glassy bar that reads as part of the thread, not a
@@ -273,6 +290,20 @@ export default function ConversationPage() {
           </span>
         )}
 
+        <button
+          onClick={() => setSidebarOpen((v) => !v)}
+          aria-label="Members & voice"
+          title="Members & voice"
+          className={cn(
+            'grid place-items-center h-9 w-9 rounded-full transition-colors',
+            sidebarOpen
+              ? 'text-emerald-500 dark:text-emerald-400 bg-emerald-500/10'
+              : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10',
+          )}
+        >
+          <FiUsers className="h-4.5 w-4.5" />
+        </button>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -343,33 +374,61 @@ export default function ConversationPage() {
         </div>
       )}
 
-      {/* Messages — subtle surface so the thread reads as a distinct canvas */}
-      <div className="flex-1 overflow-hidden bg-linear-to-b from-muted/30 to-transparent dark:from-white/2">
-        <MessageList
-          messages={messages}
-          users={users}
-          conversationId={conversationId!}
-          loading={loading}
-        />
-      </div>
+      {/* Body — thread column + optional right rail (members + voice) */}
+      <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Messages — subtle surface so the thread reads as a distinct canvas */}
+          <div className="flex-1 overflow-hidden bg-linear-to-b from-muted/30 to-transparent dark:from-white/2">
+            <MessageList
+              messages={messages}
+              users={users}
+              conversationId={conversationId!}
+              loading={loading}
+            />
+          </div>
 
-      {/* Input — the composer floats over the thread: a soft gradient fade (not a
-          hard footer bar) lets messages scroll up behind it, with a centered
-          column that aligns with the message list so it never sprawls. */}
-      <div className="bg-linear-to-t from-background via-background/95 to-transparent px-4 pb-4 pt-6">
-        <div className="mx-auto w-full max-w-3xl">
-          <AnimatePresence>
-            {typingName && (
-              <div className="mb-2 px-1">
-                <TypingIndicator label={`${typingName} is typing…`} />
-              </div>
-            )}
-          </AnimatePresence>
-          <MessageInput
-            conversationId={conversationId!}
-            onMessageSent={fetchMessages}
-          />
+          {/* Input — the composer floats over the thread: a soft gradient fade (not a
+              hard footer bar) lets messages scroll up behind it, with a centered
+              column that aligns with the message list so it never sprawls. */}
+          <div className="bg-linear-to-t from-background via-background/95 to-transparent px-4 pb-4 pt-6">
+            <div className="mx-auto w-full max-w-3xl">
+              <AnimatePresence>
+                {typingName && (
+                  <div className="mb-2 px-1">
+                    <TypingIndicator label={`${typingName} is typing…`} />
+                  </div>
+                )}
+              </AnimatePresence>
+              <MessageInput
+                conversationId={conversationId!}
+                onMessageSent={fetchMessages}
+              />
+            </div>
+          </div>
         </div>
+
+        {/* Right rail — shared ChatSidebar (members + Discord-like voice) */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.aside
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 300, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.2, ease: 'easeInOut' }}
+              className="border-l border-black/5 dark:border-white/8 overflow-hidden shrink-0 bg-background/80 backdrop-blur-xl"
+            >
+              <div className="w-[300px] h-full">
+                <ChatSidebar
+                  roomId={conversationId!}
+                  self={{ id: currentUser?.id ?? 'me', name: currentUser?.name ?? 'You', image: currentUser?.image ?? null }}
+                  isHost={!!canManage}
+                  membersTitle={conversation.type === 'GROUP' ? 'Members' : 'People'}
+                  members={dmMembers}
+                />
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
