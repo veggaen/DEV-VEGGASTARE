@@ -1338,58 +1338,64 @@ const FeedPage: React.FC = () => {
                           <FiChevronDown className="h-3 w-3" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-56">
-                        <DropdownMenuLabel className="text-xs text-muted-foreground">Add a Poll</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
+                      <DropdownMenuContent align="start" className="w-72 p-1.5 rounded-2xl">
+                        <DropdownMenuLabel className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          Add a poll
+                        </DropdownMenuLabel>
                         <DropdownMenuItem
-                          onClick={() => {
-                            setIncludePoll(!includePoll);
-                          }}
-                          className="flex items-center gap-2"
+                          onClick={() => setIncludePoll(!includePoll)}
+                          className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <FiBarChart2 className="h-4 w-4 text-muted-foreground" />
-                          <div className="flex-1">
-                            <div className="font-medium">Quick Poll</div>
-                            <div className="text-xs text-muted-foreground">Simple yes/no or multiple choice</div>
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-black/5 dark:bg-white/8 text-muted-foreground">
+                            <FiBarChart2 className="h-4 w-4" />
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium">Quick Poll</div>
+                            <div className="text-xs text-muted-foreground truncate">Yes/no or multiple choice</div>
                           </div>
-                          {includePoll && <span className="text-primary">✓</span>}
+                          {includePoll && <span className="text-sky-500 dark:text-emerald-400 shrink-0">✓</span>}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setShowPollBuilder(true)}
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <Zap className="h-4 w-4 text-amber-500" />
-                          <div className="flex-1">
-                            <div className="font-medium">Advanced Builder</div>
-                            <div className="text-xs text-muted-foreground">Surveys, quizzes, assessments</div>
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-black/5 dark:bg-white/8 text-muted-foreground">
+                            <Zap className="h-4 w-4" />
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium">Advanced Builder</div>
+                            <div className="text-xs text-muted-foreground truncate">Surveys, quizzes, assessments</div>
                           </div>
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => { setShowPollBuilder(true); setAiGenerateOpen(true); }}
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <Sparkles className="h-4 w-4 text-violet-500" />
-                          <div className="flex-1">
-                            <div className="font-medium">AI Generate</div>
-                            <div className="text-xs text-muted-foreground">Describe what you want to build</div>
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-sky-500/10 dark:bg-emerald-400/10 text-sky-600 dark:text-emerald-400">
+                            <Sparkles className="h-4 w-4" />
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium">AI Generate</div>
+                            <div className="text-xs text-muted-foreground truncate">Describe what you want to build</div>
                           </div>
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setShowPollImport(true)}
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <FileUp className="h-4 w-4 text-cyan-500" />
-                          <div className="flex-1">
-                            <div className="font-medium">Import from JSON</div>
-                            <div className="text-xs text-muted-foreground">Paste JSON or use templates</div>
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-black/5 dark:bg-white/8 text-muted-foreground">
+                            <FileUp className="h-4 w-4" />
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium">Import from JSON</div>
+                            <div className="text-xs text-muted-foreground truncate">Paste JSON or use templates</div>
                           </div>
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel className="text-xs text-muted-foreground">Export</DropdownMenuLabel>
+                        <DropdownMenuSeparator className="my-1" />
                         <DropdownMenuItem
                           onClick={async () => {
                             // Find the REACH poll and export it
-                            const reachPoll = advancedPolls.find(p => 
+                            const reachPoll = advancedPolls.find(p =>
                               p.type === 'REACH_ASSESSMENT' || p.title?.toLowerCase().includes('reach')
                             );
                             if (reachPoll) {
@@ -1412,12 +1418,14 @@ const FeedPage: React.FC = () => {
                               toast.info('No REACH poll found to export');
                             }
                           }}
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <Copy className="h-4 w-4 text-emerald-500" />
-                          <div className="flex-1">
-                            <div className="font-medium">Copy REACH Poll JSON</div>
-                            <div className="text-xs text-muted-foreground">Copy to clipboard for editing</div>
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-black/5 dark:bg-white/8 text-muted-foreground">
+                            <Copy className="h-4 w-4" />
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium">Copy REACH Poll JSON</div>
+                            <div className="text-xs text-muted-foreground truncate">Copy to clipboard for editing</div>
                           </div>
                         </DropdownMenuItem>
                       </DropdownMenuContent>

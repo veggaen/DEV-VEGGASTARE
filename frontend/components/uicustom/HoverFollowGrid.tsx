@@ -44,12 +44,17 @@ export function HoverFollowGrid({
   radiusClass?: string;
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const activeElRef = React.useRef<HTMLElement | null>(null);
   const [style, setStyle] = React.useState<IndicatorStyle | null>(null);
   const [visible, setVisible] = React.useState(false);
 
-  const onEnter = React.useCallback((el: HTMLElement) => {
+  // Measure the active element relative to the container. Called on enter AND
+  // continuously while hovered (via ResizeObserver) so the indicator keeps
+  // wrapping a card that hover-EXPANDS instead of freezing at its collapsed size.
+  const measure = React.useCallback(() => {
     const container = containerRef.current;
-    if (!container) return;
+    const el = activeElRef.current;
+    if (!container || !el) return;
     const cr = container.getBoundingClientRect();
     const cl = el.getBoundingClientRect();
     setStyle({
@@ -58,15 +63,28 @@ export function HoverFollowGrid({
       width: cl.width,
       height: cl.height,
     });
-    setVisible(true);
   }, []);
+
+  // Observe the active element's size so the border follows its expand/collapse.
+  React.useEffect(() => {
+    if (!visible || !activeElRef.current) return;
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(activeElRef.current);
+    return () => ro.disconnect();
+  }, [visible, measure]);
+
+  const onEnter = React.useCallback((el: HTMLElement) => {
+    activeElRef.current = el;
+    measure();
+    setVisible(true);
+  }, [measure]);
 
   return (
     <HoverFollowContext.Provider value={{ onEnter }}>
       <div
         ref={containerRef}
         className={`relative ${className ?? ""}`}
-        onMouseLeave={() => setVisible(false)}
+        onMouseLeave={() => { setVisible(false); activeElRef.current = null; }}
       >
         {style !== null && (
           <div

@@ -470,7 +470,7 @@ export default function AiConversationClient({
 
       {/* ── Top bar — theme-aware glassy bar; contents centered to the thread
           column so controls aren't stranded on wide screens. ── */}
-      <div className="relative z-10 border-b border-black/5 dark:border-black/5 dark:border-white/8 bg-background/70 backdrop-blur-xl px-3 py-2.5 shrink-0">
+      <div className="relative z-10 bg-linear-to-b from-background via-background/80 to-transparent px-3 py-2.5 shrink-0">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <Link
@@ -640,7 +640,7 @@ export default function AiConversationClient({
 
           {/* Input — centered composer dock (matches the DM composer language) */}
           {!conv.isSuspended && (
-            <div className="border-t border-black/5 dark:border-black/5 dark:border-white/8 px-4 pb-4 pt-3 shrink-0">
+            <div className="bg-linear-to-t from-background via-background/90 to-transparent px-4 pb-4 pt-6 shrink-0">
               <div className="max-w-3xl w-full mx-auto">
                 <div className="ai-input-ring flex items-end gap-2 rounded-2xl bg-black/[0.03] dark:bg-white/5 px-3 py-2.5 border border-black/8 dark:border-white/10 backdrop-blur-sm shadow-sm chat-input-wrapper transition-colors">
                   <textarea

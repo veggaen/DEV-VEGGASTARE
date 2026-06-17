@@ -42,6 +42,11 @@ export default function AppProviders({
 }) {
   const pathname = usePathname();
 	const isProductsRoute = pathname?.startsWith('/products');
+  // Immersive chat surfaces own the full viewport — no site footer or dev banner
+  // (which read as a fake "footer line" under the composer), and no reserved
+  // bottom padding. Matches /ai/[id] and a DM conversation (but NOT the /ai list).
+  const isImmersiveChat =
+    /^\/ai\/[^/]+$/.test(pathname ?? '') || /^\/conversations\/[^/]+$/.test(pathname ?? '');
   
   // Gate page gets minimal layout - no providers, no header/footer
   if (pathname === '/gate') {
@@ -100,14 +105,14 @@ export default function AppProviders({
                     <UpdateBanner />
                     <MyTopBar />
                     <ImpersonationBanner />
-                    <div className={`flex flex-1 flex-col min-h-0 ${isProductsRoute ? 'overflow-hidden' : 'overflow-auto'}`}>
-                      <main className="flex flex-1 flex-col min-h-0 pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]">
+                    <div className={`flex flex-1 flex-col min-h-0 ${isProductsRoute || isImmersiveChat ? 'overflow-hidden' : 'overflow-auto'}`}>
+                      <main className={`flex flex-1 flex-col min-h-0 ${isImmersiveChat ? '' : 'pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]'}`}>
                         {children}
                       </main>
                     </div>
-                    {!isProductsRoute && <SiteFooter />}
+                    {!isProductsRoute && !isImmersiveChat && <SiteFooter />}
                     <CookieBanner />
-                    <DevBanner />
+                    {!isImmersiveChat && <DevBanner />}
                     <Toaster />
                     </CartProvider>
                     </TradeModeProvider>
