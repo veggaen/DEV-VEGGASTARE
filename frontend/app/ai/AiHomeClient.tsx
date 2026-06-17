@@ -16,6 +16,7 @@ interface Session {
   createdAt: string;
   updatedAt: string;
   _count: { messages: number };
+  lastMessage: { content: string; role: string } | null;
 }
 
 interface AiHomeClientProps {
@@ -242,60 +243,12 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
                   <HoverFollowGrid className="space-y-2.5" radiusClass="rounded-2xl">
                     {filtered.map((s, i) => (
                       <HoverFollowItem key={s.id}>
-                      <motion.div
-                        layout
-                        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, x: -20, transition: { duration: 0.15 } }}
-                        transition={{ duration: 0.3, delay: reduceMotion ? 0 : Math.min(i * 0.03, 0.2) }}
-                      >
-                        <Link
-                          href={`/ai/${s.id}`}
-                          className="group relative flex items-center gap-3.5 px-4 py-3.5 rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] transition-all duration-200"
-                        >
-                          {/* Avatar / spark */}
-                          <span className="shrink-0 grid place-items-center h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
-                            ✦
-                          </span>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="text-[15px] font-medium truncate">{s.title}</p>
-                              {s.isPublic && (
-                                <span className="shrink-0 text-[10px] text-emerald-600 dark:text-emerald-400/70 border border-emerald-500/25 rounded-md px-1.5 py-0.5 leading-none">
-                                  Public
-                                </span>
-                              )}
-                              {s.isSuspended && (
-                                <span className="shrink-0 text-[10px] text-red-500 border border-red-500/25 rounded-md px-1.5 py-0.5 leading-none">
-                                  Suspended
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {s._count.messages} message{s._count.messages !== 1 ? "s" : ""} · {timeAgo(s.updatedAt)}
-                            </p>
-                          </div>
-
-                          <svg
-                            className="shrink-0 text-muted-foreground/40 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all"
-                            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                            aria-hidden
-                          >
-                            <path d="M9 18l6-6-6-6" />
-                          </svg>
-
-                          <button
-                            onClick={(e) => handleDelete(s.id, e)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-background/80 hover:bg-red-500/15 text-muted-foreground hover:text-red-500 transition-all"
-                            aria-label="Delete conversation"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
-                            </svg>
-                          </button>
-                        </Link>
-                      </motion.div>
+                        <ConversationCard
+                          session={s}
+                          index={i}
+                          reduceMotion={!!reduceMotion}
+                          onDelete={handleDelete}
+                        />
                       </HoverFollowItem>
                     ))}
                   </HoverFollowGrid>
@@ -315,6 +268,130 @@ const STARTERS = [
   { icon: "◎", label: "Plan something", prompt: "Help me break a big goal into a concrete step-by-step plan." },
   { icon: "✦", label: "Brainstorm", prompt: "Brainstorm 10 creative ideas with me, then help me pick." },
 ];
+
+/**
+ * ConversationCard — a row that smoothly expands on hover to reveal the last
+ * message (no layout-shift jank: the card animates its own height and the list
+ * reflows under it). A left-pointing chevron rotates to hint the reveal, and we
+ * prefetch the conversation on hover so the click feels instant. Delete lives in
+ * the revealed footer — it never covers the chevron.
+ */
+function ConversationCard({
+  session: s,
+  index,
+  reduceMotion,
+  onDelete,
+}: {
+  session: Session;
+  index: number;
+  reduceMotion: boolean;
+  onDelete: (id: string, e: React.MouseEvent) => void;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [prefetched, setPrefetched] = useState(false);
+  const href = `/ai/${s.id}`;
+
+  const handleEnter = () => {
+    setOpen(true);
+    if (!prefetched) {
+      router.prefetch(href);
+      setPrefetched(true);
+    }
+  };
+
+  return (
+    <motion.div
+      layout
+      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -20, transition: { duration: 0.15 } }}
+      transition={{ duration: 0.3, delay: reduceMotion ? 0 : Math.min(index * 0.03, 0.2) }}
+      onMouseEnter={handleEnter}
+      onMouseLeave={() => setOpen(false)}
+      onFocusCapture={handleEnter}
+      onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}
+      className="group relative overflow-hidden rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] transition-colors duration-200"
+    >
+      <Link href={href} prefetch={false} className="flex items-center gap-3.5 px-4 py-3.5">
+        <span className="shrink-0 grid place-items-center h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
+          ✦
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-[15px] font-medium truncate">{s.title}</p>
+            {s.isPublic && (
+              <span className="shrink-0 text-[10px] text-emerald-600 dark:text-emerald-400/70 border border-emerald-500/25 rounded-md px-1.5 py-0.5 leading-none">
+                Public
+              </span>
+            )}
+            {s.isSuspended && (
+              <span className="shrink-0 text-[10px] text-red-500 border border-red-500/25 rounded-md px-1.5 py-0.5 leading-none">
+                Suspended
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {s._count.messages} message{s._count.messages !== 1 ? "s" : ""} · {timeAgo(s.updatedAt)}
+          </p>
+        </div>
+
+        {/* Left-pointing chevron — rotates to point down as the card opens,
+            cuing the smooth reveal. */}
+        <motion.svg
+          animate={{ rotate: open ? -90 : 0 }}
+          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          className="shrink-0 text-muted-foreground/40 group-hover:text-emerald-500 dark:group-hover:text-emerald-400"
+          width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          aria-hidden
+        >
+          <path d="M15 18l-6-6 6-6" />
+        </motion.svg>
+      </Link>
+
+      {/* Hover-reveal: last message + actions. Animates height so the list below
+          glides down rather than snapping. */}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-3.5 pt-0 pl-[4.375rem]">
+              <div className="border-t border-black/5 dark:border-white/8 pt-2.5 flex items-end gap-3">
+                <p className="min-w-0 flex-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                  {s.lastMessage ? (
+                    <>
+                      <span className="text-foreground/60 font-medium">
+                        {s.lastMessage.role === "user" ? "You: " : "AI: "}
+                      </span>
+                      {s.lastMessage.content}
+                    </>
+                  ) : (
+                    <span className="italic">No messages yet — open to start.</span>
+                  )}
+                </p>
+                <button
+                  onClick={(e) => onDelete(s.id, e)}
+                  className="shrink-0 grid place-items-center h-7 w-7 rounded-lg text-muted-foreground hover:bg-red-500/15 hover:text-red-500 transition-colors"
+                  aria-label="Delete conversation"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
 
 function SuggestionDeck({ onPrompt, reduceMotion }: { onPrompt: (p: string) => void; reduceMotion: boolean }) {
   return (

@@ -94,11 +94,29 @@ export async function GET(req: NextRequest) {
       createdAt: true,
       updatedAt: true,
       _count: { select: { messages: true } },
+      // Last message for the hover-expand preview on the AI home cards.
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { content: true, role: true },
+      },
     },
   });
 
+  // Flatten the single last message into a lightweight preview field.
+  const shaped = sessions.map(({ messages, ...s }) => ({
+    ...s,
+    lastMessage: messages[0]
+      ? {
+          // Strip any HTML and clamp so the client gets a clean snippet.
+          content: messages[0].content.replace(/<[^>]*>/g, "").slice(0, 240),
+          role: messages[0].role,
+        }
+      : null,
+  }));
+
   return NextResponse.json({
-    sessions,
-    nextCursor: sessions.length === limit ? sessions[sessions.length - 1]?.id : null,
+    sessions: shaped,
+    nextCursor: shaped.length === limit ? shaped[shaped.length - 1]?.id : null,
   });
 }

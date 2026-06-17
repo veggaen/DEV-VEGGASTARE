@@ -12,6 +12,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ScrollToBottom } from "@/components/uicustom/chats/primitives/ScrollToBottom";
 import { TypingIndicator } from "@/components/uicustom/chats/primitives/TypingIndicator";
+import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
+import { NeonCursorTrail } from "@/components/uicustom/home/NeonCursorTrail";
+import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -459,63 +462,93 @@ export default function AiConversationClient({
   ];
 
   return (
-    <div className="min-h-dvh flex flex-col bg-background">
-      {/* ── Top bar ── */}
-      <div className="border-b border-white/8 px-4 py-3 flex items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          <Link href="/ai" className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 5l-7 7 7 7" />
-            </svg>
-          </Link>
-          <span className="text-emerald-400 shrink-0">✦</span>
-          <h1 className="text-sm font-semibold truncate">{conv.title}</h1>
-          {conv.isSuspended && (
-            <span className="text-xs text-red-400 border border-red-500/30 rounded px-1.5 py-0.5 shrink-0">
-              Suspended
-            </span>
-          )}
-        </div>
+    <div className="relative flex flex-col h-[calc(100dvh-var(--app-header-offset,64px))] bg-background overflow-hidden">
+      {/* Landing aesthetic: edge-stars + the green cursor trail (the "bugs"). */}
+      <HeroParticleField className="z-0" density={0.55} centerFade={0.05} />
+      <NeonCursorTrail />
 
-        <div className="flex items-center gap-1 shrink-0">
-          {isLoggedIn && (
-            <button
-              onClick={handleShare}
-              className="p-2 rounded-lg hover:bg-white/8 text-muted-foreground hover:text-foreground transition-colors"
-              title={conv.isPublic ? "Copy share link" : "Make public & copy link"}
+      {/* ── Top bar — theme-aware glassy bar; contents centered to the thread
+          column so controls aren't stranded on wide screens. ── */}
+      <div className="relative z-10 border-b border-black/5 dark:border-black/5 dark:border-white/8 bg-background/70 backdrop-blur-xl px-3 py-2.5 shrink-0">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Link
+              href="/ai"
+              aria-label="Back to AI chats"
+              className="grid place-items-center h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+            </Link>
+            <span className="grid place-items-center h-9 w-9 shrink-0 rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">✦</span>
+            <div className="min-w-0 leading-tight">
+              <h1 className="text-[15px] font-semibold truncate">{conv.title}</h1>
+              <p className="text-[11px] text-muted-foreground">
+                {aiParticipants.length > 0
+                  ? `${aiParticipants.length} AI · ${conv.participants.length} participant${conv.participants.length !== 1 ? "s" : ""}`
+                  : "AI chat"}
+              </p>
+            </div>
+            {conv.isSuspended && (
+              <span className="text-[10px] text-red-500 border border-red-500/30 rounded-md px-1.5 py-0.5 shrink-0">
+                Suspended
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-0.5 shrink-0">
+            {isLoggedIn && (
+              <button
+                onClick={handleShare}
+                className="grid place-items-center h-9 w-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+                title={conv.isPublic ? "Copy share link" : "Make public & copy link"}
+                aria-label="Share"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
+                </svg>
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowSettings((v) => !v)}
+              className={cn(
+                "grid place-items-center h-9 w-9 rounded-full transition-colors",
+                showSettings
+                  ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10"
+                  : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10",
+              )}
+              title="Settings"
+              aria-label="Settings"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
               </svg>
             </button>
-          )}
 
-          <button
-            onClick={() => setShowSettings((v) => !v)}
-            className="p-2 rounded-lg hover:bg-white/8 text-muted-foreground hover:text-foreground transition-colors"
-            title="Settings"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-            </svg>
-          </button>
-
-          {/* Participants sidebar toggle */}
-          <button
-            onClick={() => setSidebarOpen((v) => !v)}
-            className="p-2 rounded-lg hover:bg-white/8 text-muted-foreground hover:text-foreground transition-colors"
-            title="Participants"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
-            </svg>
-          </button>
+            <button
+              onClick={() => setSidebarOpen((v) => !v)}
+              className={cn(
+                "grid place-items-center h-9 w-9 rounded-full transition-colors",
+                sidebarOpen
+                  ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10"
+                  : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10",
+              )}
+              title="Participants"
+              aria-label="Participants"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ── Main content ── */}
-      <div className="flex-1 flex min-h-0 relative">
+      <div className="relative z-10 flex-1 flex min-h-0">
         {/* Messages + input */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Suspended banner */}
@@ -595,7 +628,7 @@ export default function AiConversationClient({
 
           {/* Input — centered composer dock (matches the DM composer language) */}
           {!conv.isSuspended && (
-            <div className="border-t border-black/5 dark:border-white/8 px-4 pb-4 pt-3 shrink-0">
+            <div className="border-t border-black/5 dark:border-black/5 dark:border-white/8 px-4 pb-4 pt-3 shrink-0">
               <div className="max-w-3xl w-full mx-auto">
                 <div className="ai-input-ring flex items-end gap-2 rounded-2xl bg-black/[0.03] dark:bg-white/5 px-3 py-2.5 border border-black/8 dark:border-white/10 backdrop-blur-sm shadow-sm chat-input-wrapper transition-colors">
                   <textarea
@@ -650,9 +683,9 @@ export default function AiConversationClient({
               animate={{ width: 280, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeInOut" }}
-              className="border-l border-white/8 overflow-hidden shrink-0 flex flex-col bg-background"
+              className="border-l border-black/5 dark:border-white/8 overflow-hidden shrink-0 flex flex-col bg-background"
             >
-              <div className="px-4 py-4 border-b border-white/8 flex items-center justify-between">
+              <div className="px-4 py-4 border-b border-black/5 dark:border-white/8 flex items-center justify-between">
                 <span className="text-sm font-medium">Participants</span>
                 <button
                   onClick={() => setSidebarOpen(false)}
@@ -678,7 +711,7 @@ export default function AiConversationClient({
 
               {/* Admin actions */}
               {(isCreator || isAdmin) && (
-                <div className="px-3 py-3 border-t border-white/8 space-y-2">
+                <div className="px-3 py-3 border-t border-black/5 dark:border-white/8 space-y-2">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider px-1">Actions</p>
                   {isCreator && (
                     <button
@@ -691,7 +724,7 @@ export default function AiConversationClient({
                   {isAdmin && (
                     <Link
                       href={`/admin/ai-chat/${sessionId}`}
-                      className="block text-xs px-3 py-2 rounded-lg text-muted-foreground hover:bg-white/5 transition-colors"
+                      className="block text-xs px-3 py-2 rounded-lg text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                     >
                       Admin view →
                     </Link>
@@ -743,7 +776,7 @@ function ParticipantCard({
 }) {
   const isAi = p.type === "AI_BYOK" || p.type === "AI_PLATFORM";
   return (
-    <div className="px-3 py-3 rounded-xl bg-white/4 border border-white/8">
+    <div className="px-3 py-3 rounded-xl bg-white/4 border border-black/5 dark:border-white/8">
       <div className="flex items-center gap-2 mb-1">
         <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] ${isAi ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-muted-foreground"}`}>
           {isAi ? "✦" : (p.displayName?.[0] ?? "?")}
@@ -758,7 +791,7 @@ function ParticipantCard({
 
       {/* BYOK AI owner controls */}
       {isOwner && isAi && p.type === "AI_BYOK" && (
-        <div className="mt-2 pt-2 border-t border-white/8 space-y-2">
+        <div className="mt-2 pt-2 border-t border-black/5 dark:border-white/8 space-y-2">
           <button
             onClick={() => onTrigger(p.id)}
             disabled={isStreaming}
@@ -874,7 +907,7 @@ function ConvMessageBubble({
           className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed break-words whitespace-pre-wrap ${
             isUser
               ? "bg-emerald-500/15 border border-emerald-500/20 text-foreground"
-              : "bg-white/5 border border-white/8 text-foreground"
+              : "bg-black/4 dark:bg-white/5 border border-black/5 dark:border-white/8 text-foreground"
           }`}
         >
           {msg.content}
@@ -900,7 +933,7 @@ function StreamingBubble({ msg, reduceMotion }: { msg: StreamingMsg; reduceMotio
       </div>
       <div className="max-w-[75%] space-y-1">
         <p className="text-[10px] text-muted-foreground px-1">{msg.participantName}</p>
-        <div className="rounded-2xl px-4 py-2.5 bg-white/5 border border-white/8 text-sm leading-relaxed break-words whitespace-pre-wrap">
+        <div className="rounded-2xl px-4 py-2.5 bg-black/4 dark:bg-white/5 border border-black/5 dark:border-white/8 text-sm leading-relaxed break-words whitespace-pre-wrap">
           {msg.content || (
             <span className="inline-flex gap-1 items-center h-4">
               <span className="typing-dot h-1.5 w-1.5 rounded-full bg-current opacity-60" />
