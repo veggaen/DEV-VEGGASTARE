@@ -19,11 +19,12 @@
 import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  FiMic, FiMicOff, FiPhoneOff, FiHeadphones, FiChevronRight,
+  FiMic, FiMicOff, FiPhoneOff, FiHeadphones, FiChevronRight, FiSettings,
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { useVoiceRoom } from "@/lib/voice/useVoiceRoom";
 import type { VoiceMember, VoiceRole } from "@/lib/voice/types";
+import { VoiceSettingsModal } from "./VoiceSettingsModal";
 
 export interface SidebarMember {
   id: string;
@@ -75,20 +76,32 @@ export function ChatSidebar({
   const connected = voice.connection === "connected";
   const speakers = voice.members.filter((m) => m.role === "host" || m.role === "speaker");
   const listeners = voice.members.filter((m) => m.role === "listener");
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
 
   return (
     <div className={cn("flex flex-col h-full min-h-0", className)}>
+      <VoiceSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       {/* ── Voice channel ── */}
       <section className="px-4 pt-4 pb-3 border-b border-black/5 dark:border-white/8">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
             <FiHeadphones className="h-3.5 w-3.5" /> Voice
           </h3>
-          {voice.isStub && (
-            <span className="text-[9px] text-muted-foreground/60 border border-black/5 dark:border-white/10 rounded px-1.5 py-0.5">
-              Preview
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            {voice.isStub && (
+              <span className="text-[9px] text-muted-foreground/60 border border-black/5 dark:border-white/10 rounded px-1.5 py-0.5">
+                Preview
+              </span>
+            )}
+            <button
+              onClick={() => setSettingsOpen(true)}
+              aria-label="Voice settings"
+              title="Voice settings"
+              className="grid place-items-center h-6 w-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:rotate-45 active:scale-90"
+            >
+              <FiSettings className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
         {!connected ? (
@@ -195,11 +208,21 @@ function VoiceAvatar({ m, reduceMotion, large }: { m: VoiceMember; reduceMotion:
   return (
     <div className="flex flex-col items-center gap-1 min-w-0">
       <div className="relative">
+        {/* Speaking glow aura — soft pulsing emerald halo behind the avatar */}
+        {m.speaking && !reduceMotion && (
+          <motion.span
+            aria-hidden
+            className="absolute -inset-1.5 rounded-full bg-emerald-400/40 blur-md"
+            initial={{ opacity: 0.4, scale: 0.9 }}
+            animate={{ opacity: [0.4, 0.75, 0.4], scale: [0.9, 1.12, 0.9] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+          />
+        )}
         <div
           className={cn(
-            "grid place-items-center rounded-full overflow-hidden bg-linear-to-br from-indigo-500 to-purple-600 text-white font-medium transition-shadow",
+            "relative grid place-items-center rounded-full overflow-hidden bg-linear-to-br from-indigo-500 to-purple-600 text-white font-medium transition-all duration-200",
             size,
-            m.speaking && "shadow-[0_0_0_3px_rgba(52,211,153,0.6)]",
+            m.speaking && "ring-2 ring-emerald-400 ring-offset-2 ring-offset-background",
           )}
         >
           {m.image ? (
@@ -209,22 +232,26 @@ function VoiceAvatar({ m, reduceMotion, large }: { m: VoiceMember; reduceMotion:
             initials(m.name)
           )}
         </div>
+        {/* Expanding ripple ring while speaking */}
         {m.speaking && !reduceMotion && (
           <motion.span
+            aria-hidden
             className="absolute inset-0 rounded-full border-2 border-emerald-400"
             initial={{ opacity: 0.7, scale: 1 }}
-            animate={{ opacity: 0, scale: 1.4 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "easeOut" }}
+            animate={{ opacity: 0, scale: 1.5 }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: "easeOut" }}
           />
         )}
         {m.muted && (
-          <span className="absolute -bottom-0.5 -right-0.5 grid place-items-center h-4 w-4 rounded-full bg-background text-red-500">
+          <span className="absolute -bottom-0.5 -right-0.5 grid place-items-center h-4 w-4 rounded-full bg-background text-red-500 ring-2 ring-background">
             <FiMicOff className="h-2.5 w-2.5" />
           </span>
         )}
       </div>
       {large && (
-        <span className="text-[10px] text-muted-foreground truncate max-w-full">{m.name.split(" ")[0]}</span>
+        <span className={cn("text-[10px] truncate max-w-full transition-colors", m.speaking ? "text-emerald-500 dark:text-emerald-400 font-medium" : "text-muted-foreground")}>
+          {m.name.split(" ")[0]}
+        </span>
       )}
     </div>
   );
@@ -234,10 +261,14 @@ function ControlButton({
   active, onClick, label, children,
 }: { active: boolean; onClick: () => void; label: string; children: React.ReactNode }) {
   return (
-    <button
+    <motion.button
       onClick={onClick}
       aria-label={label}
+      aria-pressed={active}
       title={label}
+      whileTap={{ scale: 0.88 }}
+      whileHover={{ scale: 1.06 }}
+      transition={{ type: "spring", stiffness: 500, damping: 20 }}
       className={cn(
         "grid place-items-center h-9 w-9 rounded-full transition-colors",
         active
@@ -246,7 +277,7 @@ function ControlButton({
       )}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 

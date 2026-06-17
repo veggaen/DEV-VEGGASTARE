@@ -848,32 +848,71 @@ function ConvSettings({
     }
   }, [sessionId, onUpdate]);
 
+  const [title, setTitle] = useState(conv.title);
+  const [copied, setCopied] = useState(false);
+
+  const saveTitle = useCallback(() => {
+    const next = title.trim();
+    if (!next || next === conv.title) return;
+    void patch({ title: next });
+  }, [title, conv.title, patch]);
+
+  const copyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/ai/${sessionId}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch { /* ignore */ }
+  }, [sessionId]);
+
   return (
-    <div className="space-y-4 text-sm">
-      <div>
-        <label className="text-xs text-muted-foreground block mb-1">Trigger mode</label>
-        <select
-          value={conv.triggerMode}
-          onChange={(e) => patch({ triggerMode: e.target.value })}
+    <div className="space-y-5 text-sm">
+      {/* Rename */}
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Name</label>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={saveTitle}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveTitle(); (e.target as HTMLInputElement).blur(); } }}
           disabled={saving}
-          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-emerald-500/40"
-        >
-          <option value="MENTION">@mention only</option>
-          <option value="DEBOUNCE">Auto (debounced)</option>
-          <option value="ALL">Respond to all</option>
-          <option value="MANUAL">Manual only</option>
-        </select>
+          maxLength={120}
+          className="w-full rounded-xl bg-black/4 dark:bg-white/5 border border-black/8 dark:border-white/10 px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-500/50 transition-colors"
+          placeholder="Conversation name"
+        />
       </div>
 
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Public conversation</span>
-        <button
-          onClick={() => patch({ isPublic: !conv.isPublic })}
-          disabled={saving}
-          className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${conv.isPublic ? "bg-emerald-500" : "bg-white/15"}`}
-        >
-          <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform mt-0.75 ${conv.isPublic ? "translate-x-4" : "translate-x-0.5"}`} style={{ marginTop: "3px", marginLeft: conv.isPublic ? undefined : "3px" }} />
-        </button>
+      {/* Visibility — honest about what "public" means */}
+      <div className="rounded-xl border border-black/8 dark:border-white/10 p-3 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-medium">{conv.isPublic ? "Anyone with the link" : "Private"}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {conv.isPublic
+                ? "Anyone who has the link can view this conversation. It's not listed anywhere — only people you share the link with can find it."
+                : "Only you and the participants can see this conversation."}
+            </p>
+          </div>
+          <button
+            onClick={() => patch({ isPublic: !conv.isPublic })}
+            disabled={saving}
+            role="switch"
+            aria-checked={conv.isPublic}
+            aria-label="Make conversation public"
+            className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${conv.isPublic ? "bg-emerald-500" : "bg-black/15 dark:bg-white/15"}`}
+          >
+            <span className={`inline-block h-4.5 w-4.5 rounded-full bg-white shadow transition-transform ${conv.isPublic ? "translate-x-[1.375rem]" : "translate-x-0.5"}`} />
+          </button>
+        </div>
+
+        {conv.isPublic && (
+          <button
+            onClick={copyLink}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-3 py-2 text-xs font-medium transition-colors"
+          >
+            {copied ? "✓ Link copied" : "Copy share link"}
+          </button>
+        )}
       </div>
 
       {saving && <p className="text-xs text-muted-foreground text-center">Saving…</p>}
