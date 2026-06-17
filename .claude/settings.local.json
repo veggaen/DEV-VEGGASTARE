@@ -8,7 +8,14 @@
       "Bash(head:*)",
       "Bash(find:*)",
       "Bash(npx prisma *)",
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "PowerShell($env:NEXT_TELEMETRY_DISABLED = \"1\"; cd frontend; $out = npm run build 2>&1 | Out-String; \"EXIT CODE: $LASTEXITCODE\"; \"---PARAMS / ERROR / WARNING LINES---\"; \\($out -split \"`n\"\\) | Where-Object { $_ -match \"params|error|Error|Failed|failed|warn|Warning|Compiled|✓|✗\" } | Select-Object -First 60)",
+      "Bash(git log *)",
+      "Bash(git rm *)",
+      "Bash(git commit *)",
+      "Bash(rm .git/COMMIT_FIXMSG.txt)",
+      "Bash(npx vercel *)",
+      "Bash(VEGGAT_OWNER=1 npx vercel deploy --prod --force --yes)"
     ]
   }
 }

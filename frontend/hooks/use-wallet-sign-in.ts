@@ -6,9 +6,11 @@ import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 
 /**
- * Shared Sign-In-With-Ethereum → NextAuth flow, used by BOTH the direct-connect
- * buttons and the AppKit (Reown) connect path so there's exactly one
- * implementation:
+ * @fileOverview Shared Sign-In-With-Ethereum → NextAuth flow, used by BOTH the
+ * direct-connect buttons and the AppKit (Reown) connect path so there's exactly
+ * one implementation.
+ * @stability evolving
+ *
  *
  *   fetch nonce → wallet signs it → signIn('wallet') → land logged in.
  *

@@ -5,7 +5,10 @@ import { z } from "zod";
 import { dbPrisma } from "@/lib/db";
 
 /**
- * POST /api/auth/wallet/nonce
+ * @fileOverview POST /api/auth/wallet/nonce — issues a one-time SIWE-style
+ * message for an EVM address so a logged-out visitor can sign in / create an
+ * account with just their wallet.
+ * @stability evolving
  *
  * PUBLIC (logged-out) — issues a one-time SIWE-style message for an EVM address
  * so a visitor can sign in / create an account with just their wallet. The
@@ -58,12 +61,20 @@ export async function POST(req: NextRequest) {
   const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
   const issuedAt = new Date();
 
+  // Bind the signature to our origin (defense-in-depth: a signature phished on
+  // another site can't be replayed here, mirroring the wallet-LINKING flow's
+  // URI check). The nonce is already server-issued + single-use + DB-bound, so
+  // this is belt-and-suspenders, not the sole guarantee.
+  const uri =
+    process.env.NODE_ENV === "development" ? "http://localhost:3000" : "https://www.veggat.com";
+
   const message = [
     "VeggaStare wants you to sign in with your Ethereum account:",
     address,
     "",
     "Sign in to VeggaStare. This is a free, gasless signature — no transaction, no fees.",
     "",
+    `URI: ${uri}`,
     `Nonce: ${nonce}`,
     `Issued At: ${issuedAt.toISOString()}`,
     `Expiration Time: ${expires.toISOString()}`,

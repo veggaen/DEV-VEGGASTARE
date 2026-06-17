@@ -1,9 +1,11 @@
 "use client";
 
 /**
- * WalletConnectChooser — lets the user pick HOW they want to connect a wallet,
- * separating the two connection methods so people who don't want to touch Reown
- * have a clean direct path:
+ * @fileOverview WalletConnectChooser — lets the user pick HOW they want to
+ * connect a wallet, separating the two connection methods so people who don't
+ * want to touch Reown have a clean direct path.
+ * @stability evolving
+ *
  *
  *   1. "All wallets" → opens the Reown AppKit modal (600+ wallets, WalletConnect
  *      QR, social/email). One integration, nested options.

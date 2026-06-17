@@ -1,5 +1,8 @@
 /**
- * Brand Voice / Tone-of-Voice system.
+ * @fileOverview Brand Voice / Tone-of-Voice system — one place for recurring
+ * product copy so the whole app speaks consistently and the voice is switchable
+ * via user settings.
+ * @stability evolving
  *
  * One place for recurring product copy, so the whole app speaks consistently
  * and the voice can be switched (configurable via user settings — see

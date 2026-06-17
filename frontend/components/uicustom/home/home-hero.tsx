@@ -1088,7 +1088,7 @@ export default function HomeHero({
   const descriptionStart = reduceMotion ? 0.18 : titleStart + 0.22;
   const headlineStart = descriptionStart; // Same time as description
   const descriptionText =
-    "A marketplace built around AI and the people who use it. Chat with six AI models — or bring your own key for unlimited access. Vote in real-time polls where verified voices carry more weight, ship smarter, and earn a place in a 12-tier trust system that actually means something.";
+    "A marketplace built around AI and the people who use it. Interact using AI models — or bring your own key for unlimited access. Vote in real-time polls where verified voices carry more weight, ship smarter, Reach out and embrace your place own in a system that actually means something.";
 
   // Buttons land almost immediately after — don't make users wait.
   const buttonsStart = reduceMotion ? 0.22 : titleStart + 0.4;

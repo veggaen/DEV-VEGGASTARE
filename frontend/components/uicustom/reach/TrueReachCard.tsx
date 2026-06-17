@@ -1,7 +1,10 @@
 "use client";
 
 /**
- * TrueReachCard — honest identity-trust + reach breakdown.
+ * @fileOverview TrueReachCard — honest identity-trust + reach breakdown
+ * (True Reach score, verification tier, 5 trust-class rings, risk discount)
+ * rendered live from lib/reach.
+ * @stability evolving
  *
  * Complements the existing 7-pillar behavioral radar with the IDENTITY side:
  * the True Reach score, verification tier, the 5 trust classes (each as a

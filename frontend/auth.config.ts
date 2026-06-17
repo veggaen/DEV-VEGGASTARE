@@ -249,28 +249,47 @@ export default {
         }
 
         // No wallet row at all → create a low-reach WALLET_ONLY account + wallet.
+        //
+        // CONCURRENCY: `Wallet.address` has NO unique DB constraint, so a naive
+        // create-on-catch would NOT throw on a concurrent first-time login for
+        // the same address — it would silently mint a DUPLICATE user + wallet.
+        // We instead run a Serializable transaction that RE-CHECKS for the
+        // wallet inside the transaction boundary; under Serializable isolation
+        // one of two racing sign-ins sees the other's insert (or is aborted and
+        // retried by Prisma), so exactly one account is ever created.
         try {
-          const created = await dbPrisma.user.create({
-            data: {
-              name: `${address.slice(0, 6)}…${address.slice(-4)}`,
-              verificationTier: "WALLET_ONLY",
-              web3ModeEnabled: true,
-              Wallet: {
-                create: {
-                  label: "Wallet",
-                  family: "EVM",
-                  address,
-                  verifiedAt: new Date(),
-                  connectorType: "wallet-login",
-                  riskTier: "fresh",
+          const created = await dbPrisma.$transaction(
+            async (tx) => {
+              const racedInside = await tx.wallet.findFirst({
+                where: { address: { equals: address, mode: "insensitive" } },
+                select: { User: { select: { id: true, name: true, email: true, image: true } } },
+              });
+              if (racedInside?.User) return racedInside.User;
+
+              return tx.user.create({
+                data: {
+                  name: `${address.slice(0, 6)}…${address.slice(-4)}`,
+                  verificationTier: "WALLET_ONLY",
+                  web3ModeEnabled: true,
+                  Wallet: {
+                    create: {
+                      label: "Wallet",
+                      family: "EVM",
+                      address,
+                      verifiedAt: new Date(),
+                      connectorType: "wallet-login",
+                      riskTier: "fresh",
+                    },
+                  },
                 },
-              },
+                select: { id: true, name: true, email: true, image: true },
+              });
             },
-            select: { id: true, name: true, email: true, image: true },
-          });
+            { isolationLevel: "Serializable" }
+          );
           return created;
         } catch {
-          // Race: another concurrent sign-in created the wallet first. Re-resolve.
+          // Serialization abort or any failure → re-resolve once outside the tx.
           const raced = await dbPrisma.wallet.findFirst({
             where: { address: { equals: address, mode: "insensitive" } },
             select: { User: { select: { id: true, name: true, email: true, image: true } } },

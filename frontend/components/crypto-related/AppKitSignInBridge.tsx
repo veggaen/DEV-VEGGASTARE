@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * AppKitSignInBridge — invisible. Watches the wagmi account and, when a wallet
- * connects via the AppKit (Reown) modal WHILE THE USER IS LOGGED OUT, runs the
- * shared SIWE sign-in so the AppKit path authenticates into the app too (not
- * just a browser connection).
+ * @fileOverview AppKitSignInBridge — invisible. Watches the wagmi account and,
+ * when a wallet connects via the AppKit (Reown) modal WHILE THE USER IS LOGGED
+ * OUT, runs the shared SIWE sign-in so the AppKit path authenticates into the
+ * app too (not just a browser connection).
+ * @stability evolving
  *
  * Guards:
  *  - Only fires when the NextAuth session is `unauthenticated` (a logged-in user

@@ -1,5 +1,6 @@
 /**
- * Reach Engine — class-based identity trust + risk + True Reach.
+ * @fileOverview Reach Engine — class-based identity trust + risk + True Reach.
+ * @stability evolving
  *
  * Implements docs/REACH_AND_VERIFICATION_DESIGN.md §2 (trust classes), §5 (risk),
  * §6 (True Reach). Pure, deterministic, dependency-free → fully unit-testable.

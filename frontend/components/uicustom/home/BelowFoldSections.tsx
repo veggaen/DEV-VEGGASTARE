@@ -330,7 +330,7 @@ const StepCard = React.memo(function StepCard({
       </div>
 
       <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">
-        <HoverableHeading text={title} externalFraction={hoverFraction} />
+        <HoverableHeading text={title} />
       </h3>
       <p className="text-sm leading-relaxed text-gray-400 dark:text-white/40">{description}</p>
     </motion.div>
@@ -587,9 +587,9 @@ export default function BelowFoldSections() {
         >
           {(
             [
-              { step: "01", title: "Browse or Ask", description: "Explore products or ask AI for recommendations. Six models included, or bring your own key." },
-              { step: "02", title: "Vote & Decide", description: "Join live polls where AI generates the options and verification-weighted voting ensures trusted results." },
-              { step: "03", title: "Track & Ship", description: "Track orders, inventory, and shipping from one dashboard." },
+              { step: "01", title: "Browse or Ask", description: "Explore products or ask AI for recommendations. Choose or select multiple models from included tiers, or bring your own key for unlimited access." },
+              { step: "02", title: "Vote & Decide", description: "Join live polls where you and llm-models are creating the options, the activity, the mission or the goal, to then have its weight adjusted by the Reach architecture." },
+              { step: "03", title: "Track & Ship", description: "Track product orders, inventory statuses, and shipping logistics from one dashboard." },
             ] as const
           ).map(({ step, title, description }, i) => (
             <StepCard
