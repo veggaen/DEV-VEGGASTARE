@@ -76,8 +76,9 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
     void start();
   }, [start]);
 
-  // Enumerate devices once open (labels require a prior permission grant, which
-  // useMicLevel triggers, so we re-enumerate after it starts).
+  // Enumerate devices while open. Labels (and sometimes the full device list) only
+  // appear after a permission grant, so we re-enumerate when `running` flips, and
+  // we listen for `devicechange` so a headset plugged in AFTER load shows up.
   React.useEffect(() => {
     if (!open) return;
     setMicId(localStorage.getItem(LS_MIC) ?? "");
@@ -90,8 +91,12 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
       } catch { /* ignore */ }
     };
     void load();
-    const t = setTimeout(load, 800); // re-load once labels are available
-    return () => clearTimeout(t);
+    const t = setTimeout(load, 800); // re-load once labels become available
+    navigator.mediaDevices.addEventListener?.("devicechange", load);
+    return () => {
+      clearTimeout(t);
+      navigator.mediaDevices.removeEventListener?.("devicechange", load);
+    };
   }, [open, running]);
 
   const pickMic = (id: string) => { setMicId(id); localStorage.setItem(LS_MIC, id); };

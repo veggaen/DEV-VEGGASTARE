@@ -296,7 +296,11 @@ export default function AiConversationClient({
           void fetch(`/api/ai-chat/sessions/${sessionId}/title`, { method: "POST" })
             .then((r) => (r.ok ? r.json() : null))
             .then((d) => {
-              if (d?.ok && d.title) setConv((prev) => (prev ? { ...prev, title: d.title } : prev));
+              if (d?.ok && d.title) {
+                setConv((prev) => (prev ? { ...prev, title: d.title } : prev));
+                // Refresh the shell rail so the new auto-title appears there too.
+                window.dispatchEvent(new Event("ai-chat:sessions-changed"));
+              }
             })
             .catch(() => {});
         }
@@ -842,6 +846,8 @@ function ConvSettings({
       });
       if (res.ok) {
         onUpdate((prev) => prev ? { ...prev, ...data } : prev);
+        // Keep the shell rail in sync (e.g. a manual title change).
+        if ("title" in data) window.dispatchEvent(new Event("ai-chat:sessions-changed"));
       }
     } finally {
       setSaving(false);

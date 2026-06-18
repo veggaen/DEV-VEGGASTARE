@@ -35,7 +35,11 @@ export type UiPreferences = {
   hoverEffects: HoverEffectStyle;     // Simple vs colorful hover effects
   enableExperimentalEffects: boolean; // Opt-in for experimental fancy features
   toneOfVoice: ToneId;                // Brand voice for product copy (see lib/voice/tone)
+  aiChatLayout: AiChatLayout;         // /ai shell: persistent left rail vs overlay drawer
 };
+
+export type AiChatLayout = "persistent" | "overlay";
+const VALID_AI_CHAT_LAYOUTS: AiChatLayout[] = ["persistent", "overlay"];
 
 const DEFAULT_PREFS: UiPreferences = {
   productTitleAnimationMode: "rsvp",
@@ -51,6 +55,7 @@ const DEFAULT_PREFS: UiPreferences = {
   hoverEffects: "simple",
   enableExperimentalEffects: false,
   toneOfVoice: DEFAULT_TONE,
+  aiChatLayout: "persistent",
 };
 
 const VALID_FIAT: FiatCurrency[] = ["USD", "NOK", "EUR", "GBP", "SEK", "DKK"];
@@ -122,6 +127,10 @@ function normalize(p: Partial<UiPreferences> | null | undefined): UiPreferences 
     (["vibe", "professional", "community"] as ToneId[]).includes(tone as ToneId)
       ? (tone as ToneId) : DEFAULT_PREFS.toneOfVoice;
 
+  const layout = p?.aiChatLayout;
+  const aiChatLayout: AiChatLayout =
+    VALID_AI_CHAT_LAYOUTS.includes(layout as AiChatLayout) ? (layout as AiChatLayout) : DEFAULT_PREFS.aiChatLayout;
+
   return {
     productTitleAnimationMode,
     rsvpWpm,
@@ -135,6 +144,7 @@ function normalize(p: Partial<UiPreferences> | null | undefined): UiPreferences 
     hoverEffects,
     enableExperimentalEffects,
     toneOfVoice,
+    aiChatLayout,
   };
 }
 

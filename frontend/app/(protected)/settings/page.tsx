@@ -2044,6 +2044,38 @@ function AppearanceSettings() {
         </div>
       </div>
 
+      {/* Chat */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Chat</h3>
+        <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+          <div className="font-medium text-foreground dark:text-white/90 mb-1">AI chat layout</div>
+          <div className="text-sm text-muted-foreground dark:text-white/40 mb-3">
+            How the conversation list sits next to the chat on the AI page.
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: 'persistent', label: 'Sidebar', desc: 'List always docked left' },
+              { id: 'overlay', label: 'Overlay', desc: 'Chat full-width, list slides in' },
+            ].map((option) => (
+              <button
+                key={option.id}
+                onClick={() => setPrefs({ aiChatLayout: option.id as 'persistent' | 'overlay' })}
+                className={`flex flex-col items-start gap-0.5 py-2.5 px-3 rounded-lg text-left transition-all ${
+                  prefs.aiChatLayout === option.id
+                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
+                    : 'bg-zinc-100 text-foreground hover:bg-zinc-200 dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/20'
+                }`}
+              >
+                <span className="text-sm font-medium">{option.label}</span>
+                <span className={`text-[11px] ${prefs.aiChatLayout === option.id ? 'text-white/80' : 'text-muted-foreground dark:text-white/40'}`}>
+                  {option.desc}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Advanced */}
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Advanced</h3>

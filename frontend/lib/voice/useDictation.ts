@@ -68,7 +68,7 @@ export function useDictation(opts: {
     recRef.current?.stop();
   }, []);
 
-  const start = useCallback(() => {
+  const start = useCallback(async () => {
     const SRClass = getSRClass();
     if (!SRClass) { setError("Voice typing isn’t supported in this browser."); return; }
     if (recRef.current) return; // already running
@@ -76,6 +76,25 @@ export function useDictation(opts: {
     setError(null);
     setInterim("");
     finalRef.current = "";
+
+    // Explicitly request mic permission FIRST. SpeechRecognition alone is
+    // unreliable about surfacing the prompt (and silently no-ops when blocked);
+    // getUserMedia reliably (re)triggers the browser prompt when the permission is
+    // in the askable state, and gives a precise error when it's hard-denied.
+    try {
+      const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+      probe.getTracks().forEach((t) => t.stop()); // we only needed the grant
+    } catch (e) {
+      const name = (e as { name?: string })?.name;
+      setError(
+        name === "NotAllowedError"
+          ? "Microphone blocked. Click the mic/lock icon in the address bar → Allow, then reload."
+          : name === "NotFoundError"
+            ? "No microphone found."
+            : "Couldn’t access the microphone.",
+      );
+      return;
+    }
 
     const rec = new SRClass();
     rec.lang = lang;
@@ -135,7 +154,7 @@ export function useDictation(opts: {
 
   const toggle = useCallback(() => {
     if (listening) stop();
-    else start();
+    else void start();
   }, [listening, start, stop]);
 
   // Clean up on unmount.
