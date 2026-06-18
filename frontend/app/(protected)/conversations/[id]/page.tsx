@@ -220,13 +220,13 @@ export default function ConversationPage() {
 
   return (
     <div className="relative flex flex-col h-[calc(100vh-var(--app-header-offset,64px))]">
-      {/* Header — light, glassy bar that reads as part of the thread, not a
-          chunky toolbar. Hairline separator + soft blur; avatar carries a
-          presence dot; the actions menu actually does things. */}
+      {/* Header — OPEN, no second bar. A soft top-down fade (no border, no solid
+          fill) so it melts into the thread/landing background instead of reading
+          as a chunky toolbar stacked under the global topbar. */}
       <motion.header
         initial={reduceMotion ? undefined : { opacity: 0, y: -10 }}
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-        className="border-b border-black/5 dark:border-white/8 bg-background/70 backdrop-blur-xl px-3 py-2.5 z-10"
+        className="relative z-10 bg-linear-to-b from-background via-background/80 to-transparent px-3 py-2.5"
       >
         {/* Centered inner row — aligns with the message column + composer dock so
             the controls aren't stranded in the far corners on wide screens. */}
