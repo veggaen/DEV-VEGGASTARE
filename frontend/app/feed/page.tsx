@@ -1199,21 +1199,21 @@ const FeedPage: React.FC = () => {
                 </div>
               ) : (
                 // Regular compose
-                <div className="p-4 space-y-3">
+                <div className="px-4 pt-4 pb-2.5 space-y-2.5">
                   {/* User avatar + textarea */}
                   <div className="flex gap-3">
-                    <Avatar className="h-10 w-10 shrink-0">
+                    <Avatar className="h-9 w-9 shrink-0 mt-0.5">
                       <AvatarImage src={currentUser.image || undefined} />
                       <AvatarFallback>{currentUser.name?.[0] || '?'}</AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 space-y-2">
+                    <div className="flex-1 min-w-0 space-y-2">
                       <Textarea
                         ref={textareaRef}
                         value={composeText}
                         onChange={(e) => setComposeText(e.target.value)}
                         placeholder={pendingAdvancedPoll ? "Add a message with your advanced poll (optional)..." : "Pulse your thoughts..."}
-                        className="min-h-[60px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 text-base placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
-                        rows={2}
+                        className="min-h-[44px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 pt-1.5 text-[15px] leading-relaxed placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                        rows={1}
                       />
 
                       {/* Live dictation feedback: interim transcript + errors */}
@@ -1336,8 +1336,10 @@ const FeedPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Action bar — ghost icon controls, matching the chat composer */}
-                <div className="flex items-center justify-between pl-13 border-t border-black/5 dark:border-white/8 pt-2">
+                {/* Action bar — ghost icon controls, matching the chat composer.
+                    Divider is inset to line up under the textarea (not the avatar),
+                    so the seam reads intentional rather than floating. */}
+                <div className="flex items-center justify-between gap-2 ml-12 border-t border-black/5 dark:border-white/8 pt-2 mt-0.5">
                   <div className="flex items-center gap-0.5">
                     {/* Poll Options Dropdown */}
                     <DropdownMenu>
