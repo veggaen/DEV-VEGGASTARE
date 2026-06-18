@@ -126,5 +126,6 @@ export function useVoiceRoom(cfg: VoiceProviderConfig) {
     makeModerator,
     muteMember,
     removeMember,
+    applyServerEvent: provider.applyServerEvent.bind(provider),
   };
 }

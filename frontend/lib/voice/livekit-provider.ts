@@ -17,7 +17,20 @@ import type {
   VoiceRoomState,
   VoiceMember,
   VoiceRole,
+  ServerVoiceEvent,
 } from "./types";
+
+const LS_MIC = "voice:micDeviceId";
+const LS_SPK = "voice:spkDeviceId";
+
+type DbRole = "HOST" | "MODERATOR" | "SPEAKER" | "LISTENER";
+
+/** Map a DB role (from the server) onto the UI's 3-way VoiceRole. */
+function dbRoleToUi(role: DbRole): VoiceRole {
+  if (role === "HOST" || role === "MODERATOR") return "host";
+  if (role === "SPEAKER") return "speaker";
+  return "listener";
+}
 
 // Minimal structural types to avoid importing the SDK at module load.
 type LkRoom = {
@@ -31,7 +44,8 @@ type LkParticipant = {
   name?: string;
   isMicrophoneEnabled?: boolean;
   metadata?: string;
-  setMicrophoneEnabled: (on: boolean) => Promise<void>;
+  permissions?: { canPublish?: boolean };
+  setMicrophoneEnabled: (on: boolean, opts?: { deviceId?: string }) => Promise<void>;
 };
 
 interface HandMeta {
@@ -49,6 +63,11 @@ export class LiveKitVoiceProvider implements VoiceProvider {
   private cfg: VoiceProviderConfig;
   private room: LkRoom | null = null;
   private speaking = new Set<string>();
+  /** Server-authoritative role per user (from the token + Pusher events). LiveKit's
+   *  own metadata is optimistic; this overlay wins when present. */
+  private serverRoles = new Map<string, DbRole>();
+  /** Users a host has server-muted (overlaid onto the rendered muted flag). */
+  private hostMuted = new Set<string>();
 
   constructor(cfg: VoiceProviderConfig) {
     this.cfg = cfg;
@@ -68,15 +87,19 @@ export class LiveKitVoiceProvider implements VoiceProvider {
     if (this.state.connection === "connected" || this.state.connection === "connecting") return;
     this.set({ connection: "connecting", error: null });
     try {
+      // Grants are derived server-side from membership — we no longer send isHost.
       const res = await fetch("/api/voice/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId: this.cfg.roomId, isHost: this.cfg.isHost }),
+        body: JSON.stringify({ roomId: this.cfg.roomId }),
       });
       const data = await res.json();
       if (!data?.configured || !data.token) {
         throw new Error("LiveKit not configured");
       }
+
+      const myRole: DbRole = (data.role as DbRole) ?? "LISTENER";
+      this.serverRoles.set(this.cfg.self.id, myRole);
 
       const { Room, RoomEvent } = await import("livekit-client");
       const room = new Room({ adaptiveStream: true, dynacast: true }) as unknown as LkRoom;
@@ -88,8 +111,15 @@ export class LiveKitVoiceProvider implements VoiceProvider {
       room.on(RoomEvent.TrackMuted, rebuild);
       room.on(RoomEvent.TrackUnmuted, rebuild);
       room.on(RoomEvent.ParticipantMetadataChanged, rebuild);
+      room.on(RoomEvent.ParticipantPermissionsChanged, rebuild);
       room.on(RoomEvent.ActiveSpeakersChanged, (speakers: unknown) => {
         this.speaking = new Set((speakers as Array<{ identity: string }>).map((s) => s.identity));
+        this.rebuildMembers();
+      });
+      // Reconnection is handled by the SDK; surface it so the UI can show state.
+      room.on(RoomEvent.Reconnecting, () => this.set({ connection: "connecting" }));
+      room.on(RoomEvent.Reconnected, () => {
+        this.set({ connection: "connected" });
         this.rebuildMembers();
       });
       room.on(RoomEvent.Disconnected, () => {
@@ -97,14 +127,24 @@ export class LiveKitVoiceProvider implements VoiceProvider {
       });
 
       await (room as unknown as { connect: (u: string, t: string) => Promise<void> }).connect(data.url, data.token);
-      // Host (or anyone with publish) opens the mic.
-      if (this.cfg.isHost) {
-        try { await room.localParticipant.setMicrophoneEnabled(true); } catch { /* mic denied */ }
+      // Anyone the server granted publish opens the mic (host, moderator, speaker).
+      if (canPublishDbRole(myRole)) {
+        await this.enableMic(true);
       }
       this.set({ connection: "connected", selfId: room.localParticipant.identity });
       this.rebuildMembers();
     } catch (e) {
       this.set({ connection: "error", error: e instanceof Error ? e.message : "Failed to join voice" });
+    }
+  }
+
+  /** Open/close the mic, honoring the user's selected input device from settings. */
+  private async enableMic(on: boolean) {
+    const deviceId = (typeof localStorage !== "undefined" && localStorage.getItem(LS_MIC)) || undefined;
+    try {
+      await this.room?.localParticipant.setMicrophoneEnabled(on, deviceId ? { deviceId } : undefined);
+    } catch {
+      /* mic denied or device unavailable — stays muted */
     }
   }
 
@@ -115,19 +155,65 @@ export class LiveKitVoiceProvider implements VoiceProvider {
   }
 
   setMuted(muted: boolean) {
-    void this.room?.localParticipant.setMicrophoneEnabled(!muted).then(() => this.rebuildMembers());
+    void this.enableMic(!muted).then(() => this.rebuildMembers());
   }
 
   raiseHand(raised: boolean) {
     this.updateSelfMeta({ handRaised: raised, handRaisedAt: raised ? Date.now() : null });
   }
 
-  // Host controls — promote/demote adjust target metadata; a server-side pass
-  // (updateParticipant) grants/revokes publish. Mute/remove call room admin.
-  promote(memberId: string) { this.signal("promote", memberId); }
-  demote(memberId: string) { this.signal("demote", memberId); }
-  muteMember(memberId: string) { this.signal("mute", memberId); }
-  removeMember(memberId: string) { this.signal("remove", memberId); }
+  // Host controls are OPTIMISTIC local echoes only. The authoritative change is
+  // performed by the REST endpoint (useVoiceRoom), persisted, enforced on the SFU,
+  // and broadcast back via applyServerEvent — which is what actually sticks.
+  promote(memberId: string) { this.optimisticRole(memberId, "SPEAKER"); }
+  demote(memberId: string) { this.optimisticRole(memberId, "LISTENER"); }
+  muteMember(memberId: string) { this.hostMuted.add(memberId); this.rebuildMembers(); }
+  removeMember(memberId: string) {
+    this.set({ members: this.state.members.filter((m) => m.id !== memberId) });
+  }
+
+  private optimisticRole(memberId: string, role: DbRole) {
+    this.serverRoles.set(memberId, role);
+    this.rebuildMembers();
+  }
+
+  /** Apply a server-authoritative event (delivered via Pusher) to local state. */
+  applyServerEvent(event: ServerVoiceEvent) {
+    switch (event.kind) {
+      case "joined":
+      case "role": {
+        this.serverRoles.set(event.userId, event.role);
+        // If *I* was just granted a publishing role, open my mic.
+        if (event.userId === this.cfg.self.id && canPublishDbRole(event.role)) {
+          void this.enableMic(true).then(() => this.rebuildMembers());
+        }
+        // If *I* was demoted to listener, the SFU revokes publish; close the mic.
+        if (event.userId === this.cfg.self.id && !canPublishDbRole(event.role)) {
+          void this.enableMic(false).then(() => this.rebuildMembers());
+        }
+        break;
+      }
+      case "muted": {
+        if (event.mutedByHost) this.hostMuted.add(event.userId);
+        else this.hostMuted.delete(event.userId);
+        // A host muting me closes my mic locally too.
+        if (event.userId === this.cfg.self.id && event.mutedByHost) {
+          void this.enableMic(false);
+        }
+        break;
+      }
+      case "removed": {
+        this.serverRoles.delete(event.userId);
+        this.hostMuted.delete(event.userId);
+        if (event.userId === this.cfg.self.id) {
+          void this.leave();
+          return;
+        }
+        break;
+      }
+    }
+    this.rebuildMembers();
+  }
 
   private async updateSelfMeta(patch: HandMeta) {
     const lp = this.room?.localParticipant as unknown as {
@@ -140,38 +226,35 @@ export class LiveKitVoiceProvider implements VoiceProvider {
     this.rebuildMembers();
   }
 
-  private async signal(action: string, target: string) {
-    // Send a data message hosts' clients / a server agent act on. Implemented
-    // fully when the room agent lands; the metadata path covers raise-hand now.
-    const lp = this.room?.localParticipant as unknown as {
-      publishData?: (d: Uint8Array, o?: unknown) => Promise<void>;
-    };
-    if (!lp?.publishData) return;
-    const payload = new TextEncoder().encode(JSON.stringify({ action, target }));
-    await lp.publishData(payload, { reliable: true });
-  }
-
   private rebuildMembers() {
     if (!this.room) return;
     const all: LkParticipant[] = [this.room.localParticipant, ...this.room.remoteParticipants.values()];
     const members: VoiceMember[] = all.map((p) => {
       const meta: HandMeta = p.metadata ? safeParse(p.metadata) : {};
       const isSelf = p.identity === this.room!.localParticipant.identity;
-      const role: VoiceRole =
-        meta.role ?? (isSelf && this.cfg.isHost ? "host" : (p.isMicrophoneEnabled ? "speaker" : "listener"));
+      // Server role (authoritative) wins; fall back to metadata, then a heuristic.
+      const dbRole = this.serverRoles.get(p.identity);
+      const role: VoiceRole = dbRole
+        ? dbRoleToUi(dbRole)
+        : meta.role ?? (p.isMicrophoneEnabled ? "speaker" : "listener");
       return {
         id: p.identity,
         name: p.name || (isSelf ? this.cfg.self.name : "Member"),
         image: meta.image ?? (isSelf ? this.cfg.self.image : null),
         role,
         speaking: this.speaking.has(p.identity),
-        muted: !p.isMicrophoneEnabled,
+        muted: !p.isMicrophoneEnabled || this.hostMuted.has(p.identity),
         handRaised: !!meta.handRaised,
         handRaisedAt: meta.handRaisedAt ?? null,
       };
     });
     this.set({ members });
   }
+}
+
+/** Whether a DB role is permitted to publish audio. Mirrors the server. */
+function canPublishDbRole(role: DbRole): boolean {
+  return role === "HOST" || role === "MODERATOR" || role === "SPEAKER";
 }
 
 function safeParse(s: string): HandMeta {

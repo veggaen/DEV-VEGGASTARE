@@ -19,7 +19,15 @@ import type {
   VoiceProviderConfig,
   VoiceRoomState,
   VoiceMember,
+  VoiceRole,
+  ServerVoiceEvent,
 } from "./types";
+
+function dbRoleToUi(role: "HOST" | "MODERATOR" | "SPEAKER" | "LISTENER"): VoiceRole {
+  if (role === "HOST" || role === "MODERATOR") return "host";
+  if (role === "SPEAKER") return "speaker";
+  return "listener";
+}
 
 export class StubVoiceProvider implements VoiceProvider {
   readonly isStub = true;
@@ -149,6 +157,27 @@ export class StubVoiceProvider implements VoiceProvider {
   removeMember(memberId: string) {
     if (!this.cfg.isHost) return;
     this.set({ members: this.state.members.filter((m) => m.id !== memberId) });
+  }
+
+  /** Mirror a server-authoritative event onto local state (demo-mode parity). */
+  applyServerEvent(event: ServerVoiceEvent) {
+    switch (event.kind) {
+      case "joined":
+      case "role":
+        this.patchMember(event.userId, {
+          role: dbRoleToUi(event.role),
+          ...(dbRoleToUi(event.role) === "listener" ? { speaking: false } : {}),
+        });
+        break;
+      case "muted":
+        this.patchMember(event.userId, { muted: event.mutedByHost, speaking: false });
+        if (event.userId === this.state.selfId && event.mutedByHost) this.setMuted(true);
+        break;
+      case "removed":
+        if (event.userId === this.state.selfId) { void this.leave(); return; }
+        this.set({ members: this.state.members.filter((m) => m.id !== event.userId) });
+        break;
+    }
   }
 
   // ── Local mic analyser → genuine "speaking" for the local user ──

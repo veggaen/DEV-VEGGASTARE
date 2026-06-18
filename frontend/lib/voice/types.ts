@@ -30,6 +30,18 @@ export type VoiceConnectionState =
   | "connected"
   | "error";
 
+/**
+ * A server-authoritative event (delivered over Pusher) that a provider applies to
+ * its local room state, so role/mute/remove decisions made by a host on the server
+ * reflect in every client. Mirrors lib/voice/events.ts. `role` is the DB role
+ * (HOST/MODERATOR/SPEAKER/LISTENER) which the provider maps onto VoiceRole.
+ */
+export type ServerVoiceEvent =
+  | { kind: "role"; userId: string; role: "HOST" | "MODERATOR" | "SPEAKER" | "LISTENER" }
+  | { kind: "muted"; userId: string; mutedByHost: boolean }
+  | { kind: "removed"; userId: string }
+  | { kind: "joined"; userId: string; role: "HOST" | "MODERATOR" | "SPEAKER" | "LISTENER" };
+
 export interface VoiceRoomState {
   connection: VoiceConnectionState;
   /** Everyone currently in the voice channel. */
@@ -54,10 +66,19 @@ export interface VoiceProvider {
   raiseHand(raised: boolean): void;
 
   // Host-only controls (no-op / rejected for non-hosts in a real provider).
+  // These are optimistic local echoes; the authoritative change is persisted via
+  // the REST endpoints and broadcast back through applyServerEvent.
   promote(memberId: string): void;
   demote(memberId: string): void;
   muteMember(memberId: string): void;
   removeMember(memberId: string): void;
+
+  /**
+   * Apply a server-authoritative event (from Pusher) to local room state. This is
+   * how a member learns they were promoted/muted/removed by someone else, and how
+   * a freshly-promoted member opens their mic.
+   */
+  applyServerEvent(event: ServerVoiceEvent): void;
 
   /** Whether this provider is talking to real infra or just mocking. */
   readonly isStub: boolean;

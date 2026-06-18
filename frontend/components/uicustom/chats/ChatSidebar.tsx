@@ -23,6 +23,7 @@ import {
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { useVoiceRoom } from "@/lib/voice/useVoiceRoom";
+import { useVoiceChannelEvents } from "@/lib/voice/useVoiceChannelEvents";
 import type { VoiceMember, VoiceRole } from "@/lib/voice/types";
 import { VoiceSettingsModal } from "./VoiceSettingsModal";
 
@@ -74,6 +75,9 @@ export function ChatSidebar({
   });
 
   const connected = voice.connection === "connected";
+  // Live role/mute/remove from the server (host actions by anyone) → local state.
+  useVoiceChannelEvents(roomId, voice.applyServerEvent, connected);
+
   const speakers = voice.members.filter((m) => m.role === "host" || m.role === "speaker");
   const listeners = voice.members.filter((m) => m.role === "listener");
   const [settingsOpen, setSettingsOpen] = React.useState(false);
