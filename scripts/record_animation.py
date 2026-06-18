@@ -36,6 +36,8 @@ ap.add_argument("--name", default="anim")
 ap.add_argument("--frames", type=int, default=24)
 ap.add_argument("--interval", type=int, default=250, help="ms between frames")
 ap.add_argument("--port", default="9222")
+ap.add_argument("--host", default="127.0.0.1",
+                help="CDP host (use 127.0.0.1 not localhost to avoid IPv6 ::1 refusal)")
 ap.add_argument("--base", default="http://localhost:3000")
 ap.add_argument("--hover", default=None, help="CSS selector to hover before recording")
 ap.add_argument("--click", default=None, help="CSS selector to click before recording")
@@ -63,7 +65,7 @@ READ = """
 """
 
 with sync_playwright() as p:
-    b = p.chromium.connect_over_cdp(f"http://localhost:{args.port}", timeout=10000)
+    b = p.chromium.connect_over_cdp(f"http://{args.host}:{args.port}", timeout=10000)
     ctx = b.contexts[0] if b.contexts else b.new_context()
     pg = ctx.pages[0] if ctx.pages else ctx.new_page()
     pg.goto(f"{args.base}{args.url}", wait_until="domcontentloaded", timeout=60000)

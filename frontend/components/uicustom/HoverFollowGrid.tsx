@@ -29,6 +29,11 @@ interface IndicatorStyle {
   height: number;
 }
 
+// One shared motion curve so the follow-border and the card's own expand animation
+// feel like a single system. Keep in sync with ConversationCard's expand transition
+// (duration 0.28s, ease cubic-bezier(0.22,1,0.36,1)).
+const GLIDE = "0.28s cubic-bezier(0.22,1,0.36,1)";
+
 const HoverFollowContext = React.createContext<{
   onEnter: (el: HTMLElement) => void;
 } | null>(null);
@@ -50,6 +55,11 @@ export function HoverFollowGrid({
   // is what left the border stuck on the first expanded card.)
   const [activeEl, setActiveEl] = React.useState<HTMLElement | null>(null);
   const [style, setStyle] = React.useState<IndicatorStyle | null>(null);
+  // While true, the indicator's size has NO CSS transition, so the rAF loop's
+  // per-frame measurements track the card's OWN expand animation frame-for-frame
+  // (instead of a second, slower CSS transition chasing it — which is what made
+  // the border lag behind the reveal). It glides only when MOVING BETWEEN cards.
+  const [trackingResize, setTrackingResize] = React.useState(false);
   const visible = activeEl !== null;
 
   // Re-measure + observe whichever card is active. The observer is scoped to
@@ -72,8 +82,13 @@ export function HoverFollowGrid({
     };
     measure();
 
-    // Track the card through its height animation (~0.35s) so the border grows
-    // with it, then settle (ResizeObserver catches any later layout shifts).
+    // Let the position/size GLIDE to the new card for one frame (smooth jump
+    // between cards), then switch to transition-free tracking so the border
+    // grows in lockstep with this card's reveal.
+    const toTracking = requestAnimationFrame(() => setTrackingResize(true));
+
+    // Track the card through its height animation so the border grows with it,
+    // then settle (ResizeObserver catches any later layout shifts).
     const start = performance.now();
     const animate = () => {
       measure();
@@ -87,8 +102,11 @@ export function HoverFollowGrid({
 
     return () => {
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(toTracking);
       ro.disconnect();
       container.removeEventListener("scroll", measure);
+      // Next card should glide in, so re-enable the size transition on switch.
+      setTrackingResize(false);
     };
   }, [activeEl]);
 
@@ -111,8 +129,12 @@ export function HoverFollowGrid({
               width: style.width,
               height: style.height,
               opacity: visible ? 1 : 0,
-              transition:
-                "left 0.4s cubic-bezier(0.22,1,0.36,1), top 0.4s cubic-bezier(0.22,1,0.36,1), width 0.4s cubic-bezier(0.22,1,0.36,1), height 0.4s cubic-bezier(0.22,1,0.36,1), opacity 0.45s ease-out",
+              // Position always glides (smooth jump between cards). Size glides
+              // only when switching cards; while tracking the active card's own
+              // reveal it updates transition-free so it grows in perfect lockstep.
+              transition: trackingResize
+                ? `left ${GLIDE}, top ${GLIDE}, opacity 0.3s ease-out`
+                : `left ${GLIDE}, top ${GLIDE}, width ${GLIDE}, height ${GLIDE}, opacity 0.3s ease-out`,
             }}
           />
         )}

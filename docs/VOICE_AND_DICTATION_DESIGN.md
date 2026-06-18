@@ -260,6 +260,7 @@ fine-tuning. v1 delivers value with zero of that.
 7. **PR-7** TTS (`TextToSpeech` iface + ElevenLabs, Aura fallback), read-aloud, cache
    by content hash.
 8. **PR-8** Correction-learning loop (diff fn + prompt UX + profile application).
+9. **PR-9** Public voice discovery on `/pulse` (depends on PR-2 presence) — see §11.
 
 ---
 
@@ -286,6 +287,31 @@ fine-tuning. v1 delivers value with zero of that.
    `isPersonal` auto-create path (§5).
 3. **Recording default → off** unless host enables, with all participants notified
    (consent-gated, "recording" badge visible).
+
+## 11. PR-9 — Public voice discovery on /pulse (spec; build after PR-3–PR-5)
+
+Goal: from `/pulse`, a user can (a) **see the top active public voice rooms** in a
+"Live now" rail, ranked like hot-pulses, and (b) **launch a room from the
+composer**. Reuses the reach/momentum vocabulary so it feels native.
+
+**Visibility (decided): opt-in public.** Rooms are private by default; a host
+explicitly makes a room public (or uses "Start public room" from the composer) to
+appear on `/pulse`. Conversation-attached rooms stay private unless toggled.
+
+- Schema: add `visibility VoiceChannelVisibility @default(PRIVATE)` (PRIVATE |
+  PUBLIC) to `VoiceChannel` (+ index on visibility for the live query). A
+  followers-only tier is deferred.
+- Presence: a lightweight "live rooms" query = public channels with ≥1 connected
+  member. Source live counts from LiveKit (`RoomServiceClient.listParticipants`)
+  or a maintained `VoiceChannelMember.lastSeenAt` heartbeat; pick one in the PR.
+- Ranking: listeners + active-speaker activity + recency, mirroring the hot-pulse
+  formula already in the reach engine.
+- UI: a `/pulse` sidebar module (avatar stack of current speakers, pulsing live
+  dot, one-tap Join), in the same glassy language as the heartbeats rail.
+- Composer: "Start a voice room" action → creates a PUBLIC `VoiceChannel` (host =
+  creator, via existing PR-1 logic) and optionally posts a pulse linking to it
+  ("🔴 live — join").
+- Depends on PR-2 (live presence/role sync) being solid first.
 
 ## 10. Status
 
