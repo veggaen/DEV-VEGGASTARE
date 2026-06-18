@@ -10,6 +10,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
+import { useUiPreferences } from "@/components/providers/ui-preferences";
 
 const STARTERS = [
   { icon: "✎", label: "Draft & rewrite", prompt: "Help me draft a clear, friendly product announcement." },
@@ -21,8 +22,11 @@ const STARTERS = [
 export function AiEmptyState({ userName }: { userName: string | null }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
+  const { prefs } = useUiPreferences();
   const [busy, setBusy] = React.useState(false);
   const firstName = userName?.split(" ")[0] ?? null;
+  // In overlay mode the list is behind the menu button, not docked on the left.
+  const listHint = prefs.aiChatLayout === "overlay" ? "Open the menu for your chats" : "Pick a conversation from the left";
 
   const startPrompt = async (prompt?: string) => {
     setBusy(true);
@@ -57,7 +61,7 @@ export function AiEmptyState({ userName }: { userName: string | null }) {
           {firstName ? `Hey ${firstName} — what's on your mind?` : "What's on your mind?"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Pick a conversation from the left, or start a new one below.
+          {listHint}, or start a new one below.
         </p>
 
         <div className="mt-7 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">

@@ -153,8 +153,14 @@ export function AiChatShell({
               onClick={() => setDrawerOpen(false)}
             />
             <motion.aside
-              className="fixed left-0 top-0 z-50 h-full flex flex-col border-r border-black/10 dark:border-white/10 bg-background shadow-2xl"
-              style={{ width: RAIL_W }}
+              className="fixed left-0 z-50 flex flex-col border-r border-black/10 dark:border-white/10 bg-background shadow-2xl"
+              // Start BELOW the global sticky topbar (not at viewport top) so the
+              // drawer never overlaps the app header.
+              style={{
+                width: RAIL_W,
+                top: "var(--app-header-offset, 64px)",
+                height: "calc(100dvh - var(--app-header-offset, 64px))",
+              }}
               initial={reduceMotion ? { opacity: 0 } : { x: "-100%" }}
               animate={reduceMotion ? { opacity: 1 } : { x: 0 }}
               exit={reduceMotion ? { opacity: 0 } : { x: "-100%" }}
