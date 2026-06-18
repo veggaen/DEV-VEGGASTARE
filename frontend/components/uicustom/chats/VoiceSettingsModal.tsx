@@ -13,12 +13,15 @@
 
 import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { FiX, FiMic, FiVolume2 } from "react-icons/fi";
+import { FiX, FiMic, FiVolume2, FiAlertTriangle } from "react-icons/fi";
 import { useMicLevel } from "@/lib/voice/useMicLevel";
 import { MicWaveform } from "./MicWaveform";
+import { ThemedSelect, type SelectOption } from "./ThemedSelect";
 
 const LS_MIC = "voice:micDeviceId";
 const LS_SPK = "voice:spkDeviceId";
+
+type MicPermission = "unknown" | "prompt" | "granted" | "denied";
 
 export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const reduceMotion = useReducedMotion();
@@ -26,8 +29,36 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
   const [speakers, setSpeakers] = React.useState<MediaDeviceInfo[]>([]);
   const [micId, setMicId] = React.useState<string>("");
   const [spkId, setSpkId] = React.useState<string>("");
+  const [permission, setPermission] = React.useState<MicPermission>("unknown");
 
-  const { bars, level, error, running } = useMicLevel({ deviceId: micId || undefined, active: open });
+  const { bars, level, error, running, start } = useMicLevel({ deviceId: micId || undefined, active: open });
+
+  // Track the live mic permission state so we can show the right affordance
+  // (Allow button when promptable, unblock instructions when hard-denied).
+  React.useEffect(() => {
+    if (!open) return;
+    let status: PermissionStatus | null = null;
+    const sync = (s: PermissionState) => setPermission(s as MicPermission);
+    (async () => {
+      try {
+        // `microphone` isn't in older TS lib doms; cast the name.
+        status = await navigator.permissions.query({ name: "microphone" as PermissionName });
+        sync(status.state);
+        status.onchange = () => status && sync(status.state);
+      } catch {
+        setPermission("unknown"); // Permissions API unsupported (e.g. some Safari)
+      }
+    })();
+    return () => { if (status) status.onchange = null; };
+  }, [open]);
+
+  // Reflect the live test result into permission state too (denied error → denied).
+  React.useEffect(() => {
+    if (error) setPermission((p) => (p === "granted" ? p : "denied"));
+    else if (running) setPermission("granted");
+  }, [error, running]);
+
+  const requestMic = React.useCallback(() => { void start(); }, [start]);
 
   // Enumerate devices once open (labels require a prior permission grant, which
   // useMicLevel triggers, so we re-enumerate after it starts).
@@ -79,12 +110,34 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <FiMic className="h-3.5 w-3.5" /> Test your mic
                 </span>
-                <span className={`text-[10px] ${level > 0.04 ? "text-emerald-500 dark:text-emerald-400" : "text-muted-foreground"}`}>
-                  {error ? "blocked" : level > 0.04 ? "hearing you" : "say something…"}
+                <span className={`text-[10px] ${level > 0.04 ? "text-emerald-500 dark:text-emerald-400" : permission === "denied" ? "text-red-500" : "text-muted-foreground"}`}>
+                  {permission === "denied" ? "blocked" : level > 0.04 ? "hearing you" : running ? "say something…" : "not started"}
                 </span>
               </div>
               <MicWaveform bars={bars} />
-              {error && <p className="text-[11px] text-red-500 mt-2 text-center">{error}</p>}
+
+              {/* Permission-aware affordance */}
+              {permission === "denied" ? (
+                <div className="mt-3 rounded-xl bg-red-500/8 border border-red-500/20 p-3 space-y-2">
+                  <p className="text-[11px] text-red-600 dark:text-red-400 flex items-start gap-1.5">
+                    <FiAlertTriangle className="h-3.5 w-3.5 mt-px shrink-0" />
+                    Microphone is blocked for this site. Click the mic / lock icon in your browser&apos;s address bar, set Microphone to <span className="font-medium">Allow</span>, then reload.
+                  </p>
+                  <button
+                    onClick={requestMic}
+                    className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-red-500/15 hover:bg-red-500/25 text-red-600 dark:text-red-400 transition-colors"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : !running ? (
+                <button
+                  onClick={requestMic}
+                  className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-500/12 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 px-4 py-2 text-sm font-medium transition-colors"
+                >
+                  <FiMic className="h-4 w-4" /> Allow microphone
+                </button>
+              ) : null}
             </div>
 
             {/* Input device */}
@@ -92,7 +145,12 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
               <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <FiMic className="h-3.5 w-3.5" /> Microphone
               </label>
-              <DeviceSelect devices={mics} value={micId} onChange={pickMic} fallback="System default mic" />
+              <ThemedSelect
+                ariaLabel="Microphone"
+                options={toOptions(mics, "System default mic")}
+                value={micId}
+                onChange={pickMic}
+              />
             </div>
 
             {/* Output device */}
@@ -100,7 +158,12 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
               <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <FiVolume2 className="h-3.5 w-3.5" /> Speaker
               </label>
-              <DeviceSelect devices={speakers} value={spkId} onChange={pickSpk} fallback="System default speaker" />
+              <ThemedSelect
+                ariaLabel="Speaker"
+                options={toOptions(speakers, "System default speaker")}
+                value={spkId}
+                onChange={pickSpk}
+              />
             </div>
           </motion.div>
         </motion.div>
@@ -109,21 +172,13 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
   );
 }
 
-function DeviceSelect({
-  devices, value, onChange, fallback,
-}: { devices: MediaDeviceInfo[]; value: string; onChange: (id: string) => void; fallback: string }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-xl bg-black/4 dark:bg-white/5 border border-black/8 dark:border-white/10 px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-500/50 transition-colors"
-    >
-      <option value="">{fallback}</option>
-      {devices.map((d) => (
-        <option key={d.deviceId} value={d.deviceId}>
-          {d.label || `Device ${d.deviceId.slice(0, 6)}`}
-        </option>
-      ))}
-    </select>
-  );
+/** Build ThemedSelect options from a device list, with a system-default entry. */
+function toOptions(devices: MediaDeviceInfo[], fallback: string): SelectOption[] {
+  return [
+    { value: "", label: fallback },
+    ...devices.map((d) => ({
+      value: d.deviceId,
+      label: d.label || `Device ${d.deviceId.slice(0, 6)}`,
+    })),
+  ];
 }

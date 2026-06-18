@@ -33,7 +33,8 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { UseCurrentRole } from '@/hooks/use-current-role';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import usePusher from '@/hooks/usePusher';
-import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2, FiRefreshCw, FiFilter, FiEye, FiShield, FiAlertTriangle, FiFlag, FiUserCheck, FiUserX } from 'react-icons/fi';
+import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2, FiRefreshCw, FiFilter, FiEye, FiShield, FiAlertTriangle, FiFlag, FiUserCheck, FiUserX, FiMic } from 'react-icons/fi';
+import { useDictation } from '@/lib/voice/useDictation';
 import { Pin, PinOff, Eye, EyeOff, Users2, UserCheck, ArrowRightLeft, ShieldAlert, Zap as ZapIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PulseHeart, PulseFlat, PulsePositive } from '@/components/uicustom/icons/PulseIcons';
@@ -343,6 +344,13 @@ const FeedPage: React.FC = () => {
 
   // Compose state
   const [composeText, setComposeText] = useState('');
+  // Voice-to-text dictation (Wispr-Flow style): append the (polished) transcript
+  // to whatever is already typed.
+  const dictation = useDictation({
+    onResult: (text) => {
+      setComposeText((prev) => (prev ? `${prev.replace(/\s+$/, '')} ${text}` : text));
+    },
+  });
   const [includePoll, setIncludePoll] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
@@ -1208,6 +1216,17 @@ const FeedPage: React.FC = () => {
                         rows={2}
                       />
 
+                      {/* Live dictation feedback: interim transcript + errors */}
+                      {dictation.listening && (
+                        <p className="text-sm text-muted-foreground italic flex items-center gap-1.5">
+                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                          {dictation.interim || 'Listening…'}
+                        </p>
+                      )}
+                      {dictation.error && !dictation.listening && (
+                        <p className="text-xs text-red-500">{dictation.error}</p>
+                      )}
+
                       {/* Poll input (if enabled) */}
                       {includePoll && (
                         <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
@@ -1498,6 +1517,30 @@ const FeedPage: React.FC = () => {
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
+
+                    {/* Voice-to-text dictation (Wispr-Flow): hold-free toggle. */}
+                    {dictation.supported && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={dictation.toggle}
+                        aria-pressed={dictation.listening}
+                        aria-label={dictation.listening ? 'Stop voice typing' : 'Voice typing'}
+                        title={dictation.listening ? 'Stop voice typing' : 'Voice typing'}
+                        className={cn(
+                          'relative grid place-items-center h-9 w-9 rounded-full transition-colors',
+                          dictation.listening
+                            ? 'text-red-500 bg-red-500/10'
+                            : 'text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10',
+                        )}
+                      >
+                        <FiMic className="h-4 w-4" />
+                        {dictation.listening && (
+                          <span className="absolute inset-0 rounded-full ring-2 ring-red-500/50 animate-ping" />
+                        )}
+                      </Button>
+                    )}
                   </div>
 
                   {/* User picker for SPECIFIC_USERS visibility */}

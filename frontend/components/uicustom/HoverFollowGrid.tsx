@@ -51,25 +51,19 @@ export function HoverFollowGrid({
   const containerRef = React.useRef<HTMLDivElement>(null);
   // The currently-hovered element lives in STATE (not a ref) so the measurement
   // effect re-runs — and re-attaches its observer to the NEW card — every time
-  // you move to a different card. (A ref wouldn't re-trigger the effect, which
-  // is what left the border stuck on the first expanded card.)
+  // you move to a different card.
   const [activeEl, setActiveEl] = React.useState<HTMLElement | null>(null);
   const [style, setStyle] = React.useState<IndicatorStyle | null>(null);
-  // While true, the indicator's size has NO CSS transition, so the rAF loop's
-  // per-frame measurements track the card's OWN expand animation frame-for-frame
-  // (instead of a second, slower CSS transition chasing it — which is what made
-  // the border lag behind the reveal). It glides only when MOVING BETWEEN cards.
-  const [trackingResize, setTrackingResize] = React.useState(false);
   const visible = activeEl !== null;
 
-  // Re-measure + observe whichever card is active. The observer is scoped to
-  // THIS card and torn down when active changes, so cards never fight over the
-  // indicator; rAF + scroll handling keep it glued during the expand animation.
+  // Measure the active card and keep the indicator glued to it. Cards keep a FIXED
+  // height (their hover reveal overlays rather than reflowing the list), so there
+  // is no expand animation to chase — the indicator simply GLIDES between stable
+  // card rects. A ResizeObserver + scroll listener handle window resize / scroll.
   React.useEffect(() => {
     const container = containerRef.current;
     if (!activeEl || !container) return;
 
-    let raf = 0;
     const measure = () => {
       const cr = container.getBoundingClientRect();
       const cl = activeEl.getBoundingClientRect();
@@ -82,31 +76,15 @@ export function HoverFollowGrid({
     };
     measure();
 
-    // Let the position/size GLIDE to the new card for one frame (smooth jump
-    // between cards), then switch to transition-free tracking so the border
-    // grows in lockstep with this card's reveal.
-    const toTracking = requestAnimationFrame(() => setTrackingResize(true));
-
-    // Track the card through its height animation so the border grows with it,
-    // then settle (ResizeObserver catches any later layout shifts).
-    const start = performance.now();
-    const animate = () => {
-      measure();
-      if (performance.now() - start < 450) raf = requestAnimationFrame(animate);
-    };
-    raf = requestAnimationFrame(animate);
-
     const ro = new ResizeObserver(measure);
     ro.observe(activeEl);
     container.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure, { passive: true });
 
     return () => {
-      cancelAnimationFrame(raf);
-      cancelAnimationFrame(toTracking);
       ro.disconnect();
       container.removeEventListener("scroll", measure);
-      // Next card should glide in, so re-enable the size transition on switch.
-      setTrackingResize(false);
+      window.removeEventListener("resize", measure);
     };
   }, [activeEl]);
 
@@ -129,12 +107,8 @@ export function HoverFollowGrid({
               width: style.width,
               height: style.height,
               opacity: visible ? 1 : 0,
-              // Position always glides (smooth jump between cards). Size glides
-              // only when switching cards; while tracking the active card's own
-              // reveal it updates transition-free so it grows in perfect lockstep.
-              transition: trackingResize
-                ? `left ${GLIDE}, top ${GLIDE}, opacity 0.3s ease-out`
-                : `left ${GLIDE}, top ${GLIDE}, width ${GLIDE}, height ${GLIDE}, opacity 0.3s ease-out`,
+              // One uniform glide for position + size between stable card rects.
+              transition: `left ${GLIDE}, top ${GLIDE}, width ${GLIDE}, height ${GLIDE}, opacity 0.3s ease-out`,
             }}
           />
         )}

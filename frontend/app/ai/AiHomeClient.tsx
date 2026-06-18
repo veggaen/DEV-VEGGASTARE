@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
 import { HoverFollowGrid, HoverFollowItem } from "@/components/uicustom/HoverFollowGrid";
+import { cn } from "@/lib/utils";
 
 interface Session {
   id: string;
@@ -302,7 +303,6 @@ function ConversationCard({
 
   return (
     <motion.div
-      layout
       initial={reduceMotion ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -20, transition: { duration: 0.15 } }}
@@ -311,7 +311,15 @@ function ConversationCard({
       onMouseLeave={() => setOpen(false)}
       onFocusCapture={handleEnter}
       onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}
-      className="group relative overflow-hidden rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] transition-colors duration-200"
+      // No overflow-hidden + no height animation: the card keeps a FIXED height and
+      // the message reveal OVERLAYS below it (absolute), so hovering never reflows
+      // the list. That's what keeps the hover-follow border smooth in every
+      // direction — it never has to chase a moving card origin. z raised while open
+      // so the overlay sits above the next card.
+      className={cn(
+        "group relative rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] transition-colors duration-200",
+        open ? "z-20" : "z-0",
+      )}
     >
       <Link href={href} prefetch={false} className="flex items-center gap-3.5 px-4 py-3.5">
         <span className="shrink-0 grid place-items-center h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
@@ -350,19 +358,23 @@ function ConversationCard({
         </motion.svg>
       </Link>
 
-      {/* Hover-reveal: last message + actions. Animates height so the list below
-          glides down rather than snapping. */}
+      {/* Hover-reveal: last message + actions. OVERLAYS below the card (absolute,
+          top-full) so it never pushes the list — the card height stays fixed.
+          Animates opacity + a small slide/scale, not height, so there's no reflow
+          for the follow-border to chase. Rounded only at the bottom so it reads as
+          one piece with the card above it. */}
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6, scaleY: 0.96 }}
+            animate={{ opacity: 1, y: 0, scaleY: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6, scaleY: 0.96 }}
+            transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+            style={{ transformOrigin: "top" }}
+            className="absolute left-0 right-0 top-full z-20 rounded-b-2xl border border-t-0 border-black/6 dark:border-white/8 bg-white/95 dark:bg-[#0f1115]/95 backdrop-blur-sm shadow-[0_12px_28px_-12px_rgba(0,0,0,0.45)]"
           >
-            <div className="px-4 pb-3.5 pt-0 pl-[4.375rem]">
-              <div className="border-t border-black/5 dark:border-white/8 pt-2.5 flex items-end gap-3">
+            <div className="px-4 pb-3.5 pt-2.5 pl-[4.375rem]">
+              <div className="flex items-end gap-3">
                 <p className="min-w-0 flex-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                   {s.lastMessage ? (
                     <>

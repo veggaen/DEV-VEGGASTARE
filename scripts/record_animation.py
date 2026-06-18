@@ -45,6 +45,15 @@ ap.add_argument("--watch", default=None,
                 help="comma-separated regexes; logs the first matching text element each frame")
 args = ap.parse_args()
 
+# Git Bash/MSYS on Windows rewrites a leading-slash arg ("/ai") into a Windows
+# path ("C:/Program Files/Git/ai"), which Playwright rejects. Recover the route.
+_u = args.url.replace("\\", "/")
+if ":" in _u or "/Git/" in _u:
+    _u = "/" + _u.rsplit("/", 1)[-1]
+if not _u.startswith(("/", "http")):
+    _u = "/" + _u
+args.url = _u
+
 OUT = Path(__file__).parent / "_probe" / "anim" / args.name
 OUT.mkdir(parents=True, exist_ok=True)
 
