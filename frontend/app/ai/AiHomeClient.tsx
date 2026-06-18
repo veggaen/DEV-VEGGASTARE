@@ -271,11 +271,10 @@ const STARTERS = [
 ];
 
 /**
- * ConversationCard — a row that smoothly expands on hover to reveal the last
- * message (no layout-shift jank: the card animates its own height and the list
- * reflows under it). A left-pointing chevron rotates to hint the reveal, and we
- * prefetch the conversation on hover so the click feels instant. Delete lives in
- * the revealed footer — it never covers the chevron.
+ * ConversationCard — a plain fixed-height row linking to the conversation. No
+ * hover expansion (so the list never reflows and the hover-follow border stays
+ * smooth). Hovering reveals an inline delete button and prefetches the route so
+ * the click feels instant.
  */
 function ConversationCard({
   session: s,
