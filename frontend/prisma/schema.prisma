@@ -1143,6 +1143,11 @@ model User {
   PaperPortfolio                                                  PaperPortfolio?
   // Unified Trade History
   TradeRecords                                                    TradeRecord[]
+  // Voice channels + dictation (see docs/VOICE_AND_DICTATION_DESIGN.md)
+  VoiceChannelsOwned                                              VoiceChannel[]                @relation("VoiceChannelOwner")
+  VoiceChannelMemberships                                         VoiceChannelMember[]          @relation("VoiceChannelMembership")
+  DictationProfile                                                DictationProfile?             @relation("DictationProfileOwner")
+  DictationUtterances                                             DictationUtterance[]          @relation("DictationUtteranceOwner")
 }
 
 enum IdentityNameSource {
@@ -2742,6 +2747,14 @@ enum AiParticipantType {
   AI_BYOK
 }
 
+// Per-conversation membership role (Discord-style). The creator is OWNER;
+// OWNER/MODERATOR may manage members; MEMBER is a regular participant.
+enum AiMemberRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
 enum AiTriggerMode {
   MENTION
   DEBOUNCE
@@ -2794,6 +2807,10 @@ model AiConvParticipant {
   type            AiParticipantType
   userId          String?
   user            User?               @relation("AiConvHumanParticipant", fields: [userId], references: [id], onDelete: SetNull)
+
+  // Discord-style membership role. Defaults to MEMBER; the creator is promoted
+  // to OWNER. Governs who can manage members (add/remove/promote).
+  role            AiMemberRole        @default(MEMBER)
 
   // AI participant config (null for HUMAN type)
   displayName     String?
@@ -2960,4 +2977,151 @@ enum PaperTradeType {
   P2P_SEND      // sent to another user in paper P2P trade
   P2P_RECEIVE   // received from another user in paper P2P trade
   FAUCET        // initial token grant or reset
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VOICE CHANNELS + DICTATION + VOICE-LEARNING
+// See docs/VOICE_AND_DICTATION_DESIGN.md. The UI binds to lib/voice/types.ts;
+// these tables are the server-side source of truth for channel membership/roles
+// (the LiveKit token route derives publish/admin rights from VoiceChannelMember,
+// NOT from a client-claimed isHost), session transcripts, and the dictation
+// learning loop.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// DB membership role (superset of the UI VoiceRole host|speaker|listener).
+/// Mirrors the AiMemberRole convention. HOST = channel owner/admin;
+/// MODERATOR = host-capable manager; SPEAKER = may publish audio; LISTENER = subscribe-only.
+enum VoiceRoleDB {
+  HOST
+  MODERATOR
+  SPEAKER
+  LISTENER
+}
+
+/// Where a dictation utterance originated.
+enum DictationSource {
+  COMPOSER // typed-into chat composer via mic / hold-key
+  ROOM     // captured from a live voice channel
+}
+
+/// Classification of a single word-level correction the user made to dictation.
+enum CorrectionKind {
+  TYPO                 // user's own slip; not an STT error
+  MISHEARD             // STT heard the wrong word — the signal we learn from
+  INTENTIONAL_REPHRASE // user changed their mind; not an error
+  UNKNOWN              // not yet classified (awaiting the user's answer)
+}
+
+/// A voice channel. May be attached to an existing Conversation (DM/group) AND/OR
+/// be a standalone personal channel auto-created on first join (isPersonal).
+model VoiceChannel {
+  id             String      @id @default(cuid())
+  /// Stable lookup key = the namespaced room the UI joins (e.g. "vegga_<roomId>").
+  /// Uniform across AI sessions, DM/group conversations, and personal channels;
+  /// the token route + all host actions resolve a channel by this.
+  roomKey        String      @unique
+  conversationId String? // optional link to a Conversation (DM/group)
+  ownerUserId    String
+  name           String
+  slug           String
+  isPersonal     Boolean     @default(false) // auto-created "<Name>'s channel"
+  isLocked       Boolean     @default(false) // listeners can't self-promote when locked
+  maxSpeakers    Int?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  owner          User                 @relation("VoiceChannelOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  members        VoiceChannelMember[]
+  sessions       VoiceSession[]
+
+  @@unique([ownerUserId, slug])
+  @@index([conversationId])
+  @@index([ownerUserId])
+}
+
+/// A user's membership + role within a voice channel. Source of truth for
+/// publish/admin authorization.
+model VoiceChannelMember {
+  id          String      @id @default(cuid())
+  channelId   String
+  userId      String
+  role        VoiceRoleDB @default(LISTENER)
+  mutedByHost Boolean     @default(false)
+  joinedAt    DateTime    @default(now())
+  lastSeenAt  DateTime    @default(now())
+
+  channel     VoiceChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user        User         @relation("VoiceChannelMembership", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([channelId])
+  @@index([userId])
+}
+
+/// A single voice session (a span the channel was live), used for transcripts and
+/// optional recordings.
+model VoiceSession {
+  id               String       @id @default(cuid())
+  channelId        String
+  startedAt        DateTime     @default(now())
+  endedAt          DateTime?
+  recordingAssetId String? // EdgeStore key (consent-gated)
+  transcriptJson   Json? // [{ userId, ts, text }]
+  participantsJson Json? // snapshot of who was present
+
+  channel          VoiceChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, startedAt])
+}
+
+/// Per-user dictation personalization profile — the applied half of the learning
+/// loop (custom vocabulary boosting + deterministic replacements).
+model DictationProfile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  language         String   @default("en")
+  customVocabulary String[] @default([]) // → Deepgram keyterm boosting
+  replacements     Json     @default("{}") // { misheardForm: preferredForm } post-STT pass
+  captureConsent   Boolean  @default(false) // store raw audio? opt-in
+  utteranceCount   Int      @default(0)
+  correctionCount  Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user             User     @relation("DictationProfileOwner", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// One accepted dictation result — the training corpus for the learning loop.
+model DictationUtterance {
+  id            String                @id @default(cuid())
+  userId        String
+  source        DictationSource       @default(COMPOSER)
+  rawTranscript String                @db.Text
+  finalText     String                @db.Text // what the user actually accepted/sent
+  confidence    Float?
+  wordsJson     Json? // per-word { word, start, end, confidence }
+  audioAssetId  String? // EdgeStore key, only if captureConsent
+  createdAt     DateTime              @default(now())
+
+  user          User                  @relation("DictationUtteranceOwner", fields: [userId], references: [id], onDelete: Cascade)
+  corrections   DictationCorrection[]
+
+  @@index([userId, createdAt])
+}
+
+/// A single word-level correction the user made — the labeled signal.
+model DictationCorrection {
+  id                 String             @id @default(cuid())
+  utteranceId        String
+  originalWord       String
+  correctedWord      String
+  wordIndex          Int
+  kind               CorrectionKind     @default(UNKNOWN)
+  userConfirmed      Boolean            @default(false)
+  reSaidAudioAssetId String?
+  createdAt          DateTime           @default(now())
+
+  utterance          DictationUtterance @relation(fields: [utteranceId], references: [id], onDelete: Cascade)
+
+  @@index([utteranceId])
 }

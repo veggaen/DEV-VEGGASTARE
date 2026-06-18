@@ -194,6 +194,8 @@ export function ChatSidebar({
               member={m}
               canManage={isHost && m.id !== self.id && !m.isAi}
               reduceMotion={!!reduceMotion}
+              onMakeModerator={() => voice.makeModerator(m.id)}
+              onRemove={() => voice.removeMember(m.id)}
             />
           ))}
         </div>
@@ -283,9 +285,21 @@ function ControlButton({
 
 /** Roster row — hovering reveals per-member actions (nested hover-expand). */
 function MemberRow({
-  member, canManage, reduceMotion,
-}: { member: SidebarMember; canManage: boolean; reduceMotion: boolean }) {
+  member, canManage, reduceMotion, onMakeModerator, onRemove,
+}: {
+  member: SidebarMember;
+  canManage: boolean;
+  reduceMotion: boolean;
+  onMakeModerator: () => void;
+  onRemove: () => void;
+}) {
   const [open, setOpen] = React.useState(false);
+  const [busy, setBusy] = React.useState<null | "mod" | "remove">(null);
+
+  const run = async (which: "mod" | "remove", fn: () => void) => {
+    setBusy(which);
+    try { await fn(); } finally { setBusy(null); }
+  };
   return (
     <div
       onMouseEnter={() => setOpen(true)}
@@ -328,11 +342,19 @@ function MemberRow({
               className="overflow-hidden"
             >
               <div className="flex items-center gap-1.5 px-2 pb-2 pl-[2.625rem]">
-                <button className="text-[11px] px-2 py-1 rounded-md bg-black/5 dark:bg-white/8 hover:bg-black/10 dark:hover:bg-white/12 transition-colors">
-                  Make moderator
+                <button
+                  onClick={() => run("mod", onMakeModerator)}
+                  disabled={busy !== null}
+                  className="text-[11px] px-2 py-1 rounded-md bg-black/5 dark:bg-white/8 hover:bg-black/10 dark:hover:bg-white/12 transition-colors disabled:opacity-50"
+                >
+                  {busy === "mod" ? "Making…" : "Make moderator"}
                 </button>
-                <button className="text-[11px] px-2 py-1 rounded-md text-red-500 hover:bg-red-500/10 transition-colors">
-                  Remove
+                <button
+                  onClick={() => run("remove", onRemove)}
+                  disabled={busy !== null}
+                  className="text-[11px] px-2 py-1 rounded-md text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                >
+                  {busy === "remove" ? "Removing…" : "Remove"}
                 </button>
               </div>
             </motion.div>

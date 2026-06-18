@@ -71,6 +71,47 @@ export function useVoiceRoom(cfg: VoiceProviderConfig) {
     provider.raiseHand(!me?.handRaised);
   }, [provider]);
 
+  // Host actions: the REST endpoints are authoritative (they persist the role and
+  // enforce it on the SFU + broadcast over Pusher). The provider call is an
+  // optimistic local echo — and the ONLY path the stub needs in demo mode.
+  const roomId = cfg.roomId;
+  const hostAction = useCallback(
+    async (memberId: string, body: Record<string, unknown>, method: "PATCH" | "DELETE") => {
+      if (!provider.isStub) {
+        try {
+          await fetch(`/api/voice/${encodeURIComponent(roomId)}/members/${encodeURIComponent(memberId)}`, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: method === "DELETE" ? undefined : JSON.stringify(body),
+          });
+        } catch {
+          /* Pusher/refetch will reconcile; optimistic echo below keeps UI snappy. */
+        }
+      }
+    },
+    [provider, roomId],
+  );
+
+  const promote = useCallback((id: string) => {
+    provider.promote(id);
+    void hostAction(id, { action: "promote" }, "PATCH");
+  }, [provider, hostAction]);
+  const demote = useCallback((id: string) => {
+    provider.demote(id);
+    void hostAction(id, { action: "demote" }, "PATCH");
+  }, [provider, hostAction]);
+  const makeModerator = useCallback((id: string) => {
+    void hostAction(id, { action: "makeModerator" }, "PATCH");
+  }, [hostAction]);
+  const muteMember = useCallback((id: string, muted = true) => {
+    provider.muteMember(id);
+    void hostAction(id, { action: "mute", muted }, "PATCH");
+  }, [provider, hostAction]);
+  const removeMember = useCallback((id: string) => {
+    provider.removeMember(id);
+    void hostAction(id, {}, "DELETE");
+  }, [provider, hostAction]);
+
   return {
     ...state,
     self,
@@ -80,9 +121,10 @@ export function useVoiceRoom(cfg: VoiceProviderConfig) {
     leave,
     toggleMute,
     toggleHand,
-    promote: provider.promote.bind(provider),
-    demote: provider.demote.bind(provider),
-    muteMember: provider.muteMember.bind(provider),
-    removeMember: provider.removeMember.bind(provider),
+    promote,
+    demote,
+    makeModerator,
+    muteMember,
+    removeMember,
   };
 }
