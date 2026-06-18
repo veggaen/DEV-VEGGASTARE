@@ -30,15 +30,26 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
   const [micId, setMicId] = React.useState<string>("");
   const [spkId, setSpkId] = React.useState<string>("");
   const [permission, setPermission] = React.useState<MicPermission>("unknown");
+  // We do NOT auto-request the mic on open. The live test only runs once the user
+  // opts in (clicks "Allow microphone"), OR if permission is already granted — so
+  // we never aggressively trigger (and risk latching) a permission prompt/denial.
+  const [testActive, setTestActive] = React.useState(false);
 
-  const { bars, level, error, running, start } = useMicLevel({ deviceId: micId || undefined, active: open });
+  const { bars, level, error, running, start } = useMicLevel({
+    deviceId: micId || undefined,
+    active: open && testActive,
+  });
 
   // Track the live mic permission state so we can show the right affordance
   // (Allow button when promptable, unblock instructions when hard-denied).
   React.useEffect(() => {
-    if (!open) return;
+    if (!open) { setTestActive(false); return; }
     let status: PermissionStatus | null = null;
-    const sync = (s: PermissionState) => setPermission(s as MicPermission);
+    const sync = (s: PermissionState) => {
+      setPermission(s as MicPermission);
+      // If already granted, show the live test straight away (no extra click).
+      if (s === "granted") setTestActive(true);
+    };
     (async () => {
       try {
         // `microphone` isn't in older TS lib doms; cast the name.
@@ -58,7 +69,12 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
     else if (running) setPermission("granted");
   }, [error, running]);
 
-  const requestMic = React.useCallback(() => { void start(); }, [start]);
+  // User explicitly opts into the mic. start() performs the getUserMedia request;
+  // making testActive true keeps it live afterward.
+  const requestMic = React.useCallback(() => {
+    setTestActive(true);
+    void start();
+  }, [start]);
 
   // Enumerate devices once open (labels require a prior permission grant, which
   // useMicLevel triggers, so we re-enumerate after it starts).
@@ -116,19 +132,37 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
               </div>
               <MicWaveform bars={bars} />
 
-              {/* Permission-aware affordance */}
+              {/* Permission-aware affordance.
+                  NOTE: a hard-denied mic permission CANNOT be re-granted from JS —
+                  the browser only lets the user change it in site settings. So we
+                  give precise steps + a Reload (which re-reads the permission after
+                  they change it). "Check again" covers the case where they changed
+                  it via the address-bar control without a full reload. */}
               {permission === "denied" ? (
-                <div className="mt-3 rounded-xl bg-red-500/8 border border-red-500/20 p-3 space-y-2">
-                  <p className="text-[11px] text-red-600 dark:text-red-400 flex items-start gap-1.5">
-                    <FiAlertTriangle className="h-3.5 w-3.5 mt-px shrink-0" />
-                    Microphone is blocked for this site. Click the mic / lock icon in your browser&apos;s address bar, set Microphone to <span className="font-medium">Allow</span>, then reload.
+                <div className="mt-3 rounded-xl bg-red-500/8 border border-red-500/20 p-3 space-y-2.5">
+                  <p className="text-xs font-medium text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                    <FiAlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    Microphone blocked for this site
                   </p>
-                  <button
-                    onClick={requestMic}
-                    className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-red-500/15 hover:bg-red-500/25 text-red-600 dark:text-red-400 transition-colors"
-                  >
-                    Try again
-                  </button>
+                  <ol className="text-[11px] text-red-600/90 dark:text-red-400/90 space-y-1 list-decimal pl-4 marker:text-red-500/60">
+                    <li>Click the <span className="font-medium">mic</span> or <span className="font-medium">🔒 lock</span> icon at the left of the address bar.</li>
+                    <li>Set <span className="font-medium">Microphone → Allow</span>.</li>
+                    <li>Hit <span className="font-medium">Reload</span> below.</li>
+                  </ol>
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-red-500/20 hover:bg-red-500/30 text-red-600 dark:text-red-400 transition-colors"
+                    >
+                      Reload page
+                    </button>
+                    <button
+                      onClick={requestMic}
+                      className="text-[11px] font-medium px-2.5 py-1 rounded-md hover:bg-red-500/15 text-red-600/80 dark:text-red-400/80 transition-colors"
+                    >
+                      Check again
+                    </button>
+                  </div>
                 </div>
               ) : !running ? (
                 <button

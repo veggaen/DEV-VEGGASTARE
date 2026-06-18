@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -289,15 +289,14 @@ function ConversationCard({
   onDelete: (id: string, e: React.MouseEvent) => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [prefetched, setPrefetched] = useState(false);
+  const prefetchedRef = useRef(false);
   const href = `/ai/${s.id}`;
 
+  // Prefetch on hover so the click feels instant — purely invisible, no expansion.
   const handleEnter = () => {
-    setOpen(true);
-    if (!prefetched) {
+    if (!prefetchedRef.current) {
       router.prefetch(href);
-      setPrefetched(true);
+      prefetchedRef.current = true;
     }
   };
 
@@ -308,18 +307,10 @@ function ConversationCard({
       exit={{ opacity: 0, x: -20, transition: { duration: 0.15 } }}
       transition={{ duration: 0.3, delay: reduceMotion ? 0 : Math.min(index * 0.03, 0.2) }}
       onMouseEnter={handleEnter}
-      onMouseLeave={() => setOpen(false)}
       onFocusCapture={handleEnter}
-      onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}
-      // No overflow-hidden + no height animation: the card keeps a FIXED height and
-      // the message reveal OVERLAYS below it (absolute), so hovering never reflows
-      // the list. That's what keeps the hover-follow border smooth in every
-      // direction — it never has to chase a moving card origin. z raised while open
-      // so the overlay sits above the next card.
-      className={cn(
-        "group relative rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] transition-colors duration-200",
-        open ? "z-20" : "z-0",
-      )}
+      // A plain fixed-height row — no hover expansion, so the list never reflows
+      // and the hover-follow border simply glides between stable cards.
+      className="group relative rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] transition-colors duration-200"
     >
       <Link href={href} prefetch={false} className="flex items-center gap-3.5 px-4 py-3.5">
         <span className="shrink-0 grid place-items-center h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
@@ -345,62 +336,26 @@ function ConversationCard({
           </p>
         </div>
 
-        {/* Left-pointing chevron — rotates to point down as the card opens,
-            cuing the smooth reveal. */}
-        <motion.svg
-          animate={{ rotate: open ? -90 : 0 }}
-          transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          className="shrink-0 text-muted-foreground/40 group-hover:text-emerald-500 dark:group-hover:text-emerald-400"
+        {/* Delete — fades in on hover; never covers the chevron (it replaces it). */}
+        <button
+          onClick={(e) => onDelete(s.id, e)}
+          className="shrink-0 grid place-items-center h-8 w-8 rounded-lg text-muted-foreground/0 group-hover:text-muted-foreground hover:text-red-500! hover:bg-red-500/15 transition-colors"
+          aria-label="Delete conversation"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
+          </svg>
+        </button>
+
+        {/* Static go-chevron (no rotation, no reveal). */}
+        <svg
+          className="shrink-0 text-muted-foreground/40 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors"
           width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
           aria-hidden
         >
-          <path d="M15 18l-6-6 6-6" />
-        </motion.svg>
+          <path d="M9 18l6-6-6-6" />
+        </svg>
       </Link>
-
-      {/* Hover-reveal: last message + actions. OVERLAYS below the card (absolute,
-          top-full) so it never pushes the list — the card height stays fixed.
-          Animates opacity + a small slide/scale, not height, so there's no reflow
-          for the follow-border to chase. Rounded only at the bottom so it reads as
-          one piece with the card above it. */}
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6, scaleY: 0.96 }}
-            animate={{ opacity: 1, y: 0, scaleY: 1 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6, scaleY: 0.96 }}
-            transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-            style={{ transformOrigin: "top" }}
-            className="absolute left-0 right-0 top-full z-20 rounded-b-2xl border border-t-0 border-black/6 dark:border-white/8 bg-white/95 dark:bg-[#0f1115]/95 backdrop-blur-sm shadow-[0_12px_28px_-12px_rgba(0,0,0,0.45)]"
-          >
-            <div className="px-4 pb-3.5 pt-2.5 pl-[4.375rem]">
-              <div className="flex items-end gap-3">
-                <p className="min-w-0 flex-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                  {s.lastMessage ? (
-                    <>
-                      <span className="text-foreground/60 font-medium">
-                        {s.lastMessage.role === "user" ? "You: " : "AI: "}
-                      </span>
-                      {s.lastMessage.content}
-                    </>
-                  ) : (
-                    <span className="italic">No messages yet — open to start.</span>
-                  )}
-                </p>
-                <button
-                  onClick={(e) => onDelete(s.id, e)}
-                  className="shrink-0 grid place-items-center h-7 w-7 rounded-lg text-muted-foreground hover:bg-red-500/15 hover:text-red-500 transition-colors"
-                  aria-label="Delete conversation"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }
