@@ -19,9 +19,7 @@ import type {
   VoiceRole,
   ServerVoiceEvent,
 } from "./types";
-
-const LS_MIC = "voice:micDeviceId";
-const LS_SPK = "voice:spkDeviceId";
+import { readVoicePrefs } from "./voice-prefs";
 
 type DbRole = "HOST" | "MODERATOR" | "SPEAKER" | "LISTENER";
 
@@ -138,11 +136,19 @@ export class LiveKitVoiceProvider implements VoiceProvider {
     }
   }
 
-  /** Open/close the mic, honoring the user's selected input device from settings. */
+  /** Open/close the mic, honoring the user's device + noise-processing settings. */
   private async enableMic(on: boolean) {
-    const deviceId = (typeof localStorage !== "undefined" && localStorage.getItem(LS_MIC)) || undefined;
+    const p = readVoicePrefs();
+    const opts = on
+      ? {
+          ...(p.micDeviceId ? { deviceId: p.micDeviceId } : {}),
+          noiseSuppression: p.noiseSuppression,
+          echoCancellation: p.echoCancellation,
+          autoGainControl: p.autoGainControl,
+        }
+      : undefined;
     try {
-      await this.room?.localParticipant.setMicrophoneEnabled(on, deviceId ? { deviceId } : undefined);
+      await this.room?.localParticipant.setMicrophoneEnabled(on, opts);
     } catch {
       /* mic denied or device unavailable — stays muted */
     }

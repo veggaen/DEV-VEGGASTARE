@@ -575,8 +575,8 @@ export default function AiConversationClient({
         </div>
       </div>
 
-      {/* ── Main content ── */}
-      <div className="relative z-10 flex-1 flex min-h-0">
+      {/* ── Main content ── (row-reverse puts the members/voice rail on the LEFT) */}
+      <div className="relative z-10 flex-1 flex flex-row-reverse min-h-0">
         {/* Messages + input */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Suspended banner */}
@@ -722,7 +722,7 @@ export default function AiConversationClient({
               animate={{ width: 300, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeInOut" }}
-              className="relative z-10 border-l border-black/5 dark:border-white/8 overflow-hidden shrink-0 bg-background/80 backdrop-blur-xl"
+              className="relative z-10 border-r border-black/5 dark:border-white/8 overflow-hidden shrink-0 bg-background/80 backdrop-blur-xl"
             >
               <div className="w-[300px] h-full">
                 <ChatSidebar

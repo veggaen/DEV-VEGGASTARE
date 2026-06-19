@@ -374,8 +374,8 @@ export default function ConversationPage() {
         </div>
       )}
 
-      {/* Body — thread column + optional right rail (members + voice) */}
-      <div className="flex-1 flex min-h-0">
+      {/* Body — thread column + members/voice rail on the LEFT (row-reverse) */}
+      <div className="flex-1 flex flex-row-reverse min-h-0">
         <div className="flex-1 flex flex-col min-w-0">
           {/* Messages — subtle surface so the thread reads as a distinct canvas */}
           <div className="flex-1 overflow-hidden bg-linear-to-b from-muted/30 to-transparent dark:from-white/2">
@@ -415,7 +415,7 @@ export default function ConversationPage() {
               animate={{ width: 300, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: reduceMotion ? 0 : 0.2, ease: 'easeInOut' }}
-              className="border-l border-black/5 dark:border-white/8 overflow-hidden shrink-0 bg-background/80 backdrop-blur-xl"
+              className="border-r border-black/5 dark:border-white/8 overflow-hidden shrink-0 bg-background/80 backdrop-blur-xl"
             >
               <div className="w-[300px] h-full">
                 <ChatSidebar

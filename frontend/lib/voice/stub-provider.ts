@@ -22,6 +22,7 @@ import type {
   VoiceRole,
   ServerVoiceEvent,
 } from "./types";
+import { readVoicePrefs, audioConstraintsFromPrefs } from "./voice-prefs";
 
 function dbRoleToUi(role: "HOST" | "MODERATOR" | "SPEAKER" | "LISTENER"): VoiceRole {
   if (role === "HOST" || role === "MODERATOR") return "host";
@@ -101,7 +102,7 @@ export class StubVoiceProvider implements VoiceProvider {
 
     try {
       // Real mic so the local speaking ring + mute are genuine.
-      this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraintsFromPrefs(readVoicePrefs()) });
       this.startAnalyser();
     } catch {
       // Mic denied — still "connected", just can't transmit (muted).

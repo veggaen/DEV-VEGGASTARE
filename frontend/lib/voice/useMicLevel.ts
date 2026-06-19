@@ -16,9 +16,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const BAR_COUNT = 28;
 
-export function useMicLevel(opts?: { deviceId?: string; active?: boolean }) {
+export function useMicLevel(opts?: {
+  deviceId?: string;
+  active?: boolean;
+  /** getUserMedia audio constraints (noiseSuppression/echo/AGC) — overrides deviceId. */
+  constraints?: MediaTrackConstraints;
+  /** Input gain multiplier applied via a GainNode so the meter reflects mic gain. */
+  gain?: number;
+}) {
   const active = opts?.active ?? false;
   const deviceId = opts?.deviceId;
+  const constraints = opts?.constraints;
+  const gain = opts?.gain ?? 1;
 
   const [bars, setBars] = useState<number[]>(() => new Array(BAR_COUNT).fill(0));
   const [level, setLevel] = useState(0);
@@ -28,7 +37,18 @@ export function useMicLevel(opts?: { deviceId?: string; active?: boolean }) {
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
   const rafRef = useRef(0);
+
+  // Live-update the gain node when the gain pref changes (no restart needed).
+  useEffect(() => {
+    if (gainRef.current) gainRef.current.gain.value = gain;
+  }, [gain]);
+
+  // Latest config read inside start() without making start() change identity
+  // (constraints is a fresh object each render — depending on it would loop).
+  const cfgRef = useRef({ deviceId, constraints, gain });
+  cfgRef.current = { deviceId, constraints, gain };
 
   const stop = useCallback(() => {
     cancelAnimationFrame(rafRef.current);
@@ -38,6 +58,7 @@ export function useMicLevel(opts?: { deviceId?: string; active?: boolean }) {
     void ctxRef.current?.close();
     ctxRef.current = null;
     analyserRef.current = null;
+    gainRef.current = null;
     setRunning(false);
     setBars(new Array(BAR_COUNT).fill(0));
     setLevel(0);
@@ -46,18 +67,27 @@ export function useMicLevel(opts?: { deviceId?: string; active?: boolean }) {
   const start = useCallback(async () => {
     try {
       setError(null);
+      const cfg = cfgRef.current;
+      const audio: MediaTrackConstraints = cfg.constraints
+        ? cfg.constraints
+        : cfg.deviceId ? { deviceId: { exact: cfg.deviceId } } : {};
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+        audio: Object.keys(audio).length ? audio : true,
       });
       streamRef.current = stream;
       const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const ctx = new Ctx();
       ctxRef.current = ctx;
       const src = ctx.createMediaStreamSource(stream);
+      // Route through a GainNode so the meter reflects the user's mic-gain setting.
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = cfg.gain;
+      gainRef.current = gainNode;
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 128;
       analyser.smoothingTimeConstant = 0.78;
-      src.connect(analyser);
+      src.connect(gainNode);
+      gainNode.connect(analyser);
       analyserRef.current = analyser;
       setRunning(true);
 
@@ -88,7 +118,7 @@ export function useMicLevel(opts?: { deviceId?: string; active?: boolean }) {
       setError(name === "NotAllowedError" ? "Microphone access blocked." : "Could not open the microphone.");
       setRunning(false);
     }
-  }, [deviceId]);
+  }, []);
 
   // Start/stop with `active`, and restart when deviceId changes while active.
   useEffect(() => {
