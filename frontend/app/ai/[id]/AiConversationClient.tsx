@@ -409,6 +409,29 @@ export default function AiConversationClient({
     if (res.ok) router.push("/ai");
   }, [sessionId, router]);
 
+  // ── Admin moderation (inline; replaces the old standalone /admin page) ──
+  const [moderating, setModerating] = useState(false);
+  const handleModerate = useCallback(async (action: "suspend" | "unsuspend" | "flag") => {
+    let reason: string | undefined;
+    if (action === "suspend" || action === "flag") {
+      reason = window.prompt(`Reason for ${action} (optional):`) ?? undefined;
+    }
+    setModerating(true);
+    try {
+      const res = await fetch(`/api/admin/ai-chat/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, reason }),
+      });
+      if (res.ok) {
+        if (action === "suspend") setConv((prev) => prev ? { ...prev, isSuspended: true } : prev);
+        if (action === "unsuspend") setConv((prev) => prev ? { ...prev, isSuspended: false } : prev);
+      }
+    } finally {
+      setModerating(false);
+    }
+  }, [sessionId]);
+
   // ── Copy share link ──
   const handleShare = useCallback(async () => {
     if (!conv) return;
@@ -734,12 +757,35 @@ export default function AiConversationClient({
                       </button>
                     )}
                     {isAdmin && (
-                      <Link
-                        href={`/admin/ai-chat/${sessionId}`}
-                        className="block text-xs px-3 py-2 rounded-lg text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                      >
-                        Admin view →
-                      </Link>
+                      <>
+                        <div className="px-3 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                          Moderation
+                        </div>
+                        {conv.isSuspended ? (
+                          <button
+                            onClick={() => handleModerate("unsuspend")}
+                            disabled={moderating}
+                            className="w-full text-left text-xs px-3 py-2 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-50 transition-colors"
+                          >
+                            Unsuspend conversation
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleModerate("suspend")}
+                            disabled={moderating}
+                            className="w-full text-left text-xs px-3 py-2 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 transition-colors"
+                          >
+                            Suspend conversation
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleModerate("flag")}
+                          disabled={moderating}
+                          className="w-full text-left text-xs px-3 py-2 rounded-lg text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
+                        >
+                          Flag for review
+                        </button>
+                      </>
                     )}
                   </div>
                 )}

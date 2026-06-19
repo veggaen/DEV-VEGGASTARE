@@ -19,7 +19,7 @@
 import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  FiMic, FiMicOff, FiPhoneOff, FiHeadphones, FiChevronRight, FiSettings,
+  FiMic, FiMicOff, FiPhoneOff, FiHeadphones, FiChevronRight, FiSettings, FiShield, FiUserX,
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { useVoiceRoom } from "@/lib/voice/useVoiceRoom";
@@ -198,6 +198,7 @@ export function ChatSidebar({
               member={m}
               canManage={isHost && m.id !== self.id && !m.isAi}
               reduceMotion={!!reduceMotion}
+              onMute={() => voice.muteMember(m.id)}
               onMakeModerator={() => voice.makeModerator(m.id)}
               onRemove={() => voice.removeMember(m.id)}
             />
@@ -287,29 +288,51 @@ function ControlButton({
   );
 }
 
-/** Roster row — hovering reveals per-member actions (nested hover-expand). */
+/** Roster row — hover reveals per-member actions; RIGHT-CLICK opens a context
+ *  menu (Discord-style) with the same host actions (mute / promote / remove). */
 function MemberRow({
-  member, canManage, reduceMotion, onMakeModerator, onRemove,
+  member, canManage, reduceMotion, onMute, onMakeModerator, onRemove,
 }: {
   member: SidebarMember;
   canManage: boolean;
   reduceMotion: boolean;
+  onMute: () => void;
   onMakeModerator: () => void;
   onRemove: () => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState<null | "mod" | "remove">(null);
+  const [menu, setMenu] = React.useState<{ x: number; y: number } | null>(null);
 
   const run = async (which: "mod" | "remove", fn: () => void) => {
     setBusy(which);
     try { await fn(); } finally { setBusy(null); }
   };
+
+  const onContextMenu = (e: React.MouseEvent) => {
+    if (!canManage) return; // only hosts get the menu; default menu otherwise
+    e.preventDefault();
+    setMenu({ x: e.clientX, y: e.clientY });
+  };
+
   return (
     <div
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
+      onContextMenu={onContextMenu}
       className="group rounded-lg overflow-hidden hover:bg-black/4 dark:hover:bg-white/5 transition-colors"
     >
+      {menu && (
+        <MemberContextMenu
+          x={menu.x}
+          y={menu.y}
+          name={member.name}
+          onClose={() => setMenu(null)}
+          onMute={onMute}
+          onMakeModerator={onMakeModerator}
+          onRemove={onRemove}
+        />
+      )}
       <div className="flex items-center gap-2.5 px-2 py-1.5">
         <div className="relative shrink-0">
           <div className={cn(
@@ -365,6 +388,67 @@ function MemberRow({
           )}
         </AnimatePresence>
       )}
+    </div>
+  );
+}
+
+/** Discord-style right-click menu for a member, positioned at the cursor. */
+function MemberContextMenu({
+  x, y, name, onClose, onMute, onMakeModerator, onRemove,
+}: {
+  x: number;
+  y: number;
+  name: string;
+  onClose: () => void;
+  onMute: () => void;
+  onMakeModerator: () => void;
+  onRemove: () => void;
+}) {
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [onClose]);
+
+  // Keep the menu on-screen (flip if it would overflow the viewport edges).
+  const W = 176, H = 132;
+  const left = typeof window !== "undefined" ? Math.min(x, window.innerWidth - W - 8) : x;
+  const top = typeof window !== "undefined" ? Math.min(y, window.innerHeight - H - 8) : y;
+
+  const act = (fn: () => void) => { fn(); onClose(); };
+
+  return (
+    <div
+      ref={ref}
+      role="menu"
+      style={{ left, top }}
+      className="fixed z-[80] w-44 rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-[#15181e]/97 backdrop-blur-md shadow-2xl p-1"
+    >
+      <div className="px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground truncate border-b border-black/5 dark:border-white/8 mb-1">
+        {name}
+      </div>
+      <button
+        onClick={() => act(onMute)}
+        className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-foreground hover:bg-black/5 dark:hover:bg-white/8 transition-colors"
+      >
+        <FiMicOff className="h-3.5 w-3.5 text-muted-foreground" /> Mute
+      </button>
+      <button
+        onClick={() => act(onMakeModerator)}
+        className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-foreground hover:bg-black/5 dark:hover:bg-white/8 transition-colors"
+      >
+        <FiShield className="h-3.5 w-3.5 text-muted-foreground" /> Make moderator
+      </button>
+      <button
+        onClick={() => act(onRemove)}
+        className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+      >
+        <FiUserX className="h-3.5 w-3.5" /> Remove from channel
+      </button>
     </div>
   );
 }
