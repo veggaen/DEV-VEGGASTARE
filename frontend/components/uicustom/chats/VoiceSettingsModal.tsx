@@ -63,11 +63,13 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
     return () => { if (status) status.onchange = null; };
   }, [open]);
 
-  // Reflect the live test result into permission state too (denied error → denied).
+  // The Permissions API is the source of truth for blocked-vs-askable. A live-test
+  // error must NOT downgrade an askable (prompt) state to "denied" — otherwise the
+  // modal shows the scary "blocked" UI and never offers the Allow button, so the
+  // browser prompt is never triggered. Only a running test promotes to "granted".
   React.useEffect(() => {
-    if (error) setPermission((p) => (p === "granted" ? p : "denied"));
-    else if (running) setPermission("granted");
-  }, [error, running]);
+    if (running) setPermission("granted");
+  }, [running]);
 
   // User explicitly opts into the mic. start() performs the getUserMedia request;
   // making testActive true keeps it live afterward.
@@ -177,6 +179,11 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
                   <FiMic className="h-4 w-4" /> Allow microphone
                 </button>
               ) : null}
+              {/* Transient errors (e.g. dismissed prompt) — shown WITHOUT the scary
+                  blocked panel, since the permission is still askable. */}
+              {error && permission !== "denied" && (
+                <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 text-center">{error} — click “Allow microphone” to try again.</p>
+              )}
             </div>
 
             {/* Input device */}
