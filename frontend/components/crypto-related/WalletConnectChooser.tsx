@@ -29,7 +29,13 @@ import { FiChevronRight } from "react-icons/fi";
 import { IS_WEB3_CONFIGURED } from "@/lib/web3-config";
 import DirectWalletConnect from "./DirectWalletConnect";
 
-export default function WalletConnectChooser({ children }: { children: React.ReactNode }) {
+export default function WalletConnectChooser({
+  children,
+  authenticateDirect = true,
+}: {
+  children: React.ReactNode;
+  authenticateDirect?: boolean;
+}) {
   const [open, setOpen] = React.useState(false);
 
   const openAppKit = async () => {
@@ -96,7 +102,7 @@ export default function WalletConnectChooser({ children }: { children: React.Rea
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Or connect directly
             </p>
-            <DirectWalletConnect />
+            <DirectWalletConnect authenticateOnConnect={authenticateDirect} onConnected={() => setOpen(false)} />
             <p className="mt-2 text-[11px] text-muted-foreground/70">
               Goes straight to your wallet — no third-party picker.
             </p>

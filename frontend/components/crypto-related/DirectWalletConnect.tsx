@@ -27,7 +27,15 @@ const WALLET_META: Record<string, { label: string; icon?: string; emoji?: string
   injected: { label: "Browser wallet", emoji: "🔌" },
 };
 
-export default function DirectWalletConnect({ className = "" }: { className?: string }) {
+export default function DirectWalletConnect({
+  className = "",
+  authenticateOnConnect = true,
+  onConnected,
+}: {
+  className?: string;
+  authenticateOnConnect?: boolean;
+  onConnected?: () => void;
+}) {
   const { connectAsync, connectors, isPending, variables } = useConnect();
   const { signInWithAddress, signingIn: authing } = useWalletSignIn();
 
@@ -36,6 +44,11 @@ export default function DirectWalletConnect({ className = "" }: { className?: st
       const result = await connectAsync({ connector });
       const account = result.accounts?.[0];
       if (!account) throw new Error("No account returned");
+      if (!authenticateOnConnect) {
+        toast.success(`${connector.name} connected`);
+        onConnected?.();
+        return;
+      }
       // Shared SIWE flow (wagmi useSignMessage under the hood) — same path the
       // AppKit bridge uses, so there's one implementation.
       await signInWithAddress(account);
@@ -74,7 +87,13 @@ export default function DirectWalletConnect({ className = "" }: { className?: st
       });
   }, [connectors]);
 
-  if (direct.length === 0) return null;
+  if (direct.length === 0) {
+    return (
+      <div className={`rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 text-sm text-muted-foreground ${className}`}>
+        No browser extension wallets detected. Install MetaMask, Coinbase Wallet, Rabby, or use WalletConnect.
+      </div>
+    );
+  }
 
   return (
     <div className={`grid grid-cols-1 gap-2 ${className}`}>

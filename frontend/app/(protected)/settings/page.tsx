@@ -39,7 +39,7 @@ import { VerificationDashboard } from '@/components/uicustom/verification-dashbo
 import { SellerPaymentSettings } from '@/components/uicustom/settings/seller-payment-settings';
 import { useAddresses, type Address } from '@/hooks/use-addresses';
 import type { AddressLabel } from '@/generated/prisma/browser';
-import AppKitButton from '@/components/crypto-related/AppKitButton';
+import WalletConnectChooser from '@/components/crypto-related/WalletConnectChooser';
 import EvmWalletVerify from '@/components/crypto-related/EvmWalletVerify';
 import EvmWalletList from '@/components/crypto-related/EvmWalletList';
 import { 
@@ -2169,7 +2169,7 @@ function Web3WalletSettings() {
         {linkingGuide && (
           <div className="mt-3 space-y-2 text-sm text-blue-600 dark:text-blue-300/80">
             <p>1. <strong>Enable Web3 Mode</strong> below to unlock wallet features</p>
-            <p>2. <strong>Connect</strong> your wallet using AppKit (WalletConnect, MetaMask, etc.)</p>
+            <p>2. <strong>Connect</strong> with a browser extension directly, or use AppKit for WalletConnect/social wallets</p>
             <p>3. <strong>Verify ownership</strong> by signing a challenge message — this links the wallet to your account</p>
             <p>4. Each verified wallet <strong>increases your trust level</strong> and unlocks features like crypto payments</p>
             <p className="mt-2 text-xs text-blue-500 dark:text-blue-400/60">
@@ -2198,10 +2198,14 @@ function Web3WalletSettings() {
             <div>
               <div className="font-medium text-foreground dark:text-white/90">Connect Wallet</div>
               <div className="text-sm text-muted-foreground dark:text-white/40">
-                Use AppKit to connect via WalletConnect, MetaMask, Coinbase, or social login
+                Choose browser extension for MetaMask/Coinbase/Rabby, or AppKit for WalletConnect and social wallets
               </div>
             </div>
-            <AppKitButton />
+            <WalletConnectChooser authenticateDirect={false}>
+              <Button type="button" className="w-full justify-center bg-emerald-600 text-white hover:bg-emerald-500">
+                Choose wallet connection method
+              </Button>
+            </WalletConnectChooser>
             <WalletSessionDisconnectButton />
           </div>
 

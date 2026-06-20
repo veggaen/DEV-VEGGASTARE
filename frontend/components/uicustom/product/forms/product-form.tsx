@@ -70,6 +70,15 @@ const shortAddress = (address?: string | null) => {
   return address.length > 12 ? `${address.slice(0, 6)}...${address.slice(-4)}` : address;
 };
 
+const productCreationErrorMessage = (error: unknown) => {
+  const raw = error instanceof Error ? error.message : String(error ?? '');
+  if (!raw) return 'Failed to create product.';
+  if (/not allowed/i.test(raw) && /accepted types/i.test(raw)) {
+    return `Digital file upload blocked: ${raw.replace(/^EdgeStoreApiClientError:\s*/i, '')}`;
+  }
+  return raw.length > 180 ? `${raw.slice(0, 180)}...` : raw;
+};
+
 type RepoAccessMode = 'COLLABORATOR' | 'TEAM';
 type RepoAccessPermission = 'pull' | 'push' | 'maintain' | 'admin';
 
@@ -1139,7 +1148,7 @@ export const MyProductCreationForm = () => {
       }
     } catch (e) {
       log.error('Create product failed', e);
-      setError('Failed to create product.');
+      setError(productCreationErrorMessage(e));
     } finally {
       setIsSubmitting(false);
     }

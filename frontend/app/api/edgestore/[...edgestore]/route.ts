@@ -30,6 +30,19 @@ const DIGITAL_PRODUCT_EXTENSIONS = [
   // Other
   'psd', 'ai', 'sketch', 'fig',
 ];
+
+const DIGITAL_PRODUCT_MIME_TYPES = [
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp', 'image/x-icon',
+  'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain', 'text/rtf', 'application/rtf',
+  'application/zip', 'application/x-zip-compressed', 'application/vnd.rar', 'application/x-rar-compressed',
+  'application/x-7z-compressed', 'application/x-tar', 'application/gzip',
+  'application/json', 'application/xml', 'text/xml', 'text/csv', 'text/html', 'text/css',
+  'text/javascript', 'application/javascript', 'application/typescript',
+  'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac',
+  'video/mp4', 'video/webm', 'video/quicktime',
+  'font/ttf', 'font/otf', 'font/woff', 'font/woff2',
+];
  
 /**
  * This is the main router for the Edge Store buckets.
@@ -47,7 +60,10 @@ const edgeStoreRouter = es.router({
   // Files are protected and require valid access through our download endpoint
   digitalAssets: es.fileBucket({
     maxSize: 1024 * 1024 * 100, // 100MB max file size
-    accept: DIGITAL_PRODUCT_EXTENSIONS.map(ext => `.${ext}`),
+    accept: [
+      ...DIGITAL_PRODUCT_EXTENSIONS.map(ext => `.${ext}`),
+      ...DIGITAL_PRODUCT_MIME_TYPES,
+    ],
   })
     .path(({ ctx }) => [{ owner: ctx.userId || 'anonymous' }])
     .accessControl({
