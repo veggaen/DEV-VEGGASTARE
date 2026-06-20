@@ -21,6 +21,7 @@ const FALLBACK_CRYPTO_PRICES: Record<string, number> = {
   ETH: 3300,
   BTC: 97000,
   SOL: 200,
+  PLS: 0.0002,
   USDC: 1,
   USDT: 1,
 };

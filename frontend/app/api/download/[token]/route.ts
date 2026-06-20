@@ -17,23 +17,44 @@ function sanitizeFilename(filename: string): string {
     .slice(0, 200); // Limit length
 }
 
-async function fetchStoredFile(storageKey: string) {
-  const directResponse = await fetch(storageKey);
-  if (directResponse.ok) return directResponse;
-
+function buildStorageCandidates(storageKey: string) {
+  const candidates = new Set<string>();
+  const trimmed = storageKey.trim();
+  if (!trimmed) return [];
+  candidates.add(trimmed);
   try {
-    const edgeStoreSdk = initEdgeStoreSdk({});
-    const fileInfo = await edgeStoreSdk.getFile({ url: storageKey });
-    if (fileInfo?.url && fileInfo.url !== storageKey) {
-      const signedResponse = await fetch(fileInfo.url);
-      if (signedResponse.ok) return signedResponse;
-      console.error(`[download] Signed EdgeStore fetch failed: ${signedResponse.status}`);
+    const decoded = decodeURI(trimmed);
+    if (decoded) candidates.add(decoded);
+  } catch {
+    // Keep the original candidate if decoding fails.
+  }
+  return [...candidates].filter((candidate) => /^https?:\/\//i.test(candidate));
+}
+
+async function fetchStoredFile(storageKey: string) {
+  const candidates = buildStorageCandidates(storageKey);
+  let lastResponse: Response | null = null;
+
+  for (const candidate of candidates) {
+    const directResponse = await fetch(candidate);
+    if (directResponse.ok) return directResponse;
+    lastResponse = directResponse;
+
+    try {
+      const edgeStoreSdk = initEdgeStoreSdk({});
+      const fileInfo = await edgeStoreSdk.getFile({ url: candidate });
+      if (fileInfo?.url && fileInfo.url !== candidate) {
+        const signedResponse = await fetch(fileInfo.url);
+        if (signedResponse.ok) return signedResponse;
+        lastResponse = signedResponse;
+        console.error(`[download] Signed EdgeStore fetch failed: ${signedResponse.status}`);
+      }
+    } catch (error) {
+      console.error('[download] EdgeStore signed URL lookup failed:', error);
     }
-  } catch (error) {
-    console.error('[download] EdgeStore signed URL lookup failed:', error);
   }
 
-  return directResponse;
+  return lastResponse ?? new Response(null, { status: 404 });
 }
 
 /**

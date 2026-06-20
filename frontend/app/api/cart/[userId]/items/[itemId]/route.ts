@@ -7,9 +7,14 @@ import { CartItemResponseSchema, CartMessageResponseSchema } from '@/lib/types/c
 
 const isDev = process.env.NODE_ENV !== 'production';
 
-const patchBodySchema = z.object({
-  changeType: z.enum(['increment', 'decrement']),
-});
+const patchBodySchema = z
+  .object({
+    changeType: z.enum(['increment', 'decrement']).optional(),
+    quantity: z.coerce.number().int().min(1).max(1000).optional(),
+  })
+  .refine((value) => Boolean(value.changeType) || typeof value.quantity === 'number', {
+    message: 'changeType or quantity is required',
+  });
 
 // Next.js 16+ params type
 type RouteContext = { params: Promise<{ userId: string; itemId: string }> };
@@ -29,7 +34,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   const bodyResult = await parseJsonOrError(request, patchBodySchema);
   if (!bodyResult.ok) return bodyResult.response;
-  const { changeType } = bodyResult.data;
+  const { changeType, quantity } = bodyResult.data;
 
   try {
     const cart = await dbPrisma.cart.findUnique({ where: { userId } });
@@ -42,7 +47,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 });
     }
 
-    const newQuantity = changeType === 'increment' ? item.quantity + 1 : Math.max(1, item.quantity - 1);
+    const newQuantity =
+      typeof quantity === 'number'
+        ? quantity
+        : changeType === 'increment'
+          ? item.quantity + 1
+          : Math.max(1, item.quantity - 1);
 
     const updatedCartItem = await dbPrisma.cartItem.update({
       where: { id: item.id },
@@ -57,7 +67,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         id: updatedCartItem.Product.id,
         title: updatedCartItem.Product.title,
         price: updatedCartItem.Product.price,
+        priceCurrency: updatedCartItem.Product.priceCurrency ?? 'USD',
         image: updatedCartItem.Product.image ?? [],
+        productType: updatedCartItem.Product.productType,
+        shipFromPostalId: updatedCartItem.Product.shipFromPostalId ?? undefined,
+        freeShippingEnabled: updatedCartItem.Product.freeShippingEnabled,
+        freeShippingThreshold: updatedCartItem.Product.freeShippingThreshold ?? null,
       },
     };
 

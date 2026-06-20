@@ -31,7 +31,7 @@ interface DownloadToken {
     id: string;
     title: string;
     image: string[];
-  };
+  } | null;
 }
 
 function formatFileSize(bytes: number) {
@@ -171,7 +171,7 @@ export default function MyDownloadsPage() {
             >
               <div className="flex flex-col sm:flex-row gap-4">
                 {/* Product Image */}
-                {token.product.image?.[0] && (
+                {token.product?.image?.[0] && (
                   <div className="shrink-0 relative w-full sm:w-24 h-32 sm:h-24">
                     <Image
                       src={token.product.image[0]}
@@ -186,7 +186,9 @@ export default function MyDownloadsPage() {
                 {/* Product Info */}
                 <div className="grow min-w-0">
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="font-semibold text-lg truncate">{token.product.title}</h3>
+                    <h3 className="font-semibold text-lg truncate">
+                      {token.product?.title ?? token.digitalAsset.fileName}
+                    </h3>
                     <div className={`flex items-center gap-1.5 text-sm ${statusInfo.color}`}>
                       <StatusIcon className="h-4 w-4" />
                       <span>{statusInfo.label}</span>

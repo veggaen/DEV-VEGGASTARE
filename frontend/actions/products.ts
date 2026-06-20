@@ -399,6 +399,11 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
       return { error: 'Digital products require a digital asset file.' };
     }
 
+    const isDigitalOnly = validatedData.productType === 'DIGITAL';
+    const effectiveStock = isDigitalOnly
+      ? Math.max(validatedData.quantity ?? 0, 1_000_000)
+      : validatedData.quantity;
+
     const product = await dbPrisma.product.create({
       data: {
         title: validatedData.title,
@@ -415,7 +420,7 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
           const normalized = Array.from(new Set(list.filter(Boolean)));
           return normalized.length ? (normalized as any) : ([pc] as any);
         })(),
-        stock: validatedData.quantity,
+        stock: effectiveStock,
         shipFromPostalId: validatedData.shipFromPostalId ?? cleanedPostalCodes.join(', '),
         image: validatedData.image,
         specifications: validatedData.specifications ? JSON.stringify(validatedData.specifications) : Prisma.JsonNull,
@@ -509,8 +514,8 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
       return { success: 'Product created successfully.', productId: product.id };
     }
 
-    const quantityPerWarehouse = Math.floor(validatedData.quantity / cleanedPostalCodes.length);
-    const remainder = validatedData.quantity % cleanedPostalCodes.length;
+    const quantityPerWarehouse = Math.floor(effectiveStock / cleanedPostalCodes.length);
+    const remainder = effectiveStock % cleanedPostalCodes.length;
 
     console.log('Quantity per warehouse: ', quantityPerWarehouse, ' Remainder: ', remainder);
 
@@ -807,25 +812,28 @@ export const MyDeleteProductAction = async (productId: string) => {
       return { error: 'Forbidden - You do not have permission to delete this product' };
     }
 
-    // Delete in transaction (cascade deletes related records)
+    // Archive/unpublish instead of hard-deleting. Orders and download tokens keep
+    // their product references, while marketplace queries hide unavailable rows.
     await dbPrisma.$transaction(async (tx) => {
-      // Delete accepted tokens
       await tx.productAcceptedToken.deleteMany({
         where: { productId },
       });
 
-      // Delete inventory records
       await tx.inventory.deleteMany({
         where: { productId },
       });
 
-      // Delete the product
-      await tx.product.delete({
+      await tx.product.update({
         where: { id: productId },
+        data: {
+          stock: 0,
+          downloadsEnabled: false,
+          updatedAt: new Date(),
+        },
       });
     });
 
-    return { success: `Product "${product.title}" deleted successfully.` };
+    return { success: `Product "${product.title}" was removed from the marketplace. Existing orders and downloads were preserved.` };
   } catch (error) {
     console.error('Error deleting product: ', error);
     return { error: 'Failed to delete product.' };

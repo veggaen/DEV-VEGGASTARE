@@ -89,7 +89,9 @@ const ProductCard = React.memo(
 		const [adding, setAdding] = useState(false);
 		const [buying, setBuying] = useState(false);
 		const [added, setAdded] = useState(false);
-		const outOfStock = product.stock === 0;
+		const productType = ((product as any).productType ?? "PHYSICAL") as "PHYSICAL" | "DIGITAL" | "HYBRID";
+		const isDigitalProduct = productType === "DIGITAL";
+		const outOfStock = !isDigitalProduct && product.stock === 0;
 
 		const redirectToLogin = useCallback((callbackUrl: string) => {
 			router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
@@ -159,7 +161,7 @@ const ProductCard = React.memo(
 			}
 		}, [addItem, authStatus, outOfStock, product.id, redirectToLogin, router]);
 
-		const typeMeta = PRODUCT_TYPE_META[(product as any).productType ?? "PHYSICAL"] ?? PRODUCT_TYPE_META.PHYSICAL;
+		const typeMeta = PRODUCT_TYPE_META[productType] ?? PRODUCT_TYPE_META.PHYSICAL;
 		const TypeIcon = typeMeta.icon;
 		const tokenSymbols = useMemo(() => getTokenSymbols(product), [product]);
 		const hasCrypto = tokenSymbols.length > 0;
@@ -245,11 +247,11 @@ const ProductCard = React.memo(
 								</div>
 								<div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-white/82">
 									<Truck className="h-3 w-3 shrink-0" />
-									<span className="truncate">{product.shipFromPostalId || "Ready to ship"}</span>
+									<span className="truncate">{isDigitalProduct ? "Download access" : product.shipFromPostalId || "Ready to ship"}</span>
 								</div>
 							</div>
 							<div className={`shrink-0 text-right text-[11px] font-semibold ${outOfStock ? "text-amber-200" : "text-emerald-200"}`}>
-								{outOfStock ? "Out of stock" : `${product.stock} left`}
+								{isDigitalProduct ? "Digital" : outOfStock ? "Out of stock" : `${product.stock} left`}
 							</div>
 						</div>
 					</motion.div>
@@ -294,7 +296,7 @@ const ProductCard = React.memo(
 						<span className="text-zinc-300 dark:text-zinc-700">/</span>
 						<WalletCards className="h-3 w-3 shrink-0" />
 						<span className="truncate">{hasCrypto ? tokenSymbols.slice(0, 2).join(", ") : "fiat"}</span>
-						{product.stock > 0 && product.stock <= 5 && (
+						{!isDigitalProduct && product.stock > 0 && product.stock <= 5 && (
 							<span className="ml-auto shrink-0 font-medium text-amber-600 dark:text-amber-300">
 								Only {product.stock} left
 							</span>
@@ -312,6 +314,16 @@ const ProductCard = React.memo(
 							acceptsWeb3={Array.isArray(product.acceptedTokens) && product.acceptedTokens.length > 0}
 							acceptedCryptos={product.acceptedTokens?.map((tok) => tok.symbol)}
 							showOriginalAmount={false}
+							render={({ primaryText, secondaryText }) => (
+								<span className="inline-flex flex-wrap items-baseline gap-x-1">
+									<span>{primaryText}</span>
+									{secondaryText && (
+										<span className="text-xs font-semibold text-zinc-500 dark:text-zinc-500">
+											{secondaryText}
+										</span>
+									)}
+								</span>
+							)}
 						/>
 					</div>
 

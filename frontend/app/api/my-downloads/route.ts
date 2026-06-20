@@ -87,7 +87,7 @@ export async function GET() {
           image: product.image,
         } : null,
       };
-    }).filter((d) => d.digitalAsset && d.order && d.product);
+    }).filter((d) => d.digitalAsset && d.order);
 
     return NextResponse.json({ downloads });
   } catch (error) {

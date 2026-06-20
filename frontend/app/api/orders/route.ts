@@ -190,21 +190,23 @@ export async function POST(req: Request) {
         for (const item of items) {
           const product = await tx.product.findUnique({
             where: { id: item.productId },
-            select: { id: true, stock: true, title: true },
+            select: { id: true, stock: true, title: true, productType: true },
           });
 
           if (!product) {
             throw new Error(`Product not found: ${item.productId}`);
           }
 
-          if (product.stock < item.quantity) {
+          if (product.productType !== 'DIGITAL' && product.stock < item.quantity) {
             throw new Error(`Insufficient stock for "${product.title}": only ${product.stock} available`);
           }
 
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { decrement: item.quantity } },
-          });
+          if (product.productType !== 'DIGITAL') {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } },
+            });
+          }
         }
       }
 

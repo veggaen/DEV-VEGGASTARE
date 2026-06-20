@@ -26,16 +26,16 @@ interface TokenMeta extends AcceptedTokenEntry {
 
 // Well-known tokens surfaced by default when a seller enables web3 payments.
 const PRESET_TOKENS: TokenMeta[] = [
-  { family: 'EVM', symbol: 'ETH', decimals: 18, network: 'Ethereum', color: '#627EEA', glyph: 'Ξ' },
-  { family: 'EVM', symbol: 'USDC', decimals: 6, tokenAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', network: 'Ethereum', color: '#2775CA', glyph: '$' },
-  { family: 'EVM', symbol: 'HEX', decimals: 8, tokenAddress: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39', network: 'Ethereum / PulseChain', color: '#FF0099', glyph: 'H' },
-  { family: 'EVM', symbol: 'PLS', decimals: 18, network: 'PulseChain', color: '#9945FF', glyph: '✦' },
-  { family: 'SOLANA', symbol: 'SOL', decimals: 9, network: 'Solana', color: '#14F195', glyph: '◎' },
+  { family: 'EVM', symbol: 'ETH', decimals: 18, network: 'Ethereum Mainnet', color: '#627EEA', glyph: 'Ξ' },
+  { family: 'EVM', symbol: 'USDC', decimals: 6, tokenAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', network: 'Ethereum Mainnet', color: '#2775CA', glyph: '$' },
+  { family: 'EVM', symbol: 'HEX', decimals: 8, tokenAddress: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39', network: 'Ethereum / PulseChain Mainnet', color: '#FF0099', glyph: 'H' },
+  { family: 'EVM', symbol: 'PLS', decimals: 18, network: 'PulseChain Mainnet', color: '#9945FF', glyph: '✦' },
+  { family: 'SOLANA', symbol: 'SOL', decimals: 9, network: 'Solana Mainnet', color: '#14F195', glyph: '◎' },
 ];
 
 const CHAIN_LABELS: Record<string, string> = {
-  EVM: 'EVM (Ethereum, PulseChain, Base…)',
-  SOLANA: 'Solana',
+  EVM: 'EVM mainnets (Ethereum, PulseChain)',
+  SOLANA: 'Solana Mainnet',
 };
 
 // Look up display metadata for any token (preset or custom) by symbol+family.
@@ -43,7 +43,7 @@ function tokenMetaFor(t: AcceptedTokenEntry): { network: string; color: string; 
   const preset = PRESET_TOKENS.find((p) => p.family === t.family && p.symbol === t.symbol);
   if (preset) return { network: preset.network, color: preset.color, glyph: preset.glyph };
   return {
-    network: t.family === 'SOLANA' ? 'Solana' : 'EVM',
+    network: t.family === 'SOLANA' ? 'Solana Mainnet' : 'EVM mainnet',
     color: t.family === 'SOLANA' ? '#14F195' : '#71717a',
     glyph: t.symbol.slice(0, 1).toUpperCase(),
   };
@@ -117,7 +117,7 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
       <div className="space-y-1">
         <h3 className="text-base font-semibold tracking-tight text-foreground">Accept crypto</h3>
         <p className="text-sm text-muted-foreground">
-          Optional. Choose which tokens buyers can pay you with directly on-chain.
+          Optional. Choose which mainnet tokens buyers can pay you with directly on-chain.
         </p>
       </div>
 

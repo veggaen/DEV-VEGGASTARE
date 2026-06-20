@@ -47,6 +47,11 @@ export const fetchProductsWithDetails = async ({
       price: {
         gte: minPrice,
       },
+      OR: [
+        { productType: 'DIGITAL', downloadsEnabled: true },
+        { productType: 'HYBRID', downloadsEnabled: true, stock: { gt: 0 } },
+        { productType: 'PHYSICAL', stock: { gt: 0 } },
+      ],
     };
 
     if (maxPrice !== undefined && maxPrice !== Infinity) {
@@ -60,10 +65,13 @@ export const fetchProductsWithDetails = async ({
     }
 
     if (searchTerm) {
-      whereClause.OR = [
+      whereClause.AND = whereClause.AND || [];
+      whereClause.AND.push({
+        OR: [
         { title: { contains: searchTerm, mode: 'insensitive' } },
         { description: { contains: searchTerm, mode: 'insensitive' } },
-      ];
+        ],
+      });
     }
 
     if (sellerIds.length > 0) {
@@ -95,6 +103,7 @@ export const fetchProductsWithDetails = async ({
         userId: true,
         companyId: true,
         productType: true,
+        downloadsEnabled: true,
         ProductAcceptedToken: {
           select: {
             symbol: true,

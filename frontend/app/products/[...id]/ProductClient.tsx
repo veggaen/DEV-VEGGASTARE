@@ -346,6 +346,8 @@ interface Product {
   priceCurrency: string;
   acceptedFiatCurrencies: string[];
   stock: number;
+  productType: "PHYSICAL" | "DIGITAL" | "HYBRID";
+  downloadsEnabled: boolean;
   condition: string;
   image: string[];
   specifications: Specification[] | null;
@@ -1291,11 +1293,19 @@ function ProductDetails({ product }: { product: Product }) {
     return inventory.reduce((m, it) => (it.stock > m ? it.stock : m), 0);
   }, [closestWarehouse, product.inventory, totalStock]);
 
+  const isDigitalProduct = product.productType === "DIGITAL";
+  const hasShipping = product.productType !== "DIGITAL";
   const acceptedTokenSymbols = useMemo(() => getAcceptedTokenSymbols(product), [product]);
   const acceptedFiatCurrencies = useMemo(() => getAcceptedFiatCurrencies(product), [product]);
   const hasCryptoPayments = acceptedTokenSymbols.length > 0;
-  const availabilityLabel = totalStock > 0 ? `${totalStock} in stock` : "Stock check needed";
-  const canPurchase = totalStock > 0;
+  const availabilityLabel = isDigitalProduct
+    ? product.downloadsEnabled
+      ? "Digital access available"
+      : "Listing unavailable"
+    : totalStock > 0
+      ? `${totalStock} in stock`
+      : "Stock check needed";
+  const canPurchase = product.downloadsEnabled !== false && (isDigitalProduct || totalStock > 0);
 
   // State for user's distance to closest warehouse
   const [userDistanceToWarehouseKm, setUserDistanceToWarehouseKm] = useState<number | undefined>(undefined);
@@ -1562,14 +1572,14 @@ function ProductDetails({ product }: { product: Product }) {
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950">
                       <Trash2 className="h-4 w-4" />
-                      Delete
+                      Remove
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Delete Product</DialogTitle>
+                      <DialogTitle>Remove listing</DialogTitle>
                       <DialogDescription>
-                        Are you sure you want to delete &quot;{product.title}&quot;? This action cannot be undone.
+                        This removes &quot;{product.title}&quot; from the marketplace and disables new purchases. Existing orders and download links stay valid.
                       </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:gap-0">
@@ -1587,7 +1597,7 @@ function ProductDetails({ product }: { product: Product }) {
                         className="gap-2"
                       >
                         {isDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
-                        {isDeleting ? "Deleting..." : "Delete Product"}
+                        {isDeleting ? "Removing..." : "Remove listing"}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
@@ -1711,7 +1721,7 @@ function ProductDetails({ product }: { product: Product }) {
 
           {/* shipping — available to everyone, including logged-out visitors.
               Location detection + Bring price lookup need no auth. */}
-          {(
+          {hasShipping ? (
           <motion.div
             className="mt-6 overflow-hidden rounded-xl border border-border bg-surface-1"
             variants={{
@@ -1896,6 +1906,32 @@ function ProductDetails({ product }: { product: Product }) {
               )}
             </AnimatePresence>
           </motion.div>
+          ) : (
+          <motion.div
+            className="mt-6 overflow-hidden rounded-xl border border-border bg-surface-1"
+            variants={{
+              hidden: { opacity: 0, y: 12 },
+              show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
+            }}
+          >
+            <div className="flex items-center gap-3 border-b border-border p-4">
+              <GoPackage className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div>
+                <div className="text-sm font-semibold text-foreground">Digital delivery</div>
+                <div className="text-xs text-muted-foreground">Access appears in My downloads after payment.</div>
+              </div>
+            </div>
+            <div className="grid gap-px bg-border/70 sm:grid-cols-2">
+              <div className="bg-background p-4">
+                <div className="text-xs font-medium text-muted-foreground">Fulfilment</div>
+                <div className="mt-1.5 text-sm text-foreground">Instant download token</div>
+              </div>
+              <div className="bg-background p-4">
+                <div className="text-xs font-medium text-muted-foreground">Stock</div>
+                <div className="mt-1.5 text-sm text-foreground">No shipping or warehouse stock</div>
+              </div>
+            </div>
+          </motion.div>
           )}
 
           {/* availability + ships-from — quiet inline stats, hairline separated */}
@@ -1912,7 +1948,9 @@ function ProductDetails({ product }: { product: Product }) {
                 Availability
               </div>
               <div className="mt-1.5 text-sm text-foreground">
-                {totalStock > 0 ? (
+                {isDigitalProduct ? (
+                  product.downloadsEnabled ? "Digital download" : <span className="text-amber-600 dark:text-amber-400">Unavailable</span>
+                ) : totalStock > 0 ? (
                   closestWarehouse ? (
                     stockAtClosest > 0
                       ? `${stockAtClosest} in stock nearby`
@@ -1924,7 +1962,7 @@ function ProductDetails({ product }: { product: Product }) {
                   <span className="text-amber-600 dark:text-amber-400">Out of stock</span>
                 )}
               </div>
-              {totalStock > 0 && closestWarehouse && stockAtClosest !== totalStock && (
+              {!isDigitalProduct && totalStock > 0 && closestWarehouse && stockAtClosest !== totalStock && (
                 <div className="mt-1 text-xs text-muted-foreground">
                   {totalStock} across all locations
                 </div>
@@ -1934,10 +1972,10 @@ function ProductDetails({ product }: { product: Product }) {
             <div className="bg-background p-4">
               <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <CiMapPin className="h-3.5 w-3.5" />
-                Ships from
+                {isDigitalProduct ? "Delivery" : "Ships from"}
               </div>
               <div className="mt-1.5 text-sm text-foreground">
-                {closestWarehouse?.postalCode || product.shipFromPostalId || "—"}
+                {isDigitalProduct ? "My downloads" : closestWarehouse?.postalCode || product.shipFromPostalId || "—"}
               </div>
             </div>
           </motion.div>

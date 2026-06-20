@@ -22,7 +22,6 @@ import { useActiveNetwork } from "@/components/crypto-related/ActiveNetworkConte
 import { usePricing } from "@/components/crypto-related/PricingContext";
 import WalletConnectChooser from "@/components/crypto-related/WalletConnectChooser";
 /* Renders “X NATIVE (~$Y)” and stays in sync with PricingContext */
-import PriceAmount from "@/components/crypto-related/PriceAmount";
 
 /* --- Wagmi (EVM) --- */
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
@@ -100,6 +99,15 @@ function fmtTimer(seconds: number) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+function formatNativeAmount(amount: number | null | undefined, symbol: string) {
+  if (amount == null || !Number.isFinite(amount)) return `0 ${symbol}`;
+  const digits = amount >= 1 ? 4 : 8;
+  return `${amount.toLocaleString("en-US", {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: amount >= 1 ? 2 : 0,
+  })} ${symbol}`;
 }
 
 /** Payment expiry timer (15 minutes) */
@@ -388,9 +396,34 @@ export default function CheckoutPage() {
     return m;
   }, [active]);
 
+  const isMainnetPaymentNetwork = useMemo(() => {
+    if (active.kind === "evm") return active.chainId === 1 || active.chainId === 369;
+    return active.cluster === WalletAdapterNetwork.Mainnet;
+  }, [active]);
+
+  const networkGuardMessage = isMainnetPaymentNetwork
+    ? null
+    : active.kind === "evm"
+      ? "Switch to Ethereum Mainnet or PulseChain Mainnet before paying. Testnets and unknown EVM chains are blocked for marketplace purchases."
+      : "Switch to Solana Mainnet before paying. Testnet and devnet payments are blocked for marketplace purchases.";
+
   /* ready to pay? */
   const isWalletReady =
     (active.kind === "evm" && !!evm.address) || (active.kind === "solana" && !!sol.publicKey);
+
+  const cryptoPayButtonTitle = !isMainnetPaymentNetwork
+    ? networkGuardMessage ?? undefined
+    : !isShippingValid
+      ? (allDigital ? "Fill in contact details" : "Fill in shipping address")
+      : undefined;
+
+  const cryptoPayButtonLabel = paying
+    ? "Processing..."
+    : !isMainnetPaymentNetwork
+      ? "Switch to mainnet"
+      : !isShippingValid
+        ? (allDigital ? "Fill in contact" : "Fill in address")
+        : `Pay with ${nativeSymbol}`;
 
   /* -------- Payment actions -------- */
   const recordOrder = useCallback(
@@ -664,6 +697,9 @@ export default function CheckoutPage() {
 
   async function handleConfirmPay() {
     try {
+      if (!isMainnetPaymentNetwork) {
+        throw new Error(networkGuardMessage ?? "Switch to a supported mainnet before paying.");
+      }
       setPaying(true);
       setTxHash(null);
       setVerifyingTx(false);
@@ -674,7 +710,9 @@ export default function CheckoutPage() {
       setPaymentTimerActive(false);
       setVerifyingTx(false);
       setError(
-        active.kind === "evm"
+        !isMainnetPaymentNetwork && networkGuardMessage
+          ? networkGuardMessage
+          : active.kind === "evm"
           ? "EVM payment failed. Check your wallet and try again."
           : "Solana payment failed. Check your wallet and try again."
       );
@@ -1090,10 +1128,16 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total ({nativeSymbol})</span>
-                  <span className="font-medium tabular-nums text-foreground">
-                    <PriceAmount usd={grandTotalUSD} />
+                  <span className="text-right font-medium tabular-nums text-foreground">
+                    {formatNativeAmount(totalInNative, nativeSymbol)}
+                    <span className="ml-1 text-xs text-muted-foreground">≈ ${grandTotalUSD.toFixed(2)}</span>
                   </span>
                 </div>
+                {networkGuardMessage && (
+                  <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-700 dark:text-amber-200">
+                    {networkGuardMessage}
+                  </p>
+                )}
               </div>
             )}
 
@@ -1124,10 +1168,10 @@ export default function CheckoutPage() {
                 <DialogTrigger asChild>
                   <Button
                     className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
-                    disabled={paying || !isShippingValid}
-                    title={!isShippingValid ? (allDigital ? "Fill in contact details" : "Fill in shipping address") : undefined}
+                    disabled={paying || !isShippingValid || !isMainnetPaymentNetwork}
+                    title={cryptoPayButtonTitle}
                   >
-                    {paying ? "Processing…" : !isShippingValid ? (allDigital ? "Fill in contact" : "Fill in address") : `Pay with ${nativeSymbol}`}
+                    {cryptoPayButtonLabel}
                   </Button>
                 </DialogTrigger>
 
@@ -1177,10 +1221,16 @@ export default function CheckoutPage() {
                           </div>
                           <div className="flex justify-between gap-4">
                             <span className="text-muted-foreground">Amount</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                              <PriceAmount usd={grandTotalUSD} />
+                            <span className="text-right text-emerald-600 dark:text-emerald-400 font-medium">
+                              {formatNativeAmount(totalInNative, nativeSymbol)}
+                              <span className="block text-xs text-muted-foreground">≈ ${grandTotalUSD.toFixed(2)}</span>
                             </span>
                           </div>
+                          {networkGuardMessage && (
+                            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-700 dark:text-amber-200">
+                              {networkGuardMessage}
+                            </p>
+                          )}
                         </div>
 
                         {/* Timer */}
@@ -1217,7 +1267,7 @@ export default function CheckoutPage() {
                         <Button
                           onClick={handleConfirmPay}
                           className="mt-5 w-full bg-emerald-600 text-white transition-colors hover:bg-emerald-500"
-                          disabled={paying || !isWalletReady || !totalInNative}
+                          disabled={paying || !isWalletReady || !totalInNative || !isMainnetPaymentNetwork}
                         >
                           {verifyingTx ? "Verifying…" : paying ? "Processing…" : `Confirm & pay`}
                         </Button>

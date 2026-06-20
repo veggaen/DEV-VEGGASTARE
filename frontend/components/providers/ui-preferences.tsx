@@ -9,7 +9,7 @@ export type ProductTitleAnimationMode = "letters" | "rsvp" | "off";
 export type FiatCurrency = "USD" | "NOK" | "EUR" | "GBP" | "SEK" | "DKK";
 
 // Supported cryptocurrencies for display preference
-export type CryptoCurrency = "ETH" | "SOL" | "BTC" | "USDC" | "NONE";
+export type CryptoCurrency = "ETH" | "SOL" | "BTC" | "PLS" | "USDC" | "NONE";
 
 // Appearance style presets
 export type StylePreset = "minimal" | "modern" | "vibrant";
@@ -59,7 +59,7 @@ const DEFAULT_PREFS: UiPreferences = {
 };
 
 const VALID_FIAT: FiatCurrency[] = ["USD", "NOK", "EUR", "GBP", "SEK", "DKK"];
-const VALID_CRYPTO: CryptoCurrency[] = ["ETH", "SOL", "BTC", "USDC", "NONE"];
+const VALID_CRYPTO: CryptoCurrency[] = ["ETH", "SOL", "BTC", "PLS", "USDC", "NONE"];
 const VALID_STYLE_PRESETS: StylePreset[] = ["minimal", "modern", "vibrant"];
 const VALID_ANIMATION_INTENSITIES: AnimationIntensity[] = ["none", "subtle", "full"];
 const VALID_HOVER_STYLES: HoverEffectStyle[] = ["simple", "colorful"];

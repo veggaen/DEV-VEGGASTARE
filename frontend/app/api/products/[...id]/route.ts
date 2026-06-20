@@ -117,6 +117,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         ? (product as any).acceptedFiatCurrencies
         : [],
       stock: typeof (product as any).stock === 'number' ? (product as any).stock : 0,
+      productType: (product as any).productType ?? 'PHYSICAL',
+      downloadsEnabled: (product as any).downloadsEnabled !== false,
       condition: (product as any).condition,
       image: Array.isArray((product as any).image) ? (product as any).image : [],
       specifications: normalizeSpecifications((product as any).specifications),

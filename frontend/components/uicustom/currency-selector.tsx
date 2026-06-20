@@ -27,6 +27,7 @@ export const CRYPTO_CURRENCIES: { code: CryptoCurrency; name: string; symbol: st
   { code: 'ETH', name: 'Ethereum', symbol: 'Ξ' },
   { code: 'BTC', name: 'Bitcoin', symbol: '₿' },
   { code: 'SOL', name: 'Solana', symbol: '◎' },
+  { code: 'PLS', name: 'PulseChain', symbol: 'PLS' },
   { code: 'USDC', name: 'USD Coin', symbol: '$' },
   { code: 'NONE', name: 'No Crypto', symbol: '—' },
 ];
@@ -165,7 +166,7 @@ export function CurrencyToggle({ className }: { className?: string }) {
   const { prefs, setPrefs } = useUiPreferences();
   
   const toggleCrypto = () => {
-    const cryptos: CryptoCurrency[] = ['ETH', 'SOL', 'BTC', 'NONE'];
+    const cryptos: CryptoCurrency[] = ['ETH', 'PLS', 'SOL', 'BTC', 'NONE'];
     const currentIdx = cryptos.indexOf(prefs.preferredCryptoCurrency);
     const nextIdx = (currentIdx + 1) % cryptos.length;
     setPrefs({ preferredCryptoCurrency: cryptos[nextIdx] });

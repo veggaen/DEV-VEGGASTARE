@@ -108,6 +108,8 @@ export const ProductDetailsResponseSchema = z
     priceCurrency: z.enum(['USD', 'NOK', 'EUR', 'GBP']),
     acceptedFiatCurrencies: z.array(z.enum(['USD', 'NOK', 'EUR', 'GBP'])).default([]),
     stock: z.number().int().finite(),
+    productType: z.enum(['PHYSICAL', 'DIGITAL', 'HYBRID']).default('PHYSICAL'),
+    downloadsEnabled: z.boolean().default(true),
     condition: z.string().min(1),
     image: z.array(z.string()),
     specifications: z.array(ProductSpecificationSchema).nullable(),

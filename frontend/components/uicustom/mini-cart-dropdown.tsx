@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -109,26 +109,35 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
 
   // ─── Cart actions ────────────────────────────────────────────────────────
 
-  const handleQuantityChange = async (itemId: string, changeType: "increment" | "decrement") => {
+  const updateQuantity = useCallback(async (itemId: string, nextQuantity: number) => {
     if (!userId) return;
+    const normalized = Math.max(1, Math.min(1000, Math.floor(Number(nextQuantity) || 1)));
+    const previousItems = items;
+    setItems((prev) =>
+      prev.map((item) => (item.id === itemId ? { ...item, quantity: normalized } : item))
+    );
     setActionLoading(itemId);
     try {
       const res = await fetch(`/api/cart/${userId}/items/${itemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ changeType }),
+        body: JSON.stringify({ quantity: normalized }),
       });
       if (!res.ok) throw new Error();
-      // Re-fetch
-      const cartRes = await fetch(`/api/cart/${userId}`);
-      const data = await cartRes.json();
-      setItems(data.items ?? []);
+      const data = await res.json();
+      setItems((prev) => prev.map((item) => (item.id === itemId ? data : item)));
       onCartUpdate?.();
     } catch {
+      setItems(previousItems);
       toast.error("Failed to update quantity");
     } finally {
       setActionLoading(null);
     }
+  }, [items, onCartUpdate, userId]);
+
+  const handleQuantityChange = async (itemId: string, changeType: "increment" | "decrement") => {
+    const current = items.find((item) => item.id === itemId)?.quantity ?? 1;
+    await updateQuantity(itemId, changeType === "increment" ? current + 1 : current - 1);
   };
 
   const handleRemoveItem = async (itemId: string) => {
@@ -291,9 +300,28 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                               >
                                 <FiMinus className="h-3 w-3" />
                               </button>
-                              <span className="flex h-6 w-6 items-center justify-center text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                                {item.quantity}
-                              </span>
+                              <input
+                                type="number"
+                                min={1}
+                                max={1000}
+                                inputMode="numeric"
+                                value={item.quantity}
+                                aria-label={`Quantity for ${item.product.title}`}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => {
+                                  const next = Math.max(1, Math.min(1000, Number(event.target.value) || 1));
+                                  setItems((prev) =>
+                                    prev.map((cartItem) => cartItem.id === item.id ? { ...cartItem, quantity: next } : cartItem)
+                                  );
+                                }}
+                                onBlur={(event) => updateQuantity(item.id, Number(event.target.value) || 1)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") {
+                                    event.currentTarget.blur();
+                                  }
+                                }}
+                                className="h-6 w-8 border-x border-zinc-200 bg-transparent text-center text-xs font-medium tabular-nums text-zinc-700 outline-none focus:bg-emerald-500/10 dark:border-zinc-700 dark:text-zinc-300 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                              />
                               <button
                                 onClick={() => handleQuantityChange(item.id, "increment")}
                                 disabled={actionLoading === item.id}
