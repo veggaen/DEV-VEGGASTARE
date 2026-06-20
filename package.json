@@ -15,6 +15,8 @@
     "restart:project": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/dev-restart.ps1",
     "build:fe": "npm run build --prefix frontend",
     "lint": "npm run lint --prefix frontend",
+    "audit:experience": "node scripts/veggat-experience-audit.mjs",
+    "audit:experience:build": "node scripts/veggat-experience-audit.mjs --build",
     "prisma:generate": "npx --prefix frontend prisma generate",
     "prisma:studio": "npx --prefix frontend prisma studio",
     "push:dev": "git add -A && git commit -m \"update\" && set VEGGAT_OWNER=1 && git push origin dev",
