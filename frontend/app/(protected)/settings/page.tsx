@@ -18,6 +18,7 @@ import { useRef, useState, useTransition, useEffect, useCallback, DragEvent, Cli
 import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAccount, useDisconnect } from "wagmi";
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MyAuthSettingsSchema } from '@/schemas';
@@ -2201,6 +2202,7 @@ function Web3WalletSettings() {
               </div>
             </div>
             <AppKitButton />
+            <WalletSessionDisconnectButton />
           </div>
 
           {/* Verify & Link */}
@@ -2220,9 +2222,9 @@ function Web3WalletSettings() {
           {/* Linked Wallets */}
           <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10 space-y-3">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Linked Wallets</div>
+              <div className="font-medium text-foreground dark:text-white/90">Verified Wallet Links</div>
               <div className="text-sm text-muted-foreground dark:text-white/40">
-                Manage wallets linked to your account. Set a primary wallet for payments.
+                Manage saved payout addresses. Removing a link is separate from disconnecting the current wallet session.
               </div>
             </div>
             <EvmWalletList
@@ -2258,6 +2260,56 @@ function Web3WalletSettings() {
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+function WalletSessionDisconnectButton() {
+  const { address, isConnected } = useAccount();
+  const { disconnectAsync } = useDisconnect();
+  const [busy, setBusy] = useState(false);
+
+  const shortAddress = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : null;
+
+  const disconnectSession = async () => {
+    setBusy(true);
+    try {
+      await disconnectAsync();
+      toast.success("Wallet session disconnected. Your verified wallet link is still saved.");
+    } catch {
+      toast.error("Could not disconnect the wallet session.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!isConnected) {
+    return (
+      <div className="rounded-lg border border-dashed border-zinc-200 px-3 py-2 text-xs text-muted-foreground dark:border-white/10 dark:text-white/40">
+        No live wallet session. Verified wallets below can still stay linked for seller payouts.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
+      <div>
+        <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-200">
+          Current wallet session
+        </div>
+        <div className="text-xs text-emerald-700/80 dark:text-emerald-200/75">
+          {shortAddress} is connected in this browser. Disconnecting does not unlink it from your account.
+        </div>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={busy}
+        onClick={disconnectSession}
+        className="border-emerald-500/30 bg-black/5 text-emerald-800 hover:bg-emerald-500/15 dark:bg-white/5 dark:text-emerald-100"
+      >
+        {busy ? "Disconnecting..." : "Disconnect session"}
+      </Button>
     </div>
   );
 }

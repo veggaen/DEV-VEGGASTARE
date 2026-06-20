@@ -56,6 +56,7 @@ export default function EvmWalletList({
 	const [pending, setPending] = useState<PendingAction | null>(null);
 	const [code, setCode] = useState("");
 	const [busy, setBusy] = useState(false);
+	const [confirmingUnlinkId, setConfirmingUnlinkId] = useState<string | null>(null);
 
 	const defaultWallet = useMemo(() => wallets.find((w) => w.isDefault) ?? null, [wallets]);
 
@@ -118,10 +119,11 @@ export default function EvmWalletList({
 			}
 
 			toast.success(
-				action.type === "setPrimary" ? "This wallet will receive new sales." : "Wallet disconnected.",
+				action.type === "setPrimary" ? "This wallet will receive new sales." : "Wallet link removed from your account.",
 				{ position: "top-center" }
 			);
 			setPending(null);
+			setConfirmingUnlinkId(null);
 			setCode("");
 			await load();
 		} catch {
@@ -221,12 +223,41 @@ export default function EvmWalletList({
 											variant="destructive"
 											size="sm"
 											disabled={busy}
-											onClick={() => void runAction({ type: "unlink", walletId: w.id }, null)}
+											onClick={() => setConfirmingUnlinkId(w.id)}
 										>
-											Disconnect
+											Remove link
 										</Button>
 									</div>
 								</div>
+
+								{confirmingUnlinkId === w.id ? (
+									<div className="mt-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+										<div className="text-sm font-semibold text-red-700 dark:text-red-200">
+											Remove this verified wallet link?
+										</div>
+										<p className="mt-1 text-xs leading-relaxed text-red-700/80 dark:text-red-200/80">
+											This does not just disconnect the current wallet session. It removes this address from your VeggaStare account and seller payout choices.
+										</p>
+										<div className="mt-3 flex flex-wrap gap-2">
+											<Button
+												variant="outline"
+												size="sm"
+												disabled={busy}
+												onClick={() => setConfirmingUnlinkId(null)}
+											>
+												Keep linked
+											</Button>
+											<Button
+												variant="destructive"
+												size="sm"
+												disabled={busy}
+												onClick={() => void runAction({ type: "unlink", walletId: w.id }, null)}
+											>
+												Remove wallet link
+											</Button>
+										</div>
+									</div>
+								) : null}
 
 								{isPending ? (
 									<div className="mt-2 space-y-2">
