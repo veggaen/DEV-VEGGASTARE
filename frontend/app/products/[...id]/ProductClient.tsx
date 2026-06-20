@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useMemo, useState, useCallback } from "react
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import { CiStar } from "react-icons/ci";
 import { useSession } from "next-auth/react";
 import { CiMapPin } from "react-icons/ci";
@@ -39,7 +39,6 @@ import PriceAmount from "@/components/crypto-related/PriceAmount";
 import { usePricing } from "@/components/crypto-related/PricingContext";
 import { useTheme } from "next-themes";
 import { useUiPreferences } from "@/components/providers/ui-preferences";
-import ProductHeroHeading from "@/components/uicustom/product/product-hero-heading";
 import { fetchUserEmployeePermissions } from "@/actions/user-company-permissions";
 import { MyDeleteProductAction } from "@/actions/products";
 import type { EmployeePermissions } from "@/lib/types/company-permissions";
@@ -1166,6 +1165,36 @@ function AnimatedPrice({ amount, currency = 'USD', acceptsWeb3 = false }: { amou
   );
 }
 
+const premiumEase = [0.25, 1, 0.5, 1] as const;
+
+function ProductDetailCursor() {
+  const reduceMotion = useReducedMotion();
+  const x = useMotionValue(-80);
+  const y = useMotionValue(-80);
+  const springX = useSpring(x, { stiffness: 160, damping: 24, mass: 0.45 });
+  const springY = useSpring(y, { stiffness: 160, damping: 24, mass: 0.45 });
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    const onMove = (event: PointerEvent) => {
+      x.set(event.clientX - 18);
+      y.set(event.clientY - 18);
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [reduceMotion, x, y]);
+
+  if (reduceMotion) return null;
+
+  return (
+    <motion.div
+      aria-hidden
+      className="pointer-events-none fixed left-0 top-0 z-40 hidden h-9 w-9 rounded-full border border-emerald-300/35 bg-emerald-300/10 shadow-[0_0_34px_rgba(16,185,129,0.28)] backdrop-blur-md lg:block"
+      style={{ x: springX, y: springY }}
+    />
+  );
+}
+
 function ProductDetails({ product }: { product: Product }) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -1433,11 +1462,17 @@ function ProductDetails({ product }: { product: Product }) {
     }
   }, [canPurchase, session, product.id, router]);
 
+  const productKindLabel = isDigitalProduct ? "Digital artifact" : product.productType === "HYBRID" ? "Hybrid product" : "Physical product";
+  const updatedAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.updatedAt));
+  const createdAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.createdAt));
+
   return (
-    <div className="w-full space-y-5">
+    <div className="relative w-full space-y-8 pb-24 text-white">
+      <ProductDetailCursor />
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[760px] bg-[radial-gradient(circle_at_18%_18%,rgba(16,185,129,0.22),transparent_34%),radial-gradient(circle_at_84%_8%,rgba(56,189,248,0.12),transparent_32%),linear-gradient(180deg,rgba(2,6,23,0.72),transparent)]" />
       <Link
         href="/products"
-        className="group inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:-translate-x-0.5 hover:text-foreground"
+        className="group inline-flex items-center gap-2 text-sm font-medium text-zinc-400 transition-all duration-300 hover:-translate-x-0.5 hover:text-white"
       >
         <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
         Back to products
@@ -1445,7 +1480,7 @@ function ProductDetails({ product }: { product: Product }) {
 
       {/* Top section */}
       <motion.section
-        className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.92fr)] lg:gap-8"
+        className="grid min-h-[calc(100vh-150px)] grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-10"
         initial={reduceMotion ? false : "hidden"}
         animate={reduceMotion ? undefined : "show"}
         variants={{
@@ -1455,25 +1490,27 @@ function ProductDetails({ product }: { product: Product }) {
       >
         {/* Gallery */}
         <motion.div
-          className="lg:sticky lg:top-6"
+          className="lg:col-span-7"
           variants={{
-            hidden: { opacity: 0, y: 14, filter: "blur(10px)" },
-            show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.45, ease: "easeOut" } },
+            hidden: { opacity: 0, y: 22, filter: "blur(14px)" },
+            show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.7, ease: premiumEase } },
           }}
         >
-          <div className="relative overflow-hidden rounded-xl border border-border bg-surface-1">
+          <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.045] p-3 shadow-[0_40px_120px_rgba(0,0,0,0.42)] backdrop-blur-2xl">
+            <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_8%,rgba(255,255,255,0.18),transparent_32%),radial-gradient(circle_at_84%_80%,rgba(16,185,129,0.18),transparent_34%)]" />
+            <div className="relative overflow-hidden rounded-[1.5rem] bg-black/55">
             <Carousel>
               <CarouselContent>
                 {product.image.map((src, idx) => (
                   <CarouselItem key={idx} className="bg-transparent">
-                    <AspectRatio ratio={1 / 1}>
+                    <AspectRatio ratio={4 / 5}>
                       <Image
                         src={src}
                         alt={product.title}
                         fill
-                        sizes="(max-width: 1024px) 100vw, 680px"
+                        sizes="(max-width: 1024px) 100vw, 62vw"
                         loading={idx === 0 ? "eager" : "lazy"}
-                        className="object-contain"
+                        className="object-contain p-4 transition-transform duration-700 ease-out hover:scale-[1.018]"
                       />
                     </AspectRatio>
                   </CarouselItem>
@@ -1482,31 +1519,32 @@ function ProductDetails({ product }: { product: Product }) {
               <CarouselPrevious />
               <CarouselNext />
             </Carousel>
+            </div>
           </div>
 
           {/* Quick stats — text on background, divided by hairlines (no boxes) */}
-          <div className="mt-4 grid grid-cols-3 divide-x divide-border/70 rounded-lg border border-border/70 text-center">
-            <div className="px-3 py-2.5">
-              <div className="text-sm font-semibold text-foreground">{availabilityLabel}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">Availability</div>
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-center shadow-[0_18px_70px_rgba(0,0,0,0.24)] backdrop-blur-2xl transition-transform duration-300 hover:-translate-y-1">
+              <div className="text-sm font-semibold text-white">{availabilityLabel}</div>
+              <div className="mt-0.5 text-xs text-zinc-400">Availability</div>
             </div>
-            <div className="px-3 py-2.5">
-              <div className="text-sm font-semibold text-foreground">{product.condition}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">Condition</div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-center shadow-[0_18px_70px_rgba(0,0,0,0.24)] backdrop-blur-2xl transition-transform duration-300 hover:-translate-y-1">
+              <div className="text-sm font-semibold text-white">{product.condition}</div>
+              <div className="mt-0.5 text-xs text-zinc-400">Condition</div>
             </div>
-            <div className="px-3 py-2.5">
-              <div className="text-sm font-semibold text-foreground">{product.shipFromPostalId || "—"}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">Ships from</div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-center shadow-[0_18px_70px_rgba(0,0,0,0.24)] backdrop-blur-2xl transition-transform duration-300 hover:-translate-y-1">
+              <div className="text-sm font-semibold text-white">{isDigitalProduct ? "My downloads" : product.shipFromPostalId || "Not set"}</div>
+              <div className="mt-0.5 text-xs text-zinc-400">{isDigitalProduct ? "Delivery" : "Ships from"}</div>
             </div>
           </div>
         </motion.div>
 
         {/* Details */}
         <motion.div
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-black/40 p-6 shadow-[0_28px_110px_rgba(0,0,0,0.36)] backdrop-blur-2xl sm:p-7 lg:sticky lg:top-24 lg:col-span-5"
           variants={{
-            hidden: { opacity: 0, y: 10 },
-            show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
+            hidden: { opacity: 0, x: 28, filter: "blur(12px)" },
+            show: { opacity: 1, x: 0, filter: "blur(0px)", transition: { duration: 0.65, ease: premiumEase } },
           }}
         >
           {/* category + title */}
@@ -1523,20 +1561,37 @@ function ProductDetails({ product }: { product: Product }) {
               },
             }}
           >
-            <ProductHeroHeading
-              accent="auto"
-              accentKey={product.category}
-              kicker={product.category}
-              title={product.title}
-              price={
-                <PriceAmount 
-                  amount={product.price} 
-                  currency={product.priceCurrency || 'USD'}
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-emerald-200/80">
+                  {productKindLabel}
+                </span>
+                <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs text-zinc-300">
+                  {product.category}
+                </span>
+              </div>
+              <h1 className="mt-5 max-w-2xl text-4xl font-semibold leading-[0.98] tracking-normal text-white md:text-6xl lg:text-5xl xl:text-6xl">
+                {product.title.split(" ").map((word, index) => (
+                  <motion.span
+                    key={`${word}-${index}`}
+                    className="mr-3 inline-block"
+                    initial={reduceMotion ? false : { opacity: 0, y: 28 }}
+                    animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+                    transition={{ duration: 0.58, ease: premiumEase, delay: 0.08 + index * 0.045 }}
+                  >
+                    {word}
+                  </motion.span>
+                ))}
+              </h1>
+              <div className="mt-5 text-2xl font-semibold text-emerald-200">
+                <PriceAmount
+                  amount={product.price}
+                  currency={product.priceCurrency || "USD"}
                   acceptsWeb3={Array.isArray(product.acceptedTokens) && product.acceptedTokens.length > 0}
                   acceptedCryptos={product.acceptedTokens?.map((t: any) => t.symbol)}
                 />
-              }
-            />
+              </div>
+            </div>
           </motion.div>
 
           {/* rating */}
@@ -1608,7 +1663,7 @@ function ProductDetails({ product }: { product: Product }) {
 
           {/* actions */}
           <motion.div
-            className="mt-2 flex flex-wrap gap-2"
+            className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto]"
             variants={{
               hidden: {},
               show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
@@ -1628,12 +1683,12 @@ function ProductDetails({ product }: { product: Product }) {
               <Button
                 type="button"
                 variant="default"
-                className="h-11 rounded-md bg-zinc-950 px-5 text-sm font-semibold text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                className="h-[52px] w-full rounded-xl bg-white px-5 text-sm font-semibold text-black shadow-[0_12px_40px_rgba(255,255,255,0.12)] transition-colors hover:bg-emerald-200"
                 onClick={handleBuyNow}
                 disabled={!canPurchase}
               >
                 <ShoppingCart className="mr-2 h-4 w-4" />
-                {canPurchase ? "Buy Now" : "Out of Stock"}
+                {canPurchase ? "Buy now" : "Unavailable"}
               </Button>
             </motion.div>
 
@@ -1651,11 +1706,11 @@ function ProductDetails({ product }: { product: Product }) {
               <Button
                 type="button"
                 variant="outline"
-                className="h-11 rounded-md border-zinc-200 bg-white/70 text-sm dark:border-white/10 dark:bg-white/[0.04]"
+                className="h-[52px] rounded-xl border-white/10 bg-white/[0.05] px-5 text-sm font-semibold text-white hover:bg-white/10"
                 onClick={handleAddToCart}
                 disabled={!canPurchase}
               >
-                Add to Basket
+                Add to basket
               </Button>
             </motion.div>
             <motion.div
@@ -1672,7 +1727,7 @@ function ProductDetails({ product }: { product: Product }) {
               <Button
                 type="button"
                 variant="outline"
-                className="h-11 rounded-md border-zinc-200 bg-white/70 text-sm dark:border-white/10 dark:bg-white/[0.04]"
+                className="h-[52px] rounded-xl border-white/10 bg-white/[0.05] px-5 text-sm font-semibold text-white hover:bg-white/10"
                 onClick={() => toast.info("Wishlist is not connected yet.")}
               >
                 <Heart className="mr-2 h-4 w-4" />
@@ -1683,13 +1738,13 @@ function ProductDetails({ product }: { product: Product }) {
 
           {/* Accepted Payment Methods */}
           <motion.div
-            className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
+            className="mt-4 flex flex-wrap items-center gap-2 text-xs text-zinc-400"
             variants={{
               hidden: { opacity: 0 },
               show: { opacity: 1, transition: { duration: 0.3, delay: 0.1 } },
             }}
           >
-            <span className="font-medium text-foreground">Payment</span>
+            <span className="font-medium text-zinc-200">Payment</span>
 
             {/* Crypto chains from product's acceptedTokens */}
             {Array.isArray(product.acceptedTokens) && product.acceptedTokens.length > 0 && (
@@ -1697,22 +1752,22 @@ function ProductDetails({ product }: { product: Product }) {
                 {[...new Set(product.acceptedTokens.map((t: any) => t.family as string))].map((family) => (
                   <span
                     key={family}
-                    className="inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 font-medium text-emerald-700 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-200"
+                    className="inline-flex items-center gap-1 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 font-medium text-emerald-100"
                   >
                     <WalletCards className="h-3.5 w-3.5" />
-                    {family === "EVM" ? "Ethereum" : "Solana"}
+                    {family === "EVM" ? "EVM mainnet" : "Solana mainnet"}
                   </span>
                 ))}
               </>
             )}
 
             {/* Fiat methods — always available on the platform */}
-            <span className="inline-flex items-center gap-1 rounded-md border border-sky-500/20 bg-sky-500/10 px-2 py-1 font-medium text-sky-700 dark:border-sky-300/20 dark:bg-sky-300/10 dark:text-sky-200">
+            <span className="inline-flex items-center gap-1 rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 font-medium text-sky-100">
               <CreditCard className="h-3.5 w-3.5" />
               PayPal ({acceptedFiatCurrencies.join(", ")})
             </span>
             {!hasCryptoPayments && (
-              <span className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-100/70 px-2 py-1 font-medium text-zinc-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-400">
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 font-medium text-zinc-400">
                 <WalletCards className="h-3.5 w-3.5" />
                 Crypto not configured
               </span>
@@ -1908,27 +1963,27 @@ function ProductDetails({ product }: { product: Product }) {
           </motion.div>
           ) : (
           <motion.div
-            className="mt-6 overflow-hidden rounded-xl border border-border bg-surface-1"
+            className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] shadow-[0_18px_70px_rgba(0,0,0,0.24)] backdrop-blur-2xl"
             variants={{
               hidden: { opacity: 0, y: 12 },
               show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
             }}
           >
             <div className="flex items-center gap-3 border-b border-border p-4">
-              <GoPackage className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <GoPackage className="h-5 w-5 text-emerald-200" />
               <div>
-                <div className="text-sm font-semibold text-foreground">Digital delivery</div>
-                <div className="text-xs text-muted-foreground">Access appears in My downloads after payment.</div>
+                <div className="text-sm font-semibold text-white">Digital delivery</div>
+                <div className="text-xs text-zinc-400">Access appears in My downloads after payment.</div>
               </div>
             </div>
-            <div className="grid gap-px bg-border/70 sm:grid-cols-2">
-              <div className="bg-background p-4">
-                <div className="text-xs font-medium text-muted-foreground">Fulfilment</div>
-                <div className="mt-1.5 text-sm text-foreground">Instant download token</div>
+            <div className="grid gap-px bg-white/10 sm:grid-cols-2">
+              <div className="bg-black/25 p-4">
+                <div className="text-xs font-medium text-zinc-500">Access</div>
+                <div className="mt-1.5 text-sm text-white">Instant download token</div>
               </div>
-              <div className="bg-background p-4">
-                <div className="text-xs font-medium text-muted-foreground">Stock</div>
-                <div className="mt-1.5 text-sm text-foreground">No shipping or warehouse stock</div>
+              <div className="bg-black/25 p-4">
+                <div className="text-xs font-medium text-zinc-500">Delivery model</div>
+                <div className="mt-1.5 text-sm text-white">Digital license, no shipping step</div>
               </div>
             </div>
           </motion.div>
@@ -1936,18 +1991,18 @@ function ProductDetails({ product }: { product: Product }) {
 
           {/* availability + ships-from — quiet inline stats, hairline separated */}
           <motion.div
-            className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border/70 bg-border/70"
+            className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2"
             variants={{
               hidden: { opacity: 0, y: 12 },
               show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
             }}
           >
-            <div className="bg-background p-4">
-              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[0_18px_70px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
+              <div className="flex items-center gap-2 text-xs font-medium text-zinc-500">
                 <GoPackage className="h-3.5 w-3.5" />
                 Availability
               </div>
-              <div className="mt-1.5 text-sm text-foreground">
+              <div className="mt-1.5 text-sm text-white">
                 {isDigitalProduct ? (
                   product.downloadsEnabled ? "Digital download" : <span className="text-amber-600 dark:text-amber-400">Unavailable</span>
                 ) : totalStock > 0 ? (
@@ -1963,18 +2018,18 @@ function ProductDetails({ product }: { product: Product }) {
                 )}
               </div>
               {!isDigitalProduct && totalStock > 0 && closestWarehouse && stockAtClosest !== totalStock && (
-                <div className="mt-1 text-xs text-muted-foreground">
+                <div className="mt-1 text-xs text-zinc-400">
                   {totalStock} across all locations
                 </div>
               )}
             </div>
 
-            <div className="bg-background p-4">
-              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[0_18px_70px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
+              <div className="flex items-center gap-2 text-xs font-medium text-zinc-500">
                 <CiMapPin className="h-3.5 w-3.5" />
                 {isDigitalProduct ? "Delivery" : "Ships from"}
               </div>
-              <div className="mt-1.5 text-sm text-foreground">
+              <div className="mt-1.5 text-sm text-white">
                 {isDigitalProduct ? "My downloads" : closestWarehouse?.postalCode || product.shipFromPostalId || "—"}
               </div>
             </div>
@@ -1982,14 +2037,14 @@ function ProductDetails({ product }: { product: Product }) {
 
           {/* description */}
           <motion.div
-            className="mt-6"
+            className="mt-6 rounded-2xl border border-white/10 bg-white/[0.045] p-5 shadow-[0_18px_70px_rgba(0,0,0,0.18)] backdrop-blur-2xl"
             variants={{
               hidden: { opacity: 0, y: 10 },
               show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
             }}
           >
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">About this item</h3>
-            <p className="mt-2 text-sm leading-7 text-foreground/90">{product.description}</p>
+            <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200/70">About this item</h3>
+            <p className="mt-3 text-sm leading-7 text-zinc-200">{product.description}</p>
           </motion.div>
         </motion.div>
       </motion.section>
@@ -1997,13 +2052,14 @@ function ProductDetails({ product }: { product: Product }) {
       {/* Features section */}
       {product.features && product.features.length > 0 && (
         <motion.section
-          className="mt-10 border-t border-border pt-8"
+          className="mt-24"
           initial={reduceMotion ? false : { opacity: 0, y: 12 }}
           whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
-          <h3 className="mb-4 text-base font-semibold tracking-tight text-foreground">Features</h3>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200/70">Highlights</p>
+          <h3 className="mt-3 text-3xl font-semibold tracking-normal text-white md:text-5xl">What stands out</h3>
 
           {/* Group features by category key */}
           {(() => {
@@ -2015,17 +2071,17 @@ function ProductDetails({ product }: { product: Product }) {
             }
             
             return Array.from(grouped.entries()).map(([category, items], groupIdx) => (
-              <div key={groupIdx} className={groupIdx > 0 ? 'mt-4' : ''}>
+              <div key={groupIdx} className={groupIdx > 0 ? 'mt-6' : 'mt-8'}>
                 {category && (
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                  <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
                     {category}
                   </h4>
                 )}
-                <ul className="space-y-2">
+                <ul className="grid gap-3 sm:grid-cols-2">
                   {items.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
-                      <span className="mt-1 shrink-0 h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    <li key={idx} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.05] p-4 shadow-[0_18px_70px_rgba(0,0,0,0.18)] backdrop-blur-2xl transition-transform duration-300 hover:-translate-y-1">
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" />
+                      <span className="text-sm leading-relaxed text-zinc-200">
                         {feature.text}
                       </span>
                     </li>
@@ -2039,39 +2095,32 @@ function ProductDetails({ product }: { product: Product }) {
 
       {/* Specifications */}
       <motion.section
-        className="mt-10 border-t border-border pt-8"
+        className="mt-24"
         initial={reduceMotion ? false : { opacity: 0, y: 12 }}
         whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
-        <h3 className="mb-4 text-base font-semibold tracking-tight text-foreground">Specifications</h3>
-        <dl className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200/70">Specifications</p>
+        <h3 className="mt-3 text-3xl font-semibold tracking-normal text-white md:text-5xl">Technical facts</h3>
+        <dl className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {(product.specifications || []).map((spec, idx) => (
-            <div key={idx} className="flex justify-between gap-4 border-b border-border/60 py-2.5">
-              <dt className="text-sm text-muted-foreground">{spec.key}</dt>
-              <dd className="text-right text-sm font-medium text-foreground">
+            <div key={idx} className="flex justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.05] p-4 shadow-[0_18px_70px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
+              <dt className="text-sm text-zinc-500">{spec.key}</dt>
+              <dd className="text-right text-sm font-medium text-white">
                 {spec.value}
                 {spec.key === "Weight" && " g"}
                 {["Height", "Length", "Width"].includes(spec.key) && " cm"}
               </dd>
             </div>
           ))}
-          <div className="flex justify-between gap-4 border-b border-border/60 py-2.5">
-            <dt className="text-sm text-muted-foreground">Updated</dt>
-            <dd className="text-right text-sm font-medium text-foreground">
-              {new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(
-                new Date(product.updatedAt)
-              )}
-            </dd>
+          <div className="flex justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.05] p-4 shadow-[0_18px_70px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
+            <dt className="text-sm text-zinc-500">Updated</dt>
+            <dd className="text-right text-sm font-medium text-white">{updatedAt}</dd>
           </div>
-          <div className="flex justify-between gap-4 border-b border-border/60 py-2.5">
-            <dt className="text-sm text-muted-foreground">Created</dt>
-            <dd className="text-right text-sm font-medium text-foreground">
-              {new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(
-                new Date(product.createdAt)
-              )}
-            </dd>
+          <div className="flex justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.05] p-4 shadow-[0_18px_70px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
+            <dt className="text-sm text-zinc-500">Created</dt>
+            <dd className="text-right text-sm font-medium text-white">{createdAt}</dd>
           </div>
         </dl>
       </motion.section>
