@@ -64,7 +64,8 @@ const addItemSchema = z.object({
 
 const updateItemSchema = z.object({
   itemId: z.string().trim().min(1).max(200),
-  type: z.enum(["increment", "decrement"]),
+  type: z.enum(["increment", "decrement"]).optional(),
+  changeType: z.enum(["increment", "decrement"]).optional(),
 });
 
 const removeItemSchema = z.object({
@@ -206,7 +207,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const bodyResult = await parseJsonOrError(request, updateItemSchema);
   if (!bodyResult.ok) return bodyResult.response;
 
-  const { itemId, type } = bodyResult.data;
+  const { itemId } = bodyResult.data;
+  const type = bodyResult.data.type ?? bodyResult.data.changeType;
+  if (!type) {
+    return NextResponse.json({ error: "type or changeType is required" }, { status: 400 });
+  }
 
   try {
     const cart = await dbPrisma.cart.findUnique({ where: { userId } });

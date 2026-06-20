@@ -69,8 +69,10 @@ export function SellerPaymentSettings() {
   }, []);
 
   useEffect(() => {
-    fetchStatus();
-    fetchWallets();
+    void Promise.resolve().then(() => {
+      void fetchStatus();
+      void fetchWallets();
+    });
   }, [fetchStatus, fetchWallets]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -155,7 +157,7 @@ export function SellerPaymentSettings() {
           PayPal Receiving Email
         </h3>
         <p className="text-sm text-muted-foreground dark:text-white/40">
-          Buyers can pay you via PayPal to this address. We&apos;ll verify ownership first.
+          Verify the inbox for seller payout records. Automatic PayPal seller routing requires marketplace approval.
         </p>
 
         {/* Current status badge */}
@@ -304,6 +306,12 @@ export function SellerPaymentSettings() {
       <div className="rounded-lg border border-border dark:border-white/10 bg-zinc-50 dark:bg-white/2 p-4">
         <h3 className="text-sm font-medium text-foreground dark:text-white/80 mb-2">How it works</h3>
         <ul className="space-y-1 text-sm text-muted-foreground dark:text-white/50">
+          <li>PayPal - Buyers pay through the configured PayPal merchant app; seller payout routing needs marketplace approval.</li>
+          <li>Crypto wallet - Buyers send tokens directly to your verified wallet on-chain.</li>
+          <li>You can override the receiving wallet on each product listing.</li>
+          <li>At least one payment method is required before listing products for sale.</li>
+        </ul>
+        <ul className="hidden">
           <li>• <strong>PayPal</strong> — Buyers pay via PayPal. Funds go to your verified email.</li>
           <li>• <strong>Crypto wallet</strong> — Buyers send tokens directly to your wallet on-chain.</li>
           <li>• You can override the receiving wallet on each product listing.</li>

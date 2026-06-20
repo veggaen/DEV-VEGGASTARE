@@ -20,6 +20,7 @@ import type { AddressData } from "@/components/uicustom/address-input";
 /* --- App contexts (already mounted in layout) --- */
 import { useActiveNetwork } from "@/components/crypto-related/ActiveNetworkContext";
 import { usePricing } from "@/components/crypto-related/PricingContext";
+import WalletConnectChooser from "@/components/crypto-related/WalletConnectChooser";
 /* Renders “X NATIVE (~$Y)” and stays in sync with PricingContext */
 import PriceAmount from "@/components/crypto-related/PriceAmount";
 
@@ -56,6 +57,8 @@ interface ShippingContact {
   phone: string;
   email: string;
 }
+
+type CheckoutPaymentMethod = 'crypto' | 'paypal';
 
 /* ============ Helpers ============ */
 function formatAddr(addr?: string | null) {
@@ -125,7 +128,7 @@ export default function CheckoutPage() {
   const [showError, setShowError] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'crypto' | 'vipps' | 'klarna' | 'paypal'>('crypto');
+  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('crypto');
   const [availableFiatMethods, setAvailableFiatMethods] = useState<{ type: string; displayName: string; icon: string }[]>([]);
 
   /* Crypto payment verification states */
@@ -134,6 +137,7 @@ export default function CheckoutPage() {
   const [paymentTimerActive, setPaymentTimerActive] = useState(false);
   const [paymentTimeLeft, setPaymentTimeLeft] = useState(PAYMENT_TIMER_SECONDS);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const addressSectionRef = useRef<HTMLDivElement | null>(null);
 
   /* Seller payment info (resolved from products in cart) */
   const [sellerPayment, setSellerPayment] = useState<CheckoutSellerPayment | null>(null);
@@ -190,14 +194,13 @@ export default function CheckoutPage() {
   }, [rates]);
 
   const isShippingValid = useMemo(() => {
-    const baseValid =
-      resolvedAddress !== null &&
+    const contactValid =
       shippingContact.name.trim().length >= 2 &&
       shippingContact.email.includes("@");
-    // Digital-only orders don't need a shipping method
-    if (allDigital) return baseValid;
-    // Physical orders need a selected shipping method
-    return baseValid && selectedShipping !== null;
+    // Digital-only orders only need contact details for receipt/download delivery.
+    if (allDigital) return contactValid;
+    // Physical orders need contact, address, and a selected shipping method.
+    return contactValid && resolvedAddress !== null && selectedShipping !== null;
   }, [resolvedAddress, shippingContact, allDigital, selectedShipping]);
 
   // Check if all items qualify for free shipping
@@ -216,6 +219,19 @@ export default function CheckoutPage() {
   const updateContact = (field: keyof ShippingContact, value: string) => {
     setShippingContact((prev) => ({ ...prev, [field]: value }));
   };
+
+  // Shared input styling for the checkout — single hairline border, soft bg,
+  // accent focus ring. Keeps every field visually consistent without nested boxes.
+  const checkoutInputClass =
+    "w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30";
+
+  const focusDeliveryAddress = useCallback(() => {
+    addressSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => {
+      const input = addressSectionRef.current?.querySelector<HTMLInputElement>("input");
+      input?.focus();
+    }, 250);
+  }, []);
 
   /* Payment countdown timer */
   useEffect(() => {
@@ -247,14 +263,22 @@ export default function CheckoutPage() {
       const data = await res.json();
       const cartItems: CartItem[] = data.items ?? [];
       setItems(cartItems);
+      setPageLoading(false);
 
       // Resolve seller payment info for products in cart
       if (cartItems.length > 0) {
         const productIds = cartItems.map((it) => it.product.id);
-        const spRes = await resolveCheckoutPayment({ productIds });
-        if ('data' in spRes) {
-          setSellerPayment(spRes.data);
-        }
+        resolveCheckoutPayment({ productIds })
+          .then((spRes) => {
+            if ('data' in spRes) {
+              setSellerPayment(spRes.data);
+            }
+          })
+          .catch((err) => {
+            console.warn("[checkout] Seller payment resolution failed:", err);
+          });
+      } else {
+        setSellerPayment(null);
       }
     } catch (e) {
       console.error(e);
@@ -277,9 +301,18 @@ export default function CheckoutPage() {
   useEffect(() => {
     fetch("/api/payments")
       .then((r) => (r.ok ? r.json() : { methods: [] }))
-      .then((d) => setAvailableFiatMethods(d.methods ?? []))
+      .then((d) => {
+        const methods = Array.isArray(d.methods) ? d.methods : [];
+        setAvailableFiatMethods(methods.filter((method: { type?: string }) => method.type === 'paypal'));
+      })
       .catch(() => setAvailableFiatMethods([]));
   }, []);
+
+  useEffect(() => {
+    if (paymentMethod === 'paypal' && availableFiatMethods.length === 0) {
+      setPaymentMethod('crypto');
+    }
+  }, [availableFiatMethods.length, paymentMethod]);
 
   /* totals */
   const subtotalUSD = useMemo(
@@ -407,31 +440,43 @@ export default function CheckoutPage() {
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || "Failed to record order");
         }
-        const orderData = await res.json();
-        // clear cart
-        await fetch(`/api/cart/${user?.id}`, { method: "DELETE" });
-        return orderData;
+        return res.json();
       } catch (e) {
         console.error("Order recording failed:", e);
         throw e;
       }
     },
-    [user?.id, items, grandTotalUSD, networkLabel, shippingContact, resolvedAddress, active, nativeSymbol, usdPerNative, rates, totalInNative, senderAddress, receiverAddress, selectedShipping, shippingCostUSD]
+    [items, grandTotalUSD, networkLabel, shippingContact, resolvedAddress, active, nativeSymbol, usdPerNative, rates, totalInNative, senderAddress, receiverAddress, selectedShipping, shippingCostUSD]
   );
 
   /** Confirm order after on-chain verification */
   const confirmOrder = useCallback(async (orderId: string, txId: string, blockNum?: number) => {
+    const res = await fetch("/api/orders/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, transactionId: txId, blockNumber: blockNum }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.warn("Order confirmation failed:", text);
+      throw new Error(text || "Order confirmation failed");
+    }
+    return res.json();
+  }, []);
+
+  const cancelPendingOrder = useCallback(async (orderId: string, txId?: string) => {
     try {
-      const res = await fetch("/api/orders/confirm", {
+      await fetch("/api/orders/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, transactionId: txId, blockNumber: blockNum }),
+        body: JSON.stringify({
+          orderId,
+          transactionId: txId ?? null,
+          status: "FAILED",
+        }),
       });
-      if (!res.ok) {
-        console.warn("Order confirmation failed:", await res.text());
-      }
     } catch (e) {
-      console.error("Order confirm error:", e);
+      console.error("Order cancellation failed:", e);
     }
   }, []);
 
@@ -505,7 +550,7 @@ export default function CheckoutPage() {
     [allDigital, selectedShipping, resolvedAddress, sellerPostalCode, shippingContact, items]
   );
 
-  async function handlePayEvmNative() {
+  async function handlePayEvmNative(): Promise<string> {
     if (!walletClient || !publicClient) throw new Error("Wallet not connected");
 
     if (!totalInNative || totalInNative <= 0) throw new Error("Invalid amount");
@@ -526,8 +571,11 @@ export default function CheckoutPage() {
     setTxHash(hash);
     setVerifyingTx(true);
 
-    // Record order as CONFIRMING
-    const orderData = await recordOrder(hash);
+    let orderData: { id?: string } | null = null;
+
+    try {
+      // Record order as CONFIRMING after the wallet has broadcast the transaction.
+      orderData = await recordOrder(hash);
 
     // Wait for on-chain confirmation
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -538,11 +586,19 @@ export default function CheckoutPage() {
     if (orderData?.id) {
       await confirmOrder(orderData.id, hash, Number(receipt.blockNumber));
       // Book shipment (non-blocking — fires after order confirmed)
-      bookShipment(orderData.id);
+      await fetch(`/api/cart/${user?.id}`, { method: "DELETE" });
+      return orderData.id;
+    }
+    throw new Error("Order was paid but no order id was returned.");
+    } catch (e) {
+      setVerifyingTx(false);
+      setPaymentTimerActive(false);
+      if (orderData?.id) await cancelPendingOrder(orderData.id, hash);
+      throw e;
     }
   }
 
-  async function handlePaySolana() {
+  async function handlePaySolana(): Promise<string> {
     const from = sol.publicKey;
     if (!from || !sol.signTransaction) throw new Error("Solana wallet not connected");
     if (!totalInNative || totalInNative <= 0) throw new Error("Invalid amount");
@@ -573,8 +629,11 @@ export default function CheckoutPage() {
     setTxHash(sig);
     setVerifyingTx(true);
 
-    // Record order as CONFIRMING
-    const orderData = await recordOrder(sig);
+    let orderData: { id?: string } | null = null;
+
+    try {
+      // Record order as CONFIRMING after the wallet has broadcast the transaction.
+      orderData = await recordOrder(sig);
 
     // Wait for on-chain confirmation
     await connection.confirmTransaction(sig, "confirmed");
@@ -584,7 +643,15 @@ export default function CheckoutPage() {
     // Confirm order
     if (orderData?.id) {
       await confirmOrder(orderData.id, sig);
-      bookShipment(orderData.id);
+      await fetch(`/api/cart/${user?.id}`, { method: "DELETE" });
+      return orderData.id;
+    }
+    throw new Error("Order was paid but no order id was returned.");
+    } catch (e) {
+      setVerifyingTx(false);
+      setPaymentTimerActive(false);
+      if (orderData?.id) await cancelPendingOrder(orderData.id, sig);
+      throw e;
     }
   }
 
@@ -593,9 +660,8 @@ export default function CheckoutPage() {
       setPaying(true);
       setTxHash(null);
       setVerifyingTx(false);
-      if (active.kind === "evm") await handlePayEvmNative();
-      else await handlePaySolana();
-      router.push("/order-confirmation");
+      const orderId = active.kind === "evm" ? await handlePayEvmNative() : await handlePaySolana();
+      router.push(`/order-confirmation?orderId=${encodeURIComponent(orderId)}`);
     } catch (e) {
       console.error("Payment failed:", e);
       setPaymentTimerActive(false);
@@ -615,6 +681,7 @@ export default function CheckoutPage() {
   /* ---- Fiat payment flow ---- */
   async function handlePayFiat() {
     if (!isShippingValid) return;
+    let pendingFiatOrderId: string | null = null;
     try {
       setPaying(true);
 
@@ -651,10 +718,9 @@ export default function CheckoutPage() {
         const errData = await orderRes.json().catch(() => ({}));
         throw new Error(errData.error || "Failed to create order");
       }
-      const { order } = await orderRes.json();
+      const order = await orderRes.json();
+      pendingFiatOrderId = order.id;
 
-      // 1b. Book Bring shipment (non-blocking, fires in parallel with payment session)
-      if (order?.id) bookShipment(order.id);
 
       // 2. Create payment session with provider
       const isPaypal = paymentMethod === 'paypal';
@@ -670,7 +736,7 @@ export default function CheckoutPage() {
           orderId: order.id,
           provider: paymentMethod,
           amount: Math.round(grandTotalUSD * 100), // cents/øre
-          currency: paymentMethod === "vipps" ? "NOK" : "USD",
+          currency: "USD",
           returnUrl,
           // Pass seller PayPal email so provider can route payment to seller
           ...(isPaypal && sellerPayment?.unifiedPaypalEmail
@@ -684,12 +750,7 @@ export default function CheckoutPage() {
       }
       const session = await sessionRes.json();
 
-      // 3. Clear cart (for PayPal, cart is cleared after capture returns)
-      if (!isPaypal) {
-        await fetch(`/api/cart/${user?.id}`, { method: "DELETE" });
-      }
-
-      // 4. Redirect to provider
+      // 3. Redirect to provider. PayPal capture clears the cart after confirmed payment.
       if (session.redirectUrl) {
         window.location.href = session.redirectUrl;
       } else {
@@ -698,7 +759,11 @@ export default function CheckoutPage() {
       }
     } catch (e) {
       console.error("Fiat payment failed:", e);
-      setError(`Payment via ${paymentMethod} failed. Please try again.`);
+      if (pendingFiatOrderId) {
+        await cancelPendingOrder(pendingFiatOrderId);
+      }
+      const message = e instanceof Error ? e.message : `Payment via ${paymentMethod} failed. Please try again.`;
+      setError(paymentMethod === 'paypal' ? `PayPal checkout could not start: ${message}` : message);
       setShowError(true);
     } finally {
       setPaying(false);
@@ -708,320 +773,317 @@ export default function CheckoutPage() {
   /* -------- Render -------- */
   if (pageLoading) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center">
-        <motion.div
-          className="w-full max-w-md p-6 bg-surface-1 dark:bg-white/[0.02] border border-border dark:border-white/10 rounded-xl"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1 className="text-2xl font-bold text-foreground mb-4 text-center">
-            Loading Checkout…
-          </h1>
-          <div className="w-full bg-muted dark:bg-white/10 rounded-full h-2.5 overflow-hidden">
-            <motion.div
-              className="bg-emerald-500 h-2.5 rounded-full"
-              initial={{ x: "-100%" }}
-              animate={{ x: "100%" }}
-              transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
-              style={{ width: "50%" }}
-            />
+      <div className="mx-auto w-full max-w-6xl px-4 py-10 lg:px-8">
+        <div className="h-8 w-40 animate-pulse rounded bg-muted/60" />
+        <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-4">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-4 py-4">
+                <div className="h-16 w-16 animate-pulse rounded-lg bg-muted/60" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-muted/60" />
+                  <div className="h-3 w-1/3 animate-pulse rounded bg-muted/50" />
+                </div>
+              </div>
+            ))}
           </div>
-        </motion.div>
+          <div className="h-64 animate-pulse rounded-xl bg-muted/40" />
+        </div>
       </div>
     );
   }
 
   if (error && showError) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center">
-        <motion.div
-          className="w-full max-w-md p-6 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-500/30"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
+      <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center px-4 text-center">
+        <p className="text-base text-foreground">{error}</p>
+        <button
+          onClick={() => setShowError(false)}
+          className="mt-4 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
         >
-          <div className="flex flex-col gap-3">
-            <p className="text-red-700 dark:text-red-300 text-center">{error}</p>
-            <Button variant="outline" className="text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/30" onClick={() => setShowError(false)}>
-              Dismiss
-            </Button>
-          </div>
-        </motion.div>
+          Dismiss
+        </button>
       </div>
     );
   }
 
   if (items.length === 0) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center">
-        <motion.div
-          className="w-full max-w-md p-6 bg-surface-1 dark:bg-white/[0.02] border border-border dark:border-white/10 rounded-xl text-center"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+      <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center px-4 text-center">
+        <p className="text-lg text-muted-foreground">Your cart is empty.</p>
+        <button
+          onClick={() => router.push("/products")}
+          className="group mt-5 inline-flex items-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-all duration-200 hover:gap-3"
         >
-          <p className="text-muted-foreground text-lg mb-4">Your cart is empty.</p>
-          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => router.push("/products")}>
-            Shop Now
-          </Button>
-        </motion.div>
+          Browse products
+          <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-4 lg:p-8">
-      <motion.h1
-        className="text-4xl font-extrabold mb-8 text-foreground"
-        initial={{ opacity: 0, y: -20 }}
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 lg:px-8 lg:py-10">
+      <motion.div
+        className="mb-8 border-b border-border pb-5"
+        initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.35 }}
       >
-        Checkout
-      </motion.h1>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          Checkout
+        </div>
+        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          Review &amp; pay
+        </h1>
+      </motion.div>
 
-      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8">
-        {/* Left: items */}
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-14">
+        {/* Left: items + delivery */}
         <motion.div
-          className="col-span-1 lg:col-span-2 bg-surface-1 dark:bg-white/[0.02] p-4 lg:p-6 rounded-xl border border-border dark:border-white/10"
-          initial={{ opacity: 0, y: 20 }}
+          className="min-w-0"
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.4 }}
         >
-          <h2 className="text-2xl font-semibold mb-6 text-foreground">Your Order</h2>
-          {items.map((item) => {
-            const imageSrc = item.product.image?.[0] || "/placeholder-image.jpg";
-            return (
-              <motion.div
-                key={item.id}
-                className="flex items-center justify-between mb-4 p-3 lg:p-4 bg-muted/30 dark:bg-white/[0.02] rounded-lg border border-border/50 dark:border-white/5"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4 }}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-16 h-16 lg:w-20 lg:h-20 bg-muted dark:bg-white/5 rounded-lg overflow-hidden">
-                    <AspectRatio ratio={1 / 1}>
-                      <Image
-                        src={imageSrc}
-                        alt={item.product.title}
-                        fill
-                        className="object-cover"
-                        onError={(e) => {
-                          console.error("Image load error:", e);
-                          (e.target as HTMLImageElement).src = "/placeholder-image.jpg";
-                        }}
-                      />
-                    </AspectRatio>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">Your order</h2>
+
+          <div className="mt-4 divide-y divide-border/70">
+            {items.map((item) => {
+              const imageSrc = item.product.image?.[0] || "/placeholder-image.jpg";
+              return (
+                <div
+                  key={item.id}
+                  className="group flex items-center justify-between gap-4 py-4 transition-colors"
+                >
+                  <div className="flex min-w-0 items-center gap-4">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted/40 transition-transform duration-200 group-hover:-translate-y-0.5 lg:h-[72px] lg:w-[72px]">
+                      <AspectRatio ratio={1 / 1}>
+                        <Image
+                          src={imageSrc}
+                          alt={item.product.title}
+                          fill
+                          sizes="(max-width: 1024px) 64px, 72px"
+                          className="object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "/placeholder-image.jpg";
+                          }}
+                        />
+                      </AspectRatio>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-sm font-medium text-foreground">
+                        {item.product.title}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        ${item.product.price.toFixed(2)} × {item.quantity}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-medium text-foreground truncate">
-                      {item.product.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      ${item.product.price.toFixed(2)} × {item.quantity}
-                    </p>
-                  </div>
+                  <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                    ${(item.product.price * item.quantity).toFixed(2)}
+                  </p>
                 </div>
-                <p className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
-                  ${(item.product.price * item.quantity).toFixed(2)}
-                </p>
-              </motion.div>
-            );
-          })}
+              );
+            })}
+          </div>
 
-          {/* Shipping Address Form */}
-          <div className="mt-6 pt-6 border-t border-border dark:border-white/10">
-            <h3 className="text-xl font-semibold mb-4 text-foreground">Shipping Address</h3>
+          {/* Delivery/contact details */}
+          <div ref={addressSectionRef} className="mt-8 border-t border-border pt-8">
+            <h2 className="text-base font-semibold tracking-tight text-foreground">
+              {allDigital ? "Buyer contact" : "Delivery"}
+            </h2>
+            <div className="mt-4">
+            {allDigital ? (
+              <p className="text-sm text-muted-foreground">
+                Digital products are delivered by email and shown in your downloads after payment.
+              </p>
+            ) : (
+              <AddressSelector
+                value={selectedAddress}
+                onChange={setSelectedAddress}
+                customAddress={customAddress}
+                onCustomAddressChange={setCustomAddress}
+                allowCustom
+                allowSave
+                expandCustomByDefault
+                label="Delivery address"
+                required
+              />
+            )}
 
-            {/* Address Selector — saved addresses + Bring autocomplete */}
-            <AddressSelector
-              value={selectedAddress}
-              onChange={setSelectedAddress}
-              customAddress={customAddress}
-              onCustomAddressChange={setCustomAddress}
-              allowCustom
-              allowSave
-              label="Delivery address"
-              required
-            />
-
-            {/* Contact details — always shown alongside address picker */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+            {/* Contact details */}
+            <div className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${allDigital ? "" : "mt-6"}`}>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Full name *
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  Full name <span className="text-muted-foreground">*</span>
                 </label>
                 <input
                   type="text"
                   value={shippingContact.name}
                   onChange={(e) => updateContact("name", e.target.value)}
                   placeholder="Ola Nordmann"
-                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                  className={checkoutInputClass}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Phone
-                </label>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Phone</label>
                 <input
                   type="tel"
                   value={shippingContact.phone}
                   onChange={(e) => updateContact("phone", e.target.value)}
                   placeholder="+47 123 45 678"
-                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                  className={checkoutInputClass}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Email *
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  Email <span className="text-muted-foreground">*</span>
                 </label>
                 <input
                   type="email"
                   value={shippingContact.email}
                   onChange={(e) => updateContact("email", e.target.value)}
                   placeholder="ola@example.com"
-                  className="w-full px-3 py-2.5 border border-border dark:border-white/10 rounded-lg bg-input dark:bg-white/5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                  className={checkoutInputClass}
                 />
               </div>
             </div>
 
-            {!isShippingValid && !selectedShipping && resolvedAddress && (
-              <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
-                Please select or enter an address and fill in your name and email to continue
+            {!isShippingValid && allDigital && (
+              <p className="mt-4 border-l-2 border-amber-500/50 pl-3 text-sm text-muted-foreground">
+                Add your name and email to continue.
               </p>
             )}
-            {!isShippingValid && !resolvedAddress && (
-              <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
-                Please select or enter an address and fill in your name and email to continue
+            {!isShippingValid && !allDigital && (
+              <p className="mt-4 border-l-2 border-amber-500/50 pl-3 text-sm text-muted-foreground">
+                Add a delivery address plus your name and email to continue.
               </p>
             )}
 
-            {/* Shipping Method Selector — Bring live rates */}
-            <ShippingMethodSelector
-              fromPostalCode={sellerPostalCode}
-              toPostalCode={resolvedAddress?.postalCode ?? ""}
-              totalWeightGrams={items.reduce((sum, it) => sum + it.quantity * 1000, 0)}
-              nokPerUsd={nokPerUsd}
-              onSelect={setSelectedShipping}
-              selectedServiceCode={selectedShipping?.serviceCode}
-              allDigital={allDigital}
-            />
+            {!allDigital && (
+              <ShippingMethodSelector
+                fromPostalCode={sellerPostalCode}
+                toPostalCode={resolvedAddress?.postalCode ?? ""}
+                totalWeightGrams={items.reduce((sum, it) => sum + it.quantity * 1000, 0)}
+                nokPerUsd={nokPerUsd}
+                onSelect={setSelectedShipping}
+                selectedServiceCode={selectedShipping?.serviceCode}
+                allDigital={allDigital}
+                onAddressNeeded={focusDeliveryAddress}
+              />
+            )}
+            </div>
           </div>
         </motion.div>
 
-        {/* Right: summary */}
+        {/* Right: sticky summary */}
         <motion.div
-          className="col-span-1 bg-surface-1 dark:bg-white/[0.02] p-4 lg:p-6 rounded-xl border border-border dark:border-white/10 sticky top-6"
-          initial={{ opacity: 0, y: 20 }}
+          className="lg:sticky lg:top-6 lg:self-start"
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.4, delay: 0.05 }}
         >
-          <h2 className="text-2xl font-semibold mb-6 text-foreground">Order Summary</h2>
+          <div className="rounded-xl border border-border bg-surface-1 p-5 lg:p-6">
+            <h2 className="text-base font-semibold tracking-tight text-foreground">Summary</h2>
 
-          <div className="space-y-4">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground font-medium">Subtotal (USD):</span>
-              <span className="text-foreground font-medium">${subtotalUSD.toFixed(2)}</span>
-            </div>
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="tabular-nums text-foreground">${subtotalUSD.toFixed(2)}</span>
+              </div>
 
-            {/* Shipping cost line */}
-            <div className="flex justify-between">
-              <span className="text-muted-foreground font-medium">Shipping:</span>
-              <span className="text-foreground font-medium">
-                {allDigital
-                  ? "Digital"
-                  : freeShipping
-                  ? "Free"
-                  : shippingCostUSD > 0
-                  ? `$${shippingCostUSD.toFixed(2)}`
-                  : "—"}
-              </span>
-            </div>
-            {selectedShipping && !allDigital && !freeShipping && (
-              <p className="text-xs text-muted-foreground -mt-2">
-                {selectedShipping.serviceName}
-                {selectedShipping.estimatedDelivery
-                  ? ` — est. ${new Date(selectedShipping.estimatedDelivery).toLocaleDateString("nb-NO", { day: "numeric", month: "short" })}`
-                  : ""}
-              </p>
-            )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Shipping</span>
+                <span className="tabular-nums text-foreground">
+                  {allDigital
+                    ? "Digital"
+                    : freeShipping
+                    ? "Free"
+                    : shippingCostUSD > 0
+                    ? `$${shippingCostUSD.toFixed(2)}`
+                    : "—"}
+                </span>
+              </div>
+              {selectedShipping && !allDigital && !freeShipping && (
+                <p className="-mt-1 text-xs text-muted-foreground">
+                  {selectedShipping.serviceName}
+                  {selectedShipping.estimatedDelivery
+                    ? ` — est. ${new Date(selectedShipping.estimatedDelivery).toLocaleDateString("nb-NO", { day: "numeric", month: "short" })}`
+                    : ""}
+                </p>
+              )}
 
-            <hr className="border-border dark:border-white/10 my-2" />
-            <div className="flex justify-between font-bold text-xl">
-              <span className="text-foreground">Total (USD)</span>
-              <span className="text-emerald-600 dark:text-emerald-400">${grandTotalUSD.toFixed(2)}</span>
-            </div>
-
-            {/* Payment Method Selector */}
-            <div className="mt-4">
-              <p className="text-sm font-medium text-muted-foreground mb-2">Payment method</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setPaymentMethod('crypto')}
-                  className={`px-3 py-2.5 text-sm font-medium rounded-lg border transition-all ${
-                    paymentMethod === 'crypto'
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : 'bg-muted/30 dark:bg-white/5 text-foreground border-border dark:border-white/10 hover:border-emerald-500/50'
-                  }`}
-                >
-                  🔗 Crypto
-                </button>
-                {availableFiatMethods.map((m) => (
-                  <button
-                    key={m.type}
-                    onClick={() => setPaymentMethod(m.type as typeof paymentMethod)}
-                    className={`px-3 py-2.5 text-sm font-medium rounded-lg border transition-all ${
-                      paymentMethod === m.type
-                        ? 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-muted/30 dark:bg-white/5 text-foreground border-border dark:border-white/10 hover:border-emerald-500/50'
-                    }`}
-                  >
-                    {m.icon} {m.displayName}
-                  </button>
-                ))}
+              <div className="mt-1 flex items-baseline justify-between border-t border-border pt-3">
+                <span className="text-sm font-medium text-foreground">Total</span>
+                <span className="text-xl font-semibold tabular-nums text-foreground">${grandTotalUSD.toFixed(2)}</span>
               </div>
             </div>
 
-            {/* Seller payment info / multi-seller warning */}
+            {/* Payment method — quiet text toggle (no emoji, no filled boxes) */}
+            <div className="mt-6">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Payment</p>
+              <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+                {[{ type: 'crypto', label: 'Crypto' }, ...availableFiatMethods.map((m) => ({ type: m.type, label: m.displayName }))].map((m) => {
+                  const selected = paymentMethod === m.type;
+                  return (
+                    <button
+                      key={m.type}
+                      onClick={() => setPaymentMethod(m.type as typeof paymentMethod)}
+                      className={`relative pb-1 text-sm transition-colors ${
+                        selected ? 'font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {m.label}
+                      <span
+                        className={`absolute inset-x-0 bottom-0 h-0.5 rounded-full transition-all duration-200 ${
+                          selected ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-transparent'
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Seller payment info / multi-seller warning — quiet left-border lines */}
             {sellerPayment && (
-              <div className="mt-3">
+              <div className="mt-4 space-y-2 text-xs">
                 {sellerPayment.multiSeller && (
-                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400 mb-2">
-                    ⚠ Items from multiple sellers — payment goes to platform escrow.
-                  </div>
+                  <p className="border-l-2 border-amber-500/50 pl-3 text-muted-foreground">
+                    Items from multiple sellers — payment goes to platform escrow.
+                  </p>
                 )}
                 {!sellerPayment.multiSeller && paymentMethod === 'crypto' && sellerPayment.unifiedReceiverWallet && active.kind === "evm" && (
-                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
-                    Paying seller directly → <span className="font-mono">{sellerPayment.unifiedReceiverWallet.slice(0, 6)}…{sellerPayment.unifiedReceiverWallet.slice(-4)}</span>
-                  </div>
+                  <p className="border-l-2 border-emerald-500/50 pl-3 text-muted-foreground">
+                    Paying seller directly →{' '}
+                    <span className="font-mono text-foreground">{sellerPayment.unifiedReceiverWallet.slice(0, 6)}…{sellerPayment.unifiedReceiverWallet.slice(-4)}</span>
+                  </p>
                 )}
                 {!sellerPayment.multiSeller && paymentMethod === 'paypal' && sellerPayment.unifiedPaypalEmail && (
-                  <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-xs text-blue-700 dark:text-blue-400">
-                    PayPal payment to seller: <span className="font-medium">{sellerPayment.unifiedPaypalEmail}</span>
-                  </div>
+                  <p className="border-l-2 border-sky-500/50 pl-3 text-muted-foreground">
+                    Seller PayPal on file: <span className="font-medium text-foreground">{sellerPayment.unifiedPaypalEmail}</span>
+                  </p>
                 )}
               </div>
             )}
 
             {/* Crypto payment details (only when crypto selected) */}
             {paymentMethod === 'crypto' && (
-              <div className="mt-4 space-y-3 p-3 rounded-lg bg-muted/20 dark:bg-white/[0.02] border border-border/50 dark:border-white/5">
-                <div className="flex justify-between text-sm">
+              <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
+                <div className="flex justify-between">
                   <span className="text-muted-foreground">Network</span>
                   <span className="text-foreground">{networkLabel}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between">
                   <span className="text-muted-foreground">Rate</span>
-                  <span className="text-foreground">
+                  <span className="tabular-nums text-foreground">
                     {usdPerNative != null ? <>1 {nativeSymbol} = ${usdPerNative.toFixed(2)}</> : "—"}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between">
                   <span className="text-muted-foreground">Total ({nativeSymbol})</span>
-                  <span className="text-foreground font-medium">
+                  <span className="font-medium tabular-nums text-foreground">
                     <PriceAmount usd={grandTotalUSD} />
                   </span>
                 </div>
@@ -1030,31 +1092,39 @@ export default function CheckoutPage() {
 
             {/* Fiat info (only when fiat selected) */}
             {paymentMethod !== 'crypto' && (
-              <div className="mt-4 p-3 rounded-lg bg-muted/20 dark:bg-white/[0.02] border border-border/50 dark:border-white/5">
-                <p className="text-sm text-muted-foreground">
-                  You will be redirected to{' '}
-                  <span className="text-foreground font-medium capitalize">{paymentMethod}</span>
-                  {' '}to complete payment.
-                </p>
-              </div>
+              <p className="mt-4 border-t border-border pt-4 text-sm text-muted-foreground">
+                You&apos;ll be redirected to{' '}
+                <span className="font-medium capitalize text-foreground">{paymentMethod}</span>{' '}
+                to complete payment.
+              </p>
             )}
 
             {/* Pay buttons */}
-            {paymentMethod === 'crypto' ? (
+            {paymentMethod === 'crypto' && !isWalletReady ? (
+              <WalletConnectChooser>
+                <Button
+                  type="button"
+                  className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  disabled={paying}
+                >
+                  Connect wallet to pay
+                </Button>
+              </WalletConnectChooser>
+            ) : paymentMethod === 'crypto' ? (
               <Dialog open={confirmOpen} onOpenChange={(open) => {
                 if (!paying) setConfirmOpen(open);
               }}>
                 <DialogTrigger asChild>
                   <Button
                     className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
-                    disabled={!isWalletReady || paying || !isShippingValid}
-                    title={!isShippingValid ? "Fill in shipping address" : !isWalletReady ? "Connect wallet first" : undefined}
+                    disabled={paying || !isShippingValid}
+                    title={!isShippingValid ? (allDigital ? "Fill in contact details" : "Fill in shipping address") : undefined}
                   >
-                    {paying ? "Processing…" : !isShippingValid ? "Fill in address" : `Pay with ${nativeSymbol}`}
+                    {paying ? "Processing…" : !isShippingValid ? (allDigital ? "Fill in contact" : "Fill in address") : `Pay with ${nativeSymbol}`}
                   </Button>
                 </DialogTrigger>
 
-                <DialogContent className="bg-surface-1 dark:bg-zinc-900 p-6 rounded-2xl max-w-lg border border-border dark:border-white/10">
+                <DialogContent className="max-w-lg rounded-2xl border border-border bg-surface-1 p-6">
                   <DialogTitle className="sr-only">Confirm Payment</DialogTitle>
                   <AnimatePresence>
                     {confirmOpen && (
@@ -1064,11 +1134,12 @@ export default function CheckoutPage() {
                         exit={{ opacity: 0, y: -14, scale: 0.98 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <h3 className="text-xl font-bold text-foreground mb-4">Confirm Payment</h3>
+                        <h3 className="mb-1 text-lg font-semibold tracking-tight text-foreground">Confirm payment</h3>
+                        <p className="mb-5 text-sm text-muted-foreground">Scan the code or send from your connected wallet.</p>
 
                         {/* QR Code for receiver address */}
-                        <div className="flex flex-col items-center mb-4">
-                          <div className="bg-white p-2 rounded-lg">
+                        <div className="mb-5 flex flex-col items-center">
+                          <div className="rounded-xl bg-white p-3">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={qrCodeUrl(receiverAddress, 180)}
@@ -1078,13 +1149,13 @@ export default function CheckoutPage() {
                               className="rounded"
                             />
                           </div>
-                          <p className="text-xs text-muted-foreground mt-2">
+                          <p className="mt-2 text-xs text-muted-foreground">
                             Scan to copy receiver address
                           </p>
                         </div>
 
                         {/* Payment details */}
-                        <div className="space-y-2.5 text-sm">
+                        <div className="space-y-2.5 border-t border-border pt-4 text-sm">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Network</span>
                             <span className="text-foreground">{networkLabel}</span>
@@ -1117,35 +1188,31 @@ export default function CheckoutPage() {
 
                         {/* Verification status */}
                         {verifyingTx && txHash && (
-                          <div className="mt-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-500/20">
-                            <div className="flex items-center gap-2">
-                              <motion.div
-                                className="h-4 w-4 rounded-full border-2 border-blue-500 border-t-transparent"
-                                animate={{ rotate: 360 }}
-                                transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                              />
-                              <span className="text-sm text-blue-700 dark:text-blue-300">
-                                Verifying on-chain…
-                              </span>
+                          <div className="mt-4 flex items-center gap-2 border-l-2 border-sky-500/50 pl-3">
+                            <motion.div
+                              className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-sky-500 border-t-transparent"
+                              animate={{ rotate: 360 }}
+                              transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                            />
+                            <div className="min-w-0">
+                              <span className="text-sm text-foreground">Verifying on-chain…</span>
+                              <p className="truncate font-mono text-xs text-muted-foreground">TX: {txHash}</p>
                             </div>
-                            <p className="text-xs text-blue-500 font-mono mt-1 truncate">
-                              TX: {txHash}
-                            </p>
                           </div>
                         )}
 
                         {/* Disclaimer */}
-                        <div className="mt-3 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 text-[10px] text-amber-700 dark:text-amber-300 leading-relaxed">
-                          ⚠️ Crypto transactions are <strong>irreversible</strong>. Double-check the network, address, and amount.
-                          For Norwegian tax: this payment will be recorded at current NOK rate for Skatteetaten compliance.
-                        </div>
+                        <p className="mt-4 border-l-2 border-amber-500/50 pl-3 text-[11px] leading-relaxed text-muted-foreground">
+                          Crypto transactions are <strong className="text-foreground">irreversible</strong> — double-check the network, address, and amount.
+                          This payment is recorded at the current NOK rate for Skatteetaten compliance.
+                        </p>
 
                         <Button
                           onClick={handleConfirmPay}
-                          className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          className="mt-5 w-full bg-emerald-600 text-white transition-colors hover:bg-emerald-500"
                           disabled={paying || !isWalletReady || !totalInNative}
                         >
-                          {verifyingTx ? "Verifying…" : paying ? "Processing…" : `Confirm & Pay`}
+                          {verifyingTx ? "Verifying…" : paying ? "Processing…" : `Confirm & pay`}
                         </Button>
                       </motion.div>
                     )}
@@ -1157,9 +1224,9 @@ export default function CheckoutPage() {
                 onClick={handlePayFiat}
                 className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
                 disabled={paying || !isShippingValid}
-                title={!isShippingValid ? "Fill in shipping address" : undefined}
+                title={!isShippingValid ? (allDigital ? "Fill in contact details" : "Fill in shipping address") : undefined}
               >
-                {paying ? "Processing…" : !isShippingValid ? "Fill in address" : `Pay with ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}`}
+                {paying ? "Processing…" : !isShippingValid ? (allDigital ? "Fill in contact" : "Fill in address") : `Pay with ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}`}
               </Button>
             )}
 

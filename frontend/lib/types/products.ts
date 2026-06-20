@@ -105,6 +105,7 @@ export const ProductDetailsResponseSchema = z
     price: z.number().finite(),
     priceCurrency: z.enum(['USD', 'NOK', 'EUR', 'GBP']),
     acceptedFiatCurrencies: z.array(z.enum(['USD', 'NOK', 'EUR', 'GBP'])).default([]),
+    stock: z.number().int().finite(),
     condition: z.string().min(1),
     image: z.array(z.string()),
     specifications: z.array(ProductSpecificationSchema).nullable(),

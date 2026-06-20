@@ -57,7 +57,9 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
   }, [companyId]);
 
   useEffect(() => {
-    fetchStatus();
+    void Promise.resolve().then(() => {
+      void fetchStatus();
+    });
   }, [fetchStatus]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -140,6 +142,9 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
       <div className="rounded-lg border border-black/10 bg-white/50 p-4 dark:border-white/10 dark:bg-white/3">
         <p className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">
           PayPal Receiving Email
+        </p>
+        <p className="mb-3 text-xs leading-5 text-zinc-600 dark:text-zinc-400">
+          Verifies inbox ownership for payout records. Automatic PayPal seller routing requires marketplace approval.
         </p>
 
         {status?.paypalEmail && (

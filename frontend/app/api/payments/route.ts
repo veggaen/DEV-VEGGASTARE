@@ -3,6 +3,7 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { dbPrisma } from '@/lib/db';
 import { getPaymentProvider, getAvailablePaymentMethods } from '@/lib/payments/providers';
 import { getProviderGate } from '@/lib/payments/provider-gating';
+import { releaseReservedOrderStock } from '@/lib/payments/complete-fiat-order';
 import { getRuntimeConfig } from '@/lib/runtime-config';
 import { z } from 'zod';
 import { parseJsonOrError } from '@/lib/api-validate';
@@ -49,14 +50,6 @@ export async function POST(req: Request) {
   const currency = bodyResult.data.currency ?? 'NOK';
   const description = bodyResult.data.description ?? 'VeggaStare Order';
 
-  const gate = getProviderGate(providerType, runtime);
-  if (!gate.enabled) {
-    return NextResponse.json(
-      { error: gate.reason ?? `${providerType} is currently unavailable` },
-      { status: 503 }
-    );
-  }
-
   // Verify order exists and belongs to user
   const order = await dbPrisma.order.findUnique({
     where: { id: orderId },
@@ -71,8 +64,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Order already completed' }, { status: 400 });
   }
 
+  const gate = getProviderGate(providerType, runtime);
+  if (!gate.enabled) {
+    await releaseReservedOrderStock(orderId, {
+      status: 'FAILED',
+      source: `payments-${providerType}-disabled`,
+    });
+    return NextResponse.json(
+      { error: gate.reason ?? `${providerType} is currently unavailable` },
+      { status: 503 }
+    );
+  }
+
   const provider = getPaymentProvider(providerType);
   if (!provider) {
+    await releaseReservedOrderStock(orderId, {
+      status: 'FAILED',
+      source: `payments-${providerType}-unavailable`,
+    });
     return NextResponse.json({ error: `Payment provider ${providerType} not available` }, { status: 400 });
   }
 
@@ -86,17 +95,28 @@ export async function POST(req: Request) {
       customerEmail: session.email ?? undefined,
       returnUrl,
       callbackUrl: `${origin}/api/payments/webhook/${providerType}`,
-      // Forward seller PayPal email for P2P routing
-      ...(bodyResult.data.sellerPaypalEmail
+      // Standard Checkout charges the merchant account behind the REST app.
+      // Seller payee routing requires explicit PayPal marketplace/multiparty approval.
+      ...(process.env.PAYPAL_ENABLE_SELLER_PAYEE_ROUTING === 'true' && bodyResult.data.sellerPaypalEmail
         ? { sellerEmail: bodyResult.data.sellerPaypalEmail }
         : {}),
+    });
+
+    await dbPrisma.payment.update({
+      where: { orderId },
+      data: { transactionId: paymentSession.sessionId },
     });
 
     return NextResponse.json(paymentSession);
   } catch (error) {
     console.error(`[payments] ${providerType} session creation failed:`, error);
+    await releaseReservedOrderStock(orderId, {
+      status: 'FAILED',
+      source: `payments-${providerType}-session-failed`,
+    });
+    const message = error instanceof Error ? error.message : 'Failed to create payment session';
     return NextResponse.json(
-      { error: 'Failed to create payment session' },
+      { error: process.env.NODE_ENV === 'production' ? 'Failed to create payment session' : message },
       { status: 500 }
     );
   }

@@ -1,145 +1,174 @@
 'use client';
 
-/**
- * @fileOverview Order Confirmation detail page — shows order summary,
- *   shipping details, and Bring tracking link (when available).
- * @stability maturing
- */
 import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import type { OrderDto } from '@/lib/types/orders';
 
-interface OrderDetails {
-  id: string;
-  totalAmount: number;
-  status: string;
-  commentOrder?: string | null;
-  createdAt: string;
-  // Shipping
-  shippingName?: string | null;
-  shippingAddress?: string | null;
-  shippingCity?: string | null;
-  shippingPostalCode?: string | null;
-  shippingCountry?: string | null;
-  shippingMethod?: string | null;
-  shippingCost?: number | null;
-  shippingServiceName?: string | null;
-  // Tracking
-  trackingNumber?: string | null;
-  trackingUrl?: string | null;
-  estimatedDelivery?: string | null;
-  // Payment
-  payment?: {
-    method: string;
-    status: string;
-    transactionId?: string | null;
-  } | null;
-}
+type PaymentNotice = 'failed' | 'cancelled' | null;
+
+const statusColor: Record<string, string> = {
+  COMPLETED: 'text-emerald-600 dark:text-emerald-400',
+  CONFIRMING: 'text-blue-600 dark:text-blue-400',
+  PENDING: 'text-amber-600 dark:text-amber-400',
+  FAILED: 'text-red-600 dark:text-red-400',
+  CANCELLED: 'text-red-600 dark:text-red-400',
+};
+
+const formatDate = (value: string) =>
+  new Date(value).toLocaleDateString('nb-NO', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
 const OrderConfirmationPage = () => {
   const user = useCurrentUser();
-  const orderId = usePathname();
-  const id = orderId.replace('/order-confirmation/', '');
+  const params = useParams<{ id: string }>();
   const router = useRouter();
-  const [orderDetails, setOrderDetails] = useState<OrderDetails>();
+  const id = params?.id ? decodeURIComponent(params.id) : '';
+  const [orderDetails, setOrderDetails] = useState<OrderDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [paymentNotice, setPaymentNotice] = useState<PaymentNotice>(null);
 
   useEffect(() => {
     if (!user) {
       router.push('/auth/login');
-    } else {
-      fetchOrderDetails();
+      return;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
 
-  const fetchOrderDetails = async () => {
+    if (!id) {
+      setError('Missing order id.');
+      setLoading(false);
+      return;
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+    setPaymentNotice(null);
+    if (searchParams.get('paymentFailed') === 'true') setPaymentNotice('failed');
+    if (searchParams.get('paymentCancelled') === 'true') setPaymentNotice('cancelled');
+
+    fetchOrderDetails(id);
+  }, [id, router, user]);
+
+  const fetchOrderDetails = async (orderId: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`/api/orders/${id}`);
-      if (!response.ok) throw new Error('Failed to fetch order details');
+      const response = await fetch(`/api/orders/${orderId}`);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Failed to fetch order details');
+      }
       const data = await response.json();
       setOrderDetails(data);
-    } catch (error) {
-      console.error('Error fetching order details:', error);
+    } catch (fetchError) {
+      console.error('Error fetching order details:', fetchError);
+      setError(fetchError instanceof Error ? fetchError.message : 'Failed to fetch order details');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!orderDetails || !orderId) {
+  if (loading) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Laster bestilling…</p>
+      <div className="flex min-h-screen w-full items-center justify-center">
+        <p className="text-muted-foreground">Loading order...</p>
       </div>
     );
   }
 
-  const statusColor: Record<string, string> = {
-    COMPLETED: 'text-emerald-600 dark:text-emerald-400',
-    CONFIRMING: 'text-blue-600 dark:text-blue-400',
-    PENDING: 'text-amber-600 dark:text-amber-400',
-    FAILED: 'text-red-600 dark:text-red-400',
-    CANCELLED: 'text-red-600 dark:text-red-400',
-  };
+  if (error || !orderDetails) {
+    return (
+      <main className="mx-auto flex min-h-[60vh] w-full max-w-3xl items-center px-6">
+        <section className="w-full border-y border-border py-10">
+          <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">Order confirmation</p>
+          <h1 className="mt-3 text-3xl font-semibold text-foreground">We could not open this order.</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+            {error ?? 'The order could not be loaded.'}
+          </p>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <Link
+              className="border border-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black"
+              href="/my-orders"
+            >
+              Open My orders
+            </Link>
+            <Link
+              className="border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-foreground"
+              href="/products"
+            >
+              Back to marketplace
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
-    <div className="w-full max-w-3xl mx-auto p-4 lg:p-8">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-6 rounded-xl mb-6">
-        <h1 className="text-2xl font-bold">Takk for din bestilling! 🎉</h1>
-        <p className="text-emerald-100 mt-1 text-sm">
-          Ordre-ID: <span className="font-mono">{orderDetails.id}</span>
+    <main className="mx-auto w-full max-w-3xl p-4 lg:p-8">
+      <section className="mb-6 border-y border-emerald-500/50 py-6">
+        <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">Order confirmed</p>
+        <h1 className="mt-3 text-3xl font-semibold text-foreground">Thank you for your order</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Order ID: <span className="font-mono text-foreground">{orderDetails.id}</span>
         </p>
-      </div>
+      </section>
 
-      {/* Order status */}
-      <div className="bg-surface-1 dark:bg-white/[0.02] border border-border dark:border-white/10 rounded-xl p-6 mb-4">
-        <h2 className="text-lg font-semibold text-foreground mb-4">Ordrestatus</h2>
+      {paymentNotice && (
+        <div className="mb-4 border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+          {paymentNotice === 'cancelled'
+            ? 'Payment was cancelled. The order is kept here so you can retry or review it.'
+            : 'Payment could not be confirmed. Please retry checkout or contact support if money was withdrawn.'}
+        </div>
+      )}
+
+      <section className="mb-4 border border-border bg-surface-1 p-6 dark:bg-white/[0.02]">
+        <h2 className="mb-4 text-lg font-semibold text-foreground">Order status</h2>
         <div className="grid grid-cols-2 gap-y-3 text-sm">
           <span className="text-muted-foreground">Status:</span>
           <span className={`font-medium ${statusColor[orderDetails.status] ?? 'text-foreground'}`}>
             {orderDetails.status}
           </span>
-          <span className="text-muted-foreground">Totalbeløp:</span>
-          <span className="text-foreground font-medium">${orderDetails.totalAmount.toFixed(2)}</span>
+          <span className="text-muted-foreground">Total amount:</span>
+          <span className="font-medium text-foreground">${orderDetails.totalAmount.toFixed(2)}</span>
           {orderDetails.payment && (
             <>
-              <span className="text-muted-foreground">Betalingsmetode:</span>
+              <span className="text-muted-foreground">Payment method:</span>
               <span className="text-foreground">{orderDetails.payment.method}</span>
-              <span className="text-muted-foreground">Betalingsstatus:</span>
+              <span className="text-muted-foreground">Payment status:</span>
               <span className={`font-medium ${statusColor[orderDetails.payment.status] ?? 'text-foreground'}`}>
                 {orderDetails.payment.status}
               </span>
               {orderDetails.payment.transactionId && (
                 <>
-                  <span className="text-muted-foreground">Transaksjons-ID:</span>
-                  <span className="text-foreground font-mono text-xs truncate">{orderDetails.payment.transactionId}</span>
+                  <span className="text-muted-foreground">Transaction ID:</span>
+                  <span className="truncate font-mono text-xs text-foreground">{orderDetails.payment.transactionId}</span>
                 </>
               )}
             </>
           )}
-          <span className="text-muted-foreground">Bestilt:</span>
-          <span className="text-foreground">
-            {new Date(orderDetails.createdAt).toLocaleDateString('nb-NO', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </span>
+          <span className="text-muted-foreground">Ordered:</span>
+          <span className="text-foreground">{formatDate(orderDetails.createdAt)}</span>
         </div>
-      </div>
+      </section>
 
-      {/* Shipping details */}
       {orderDetails.shippingAddress && (
-        <div className="bg-surface-1 dark:bg-white/[0.02] border border-border dark:border-white/10 rounded-xl p-6 mb-4">
-          <h2 className="text-lg font-semibold text-foreground mb-4">📦 Leveringsinformasjon</h2>
+        <section className="mb-4 border border-border bg-surface-1 p-6 dark:bg-white/[0.02]">
+          <h2 className="mb-4 text-lg font-semibold text-foreground">Delivery information</h2>
           <div className="grid grid-cols-2 gap-y-3 text-sm">
             {orderDetails.shippingName && (
               <>
-                <span className="text-muted-foreground">Mottaker:</span>
+                <span className="text-muted-foreground">Recipient:</span>
                 <span className="text-foreground">{orderDetails.shippingName}</span>
               </>
             )}
-            <span className="text-muted-foreground">Adresse:</span>
+            <span className="text-muted-foreground">Address:</span>
             <span className="text-foreground">
               {orderDetails.shippingAddress}
               <br />
@@ -149,22 +178,20 @@ const OrderConfirmationPage = () => {
             </span>
             {(orderDetails.shippingServiceName || orderDetails.shippingMethod) && (
               <>
-                <span className="text-muted-foreground">Fraktmetode:</span>
-                <span className="text-foreground">
-                  {orderDetails.shippingServiceName || orderDetails.shippingMethod}
-                </span>
+                <span className="text-muted-foreground">Shipping method:</span>
+                <span className="text-foreground">{orderDetails.shippingServiceName || orderDetails.shippingMethod}</span>
               </>
             )}
             {orderDetails.shippingCost != null && orderDetails.shippingCost > 0 && (
               <>
-                <span className="text-muted-foreground">Fraktkostnad:</span>
+                <span className="text-muted-foreground">Shipping cost:</span>
                 <span className="text-foreground">${orderDetails.shippingCost.toFixed(2)}</span>
               </>
             )}
             {orderDetails.estimatedDelivery && (
               <>
-                <span className="text-muted-foreground">Estimert levering:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                <span className="text-muted-foreground">Estimated delivery:</span>
+                <span className="font-medium text-emerald-600 dark:text-emerald-400">
                   {new Date(orderDetails.estimatedDelivery).toLocaleDateString('nb-NO', {
                     weekday: 'short',
                     day: 'numeric',
@@ -175,29 +202,28 @@ const OrderConfirmationPage = () => {
             )}
           </div>
 
-          {/* Tracking section */}
           {orderDetails.trackingNumber && (
-            <div className="mt-4 pt-4 border-t border-border dark:border-white/10">
-              <h3 className="text-sm font-semibold text-foreground mb-2">📍 Sporing</h3>
+            <div className="mt-4 border-t border-border pt-4 dark:border-white/10">
+              <h3 className="mb-2 text-sm font-semibold text-foreground">Tracking</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">Sporingsnummer:</span>
-                <span className="text-sm font-mono text-foreground">{orderDetails.trackingNumber}</span>
+                <span className="text-sm text-muted-foreground">Tracking number:</span>
+                <span className="font-mono text-sm text-foreground">{orderDetails.trackingNumber}</span>
               </div>
               {orderDetails.trackingUrl && (
                 <a
                   href={orderDetails.trackingUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  className="mt-3 inline-flex border border-emerald-500 px-4 py-2 text-sm font-medium text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black"
                 >
-                  Spor pakken hos Bring →
+                  Track package with Bring
                 </a>
               )}
             </div>
           )}
-        </div>
+        </section>
       )}
-    </div>
+    </main>
   );
 };
 

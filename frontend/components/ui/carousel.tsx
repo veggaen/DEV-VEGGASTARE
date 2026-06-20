@@ -208,7 +208,7 @@ CarouselItem.displayName = "CarouselItem"
 const CarouselPrevious = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<typeof Button>
->(({ className, variant = "outline", size = "icon", ["aria-label"]: ariaLabel, ...props }, ref) => {
+>(({ className, variant = "outline", size = "icon", ["aria-label"]: ariaLabel, onClick, onPointerDown, ...props }, ref) => {
   const { orientation, scrollPrev, canScrollPrev } = useCarousel()
 
   return (
@@ -225,7 +225,17 @@ const CarouselPrevious = React.forwardRef<
         className
       )}
       disabled={!canScrollPrev}
-      onClick={scrollPrev}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onPointerDown?.(event);
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.(event);
+        if (!event.defaultPrevented) {
+          scrollPrev();
+        }
+      }}
       {...props}
     >
       <IoArrowBackCircleOutline className="h-4 w-4 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
@@ -237,7 +247,7 @@ CarouselPrevious.displayName = "CarouselPrevious"
 const CarouselNext = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<typeof Button>
->(({ className, variant = "outline", size = "icon", ["aria-label"]: ariaLabel, ...props }, ref) => {
+>(({ className, variant = "outline", size = "icon", ["aria-label"]: ariaLabel, onClick, onPointerDown, ...props }, ref) => {
   const { orientation, scrollNext, canScrollNext } = useCarousel()
 
   return (
@@ -254,7 +264,17 @@ const CarouselNext = React.forwardRef<
         className
       )}
       disabled={!canScrollNext}
-      onClick={scrollNext}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onPointerDown?.(event);
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.(event);
+        if (!event.defaultPrevented) {
+          scrollNext();
+        }
+      }}
       {...props}
     >
       <IoArrowForwardCircleOutline className="h-4 w-4 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />

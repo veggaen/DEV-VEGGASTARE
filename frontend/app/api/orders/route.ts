@@ -1,15 +1,10 @@
+import { NextResponse } from 'next/server';
+import { PaymentMethod, PaymentStatus, ChainFamily } from '@/generated/prisma/browser';
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
-import { NextResponse } from 'next/server';
-import { PaymentMethod, ChainFamily } from '@/generated/prisma/browser';
-import type { Prisma } from '@/generated/prisma/client';
-import { z } from 'zod';
 import { OrderDtoSchema } from '@/lib/types/orders';
-import { sendOrderConfirmationEmail, sendSellerOrderNotification, sendWarehouseOrderNotification } from '@/lib/mail';
-import { generateDownloadTokensForOrder } from '@/lib/download-tokens';
-import { recalculateVerificationTier } from '@/lib/verification-recalc';
-import { grantRepoAccessForOrder } from '@/lib/github-repo-access';
+import { z } from 'zod';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -19,7 +14,6 @@ function toIsoString(value: unknown): string {
   return new Date(String(value)).toISOString();
 }
 
-// Schema for order items from checkout
 const OrderItemSchema = z.object({
   productId: z.string().min(1),
   quantity: z.coerce.number().int().positive(),
@@ -27,23 +21,48 @@ const OrderItemSchema = z.object({
   title: z.string().min(1).max(500),
 });
 
+const blankStringToNull = (schema: z.ZodString): z.ZodType<string | null | undefined, z.ZodTypeDef, unknown> =>
+  z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? null : value),
+    schema.optional().nullable()
+  );
+
+type CreatedPayment = {
+  id: string;
+  orderId: string;
+  method: PaymentMethod;
+  status: PaymentStatus;
+  transactionId: string | null;
+  commentPay: string | null;
+  chainFamily: ChainFamily | null;
+  chainId: number | null;
+  tokenSymbol: string | null;
+  nativeAmount: string | null;
+  senderAddress: string | null;
+  receiverAddress: string | null;
+  blockNumber: number | null;
+  nokRateAtTime: number | null;
+  usdRateAtTime: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export async function POST(req: Request) {
   const session = await MyLibUserAuth();
   if (!session?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
   const userId = session.id;
 
   const bodyResult = await parseJsonOrError(
     req,
     z.object({
-      // NOTE: never trust client-supplied userId; always use session user
       totalAmount: z.coerce.number().finite().positive(),
       transactionId: z.string().trim().min(1).max(200).optional().nullable(),
       commentOrder: z.string().trim().max(2000).optional().nullable(),
       commentPay: z.string().trim().max(2000).optional().nullable(),
       method: z.nativeEnum(PaymentMethod).optional().nullable(),
-      // Crypto on-chain data
       chainFamily: z.nativeEnum(ChainFamily).optional().nullable(),
       chainId: z.coerce.number().int().optional().nullable(),
       tokenSymbol: z.string().trim().max(20).optional().nullable(),
@@ -53,44 +72,68 @@ export async function POST(req: Request) {
       blockNumber: z.coerce.number().int().optional().nullable(),
       nokRateAtTime: z.coerce.number().optional().nullable(),
       usdRateAtTime: z.coerce.number().optional().nullable(),
-      // Shipping fields
-      shippingName: z.string().trim().min(2).max(200).optional().nullable(),
-      shippingAddress: z.string().trim().min(3).max(500).optional().nullable(),
-      shippingCity: z.string().trim().min(2).max(100).optional().nullable(),
-      shippingPostalCode: z.string().trim().min(4).max(10).optional().nullable(),
+      shippingName: blankStringToNull(z.string().trim().min(2).max(200)),
+      shippingAddress: blankStringToNull(z.string().trim().min(3).max(500)),
+      shippingCity: blankStringToNull(z.string().trim().min(2).max(100)),
+      shippingPostalCode: blankStringToNull(z.string().trim().min(4).max(10)),
       shippingCountry: z.string().trim().length(2).default('NO'),
-      shippingPhone: z.string().trim().max(20).optional().nullable(),
-      shippingEmail: z.string().email().optional().nullable(),
-      shippingMethod: z.string().trim().max(100).optional().nullable(),
+      shippingPhone: blankStringToNull(z.string().trim().max(20)),
+      shippingEmail: blankStringToNull(z.string().email()),
+      shippingMethod: blankStringToNull(z.string().trim().max(100)),
       shippingCost: z.coerce.number().nonnegative().optional().nullable(),
-      // Order items
       items: z.array(OrderItemSchema).optional(),
     })
   );
   if (!bodyResult.ok) return bodyResult.response;
 
-  const { 
-    totalAmount, transactionId, commentOrder, commentPay, method,
-    chainFamily, chainId, tokenSymbol, nativeAmount, senderAddress, receiverAddress, blockNumber,
-    nokRateAtTime, usdRateAtTime,
-    shippingName, shippingAddress, shippingCity, shippingPostalCode, 
-    shippingCountry, shippingPhone, shippingEmail, shippingMethod, shippingCost,
-    items 
+  const {
+    totalAmount,
+    transactionId,
+    commentOrder,
+    commentPay,
+    method,
+    chainFamily,
+    chainId,
+    tokenSymbol,
+    nativeAmount,
+    senderAddress,
+    receiverAddress,
+    blockNumber,
+    nokRateAtTime,
+    usdRateAtTime,
+    shippingName,
+    shippingAddress,
+    shippingCity,
+    shippingPostalCode,
+    shippingCountry,
+    shippingPhone,
+    shippingEmail,
+    shippingMethod,
+    shippingCost,
+    items,
   } = bodyResult.data;
+  const normalizedShippingName = typeof shippingName === 'string' ? shippingName : null;
+  const normalizedShippingAddress = typeof shippingAddress === 'string' ? shippingAddress : null;
+  const normalizedShippingCity = typeof shippingCity === 'string' ? shippingCity : null;
+  const normalizedShippingPostalCode = typeof shippingPostalCode === 'string' ? shippingPostalCode : null;
+  const normalizedShippingPhone = typeof shippingPhone === 'string' ? shippingPhone : null;
+  const normalizedShippingEmail = typeof shippingEmail === 'string' ? shippingEmail : null;
+  const normalizedShippingMethod = typeof shippingMethod === 'string' ? shippingMethod : null;
 
-  // --- SERVER-SIDE PRICE VERIFICATION & STOCK CHECK ---
-  // Stock validation + reservation is handled atomically inside the transaction below.
-  // Pre-validate product existence and prices first (read-only, no lock needed).
   let serverTotal = 0;
-  const productMap = new Map<string, { id: string; price: number; stock: number | null; title: string }>();
+  const productMap = new Map<string, { id: string; price: number; stock: number; title: string; productType: string }>();
+  let hasPhysicalItems = false;
 
   if (items && items.length > 0) {
-    const productIds = items.map(i => i.productId);
+    const productIds = items.map((i) => i.productId);
     const products = await dbPrisma.product.findMany({
       where: { id: { in: productIds } },
-      select: { id: true, price: true, stock: true, title: true },
+      select: { id: true, price: true, stock: true, title: true, productType: true },
     });
-    for (const p of products) productMap.set(p.id, p);
+
+    for (const product of products) {
+      productMap.set(product.id, product);
+    }
 
     for (const item of items) {
       const product = productMap.get(item.productId);
@@ -100,60 +143,71 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-      // Verify price — allow small rounding diff (≤0.02) but reject manipulated prices
+
       if (Math.abs(Number(product.price) - item.priceAtTime) > 0.02) {
         return NextResponse.json(
           { error: `Price mismatch for "${product.title}": expected ${product.price}, got ${item.priceAtTime}` },
           { status: 400 }
         );
       }
+
       serverTotal += Number(product.price) * item.quantity;
+      if (product.productType !== 'DIGITAL') {
+        hasPhysicalItems = true;
+      }
     }
 
-    // Verify total (allow up to 1.00 tolerance for shipping/rounding)
     const shippingAddon = shippingCost ?? 0;
     if (Math.abs(serverTotal + shippingAddon - totalAmount) > 1.0) {
       console.warn(`[api/orders] Total mismatch: server=${serverTotal} + shipping=${shippingAddon}, client=${totalAmount}`);
     }
   }
 
-  // Determine initial status:
-  //   - crypto payments → CONFIRMING (finalized by /api/orders/confirm after on-chain verification)
-  //   - fiat (PayPal/Vipps/Klarna) → PENDING (finalized by capture endpoint or webhook)
+  if (hasPhysicalItems) {
+    if (!normalizedShippingAddress || !normalizedShippingCity || !normalizedShippingPostalCode) {
+      return NextResponse.json(
+        { error: 'Shipping address is required for physical products' },
+        { status: 400 }
+      );
+    }
+
+    if (!normalizedShippingMethod) {
+      return NextResponse.json(
+        { error: 'Shipping method is required for physical products' },
+        { status: 400 }
+      );
+    }
+  }
+
   const isCryptoPayment = !!chainFamily || method === PaymentMethod.CRYPTO_NATIVE;
   const isFiatProvider = method === PaymentMethod.PAYPAL || method === PaymentMethod.VIPPS || method === PaymentMethod.KLARNA;
   const initialOrderStatus = isCryptoPayment ? 'CONFIRMING' : (isFiatProvider ? 'PENDING' : 'COMPLETED');
   const initialPaymentStatus = isCryptoPayment ? 'CONFIRMING' : (isFiatProvider ? 'PENDING' : 'COMPLETED');
 
   try {
-    // ── Atomic order creation + stock reservation ──
-    // Uses an interactive transaction so stock check + decrement + order insert
-    // happen under the same serializable snapshot, preventing overselling.
     const order = await dbPrisma.$transaction(async (tx) => {
-      // 1. Lock and verify stock for each item (SELECT ... FOR UPDATE equivalent)
       if (items && items.length > 0) {
         for (const item of items) {
           const product = await tx.product.findUnique({
             where: { id: item.productId },
             select: { id: true, stock: true, title: true },
           });
+
           if (!product) {
             throw new Error(`Product not found: ${item.productId}`);
           }
-          if (product.stock !== null && product.stock < item.quantity) {
+
+          if (product.stock < item.quantity) {
             throw new Error(`Insufficient stock for "${product.title}": only ${product.stock} available`);
           }
-          // 2. Decrement stock atomically within the transaction
-          if (product.stock !== null) {
-            await tx.product.update({
-              where: { id: item.productId },
-              data: { stock: { decrement: item.quantity } },
-            });
-          }
+
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { decrement: item.quantity } },
+          });
         }
       }
 
-      // 3. Create order + payment + items in the same transaction
       return tx.order.create({
         data: {
           userId,
@@ -161,15 +215,14 @@ export async function POST(req: Request) {
           status: initialOrderStatus,
           transactionId: transactionId ?? null,
           commentOrder: commentOrder?.trim() || '',
-          // Shipping info
-          shippingName: shippingName ?? null,
-          shippingAddress: shippingAddress ?? null,
-          shippingCity: shippingCity ?? null,
-          shippingPostalCode: shippingPostalCode ?? null,
+          shippingName: normalizedShippingName,
+          shippingAddress: normalizedShippingAddress,
+          shippingCity: normalizedShippingCity,
+          shippingPostalCode: normalizedShippingPostalCode,
           shippingCountry: shippingCountry ?? 'NO',
-          shippingPhone: shippingPhone ?? null,
-          shippingEmail: shippingEmail ?? null,
-          shippingMethod: shippingMethod ?? null,
+          shippingPhone: normalizedShippingPhone,
+          shippingEmail: normalizedShippingEmail,
+          shippingMethod: normalizedShippingMethod,
           shippingCost: shippingCost ?? null,
           Payment: {
             create: {
@@ -177,7 +230,6 @@ export async function POST(req: Request) {
               method: method ?? PaymentMethod.CRYPTO_NATIVE,
               status: initialPaymentStatus,
               transactionId: transactionId ?? null,
-              // On-chain crypto data
               chainFamily: chainFamily ?? null,
               chainId: chainId ?? null,
               tokenSymbol: tokenSymbol ?? null,
@@ -189,17 +241,18 @@ export async function POST(req: Request) {
               usdRateAtTime: usdRateAtTime ?? null,
             },
           },
-          // Create order items if provided
-          ...(items && items.length > 0 ? {
-            OrderItem: {
-              create: items.map((item) => ({
-                productId: item.productId,
-                quantity: item.quantity,
-                priceAtTime: item.priceAtTime,
-                title: item.title,
-              })),
-            },
-          } : {}),
+          ...(items && items.length > 0
+            ? {
+                OrderItem: {
+                  create: items.map((item) => ({
+                    productId: item.productId,
+                    quantity: item.quantity,
+                    priceAtTime: item.priceAtTime,
+                    title: item.title,
+                  })),
+                },
+              }
+            : {}),
         },
         include: {
           Payment: true,
@@ -207,225 +260,22 @@ export async function POST(req: Request) {
         },
       });
     }, {
-      // Transaction options: serializable isolation prevents phantom reads / race conditions
       timeout: 15000,
       isolationLevel: 'Serializable',
-    }) as Prisma.OrderGetPayload<{
-      include: {
-        Payment: true;
-        OrderItem: true;
-      };
-    }>;
+    });
+    const orderWithPayment = order as typeof order & { Payment: CreatedPayment | null };
 
-    // Set payment verification flag and recalculate tier
-    // Fiat provider orders are PENDING → completed later by capture endpoint / webhook
-    // Only run post-creation side effects for immediately-completed orders
-    if (!isCryptoPayment && !isFiatProvider) {
-      try {
-        await dbPrisma.user.update({
-          where: { id: userId },
-          data: { hasWeb2Payment: true },
-        });
-        await recalculateVerificationTier(userId, { hasWeb2Payment: true });
-      } catch (flagErr) {
-        console.error('[api/orders] Failed to set hasWeb2Payment flag:', flagErr);
-      }
-    }
-
-    // Generate download tokens for digital products
-    // (Skip for fiat providers — handled in completeFiatOrder after capture)
-    let downloadTokens: Awaited<ReturnType<typeof generateDownloadTokensForOrder>> = [];
-    if (!isFiatProvider && items && items.length > 0) {
-      try {
-        const orderItemsWithIds = order.OrderItem.map((oi, idx) => ({
-          id: oi.id,
-          productId: items[idx]?.productId || oi.productId,
-        }));
-        downloadTokens = await generateDownloadTokensForOrder({
-          orderId: order.id,
-          userId,
-          orderItems: orderItemsWithIds,
-        });
-      } catch (tokenError) {
-        console.error('[api/orders] Failed to generate download tokens:', tokenError);
-        // Don't fail the order if token generation fails
-      }
-    }
-
-    // Auto-fulfil digital-only orders — no warehouse packing needed
-    if (order.status === 'COMPLETED' && items && items.length > 0) {
-      try {
-        const productIds = items.map((i) => i.productId);
-        const productTypes = await dbPrisma.product.findMany({
-          where: { id: { in: productIds } },
-          select: { productType: true },
-        });
-        const allDigital = productTypes.length > 0 && productTypes.every((p) => p.productType === 'DIGITAL');
-        if (allDigital) {
-          await dbPrisma.order.update({
-            where: { id: order.id },
-            data: { fulfilmentStatus: 'DELIVERED', deliveredAt: new Date() },
-          });
-        }
-      } catch (autoFulfilErr) {
-        console.error('[api/orders] Auto-fulfil digital order failed:', autoFulfilErr);
-      }
-    }
-
-    // Send order confirmation email
-    // (Skip for fiat providers — emails sent after capture in completeFiatOrder)
-    const emailTo = shippingEmail || session.email;
-    if (!isFiatProvider && emailTo) {
-      try {
-        await sendOrderConfirmationEmail(emailTo, {
-          orderId: order.id,
-          name: shippingName || 'Kunde',
-          items: items ?? [],
-          totalAmount,
-          shippingAddress: shippingAddress ?? '',
-          shippingCity: shippingCity ?? '',
-          shippingPostalCode: shippingPostalCode ?? '',
-          shippingCountry: shippingCountry ?? 'NO',
-          transactionId: transactionId ?? undefined,
-          downloadLinks: downloadTokens.length > 0 ? downloadTokens : undefined,
-          shippingMethodName: shippingMethod ?? undefined,
-          shippingCost: shippingCost ?? undefined,
-        });
-      } catch (emailError) {
-        console.error('[api/orders] Failed to send confirmation email:', emailError);
-        // Don't fail the order if email fails
-      }
-    }
-
-    // ── Notify sellers + warehouse employees (non-blocking, fire-and-forget) ──
-    // (Skip for fiat providers — handled after capture in completeFiatOrder)
-    if (!isFiatProvider && items && items.length > 0) {
-      (async () => {
-        try {
-          // Fetch products with their owners, companies, and warehouse info
-          const productIds = items.map((i) => i.productId);
-          const productsWithOwners = await dbPrisma.product.findMany({
-            where: { id: { in: productIds } },
-            select: {
-              id: true,
-              productType: true,
-              userId: true,
-              companyId: true,
-              User: { select: { email: true, name: true } },
-              Company: {
-                select: {
-                  id: true,
-                  name: true,
-                  Employee: {
-                    where: { role: 'OWNER' },
-                    select: { User: { select: { email: true } } },
-                  },
-                  WarehouseLocation: {
-                    where: { isActive: true },
-                    select: {
-                      id: true,
-                      name: true,
-                    },
-                  },
-                },
-              },
-            },
-          });
-
-          // Group items by seller (userId or company owner)
-          const sellerMap = new Map<string, { email: string; items: typeof items; isDigital: boolean }>();
-          for (const product of productsWithOwners) {
-            const item = items.find((i) => i.productId === product.id);
-            if (!item) continue;
-
-            const isDigital = product.productType === 'DIGITAL';
-            let sellerEmail: string | null = null;
-
-            if (product.Company?.Employee?.[0]?.User?.email) {
-              sellerEmail = product.Company.Employee[0].User.email;
-            } else if (product.User?.email) {
-              sellerEmail = product.User.email;
-            }
-
-            if (sellerEmail) {
-              const existing = sellerMap.get(sellerEmail);
-              if (existing) {
-                existing.items.push(item);
-                if (!isDigital) existing.isDigital = false;
-              } else {
-                sellerMap.set(sellerEmail, { email: sellerEmail, items: [item], isDigital });
-              }
-            }
-
-            // Warehouse notification for physical/hybrid products from companies
-            if (product.productType !== 'DIGITAL' && product.Company?.WarehouseLocation?.length) {
-              // Use company owner/employees for warehouse notifications
-              const employeeEmails = product.Company.Employee
-                ?.map((e: { User: { email: string | null } }) => e.User?.email)
-                .filter(Boolean) as string[];
-
-              for (const warehouse of product.Company.WarehouseLocation) {
-
-                if (employeeEmails.length > 0) {
-                  try {
-                    await sendWarehouseOrderNotification(employeeEmails, {
-                      orderId: order.id,
-                      items: [{ title: item.title, quantity: item.quantity }],
-                      buyerName: shippingName || 'Customer',
-                      shippingAddress: shippingAddress || '',
-                      shippingCity: shippingCity || '',
-                      shippingPostalCode: shippingPostalCode || '',
-                      shippingCountry: shippingCountry || 'NO',
-                      shippingPhone: shippingPhone ?? undefined,
-                      shippingMethodName: shippingMethod ?? undefined,
-                      warehouseName: warehouse.name || product.Company!.name,
-                    });
-                  } catch (whErr) {
-                    console.error(`[api/orders] Warehouse email failed for ${warehouse.id}:`, whErr);
-                  }
-                }
-              }
-            }
-          }
-
-          // Send seller notifications
-          for (const [, seller] of sellerMap) {
-            try {
-              await sendSellerOrderNotification(seller.email, {
-                orderId: order.id,
-                items: seller.items,
-                totalAmount,
-                buyerName: shippingName || 'Customer',
-                shippingAddress: shippingAddress ?? undefined,
-                shippingCity: shippingCity ?? undefined,
-                shippingPostalCode: shippingPostalCode ?? undefined,
-                shippingCountry: shippingCountry ?? undefined,
-                shippingPhone: shippingPhone ?? undefined,
-                shippingMethodName: shippingMethod ?? undefined,
-                isDigital: seller.isDigital,
-              });
-            } catch (sellerErr) {
-              console.error(`[api/orders] Seller email failed for ${seller.email}:`, sellerErr);
-            }
-          }
-        } catch (notifyErr) {
-          console.error('[api/orders] Seller/warehouse notification error:', notifyErr);
-        }
-      })();
-    }
-
-    // In-app notification
     try {
       const notifTitle = isCryptoPayment
-        ? 'Order pending confirmation'
+        ? 'Order pending blockchain confirmation'
         : isFiatProvider
-          ? 'Order placed — payment pending'
+          ? 'Order placed - payment pending'
           : 'Order confirmed';
       const notifMessage = isCryptoPayment
         ? `Order ${order.id.slice(0, 8)} is waiting for blockchain confirmation.`
         : isFiatProvider
           ? `Order ${order.id.slice(0, 8)} is waiting for payment confirmation.`
-          : `Order ${order.id.slice(0, 8)} is confirmed and ready for fulfilment updates.`;
+          : `Order ${order.id.slice(0, 8)} is confirmed.`;
 
       await dbPrisma.notification.create({
         data: {
@@ -433,13 +283,14 @@ export async function POST(req: Request) {
           type: 'SYSTEM',
           title: notifTitle,
           message: notifMessage,
-          preview: `Order #${order.id.slice(0, 8)} • ${items?.length ?? 0} item(s) • ${totalAmount}`,
+          preview: `Order #${order.id.slice(0, 8)} - ${items?.length ?? 0} item(s) - ${totalAmount}`,
           metadata: {
             orderId: order.id,
             orderStatus: order.status,
-            paymentStatus: order.Payment?.status ?? null,
+            paymentStatus: orderWithPayment.Payment?.status ?? null,
             isCryptoPayment,
             isFiatProvider,
+            stockReserved: true,
           },
         },
       });
@@ -447,34 +298,25 @@ export async function POST(req: Request) {
       console.error('[api/orders] Failed to create order notification:', notificationError);
     }
 
-    // Repo access: only for immediately completed orders (fiat handled in completeFiatOrder)
-    if (!isCryptoPayment && !isFiatProvider) {
-      try {
-        await grantRepoAccessForOrder(order.id, 'orders.post');
-      } catch (repoAccessError) {
-        console.error('[api/orders] Repo access grant failed:', repoAccessError);
-      }
-    }
-
-    const payment = order.Payment
+    const payment = orderWithPayment.Payment
       ? {
-          id: order.Payment.id,
-          orderId: order.Payment.orderId,
-          method: order.Payment.method,
-          status: order.Payment.status,
-          transactionId: order.Payment.transactionId ?? null,
-          commentPay: order.Payment.commentPay ?? null,
-          chainFamily: order.Payment.chainFamily ?? null,
-          chainId: order.Payment.chainId ?? null,
-          tokenSymbol: order.Payment.tokenSymbol ?? null,
-          nativeAmount: order.Payment.nativeAmount ?? null,
-          senderAddress: order.Payment.senderAddress ?? null,
-          receiverAddress: order.Payment.receiverAddress ?? null,
-          blockNumber: order.Payment.blockNumber ?? null,
-          nokRateAtTime: order.Payment.nokRateAtTime ?? null,
-          usdRateAtTime: order.Payment.usdRateAtTime ?? null,
-          createdAt: toIsoString(order.Payment.createdAt),
-          updatedAt: toIsoString(order.Payment.updatedAt),
+          id: orderWithPayment.Payment.id,
+          orderId: orderWithPayment.Payment.orderId,
+          method: orderWithPayment.Payment.method,
+          status: orderWithPayment.Payment.status,
+          transactionId: orderWithPayment.Payment.transactionId ?? null,
+          commentPay: orderWithPayment.Payment.commentPay ?? null,
+          chainFamily: orderWithPayment.Payment.chainFamily ?? null,
+          chainId: orderWithPayment.Payment.chainId ?? null,
+          tokenSymbol: orderWithPayment.Payment.tokenSymbol ?? null,
+          nativeAmount: orderWithPayment.Payment.nativeAmount ?? null,
+          senderAddress: orderWithPayment.Payment.senderAddress ?? null,
+          receiverAddress: orderWithPayment.Payment.receiverAddress ?? null,
+          blockNumber: orderWithPayment.Payment.blockNumber ?? null,
+          nokRateAtTime: orderWithPayment.Payment.nokRateAtTime ?? null,
+          usdRateAtTime: orderWithPayment.Payment.usdRateAtTime ?? null,
+          createdAt: toIsoString(orderWithPayment.Payment.createdAt),
+          updatedAt: toIsoString(orderWithPayment.Payment.updatedAt),
         }
       : null;
 
@@ -502,7 +344,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json(parsed.data);
   } catch (error) {
-    // Handle stock/transaction errors with appropriate status codes
     if (error instanceof Error) {
       if (error.message.includes('Insufficient stock')) {
         return NextResponse.json({ error: error.message }, { status: 409 });
@@ -511,7 +352,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
     }
-    console.error('Error creating order:', error);
+
+    console.error('[api/orders] Error creating order:', error);
     return NextResponse.json(
       { error: 'Error creating order', ...(isDev && error instanceof Error ? { detail: error.message } : {}) },
       { status: 500 }
@@ -519,7 +361,6 @@ export async function POST(req: Request) {
   }
 }
 
-// GET not implemented at this route; use /api/orders/[id] or /api/orders/user/[userId]
 export async function GET() {
   return NextResponse.json(
     { error: 'Method not allowed. Use /api/orders/[id] or /api/orders/user/[userId]' },

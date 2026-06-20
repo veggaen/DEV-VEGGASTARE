@@ -22,7 +22,8 @@ import type {
   VoiceRole,
   ServerVoiceEvent,
 } from "./types";
-import { readVoicePrefs, audioConstraintsFromPrefs } from "./voice-prefs";
+import { readVoicePrefs, audioConstraintsFromPrefs, VOICE_PREFS_CHANGED_EVENT, type VoicePrefs } from "./voice-prefs";
+import { describeMediaError } from "./media-devices";
 
 function dbRoleToUi(role: "HOST" | "MODERATOR" | "SPEAKER" | "LISTENER"): VoiceRole {
   if (role === "HOST" || role === "MODERATOR") return "host";
@@ -47,6 +48,8 @@ export class StubVoiceProvider implements VoiceProvider {
   private analyser: AnalyserNode | null = null;
   private rafId = 0;
   private simTimer: ReturnType<typeof setInterval> | null = null;
+  private prefsListener: (() => void) | null = null;
+  private micPrefsKey = "";
 
   constructor(cfg: VoiceProviderConfig) {
     this.cfg = cfg;
@@ -100,27 +103,23 @@ export class StubVoiceProvider implements VoiceProvider {
         handRaisedAt: null,
       }));
 
-    try {
-      // Real mic so the local speaking ring + mute are genuine.
-      this.micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraintsFromPrefs(readVoicePrefs()) });
-      this.startAnalyser();
-    } catch {
-      // Mic denied — still "connected", just can't transmit (muted).
-      self.muted = true;
-    }
-
+    const micError = await this.openMic();
+    if (micError) self.muted = true;
     this.set({
       connection: "connected",
+      error: micError,
       selfId: self.id,
       members: [self, ...seeded],
     });
 
+    this.listenForPrefs();
     this.startSimulation();
   }
 
   async leave() {
     this.stopAnalyser();
     this.stopSimulation();
+    this.unlistenForPrefs();
     this.micStream?.getTracks().forEach((t) => t.stop());
     this.micStream = null;
     this.set({ connection: "disconnected", members: [], selfId: null });
@@ -182,6 +181,62 @@ export class StubVoiceProvider implements VoiceProvider {
   }
 
   // ── Local mic analyser → genuine "speaking" for the local user ──
+  private async openMic(): Promise<string | null> {
+    try {
+      this.micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraintsFromPrefs(readVoicePrefs()) });
+      this.startAnalyser();
+      return null;
+    } catch (err) {
+      return describeMediaError(err);
+    }
+  }
+
+  private async restartMicFromPrefs() {
+    if (this.state.connection !== "connected") return;
+    const selfId = this.state.selfId;
+    const wasMuted = selfId ? this.state.members.find((m) => m.id === selfId)?.muted ?? false : false;
+
+    this.stopAnalyser();
+    this.micStream?.getTracks().forEach((track) => track.stop());
+    this.micStream = null;
+
+    const error = await this.openMic();
+    if (selfId) {
+      const stream = this.micStream as MediaStream | null;
+      stream?.getAudioTracks().forEach((track: MediaStreamTrack) => (track.enabled = !wasMuted));
+      this.patchMember(selfId, { muted: wasMuted || !!error, speaking: false });
+    }
+    this.set({ error });
+  }
+
+  private prefsSnapshot(p: VoicePrefs) {
+    return [
+      p.micDeviceId,
+      p.noiseSuppression ? "ns1" : "ns0",
+      p.echoCancellation ? "ec1" : "ec0",
+      p.autoGainControl ? "agc1" : "agc0",
+    ].join("|");
+  }
+
+  private listenForPrefs() {
+    if (typeof window === "undefined" || this.prefsListener) return;
+    this.micPrefsKey = this.prefsSnapshot(readVoicePrefs());
+    this.prefsListener = () => {
+      const nextKey = this.prefsSnapshot(readVoicePrefs());
+      if (nextKey === this.micPrefsKey) return;
+      this.micPrefsKey = nextKey;
+      void this.restartMicFromPrefs();
+    };
+    window.addEventListener(VOICE_PREFS_CHANGED_EVENT, this.prefsListener);
+  }
+
+  private unlistenForPrefs() {
+    if (typeof window === "undefined" || !this.prefsListener) return;
+    window.removeEventListener(VOICE_PREFS_CHANGED_EVENT, this.prefsListener);
+    this.prefsListener = null;
+    this.micPrefsKey = "";
+  }
+
   private startAnalyser() {
     if (!this.micStream) return;
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;

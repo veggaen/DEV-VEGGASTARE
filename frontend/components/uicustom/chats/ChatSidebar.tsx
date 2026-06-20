@@ -19,12 +19,14 @@
 import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  FiMic, FiMicOff, FiPhoneOff, FiHeadphones, FiChevronRight, FiSettings, FiShield, FiUserX,
+  FiAlertTriangle, FiMic, FiMicOff, FiPhoneOff, FiHeadphones, FiChevronRight, FiSettings, FiShield, FiUserX,
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { useVoiceRoom } from "@/lib/voice/useVoiceRoom";
 import { useVoiceChannelEvents } from "@/lib/voice/useVoiceChannelEvents";
 import type { VoiceMember, VoiceRole } from "@/lib/voice/types";
+import { readVoicePrefs } from "@/lib/voice/voice-prefs";
+import { describeMediaError, openMicrophoneStream } from "@/lib/voice/media-devices";
 import { VoiceSettingsModal } from "./VoiceSettingsModal";
 
 export interface SidebarMember {
@@ -81,6 +83,20 @@ export function ChatSidebar({
   const speakers = voice.members.filter((m) => m.role === "host" || m.role === "speaker");
   const listeners = voice.members.filter((m) => m.role === "listener");
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [joinNotice, setJoinNotice] = React.useState<string | null>(null);
+  const canManageVoice = isHost || voice.self?.role === "host";
+  const canRaiseHand = voice.self?.role === "listener" && !canManageVoice;
+
+  const handleJoinVoice = React.useCallback(async () => {
+    setJoinNotice(null);
+    try {
+      const stream = await openMicrophoneStream(readVoicePrefs());
+      stream.getTracks().forEach((track) => track.stop());
+    } catch (err) {
+      setJoinNotice(describeMediaError(err));
+    }
+    await voice.join();
+  }, [voice]);
 
   return (
     <div className={cn("flex flex-col h-full min-h-0", className)}>
@@ -109,16 +125,22 @@ export function ChatSidebar({
         </div>
 
         {!connected ? (
+          <>
           <button
-            onClick={voice.join}
+            onClick={handleJoinVoice}
             disabled={voice.connection === "connecting"}
             className="group w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-60"
           >
             <FiMic className="h-4 w-4 transition-transform group-hover:scale-110" />
             {voice.connection === "connecting" ? "Joining…" : "Join voice"}
           </button>
+          {(joinNotice || voice.error) && (
+            <VoiceNotice message={joinNotice ?? voice.error ?? ""} onSettings={() => setSettingsOpen(true)} />
+          )}
+          </>
         ) : (
           <div className="space-y-3">
+            {voice.error && <VoiceNotice message={voice.error} onSettings={() => setSettingsOpen(true)} compact />}
             {/* Speaker stage */}
             <div className="grid grid-cols-3 gap-2">
               {speakers.map((m) => (
@@ -136,7 +158,7 @@ export function ChatSidebar({
             )}
 
             {/* Host: raise-hand queue */}
-            {isHost && voice.raisedHands.length > 0 && (
+            {canManageVoice && voice.raisedHands.length > 0 && (
               <div className="rounded-xl bg-amber-500/5 border border-amber-500/20 p-2 space-y-1">
                 <p className="text-[10px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider px-1">
                   Raised hands · {voice.raisedHands.length}
@@ -164,7 +186,7 @@ export function ChatSidebar({
               >
                 {voice.self?.muted ? <FiMicOff className="h-4 w-4" /> : <FiMic className="h-4 w-4" />}
               </ControlButton>
-              {!isHost && (
+              {canRaiseHand && (
                 <ControlButton
                   active={!!voice.self?.handRaised}
                   onClick={voice.toggleHand}
@@ -196,7 +218,7 @@ export function ChatSidebar({
             <MemberRow
               key={m.id}
               member={m}
-              canManage={isHost && m.id !== self.id && !m.isAi}
+              canManage={canManageVoice && m.id !== self.id && !m.isAi}
               reduceMotion={!!reduceMotion}
               onMute={() => voice.muteMember(m.id)}
               onMakeModerator={() => voice.makeModerator(m.id)}
@@ -288,8 +310,37 @@ function ControlButton({
   );
 }
 
-/** Roster row — hover reveals per-member actions; RIGHT-CLICK opens a context
- *  menu (Discord-style) with the same host actions (mute / promote / remove). */
+function VoiceNotice({
+  message,
+  onSettings,
+  compact = false,
+}: {
+  message: string;
+  onSettings: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-amber-500/20 bg-amber-500/8 text-amber-700 dark:text-amber-300",
+        compact ? "px-2.5 py-2" : "mt-2 px-3 py-2.5",
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <FiAlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <p className="min-w-0 flex-1 text-[11px] leading-snug">{message}</p>
+      </div>
+      <button
+        onClick={onSettings}
+        className="mt-2 rounded-md bg-amber-500/15 px-2.5 py-1 text-[11px] font-medium transition-colors hover:bg-amber-500/25"
+      >
+        Open settings
+      </button>
+    </div>
+  );
+}
+
+/** Roster row: hover reveals actions; right-click opens the same host controls. */
 function MemberRow({
   member, canManage, reduceMotion, onMute, onMakeModerator, onRemove,
 }: {

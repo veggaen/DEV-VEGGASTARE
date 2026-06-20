@@ -65,6 +65,10 @@ interface PriceAmountProps {
   displayFiat?: string;
   /** Override user's preferred crypto (for specific displays) */
   displayCrypto?: string;
+  /** Allow crypto to become the primary display when the user preference asks for it. */
+  allowCryptoPrimary?: boolean;
+  /** Show the source/listing currency as secondary when it differs from the selected fiat. */
+  showOriginalAmount?: boolean;
   /** Custom render function */
   render?: (parts: {
     primaryText: string;
@@ -87,6 +91,8 @@ export default function PriceAmount({
   acceptedCryptos,
   displayFiat,
   displayCrypto,
+  allowCryptoPrimary = false,
+  showOriginalAmount = true,
   render,
 }: PriceAmountProps) {
   const { prefs } = useUiPreferences();
@@ -101,7 +107,7 @@ export default function PriceAmount({
   // Determine which currencies to display
   const targetFiat = displayFiat ?? prefs.preferredFiatCurrency;
   const targetCrypto = displayCrypto ?? prefs.preferredCryptoCurrency;
-  const showCryptoFirst = prefs.showCryptoFirst && acceptsWeb3 && targetCrypto !== 'NONE';
+  const showCryptoFirst = allowCryptoPrimary && prefs.showCryptoFirst && acceptsWeb3 && targetCrypto !== 'NONE';
   
   // Check if the selected crypto is accepted by the product
   const isCryptoAccepted = useMemo(() => {
@@ -139,7 +145,7 @@ export default function PriceAmount({
     : null;
   
   // Original currency display (if different from target)
-  const showOriginal = amount != null && currency !== targetFiat;
+  const showOriginal = showOriginalAmount && amount != null && currency !== targetFiat;
   const originalText = showOriginal ? formatCurrency(amount, currency) : null;
 
   // Build primary and secondary text based on preferences

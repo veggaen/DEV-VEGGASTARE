@@ -4,6 +4,7 @@ import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, useMe
 import { motion, useReducedMotion } from 'framer-motion';
 import { MdAdd } from "react-icons/md";
 import { FiShoppingCart, FiCheck, FiZap, FiPackage, FiLayers } from "react-icons/fi";
+import { CreditCard, Eye, ShoppingBag, Sparkles, Truck, WalletCards } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/cart-context";
 import Image from "next/image";
@@ -13,13 +14,14 @@ import type { ProductsListItem } from '@/lib/types/products';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useCategories } from '@/components/providers/categoriesContext';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Button } from '@/components/ui/button';
 import { useInView } from 'react-intersection-observer';
 import Spinner from '@/components/uicustom/spinner';
 import debounce from 'lodash.debounce';
 import { useSidebar } from '@/components/providers/product-layoutProvider';
 import { useUiPreferences } from '@/components/providers/ui-preferences';
-import { useCurrentUser } from '@/hooks/use-current-user';
+import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
+import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
+import { toast } from 'sonner';
 
 // ★ NEW: network-aware price display
 import PriceAmount from "@/components/crypto-related/PriceAmount";
@@ -41,126 +43,259 @@ const PRODUCT_TYPE_META: Record<string, { label: string; icon: React.ComponentTy
 	HYBRID: { label: "Hybrid", icon: FiLayers, color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
 };
 
+const productCardMotion = {
+	rest: { y: 0 },
+	hover: { y: -4 },
+};
+
+const productImageMotion = {
+	rest: { scale: 1 },
+	hover: { scale: 1.045 },
+};
+
+const productMediaShadeMotion = {
+	rest: { opacity: 0.24 },
+	hover: { opacity: 1 },
+};
+
+const productMediaMetaMotion = {
+	rest: { opacity: 0, y: 12, filter: "blur(5px)" },
+	hover: { opacity: 1, y: 0, filter: "blur(0px)" },
+};
+
+function getTokenSymbols(product: ExtendedProduct) {
+	return Array.from(
+		new Set((product.acceptedTokens ?? []).map((token) => token.symbol).filter(Boolean))
+	);
+}
+
 const ProductCard = React.memo(
-	({ product, priority }: { product: ExtendedProduct; priority?: boolean }) => {
-		const reduceMotion = useReducedMotion();
+	({
+		product,
+		priority,
+		eagerImageSources,
+		authStatus,
+	}: {
+		product: ExtendedProduct;
+		priority?: boolean;
+		eagerImageSources?: ReadonlySet<string>;
+		authStatus: 'loading' | 'authenticated' | 'unauthenticated';
+	}) => {
 		const { prefs } = useUiPreferences();
 		const showFancyHover = prefs.hoverEffects === "colorful";
+		const reduceMotion = useReducedMotion();
 		const router = useRouter();
 		const { addItem } = useCart();
 		const [adding, setAdding] = useState(false);
+		const [buying, setBuying] = useState(false);
 		const [added, setAdded] = useState(false);
+		const outOfStock = product.stock === 0;
+
+		const redirectToLogin = useCallback((callbackUrl: string) => {
+			router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+		}, [router]);
 
 		const handleAddToCart = useCallback(async (e: React.MouseEvent) => {
 			e.preventDefault();
 			e.stopPropagation();
+			if (outOfStock) {
+				toast.error("This product is currently out of stock.");
+				return;
+			}
+			if (authStatus === 'loading') {
+				toast.info('Checking your session...');
+				return;
+			}
+			if (authStatus !== 'authenticated') {
+				toast.error('Sign in to add items to your basket', {
+					action: {
+						label: 'Sign in',
+						onClick: () => redirectToLogin(`/products/${product.id}`),
+					},
+				});
+				return;
+			}
 			setAdding(true);
 			const ok = await addItem(product.id);
 			setAdding(false);
 			if (ok) {
 				setAdded(true);
+				toast.success('Added to basket', {
+					action: { label: 'View basket', onClick: () => router.push('/cart') },
+				});
 				setTimeout(() => setAdded(false), 2000);
+			} else {
+				toast.error('Could not add this product to your basket.');
 			}
-		}, [addItem, product.id]);
+		}, [addItem, authStatus, outOfStock, product.id, redirectToLogin, router]);
 
 		const handleBuyNow = useCallback(async (e: React.MouseEvent) => {
 			e.preventDefault();
 			e.stopPropagation();
+			if (outOfStock) {
+				toast.error("This product is currently out of stock.");
+				return;
+			}
+			if (authStatus === 'loading') {
+				toast.info('Checking your session...');
+				return;
+			}
+			if (authStatus !== 'authenticated') {
+				toast.error('Sign in to buy this product', {
+					action: {
+						label: 'Sign in',
+						onClick: () => redirectToLogin(`/products/${product.id}`),
+					},
+				});
+				return;
+			}
+			setBuying(true);
 			const ok = await addItem(product.id);
+			setBuying(false);
 			if (ok) {
 				router.push("/checkout");
+			} else {
+				toast.error('Could not prepare checkout for this product.');
 			}
-		}, [addItem, product.id, router]);
+		}, [addItem, authStatus, outOfStock, product.id, redirectToLogin, router]);
 
 		const typeMeta = PRODUCT_TYPE_META[(product as any).productType ?? "PHYSICAL"] ?? PRODUCT_TYPE_META.PHYSICAL;
 		const TypeIcon = typeMeta.icon;
-		const outOfStock = product.stock === 0;
+		const tokenSymbols = useMemo(() => getTokenSymbols(product), [product]);
+		const hasCrypto = tokenSymbols.length > 0;
+		const sellerName = product.company?.name ?? product.user?.name ?? "Independent seller";
+		const sellerHref = product.company ? `/companies/${product.company.id}` : product.user ? `/profile/${product.user.id}` : null;
 
 		return (
-			<div className={`group flex flex-col overflow-hidden rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-zinc-900/70 shadow-sm ${outOfStock ? "opacity-60 pointer-events-none" : "hover:-translate-y-1 hover:shadow-lg hover:shadow-black/[0.08] dark:hover:shadow-black/30"} transition-all duration-300`}>
+			<motion.article
+				layout
+				initial="rest"
+				animate="rest"
+				whileHover={outOfStock ? "rest" : "hover"}
+				variants={productCardMotion}
+				transition={{ type: "spring", stiffness: 420, damping: 36, mass: 0.8 }}
+				className={`group relative flex min-h-full flex-col overflow-hidden rounded-lg border border-black/10 bg-white/82 shadow-sm backdrop-blur-xl transition-colors duration-300 dark:border-white/10 dark:bg-black/42 ${outOfStock ? "opacity-70" : "hover:border-zinc-950/20 hover:shadow-2xl hover:shadow-sky-500/10 dark:hover:border-emerald-300/25 dark:hover:shadow-emerald-500/10"}`}
+			>
+				<div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-sky-400/40 to-transparent dark:via-emerald-300/30" />
 				{/* ── Image / Carousel ── */}
-				<Link href={`/products/${product.id}`} className="relative overflow-hidden">
-					<Carousel>
+				<div
+					className="relative cursor-pointer overflow-hidden"
+					role="link"
+					tabIndex={0}
+					aria-label={`View ${product.title}`}
+					onClick={() => router.push(`/products/${product.id}`)}
+					onKeyDown={(event) => {
+						if (event.key === "Enter" || event.key === " ") {
+							event.preventDefault();
+							router.push(`/products/${product.id}`);
+						}
+					}}
+				>
+					<Carousel className="relative z-0">
 						<CarouselContent>
 							{product.image.map((image, idx) => (
 								<CarouselItem key={idx}>
 									<AspectRatio ratio={4 / 5}>
-										<Image
-											src={image}
-											alt={product.title}
-											fill
-											sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-											priority={Boolean(priority && idx === 0)}
-											className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
-										/>
+										<motion.div
+											className="absolute inset-0 will-change-transform"
+											variants={reduceMotion ? undefined : productImageMotion}
+											transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+										>
+											<Image
+												src={image}
+												alt={product.title}
+												fill
+												sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+												loading={priority || eagerImageSources?.has(image) ? "eager" : "lazy"}
+												preload={priority}
+												className="object-cover"
+											/>
+										</motion.div>
 									</AspectRatio>
 								</CarouselItem>
 							))}
 						</CarouselContent>
-						<CarouselPrevious className="left-1.5 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" />
-						<CarouselNext className="right-1.5 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" />
+						{product.image.length > 1 && (
+							<>
+								<CarouselPrevious className="left-2 z-[60] h-8 w-8 rounded-lg border-white/20 bg-black/35 opacity-0 backdrop-blur-md transition-opacity hover:bg-black/50 group-hover:opacity-100" />
+								<CarouselNext className="right-2 z-[60] h-8 w-8 rounded-lg border-white/20 bg-black/35 opacity-0 backdrop-blur-md transition-opacity hover:bg-black/50 group-hover:opacity-100" />
+							</>
+						)}
 					</Carousel>
 
-					{/* Gradient overlay */}
-					<div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/50 to-transparent" />
-
-					{/* Badges row — category + product type */}
-					<div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center gap-1.5">
-						<span className="inline-flex items-center rounded-md bg-black/55 backdrop-blur-sm text-white text-[10px] font-medium tracking-wide px-1.5 py-0.5">
-							{product.category}
-						</span>
-						<span className={`inline-flex items-center gap-0.5 rounded-md border backdrop-blur-sm text-[10px] font-medium px-1.5 py-0.5 ${typeMeta.color}`}>
-							<TypeIcon className="h-2.5 w-2.5" />
-							{typeMeta.label}
-						</span>
-					</div>
-
-					{/* Out of stock overlay */}
-					{outOfStock && (
-						<div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
-							<span className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-zinc-800">Out of stock</span>
+					<motion.div
+						className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-36 bg-linear-to-t from-black/88 via-black/35 to-transparent"
+						variants={reduceMotion ? undefined : productMediaShadeMotion}
+						transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+					/>
+					<motion.div
+						className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-3 text-white"
+						variants={reduceMotion ? undefined : productMediaMetaMotion}
+						transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+					>
+						<div className="flex items-end justify-between gap-3">
+							<div className="min-w-0">
+								<div className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75">
+									<span className="truncate">{product.category}</span>
+									<span className="text-white/35">/</span>
+									<span className="inline-flex items-center gap-1">
+										<TypeIcon className="h-3 w-3" />
+										{typeMeta.label}
+									</span>
+								</div>
+								<div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-white/82">
+									<Truck className="h-3 w-3 shrink-0" />
+									<span className="truncate">{product.shipFromPostalId || "Ready to ship"}</span>
+								</div>
+							</div>
+							<div className={`shrink-0 text-right text-[11px] font-semibold ${outOfStock ? "text-amber-200" : "text-emerald-200"}`}>
+								{outOfStock ? "Out of stock" : `${product.stock} left`}
+							</div>
 						</div>
-					)}
-				</Link>
+					</motion.div>
+				</div>
 
 				{/* ── Card body ── */}
-				<div className="flex flex-col gap-1.5 p-3 pb-2 grow">
+				<div className="flex grow flex-col gap-3 p-3">
+					<div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+						{sellerHref ? (
+							<Link
+								href={sellerHref}
+								className={`min-w-0 truncate font-medium transition-colors ${showFancyHover ? "hover:text-fuchsia-500 dark:hover:text-fuchsia-300" : "hover:text-zinc-900 dark:hover:text-zinc-100"}`}
+							>
+								{sellerName}
+							</Link>
+						) : (
+							<span className="min-w-0 truncate font-medium">{sellerName}</span>
+						)}
+						<Link
+							href={`/products/${product.id}`}
+							aria-label={`Open ${product.title}`}
+							className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-950/5 hover:text-zinc-950 dark:hover:bg-white/10 dark:hover:text-white"
+						>
+							<Eye className="h-3.5 w-3.5" />
+						</Link>
+					</div>
 					{/* Title — linked */}
 					<Link href={`/products/${product.id}`} className="group/title">
-						<h2 className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-snug group-hover/title:text-sky-600 dark:group-hover/title:text-sky-400 transition-colors">
+						<h2 className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-950 transition-colors group-hover/title:text-sky-700 dark:text-zinc-50 dark:group-hover/title:text-emerald-300">
 							{product.title}
 						</h2>
 					</Link>
 
 					{/* Description */}
-					<p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+					<p className="line-clamp-2 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
 						{product.description}
 					</p>
 
-					{/* Seller + stock row */}
-					<div className="flex items-center justify-between gap-2 mt-0.5">
-						<p className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate min-w-0">
-							<span className="mr-1">by</span>
-							{product.company ? (
-								<Link
-									href={`/companies/${product.company.id}`}
-									className={`font-medium transition-colors ${showFancyHover ? "hover:text-fuchsia-500 dark:hover:text-fuchsia-400" : "hover:text-zinc-700 dark:hover:text-zinc-200"}`}
-								>
-									{product.company.name}
-								</Link>
-							) : product.user ? (
-								<Link
-									href={`/profile/${product.user.id}`}
-									className={`font-medium transition-colors ${showFancyHover ? "hover:text-sky-500 dark:hover:text-sky-400" : "hover:text-zinc-700 dark:hover:text-zinc-200"}`}
-								>
-									{product.user.name}
-								</Link>
-							) : (
-								<span>Unknown</span>
-							)}
-						</p>
+					<div className="flex min-w-0 items-center gap-1.5 text-[10px] text-zinc-500 dark:text-zinc-400">
+						<CreditCard className="h-3 w-3 shrink-0" />
+						<span>PayPal</span>
+						<span className="text-zinc-300 dark:text-zinc-700">/</span>
+						<WalletCards className="h-3 w-3 shrink-0" />
+						<span className="truncate">{hasCrypto ? tokenSymbols.slice(0, 2).join(", ") : "fiat"}</span>
 						{product.stock > 0 && product.stock <= 5 && (
-							<span className="shrink-0 text-[10px] font-medium text-amber-500 dark:text-amber-400">
+							<span className="ml-auto shrink-0 font-medium text-amber-600 dark:text-amber-300">
 								Only {product.stock} left
 							</span>
 						)}
@@ -168,33 +303,34 @@ const ProductCard = React.memo(
 				</div>
 
 				{/* ── Price + Actions footer ── */}
-				<div className="border-t border-black/[0.05] dark:border-white/[0.05] px-3 py-2.5 mt-auto">
+				<div className="mt-auto border-t border-black/[0.06] px-3 py-3 dark:border-white/[0.08]">
 					{/* Price */}
-					<div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-2">
+					<div className="mb-2 text-sm font-bold text-zinc-950 dark:text-zinc-50">
 						<PriceAmount
 							amount={product.price}
 							currency={product.priceCurrency || 'USD'}
 							acceptsWeb3={Array.isArray(product.acceptedTokens) && product.acceptedTokens.length > 0}
 							acceptedCryptos={product.acceptedTokens?.map((tok) => tok.symbol)}
+							showOriginalAmount={false}
 						/>
 					</div>
 
 					{/* Action buttons — full-width row */}
 					<div className="flex items-center gap-1.5">
-						<Button
+						<motion.button
 							type="button"
-							variant="default"
-							className="flex-1 h-8 rounded-lg text-xs font-semibold"
+							whileTap={{ scale: 0.96 }}
+							className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-zinc-950 px-3 text-xs font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-55 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
 							onClick={handleBuyNow}
-							disabled={outOfStock}
+							disabled={buying || outOfStock}
 						>
-							Buy Now
-						</Button>
-						<Button
+							<ShoppingBag className="h-3.5 w-3.5" />
+							{buying ? "Preparing" : "Buy"}
+						</motion.button>
+						<motion.button
 							type="button"
-							variant="outline"
-							size="icon"
-							className="h-8 w-8 rounded-lg border-zinc-200 dark:border-zinc-700 shrink-0"
+							whileTap={{ scale: 0.94 }}
+							className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-zinc-200 bg-white/75 text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-55 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200 dark:hover:bg-white/[0.08]"
 							title="Add to cart"
 							onClick={handleAddToCart}
 							disabled={adding || outOfStock}
@@ -206,10 +342,10 @@ const ProductCard = React.memo(
 							) : (
 								<FiShoppingCart className="h-3.5 w-3.5" />
 							)}
-						</Button>
+						</motion.button>
 					</div>
 				</div>
-			</div>
+			</motion.article>
 		);
 	}
 );
@@ -218,10 +354,8 @@ ProductCard.displayName = 'ProductCard';
 
 export default function MyProductsPage() {
 	const reduceMotion = useReducedMotion();
-	const { prefs } = useUiPreferences();
-	const showFancyHover = prefs.hoverEffects === "colorful";
-	const user = useCurrentUser();
-	const isLoggedIn = !!user;
+	const { user, status: authStatus } = useCurrentUserWithStatus();
+	const isLoggedIn = authStatus === 'authenticated' && !!user;
   const [loading, setLoading] = useState(true);
 	const [products, setProducts] = useState<ExtendedProduct[]>([]);
   const [page, setPage] = useState(1);
@@ -256,6 +390,11 @@ export default function MyProductsPage() {
 				perPage,
 			}),
 		[selectedCategories, selectedSellers, minPrice, maxPrice, searchTerm, perPage]
+	);
+
+	const eagerImageSources = useMemo(
+		() => new Set(products.slice(0, 8).flatMap((product) => product.image)),
+		[products]
 	);
 
 	const lastPerPageRef = useRef(perPage);
@@ -316,7 +455,7 @@ export default function MyProductsPage() {
     }
   }, [selectedCategories, selectedSellers, minPrice, maxPrice, searchTerm, setCategories]);
 
-  const debouncedFetchProducts = useCallback(debounce(fetchProducts, 300), [fetchProducts]);
+  const debouncedFetchProducts = useMemo(() => debounce(fetchProducts, 300), [fetchProducts]);
 
   useEffect(() => {
     if (inView && hasMore && !loading && !isRetrying) {
@@ -363,7 +502,7 @@ export default function MyProductsPage() {
 	const controlsScrolled = isContentScrolled;
 	const toolbarRef = useRef<HTMLDivElement | null>(null);
 
-	const frameClassName = "mx-auto w-full max-w-screen-2xl px-3 sm:px-4 md:px-6";
+	const frameClassName = "relative z-10 mx-auto w-full max-w-screen-2xl px-3 sm:px-4 md:px-6";
 
 	// Keep a CSS var in sync so the filters sidebar can avoid overlapping the toolbar.
 	useLayoutEffect(() => {
@@ -394,7 +533,10 @@ export default function MyProductsPage() {
 				}, [controlsScrolled, productsControlsVisible]);
 
 	  return (
-	    <div className="w-full min-h-full">
+	    <div className="relative isolate min-h-full w-full overflow-hidden bg-white text-zinc-950 dark:bg-black dark:text-white">
+					<HeroParticleField fixed density={0.72} centerFade={0.32} className="z-0 opacity-60 dark:opacity-75" />
+					<div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-linear-to-b from-sky-50/90 via-white/75 to-white dark:from-emerald-950/20 dark:via-black/80 dark:to-black" />
+					<div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(rgba(14,165,233,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(14,165,233,0.04)_1px,transparent_1px)] bg-[size:46px_46px] opacity-80 dark:bg-[linear-gradient(rgba(52,211,153,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(52,211,153,0.045)_1px,transparent_1px)] dark:opacity-35" />
 					{/* Scroll progress indicator - thin horizontal bar at the very top */}
 					<div
 						className="fixed top-0 left-0 right-0 h-[2px] z-80 pointer-events-none"
@@ -427,45 +569,18 @@ export default function MyProductsPage() {
 									<div className="flex items-end justify-between gap-4">
 										<div className="min-w-0">
 									<motion.div
-											initial={reduceMotion ? false : { opacity: 0, y: -18 }}
-											animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+										initial={reduceMotion ? false : { opacity: 0, y: -14 }}
+										animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
 										transition={reduceMotion ? undefined : { type: 'spring', stiffness: 560, damping: 26, mass: 0.7 }}
-										className="inline-flex items-center gap-2"
+										className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400"
 									>
-										<span className="rounded-full border border-black/10 bg-white/60 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-zinc-700 backdrop-blur dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-200">
-											{selectedCategories.length
-												? selectedCategories.length === 1
-													? selectedCategories[0]
-													: `${selectedCategories.length} categories`
-												: 'Marketplace'}
-										</span>
+										{selectedCategories.length
+											? selectedCategories.length === 1
+												? selectedCategories[0]
+												: `${selectedCategories.length} categories`
+											: 'Freedom Store'} / live marketplace
 									</motion.div>
 
-									<motion.h1
-										className="group relative mt-2 text-2xl md:text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white"
-										initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-										animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-										transition={reduceMotion ? undefined : { duration: 0.35, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
-									>
-										<span className="relative">Products</span>
-										{showFancyHover && (
-											<span
-												aria-hidden
-												className="pointer-events-none absolute inset-0 text-transparent bg-clip-text bg-linear-to-r from-emerald-300 via-sky-300 to-fuchsia-300 opacity-0 transition-opacity duration-300 group-hover:opacity-60"
-											>
-												Products
-											</span>
-										)}
-									</motion.h1>
-
-									<motion.p
-										className="mt-1 text-sm text-zinc-600 dark:text-zinc-300"
-										initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-										animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-										transition={reduceMotion ? undefined : { duration: 0.35, ease: [0.22, 1, 0.36, 1], delay: 0.12 }}
-									>
-										Discover listings and filter by category, seller, and price.
-									</motion.p>
 									</div>
 
 									<div className="shrink-0 pb-0.5">
@@ -503,23 +618,44 @@ export default function MyProductsPage() {
 				<ProductsToolbar isScrolled={controlsScrolled} />
 			</div>
 
-			<div className={`${frameClassName} pb-10 min-h-[calc(100vh-var(--app-header-offset))]`}>
+			<div className={`${frameClassName} min-h-[calc(100vh-var(--app-header-offset))] pb-10`}>
 				<div className="mt-6">
 					{error && !loading && products.length === 0 && (
-						<div className="text-red-500">{error}</div>
+						<div className="rounded-lg border border-red-500/20 bg-red-500/10 p-5 text-sm text-red-700 backdrop-blur dark:text-red-200">
+							{error}
+						</div>
 					)}
 					{(loading || isRetrying) && products.length === 0 && <ProductsSkeleton />}
+					{!loading && !isRetrying && !error && products.length === 0 && (
+						<div className="flex min-h-[320px] items-center justify-center rounded-lg border border-black/10 bg-white/70 p-8 text-center backdrop-blur-xl dark:border-white/10 dark:bg-black/40">
+							<div className="max-w-md">
+								<div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-md border border-sky-500/20 bg-sky-500/10 text-sky-700 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-200">
+									<Sparkles className="h-5 w-5" />
+								</div>
+								<h2 className="text-lg font-semibold text-zinc-950 dark:text-white">No products match this view</h2>
+								<p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+									Clear a filter, broaden the price range, or create the first listing for this corner of the shop.
+								</p>
+							</div>
+						</div>
+					)}
 					{products.length > 0 && (
 						<div className={`${products.length === 1 && 'flex justify-center'}`}>
 							<div
-								className={`grid gap-2 md:gap-3 ${
+								className={`grid gap-3 md:gap-4 ${
 									products.length === 1
 										? 'grid-cols-1 max-w-md w-full'
 										: `grid-cols-1 ${gridClasses}`
 								}`}
 							>
 								{products.map((product, idx) => (
-									<ProductCard key={product.id} product={product} priority={idx < 8} />
+									<ProductCard
+										key={product.id}
+										product={product}
+										priority={idx < 8}
+										eagerImageSources={eagerImageSources}
+										authStatus={authStatus}
+									/>
 								))}
 							</div>
 							{hasMore && (

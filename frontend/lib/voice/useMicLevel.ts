@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { describeMediaError, getMediaErrorName } from "./media-devices";
 
 const BAR_COUNT = 28;
 
@@ -23,15 +24,19 @@ export function useMicLevel(opts?: {
   constraints?: MediaTrackConstraints;
   /** Input gain multiplier applied via a GainNode so the meter reflects mic gain. */
   gain?: number;
+  /** Stable key that restarts the stream when selected device/constraints change. */
+  restartKey?: string;
 }) {
   const active = opts?.active ?? false;
   const deviceId = opts?.deviceId;
   const constraints = opts?.constraints;
   const gain = opts?.gain ?? 1;
+  const restartKey = opts?.restartKey ?? deviceId ?? "";
 
   const [bars, setBars] = useState<number[]>(() => new Array(BAR_COUNT).fill(0));
   const [level, setLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [errorName, setErrorName] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -39,6 +44,7 @@ export function useMicLevel(opts?: {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const gainRef = useRef<GainNode | null>(null);
   const rafRef = useRef(0);
+  const startSeqRef = useRef(0);
 
   // Live-update the gain node when the gain pref changes (no restart needed).
   useEffect(() => {
@@ -51,6 +57,7 @@ export function useMicLevel(opts?: {
   cfgRef.current = { deviceId, constraints, gain };
 
   const stop = useCallback(() => {
+    startSeqRef.current += 1;
     cancelAnimationFrame(rafRef.current);
     rafRef.current = 0;
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -65,8 +72,23 @@ export function useMicLevel(opts?: {
   }, []);
 
   const start = useCallback(async () => {
+    const seq = startSeqRef.current + 1;
+    startSeqRef.current = seq;
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    void ctxRef.current?.close();
+    ctxRef.current = null;
+    analyserRef.current = null;
+    gainRef.current = null;
+    setRunning(false);
     try {
       setError(null);
+      setErrorName(null);
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Microphone access is unavailable in this browser or context.");
+      }
       const cfg = cfgRef.current;
       const audio: MediaTrackConstraints = cfg.constraints
         ? cfg.constraints
@@ -74,9 +96,14 @@ export function useMicLevel(opts?: {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: Object.keys(audio).length ? audio : true,
       });
+      if (startSeqRef.current !== seq) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const ctx = new Ctx();
+      await ctx.resume().catch(() => undefined);
       ctxRef.current = ctx;
       const src = ctx.createMediaStreamSource(stream);
       // Route through a GainNode so the meter reflects the user's mic-gain setting.
@@ -114,19 +141,19 @@ export function useMicLevel(opts?: {
       };
       rafRef.current = requestAnimationFrame(tick);
     } catch (e) {
-      const name = (e as { name?: string })?.name;
-      setError(name === "NotAllowedError" ? "Microphone access blocked." : "Could not open the microphone.");
+      setErrorName(getMediaErrorName(e));
+      setError(describeMediaError(e));
       setRunning(false);
     }
   }, []);
 
-  // Start/stop with `active`, and restart when deviceId changes while active.
+  // Start/stop with `active`, and restart when selected device/constraints change.
   useEffect(() => {
     if (active) void start();
     else stop();
     return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, deviceId]);
+  }, [active, restartKey]);
 
-  return { bars, level, error, running, start, stop };
+  return { bars, level, error, errorName, running, start, stop };
 }

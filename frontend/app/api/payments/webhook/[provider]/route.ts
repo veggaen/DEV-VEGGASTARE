@@ -73,6 +73,30 @@ async function logWebhookEvent(input: {
   }
 }
 
+function paypalOrderSessionId(body: any): string | undefined {
+  return (
+    body?.resource?.supplementary_data?.related_ids?.order_id ??
+    body?.resource?.id
+  );
+}
+
+async function resolveOrderIdForProvider(providerType: string, sessionId: string, body: any): Promise<string | undefined> {
+  if (providerType === 'paypal') {
+    const referenceId = body?.resource?.purchase_units?.[0]?.reference_id;
+    if (referenceId) return referenceId;
+
+    const paypalOrderId = body?.resource?.supplementary_data?.related_ids?.order_id ?? sessionId;
+    const payment = await dbPrisma.payment.findFirst({
+      where: { transactionId: paypalOrderId },
+      select: { orderId: true },
+    });
+    return payment?.orderId ?? undefined;
+  }
+
+  const orderIdMatch = sessionId.match(/^order-(.+?)-\d+$/);
+  return orderIdMatch?.[1];
+}
+
 /**
  * POST /api/payments/webhook/[provider]
  * Handle payment provider webhooks (Vipps, Klarna, PayPal)
@@ -153,7 +177,7 @@ export async function POST(
         sessionId = body.session_id ?? body.order_id;
         break;
       case 'paypal':
-        sessionId = body.resource?.id;
+        sessionId = paypalOrderSessionId(body);
         break;
     }
 
@@ -176,32 +200,14 @@ export async function POST(
     const status = await provider.getStatus(sessionId);
 
     if (status.status === 'CAPTURED' || status.status === 'AUTHORIZED') {
-      // Extract orderId: Vipps uses "order-{orderId}-{timestamp}" format, 
-      // PayPal uses its own ID but stores our orderId in purchase_units[0].reference_id
-      let orderId: string | undefined;
-      
-      if (providerType === 'paypal') {
-        // PayPal: extract from purchase_units reference_id or look up by transactionId
-        orderId = body.resource?.purchase_units?.[0]?.reference_id;
-        if (!orderId) {
-          // Fallback: find payment by PayPal order ID stored as transactionId
-          const payment = await dbPrisma.payment.findFirst({
-            where: { transactionId: sessionId },
-            select: { orderId: true },
-          });
-          orderId = payment?.orderId ?? undefined;
-        }
-      } else {
-        // Vipps/Klarna: parse from reference format "order-{orderId}-{timestamp}"
-        const orderIdMatch = sessionId.match(/^order-(.+?)-\d+$/);
-        orderId = orderIdMatch?.[1];
-      }
+      const orderId = await resolveOrderIdForProvider(providerType, sessionId, body);
 
       if (orderId) {
         // Use the shared completeFiatOrder function for consistent post-payment logic
         const { completeFiatOrder } = await import('@/lib/payments/complete-fiat-order');
         const result = await completeFiatOrder(orderId, {
           paymentTransactionId: status.transactionId ?? sessionId,
+          origin: new URL(req.url).origin,
           source: `webhook-${providerType}`,
         });
 
@@ -227,21 +233,7 @@ export async function POST(
     }
 
     if (status.status === 'CANCELLED' || status.status === 'FAILED') {
-      // Same lookup logic as above
-      let orderId: string | undefined;
-      if (providerType === 'paypal') {
-        orderId = body.resource?.purchase_units?.[0]?.reference_id;
-        if (!orderId) {
-          const payment = await dbPrisma.payment.findFirst({
-            where: { transactionId: sessionId },
-            select: { orderId: true },
-          });
-          orderId = payment?.orderId ?? undefined;
-        }
-      } else {
-        const orderIdMatch = sessionId.match(/^order-(.+?)-\d+$/);
-        orderId = orderIdMatch?.[1];
-      }
+      const orderId = await resolveOrderIdForProvider(providerType, sessionId, body);
 
       if (orderId) {
         const existingOrder = await dbPrisma.order.findUnique({
@@ -251,24 +243,14 @@ export async function POST(
 
         // Never downgrade a completed order from late/out-of-order webhook delivery.
         if (existingOrder && existingOrder.status !== 'COMPLETED') {
-          await dbPrisma.$transaction([
-            dbPrisma.order.update({
-              where: { id: orderId },
-              data: {
-                status: 'FAILED',
-                transactionId: status.transactionId ?? sessionId,
-              },
-            }),
-            dbPrisma.payment.update({
-              where: { orderId },
-              data: {
-                status: 'FAILED',
-                transactionId: status.transactionId ?? sessionId,
-              },
-            }),
-          ]);
+          const { releaseReservedOrderStock } = await import('@/lib/payments/complete-fiat-order');
+          await releaseReservedOrderStock(orderId, {
+            status: status.status === 'CANCELLED' ? 'CANCELLED' : 'FAILED',
+            paymentTransactionId: status.transactionId ?? sessionId,
+            source: `webhook-${providerType}-${status.status.toLowerCase()}`,
+          });
 
-          console.log(`[webhook/${providerType}] Order ${orderId} marked FAILED via ${providerType}`);
+          console.log(`[webhook/${providerType}] Order ${orderId} marked ${status.status} via ${providerType}`);
 
           const payment = await dbPrisma.payment.findUnique({ where: { orderId }, select: { id: true, status: true } });
           const orderNow = await dbPrisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
@@ -294,7 +276,7 @@ export async function POST(
       // Resolve orderId for logging
       let orderId: string | null = null;
       if (providerType === 'paypal') {
-        orderId = body.resource?.purchase_units?.[0]?.reference_id ?? null;
+        orderId = (await resolveOrderIdForProvider(providerType, sessionId, body)) ?? null;
       } else {
         const m = sessionId.match(/^order-(.+?)-\d+$/);
         orderId = m?.[1] ?? null;

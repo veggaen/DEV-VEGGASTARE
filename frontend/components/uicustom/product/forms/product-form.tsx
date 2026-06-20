@@ -16,6 +16,7 @@ import { UserRole, WarehouseLocation } from '@/generated/prisma/browser';
 import { RxCrossCircled } from "react-icons/rx";
 import { FaFileUpload, FaDownload } from "react-icons/fa";
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { ShieldCheck } from 'lucide-react';
 import Image from 'next/image';
 import { useDropzone } from 'react-dropzone';
 import { useEdgeStore } from '@/lib/edgestore';
@@ -221,6 +222,24 @@ export const MyProductCreationForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+  // ── Funnel step state (staged listing flow) ──────────────────────────────
+  // The form is split into a left-rail funnel. All field sections stay mounted
+  // (so react-hook-form state + in-progress uploads never reset on step change);
+  // we only toggle which step's panel is visible. Navigation is free — users can
+  // jump to any step — and validation is soft until the final Publish.
+  const [activeStep, setActiveStep] = useState<number>(0);
+
+  // ── Price display unit ────────────────────────────────────────────────────
+  // The Currency dropdown lets sellers express the price in a fiat OR a crypto
+  // unit (incl. a custom token). The stored `priceCurrency` always stays a valid
+  // fiat so cart/checkout USD-conversion keeps working today; the chosen crypto
+  // unit is captured here as a display preference until the crypto-pricing
+  // pipeline is wired end-to-end. `__CRYPTO__` / `__CUSTOM__` are UI-only values.
+  const [priceUnit, setPriceUnit] = useState<string>('USD');
+  const [customPriceToken, setCustomPriceToken] = useState({ symbol: '', chain: 'EVM', address: '' });
+  const CRYPTO_PRICE_UNITS = ['ETH', 'USDC', 'HEX', 'PLS', 'SOL'] as const;
+  const isCryptoPriceUnit = (CRYPTO_PRICE_UNITS as readonly string[]).includes(priceUnit) || priceUnit === '__CUSTOM__';
   const form = useForm<z.infer<typeof MyProductCreateSchema>>({
     resolver: zodResolver(MyProductCreateSchema),
     mode: 'onChange',
@@ -303,7 +322,7 @@ export const MyProductCreationForm = () => {
         }
         const data = await res.json();
         const wallets = Array.isArray(data?.wallets) ? data.wallets : [];
-        const hasVerified = wallets.some((w: { verified?: boolean }) => w.verified);
+        const hasVerified = wallets.some((w: { verified?: boolean; verifiedAt?: string | null }) => w.verified || !!w.verifiedAt);
         if (!cancelled) {
           setHasVerifiedWallet(hasVerified);
           setShowWalletWarning(!hasVerified);
@@ -727,6 +746,18 @@ export const MyProductCreationForm = () => {
     setImages((prev) => prev.filter((_, i) => i !== index));
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
     setUploadProgress((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Drag-to-reorder image thumbnails. The first image is always the cover, so
+  // dragging any tile to position 0 promotes it to cover.
+  const dragImageIndexRef = useRef<number | null>(null);
+  const [dragImageIndex, setDragImageIndex] = useState<number | null>(null);
+  const [dragOverImageIndex, setDragOverImageIndex] = useState<number | null>(null);
+
+  const handleImageReorder = (to: number) => {
+    const from = dragImageIndexRef.current;
+    if (from === null || from === to) return;
+    moveImage(from, to);
   };
 
   const moveImage = (from: number, to: number) => {
@@ -1161,9 +1192,9 @@ export const MyProductCreationForm = () => {
   };
 
   const customStyles = {
-    section: 'space-y-3',
-    sectionAlt: 'space-y-3 pt-4',
-    sectionTitle: 'text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2',
+    section: 'space-y-4 border-t border-border/70 pt-6 first:border-t-0 first:pt-0',
+    sectionAlt: 'space-y-4 border-t border-border/70 pt-6',
+    sectionTitle: 'text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.2em]',
     item: `group flex flex-col w-full items-start`,
     itemHoverEffect: `group flex flex-col w-full items-start`,
     itemRole: `${clientUser?.role === UserRole.ADMIN ? 'group items-start hidden flex-col' : 'hidden'}`,
@@ -1171,13 +1202,13 @@ export const MyProductCreationForm = () => {
     labelHint: 'text-xs text-muted-foreground/70 mt-0.5 font-normal',
     // NOTE: shadcn Input/SelectTrigger/Textarea components come with their own border/bg.
     // These classes intentionally override that so everything looks consistent.
-    input: `w-full rounded-md px-3 py-2 text-sm !border !border-input !bg-background hover:!bg-muted/40 text-foreground placeholder:text-muted-foreground/70 !outline-none focus-visible:!ring-2 focus-visible:!ring-emerald-500/40 focus-visible:!ring-offset-0 transition-colors duration-150`,
-    selectTrigger: `w-full rounded-md px-3 py-2 text-sm !border !border-input !bg-background hover:!bg-muted/40 text-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-emerald-500/40 focus-visible:!ring-offset-0 transition-colors duration-150`,
-    textarea: `w-full rounded-md px-3 py-2 text-sm !border !border-input !bg-background hover:!bg-muted/40 text-foreground placeholder:text-muted-foreground/70 !outline-none focus-visible:!ring-2 focus-visible:!ring-emerald-500/40 focus-visible:!ring-offset-0 transition-colors duration-150 resize-none`,
+    input: `w-full rounded-lg px-3 py-2 text-sm !border !border-input !bg-background/75 hover:!bg-muted/30 text-foreground placeholder:text-muted-foreground/70 !outline-none focus-visible:!ring-2 focus-visible:!ring-emerald-500/40 focus-visible:!ring-offset-0 transition-colors duration-150`,
+    selectTrigger: `w-full rounded-lg px-3 py-2 text-sm !border !border-input !bg-background/75 hover:!bg-muted/30 text-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-emerald-500/40 focus-visible:!ring-offset-0 transition-colors duration-150`,
+    textarea: `w-full rounded-lg px-3 py-2 text-sm !border !border-input !bg-background/75 hover:!bg-muted/30 text-foreground placeholder:text-muted-foreground/70 !outline-none focus-visible:!ring-2 focus-visible:!ring-emerald-500/40 focus-visible:!ring-offset-0 transition-colors duration-150 resize-none`,
     selectContent: `border border-border bg-popover text-popover-foreground shadow-lg`,
     selectItem: `text-popover-foreground focus:bg-muted focus:text-foreground data-[state=checked]:bg-emerald-500/15 data-[state=checked]:text-foreground`,
     inputCheckbox: `rounded border border-input bg-background text-emerald-600 focus:ring-emerald-500/30 focus:ring-offset-0`,
-    toggle: `hover:cursor-pointer flex gap-3 items-center py-2 px-3 w-full rounded-md border border-border bg-muted/30 hover:bg-muted/50 transition-colors duration-150`,
+    toggle: `hover:cursor-pointer flex gap-3 items-center py-2 px-3 w-full rounded-lg border border-border/80 bg-transparent hover:bg-muted/30 transition-colors duration-150`,
   };
 
   // Debug: get validation errors
@@ -1258,6 +1289,77 @@ export const MyProductCreationForm = () => {
   const missingItems = getMissingItems();
   const hasValidationIssues = missingItems.length > 0;
 
+  // ── Funnel steps ─────────────────────────────────────────────────────────
+  // Each step owns a slice of the form. `done` is a soft, glanceable signal for
+  // the left rail (a quiet dot) — it never blocks navigation. The Digital step
+  // is hidden entirely for purely physical products.
+  const watchedTitle = form.watch('title');
+  const watchedPrice = form.watch('price');
+  const showDigitalStep = productType === 'DIGITAL' || productType === 'HYBRID';
+  const showShippingStep = productType === 'PHYSICAL' || productType === 'HYBRID';
+
+  const FUNNEL_STEPS: {
+    id: string;
+    label: string;
+    hint: string;
+    show: boolean;
+    done: boolean;
+  }[] = [
+    {
+      id: 'type',
+      label: 'Type & photos',
+      hint: 'What are you selling, and how does it look',
+      show: true,
+      done: imagePreviews.length > 0,
+    },
+    {
+      id: 'details',
+      label: 'Details',
+      hint: 'Title, categories, description, highlights',
+      show: true,
+      done: !!watchedTitle && watchedTitle.trim().length > 0,
+    },
+    {
+      id: 'digital',
+      label: 'Digital file',
+      hint: 'Upload the file buyers receive',
+      show: showDigitalStep,
+      done: !!digitalFile || digitalAssetId !== '',
+    },
+    {
+      id: 'pricing',
+      label: 'Price & payment',
+      hint: 'Set the price and accepted methods',
+      show: true,
+      done: Number(watchedPrice) > 0,
+    },
+    {
+      id: 'delivery',
+      label: 'Delivery & payout',
+      hint: 'Where it ships from, how you get paid',
+      show: true,
+      done: showShippingStep ? postalCodes.length > 0 : true,
+    },
+    {
+      id: 'review',
+      label: 'Review & publish',
+      hint: 'Check everything, then go live',
+      show: true,
+      done: !hasValidationIssues,
+    },
+  ];
+
+  const visibleSteps = FUNNEL_STEPS.filter((s) => s.show);
+  // Clamp activeStep if the visible set shrinks (e.g. switching away from Digital).
+  const safeActiveStep = Math.min(activeStep, visibleSteps.length - 1);
+  const currentStep = visibleSteps[safeActiveStep];
+  const goToStep = (idx: number) => {
+    setActiveStep(Math.max(0, Math.min(idx, visibleSteps.length - 1)));
+    // Scroll the content column back to top on step change for a clean read.
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const isStepActive = (id: string) => currentStep?.id === id;
+
   // Throttled form-state debug log — only fires once per 5 s to avoid console spam
   const lastFormLogRef = useRef(0);
   if (process.env.NODE_ENV === 'development') {
@@ -1287,9 +1389,17 @@ export const MyProductCreationForm = () => {
   // Handle form submission with validation
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Funnel guard: only the Review step publishes. Pressing Enter in a field on
+    // an earlier step advances to the next step instead of submitting the listing.
+    if (currentStep?.id !== 'review') {
+      goToStep(safeActiveStep + 1);
+      return;
+    }
+
     setHasAttemptedSubmit(true);
     setError(''); // Clear previous errors
-    
+
     // Check if user is loaded
     if (!isUserLoaded) {
       if (isSessionLoading) {
@@ -1356,130 +1466,217 @@ export const MyProductCreationForm = () => {
 
   return (
     <div className='w-full flex flex-col'>
-      {/* File Re-selection Notice - shown after login redirect */}
+      {/* File Re-selection Notice — quiet inline line shown after login redirect */}
       {showFileReselectionNotice && (
-        <div className="mb-4 p-4 rounded-lg border border-amber-500/50 bg-amber-500/10">
-          <div className="flex items-start gap-3">
-            <div className="shrink-0 mt-0.5">
-              <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-medium text-amber-500">Form restored</h4>
-              <p className="text-xs text-muted-foreground mt-1">
-                Your form data was restored after login. Please re-select any <strong>images</strong> and <strong>digital files</strong> as they could not be preserved for security reasons.
-              </p>
-              <button
-                type="button"
-                onClick={() => setShowFileReselectionNotice(false)}
-                className="mt-2 text-xs text-amber-500 hover:text-amber-400 underline"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
+        <div className="mb-6 flex items-start gap-2 border-l-2 border-amber-500/50 pl-3 text-xs text-muted-foreground">
+          <p className="flex-1 leading-relaxed">
+            <span className="font-medium text-foreground">Draft restored.</span>{' '}
+            Please re-select your <strong className="text-foreground/90">images</strong> and{' '}
+            <strong className="text-foreground/90">digital files</strong> — they can&apos;t be preserved across login for security.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowFileReselectionNotice(false)}
+            className="shrink-0 text-muted-foreground/70 transition-colors hover:text-foreground"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
       <Form {...form}>
-        <form onSubmit={handleFormSubmit} className='flex flex-col w-full gap-6'>
-          
-          {/* Images Section - FIRST, horizontal strip at top */}
-          <div className="w-full">
+        <form
+          onSubmit={handleFormSubmit}
+          className='grid w-full grid-cols-1 gap-10 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-14'
+        >
+          {/* ── Left rail: text-only step nav ─────────────────────────────── */}
+          <nav aria-label="Listing steps" className="lg:sticky lg:top-6 lg:self-start">
+            <ol className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:gap-0.5 lg:overflow-visible">
+              {visibleSteps.map((s, idx) => {
+                const active = idx === safeActiveStep;
+                return (
+                  <li key={s.id} className="shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => goToStep(idx)}
+                      className={`group relative flex w-full items-center gap-2.5 whitespace-nowrap rounded-md px-2 py-2 text-left text-sm transition-all duration-200 lg:whitespace-normal ${
+                        active
+                          ? 'text-foreground'
+                          : 'text-muted-foreground hover:text-foreground hover:translate-x-0.5'
+                      }`}
+                    >
+                      {/* active marker — a quiet accent bar, not a pill */}
+                      <span
+                        className={`hidden h-5 w-px shrink-0 rounded-full transition-all duration-200 lg:block ${
+                          active
+                            ? 'bg-emerald-500 dark:bg-emerald-400 shadow-[0_0_8px] shadow-emerald-500/40'
+                            : 'bg-border group-hover:bg-foreground/40'
+                        }`}
+                      />
+                      <span className="flex min-w-0 flex-col">
+                        <span className={`font-medium tracking-tight transition-colors ${active ? '' : ''}`}>
+                          {idx + 1}. {s.label}
+                        </span>
+                        {active && (
+                          <span className="mt-0.5 hidden text-[11px] font-normal leading-snug text-muted-foreground lg:block">
+                            {s.hint}
+                          </span>
+                        )}
+                      </span>
+                      {/* soft "done" dot */}
+                      {s.done && !active && (
+                        <span className="ml-auto hidden h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500/60 lg:block" />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+
+          {/* ── Right column: step panels ─────────────────────────────────── */}
+          <div className="min-w-0">
+
+          {/* Images Section — belongs to step 1 "Type & photos" */}
+          <div hidden={!isStepActive('type')} className="w-full pb-2">
             <FormField control={form.control} name='image' render={() => (
               <FormItem className="hidden">
                 <FormMessage />
               </FormItem>
             )} />
 
-            <div
-              {...getRootProps()}
-                className="relative w-full rounded-lg border border-border bg-muted/20 hover:bg-muted/30 p-3 cursor-pointer transition-colors duration-150"
-            >
-              <input {...getInputProps()} />
-
-              {imagePreviews.length === 0 ? (
-                <div className="flex items-center justify-center gap-4 py-10">
-                  <div className="flex items-center justify-center w-14 h-14 rounded-full bg-muted">
-                    <FaFileUpload className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-sm text-foreground">Drop images here or click to browse</div>
-                    <div className="text-xs text-muted-foreground">Up to {MAX_IMAGES} images • PNG, JPG, WEBP</div>
-                  </div>
+            {imagePreviews.length === 0 ? (
+              // EMPTY STATE — big, inviting single drop target (fixed aspect)
+              <div
+                {...getRootProps()}
+                className="relative mx-auto flex aspect-[4/5] w-full max-w-[380px] cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border/80 bg-background/45 p-4 text-center transition-colors duration-150 hover:bg-muted/20"
+              >
+                <input {...getInputProps()} />
+                <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-border/70 bg-muted/35">
+                  <FaFileUpload className="h-6 w-6 text-muted-foreground" />
                 </div>
-              ) : (
-                <div className="flex flex-col items-center gap-3 py-3">
-                  {/* Count - centered at top */}
-                  <div className="text-xs text-muted-foreground tabular-nums">
+                <div>
+                  <div className="text-sm text-foreground">Drop images here or click to browse</div>
+                  <div className="text-xs text-muted-foreground">Up to {MAX_IMAGES} images • PNG, JPG, WEBP</div>
+                </div>
+              </div>
+            ) : (
+              // FILLED STATE — auto-height responsive grid. Tiles are a fixed
+              // fraction of the row, so adding images grows the grid downward
+              // instead of overflowing a fixed-height box. The "+" tile is just
+              // another grid cell and stays aligned with the thumbnails.
+              <div className="mx-auto w-full max-w-[560px] pb-2">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground tabular-nums">
                     {imagePreviews.length} of {MAX_IMAGES} images
-                  </div>
-
-                  {/* Image thumbnails + placeholder - centered */}
-                  <div className="flex items-center justify-center gap-4 flex-wrap">
-                    {imagePreviews.map((preview, index) => (
-                      <div
-                        key={preview}
-                        className="group/tile relative shrink-0 w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 lg:w-56 lg:h-56 overflow-hidden rounded-lg border border-border bg-muted/30"
-                      >
-                        <Image
-                          src={preview}
-                          alt={`preview-${index}`}
-                          fill
-                          sizes="(max-width: 640px) 144px, (max-width: 1024px) 208px, 224px"
-                          className="object-cover"
-                        />
-
-                        {/* Remove button */}
-                        <button
-                          type="button"
-                          className="group/remove absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 group-hover/tile:opacity-100 transition-opacity"
-                          onClick={(e) => removeImage(e, index)}
-                        >
-                          <RxCrossCircled className="h-7 w-7 text-white/90 transition-colors duration-150 group-hover/remove:text-red-400" />
-                        </button>
-
-                        {/* Upload progress */}
-                        {(isUploadingImages || isSubmitting) && images.length > 0 && (
-                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
-                            <div
-                              className="h-full bg-emerald-400 transition-[width] duration-100"
-                              style={{ width: `${Math.max(0, Math.min(100, uploadProgress[index] ?? 0))}%` }}
-                            />
-                          </div>
-                        )}
-
-                        {/* Cover badge */}
-                        {index === 0 && (
-                          <div className="absolute top-1 left-1 px-1.5 py-0.5 text-[9px] font-semibold bg-emerald-500 text-white rounded">
-                            Cover
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {/* Add more indicator - right next to images */}
-                    {imagePreviews.length < MAX_IMAGES && (
-                      <div className="shrink-0 w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 lg:w-56 lg:h-56 rounded-lg border border-dashed border-border/80 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors">
-                        <span className="text-3xl">+</span>
-                      </div>
-                    )}
-                  </div>
+                  </span>
+                  <span className="text-[11px] text-muted-foreground/70">Drag to reorder — first is the cover</span>
                 </div>
-              )}
-            </div>
+
+                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                  {imagePreviews.map((preview, index) => {
+                    const isDragging = dragImageIndex === index;
+                    const isDropTarget = dragOverImageIndex === index && dragImageIndex !== index;
+                    return (
+                    <div
+                      key={preview}
+                      draggable
+                      onDragStart={(e) => {
+                        dragImageIndexRef.current = index;
+                        setDragImageIndex(index);
+                        e.dataTransfer.effectAllowed = 'move';
+                        // Firefox requires data to be set for drag to initiate
+                        try { e.dataTransfer.setData('text/plain', String(index)); } catch {}
+                      }}
+                      onDragEnter={(e) => { e.preventDefault(); setDragOverImageIndex(index); }}
+                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        handleImageReorder(index);
+                        dragImageIndexRef.current = null;
+                        setDragImageIndex(null);
+                        setDragOverImageIndex(null);
+                      }}
+                      onDragEnd={() => {
+                        dragImageIndexRef.current = null;
+                        setDragImageIndex(null);
+                        setDragOverImageIndex(null);
+                      }}
+                      className={`group/tile relative aspect-[4/5] cursor-grab overflow-hidden rounded-lg border bg-muted/30 transition-all duration-200 active:cursor-grabbing ${
+                        isDragging
+                          ? 'border-emerald-500/60 opacity-40'
+                          : isDropTarget
+                            ? 'border-emerald-500 ring-2 ring-emerald-500/40 -translate-y-0.5'
+                            : 'border-border hover:-translate-y-0.5 hover:shadow-md'
+                      }`}
+                    >
+                      <Image
+                        src={preview}
+                        alt={`preview-${index}`}
+                        fill
+                        sizes="(max-width: 640px) 30vw, 130px"
+                        className="pointer-events-none object-cover"
+                      />
+
+                      {/* Remove button */}
+                      <button
+                        type="button"
+                        className="group/remove absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 opacity-0 transition-opacity group-hover/tile:opacity-100"
+                        onClick={(e) => removeImage(e, index)}
+                        title="Remove image"
+                      >
+                        <RxCrossCircled className="h-4 w-4 text-white/90 transition-colors duration-150 group-hover/remove:text-red-400" />
+                      </button>
+
+                      {/* Upload progress */}
+                      {(isUploadingImages || isSubmitting) && images.length > 0 && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
+                          <div
+                            className="h-full bg-emerald-400 transition-[width] duration-100"
+                            style={{ width: `${Math.max(0, Math.min(100, uploadProgress[index] ?? 0))}%` }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Cover badge (first tile) */}
+                      {index === 0 && (
+                        <div className="absolute left-1 top-1 rounded bg-emerald-500 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                          Cover
+                        </div>
+                      )}
+                    </div>
+                    );
+                  })}
+
+                  {/* Add-more tile — same grid cell, opens the file picker */}
+                  {imagePreviews.length < MAX_IMAGES && (
+                    <div
+                      {...getRootProps()}
+                      className="flex aspect-[4/5] cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/80 text-muted-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:bg-muted/20 hover:text-foreground"
+                    >
+                      <input {...getInputProps()} />
+                      <span className="text-2xl leading-none">+</span>
+                      <span className="text-[10px]">Add</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Main content grid - 2 columns on desktop */}
-          <div className='grid min-h-0 grid-cols-1 lg:grid-cols-2 gap-8 w-full flex-1'>
+          <div className='flex min-h-0 w-full flex-1 flex-col gap-8'>
             
             {/* Column 1: Basic info + Pricing */}
-            <div className='flex flex-col gap-5 h-full'>
+            <div className='contents'>
               {/* Basic info section */}
-              <div className={customStyles.section}>
-                <h3 className={customStyles.sectionTitle}>Basic Information</h3>
-                
+              <div hidden={!isStepActive('details')} className={`${customStyles.section} order-2`}>
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold tracking-tight text-foreground">Describe your product</h3>
+                  <p className="text-sm text-muted-foreground">
+                    A clear title and a few honest details help the right buyers find you.
+                  </p>
+                </div>
+
                 <FormField control={form.control} name='title' render={({ field }) => (
                   <FormItem className={customStyles.item}>
                     <FormLabel className={customStyles.label}>
@@ -1557,29 +1754,40 @@ export const MyProductCreationForm = () => {
                 )} />
               </div>
 
-              {/* Pricing & Inventory - compact */}
-              <div className={customStyles.sectionAlt}>
-                <h3 className={customStyles.sectionTitle}>Pricing & Stock</h3>
-                
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              {/* Pricing - compact */}
+              <div hidden={!isStepActive('pricing')} className={`${customStyles.sectionAlt} order-3`}>
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold tracking-tight text-foreground">Set your price</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Price in any currency. Decimals are fine — e.g. 0.1 ETH or 49.99 NOK.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr,150px]">
                   <FormField control={form.control} name='price' render={({ field }) => (
                     <FormItem className={customStyles.item}>
-                      <FormLabel className={customStyles.label}>Price ({priceCurrencyMeta.label})</FormLabel>
+                      <FormLabel className={customStyles.label}>Price</FormLabel>
                       <FormControl>
                         <div className='relative'>
-                          <span className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm'>
-                            {priceCurrencyMeta.prefix}
+                          <span className='pointer-events-none absolute left-3 top-1/2 max-w-[3rem] -translate-y-1/2 truncate text-sm font-medium text-muted-foreground'>
+                            {isCryptoPriceUnit
+                              ? (priceUnit === '__CUSTOM__' ? (customPriceToken.symbol || '◈') : priceUnit)
+                              : priceCurrencyMeta.prefix}
                           </span>
                           <Input
                             {...field}
                             disabled={isSubmitting}
-                            placeholder='0'
+                            placeholder='0.00'
                             type='text'
-                            className={`${customStyles.input} pl-8`}
+                            inputMode='decimal'
+                            className={`${customStyles.input} ${isCryptoPriceUnit ? 'pl-16' : 'pl-8'}`}
                             spellCheck='false'
                             onChange={e => {
-                              const value = e.target.value;
-                              form.setValue('price', value ? parseFloat(value) : 0, { shouldValidate: true });
+                              // Allow decimals: keep digits + a single dot while typing.
+                              const raw = e.target.value.replace(/[^0-9.]/g, '');
+                              const cleaned = raw.replace(/(\..*)\./g, '$1'); // only first dot
+                              e.target.value = cleaned;
+                              form.setValue('price', cleaned ? parseFloat(cleaned) : 0, { shouldValidate: true });
                             }}
                           />
                         </div>
@@ -1594,51 +1802,88 @@ export const MyProductCreationForm = () => {
                       <FormControl>
                         <Select
                           disabled={isSubmitting}
-                          value={field.value}
+                          value={priceUnit}
                           onValueChange={(value) => {
-                            const next = value as FiatCurrencyType;
-                            field.onChange(next);
-
+                            setPriceUnit(value);
+                            // Keep the stored fiat currency valid for checkout. For a
+                            // crypto/custom unit we settle/display in USD until the
+                            // crypto-pricing pipeline is wired.
+                            const fiat: FiatCurrencyType = (FiatCurrencyValues as readonly string[]).includes(value)
+                              ? (value as FiatCurrencyType)
+                              : 'USD';
+                            field.onChange(fiat);
                             const currentAccepted = form.getValues('acceptedFiatCurrencies') ?? [];
-                            if (!currentAccepted.includes(next)) {
-                              form.setValue('acceptedFiatCurrencies', [...currentAccepted, next], { shouldValidate: true });
+                            if (!currentAccepted.includes(fiat)) {
+                              form.setValue('acceptedFiatCurrencies', [...currentAccepted, fiat], { shouldValidate: true });
                             }
                           }}
                         >
                           <SelectTrigger className={customStyles.selectTrigger}>
-                            <SelectValue placeholder="Select currency" />
+                            <SelectValue placeholder="Currency" />
                           </SelectTrigger>
                           <SelectContent className={customStyles.selectContent}>
+                            <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Fiat</div>
                             {FiatCurrencyValues.map((code) => (
                               <SelectItem key={code} value={code} className={customStyles.selectItem}>
                                 {code}
                               </SelectItem>
                             ))}
+                            <div className="mt-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Crypto</div>
+                            {CRYPTO_PRICE_UNITS.map((sym) => (
+                              <SelectItem key={sym} value={sym} className={customStyles.selectItem}>
+                                {sym}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="__CUSTOM__" className={customStyles.selectItem}>
+                              Custom token…
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
-
-                  <FormField control={form.control} name='quantity' render={({ field }) => (
-                    <FormItem className={customStyles.item}>
-                      <FormLabel className={customStyles.label}>Quantity</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          disabled={isSubmitting}
-                          placeholder='1'
-                          type='number'
-                          min='1'
-                          className={customStyles.input}
-                          onChange={(e) => form.setValue('quantity', Number(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
                 </div>
+
+                {/* Custom price-token picker — shown when "Custom token…" is chosen */}
+                {priceUnit === '__CUSTOM__' && (
+                  <div className="space-y-2 border-l-2 border-emerald-500/30 pl-4">
+                    <p className="text-xs text-muted-foreground">Price in a token of your choice — pick its chain and paste the contract / mint address.</p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      <Input
+                        value={customPriceToken.symbol}
+                        onChange={(e) => setCustomPriceToken((p) => ({ ...p, symbol: e.target.value.toUpperCase() }))}
+                        placeholder="Symbol (e.g. PEPE)"
+                        className={`${customStyles.input} text-sm`}
+                      />
+                      <Select
+                        value={customPriceToken.chain}
+                        onValueChange={(v) => setCustomPriceToken((p) => ({ ...p, chain: v }))}
+                      >
+                        <SelectTrigger className={customStyles.selectTrigger}><SelectValue /></SelectTrigger>
+                        <SelectContent className={customStyles.selectContent}>
+                          <SelectItem value="EVM" className={customStyles.selectItem}>EVM (Ethereum, PulseChain, Base…)</SelectItem>
+                          <SelectItem value="SOLANA" className={customStyles.selectItem}>Solana</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        value={customPriceToken.address}
+                        onChange={(e) => setCustomPriceToken((p) => ({ ...p, address: e.target.value }))}
+                        placeholder={customPriceToken.chain === 'EVM' ? 'Contract 0x…' : 'Mint address'}
+                        className={`${customStyles.input} font-mono text-sm`}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Crypto-pricing note — keeps the seller informed while the
+                    settlement pipeline is being wired (UI ships first). */}
+                {isCryptoPriceUnit && (
+                  <p className="border-l-2 border-sky-500/50 pl-3 text-xs text-muted-foreground">
+                    Listed in <span className="font-medium text-foreground">{priceUnit === '__CUSTOM__' ? (customPriceToken.symbol || 'your token') : priceUnit}</span>.
+                    Buyers are charged the equivalent at the live rate; settlement is shown in USD for now.
+                  </p>
+                )}
 
                 <FormField control={form.control} name='acceptedFiatCurrencies' render={({ field }) => {
                   const selected = field.value ?? [];
@@ -1685,24 +1930,24 @@ export const MyProductCreationForm = () => {
                   );
                 }} />
 
-                <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs space-y-1.5">
+                <div className="space-y-1 border-l-2 border-border pl-3 text-xs">
                   <div className="font-medium text-foreground">Payment readiness</div>
                   <div className="text-muted-foreground">
-                    Environment mode: {isTestModeEnabled ? 'Test mode (sandbox)' : 'Live mode'}
+                    Environment: {isTestModeEnabled ? 'Test mode (sandbox)' : 'Live mode'}
                   </div>
                   <div className="text-muted-foreground">
                     {isPaymentMethodsLoading
-                      ? 'Loading enabled checkout providers...'
+                      ? 'Loading enabled checkout providers…'
                       : availableFiatMethods.length > 0
-                        ? `Enabled fiat checkout providers: ${availableFiatMethods.map((method) => `${method.icon} ${method.displayName}`).join(', ')}`
-                        : 'No fiat providers currently enabled for this environment/runtime. Crypto checkout can still be used.'}
+                        ? `Enabled fiat providers: ${availableFiatMethods.map((method) => method.displayName).join(', ')}`
+                        : 'No fiat providers enabled here. Crypto checkout can still be used.'}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* ─── Seller Payment Status & Wallet Picker ─────────────────── */}
-            <div className="space-y-3">
+            <div hidden={!isStepActive('delivery')} className={`${customStyles.sectionAlt} order-4`}>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Receiving Payment Methods</h4>
               
               {/* PayPal status indicator */}
@@ -1722,9 +1967,9 @@ export const MyProductCreationForm = () => {
                       : `${sellerPaypalEmail} (pending verification)`
                     : 'Not configured'}
                 </span>
-                {!sellerPaypalEmail && (
+                {(!sellerPaypalEmail || (sellerPaypalEmail && !sellerPaypalVerified)) && (
                   <a href="/settings?section=payments" target="_blank" rel="noopener noreferrer" className="ml-auto text-[10px] font-medium hover:underline">
-                    Set up →
+                    {sellerPaypalEmail ? 'Manage' : 'Set up'} →
                   </a>
                 )}
               </div>
@@ -1733,7 +1978,8 @@ export const MyProductCreationForm = () => {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">
                   Receiving wallet for this product
-                  <span className="ml-1 text-muted-foreground font-normal">(optional override)</span>
+                  {' '}
+                  <span className="text-muted-foreground font-normal">(optional override)</span>
                 </label>
                 {sellerWallets.length > 0 ? (
                   <select
@@ -1761,7 +2007,7 @@ export const MyProductCreationForm = () => {
             </div>
 
             {/* Crypto Token Acceptance */}
-            <div className="space-y-2">
+            <div hidden={!isStepActive('pricing')} className={`${customStyles.sectionAlt} order-5`}>
               <CryptoTokenSelector
                 tokens={acceptedTokens}
                 onChange={setAcceptedTokens}
@@ -1790,14 +2036,14 @@ export const MyProductCreationForm = () => {
                   </div>
                 </div>
               )}
-              <div className="text-xs text-muted-foreground rounded-md border border-border bg-muted/20 px-3 py-2">
+              <p className="text-xs text-muted-foreground">
                 {acceptedTokens.length > 0
-                  ? `Accepted crypto tokens selected: ${acceptedTokens.length}. Buyers can still use fiat methods if enabled at checkout.`
-                  : 'No custom token list selected. Buyers can still use supported checkout methods (fiat providers and/or native crypto depending on environment).'}
-              </div>
+                  ? `${acceptedTokens.length} token${acceptedTokens.length !== 1 ? 's' : ''} selected. Buyers can still pay with fiat if enabled at checkout.`
+                  : 'No tokens selected yet — buyers can still use whatever checkout methods are enabled (fiat and/or native crypto).'}
+              </p>
             </div>
 
-            <div className={customStyles.sectionAlt}>
+            <div hidden={!isStepActive('delivery')} className={`${customStyles.sectionAlt} order-7`}>
               <h3 className={customStyles.sectionTitle}>GitHub Repo Access</h3>
               <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
                 Sell access to a private GitHub repository. After purchase, the buyer&apos;s GitHub account is automatically
@@ -1967,9 +2213,9 @@ export const MyProductCreationForm = () => {
             </div>
 
             {/* Column 2: Options + Specifications */}
-            <div className='flex flex-col gap-5 h-full'>
+            <div className='contents'>
               {/* Product Type Selection */}
-              <div className={customStyles.section}>
+              <div hidden={!isStepActive('type')} className={`${customStyles.section} order-1 mt-8 border-t border-border/70 pt-8`}>
                 <h3 className={customStyles.sectionTitle}>Product Type</h3>
 
                 {isDigitalOnlyLiteMode && (
@@ -1996,7 +2242,7 @@ export const MyProductCreationForm = () => {
                   </div>
                 )}
                 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   {PRODUCT_TYPE_OPTIONS.map((option) => (
                     (() => {
                       const optionBlockedByWarehouse =
@@ -2006,12 +2252,22 @@ export const MyProductCreationForm = () => {
                     <label
                       key={option.value}
                       title={optionBlockedByWarehouse ? 'Disabled: Add a warehouse address in Company Settings to list physical or hybrid products.' : undefined}
-                      className={`${customStyles.toggle} cursor-pointer flex-col items-center text-center !py-3 ${
-                        optionBlockedByWarehouse ? 'opacity-45 cursor-not-allowed' : ''
+                      className={`group relative flex cursor-pointer flex-col items-start gap-1 rounded-lg px-4 py-3.5 text-left transition-all duration-200 ${
+                        optionBlockedByWarehouse ? 'opacity-45 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:bg-muted/30'
                       } ${
-                        productType === option.value ? 'ring-2 ring-emerald-500/50 bg-emerald-500/10' : ''
+                        productType === option.value
+                          ? 'bg-emerald-500/[0.07] dark:bg-emerald-400/[0.06]'
+                          : ''
                       }`}
                     >
+                      {/* selected marker — a quiet accent rail, not a filled box */}
+                      <span
+                        className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-full transition-all duration-200 ${
+                          productType === option.value
+                            ? 'bg-emerald-500 dark:bg-emerald-400'
+                            : 'bg-transparent group-hover:bg-border'
+                        }`}
+                      />
                       <input
                         type="radio"
                         name="productType"
@@ -2042,8 +2298,15 @@ export const MyProductCreationForm = () => {
                         }}
                         className="sr-only"
                       />
-                      <span className="text-2xl mb-1">{option.icon}</span>
-                      <span className="text-sm font-medium">{option.label}</span>
+                      <span
+                        className={`text-sm font-medium transition-colors ${
+                          productType === option.value
+                            ? 'text-emerald-700 dark:text-emerald-300'
+                            : 'text-foreground'
+                        }`}
+                      >
+                        {option.label}
+                      </span>
                       <span className="text-xs text-muted-foreground">{option.description}</span>
                     </label>
                       );
@@ -2054,7 +2317,7 @@ export const MyProductCreationForm = () => {
 
               {/* Digital File Upload - shown for DIGITAL and HYBRID */}
               {(productType === 'DIGITAL' || productType === 'HYBRID') && (
-                <div className={customStyles.section}>
+                <div hidden={!isStepActive('digital')} className={`${customStyles.section} order-6`}>
                   <h3 className={customStyles.sectionTitle}>
                     Digital File
                     <span className="font-normal text-emerald-400/70 ml-1 normal-case tracking-normal">— required</span>
@@ -2151,7 +2414,7 @@ export const MyProductCreationForm = () => {
               )}
 
               {/* Company & Shipping Options */}
-              <div className={customStyles.section}>
+              <div hidden={!isStepActive('delivery')} className={`${customStyles.section} order-8`}>
                 <h3 className={customStyles.sectionTitle}>Additional Options</h3>
                 
                 {/* Company product toggle */}
@@ -2199,8 +2462,8 @@ export const MyProductCreationForm = () => {
                 {/* Shipping options - shown for PHYSICAL and HYBRID */}
                 {(productType === 'PHYSICAL' || productType === 'HYBRID') && !isDigitalOnlyLiteMode && (
                   <div className="space-y-3 mt-3">
-                    <div className="text-sm font-medium text-foreground flex items-center gap-2">
-                      📦 Shipping Location
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      Shipping Location
                     </div>
 
                     {/* Warehouse locations */}
@@ -2258,14 +2521,13 @@ export const MyProductCreationForm = () => {
               </div>
 
               {/* Features - bullet-point highlights */}
-              <div className={customStyles.sectionAlt}>
-                <h3 className={customStyles.sectionTitle}>
-                  Features
-                  <span className="font-normal text-muted-foreground ml-1 normal-case tracking-normal">— product highlights</span>
-                </h3>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Add key selling points and highlights. e.g. &quot;6 card slots&quot;, &quot;Hand-stitched edges&quot;
-                </p>
+              <div hidden={!isStepActive('details')} className={`${customStyles.sectionAlt} order-9`}>
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold tracking-tight text-foreground">Highlights</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Optional. Short selling points — e.g. &quot;6 card slots&quot;, &quot;Hand-stitched edges&quot;.
+                  </p>
+                </div>
                 
                 <div className="space-y-2">
                   {features.map((feature, index) => (
@@ -2381,21 +2643,17 @@ export const MyProductCreationForm = () => {
               </div>
 
               {/* Specifications - compact */}
-              <div className={customStyles.sectionAlt}>
-                <h3 className={customStyles.sectionTitle}>
-                  Specifications
-                  {(productType === 'PHYSICAL' || productType === 'HYBRID') ? (
-                    <span className="font-normal text-emerald-400/70 ml-1 normal-case tracking-normal">— shipping info required</span>
-                  ) : (
-                    <span className="font-normal text-muted-foreground ml-1 normal-case tracking-normal">— optional</span>
-                  )}
-                </h3>
-                
-                {(productType === 'PHYSICAL' || productType === 'HYBRID') && specifications.length > 0 && (
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Weight in grams, dimensions in cm (for Bring shipping API)
+              <div hidden={!isStepActive('details')} className={`${customStyles.sectionAlt} order-10`}>
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold tracking-tight text-foreground">
+                    Specifications
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {(productType === 'PHYSICAL' || productType === 'HYBRID')
+                      ? 'Weight in grams and dimensions in cm — required so we can calculate shipping.'
+                      : 'Optional details like material, brand, or size.'}
                   </p>
-                )}
+                </div>
                 
                 <FormField control={form.control} name='specifications' render={({ field }) => (
                   <FormItem>
@@ -2403,7 +2661,11 @@ export const MyProductCreationForm = () => {
                       <div className="space-y-2">
                         {specifications.map((spec, index) => (
                           <div key={index} className="flex gap-2 items-center">
-                            {spec.key === 'Custom' || !examplePlaceholders.includes(spec.key) ? (
+                            {isPhysicalProduct && SHIPPING_SPEC_KEYS.includes(spec.key) ? (
+                              <div className="w-28 shrink-0 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-sm font-medium text-foreground sm:w-32">
+                                {spec.key}
+                              </div>
+                            ) : spec.key === 'Custom' || !examplePlaceholders.includes(spec.key) ? (
                               // Custom: editable text input for key
                               <Input
                                 value={spec.key === 'Custom' ? '' : spec.key}
@@ -2505,57 +2767,139 @@ export const MyProductCreationForm = () => {
             </div>
           </div>
 
-          {/* Submit section - full width at bottom of form */}
-          <div className="w-full space-y-2 pt-4">
-            {/* Login prompt - always visible when not authenticated */}
-            {sessionStatus === 'unauthenticated' && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-sm">
-                <span className="text-blue-500">🔐</span>
-                <span className="text-blue-600 dark:text-blue-400">
-                  You must be logged in to create a listing
-                </span>
-                <span className="text-muted-foreground text-xs">
-                  (Your form data will be saved)
-                </span>
+          {/* ════════════ FINAL STEP — Review & publish ════════════ */}
+          <div hidden={!isStepActive('review')} className={`${customStyles.section} border-t-0 pt-0`}>
+            <h3 className={customStyles.sectionTitle}>Review &amp; Publish</h3>
+            <p className="text-xs text-muted-foreground">
+              A quick look at how your listing reads. Jump back to any step on the left to make changes.
+            </p>
+
+            {/* Listing preview — text-on-background, mirrors how buyers see it */}
+            <div className="mt-4 flex flex-col gap-5 sm:flex-row">
+              {/* Cover */}
+              <div className="relative aspect-[4/5] w-full max-w-[220px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted/30">
+                {imagePreviews[0] ? (
+                  <Image
+                    src={imagePreviews[0]}
+                    alt="Listing cover preview"
+                    fill
+                    sizes="220px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                    No image yet
+                  </div>
+                )}
               </div>
+
+              {/* Summary */}
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="text-xl font-semibold tracking-tight text-foreground">
+                  {watchedTitle?.trim() || <span className="text-muted-foreground">Untitled listing</span>}
+                </div>
+                <div className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
+                  {Number(watchedPrice) > 0
+                    ? `${priceCurrencyMeta.prefix}${Number(watchedPrice).toLocaleString()} ${priceCurrencyMeta.label}`
+                    : <span className="text-muted-foreground text-base font-normal">No price set</span>}
+                </div>
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-1 pt-1 text-sm">
+                  <dt className="text-muted-foreground">Type</dt>
+                  <dd className="text-foreground">{PRODUCT_TYPE_OPTIONS.find((o) => o.value === productType)?.label ?? productType}</dd>
+                  <dt className="text-muted-foreground">Photos</dt>
+                  <dd className="text-foreground">{imagePreviews.length}</dd>
+                  {showShippingStep && (
+                    <>
+                      <dt className="text-muted-foreground">Ships from</dt>
+                      <dd className="text-foreground">{postalCodes.length > 0 ? postalCodes.join(', ') : '—'}</dd>
+                    </>
+                  )}
+                  {showDigitalStep && (
+                    <>
+                      <dt className="text-muted-foreground">Digital file</dt>
+                      <dd className="text-foreground">{digitalFileName || (digitalAssetId ? 'Attached' : '—')}</dd>
+                    </>
+                  )}
+                </dl>
+              </div>
+            </div>
+
+            {/* Login prompt — quiet inline line */}
+            {sessionStatus === 'unauthenticated' && (
+              <p className="mt-5 text-sm text-muted-foreground">
+                <ShieldCheck className="mr-1.5 inline h-4 w-4 text-sky-500 align-text-bottom" />
+                You&apos;ll need to log in to publish — your draft is saved automatically.
+              </p>
             )}
 
-            {/* Show validation summary - always visible when there are issues */}
+            {/* Validation summary — only on the final step, where it can be acted on */}
             {hasValidationIssues && !success && (
-              <div className="text-xs space-y-1.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                <p className="font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                  <span>⚠️</span> Please complete the following ({missingItems.length} item{missingItems.length !== 1 ? 's' : ''}):
+              <div className="mt-5 space-y-1.5 border-l-2 border-amber-500/50 pl-3 text-xs">
+                <p className="font-medium text-amber-600 dark:text-amber-400">
+                  Before publishing, finish {missingItems.length} item{missingItems.length !== 1 ? 's' : ''}:
                 </p>
-                <ul className="list-disc list-inside text-amber-600/90 dark:text-amber-400/90 space-y-0.5">
+                <ul className="space-y-0.5 text-amber-600/90 dark:text-amber-400/90">
                   {missingItems.map((item, index) => (
-                    <li key={index}>{item}</li>
+                    <li key={index}>— {item}</li>
                   ))}
                 </ul>
               </div>
             )}
 
-            <MyFormError message={error} />
-            <MyFormSuccess message={success} />
+            <div className="mt-5 space-y-2">
+              <MyFormError message={error} />
+              <MyFormSuccess message={success} />
+            </div>
+          </div>
 
-            <Button
-              type='submit'
-              disabled={isSubmitDisabled}
-              className='w-full h-11 text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors duration-150 disabled:opacity-60 disabled:hover:bg-emerald-600'
+          {/* ── Step footer: Back / Continue / Publish ────────────────────── */}
+          <div className="mt-10 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              onClick={() => goToStep(safeActiveStep - 1)}
+              disabled={safeActiveStep === 0}
+              className="text-sm font-medium text-muted-foreground transition-all duration-200 hover:-translate-x-0.5 hover:text-foreground disabled:pointer-events-none disabled:opacity-0"
             >
-              {submitLabel}
-            </Button>
+              ← Back
+            </button>
 
-            {isEditing && (
-              <Button
-                type='button'
-                variant='outline'
-                onClick={handleCancelEdit}
-                className='w-full'
+            <span className="hidden text-xs text-muted-foreground sm:block">
+              Step {safeActiveStep + 1} of {visibleSteps.length}
+            </span>
+
+            {isStepActive('review') ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                {isEditing && (
+                  <Button
+                    type='button'
+                    variant='outline'
+                    onClick={handleCancelEdit}
+                    className='h-11 bg-transparent'
+                  >
+                    Cancel
+                  </Button>
+                )}
+                <Button
+                  type='submit'
+                  disabled={isSubmitDisabled}
+                  className='group h-11 px-6 text-sm font-medium bg-emerald-600 text-white shadow-sm shadow-emerald-600/20 transition-all duration-200 hover:bg-emerald-500 hover:shadow-md hover:shadow-emerald-500/30 disabled:opacity-60 disabled:hover:bg-emerald-600 disabled:hover:shadow-none'
+                >
+                  {submitLabel}
+                </Button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => goToStep(safeActiveStep + 1)}
+                className="group inline-flex items-center gap-2 self-start rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-all duration-200 hover:gap-3 hover:shadow-md sm:self-auto"
               >
-                Cancel
-              </Button>
+                Continue
+                <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+              </button>
             )}
           </div>
+
+          </div>{/* /right column */}
 
         </form>
       </Form>

@@ -60,6 +60,8 @@ interface AddressSelectorProps {
   allowCustom?: boolean;
   /** Allow saving new addresses */
   allowSave?: boolean;
+  /** Show manual address fields immediately when using a custom address. */
+  expandCustomByDefault?: boolean;
   disabled?: boolean;
   required?: boolean;
   className?: string;
@@ -78,6 +80,7 @@ export function AddressSelector({
   onCustomAddressChange,
   allowCustom = true,
   allowSave = true,
+  expandCustomByDefault = false,
   disabled = false,
   required = false,
   className,
@@ -168,8 +171,13 @@ export function AddressSelector({
     }
   }, [isLoading, addresses.length, mode]);
 
-  // Loading skeleton
-  if (isLoading) {
+  const visibleMode =
+    allowCustom && (mode === 'custom' || addresses.length === 0)
+      ? 'custom'
+      : 'saved';
+
+  // Saved addresses can load slowly; do not block checkout from accepting a new address.
+  if (isLoading && !allowCustom) {
     return (
       <div className={cn('space-y-3', className)}>
         {label && (
@@ -220,7 +228,7 @@ export function AddressSelector({
       )}
 
       {/* Saved addresses list */}
-      {mode === 'saved' && addresses.length > 0 && (
+      {visibleMode === 'saved' && addresses.length > 0 && (
         <RadioGroup
           value={value?.id ?? ''}
           onValueChange={handleSelectSaved}
@@ -318,7 +326,7 @@ export function AddressSelector({
       )}
 
       {/* Custom address input */}
-      {mode === 'custom' && (
+      {visibleMode === 'custom' && allowCustom && (
         <div className="space-y-3">
           <AddressInput
             value={customAddress}
@@ -326,6 +334,7 @@ export function AddressSelector({
             disabled={disabled}
             required={required}
             showAddressLine2
+            defaultExpanded={expandCustomByDefault}
             hint={
               allowSave
                 ? "You can save this address to your account for future orders"

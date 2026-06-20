@@ -56,6 +56,8 @@ interface AddressInputProps {
   showAddressLine2?: boolean;
   /** Hint text below the input */
   hint?: string;
+  /** Expand manual address fields on first render. */
+  defaultExpanded?: boolean;
 }
 
 // =============================================================================
@@ -94,6 +96,7 @@ export function AddressInput({
   error,
   showAddressLine2 = true,
   hint = 'Search via Bring API or enter manually. Supports street + number + letter (e.g., 5B).',
+  defaultExpanded = false,
 }: AddressInputProps) {
   // State
   const [query, setQuery] = useState('');
@@ -101,7 +104,7 @@ export function AddressInput({
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);

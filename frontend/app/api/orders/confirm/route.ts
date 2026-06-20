@@ -1,15 +1,13 @@
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { recalculateVerificationTier } from '@/lib/verification-recalc';
-import { grantRepoAccessForOrder } from '@/lib/github-repo-access';
+import { completePaidOrder } from '@/lib/payments/complete-fiat-order';
 
 /**
  * POST /api/orders/confirm
  * Called after on-chain payment verification succeeds.
- * Moves an order from CONFIRMING → COMPLETED.
  */
 export async function POST(req: Request) {
   const session = await MyLibUserAuth();
@@ -32,84 +30,54 @@ export async function POST(req: Request) {
   try {
     const order = await dbPrisma.order.findUnique({
       where: { id: orderId },
-      include: { Payment: true },
+      select: { id: true, userId: true, status: true },
     });
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    // Only the order owner can confirm
     if (order.userId !== session.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Only CONFIRMING orders can be confirmed
+    if (order.status === 'COMPLETED') {
+      return NextResponse.json({
+        success: true,
+        orderId,
+        status: 'COMPLETED',
+        alreadyCompleted: true,
+      });
+    }
+
     if (order.status !== 'CONFIRMING') {
-      return NextResponse.json({ 
-        error: `Order is already ${order.status}`,
-        status: order.status,
-      }, { status: 400 });
-    }
-
-    // Update order and payment to COMPLETED
-    await dbPrisma.$transaction([
-      dbPrisma.order.update({
-        where: { id: orderId },
-        data: { 
-          status: 'COMPLETED',
-          transactionId,
+      return NextResponse.json(
+        {
+          error: `Order is ${order.status}`,
+          status: order.status,
         },
-      }),
-      ...(order.Payment ? [
-        dbPrisma.payment.update({
-          where: { id: order.Payment.id },
-          data: { 
-            status: 'COMPLETED',
-            transactionId,
-            ...(blockNumber != null ? { blockNumber } : {}),
-          },
-        }),
-      ] : []),
-    ]);
-
-    // Set Web3 payment flag and recalculate verification tier
-    try {
-      await dbPrisma.user.update({
-        where: { id: session.id },
-        data: { hasWeb3Payment: true },
-      });
-      await recalculateVerificationTier(session.id, { hasWeb3Payment: true });
-    } catch (flagErr) {
-      console.error('[api/orders/confirm] Failed to set hasWeb3Payment flag:', flagErr);
+        { status: 400 }
+      );
     }
 
-    // Auto-fulfil digital-only orders
-    try {
-      const orderItems = await dbPrisma.orderItem.findMany({
-        where: { orderId },
-        select: { Product: { select: { productType: true } } },
-      });
-      const allDigital = orderItems.length > 0 && orderItems.every((oi) => oi.Product?.productType === 'DIGITAL');
-      if (allDigital) {
-        await dbPrisma.order.update({
-          where: { id: orderId },
-          data: { fulfilmentStatus: 'DELIVERED', deliveredAt: new Date() },
-        });
-      }
-    } catch (autoFulfilErr) {
-      console.error('[api/orders/confirm] Auto-fulfil digital order failed:', autoFulfilErr);
+    const result = await completePaidOrder(orderId, {
+      paymentKind: 'web3',
+      paymentTransactionId: transactionId,
+      blockNumber,
+      origin: new URL(req.url).origin,
+      source: 'orders.confirm',
+    });
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error ?? 'Failed to confirm order' },
+        { status: 500 }
+      );
     }
 
-    try {
-      await grantRepoAccessForOrder(orderId, 'orders.confirm');
-    } catch (repoAccessError) {
-      console.error('[api/orders/confirm] Repo access grant failed:', repoAccessError);
-    }
-
-    return NextResponse.json({ 
-      success: true, 
-      orderId, 
+    return NextResponse.json({
+      success: true,
+      orderId,
       status: 'COMPLETED',
     });
   } catch (error) {

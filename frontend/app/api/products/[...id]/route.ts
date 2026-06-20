@@ -100,7 +100,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
           .filter((it: any) => it && typeof it.id === 'string')
           .map((it: any) => ({
             id: it.id,
-            stock: typeof it.stock === 'number' ? it.stock : 0,
+            stock: typeof it.stock === 'number' ? it.stock : typeof it.quantity === 'number' ? it.quantity : 0,
             warehouseId: typeof it.warehouseId === 'string' ? it.warehouseId : '',
           }))
           .filter((it: any) => typeof it.warehouseId === 'string' && it.warehouseId.length > 0)
@@ -116,6 +116,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       acceptedFiatCurrencies: Array.isArray((product as any).acceptedFiatCurrencies)
         ? (product as any).acceptedFiatCurrencies
         : [],
+      stock: typeof (product as any).stock === 'number' ? (product as any).stock : 0,
       condition: (product as any).condition,
       image: Array.isArray((product as any).image) ? (product as any).image : [],
       specifications: normalizeSpecifications((product as any).specifications),

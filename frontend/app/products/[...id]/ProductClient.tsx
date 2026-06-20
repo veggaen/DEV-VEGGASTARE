@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { type ReactNode, useEffect, useMemo, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,9 +43,10 @@ import ProductHeroHeading from "@/components/uicustom/product/product-hero-headi
 import { fetchUserEmployeePermissions } from "@/actions/user-company-permissions";
 import { MyDeleteProductAction } from "@/actions/products";
 import type { EmployeePermissions } from "@/lib/types/company-permissions";
-import { Pencil, Trash2, Loader2, Navigation, Flag } from "lucide-react";
+import { ArrowLeft, CreditCard, Heart, Pencil, ShieldCheck, ShoppingCart, Trash2, Loader2, Navigation, Flag, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { ReportDialog } from "@/components/uicustom/report/ReportDialog";
+import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
 
 function getNavigationType() {
   try {
@@ -344,6 +345,7 @@ interface Product {
   price: number; // stored in USD
   priceCurrency: string;
   acceptedFiatCurrencies: string[];
+  stock: number;
   condition: string;
   image: string[];
   specifications: Specification[] | null;
@@ -362,6 +364,19 @@ interface Product {
   shipFromPostalId: string;
   updatedAt: string;
   createdAt: string;
+}
+
+function getAcceptedTokenSymbols(product: Product) {
+  return Array.from(
+    new Set((product.acceptedTokens ?? []).map((token) => token.symbol).filter(Boolean))
+  );
+}
+
+function getAcceptedFiatCurrencies(product: Product) {
+  const currencies = product.acceptedFiatCurrencies?.length
+    ? product.acceptedFiatCurrencies
+    : [product.priceCurrency || "USD"];
+  return Array.from(new Set(currencies.filter(Boolean)));
 }
 
 const parseWarehouseLocations = (locations: WarehouseLocation[] = []) =>
@@ -1262,18 +1277,25 @@ function ProductDetails({ product }: { product: Product }) {
 
   // Inventory helpers
   const totalStock = useMemo(() => {
+    if (Number.isFinite(product.stock)) return Math.max(0, product.stock);
     const inventory = product.inventory ?? [];
     return inventory.reduce((sum, it) => sum + it.stock, 0);
-  }, [product.inventory]);
+  }, [product.inventory, product.stock]);
 
   const stockAtClosest = useMemo(() => {
-    if (!closestWarehouse) return 0;
+    if (!closestWarehouse) return totalStock;
     const inventory = product.inventory ?? [];
     const match = inventory.find((it) => it.warehouseId === closestWarehouse.id);
     if (match) return match.stock;
-    // fallback: max warehouse stock
+    if (!inventory.length) return totalStock;
     return inventory.reduce((m, it) => (it.stock > m ? it.stock : m), 0);
-  }, [closestWarehouse, product.inventory]);
+  }, [closestWarehouse, product.inventory, totalStock]);
+
+  const acceptedTokenSymbols = useMemo(() => getAcceptedTokenSymbols(product), [product]);
+  const acceptedFiatCurrencies = useMemo(() => getAcceptedFiatCurrencies(product), [product]);
+  const hasCryptoPayments = acceptedTokenSymbols.length > 0;
+  const availabilityLabel = totalStock > 0 ? `${totalStock} in stock` : "Stock check needed";
+  const canPurchase = totalStock > 0;
 
   // State for user's distance to closest warehouse
   const [userDistanceToWarehouseKm, setUserDistanceToWarehouseKm] = useState<number | undefined>(undefined);
@@ -1347,6 +1369,10 @@ function ProductDetails({ product }: { product: Product }) {
 
   // Cart actions
   const handleAddToCart = useCallback(async () => {
+    if (!canPurchase) {
+      toast.error("This product is currently out of stock.");
+      return;
+    }
     if (!session) {
       toast.error('Sign in to add items to your basket', {
         action: { label: 'Sign in', onClick: () => router.push('/auth') },
@@ -1369,10 +1395,14 @@ function ProductDetails({ product }: { product: Product }) {
     } catch {
       toast.error('Failed to add item to basket');
     }
-  }, [session, product.id, product.title, router]);
+  }, [canPurchase, session, product.id, product.title, router]);
 
   // Buy Now - add to cart then go straight to checkout
   const handleBuyNow = useCallback(async () => {
+    if (!canPurchase) {
+      toast.error("This product is currently out of stock.");
+      return;
+    }
     if (!session) {
       toast.error('Sign in to purchase items', {
         action: { label: 'Sign in', onClick: () => router.push('/auth') },
@@ -1391,13 +1421,21 @@ function ProductDetails({ product }: { product: Product }) {
     } catch {
       toast.error('Something went wrong. Please try again.');
     }
-  }, [session, product.id, router]);
+  }, [canPurchase, session, product.id, router]);
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-5">
+      <Link
+        href="/products"
+        className="group inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:-translate-x-0.5 hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+        Back to products
+      </Link>
+
       {/* Top section */}
       <motion.section
-        className="grid lg:grid-cols-2 gap-6 lg:gap-10"
+        className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.92fr)] lg:gap-8"
         initial={reduceMotion ? false : "hidden"}
         animate={reduceMotion ? undefined : "show"}
         variants={{
@@ -1413,7 +1451,7 @@ function ProductDetails({ product }: { product: Product }) {
             show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.45, ease: "easeOut" } },
           }}
         >
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/40 p-2">
+          <div className="relative overflow-hidden rounded-xl border border-border bg-surface-1">
             <Carousel>
               <CarouselContent>
                 {product.image.map((src, idx) => (
@@ -1424,8 +1462,8 @@ function ProductDetails({ product }: { product: Product }) {
                         alt={product.title}
                         fill
                         sizes="(max-width: 1024px) 100vw, 680px"
-                        priority={idx === 0}
-                        className="object-contain rounded-xl"
+                        loading={idx === 0 ? "eager" : "lazy"}
+                        className="object-contain"
                       />
                     </AspectRatio>
                   </CarouselItem>
@@ -1434,6 +1472,22 @@ function ProductDetails({ product }: { product: Product }) {
               <CarouselPrevious />
               <CarouselNext />
             </Carousel>
+          </div>
+
+          {/* Quick stats — text on background, divided by hairlines (no boxes) */}
+          <div className="mt-4 grid grid-cols-3 divide-x divide-border/70 rounded-lg border border-border/70 text-center">
+            <div className="px-3 py-2.5">
+              <div className="text-sm font-semibold text-foreground">{availabilityLabel}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">Availability</div>
+            </div>
+            <div className="px-3 py-2.5">
+              <div className="text-sm font-semibold text-foreground">{product.condition}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">Condition</div>
+            </div>
+            <div className="px-3 py-2.5">
+              <div className="text-sm font-semibold text-foreground">{product.shipFromPostalId || "—"}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">Ships from</div>
+            </div>
           </div>
         </motion.div>
 
@@ -1561,8 +1615,15 @@ function ProductDetails({ product }: { product: Product }) {
                 },
               }}
             >
-              <Button variant="vegaBuyBtn" className="hover:shadow-md transition-shadow duration-300" onClick={handleBuyNow}>
-                Buy Now
+              <Button
+                type="button"
+                variant="default"
+                className="h-11 rounded-md bg-zinc-950 px-5 text-sm font-semibold text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                onClick={handleBuyNow}
+                disabled={!canPurchase}
+              >
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                {canPurchase ? "Buy Now" : "Out of Stock"}
               </Button>
             </motion.div>
 
@@ -1578,9 +1639,11 @@ function ProductDetails({ product }: { product: Product }) {
               }}
             >
               <Button
-                variant="vegaAddBasketBtn"
-                className="hover:shadow-md transition-shadow duration-300"
+                type="button"
+                variant="outline"
+                className="h-11 rounded-md border-zinc-200 bg-white/70 text-sm dark:border-white/10 dark:bg-white/[0.04]"
                 onClick={handleAddToCart}
+                disabled={!canPurchase}
               >
                 Add to Basket
               </Button>
@@ -1596,21 +1659,27 @@ function ProductDetails({ product }: { product: Product }) {
                 },
               }}
             >
-              <Button variant="vegaAddWishlistBtn" className="hover:shadow-md transition-shadow duration-300">
-                Add to Wishlist
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-md border-zinc-200 bg-white/70 text-sm dark:border-white/10 dark:bg-white/[0.04]"
+                onClick={() => toast.info("Wishlist is not connected yet.")}
+              >
+                <Heart className="mr-2 h-4 w-4" />
+                Wishlist
               </Button>
             </motion.div>
           </motion.div>
 
           {/* Accepted Payment Methods */}
           <motion.div
-            className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400"
+            className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
             variants={{
               hidden: { opacity: 0 },
               show: { opacity: 1, transition: { duration: 0.3, delay: 0.1 } },
             }}
           >
-            <span className="font-medium text-zinc-600 dark:text-zinc-300">Accepts:</span>
+            <span className="font-medium text-foreground">Payment</span>
 
             {/* Crypto chains from product's acceptedTokens */}
             {Array.isArray(product.acceptedTokens) && product.acceptedTokens.length > 0 && (
@@ -1618,46 +1687,46 @@ function ProductDetails({ product }: { product: Product }) {
                 {[...new Set(product.acceptedTokens.map((t: any) => t.family as string))].map((family) => (
                   <span
                     key={family}
-                    className="inline-flex items-center gap-1 rounded-full border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-purple-400"
+                    className="inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 font-medium text-emerald-700 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-200"
                   >
-                    {family === "EVM" ? "⟠" : "◎"} {family === "EVM" ? "Ethereum" : "Solana"}
+                    <WalletCards className="h-3.5 w-3.5" />
+                    {family === "EVM" ? "Ethereum" : "Solana"}
                   </span>
                 ))}
               </>
             )}
 
             {/* Fiat methods — always available on the platform */}
-            <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-blue-400">
-              PayPal
+            <span className="inline-flex items-center gap-1 rounded-md border border-sky-500/20 bg-sky-500/10 px-2 py-1 font-medium text-sky-700 dark:border-sky-300/20 dark:bg-sky-300/10 dark:text-sky-200">
+              <CreditCard className="h-3.5 w-3.5" />
+              PayPal ({acceptedFiatCurrencies.join(", ")})
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/20 bg-orange-500/10 px-2 py-0.5 text-orange-400">
-              Vipps
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-pink-500/20 bg-pink-500/10 px-2 py-0.5 text-pink-400">
-              Klarna
-            </span>
+            {!hasCryptoPayments && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-100/70 px-2 py-1 font-medium text-zinc-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-400">
+                <WalletCards className="h-3.5 w-3.5" />
+                Crypto not configured
+              </span>
+            )}
           </motion.div>
 
           {/* shipping — available to everyone, including logged-out visitors.
               Location detection + Bring price lookup need no auth. */}
           {(
           <motion.div
-            className="mt-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 overflow-hidden"
+            className="mt-6 overflow-hidden rounded-xl border border-border bg-surface-1"
             variants={{
               hidden: { opacity: 0, y: 12 },
               show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
             }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-white/5">
+            <div className="flex items-center justify-between border-b border-border p-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-linear-to-br from-emerald-500/20 to-teal-500/20 dark:from-emerald-500/30 dark:to-teal-500/30 flex items-center justify-center">
-                  <CiDeliveryTruck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
+                <CiDeliveryTruck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 <div>
-                  <div className="text-sm font-semibold text-gray-900 dark:text-white">Shipping Estimate</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {userPostalCode 
+                  <div className="text-sm font-semibold text-foreground">Shipping estimate</div>
+                  <div className="text-xs text-muted-foreground">
+                    {userPostalCode
                       ? `Delivering to ${userPostalCode}${userCity ? ` ${userCity}` : ''}`
                       : 'Get shipping costs instantly'}
                   </div>
@@ -1681,28 +1750,24 @@ function ProductDetails({ product }: { product: Product }) {
             </div>
 
             {/* Location Input - Prominent Auto-Detect Design */}
-            <div className="p-4 bg-gray-50 dark:bg-white/[0.02]">
+            <div className="p-4">
               {warehouseLocations.length > 0 ? (
                 <>
                   {/* Show detected location or input options */}
                   {!userPostalCode ? (
-                    <div className="space-y-4">
-                      {/* Primary: Big Auto-Detect Button */}
+                    <div className="space-y-3">
+                      {/* Primary: Auto-Detect Button — single accent, no heavy gradient */}
                       <motion.button
                         type="button"
                         onClick={handleLocate}
                         disabled={isLocLoading}
                         className={cn(
-                          "w-full py-4 px-4 rounded-xl",
-                          "bg-linear-to-br from-emerald-500 to-teal-600",
-                          "hover:from-emerald-400 hover:to-teal-500",
-                          "text-white font-medium",
-                          "flex items-center justify-center gap-3",
-                          "transition-all duration-200",
-                          "shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30",
-                          isLocLoading && "opacity-70 cursor-wait"
+                          "flex w-full items-center justify-center gap-2.5 rounded-lg px-4 py-3",
+                          "bg-emerald-600 font-medium text-white",
+                          "transition-colors duration-200 hover:bg-emerald-500",
+                          isLocLoading && "cursor-wait opacity-70"
                         )}
-                        whileHover={!isLocLoading ? { scale: 1.01 } : {}}
+                        whileHover={!isLocLoading ? { scale: 1.005 } : {}}
                         whileTap={!isLocLoading ? { scale: 0.99 } : {}}
                       >
                         {isLocLoading ? (
@@ -1833,23 +1898,23 @@ function ProductDetails({ product }: { product: Product }) {
           </motion.div>
           )}
 
-          {/* availability */}
+          {/* availability + ships-from — quiet inline stats, hairline separated */}
           <motion.div
-            className="grid sm:grid-cols-2 gap-3 mt-2"
+            className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border/70 bg-border/70"
             variants={{
               hidden: { opacity: 0, y: 12 },
               show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
             }}
           >
-            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold tracking-tight text-gray-900 dark:text-zinc-100">
-                <GoPackage className="h-4 w-4" />
+            <div className="bg-background p-4">
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <GoPackage className="h-3.5 w-3.5" />
                 Availability
               </div>
-              <div className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+              <div className="mt-1.5 text-sm text-foreground">
                 {totalStock > 0 ? (
                   closestWarehouse ? (
-                    stockAtClosest > 0 
+                    stockAtClosest > 0
                       ? `${stockAtClosest} in stock nearby`
                       : "Check other locations"
                   ) : (
@@ -1860,18 +1925,18 @@ function ProductDetails({ product }: { product: Product }) {
                 )}
               </div>
               {totalStock > 0 && closestWarehouse && stockAtClosest !== totalStock && (
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Total: {totalStock} across all locations
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {totalStock} across all locations
                 </div>
               )}
             </div>
 
-            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold tracking-tight text-gray-900 dark:text-zinc-100">
-                <CiMapPin className="h-4 w-4" />
-                Shipping from
+            <div className="bg-background p-4">
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <CiMapPin className="h-3.5 w-3.5" />
+                Ships from
               </div>
-              <div className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+              <div className="mt-1.5 text-sm text-foreground">
                 {closestWarehouse?.postalCode || product.shipFromPostalId || "—"}
               </div>
             </div>
@@ -1879,13 +1944,14 @@ function ProductDetails({ product }: { product: Product }) {
 
           {/* description */}
           <motion.div
-            className="mt-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent p-4"
+            className="mt-6"
             variants={{
               hidden: { opacity: 0, y: 10 },
               show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
             }}
           >
-            <p className="text-sm leading-6 text-gray-700 dark:text-gray-300">{product.description}</p>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">About this item</h3>
+            <p className="mt-2 text-sm leading-7 text-foreground/90">{product.description}</p>
           </motion.div>
         </motion.div>
       </motion.section>
@@ -1893,14 +1959,14 @@ function ProductDetails({ product }: { product: Product }) {
       {/* Features section */}
       {product.features && product.features.length > 0 && (
         <motion.section
-          className="mt-8 rounded-2xl bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 p-6"
+          className="mt-10 border-t border-border pt-8"
           initial={reduceMotion ? false : { opacity: 0, y: 12 }}
           whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
-          <h3 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 mb-4">Features</h3>
-          
+          <h3 className="mb-4 text-base font-semibold tracking-tight text-foreground">Features</h3>
+
           {/* Group features by category key */}
           {(() => {
             const grouped = new Map<string, Feature[]>();
@@ -1933,37 +1999,37 @@ function ProductDetails({ product }: { product: Product }) {
         </motion.section>
       )}
 
-      {/* Bottom section */}
+      {/* Specifications */}
       <motion.section
-        className="mt-8 rounded-2xl bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 p-6"
+        className="mt-10 border-t border-border pt-8"
         initial={reduceMotion ? false : { opacity: 0, y: 12 }}
         whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
-        <h3 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 mb-3">Specifications</h3>
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <h3 className="mb-4 text-base font-semibold tracking-tight text-foreground">Specifications</h3>
+        <dl className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
           {(product.specifications || []).map((spec, idx) => (
-            <div key={idx} className="flex flex-col">
-              <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">{spec.key}</dt>
-              <dd className="mt-1 text-sm text-gray-900 dark:text-gray-200">
+            <div key={idx} className="flex justify-between gap-4 border-b border-border/60 py-2.5">
+              <dt className="text-sm text-muted-foreground">{spec.key}</dt>
+              <dd className="text-right text-sm font-medium text-foreground">
                 {spec.value}
                 {spec.key === "Weight" && " g"}
                 {["Height", "Length", "Width"].includes(spec.key) && " cm"}
               </dd>
             </div>
           ))}
-          <div className="flex flex-col">
-            <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Updated</dt>
-            <dd className="mt-1 text-sm text-gray-900 dark:text-gray-200">
+          <div className="flex justify-between gap-4 border-b border-border/60 py-2.5">
+            <dt className="text-sm text-muted-foreground">Updated</dt>
+            <dd className="text-right text-sm font-medium text-foreground">
               {new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(
                 new Date(product.updatedAt)
               )}
             </dd>
           </div>
-          <div className="flex flex-col">
-            <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">Created</dt>
-            <dd className="mt-1 text-sm text-gray-900 dark:text-gray-200">
+          <div className="flex justify-between gap-4 border-b border-border/60 py-2.5">
+            <dt className="text-sm text-muted-foreground">Created</dt>
+            <dd className="text-right text-sm font-medium text-foreground">
               {new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(
                 new Date(product.createdAt)
               )}
@@ -1989,7 +2055,15 @@ export default function ProductClient({ productId }: { productId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const pageShellClassName = "mx-auto w-full max-w-screen-2xl px-3 sm:px-4 md:px-6 py-6";
+  const pageShellClassName = "relative z-10 mx-auto w-full max-w-screen-2xl px-3 py-5 sm:px-4 md:px-6";
+  const renderShell = (children: ReactNode) => (
+    <div className="relative isolate min-h-full w-full overflow-hidden bg-background text-foreground">
+      <HeroParticleField fixed density={0.72} centerFade={0.32} className="z-0 opacity-60 dark:opacity-75" />
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-linear-to-b from-sky-50/90 via-white/75 to-white dark:from-emerald-950/20 dark:via-black/80 dark:to-black" />
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(rgba(14,165,233,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(14,165,233,0.04)_1px,transparent_1px)] bg-[size:46px_46px] opacity-80 dark:bg-[linear-gradient(rgba(52,211,153,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(52,211,153,0.045)_1px,transparent_1px)] dark:opacity-35" />
+      <div className={pageShellClassName}>{children}</div>
+    </div>
+  );
 
   useEffect(() => {
     let stopped = false;
@@ -2028,8 +2102,7 @@ export default function ProductClient({ productId }: { productId: string }) {
   }, [productId]);
 
   if (error === "not-found")
-    return (
-      <div className={pageShellClassName}>
+    return renderShell(
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Product Not Found</h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -2042,12 +2115,10 @@ export default function ProductClient({ productId }: { productId: string }) {
             Browse Products
           </Link>
         </div>
-      </div>
     );
 
   if (error)
-    return (
-      <div className={pageShellClassName}>
+    return renderShell(
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Something went wrong</h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -2060,19 +2131,10 @@ export default function ProductClient({ productId }: { productId: string }) {
             Retry
           </button>
         </div>
-      </div>
     );
 
   if (isLoading || !product)
-    return (
-      <div className={pageShellClassName}>
-        <ProductSkeleton />
-      </div>
-    );
+    return renderShell(<ProductSkeleton />);
 
-  return (
-    <div className={pageShellClassName}>
-      <ProductDetails product={product} />
-    </div>
-  );
+  return renderShell(<ProductDetails product={product} />);
 }

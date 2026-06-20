@@ -29,8 +29,12 @@ export function getProviderGate(
 ): ProviderGateResult {
   const missingEnv = REQUIRED_ENV[provider].filter((key) => !isConfigured(key));
   const inProduction = process.env.NODE_ENV === 'production';
+  const allowLocalPaypalTest =
+    !inProduction &&
+    provider === 'paypal' &&
+    missingEnv.length === 0;
 
-  if (!runtime.paymentsLiveEnabled) {
+  if (!runtime.paymentsLiveEnabled && !allowLocalPaypalTest) {
     return {
       enabled: false,
       reason: 'Payments live mode disabled by owner',

@@ -19,7 +19,8 @@ import type {
   VoiceRole,
   ServerVoiceEvent,
 } from "./types";
-import { readVoicePrefs } from "./voice-prefs";
+import { readVoicePrefs, VOICE_PREFS_CHANGED_EVENT, type VoicePrefs } from "./voice-prefs";
+import { describeMediaError } from "./media-devices";
 
 type DbRole = "HOST" | "MODERATOR" | "SPEAKER" | "LISTENER";
 
@@ -36,6 +37,7 @@ type LkRoom = {
   remoteParticipants: Map<string, LkParticipant>;
   on: (ev: string, cb: (...a: unknown[]) => void) => void;
   disconnect: () => Promise<void>;
+  switchActiveDevice?: (kind: MediaDeviceKind, deviceId: string, exact?: boolean) => Promise<boolean>;
 };
 type LkParticipant = {
   identity: string;
@@ -44,6 +46,7 @@ type LkParticipant = {
   metadata?: string;
   permissions?: { canPublish?: boolean };
   setMicrophoneEnabled: (on: boolean, opts?: { deviceId?: string }) => Promise<void>;
+  setVolume?: (volume: number) => void;
 };
 
 interface HandMeta {
@@ -66,6 +69,8 @@ export class LiveKitVoiceProvider implements VoiceProvider {
   private serverRoles = new Map<string, DbRole>();
   /** Users a host has server-muted (overlaid onto the rendered muted flag). */
   private hostMuted = new Set<string>();
+  private prefsListener: (() => void) | null = null;
+  private prefsKey = "";
 
   constructor(cfg: VoiceProviderConfig) {
     this.cfg = cfg;
@@ -121,10 +126,13 @@ export class LiveKitVoiceProvider implements VoiceProvider {
         this.rebuildMembers();
       });
       room.on(RoomEvent.Disconnected, () => {
+        this.unlistenForPrefs();
         this.set({ connection: "disconnected", members: [], selfId: null });
       });
 
       await (room as unknown as { connect: (u: string, t: string) => Promise<void> }).connect(data.url, data.token);
+      this.listenForPrefs();
+      void this.applyPrefs();
       // Anyone the server granted publish opens the mic (host, moderator, speaker).
       if (canPublishDbRole(myRole)) {
         await this.enableMic(true);
@@ -137,7 +145,7 @@ export class LiveKitVoiceProvider implements VoiceProvider {
   }
 
   /** Open/close the mic, honoring the user's device + noise-processing settings. */
-  private async enableMic(on: boolean) {
+  private async enableMic(on: boolean): Promise<boolean> {
     const p = readVoicePrefs();
     const opts = on
       ? {
@@ -149,12 +157,67 @@ export class LiveKitVoiceProvider implements VoiceProvider {
       : undefined;
     try {
       await this.room?.localParticipant.setMicrophoneEnabled(on, opts);
-    } catch {
-      /* mic denied or device unavailable — stays muted */
+      if (on) this.set({ error: null });
+      return true;
+    } catch (err) {
+      if (on) this.set({ error: describeMediaError(err) });
+      return false;
     }
   }
 
+  private applyRemoteVolume(volume: number) {
+    this.room?.remoteParticipants.forEach((participant) => participant.setVolume?.(volume));
+  }
+
+  private prefsSnapshot(p: VoicePrefs) {
+    return [
+      p.micDeviceId,
+      p.spkDeviceId,
+      p.noiseSuppression ? "ns1" : "ns0",
+      p.echoCancellation ? "ec1" : "ec0",
+      p.autoGainControl ? "agc1" : "agc0",
+      p.outputVolume,
+    ].join("|");
+  }
+
+  private async applyPrefs() {
+    const room = this.room;
+    if (!room) return;
+    const prefs = readVoicePrefs();
+    const nextKey = this.prefsSnapshot(prefs);
+    if (nextKey === this.prefsKey) return;
+    this.prefsKey = nextKey;
+
+    this.applyRemoteVolume(prefs.outputVolume);
+    if (room.switchActiveDevice) {
+      await room.switchActiveDevice("audiooutput", prefs.spkDeviceId || "default", !!prefs.spkDeviceId).catch(() => undefined);
+      const myRole = this.serverRoles.get(this.cfg.self.id);
+      const self = this.state.members.find((member) => member.id === this.state.selfId);
+      if (myRole && canPublishDbRole(myRole) && self && !self.muted) {
+        const micDeviceId = prefs.micDeviceId || "default";
+        await room.switchActiveDevice("audioinput", micDeviceId, !!prefs.micDeviceId).catch((err) => {
+          this.set({ error: describeMediaError(err) });
+        });
+      }
+    }
+  }
+
+  private listenForPrefs() {
+    if (typeof window === "undefined" || this.prefsListener) return;
+    this.prefsKey = "";
+    this.prefsListener = () => void this.applyPrefs();
+    window.addEventListener(VOICE_PREFS_CHANGED_EVENT, this.prefsListener);
+  }
+
+  private unlistenForPrefs() {
+    if (typeof window === "undefined" || !this.prefsListener) return;
+    window.removeEventListener(VOICE_PREFS_CHANGED_EVENT, this.prefsListener);
+    this.prefsListener = null;
+    this.prefsKey = "";
+  }
+
   async leave() {
+    this.unlistenForPrefs();
     await this.room?.disconnect();
     this.room = null;
     this.set({ connection: "disconnected", members: [], selfId: null });
@@ -234,6 +297,7 @@ export class LiveKitVoiceProvider implements VoiceProvider {
 
   private rebuildMembers() {
     if (!this.room) return;
+    this.applyRemoteVolume(readVoicePrefs().outputVolume);
     const all: LkParticipant[] = [this.room.localParticipant, ...this.room.remoteParticipants.values()];
     const members: VoiceMember[] = all.map((p) => {
       const meta: HandMeta = p.metadata ? safeParse(p.metadata) : {};

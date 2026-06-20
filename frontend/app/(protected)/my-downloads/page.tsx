@@ -7,6 +7,8 @@ import { format } from 'date-fns';
 import { nb } from 'date-fns/locale';
 import Image from 'next/image';
 
+const UNLIMITED_DOWNLOAD_USES = 2_147_483_647;
+
 interface DownloadToken {
   id: string;
   token: string;
@@ -51,6 +53,13 @@ function getStatusInfo(token: DownloadToken) {
     return { status: 'exhausted', label: 'Brukt opp', color: 'text-gray-500', icon: FaCheckCircle };
   }
   return { status: 'active', label: 'Aktiv', color: 'text-emerald-500', icon: FaCheckCircle };
+}
+
+function formatDownloadUsage(token: DownloadToken) {
+  if (token.maxUses >= UNLIMITED_DOWNLOAD_USES) {
+    return `${token.usedCount} av ubegrenset brukt`;
+  }
+  return `${token.usedCount} av ${token.maxUses} brukt`;
 }
 
 export default function MyDownloadsPage() {
@@ -190,7 +199,7 @@ export default function MyDownloadsPage() {
                       <span className="ml-2">({formatFileSize(token.digitalAsset.fileSize)})</span>
                     </p>
                     <p>
-                      <span className="font-medium">Nedlastinger:</span> {token.usedCount} av {token.maxUses} brukt
+                      <span className="font-medium">Nedlastinger:</span> {formatDownloadUsage(token)}
                     </p>
                     {token.expiresAt && (
                       <p>

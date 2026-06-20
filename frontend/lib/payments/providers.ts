@@ -281,13 +281,23 @@ export class PayPalProvider implements PaymentProvider {
       },
       body: 'grant_type=client_credentials',
     });
-    if (!res.ok) throw new Error('PayPal auth failed');
+    if (!res.ok) {
+      const details = await res.text().catch(() => '');
+      throw new Error(`PayPal auth failed${details ? `: ${details}` : ''}`);
+    }
     const data = await res.json();
     return data.access_token;
   }
 
+  private withQueryParam(url: string, key: string, value: string): string {
+    const parsed = new URL(url);
+    parsed.searchParams.set(key, value);
+    return parsed.toString();
+  }
+
   async createSession(req: PaymentSessionRequest): Promise<PaymentSession> {
     const token = await this.getAccessToken();
+    const enableSellerPayeeRouting = process.env.PAYPAL_ENABLE_SELLER_PAYEE_ROUTING === 'true';
 
     const res = await fetch(`${this.baseUrl}/v2/checkout/orders`, {
       method: 'POST',
@@ -305,7 +315,7 @@ export class PayPalProvider implements PaymentProvider {
             value: (req.amount / 100).toFixed(2), // PayPal uses major units
           },
           // Route payment to seller if their verified PayPal email is provided
-          ...(req.sellerEmail ? {
+          ...(enableSellerPayeeRouting && req.sellerEmail ? {
             payee: {
               email_address: req.sellerEmail,
             },
@@ -313,7 +323,7 @@ export class PayPalProvider implements PaymentProvider {
         }],
         application_context: {
           return_url: req.returnUrl,
-          cancel_url: `${req.returnUrl}?cancelled=true`,
+          cancel_url: this.withQueryParam(req.returnUrl, 'cancelled', 'true'),
           brand_name: 'VeggaStare',
           user_action: 'PAY_NOW',
         },
@@ -327,6 +337,9 @@ export class PayPalProvider implements PaymentProvider {
 
     const data = await res.json();
     const approveLink = data.links?.find((l: { rel: string }) => l.rel === 'approve');
+    if (!approveLink?.href) {
+      throw new Error(`PayPal order creation did not return an approval URL for order ${req.orderId}`);
+    }
 
     return {
       provider: 'paypal',
@@ -371,7 +384,10 @@ export class PayPalProvider implements PaymentProvider {
       },
     });
 
-    if (!res.ok) throw new Error('PayPal capture failed');
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      throw new Error(`PayPal capture failed${err ? `: ${err}` : ''}`);
+    }
     const data = await res.json();
 
     return {

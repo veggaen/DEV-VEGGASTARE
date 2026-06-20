@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { FiAlertTriangle, FiTrash2, FiPlus, FiShield } from 'react-icons/fi';
+import { FiTrash2, FiPlus, FiShield } from 'react-icons/fi';
 
 export interface AcceptedTokenEntry {
   family: 'EVM' | 'SOLANA';
@@ -14,17 +14,52 @@ export interface AcceptedTokenEntry {
   tokenMint?: string | null;
 }
 
-// Well-known tokens for quick selection
-const PRESET_TOKENS: AcceptedTokenEntry[] = [
-  { family: 'EVM', symbol: 'ETH', decimals: 18 },
-  { family: 'EVM', symbol: 'PLS', decimals: 18 },
-  { family: 'SOLANA', symbol: 'SOL', decimals: 9 },
+// Token metadata for presets — icon (brand color + glyph) + the network label
+// shown next to each symbol so sellers see exactly what they'd accept.
+interface TokenMeta extends AcceptedTokenEntry {
+  network: string;
+  color: string; // brand-ish accent for the icon chip
+  glyph: string; // short symbol shown in the icon disc
+}
+
+// Well-known tokens surfaced by default when a seller enables web3 payments.
+const PRESET_TOKENS: TokenMeta[] = [
+  { family: 'EVM', symbol: 'ETH', decimals: 18, network: 'Ethereum', color: '#627EEA', glyph: 'Ξ' },
+  { family: 'EVM', symbol: 'USDC', decimals: 6, tokenAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', network: 'Ethereum', color: '#2775CA', glyph: '$' },
+  { family: 'EVM', symbol: 'HEX', decimals: 8, tokenAddress: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39', network: 'Ethereum / PulseChain', color: '#FF0099', glyph: 'H' },
+  { family: 'EVM', symbol: 'PLS', decimals: 18, network: 'PulseChain', color: '#9945FF', glyph: '✦' },
+  { family: 'SOLANA', symbol: 'SOL', decimals: 9, network: 'Solana', color: '#14F195', glyph: '◎' },
 ];
 
 const CHAIN_LABELS: Record<string, string> = {
   EVM: 'EVM (Ethereum, PulseChain, Base…)',
   SOLANA: 'Solana',
 };
+
+// Look up display metadata for any token (preset or custom) by symbol+family.
+function tokenMetaFor(t: AcceptedTokenEntry): { network: string; color: string; glyph: string } {
+  const preset = PRESET_TOKENS.find((p) => p.family === t.family && p.symbol === t.symbol);
+  if (preset) return { network: preset.network, color: preset.color, glyph: preset.glyph };
+  return {
+    network: t.family === 'SOLANA' ? 'Solana' : 'EVM',
+    color: t.family === 'SOLANA' ? '#14F195' : '#71717a',
+    glyph: t.symbol.slice(0, 1).toUpperCase(),
+  };
+}
+
+// Small token icon disc — colored ring + glyph. No external image assets needed.
+function TokenIcon({ color, glyph, size = 'sm' }: { color: string; glyph: string; size?: 'sm' | 'md' }) {
+  const dim = size === 'md' ? 'h-7 w-7 text-[13px]' : 'h-5 w-5 text-[10px]';
+  return (
+    <span
+      className={`inline-flex ${dim} shrink-0 items-center justify-center rounded-full font-semibold text-white`}
+      style={{ backgroundColor: color }}
+      aria-hidden
+    >
+      {glyph}
+    </span>
+  );
+}
 
 interface CryptoTokenSelectorProps {
   tokens: AcceptedTokenEntry[];
@@ -75,26 +110,18 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
     setShowCustom(false);
   };
 
-  const sectionStyle =
-    'rounded-xl border border-black/10 bg-white/50 p-4 dark:border-white/10 dark:bg-white/[0.02]';
-  const chipBase =
-    'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium border transition-all cursor-pointer select-none';
-  const chipActive =
-    'bg-emerald-600/10 border-emerald-500/50 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/20';
-  const chipInactive =
-    'bg-muted/30 border-border dark:border-white/10 text-muted-foreground hover:border-emerald-500/30 dark:bg-white/5';
-
   return (
-    <div className={sectionStyle}>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-          Accepted Crypto Tokens
-        </h3>
-        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic">Optional</span>
+    <div>
+      <div className="space-y-1">
+        <h3 className="text-base font-semibold tracking-tight text-foreground">Accept crypto</h3>
+        <p className="text-sm text-muted-foreground">
+          Optional. Choose which tokens buyers can pay you with directly on-chain.
+        </p>
       </div>
 
-      {/* Preset quick-select */}
-      <div className="flex flex-wrap gap-2 mb-3">
+      {/* Preset quick-select — each token shows its icon + network. Selecting a
+          token gives it a quiet accent ring rather than a filled pill. */}
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {PRESET_TOKENS.map((preset) => {
           const key = `${preset.family}:${preset.symbol}`;
           const isActive = tokenKeys.has(key);
@@ -104,26 +131,45 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
               type="button"
               disabled={disabled}
               onClick={() => togglePreset(preset)}
-              className={`${chipBase} ${isActive ? chipActive : chipInactive}`}
+              className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-200 ${
+                isActive
+                  ? 'bg-emerald-500/[0.07] ring-1 ring-emerald-500/40 dark:bg-emerald-400/[0.06]'
+                  : 'hover:-translate-y-0.5 hover:bg-muted/40'
+              }`}
             >
-              {preset.family === 'SOLANA' ? '◎' : '⟠'} {preset.symbol}
-              {isActive && <span className="text-emerald-500">✓</span>}
+              <TokenIcon color={preset.color} glyph={preset.glyph} size="md" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-foreground">{preset.symbol}</span>
+                <span className="block truncate text-xs text-muted-foreground">{preset.network}</span>
+              </span>
+              <span
+                className={`h-2 w-2 shrink-0 rounded-full transition-colors ${
+                  isActive ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-transparent group-hover:bg-border'
+                }`}
+              />
             </button>
           );
         })}
+        {/* Custom token tile */}
         <button
           type="button"
           disabled={disabled}
           onClick={() => setShowCustom(!showCustom)}
-          className={`${chipBase} ${chipInactive}`}
+          className={`flex items-center gap-3 rounded-lg border border-dashed px-3 py-2.5 text-left transition-all duration-200 ${
+            showCustom ? 'border-emerald-500/40 text-foreground' : 'border-border/80 text-muted-foreground hover:-translate-y-0.5 hover:text-foreground'
+          }`}
         >
-          <FiPlus className="h-3.5 w-3.5" /> Custom
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-current">
+            <FiPlus className="h-3.5 w-3.5" />
+          </span>
+          <span className="text-sm font-medium">Add custom token</span>
         </button>
       </div>
 
       {/* Custom token form */}
       {showCustom && (
-        <div className="rounded-lg bg-muted/20 dark:bg-white/[0.02] border border-border/50 dark:border-white/5 p-3 mb-3 space-y-2">
+        <div className="mt-3 space-y-2 border-l-2 border-emerald-500/30 pl-4">
+          <p className="text-xs text-muted-foreground">Find your token by its chain and contract / mint address.</p>
           <div className="grid grid-cols-2 gap-2">
             <Select
               value={customFamily}
@@ -170,58 +216,54 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
             size="sm"
             onClick={addCustom}
             disabled={disabled || !customSymbol.trim()}
-            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="h-8 bg-emerald-600 text-xs text-white hover:bg-emerald-500"
           >
-            Add Token
+            Add token
           </Button>
         </div>
       )}
 
       {/* Selected tokens list */}
       {tokens.length > 0 && (
-        <div className="space-y-1.5 mb-3">
-          {tokens.map((t, idx) => (
-            <div
-              key={`${t.family}:${t.symbol}`}
-              className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-md bg-muted/20 dark:bg-white/[0.02] border border-border/30 dark:border-white/5"
-            >
-              <span className="flex items-center gap-1.5">
-                <span className="text-emerald-500 font-medium">{t.symbol}</span>
-                <span className="text-zinc-400">•</span>
-                <span className="text-zinc-500">{CHAIN_LABELS[t.family] ?? t.family}</span>
-                <span className="text-zinc-400">({t.decimals}d)</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => removeToken(idx)}
-                disabled={disabled}
-                className="text-red-400 hover:text-red-500 p-0.5"
+        <div className="mt-4 space-y-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Accepting</p>
+          {tokens.map((t, idx) => {
+            const meta = tokenMetaFor(t);
+            return (
+              <div
+                key={`${t.family}:${t.symbol}`}
+                className="group flex items-center gap-2.5 py-1.5"
               >
-                <FiTrash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
+                <TokenIcon color={meta.color} glyph={meta.glyph} />
+                <span className="text-sm font-medium text-foreground">{t.symbol}</span>
+                <span className="text-xs text-muted-foreground">{meta.network}</span>
+                {t.tokenAddress || t.tokenMint ? (
+                  <span className="font-mono text-[11px] text-muted-foreground/70">
+                    {(t.tokenAddress || t.tokenMint)!.slice(0, 6)}…{(t.tokenAddress || t.tokenMint)!.slice(-4)}
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => removeToken(idx)}
+                  disabled={disabled}
+                  className="ml-auto p-1 text-muted-foreground/50 transition-colors hover:text-red-500"
+                  title="Remove"
+                >
+                  <FiTrash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Warning box */}
+      {/* Disclaimer — quiet left-border line */}
       {tokens.length > 0 && (
-        <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 p-2.5 flex gap-2">
-          <FiAlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
-          <div className="text-[10px] text-amber-700 dark:text-amber-300 leading-relaxed space-y-1">
-            <p className="font-medium flex items-center gap-1">
-              <FiShield className="h-3 w-3" /> Crypto Payment Disclaimer
-            </p>
-            <p>
-              Cryptocurrency transactions are <strong>irreversible</strong>. Ensure you provide the correct
-              receiver wallet. VeggaStare does not custody funds — payments go directly to the seller&apos;s wallet.
-            </p>
-            <p>
-              For Norwegian tax purposes, crypto income must be reported at the NOK value on the date of receipt.
-              See <em>skatteetaten.no</em> for current rules.
-            </p>
-          </div>
-        </div>
+        <p className="mt-4 border-l-2 border-amber-500/50 pl-3 text-[11px] leading-relaxed text-muted-foreground">
+          <FiShield className="mr-1 inline h-3 w-3 align-text-bottom" />
+          Crypto transactions are <strong className="text-foreground">irreversible</strong> and paid directly to your wallet — Veggat never custodies funds.
+          For Norwegian tax, report crypto income at its NOK value on the date received (skatteetaten.no).
+        </p>
       )}
     </div>
   );

@@ -46,7 +46,7 @@ export const DEFAULT_VOICE_PREFS: VoicePrefs = {
 };
 
 const STORAGE_KEY = "voice:prefs";
-const EVENT = "voice:prefs-changed";
+export const VOICE_PREFS_CHANGED_EVENT = "voice:prefs-changed";
 
 // Legacy keys the modal used before this store — migrate them once.
 const LEGACY_MIC = "voice:micDeviceId";
@@ -95,7 +95,7 @@ export function writeVoicePrefs(next: VoicePrefs) {
     // Keep legacy keys in sync so anything still reading them works.
     localStorage.setItem(LEGACY_MIC, next.micDeviceId);
     localStorage.setItem(LEGACY_SPK, next.spkDeviceId);
-    window.dispatchEvent(new CustomEvent(EVENT));
+    window.dispatchEvent(new CustomEvent(VOICE_PREFS_CHANGED_EVENT));
   } catch { /* storage blocked */ }
 }
 
@@ -107,10 +107,10 @@ export function useVoicePrefs() {
   React.useEffect(() => {
     setPrefs(readVoicePrefs());
     const onChange = () => setPrefs(readVoicePrefs());
-    window.addEventListener(EVENT, onChange);
+    window.addEventListener(VOICE_PREFS_CHANGED_EVENT, onChange);
     window.addEventListener("storage", onChange); // cross-tab
     return () => {
-      window.removeEventListener(EVENT, onChange);
+      window.removeEventListener(VOICE_PREFS_CHANGED_EVENT, onChange);
       window.removeEventListener("storage", onChange);
     };
   }, []);

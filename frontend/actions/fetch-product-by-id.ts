@@ -36,6 +36,7 @@ export const fetchProductById = cache(async (id: string): Promise<Product | null
                 name: true,
                 city: true,
                 country: true,
+                postalCode: true,
               },
             },
           },
@@ -44,6 +45,7 @@ export const fetchProductById = cache(async (id: string): Promise<Product | null
           select: {
             id: true,
             quantity: true,
+            stock: true,
             warehouseId: true,
           },
         },

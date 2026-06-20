@@ -69,6 +69,8 @@ interface ShippingMethodSelectorProps {
   selectedServiceCode?: string | null;
   /** Whether all items are digital (skip shipping). */
   allDigital?: boolean;
+  /** Called when rates need a delivery address first. */
+  onAddressNeeded?: () => void;
 }
 
 /* ═══════════════════════════ Helpers ═══════════════════════════ */
@@ -114,6 +116,7 @@ export function ShippingMethodSelector({
   onSelect,
   selectedServiceCode,
   allDigital = false,
+  onAddressNeeded,
 }: ShippingMethodSelectorProps) {
   const [options, setOptions] = useState<ShippingOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -354,11 +357,18 @@ export function ShippingMethodSelector({
   /* ── No postal codes yet ── */
   if (!fromPostalCode || !toPostalCode) {
     return (
-      <div className="mt-4 p-4 bg-muted/30 dark:bg-white/[0.02] rounded-lg border border-border dark:border-white/10">
-        <p className="text-sm text-muted-foreground">
-          Velg leveringsadresse for å se fraktalternativer
+      <button
+        type="button"
+        onClick={onAddressNeeded}
+        className="mt-4 w-full p-4 bg-muted/30 dark:bg-white/[0.02] rounded-lg border border-border dark:border-white/10 text-left transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/5 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+      >
+        <p className="text-sm font-medium text-foreground">
+          Enter delivery address
         </p>
-      </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Type or select a delivery address to see shipping options.
+        </p>
+      </button>
     );
   }
 

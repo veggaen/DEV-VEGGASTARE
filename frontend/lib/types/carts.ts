@@ -5,6 +5,7 @@ export const CartItemProductDtoSchema = z
     id: z.string().min(1),
     title: z.string().min(1),
     price: z.number().finite(),
+    priceCurrency: z.string().optional(),
     image: z.array(z.string()).default([]),
     productType: z.string().optional(),
     shipFromPostalId: z.string().optional(),

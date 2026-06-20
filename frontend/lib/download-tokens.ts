@@ -1,6 +1,8 @@
 import { dbPrisma } from '@/lib/db';
 import crypto from 'crypto';
 
+const UNLIMITED_DOWNLOAD_USES = 2_147_483_647;
+
 interface GenerateDownloadTokensParams {
   orderId: string;
   userId: string;
@@ -46,6 +48,7 @@ export async function generateDownloadTokensForOrder(
 
   for (const product of products) {
     if (!product.DigitalAsset) continue;
+    const maxUses = product.maxDownloads ?? UNLIMITED_DOWNLOAD_USES;
 
     // Generate secure random token
     const token = crypto.randomBytes(32).toString('hex');
@@ -66,7 +69,7 @@ export async function generateDownloadTokensForOrder(
         orderId,
         orderItemId: orderItem?.id || null,
         userId,
-        maxUses: product.maxDownloads || 5, // Default to 5 downloads
+        maxUses,
         expiresAt,
       },
     });
@@ -78,7 +81,7 @@ export async function generateDownloadTokensForOrder(
       downloadUrl: `/api/download/${token}`,
       fileName: product.DigitalAsset.fileName,
       expiresAt,
-      maxDownloads: product.maxDownloads || 5,
+      maxDownloads: maxUses,
     });
   }
 

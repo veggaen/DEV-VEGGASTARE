@@ -156,14 +156,17 @@
      * Enhanced surface contrast for better visual hierarchy
      * ───────────────────────────────────────────────────────────────────────── */
 
-    /* Base colors */
-    --background: 0 0% 99%; /* #fcfcfc - Near white (slightly off-white) */
-    --foreground: 0 0% 9%; /* #171717 - zinc-900 */
+    /* Base colors
+     * Light base is a soft cool neutral (#F9FAFB / zinc-50-ish) rather than stark
+     * near-white — reduces eye strain and lets pure-white cards read as "raised".
+     * Foreground stays a near-black charcoal (#171717) for AA-comfortable contrast. */
+    --background: 210 20% 98%; /* #F9FAFB - soft cool neutral (NOT stark white) */
+    --foreground: 222 16% 12%; /* #1a1d24 - charcoal near-black, slightly warm */
 
-    /* Surface hierarchy for depth (more pronounced for light mode) */
-    --surface-1: 0 0% 100%; /* #ffffff - raised cards (white stands out) */
-    --surface-2: 0 0% 97%; /* #f7f7f7 - subtle panels */
-    --surface-3: 0 0% 94%; /* #f0f0f0 - distinct raised areas */
+    /* Surface hierarchy for depth — white cards lift cleanly off the soft bg */
+    --surface-1: 0 0% 100%; /* #ffffff - raised cards (now stand out vs soft bg) */
+    --surface-2: 210 20% 99%; /* near-white subtle panels */
+    --surface-3: 210 18% 95%; /* #eef1f4 - distinct raised areas */
 
     /* Component colors */
     --card: 0 0% 100%; /* #ffffff - Pure white cards for contrast against bg */
@@ -175,20 +178,20 @@
     --primary: 0 0% 9%; /* #171717 - Dark primary */
     --primary-foreground: 0 0% 100%; /* #ffffff - White text on primary */
  
-    --secondary: 0 0% 94%; /* #f0f0f0 - More visible secondary */
-    --secondary-foreground: 0 0% 9%; /* #171717 */
- 
-    --muted: 0 0% 94%; /* #f0f0f0 - More visible muted (#f0f0f0) */
-    --muted-foreground: 0 0% 40%; /* #666666 - Darker muted text for better readability */
- 
-    --accent: 0 0% 96%; /* #f5f5f5 - zinc-100 - accent surfaces */
-    --accent-foreground: 0 0% 9%; /* #171717 */
- 
+    --secondary: 210 16% 93%; /* #e8ebef - cool secondary surface */
+    --secondary-foreground: 222 16% 12%; /* #1a1d24 */
+
+    --muted: 210 16% 93%; /* #e8ebef - muted surface tuned to the cool base */
+    --muted-foreground: 215 12% 42%; /* #5f6772 - AA-comfortable secondary text */
+
+    --accent: 210 17% 95%; /* #eef1f4 - accent surfaces */
+    --accent-foreground: 222 16% 12%; /* #1a1d24 */
+
     --destructive: 0 84.2% 60.2%; /* #ef4444 */
     --destructive-foreground: 0 0% 100%; /* #ffffff */
 
-    --border: 0 0% 87%; /* #dedede - More visible borders (#dedede) */
-    --input: 0 0% 97%; /* #f7f7f7 - Very light input backgrounds */
+    --border: 214 15% 86%; /* #d4d9df - visible cool border against soft bg */
+    --input: 210 20% 97%; /* #f1f4f7 - soft input backgrounds */
     --ring: var(--brand-accent); /* Uses brand accent for focus rings */
  
     --radius: 0.5rem;

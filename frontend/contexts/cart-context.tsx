@@ -9,6 +9,7 @@ interface CartItem {
     id: string;
     title: string;
     price: number;
+    priceCurrency?: string;
     image: string[];
     productType?: string;
     shipFromPostalId?: string;

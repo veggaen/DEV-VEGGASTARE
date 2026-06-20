@@ -109,7 +109,7 @@ export default function LoginPage() {
               </span>
             </h1>
             <p className="text-zinc-400 text-lg mb-12 max-w-md">
-              Sync with your community. Pulse your thoughts. Feel the ripple.
+              Sync with your community.Send out a pulse. Send ripples trough the pulse.
             </p>
           </motion.div>
 

@@ -43,6 +43,18 @@ export const OrderDtoSchema = z
     createdAt: IsoDateStringSchema,
     updatedAt: IsoDateStringSchema,
 
+    shippingName: z.string().nullable().optional(),
+    shippingAddress: z.string().nullable().optional(),
+    shippingCity: z.string().nullable().optional(),
+    shippingPostalCode: z.string().nullable().optional(),
+    shippingCountry: z.string().nullable().optional(),
+    shippingMethod: z.string().nullable().optional(),
+    shippingCost: z.number().finite().nullable().optional(),
+    shippingServiceName: z.string().nullable().optional(),
+    trackingNumber: z.string().nullable().optional(),
+    trackingUrl: z.string().nullable().optional(),
+    estimatedDelivery: z.string().nullable().optional(),
+
     // Back-compat (raw Prisma uses `Payment`)
     Payment: PaymentDtoSchema.nullable().optional(),
 

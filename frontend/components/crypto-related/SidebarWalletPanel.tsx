@@ -1821,7 +1821,7 @@ function WalletRow({
     >
       {/* Active badge — absolute top-right corner */}
       {isActive && (
-        <div className="absolute -top-1.5 right-2 flex items-center gap-1">
+        <div className="hidden">
           {connectorType === 'LOCAL_RPC' && (
             <span className="flex items-center gap-0.5 px-1.5 py-px rounded text-[8px] font-bold uppercase tracking-wider text-white bg-orange-500">
               <FiTerminal className="h-2.5 w-2.5" />
@@ -1841,7 +1841,7 @@ function WalletRow({
 
       {/* Set-active / reconnect button — unified for all non-active wallets */}
       {!isActive && onSetActive && (
-        <div className="absolute -top-1.5 right-2 flex items-center gap-1">
+        <div className="hidden">
           {connectorType === 'LOCAL_RPC' && (
             <span className="flex items-center gap-0.5 px-1.5 py-px rounded text-[8px] font-bold uppercase tracking-wider text-white bg-orange-500">
               <FiTerminal className="h-2.5 w-2.5" />
@@ -1918,6 +1918,20 @@ function WalletRow({
                 Primary
               </span>
             )}
+            {isActive ? (
+              <span className={`inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-semibold uppercase tracking-wider ${
+                connectorType === 'LOCAL_RPC'
+                  ? "bg-orange-500/15 text-orange-500 dark:text-orange-300"
+                  : "bg-sky-500/10 text-sky-600 dark:bg-emerald-500/10 dark:text-emerald-300"
+              }`}>
+                {connectorType === 'LOCAL_RPC' ? <FiTerminal className="h-2 w-2" /> : <FiPower className="h-2 w-2" />}
+                Active wallet
+              </span>
+            ) : isLive ? (
+              <span className="inline-flex items-center gap-0.5 rounded bg-zinc-500/10 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                Connected
+              </span>
+            ) : null}
             <span className="flex-1" />
             {walletTier !== "CONNECTED" ? (
               <TierBadge tier={walletTier} />
@@ -2050,6 +2064,34 @@ function WalletRow({
               {trimAddress(address)}
             </span>
             <CopyChip text={address} label="Copy address" size="xs" />
+
+            {!isActive && onSetActive && (
+              <button
+                type="button"
+                onClick={onSetActive}
+                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors ${
+                  connectorType === 'LOCAL_RPC'
+                    ? "bg-orange-500/10 text-orange-500 hover:bg-orange-500/15 dark:text-orange-300"
+                    : "bg-sky-500/10 text-sky-600 hover:bg-sky-500/15 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/15"
+                }`}
+                title={connectorType === 'LOCAL_RPC' ? "Use this local RPC wallet as the active wallet" : isLive ? "Use this connected wallet" : "Reconnect and use this wallet"}
+              >
+                {connectorType === 'LOCAL_RPC' ? <FiTerminal className="h-2.5 w-2.5" /> : <FiPower className="h-2.5 w-2.5" />}
+                Use
+              </button>
+            )}
+
+            {canDisconnect && onDisconnect && (
+              <button
+                type="button"
+                onClick={onDisconnect}
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-medium text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-300"
+                title={isLive ? "Disconnect this wallet" : "Remove this wallet from the sidebar list"}
+              >
+                <FiLogOut className="h-2.5 w-2.5" />
+                {isLive ? "Disconnect" : "Remove"}
+              </button>
+            )}
 
             {/* Transfer / Fund button */}
             {onTransfer && (((isActive && isLive && family === "EVM") || connectorType === 'LOCAL_RPC') || (!isActive && family === "EVM")) && (
@@ -2225,35 +2267,10 @@ function WalletRow({
                 </div>
               )}
 
-              {/* Disconnect button — inside expanded area */}
-              {canDisconnect && onDisconnect && (
-                <button
-                  type="button"
-                  onClick={onDisconnect}
-                  className="flex items-center justify-center gap-1.5 w-full py-1.5 rounded-md text-[10px] text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
-                >
-                  <FiLogOut className="h-3 w-3" />
-                  Disconnect wallet
-                </button>
-              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Remove button for disconnected wallets (always visible, no expand needed) */}
-      {!isLive && onDisconnect && (
-        <div className="px-3 pb-2 pt-0.5">
-          <button
-            type="button"
-            onClick={onDisconnect}
-            className="flex items-center justify-center gap-1.5 w-full py-1 rounded-md text-[9px] text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
-          >
-            <FiLogOut className="h-2.5 w-2.5" />
-            Remove from list
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -3755,6 +3772,10 @@ export default function SidebarWalletPanel({
   }
 
   const handleDisconnect = async (w: DisplayWallet) => {
+    if (activeOverride?.address?.toLowerCase() === w.address.toLowerCase()) {
+      clearOverride();
+    }
+
     // Remove from persistent registry so the card disappears
     for (const [key, entry] of walletRegistryRef.current) {
       if (

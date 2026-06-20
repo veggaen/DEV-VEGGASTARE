@@ -407,16 +407,16 @@ export function CategoryTagInput({
             >
               <Plus className="h-4 w-4 text-primary" />
               <span>
-                Opprett &quot;<span className="font-medium">{inputValue.trim()}</span>&quot;
+                Create &quot;<span className="font-medium">{inputValue.trim()}</span>&quot;
               </span>
-              <span className="text-xs text-muted-foreground ml-auto">(ny kategori)</span>
+              <span className="text-xs text-muted-foreground ml-auto">(new category)</span>
             </button>
           )}
 
           {/* Empty state */}
           {!isLoading && suggestions.length === 0 && !inputValue.trim() && (
             <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-              Begynn å skrive for å søke eller opprette kategorier
+              Start typing to search or create categories
             </div>
           )}
         </div>
@@ -427,26 +427,26 @@ export function CategoryTagInput({
         <p className="mt-1 text-xs text-destructive">{error}</p>
       )}
 
-      {/* Helper text */}
-      <p className="mt-1 text-xs text-muted-foreground">
-        Trykk Enter eller , for å legge til. Maks {maxTags} kategorier.
-      </p>
-
-      {/* Browse categories button - separate line */}
-      <button
-        type="button"
-        onClick={() => setShowBrowser(!showBrowser)}
-        disabled={disabled}
-        className={cn(
-          "mt-2 w-full py-2 px-3 text-xs flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border",
-          "text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-muted/50 transition-colors",
-          disabled && "opacity-50 cursor-not-allowed",
-          showBrowser && "border-primary/50 bg-muted/50 text-foreground"
-        )}
-      >
-        <FolderTree className="h-3.5 w-3.5" />
-        {showBrowser ? 'Hide category browser' : 'Browse all categories'}
-      </button>
+      {/* Helper text + browse toggle on one quiet line — text on background, no box */}
+      <div className="mt-1.5 flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Press Enter or comma to add. Up to {maxTags} categories.
+        </p>
+        <button
+          type="button"
+          onClick={() => setShowBrowser(!showBrowser)}
+          disabled={disabled}
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1 text-xs font-medium transition-colors",
+            "text-muted-foreground hover:text-foreground",
+            disabled && "opacity-50 cursor-not-allowed",
+            showBrowser && "text-foreground"
+          )}
+        >
+          <FolderTree className="h-3.5 w-3.5" />
+          {showBrowser ? 'Hide browser' : 'Browse all'}
+        </button>
+      </div>
 
       {/* Hierarchical Category Browser */}
       {showBrowser && (
