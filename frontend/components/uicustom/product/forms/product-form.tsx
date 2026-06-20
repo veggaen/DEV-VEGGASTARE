@@ -1431,6 +1431,15 @@ export const MyProductCreationForm = () => {
 
   const missingItems = getMissingItems();
   const hasValidationIssues = missingItems.length > 0;
+  const stepForMissingItem = (item: string) => {
+    const text = item.toLowerCase();
+    if (text.includes('category') || text.includes('title') || text.includes('description')) return 'details';
+    if (text.includes('image') || text.includes('photo') || text.includes('product type')) return 'type';
+    if (text.includes('digital file')) return 'digital';
+    if (text.includes('price') || text.includes('currency')) return 'pricing';
+    if (text.includes('shipping') || text.includes('dimension')) return 'delivery';
+    return 'review';
+  };
 
   // ── Funnel steps ─────────────────────────────────────────────────────────
   // Each step owns a slice of the form. `done` is a soft, glanceable signal for
@@ -3135,15 +3144,29 @@ export const MyProductCreationForm = () => {
 
             {/* Validation summary — only on the final step, where it can be acted on */}
             {hasValidationIssues && !success && (
-              <div className="mt-5 space-y-1.5 border-l-2 border-amber-500/50 pl-3 text-xs">
-                <p className="font-medium text-amber-600 dark:text-amber-400">
-                  Before publishing, finish {missingItems.length} item{missingItems.length !== 1 ? 's' : ''}:
+              <div className="mt-5 rounded-lg border border-amber-500/25 bg-amber-500/5 p-4 text-sm">
+                <p className="font-medium text-foreground">
+                  Finish {missingItems.length} item{missingItems.length !== 1 ? 's' : ''} before publishing
                 </p>
-                <ul className="space-y-0.5 text-amber-600/90 dark:text-amber-400/90">
-                  {missingItems.map((item, index) => (
-                    <li key={index}>— {item}</li>
-                  ))}
-                </ul>
+                <div className="mt-3 space-y-2">
+                  {missingItems.map((item, index) => {
+                    const targetStep = stepForMissingItem(item);
+                    return (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => {
+                          const targetIndex = visibleSteps.findIndex((step) => step.id === targetStep);
+                          goToStep(targetIndex >= 0 ? targetIndex : safeActiveStep);
+                        }}
+                        className="flex w-full items-start justify-between gap-3 rounded-md border border-border/60 bg-background/50 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:border-emerald-500/40 hover:text-foreground"
+                      >
+                        <span>{item}</span>
+                        <span className="shrink-0 text-emerald-500">Fix</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

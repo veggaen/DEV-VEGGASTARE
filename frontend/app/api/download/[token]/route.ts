@@ -3,6 +3,7 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
+import { initEdgeStoreSdk } from '@edgestore/server/core';
 
 // Sanitize filename for Content-Disposition header
 function sanitizeFilename(filename: string): string {
@@ -14,6 +15,25 @@ function sanitizeFilename(filename: string): string {
     .replace(/[\x00-\x1f]/g, '') // Remove control characters
     .trim()
     .slice(0, 200); // Limit length
+}
+
+async function fetchStoredFile(storageKey: string) {
+  const directResponse = await fetch(storageKey);
+  if (directResponse.ok) return directResponse;
+
+  try {
+    const edgeStoreSdk = initEdgeStoreSdk({});
+    const fileInfo = await edgeStoreSdk.getFile({ url: storageKey });
+    if (fileInfo?.url && fileInfo.url !== storageKey) {
+      const signedResponse = await fetch(fileInfo.url);
+      if (signedResponse.ok) return signedResponse;
+      console.error(`[download] Signed EdgeStore fetch failed: ${signedResponse.status}`);
+    }
+  } catch (error) {
+    console.error('[download] EdgeStore signed URL lookup failed:', error);
+  }
+
+  return directResponse;
 }
 
 /**
@@ -108,11 +128,28 @@ export async function GET(
       );
     }
 
-    // Atomically increment usage counter
+    // Fetch the file from EdgeStore and proxy it to the user
+    const fileUrl = downloadToken.DigitalAsset.storageKey;
+    const fileResponse = await fetchStoredFile(fileUrl);
+
+    if (!fileResponse.ok) {
+      console.error(`[download] Failed to fetch file from storage: ${fileResponse.status}`);
+      return NextResponse.json(
+        {
+          error: 'We could not retrieve the file from storage yet.',
+          detail: 'Your download token is still valid. Please retry shortly or contact support with this order id.',
+        },
+        { status: 502 }
+      );
+    }
+
+    // Get file content
+    const fileBuffer = await fileResponse.arrayBuffer();
+
+    // Atomically increment usage counter only after storage returned the file.
     const updatedToken = await dbPrisma.downloadToken.update({
       where: { 
         id: downloadToken.id,
-        // Optimistic locking - ensure we haven't exceeded limit
         usedCount: { lt: downloadToken.maxUses }
       },
       data: {
@@ -129,21 +166,6 @@ export async function GET(
         { status: 429 }
       );
     }
-
-    // Fetch the file from EdgeStore and proxy it to the user
-    const fileUrl = downloadToken.DigitalAsset.storageKey;
-    const fileResponse = await fetch(fileUrl);
-    
-    if (!fileResponse.ok) {
-      console.error(`[download] Failed to fetch file from storage: ${fileResponse.status}`);
-      return NextResponse.json(
-        { error: 'Failed to retrieve file from storage' },
-        { status: 502 }
-      );
-    }
-
-    // Get file content
-    const fileBuffer = await fileResponse.arrayBuffer();
     const sanitizedFilename = sanitizeFilename(downloadToken.DigitalAsset.fileName);
     const contentType = downloadToken.DigitalAsset.mimeType || 'application/octet-stream';
 

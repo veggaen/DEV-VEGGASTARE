@@ -375,14 +375,16 @@ export default function CheckoutPage() {
   /* network label */
   const networkLabel = useMemo(() => {
     if (active.kind === "evm") {
-      return active.chainId === 369 ? "PulseChain (EVM)" : "Ethereum (EVM)";
+      if (active.chainId === 1) return "Ethereum Mainnet";
+      if (active.chainId === 369) return "PulseChain Mainnet";
+      return `EVM chain ${active.chainId}`;
     }
     const m =
       active.cluster === WalletAdapterNetwork.Mainnet
-        ? "Solana (Mainnet)"
+        ? "Solana Mainnet"
         : active.cluster === WalletAdapterNetwork.Testnet
-        ? "Solana (Testnet)"
-        : "Solana (Devnet)";
+        ? "Solana Testnet"
+        : "Solana Devnet";
     return m;
   }, [active]);
 
@@ -1106,7 +1108,7 @@ export default function CheckoutPage() {
 
             {/* Pay buttons */}
             {paymentMethod === 'crypto' && !isWalletReady ? (
-              <WalletConnectChooser>
+              <WalletConnectChooser authenticateDirect={false}>
                 <Button
                   type="button"
                   className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -1129,7 +1131,7 @@ export default function CheckoutPage() {
                   </Button>
                 </DialogTrigger>
 
-                <DialogContent className="max-w-lg rounded-2xl border border-border bg-surface-1 p-6">
+                <DialogContent className="max-h-[88vh] max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface-1 p-6">
                   <DialogTitle className="sr-only">Confirm Payment</DialogTitle>
                   <AnimatePresence>
                     {confirmOpen && (
@@ -1161,19 +1163,19 @@ export default function CheckoutPage() {
 
                         {/* Payment details */}
                         <div className="space-y-2.5 border-t border-border pt-4 text-sm">
-                          <div className="flex justify-between">
+                          <div className="flex justify-between gap-4">
                             <span className="text-muted-foreground">Network</span>
-                            <span className="text-foreground">{networkLabel}</span>
+                            <span className="text-right text-foreground">{networkLabel}</span>
                           </div>
-                          <div className="flex justify-between">
+                          <div className="flex justify-between gap-4">
                             <span className="text-muted-foreground">From</span>
-                            <span className="text-foreground font-mono text-xs">{formatAddr(senderAddress)}</span>
+                            <span className="break-all text-right font-mono text-xs text-foreground">{formatAddr(senderAddress)}</span>
                           </div>
-                          <div className="flex justify-between">
+                          <div className="flex justify-between gap-4">
                             <span className="text-muted-foreground">To</span>
-                            <span className="text-foreground font-mono text-xs">{formatAddr(receiverAddress)}</span>
+                            <span className="break-all text-right font-mono text-xs text-foreground">{formatAddr(receiverAddress)}</span>
                           </div>
-                          <div className="flex justify-between">
+                          <div className="flex justify-between gap-4">
                             <span className="text-muted-foreground">Amount</span>
                             <span className="text-emerald-600 dark:text-emerald-400 font-medium">
                               <PriceAmount usd={grandTotalUSD} />
@@ -1193,15 +1195,15 @@ export default function CheckoutPage() {
 
                         {/* Verification status */}
                         {verifyingTx && txHash && (
-                          <div className="mt-4 flex items-center gap-2 border-l-2 border-sky-500/50 pl-3">
+                          <div className="mt-4 flex items-start gap-2 border-l-2 border-sky-500/50 pl-3">
                             <motion.div
                               className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-sky-500 border-t-transparent"
                               animate={{ rotate: 360 }}
                               transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
                             />
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <span className="text-sm text-foreground">Verifying on-chain…</span>
-                              <p className="truncate font-mono text-xs text-muted-foreground">TX: {txHash}</p>
+                              <p className="max-w-full break-all font-mono text-xs leading-5 text-muted-foreground">TX: {txHash}</p>
                             </div>
                           </div>
                         )}

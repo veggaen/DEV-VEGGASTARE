@@ -121,6 +121,31 @@ Prefer:
 - motion on transform/opacity only
 - stable dimensions for cards, media, and controls
 
+## Interaction Pattern
+
+Veggat interfaces should feel simple at rest and capable in motion.
+
+Default state:
+- show the minimum fields needed to understand the task
+- keep labels short and direct
+- avoid dense helper paragraphs and stacked warning blocks
+- keep controls aligned and stable
+
+Active state:
+- reveal guidance when a field is focused
+- show inline examples only when they help the current input
+- expose advanced options through disclosure rows, tabs, popovers, or info icons
+- keep error recovery next to the broken field
+
+Hover/open state:
+- use info icons for deeper explanations
+- reveal secondary controls only when the user approaches the relevant surface
+- animate with opacity, translate, and scale; avoid layout jumps
+- keep text wrapping inside its container, especially hashes, addresses, and ids
+
+The rule: never remove important capability to make a page look cleaner. Hide
+complexity until the user needs it, then reveal it smoothly and locally.
+
 ## 2036 Outcome
 
 The app should move from "user fills fields" to "user declares intent and verifies the result."

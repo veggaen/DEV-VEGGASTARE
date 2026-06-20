@@ -33,6 +33,7 @@ interface CategoryTagInputProps {
   maxTags?: number;
   className?: string;
   error?: string;
+  commitOnBlur?: boolean;
 }
 
 // Debounce hook
@@ -55,6 +56,7 @@ export function CategoryTagInput({
   maxTags = 10,
   className,
   error,
+  commitOnBlur = true,
 }: CategoryTagInputProps) {
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<CategorySuggestion[]>([]);
@@ -214,6 +216,12 @@ export function CategoryTagInput({
     const trimmed = inputValue.trim();
     if (!trimmed) return;
 
+    const exactMatch = suggestions.find((s) => s.isExactMatch || s.name.toLowerCase() === trimmed.toLowerCase());
+    if (exactMatch) {
+      selectSuggestion(exactMatch);
+      return;
+    }
+
     // If there's a very similar match, use that instead
     if (showSimilarWarning && showSimilarWarning.similarity >= 0.9) {
       selectSuggestion(showSimilarWarning);
@@ -322,6 +330,11 @@ export function CategoryTagInput({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onFocus={() => setIsFocused(true)}
+            onBlur={() => {
+              if (commitOnBlur && inputValue.trim()) {
+                createNewTag();
+              }
+            }}
             onKeyDown={handleKeyDown}
             disabled={disabled}
             placeholder={value.length === 0 ? placeholder : ''}
@@ -430,7 +443,7 @@ export function CategoryTagInput({
       {/* Helper text + browse toggle on one quiet line — text on background, no box */}
       <div className="mt-1.5 flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          Press Enter or comma to add. Up to {maxTags} categories.
+          Type a category, then press Enter or continue. Up to {maxTags} categories.
         </p>
         <button
           type="button"

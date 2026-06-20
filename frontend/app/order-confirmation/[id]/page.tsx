@@ -8,6 +8,26 @@ import type { OrderDto } from '@/lib/types/orders';
 
 type PaymentNotice = 'failed' | 'cancelled' | null;
 
+type DownloadItem = {
+  id: string;
+  token: string;
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string | null;
+  digitalAsset: {
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+  } | null;
+  product: {
+    title: string;
+    image: string[];
+  } | null;
+  order: {
+    id: string;
+  } | null;
+};
+
 const statusColor: Record<string, string> = {
   COMPLETED: 'text-emerald-600 dark:text-emerald-400',
   CONFIRMING: 'text-blue-600 dark:text-blue-400',
@@ -34,6 +54,7 @@ const OrderConfirmationPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [paymentNotice, setPaymentNotice] = useState<PaymentNotice>(null);
+  const [downloads, setDownloads] = useState<DownloadItem[]>([]);
 
   useEffect(() => {
     if (!user) {
@@ -66,6 +87,15 @@ const OrderConfirmationPage = () => {
       }
       const data = await response.json();
       setOrderDetails(data);
+      fetch(`/api/my-downloads`)
+        .then((res) => (res.ok ? res.json() : { downloads: [] }))
+        .then((payload) => {
+          const orderDownloads = (payload.downloads ?? []).filter(
+            (download: DownloadItem) => download.order?.id === orderId
+          );
+          setDownloads(orderDownloads);
+        })
+        .catch(() => setDownloads([]));
     } catch (fetchError) {
       console.error('Error fetching order details:', fetchError);
       setError(fetchError instanceof Error ? fetchError.message : 'Failed to fetch order details');
@@ -157,6 +187,53 @@ const OrderConfirmationPage = () => {
           <span className="text-foreground">{formatDate(orderDetails.createdAt)}</span>
         </div>
       </section>
+
+      {orderDetails.status === 'COMPLETED' && downloads.length > 0 && (
+        <section className="mb-4 border border-emerald-500/30 bg-emerald-500/[0.03] p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-emerald-300">Digital delivery</p>
+              <h2 className="mt-1 text-lg font-semibold text-foreground">Your downloads are ready</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Download access is also saved in My downloads and your receipt email.
+              </p>
+            </div>
+            <Link
+              href="/my-downloads"
+              className="text-sm font-medium text-emerald-300 transition-colors hover:text-emerald-200"
+            >
+              Open all downloads
+            </Link>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {downloads.map((download) => {
+              const remaining = Math.max(0, download.maxUses - download.usedCount);
+              return (
+                <div
+                  key={download.id}
+                  className="flex flex-col gap-3 border border-border/70 bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {download.product?.title ?? 'Digital product'}
+                    </p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      {download.digitalAsset?.fileName ?? 'Attached file'} - {remaining} download{remaining === 1 ? '' : 's'} left
+                    </p>
+                  </div>
+                  <a
+                    href={`/api/download/${download.token}`}
+                    className="inline-flex justify-center bg-foreground px-4 py-2 text-sm font-semibold text-background transition-colors hover:bg-emerald-300"
+                  >
+                    Download file
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {orderDetails.shippingAddress && (
         <section className="mb-4 border border-border bg-surface-1 p-6 dark:bg-white/[0.02]">
