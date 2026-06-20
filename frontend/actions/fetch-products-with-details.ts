@@ -100,6 +100,8 @@ export const fetchProductsWithDetails = async ({
             symbol: true,
             family: true,
             decimals: true,
+            receiverWalletId: true,
+            receiverAddress: true,
           },
         },
         User: {
@@ -159,6 +161,8 @@ export const fetchProductsWithDetails = async ({
               symbol: t.symbol,
               family: t.family,
               decimals: t.decimals,
+              receiverWalletId: t.receiverWalletId ?? null,
+              receiverAddress: t.receiverAddress ?? null,
             }))
           : [],
       };

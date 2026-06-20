@@ -56,6 +56,8 @@ export const ProductsListItemSchema = z
       symbol: z.string(),
       family: z.string().optional(),
       decimals: z.number().optional(),
+      receiverWalletId: z.string().nullable().optional(),
+      receiverAddress: z.string().nullable().optional(),
     })).optional(),
 
     // Back-compat with raw Prisma select casing
@@ -121,6 +123,8 @@ export const ProductDetailsResponseSchema = z
             decimals: z.number().int().nonnegative(),
             tokenAddress: z.string().nullable(),
             tokenMint: z.string().nullable(),
+            receiverWalletId: z.string().nullable().optional(),
+            receiverAddress: z.string().nullable().optional(),
           })
           .strict()
       )

@@ -136,6 +136,8 @@ export const AcceptedTokenSchema = z.object({
     decimals: z.number().int().min(0).max(18),
     tokenAddress: z.string().optional().nullable(),
     tokenMint: z.string().optional().nullable(),
+    receiverWalletId: z.string().optional().nullable(),
+    receiverAddress: z.string().optional().nullable(),
 });
 export type AcceptedToken = z.infer<typeof AcceptedTokenSchema>;
 

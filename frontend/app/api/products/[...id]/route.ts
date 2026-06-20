@@ -130,6 +130,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
             decimals: t.decimals,
             tokenAddress: t.tokenAddress ?? null,
             tokenMint: t.tokenMint ?? null,
+            receiverWalletId: t.receiverWalletId ?? null,
+            receiverAddress: t.receiverAddress ?? null,
           }))
         : [],
       company: (product as any).companyId

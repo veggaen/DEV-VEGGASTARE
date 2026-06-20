@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -65,6 +65,11 @@ const SHIPPING_SPEC_KEYS = ['Weight (g)', 'Height (cm)', 'Length (cm)', 'Width (
 const GENERAL_SPEC_KEYS = ['Custom', 'Material', 'Color', 'Size', 'Brand', 'Model', 'Country of Origin', 'Warranty', 'Certification'];
 const REPO_ACCESS_SPEC_KEY = '__repo_access';
 
+const shortAddress = (address?: string | null) => {
+  if (!address) return 'Not set';
+  return address.length > 12 ? `${address.slice(0, 6)}...${address.slice(-4)}` : address;
+};
+
 type RepoAccessMode = 'COLLABORATOR' | 'TEAM';
 type RepoAccessPermission = 'pull' | 'push' | 'maintain' | 'admin';
 
@@ -79,6 +84,17 @@ type RepoAccessDraft = {
   previewBranch: string;
   devBranch: string;
   notes: string;
+};
+
+type SellerWalletOption = {
+  id: string;
+  label: string;
+  family: 'EVM' | 'SOLANA' | 'BITCOIN';
+  address: string;
+  chainId?: number | null;
+  solanaCluster?: string | null;
+  isDefault?: boolean;
+  verifiedAt: string | null;
 };
 
 const DEFAULT_REPO_ACCESS_DRAFT: RepoAccessDraft = {
@@ -163,7 +179,7 @@ export const MyProductCreationForm = () => {
   const [showWalletWarning, setShowWalletWarning] = useState(false);
   
   // Seller payment setup state (receiving wallet picker + PayPal status)
-  const [sellerWallets, setSellerWallets] = useState<Array<{ id: string; label: string; address: string; chainId?: number | null; isDefault?: boolean; verifiedAt: string | null }>>([]);
+  const [sellerWallets, setSellerWallets] = useState<SellerWalletOption[]>([]);
   const [sellerPaypalEmail, setSellerPaypalEmail] = useState<string | null>(null);
   const [sellerPaypalVerified, setSellerPaypalVerified] = useState(false);
   const [selectedReceiverWalletId, setSelectedReceiverWalletId] = useState<string | null>(null);
@@ -284,6 +300,16 @@ export const MyProductCreationForm = () => {
     warehouseLocations.length === 0;
   const isDigitalOnlyLiteMode = isWarehouseMissingForSelectedCompany;
   const isTestModeEnabled = process.env.NEXT_PUBLIC_TEST_MODE === 'true';
+  const hasEvmTokens = acceptedTokens.some((token) => token.family === 'EVM');
+  const hasSolanaTokens = acceptedTokens.some((token) => token.family === 'SOLANA');
+  const verifiedEvmWallets = useMemo(
+    () => sellerWallets.filter((wallet) => wallet.family === 'EVM' && !!wallet.verifiedAt),
+    [sellerWallets]
+  );
+  const verifiedSolanaWallets = useMemo(
+    () => sellerWallets.filter((wallet) => wallet.family === 'SOLANA' && !!wallet.verifiedAt),
+    [sellerWallets]
+  );
 
   const companySettingsHref = selectedCompanyId
     ? `/companies/${selectedCompanyId}/settings?returnTo=${encodeURIComponent(
@@ -303,61 +329,62 @@ export const MyProductCreationForm = () => {
   }, [clientUser?.id, form]);
 
   const reloadSellerWallets = useCallback(async () => {
-    const wRes = await fetch('/api/wallets/evm');
+    const wRes = await fetch('/api/wallets');
     if (!wRes.ok) {
       setSellerWallets([]);
       setHasVerifiedWallet(false);
-      setShowWalletWarning(acceptedTokens.length > 0);
+      setShowWalletWarning(hasEvmTokens);
       return [];
     }
 
     const wData = await wRes.json();
     const all = Array.isArray(wData?.wallets) ? wData.wallets : [];
-    const verified = all.filter((w: { verifiedAt?: string | null }) => !!w.verifiedAt);
+    const verified = all.filter((w: { verifiedAt?: string | null }) => !!w.verifiedAt) as SellerWalletOption[];
+    const verifiedEvm = verified.filter((w) => w.family === 'EVM');
     setSellerWallets(verified);
-    setHasVerifiedWallet(verified.length > 0);
-    setShowWalletWarning(acceptedTokens.length > 0 && verified.length === 0);
+    setHasVerifiedWallet(verifiedEvm.length > 0);
+    setShowWalletWarning(hasEvmTokens && verifiedEvm.length === 0);
 
-    if (!selectedReceiverWalletId && verified.length > 0) {
-      const preferred = verified.find((w: { isDefault?: boolean }) => w.isDefault) ?? verified[0];
+    if (!selectedReceiverWalletId && verifiedEvm.length > 0) {
+      const preferred = verifiedEvm.find((w: { isDefault?: boolean }) => w.isDefault) ?? verifiedEvm[0];
       setSelectedReceiverWalletId(preferred.id);
     }
 
     return verified;
-  }, [acceptedTokens.length, selectedReceiverWalletId]);
+  }, [hasEvmTokens, selectedReceiverWalletId]);
 
   // Check for verified wallet when user enables crypto tokens
   useEffect(() => {
-    if (acceptedTokens.length === 0 || !clientUser?.id) {
+    if (!hasEvmTokens || !clientUser?.id) {
       setShowWalletWarning(false);
       return;
     }
     // Only check once per session
     if (hasVerifiedWallet !== null) {
-      setShowWalletWarning(!hasVerifiedWallet);
+      setShowWalletWarning(hasEvmTokens && !hasVerifiedWallet);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/wallets/evm');
+        const res = await fetch('/api/wallets');
         if (!res.ok) {
-          if (!cancelled) { setHasVerifiedWallet(false); setShowWalletWarning(true); }
+          if (!cancelled) { setHasVerifiedWallet(false); setShowWalletWarning(hasEvmTokens); }
           return;
         }
         const data = await res.json();
         const wallets = Array.isArray(data?.wallets) ? data.wallets : [];
-        const hasVerified = wallets.some((w: { verified?: boolean; verifiedAt?: string | null }) => w.verified || !!w.verifiedAt);
+        const hasVerified = wallets.some((w: { family?: string; verified?: boolean; verifiedAt?: string | null }) => w.family === 'EVM' && (w.verified || !!w.verifiedAt));
         if (!cancelled) {
           setHasVerifiedWallet(hasVerified);
-          setShowWalletWarning(!hasVerified);
+          setShowWalletWarning(hasEvmTokens && !hasVerified);
         }
       } catch {
-        if (!cancelled) { setHasVerifiedWallet(false); setShowWalletWarning(true); }
+        if (!cancelled) { setHasVerifiedWallet(false); setShowWalletWarning(hasEvmTokens); }
       }
     })();
     return () => { cancelled = true; };
-  }, [acceptedTokens.length, clientUser?.id, hasVerifiedWallet]);
+  }, [hasEvmTokens, clientUser?.id, hasVerifiedWallet]);
 
   // ── Fetch seller payment info (wallets + PayPal status) ─────────────────
   useEffect(() => {
@@ -385,6 +412,91 @@ export const MyProductCreationForm = () => {
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientUser?.id, reloadSellerWallets]);
+
+  const handleAcceptedTokensChange = useCallback((nextTokens: AcceptedTokenEntry[]) => {
+    setAcceptedTokens((previousTokens) => {
+      return nextTokens.map((token) => {
+        const existing = previousTokens.find((entry) => entry.family === token.family && entry.symbol === token.symbol);
+        if (existing) {
+          return {
+            ...token,
+            receiverWalletId: existing.receiverWalletId ?? null,
+            receiverAddress: existing.receiverAddress ?? null,
+          };
+        }
+
+        if (token.family === 'EVM') {
+          return {
+            ...token,
+            receiverWalletId: selectedReceiverWalletId ?? null,
+            receiverAddress: null,
+          };
+        }
+
+        const defaultSolana = verifiedSolanaWallets.find((wallet) => wallet.isDefault) ?? verifiedSolanaWallets[0];
+        return {
+          ...token,
+          receiverWalletId: defaultSolana?.id ?? null,
+          receiverAddress: defaultSolana ? null : '',
+        };
+      });
+    });
+  }, [selectedReceiverWalletId, verifiedSolanaWallets]);
+
+  const setFamilyReceiverWallet = useCallback((family: 'EVM' | 'SOLANA', walletId: string | null) => {
+    if (family === 'EVM') {
+      setSelectedReceiverWalletId(walletId);
+    }
+
+    setAcceptedTokens((tokens) =>
+      tokens.map((token) =>
+        token.family === family
+          ? { ...token, receiverWalletId: walletId, receiverAddress: null }
+          : token
+      )
+    );
+  }, []);
+
+  const setFamilyReceiverAddress = useCallback((family: 'EVM' | 'SOLANA', address: string) => {
+    setAcceptedTokens((tokens) =>
+      tokens.map((token) =>
+        token.family === family
+          ? { ...token, receiverWalletId: null, receiverAddress: address.trim() }
+          : token
+      )
+    );
+  }, []);
+
+  const setTokenReceiverWallet = useCallback((target: AcceptedTokenEntry, walletId: string | null) => {
+    setAcceptedTokens((tokens) =>
+      tokens.map((token) =>
+        token.family === target.family && token.symbol === target.symbol
+          ? { ...token, receiverWalletId: walletId, receiverAddress: null }
+          : token
+      )
+    );
+  }, []);
+
+  const setTokenReceiverAddress = useCallback((target: AcceptedTokenEntry, address: string) => {
+    setAcceptedTokens((tokens) =>
+      tokens.map((token) =>
+        token.family === target.family && token.symbol === target.symbol
+          ? { ...token, receiverWalletId: null, receiverAddress: address.trim() }
+          : token
+      )
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!selectedReceiverWalletId) return;
+    setAcceptedTokens((tokens) =>
+      tokens.map((token) => {
+        if (token.family !== 'EVM') return token;
+        if (token.receiverWalletId || token.receiverAddress) return token;
+        return { ...token, receiverWalletId: selectedReceiverWalletId, receiverAddress: null };
+      })
+    );
+  }, [selectedReceiverWalletId]);
 
   useEffect(() => {
     if (!hasCompanyPrefillFromQuery || !prefilledCompanyId) return;
@@ -1486,6 +1598,25 @@ export const MyProductCreationForm = () => {
     }
   };
 
+  const walletById = new Map(sellerWallets.map((wallet) => [wallet.id, wallet]));
+  const evmTokens = acceptedTokens.filter((token) => token.family === 'EVM');
+  const solanaTokens = acceptedTokens.filter((token) => token.family === 'SOLANA');
+  const evmGroupWalletId = evmTokens.find((token) => token.receiverWalletId)?.receiverWalletId ?? selectedReceiverWalletId ?? '';
+  const solanaGroupWalletId = solanaTokens.find((token) => token.receiverWalletId)?.receiverWalletId ?? '';
+  const solanaGroupAddress = solanaTokens.find((token) => token.receiverAddress)?.receiverAddress ?? '';
+  const receiverSummaryForToken = (token: AcceptedTokenEntry) => {
+    if (token.receiverWalletId) {
+      const wallet = walletById.get(token.receiverWalletId);
+      return wallet ? `${wallet.label} (${shortAddress(wallet.address)})` : 'Saved wallet';
+    }
+    if (token.receiverAddress) return shortAddress(token.receiverAddress);
+    if (token.family === 'EVM' && selectedReceiverWalletId) {
+      const wallet = walletById.get(selectedReceiverWalletId);
+      return wallet ? `${wallet.label} (${shortAddress(wallet.address)})` : 'Default EVM wallet';
+    }
+    return token.family === 'SOLANA' ? 'Solana address needed' : 'Receiving wallet needed';
+  };
+
   return (
     <div className='w-full flex flex-col'>
       {/* File Re-selection Notice — quiet inline line shown after login redirect */}
@@ -1999,19 +2130,19 @@ export const MyProductCreationForm = () => {
               {/* Receiver wallet picker */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">
-                  Receiving wallet for this product
+                  Legacy EVM receiving wallet
                   {' '}
                   <span className="text-muted-foreground font-normal">(optional override)</span>
                 </label>
-                {sellerWallets.length > 0 ? (
+                {verifiedEvmWallets.length > 0 ? (
                   <select
                     value={selectedReceiverWalletId ?? ''}
-                    onChange={(e) => setSelectedReceiverWalletId(e.target.value || null)}
+                    onChange={(e) => setFamilyReceiverWallet('EVM', e.target.value || null)}
                     disabled={isSubmitting}
                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <option value="">Use default from settings</option>
-                    {sellerWallets.map((w) => (
+                    {verifiedEvmWallets.map((w) => (
                       <option key={w.id} value={w.id}>
                         {w.label} — {w.address.slice(0, 6)}…{w.address.slice(-4)}
                       </option>
@@ -2029,9 +2160,144 @@ export const MyProductCreationForm = () => {
             <div hidden={!isStepActive('pricing')} className={`${customStyles.sectionAlt} order-5`}>
               <CryptoTokenSelector
                 tokens={acceptedTokens}
-                onChange={setAcceptedTokens}
+                onChange={handleAcceptedTokensChange}
                 disabled={isSubmitting}
               />
+              {acceptedTokens.length > 0 && (
+                <div className="space-y-4 border-t border-border pt-5">
+                  <div>
+                    <h3 className={customStyles.sectionTitle}>Receiving addresses</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      Route each crypto rail to the right destination. EVM tokens can share one verified wallet; Solana can use a verified Solana wallet or a manual address for this listing.
+                    </p>
+                  </div>
+
+                  {hasEvmTokens && (
+                    <div className="space-y-3 rounded-lg border border-border/70 bg-background/40 p-3">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">EVM receiving wallet</p>
+                          <p className="text-xs text-muted-foreground">Used by ETH, USDC, HEX, PLS, and custom EVM tokens.</p>
+                        </div>
+                        <a href="/settings?section=wallet" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-emerald-500 hover:underline">
+                          Manage wallets
+                        </a>
+                      </div>
+                      {verifiedEvmWallets.length > 0 ? (
+                        <select
+                          value={evmGroupWalletId}
+                          onChange={(event) => setFamilyReceiverWallet('EVM', event.target.value || null)}
+                          disabled={isSubmitting}
+                          className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="">Choose EVM wallet</option>
+                          {verifiedEvmWallets.map((wallet) => (
+                            <option key={wallet.id} value={wallet.id}>
+                              {wallet.label} - {shortAddress(wallet.address)}{wallet.isDefault ? ' - default' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="rounded-md border border-dashed border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+                          No verified EVM wallet yet. Verify one below, then it can receive all EVM token payments.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {hasSolanaTokens && (
+                    <div className="space-y-3 rounded-lg border border-border/70 bg-background/40 p-3">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Solana receiving address</p>
+                          <p className="text-xs text-muted-foreground">Used by SOL and Solana token payments.</p>
+                        </div>
+                        <span className="text-xs text-muted-foreground">Manual addresses are listing-specific.</span>
+                      </div>
+                      {verifiedSolanaWallets.length > 0 && (
+                        <select
+                          value={solanaGroupWalletId}
+                          onChange={(event) => setFamilyReceiverWallet('SOLANA', event.target.value || null)}
+                          disabled={isSubmitting}
+                          className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="">Use manual Solana address</option>
+                          {verifiedSolanaWallets.map((wallet) => (
+                            <option key={wallet.id} value={wallet.id}>
+                              {wallet.label} - {shortAddress(wallet.address)}{wallet.isDefault ? ' - default' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {!solanaGroupWalletId && (
+                        <Input
+                          value={solanaGroupAddress}
+                          onChange={(event) => setFamilyReceiverAddress('SOLANA', event.target.value)}
+                          placeholder="Paste Solana receiving address"
+                          disabled={isSubmitting}
+                          className={customStyles.input}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    {acceptedTokens.map((token) => {
+                      const walletsForToken = token.family === 'SOLANA' ? verifiedSolanaWallets : verifiedEvmWallets;
+                      return (
+                        <div key={`${token.family}:${token.symbol}`} className="grid gap-2 rounded-md border border-border/60 bg-muted/10 p-2.5 sm:grid-cols-[1fr_minmax(220px,0.9fr)] sm:items-center">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{token.symbol}</p>
+                            <p className="text-xs text-muted-foreground">{receiverSummaryForToken(token)}</p>
+                          </div>
+                          {token.family === 'EVM' ? (
+                            <select
+                              value={token.receiverWalletId ?? evmGroupWalletId}
+                              onChange={(event) => setTokenReceiverWallet(token, event.target.value || null)}
+                              disabled={isSubmitting || walletsForToken.length === 0}
+                              className="h-9 rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <option value="">Use EVM default</option>
+                              {walletsForToken.map((wallet) => (
+                                <option key={wallet.id} value={wallet.id}>
+                                  {wallet.label} - {shortAddress(wallet.address)}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="space-y-2">
+                              {walletsForToken.length > 0 && (
+                                <select
+                                  value={token.receiverWalletId ?? ''}
+                                  onChange={(event) => setTokenReceiverWallet(token, event.target.value || null)}
+                                  disabled={isSubmitting}
+                                  className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  <option value="">Manual address</option>
+                                  {walletsForToken.map((wallet) => (
+                                    <option key={wallet.id} value={wallet.id}>
+                                      {wallet.label} - {shortAddress(wallet.address)}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                              {!token.receiverWalletId && (
+                                <Input
+                                  value={token.receiverAddress ?? solanaGroupAddress}
+                                  onChange={(event) => setTokenReceiverAddress(token, event.target.value)}
+                                  placeholder="Solana address for this token"
+                                  disabled={isSubmitting}
+                                  className="h-9 text-xs"
+                                />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {/* Wallet verification warning — shown inline so user doesn't lose form state */}
               {showWalletWarning && acceptedTokens.length > 0 && (
                 <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">

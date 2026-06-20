@@ -37,6 +37,8 @@ const ProductAcceptedTokenInputSchema = z
     decimals: z.number().int().nonnegative().max(255),
     tokenAddress: z.string().trim().min(1).max(200).nullable().optional(),
     tokenMint: z.string().trim().min(1).max(200).nullable().optional(),
+    receiverWalletId: z.string().trim().min(1).max(200).nullable().optional(),
+    receiverAddress: z.string().trim().min(1).max(256).nullable().optional(),
   })
   .strict();
 
@@ -441,6 +443,39 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
 
     // Handle crypto accepted tokens
     const rawTokens = (validatedData as any).acceptedTokens;
+    const requestedReceiverWalletIds = new Set<string>();
+    const receiverWalletId = (validatedData as any).receiverWalletId;
+    if (receiverWalletId && typeof receiverWalletId === 'string') {
+      requestedReceiverWalletIds.add(receiverWalletId);
+    }
+    if (Array.isArray(rawTokens)) {
+      for (const t of rawTokens) {
+        if (t?.receiverWalletId && typeof t.receiverWalletId === 'string') {
+          requestedReceiverWalletIds.add(t.receiverWalletId);
+        }
+      }
+    }
+
+    let allowedReceiverWalletIds = new Set<string>();
+    if (requestedReceiverWalletIds.size > 0) {
+      const wallets = await dbPrisma.wallet.findMany({
+        where: {
+          id: { in: [...requestedReceiverWalletIds] },
+          verifiedAt: { not: null },
+          OR: [
+            { ownerUserId: sessionUserId, ownerCompanyId: null },
+            ...(validatedData.companyId ? [{ ownerCompanyId: validatedData.companyId }] : []),
+          ],
+        },
+        select: { id: true },
+      });
+      allowedReceiverWalletIds = new Set(wallets.map((wallet) => wallet.id));
+      const invalidWalletId = [...requestedReceiverWalletIds].find((id) => !allowedReceiverWalletIds.has(id));
+      if (invalidWalletId) {
+        return { error: 'Choose a verified receiving wallet that belongs to this seller.' };
+      }
+    }
+
     if (Array.isArray(rawTokens) && rawTokens.length > 0) {
       for (const t of rawTokens) {
         const parsed = ProductAcceptedTokenInputSchema.safeParse(t);
@@ -453,6 +488,8 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
             decimals: parsed.data.decimals,
             tokenAddress: parsed.data.tokenAddress ?? null,
             tokenMint: parsed.data.tokenMint ?? null,
+            receiverWalletId: parsed.data.receiverWalletId ?? null,
+            receiverAddress: parsed.data.receiverAddress ?? null,
           },
         });
       }
@@ -460,7 +497,6 @@ export const MyCreateProductAction = async (data: z.infer<typeof MyProductCreate
     }
 
     // Handle receiver wallet assignment
-    const receiverWalletId = (validatedData as any).receiverWalletId;
     if (receiverWalletId && typeof receiverWalletId === 'string') {
       await dbPrisma.product.update({
         where: { id: product.id },
@@ -570,6 +606,31 @@ export const MyUpdateProductAction = async (
     }
 
     const acceptedTokens = parsedPatch.data.acceptedTokens;
+    if (acceptedTokens) {
+      const requestedReceiverWalletIds = new Set(
+        acceptedTokens
+          .map((token) => token.receiverWalletId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      );
+      if (requestedReceiverWalletIds.size > 0) {
+        const wallets = await dbPrisma.wallet.findMany({
+          where: {
+            id: { in: [...requestedReceiverWalletIds] },
+            verifiedAt: { not: null },
+            OR: [
+              { ownerUserId: sessionUserId, ownerCompanyId: null },
+              ...(product.companyId ? [{ ownerCompanyId: product.companyId }] : []),
+            ],
+          },
+          select: { id: true },
+        });
+        const allowedReceiverWalletIds = new Set(wallets.map((wallet) => wallet.id));
+        const invalidWalletId = [...requestedReceiverWalletIds].find((id) => !allowedReceiverWalletIds.has(id));
+        if (invalidWalletId) {
+          return { error: 'Choose a verified receiving wallet that belongs to this seller.' };
+        }
+      }
+    }
 
     await dbPrisma.$transaction(async (tx) => {
       const nextPriceCurrency = (parsedPatch.data.priceCurrency ?? undefined) as any;
@@ -637,6 +698,8 @@ export const MyUpdateProductAction = async (
           decimals: t.decimals,
           tokenAddress: t.tokenAddress ?? null,
           tokenMint: t.tokenMint ?? null,
+          receiverWalletId: t.receiverWalletId ?? null,
+          receiverAddress: t.receiverAddress ?? null,
         }));
 
         // delete tokens not present anymore
@@ -671,11 +734,15 @@ export const MyUpdateProductAction = async (
               decimals: t.decimals,
               tokenAddress: t.tokenAddress,
               tokenMint: t.tokenMint,
+              receiverWalletId: t.receiverWalletId,
+              receiverAddress: t.receiverAddress,
             },
             update: {
               decimals: t.decimals,
               tokenAddress: t.tokenAddress,
               tokenMint: t.tokenMint,
+              receiverWalletId: t.receiverWalletId,
+              receiverAddress: t.receiverAddress,
             },
           });
         }

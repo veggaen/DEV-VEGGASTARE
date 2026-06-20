@@ -24,6 +24,47 @@ const createWalletSchema = z.object({
   isDefault: z.boolean().optional().default(false),
 });
 
+export async function GET() {
+  const me = await MyLibUserAuth();
+  if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const wallets = await dbPrisma.wallet.findMany({
+    where: {
+      ownerUserId: me.id,
+      ownerCompanyId: null,
+    },
+    orderBy: [{ family: "asc" }, { isDefault: "desc" }, { verifiedAt: "desc" }, { createdAt: "desc" }],
+  });
+
+  const dto = {
+    wallets: wallets.map((wallet) => ({
+      id: wallet.id,
+      label: wallet.label,
+      family: wallet.family,
+      chainId: wallet.chainId ?? null,
+      solanaCluster: wallet.solanaCluster ?? null,
+      address: wallet.address,
+      isDefault: wallet.isDefault,
+      ownerUserId: wallet.ownerUserId ?? null,
+      ownerCompanyId: wallet.ownerCompanyId ?? null,
+      createdAt: toIsoString(wallet.createdAt),
+      updatedAt: toIsoString(wallet.updatedAt),
+      verifiedAt: wallet.verifiedAt ? toIsoString(wallet.verifiedAt) : null,
+    })),
+  };
+
+  const parsed = z.object({ wallets: z.array(WalletDtoSchema) }).safeParse(dto);
+  if (!parsed.success) {
+    console.error('[api/wallets] Invalid GET DTO:', parsed.error.issues);
+    return NextResponse.json(
+      { error: 'Failed to load wallets', ...(isDev ? { issues: parsed.error.issues } : {}) },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json(parsed.data, { status: 200 });
+}
+
 export async function POST(req: NextRequest) {
   const me = await MyLibUserAuth();
   if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

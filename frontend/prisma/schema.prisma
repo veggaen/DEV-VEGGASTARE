@@ -880,11 +880,15 @@ model ProductAcceptedToken {
   tokenMint    String?
   symbol       String
   decimals     Int
+  receiverWalletId String?
+  receiverAddress  String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   Product      Product     @relation(fields: [productId], references: [id])
+  ReceiverWallet Wallet?   @relation("ProductAcceptedTokenReceiverWallet", fields: [receiverWalletId], references: [id])
 
   @@unique([productId, family, symbol])
+  @@index([receiverWalletId])
 }
 
 model Review {
@@ -1246,6 +1250,7 @@ model Wallet {
   donationTotalUsd Float       @default(0)
   riskTier         String?     // reach engine provenance: 'kyc' | 'neutral' | 'fresh'
   Product                        Product[]
+  AcceptedTokenReceivers          ProductAcceptedToken[] @relation("ProductAcceptedTokenReceiverWallet")
   Donation                       Donation[]
   Company                        Company?    @relation(fields: [ownerCompanyId], references: [id])
   User                           User?       @relation(fields: [ownerUserId], references: [id])

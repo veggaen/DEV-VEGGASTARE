@@ -354,18 +354,23 @@ export default function CheckoutPage() {
   }, [active, evm.address, sol.publicKey]);
 
   /**
-   * Receiver address — prefer seller's configured wallet, fall back to platform.
-   * For EVM payments, the seller wallet is used as-is (it's already an EVM address).
-   * For Solana, we fall back to platform since seller wallets are EVM-only for now.
+   * Receiver address: prefer product token/family routing, then the legacy EVM
+   * seller wallet, then the platform receiver.
    */
   const receiverAddress = useMemo(() => {
-    // If seller has a unified EVM wallet and we're on EVM, use it
-    if (active.kind === "evm" && sellerPayment?.unifiedReceiverWallet) {
+    const family = active.kind === "evm" ? "EVM" : "SOLANA";
+    const tokenKey = `${family}:${nativeSymbol.toUpperCase()}`;
+    const tokenReceiver = sellerPayment?.unifiedReceiverWalletByToken?.[tokenKey];
+    if (tokenReceiver) return tokenReceiver;
+
+    const familyReceiver = sellerPayment?.unifiedReceiverWalletByFamily?.[family];
+    if (familyReceiver) return familyReceiver;
+
+    if (family === "EVM" && sellerPayment?.unifiedReceiverWallet) {
       return sellerPayment.unifiedReceiverWallet;
     }
-    // Fall back to platform receiver
     return platformReceiverFor(active);
-  }, [active, sellerPayment]);
+  }, [active, nativeSymbol, sellerPayment]);
 
   /* network label */
   const networkLabel = useMemo(() => {
@@ -1054,10 +1059,10 @@ export default function CheckoutPage() {
                     Items from multiple sellers — payment goes to platform escrow.
                   </p>
                 )}
-                {!sellerPayment.multiSeller && paymentMethod === 'crypto' && sellerPayment.unifiedReceiverWallet && active.kind === "evm" && (
+                {!sellerPayment.multiSeller && paymentMethod === 'crypto' && receiverAddress && receiverAddress !== platformReceiverFor(active) && (
                   <p className="border-l-2 border-emerald-500/50 pl-3 text-muted-foreground">
                     Paying seller directly →{' '}
-                    <span className="font-mono text-foreground">{sellerPayment.unifiedReceiverWallet.slice(0, 6)}…{sellerPayment.unifiedReceiverWallet.slice(-4)}</span>
+                    <span className="font-mono text-foreground">{formatAddr(receiverAddress)}</span>
                   </p>
                 )}
                 {!sellerPayment.multiSeller && paymentMethod === 'paypal' && sellerPayment.unifiedPaypalEmail && (

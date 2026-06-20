@@ -467,10 +467,14 @@ export type CheckoutSellerPayment = {
     companyName: string | null;
     receiverWalletAddress: string | null;
     receiverWalletId: string | null;
+    receiverWalletsByFamily: Record<'EVM' | 'SOLANA', string | null>;
+    receiverWalletsByToken: Record<string, string>;
     paypalEmail: string | null;
   }>;
   /** If all products resolve to the same wallet, this is that address. Otherwise null. */
   unifiedReceiverWallet: string | null;
+  unifiedReceiverWalletByFamily: Record<'EVM' | 'SOLANA', string | null>;
+  unifiedReceiverWalletByToken: Record<string, string>;
   /** If all products resolve to the same PayPal email, this is that email. Otherwise null. */
   unifiedPaypalEmail: string | null;
   /** True when products come from multiple different sellers */
@@ -499,6 +503,14 @@ export async function resolveCheckoutPayment(
         userId: true,
         companyId: true,
         Wallet: { select: { id: true, address: true, verifiedAt: true } },
+        ProductAcceptedToken: {
+          select: {
+            family: true,
+            symbol: true,
+            receiverAddress: true,
+            ReceiverWallet: { select: { id: true, address: true, verifiedAt: true } },
+          },
+        },
         User: {
           select: {
             id: true,
@@ -524,6 +536,11 @@ export async function resolveCheckoutPayment(
 
     const result: CheckoutSellerPayment['products'] = {};
     const walletAddresses = new Set<string>();
+    const familyWalletAddresses: Record<'EVM' | 'SOLANA', Set<string>> = {
+      EVM: new Set<string>(),
+      SOLANA: new Set<string>(),
+    };
+    const tokenWalletAddresses = new Map<string, Set<string>>();
     const paypalEmails = new Set<string>();
     const sellerIds = new Set<string>();
 
@@ -543,6 +560,38 @@ export async function resolveCheckoutPayment(
         walletId = p.User.defaultReceivingWallet.id;
       }
 
+      const receiverWalletsByFamily: Record<'EVM' | 'SOLANA', string | null> = {
+        EVM: null,
+        SOLANA: null,
+      };
+      const receiverWalletsByToken: Record<string, string> = {};
+
+      for (const token of p.ProductAcceptedToken ?? []) {
+        if (token.family !== 'EVM' && token.family !== 'SOLANA') continue;
+        const tokenReceiver =
+          token.ReceiverWallet?.verifiedAt && token.ReceiverWallet.address
+            ? token.ReceiverWallet.address
+            : token.receiverAddress?.trim() || null;
+
+        if (!tokenReceiver) continue;
+
+        const tokenKey = `${token.family}:${token.symbol.toUpperCase()}`;
+        receiverWalletsByToken[tokenKey] = tokenReceiver;
+        if (!receiverWalletsByFamily[token.family]) {
+          receiverWalletsByFamily[token.family] = tokenReceiver;
+        }
+        familyWalletAddresses[token.family].add(tokenReceiver);
+        if (!tokenWalletAddresses.has(tokenKey)) {
+          tokenWalletAddresses.set(tokenKey, new Set<string>());
+        }
+        tokenWalletAddresses.get(tokenKey)?.add(tokenReceiver);
+      }
+
+      if (!receiverWalletsByFamily.EVM && walletAddr) {
+        receiverWalletsByFamily.EVM = walletAddr;
+        familyWalletAddresses.EVM.add(walletAddr);
+      }
+
       // Resolve PayPal: company-level → user-level (only verified)
       let paypal: string | null = null;
       if (p.Company?.paypalEmailVerifiedAt && p.Company.paypalEmail) {
@@ -558,6 +607,8 @@ export async function resolveCheckoutPayment(
         companyName: p.Company?.name ?? null,
         receiverWalletAddress: walletAddr,
         receiverWalletId: walletId,
+        receiverWalletsByFamily,
+        receiverWalletsByToken,
         paypalEmail: paypal,
       };
 
@@ -569,6 +620,15 @@ export async function resolveCheckoutPayment(
     const data: CheckoutSellerPayment = {
       products: result,
       unifiedReceiverWallet: walletAddresses.size === 1 ? [...walletAddresses][0] : null,
+      unifiedReceiverWalletByFamily: {
+        EVM: familyWalletAddresses.EVM.size === 1 ? [...familyWalletAddresses.EVM][0] : null,
+        SOLANA: familyWalletAddresses.SOLANA.size === 1 ? [...familyWalletAddresses.SOLANA][0] : null,
+      },
+      unifiedReceiverWalletByToken: Object.fromEntries(
+        [...tokenWalletAddresses.entries()]
+          .filter(([, addresses]) => addresses.size === 1)
+          .map(([key, addresses]) => [key, [...addresses][0]])
+      ),
       unifiedPaypalEmail: paypalEmails.size === 1 ? [...paypalEmails][0] : null,
       multiSeller: sellerIds.size > 1,
     };

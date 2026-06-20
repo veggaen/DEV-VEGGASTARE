@@ -12,6 +12,8 @@ export interface AcceptedTokenEntry {
   decimals: number;
   tokenAddress?: string | null;
   tokenMint?: string | null;
+  receiverWalletId?: string | null;
+  receiverAddress?: string | null;
 }
 
 // Token metadata for presets — icon (brand color + glyph) + the network label
