@@ -13,12 +13,31 @@ type WalletDto = {
 	chainId: number | null;
 	isDefault: boolean;
 	verifiedAt: string | null;
+	connectorType?: string;
+	authProvider?: string;
+	socialEmail?: string;
 	createdAt: string;
+};
+
+const CHAIN_LABELS: Record<number, string> = {
+	1: "Ethereum",
+	10: "Optimism",
+	56: "BNB Chain",
+	100: "Gnosis",
+	137: "Polygon",
+	369: "PulseChain",
+	8453: "Base",
+	42161: "Arbitrum",
+	11155111: "Sepolia",
 };
 
 function trimAddress(addr: string) {
 	if (!addr) return "";
 	return `${addr.slice(0, 6)}…${addr.slice(addr.length - 4)}`;
+}
+
+function chainLabel(chainId: number | null) {
+	return chainId ? (CHAIN_LABELS[chainId] ?? `Chain ${chainId}`) : "EVM";
 }
 
 type PendingAction =
@@ -99,7 +118,7 @@ export default function EvmWalletList({
 			}
 
 			toast.success(
-				action.type === "setPrimary" ? "Primary wallet updated." : "Wallet unlinked.",
+				action.type === "setPrimary" ? "This wallet will receive new sales." : "Wallet disconnected.",
 				{ position: "top-center" }
 			);
 			setPending(null);
@@ -113,16 +132,16 @@ export default function EvmWalletList({
 	};
 
 	return (
-		<div className="rounded-xl border border-black/10 p-3 dark:border-white/10">
+		<div className="rounded-xl border border-black/10 bg-white/60 p-3 dark:border-white/10 dark:bg-white/[0.03]">
 			<div className="flex items-start justify-between gap-3">
 				<div>
 					<div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-						Linked wallets
+						Verified receiving wallets
 					</div>
 					<div className="mt-1 text-sm text-zinc-900 dark:text-zinc-100">
 						{defaultWallet
-							? `Primary: ${trimAddress(defaultWallet.address)}`
-							: "No primary wallet"}
+							? `Active for new listings: ${trimAddress(defaultWallet.address)}`
+							: "No active receiving wallet yet"}
 					</div>
 				</div>
 				<Button
@@ -142,8 +161,8 @@ export default function EvmWalletList({
 			) : null}
 
 			{enabled && wallets.length === 0 && !loading ? (
-				<div className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
-					No wallets linked yet.
+				<div className="mt-3 rounded-lg border border-dashed border-black/10 px-3 py-4 text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-300">
+					No verified wallets yet. Connect a wallet above, then sign once to make it available for product payouts.
 				</div>
 			) : null}
 
@@ -180,6 +199,11 @@ export default function EvmWalletList({
 										<div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400 break-all">
 											{w.address}
 										</div>
+										<div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+											<span>Last signed on {chainLabel(w.chainId)}</span>
+											{w.authProvider ? <span>via {w.authProvider}</span> : null}
+											{w.socialEmail ? <span>{w.socialEmail}</span> : null}
+										</div>
 									</div>
 
 									<div className="flex shrink-0 items-center gap-2">
@@ -190,7 +214,7 @@ export default function EvmWalletList({
 												disabled={busy}
 												onClick={() => void runAction({ type: "setPrimary", walletId: w.id }, null)}
 											>
-												Make primary
+												Use for sales
 											</Button>
 										) : null}
 										<Button
@@ -199,7 +223,7 @@ export default function EvmWalletList({
 											disabled={busy}
 											onClick={() => void runAction({ type: "unlink", walletId: w.id }, null)}
 										>
-											Unlink
+											Disconnect
 										</Button>
 									</div>
 								</div>

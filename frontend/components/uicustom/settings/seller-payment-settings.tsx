@@ -69,10 +69,10 @@ export function SellerPaymentSettings() {
   }, []);
 
   useEffect(() => {
-    void Promise.resolve().then(() => {
-      void fetchStatus();
-      void fetchWallets();
-    });
+    void (async () => {
+      await fetchWallets();
+      await fetchStatus();
+    })();
   }, [fetchStatus, fetchWallets]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -157,7 +157,8 @@ export function SellerPaymentSettings() {
           PayPal Receiving Email
         </h3>
         <p className="text-sm text-muted-foreground dark:text-white/40">
-          Verify the inbox for seller payout records. Automatic PayPal seller routing requires marketplace approval.
+          Save the PayPal email you want associated with seller records. Direct seller-routed PayPal payouts require
+          PayPal multiparty onboarding; until then, checkout can use the platform PayPal merchant app when it is configured.
         </p>
 
         {/* Current status badge */}
@@ -252,7 +253,7 @@ export function SellerPaymentSettings() {
           <div className="rounded-lg border border-dashed border-zinc-300 dark:border-white/10 p-6 text-center">
             <FiCreditCard className="mx-auto mb-2 h-8 w-8 text-zinc-400 dark:text-white/30" />
             <p className="text-sm text-zinc-500 dark:text-white/40">
-              No verified wallets yet. Go to{' '}
+              No verified wallets yet. Connect and sign a wallet in{' '}
               <button
                 className="text-emerald-600 underline underline-offset-2 hover:text-emerald-700 dark:text-emerald-400"
                 onClick={() => {
@@ -265,7 +266,7 @@ export function SellerPaymentSettings() {
               >
                 Web3 & Wallet
               </button>{' '}
-              to connect and verify a wallet first.
+              . The first verified wallet is now used automatically for new product sales.
             </p>
           </div>
         ) : (
@@ -306,16 +307,10 @@ export function SellerPaymentSettings() {
       <div className="rounded-lg border border-border dark:border-white/10 bg-zinc-50 dark:bg-white/2 p-4">
         <h3 className="text-sm font-medium text-foreground dark:text-white/80 mb-2">How it works</h3>
         <ul className="space-y-1 text-sm text-muted-foreground dark:text-white/50">
-          <li>PayPal - Buyers pay through the configured PayPal merchant app; seller payout routing needs marketplace approval.</li>
-          <li>Crypto wallet - Buyers send tokens directly to your verified wallet on-chain.</li>
-          <li>You can override the receiving wallet on each product listing.</li>
-          <li>At least one payment method is required before listing products for sale.</li>
-        </ul>
-        <ul className="hidden">
-          <li>• <strong>PayPal</strong> — Buyers pay via PayPal. Funds go to your verified email.</li>
-          <li>• <strong>Crypto wallet</strong> — Buyers send tokens directly to your wallet on-chain.</li>
-          <li>• You can override the receiving wallet on each product listing.</li>
-          <li>• At least one payment method is required before listing products for sale.</li>
+          <li>PayPal - buyer checkout uses the configured merchant app. Automatic seller routing needs PayPal multiparty onboarding.</li>
+          <li>Crypto wallet - buyers send supported tokens directly to your verified receiving wallet on-chain.</li>
+          <li>Your first verified wallet becomes the default receiving wallet, and each product can override it.</li>
+          <li>A product should have at least one working payment path before it is published.</li>
         </ul>
       </div>
     </div>

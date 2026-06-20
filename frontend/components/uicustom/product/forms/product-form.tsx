@@ -30,6 +30,7 @@ import { saveFormState, loadFormState, clearFormState, hasPendingFormData } from
 import { CategoryTagInput } from '../../category-tag-input';
 import { AddressInput, type AddressData } from '../../../uicustom/address-input';
 import { CryptoTokenSelector, type AcceptedTokenEntry } from './crypto-token-selector';
+import EvmWalletVerify from '@/components/crypto-related/EvmWalletVerify';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('ProductForm');
@@ -162,7 +163,7 @@ export const MyProductCreationForm = () => {
   const [showWalletWarning, setShowWalletWarning] = useState(false);
   
   // Seller payment setup state (receiving wallet picker + PayPal status)
-  const [sellerWallets, setSellerWallets] = useState<Array<{ id: string; label: string; address: string; verifiedAt: string | null }>>([]);
+  const [sellerWallets, setSellerWallets] = useState<Array<{ id: string; label: string; address: string; chainId?: number | null; isDefault?: boolean; verifiedAt: string | null }>>([]);
   const [sellerPaypalEmail, setSellerPaypalEmail] = useState<string | null>(null);
   const [sellerPaypalVerified, setSellerPaypalVerified] = useState(false);
   const [selectedReceiverWalletId, setSelectedReceiverWalletId] = useState<string | null>(null);
@@ -301,6 +302,30 @@ export const MyProductCreationForm = () => {
     form.setValue('userId', clientUser.id, { shouldValidate: true, shouldDirty: false, shouldTouch: false });
   }, [clientUser?.id, form]);
 
+  const reloadSellerWallets = useCallback(async () => {
+    const wRes = await fetch('/api/wallets/evm');
+    if (!wRes.ok) {
+      setSellerWallets([]);
+      setHasVerifiedWallet(false);
+      setShowWalletWarning(acceptedTokens.length > 0);
+      return [];
+    }
+
+    const wData = await wRes.json();
+    const all = Array.isArray(wData?.wallets) ? wData.wallets : [];
+    const verified = all.filter((w: { verifiedAt?: string | null }) => !!w.verifiedAt);
+    setSellerWallets(verified);
+    setHasVerifiedWallet(verified.length > 0);
+    setShowWalletWarning(acceptedTokens.length > 0 && verified.length === 0);
+
+    if (!selectedReceiverWalletId && verified.length > 0) {
+      const preferred = verified.find((w: { isDefault?: boolean }) => w.isDefault) ?? verified[0];
+      setSelectedReceiverWalletId(preferred.id);
+    }
+
+    return verified;
+  }, [acceptedTokens.length, selectedReceiverWalletId]);
+
   // Check for verified wallet when user enables crypto tokens
   useEffect(() => {
     if (acceptedTokens.length === 0 || !clientUser?.id) {
@@ -340,13 +365,7 @@ export const MyProductCreationForm = () => {
     let cancelled = false;
     (async () => {
       try {
-        // Fetch wallets
-        const wRes = await fetch('/api/wallets/evm');
-        if (wRes.ok) {
-          const wData = await wRes.json();
-          const all = Array.isArray(wData?.wallets) ? wData.wallets : [];
-          if (!cancelled) setSellerWallets(all.filter((w: any) => w.verifiedAt));
-        }
+        const verifiedWallets = await reloadSellerWallets();
         // Fetch PayPal status via server action (import is already available)
         const { getSellerPaymentStatus } = await import('@/actions/seller-payment');
         const pRes = await getSellerPaymentStatus({ target: 'user' });
@@ -356,13 +375,16 @@ export const MyProductCreationForm = () => {
           // Default to user's default receiving wallet if set
           if (pRes.data.defaultReceivingWalletId && !selectedReceiverWalletId) {
             setSelectedReceiverWalletId(pRes.data.defaultReceivingWalletId);
+          } else if (!selectedReceiverWalletId && verifiedWallets.length > 0) {
+            const preferred = verifiedWallets.find((w: { isDefault?: boolean }) => w.isDefault) ?? verifiedWallets[0];
+            setSelectedReceiverWalletId(preferred.id);
           }
         }
       } catch { /* silently fail */ }
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientUser?.id]);
+  }, [clientUser?.id, reloadSellerWallets]);
 
   useEffect(() => {
     if (!hasCompanyPrefillFromQuery || !prefilledCompanyId) return;
@@ -1996,11 +2018,8 @@ export const MyProductCreationForm = () => {
                     ))}
                   </select>
                 ) : (
-                  <div className="text-xs text-muted-foreground">
-                    No verified wallets.{' '}
-                    <a href="/settings?section=wallet" target="_blank" rel="noopener noreferrer" className="text-emerald-600 dark:text-emerald-400 hover:underline">
-                      Connect a wallet
-                    </a>
+                  <div className="rounded-lg border border-dashed border-white/10 p-3 text-xs text-muted-foreground">
+                    No verified wallet yet. You can verify one below without leaving this listing.
                   </div>
                 )}
               </div>
@@ -2019,11 +2038,10 @@ export const MyProductCreationForm = () => {
                   <span className="text-amber-500 shrink-0 mt-0.5">⚠️</span>
                   <div className="flex-1 space-y-1">
                     <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                      No verified wallet address found
+                      Add a receiving wallet before publishing crypto checkout
                     </p>
                     <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80 leading-relaxed">
-                      Cryptocurrency transactions are <strong>irreversible</strong>. You need a verified wallet address to receive crypto payments.
-                      Connect and verify a wallet in your account settings first.
+                      Crypto payments go directly to your verified EVM address. Signing is gasless and keeps this product form intact.
                     </p>
                     <a
                       href="/settings?section=wallet"
@@ -2033,6 +2051,14 @@ export const MyProductCreationForm = () => {
                     >
                       Open Wallet Settings ↗
                     </a>
+                    <div className="mt-2 rounded-lg bg-black/10 p-2 dark:bg-black/20">
+                      <EvmWalletVerify
+                        enabled={true}
+                        onVerified={() => {
+                          void reloadSellerWallets();
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}

@@ -26,7 +26,7 @@ export async function GET() {
 		return NextResponse.json(parsed.success ? parsed.data : dto, { status: 403 });
 	}
 
-	const wallets = await dbPrisma.wallet.findMany({
+	let wallets = await dbPrisma.wallet.findMany({
 		where: {
 			ownerUserId: dbUser.id,
 			ownerCompanyId: null,
@@ -48,6 +48,33 @@ export async function GET() {
 			createdAt: true,
 		},
 	});
+
+	const hasDefault = wallets.some((wallet) => wallet.isDefault);
+	const fallbackDefault = wallets.find((wallet) => !!wallet.verifiedAt);
+	if (!hasDefault && fallbackDefault) {
+		await dbPrisma.$transaction([
+			dbPrisma.wallet.updateMany({
+				where: {
+					ownerUserId: dbUser.id,
+					ownerCompanyId: null,
+					family: ChainFamily.EVM,
+				},
+				data: { isDefault: false },
+			}),
+			dbPrisma.wallet.update({
+				where: { id: fallbackDefault.id },
+				data: { isDefault: true },
+			}),
+			dbPrisma.user.update({
+				where: { id: dbUser.id },
+				data: { defaultReceivingWalletId: fallbackDefault.id },
+			}),
+		]);
+		wallets = wallets.map((wallet) => ({
+			...wallet,
+			isDefault: wallet.id === fallbackDefault.id,
+		}));
+	}
 
 	const dto = {
 		wallets: wallets.map((w) => ({

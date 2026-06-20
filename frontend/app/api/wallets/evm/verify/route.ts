@@ -202,25 +202,56 @@ async function createOrUpdateWallet(
 		where: {
 			family: ChainFamily.EVM,
 			address,
-			chainId,
 			ownerUserId: me.id,
 			ownerCompanyId: null,
 		},
+		orderBy: [{ isDefault: "desc" }, { verifiedAt: "desc" }, { createdAt: "desc" }],
 	});
 
-	const wallet = existingWallet
-		? await dbPrisma.wallet.update({
+	const userPaymentState = await dbPrisma.user.findUnique({
+		where: { id: me.id },
+		select: { defaultReceivingWalletId: true },
+	});
+	const existingDefaultWallet = await dbPrisma.wallet.findFirst({
+		where: {
+			family: ChainFamily.EVM,
+			ownerUserId: me.id,
+			ownerCompanyId: null,
+			isDefault: true,
+			verifiedAt: { not: null },
+		},
+		select: { id: true },
+	});
+	const shouldBecomeDefault =
+		!userPaymentState?.defaultReceivingWalletId && !existingDefaultWallet;
+
+	const wallet = await dbPrisma.$transaction(async (tx) => {
+		if (shouldBecomeDefault) {
+			await tx.wallet.updateMany({
+				where: {
+					family: ChainFamily.EVM,
+					ownerUserId: me.id,
+					ownerCompanyId: null,
+				},
+				data: { isDefault: false },
+			});
+		}
+
+		const savedWallet = existingWallet
+			? await tx.wallet.update({
 				where: { id: existingWallet.id },
 				data: {
 					label: existingWallet.label || walletLabel,
+					chainId: chainId ?? existingWallet.chainId,
 					verifiedAt: new Date(),
+					...(shouldBecomeDefault ? { isDefault: true } : {}),
 					// Update connector metadata if provided (may have changed across sessions)
 					...(connMeta.connectorType ? { connectorType: connMeta.connectorType } : {}),
 					...(connMeta.authProvider ? { authProvider: connMeta.authProvider } : {}),
 					...(connMeta.socialEmail ? { socialEmail: connMeta.socialEmail } : {}),
 				},
 			})
-		: await dbPrisma.wallet.create({
+			: await tx.wallet.create({
 				data: {
 					label: walletLabel,
 					family: ChainFamily.EVM,
@@ -229,7 +260,7 @@ async function createOrUpdateWallet(
 					solanaCluster: null,
 					ownerUserId: me.id,
 					ownerCompanyId: null,
-					isDefault: false,
+					isDefault: shouldBecomeDefault,
 					verifiedAt: new Date(),
 					// Persist connector metadata for cross-session display
 					connectorType: connMeta.connectorType ?? null,
@@ -237,6 +268,16 @@ async function createOrUpdateWallet(
 					socialEmail: connMeta.socialEmail ?? null,
 				},
 			});
+
+		if (shouldBecomeDefault) {
+			await tx.user.update({
+				where: { id: me.id },
+				data: { defaultReceivingWalletId: savedWallet.id },
+			});
+		}
+
+		return savedWallet;
+	});
 
 	// Send wallet linked confirmation email (fire-and-forget)
 	if (me.email) {
