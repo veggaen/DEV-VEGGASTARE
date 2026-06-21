@@ -66,9 +66,22 @@ export async function openMicrophoneStream(prefs: VoicePrefs = readVoicePrefs())
   if (typeof window !== "undefined" && !window.isSecureContext) {
     throw new Error("Microphone access requires HTTPS or localhost.");
   }
-  return navigator.mediaDevices.getUserMedia({
-    audio: audioConstraintsFromPrefs(prefs),
-  });
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: audioConstraintsFromPrefs(prefs),
+    });
+  } catch (error) {
+    // A saved `deviceId: exact(...)` can become stale after unplugging a headset,
+    // switching browser profiles, or changing OS audio devices. That should not
+    // make the whole voice feature look blocked; retry the system default while
+    // preserving the user's processing preferences.
+    if (prefs.micDeviceId && isSelectedDeviceError(error)) {
+      return navigator.mediaDevices.getUserMedia({
+        audio: audioConstraintsFromPrefs({ ...prefs, micDeviceId: "" }),
+      });
+    }
+    throw error;
+  }
 }
 
 export function getMediaErrorName(error: unknown): string {

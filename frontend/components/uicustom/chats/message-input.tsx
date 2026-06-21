@@ -8,7 +8,7 @@ import { FaFileUpload } from "react-icons/fa";
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { FiArrowUp, FiSmile, FiMic } from 'react-icons/fi';
+import { FiAlertTriangle, FiArrowUp, FiSmile, FiMic } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpeechToText } from './primitives/useSpeechToText';
 
@@ -81,6 +81,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     supported: micSupported,
     listening,
     interim,
+    error: dictationError,
     toggle: toggleMic,
   } = useSpeechToText({
     onResult: (chunk) => {
@@ -368,6 +369,39 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             handleDrop(files);
           }}
         />
+
+        <AnimatePresence>
+          {(listening || interim || dictationError) && (
+            <motion.div
+              initial={{ opacity: 0, y: 6, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: 6, height: 0 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+              className="overflow-hidden px-3"
+            >
+              <div
+                className={cn(
+                  'mb-1 flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs',
+                  dictationError
+                    ? 'border-red-500/20 bg-red-500/8 text-red-600 dark:text-red-300'
+                    : 'border-emerald-500/20 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300',
+                )}
+              >
+                {dictationError ? (
+                  <FiAlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <span className="relative grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-500/15">
+                    <FiMic className="h-3.5 w-3.5" />
+                    <span className="absolute inset-0 rounded-full bg-emerald-400/25 animate-ping" />
+                  </span>
+                )}
+                <span className="min-w-0 flex-1 truncate">
+                  {dictationError ?? (interim ? `Hearing: ${interim}` : 'Listening. Speak naturally, then tap the mic to finish.')}
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Toolbar row — ghost icon controls left, hint + counter center, send right */}
         <div className="flex items-center gap-1 px-2.5 pb-2.5 pt-1">

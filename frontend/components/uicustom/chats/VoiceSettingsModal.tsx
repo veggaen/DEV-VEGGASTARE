@@ -143,9 +143,9 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
   const enableMic = React.useCallback(() => {
     setTriedMic(true);
     setDeviceNotice(null);
-    setTestActive(true);
-    void start();
-  }, [start]);
+    if (testActive) void start();
+    else setTestActive(true);
+  }, [start, testActive]);
 
   const chooseOutput = React.useCallback(async () => {
     setOutputNotice(null);

@@ -15,6 +15,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { describeMediaError, openMicrophoneStream } from '@/lib/voice/media-devices';
+import { readVoicePrefs } from '@/lib/voice/voice-prefs';
 
 // The Web Speech API isn't in the TS DOM lib by default; minimal shapes here.
 interface SpeechRecognitionResultLike {
@@ -110,10 +112,24 @@ export function useSpeechToText({ onResult, lang = 'en-US' }: Options) {
     }
     try {
       setError(null);
-      recRef.current.start();
-      setListening(true);
+      void openMicrophoneStream(readVoicePrefs())
+        .then((stream) => {
+          stream.getTracks().forEach((track) => track.stop());
+          try {
+            recRef.current?.start();
+            setListening(true);
+          } catch {
+            // start() throws if already started — ignore.
+          }
+        })
+        .catch((err) => {
+          setError(describeMediaError(err));
+          setListening(false);
+          setInterim('');
+        });
     } catch {
-      // start() throws if already started — ignore.
+      // Recognition construction can throw in hardened browser contexts.
+      setError('Could not start dictation.');
     }
   }, [lang]);
 

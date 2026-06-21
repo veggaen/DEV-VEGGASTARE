@@ -18,6 +18,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { describeMediaError, openMicrophoneStream } from "./media-devices";
+import { readVoicePrefs } from "./voice-prefs";
 
 // Minimal structural type for the vendor-prefixed SpeechRecognition.
 type SR = {
@@ -82,17 +84,10 @@ export function useDictation(opts: {
     // getUserMedia reliably (re)triggers the browser prompt when the permission is
     // in the askable state, and gives a precise error when it's hard-denied.
     try {
-      const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const probe = await openMicrophoneStream(readVoicePrefs());
       probe.getTracks().forEach((t) => t.stop()); // we only needed the grant
     } catch (e) {
-      const name = (e as { name?: string })?.name;
-      setError(
-        name === "NotAllowedError"
-          ? "Microphone blocked. Click the mic/lock icon in the address bar → Allow, then reload."
-          : name === "NotFoundError"
-            ? "No microphone found."
-            : "Couldn’t access the microphone.",
-      );
+      setError(describeMediaError(e));
       return;
     }
 

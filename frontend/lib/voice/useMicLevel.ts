@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { describeMediaError, getMediaErrorName } from "./media-devices";
+import { describeMediaError, getMediaErrorName, isSelectedDeviceError } from "./media-devices";
 
 const BAR_COUNT = 28;
 
@@ -93,9 +93,18 @@ export function useMicLevel(opts?: {
       const audio: MediaTrackConstraints = cfg.constraints
         ? cfg.constraints
         : cfg.deviceId ? { deviceId: { exact: cfg.deviceId } } : {};
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: Object.keys(audio).length ? audio : true,
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: Object.keys(audio).length ? audio : true,
+        });
+      } catch (err) {
+        if (!isSelectedDeviceError(err) || !hasExactDeviceConstraint(audio)) throw err;
+        const fallbackAudio = stripDeviceConstraint(audio);
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: Object.keys(fallbackAudio).length ? fallbackAudio : true,
+        });
+      }
       if (startSeqRef.current !== seq) {
         stream.getTracks().forEach((t) => t.stop());
         return;
@@ -156,4 +165,14 @@ export function useMicLevel(opts?: {
   }, [active, restartKey]);
 
   return { bars, level, error, errorName, running, start, stop };
+}
+
+function hasExactDeviceConstraint(audio: MediaTrackConstraints) {
+  return Boolean(audio.deviceId);
+}
+
+function stripDeviceConstraint(audio: MediaTrackConstraints): MediaTrackConstraints {
+  const rest = { ...audio };
+  delete rest.deviceId;
+  return rest;
 }

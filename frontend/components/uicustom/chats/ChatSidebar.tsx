@@ -94,6 +94,8 @@ export function ChatSidebar({
       stream.getTracks().forEach((track) => track.stop());
     } catch (err) {
       setJoinNotice(describeMediaError(err));
+      setSettingsOpen(true);
+      return;
     }
     await voice.join();
   }, [voice]);
