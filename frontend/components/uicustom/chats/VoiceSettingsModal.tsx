@@ -43,6 +43,7 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
   const [speakers, setSpeakers] = React.useState<MediaDeviceInfo[]>([]);
   const [permission, setPermission] = React.useState<MicPermissionState>("unknown");
   const [testActive, setTestActive] = React.useState(false);
+  const [micAttempt, setMicAttempt] = React.useState(0);
   const [triedMic, setTriedMic] = React.useState(false);
   const [deviceNotice, setDeviceNotice] = React.useState<string | null>(null);
   const [outputNotice, setOutputNotice] = React.useState<string | null>(null);
@@ -51,14 +52,15 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
   const micRestartKey = React.useMemo(
     () => [
       prefs.micDeviceId,
+      micAttempt,
       prefs.noiseSuppression ? "ns1" : "ns0",
       prefs.echoCancellation ? "ec1" : "ec0",
       prefs.autoGainControl ? "agc1" : "agc0",
     ].join("|"),
-    [prefs.autoGainControl, prefs.echoCancellation, prefs.micDeviceId, prefs.noiseSuppression],
+    [micAttempt, prefs.autoGainControl, prefs.echoCancellation, prefs.micDeviceId, prefs.noiseSuppression],
   );
 
-  const { bars, level, error, errorName, running, requesting, start, stop } = useMicLevel({
+  const { bars, level, error, errorName, debugInfo, running, requesting, stop } = useMicLevel({
     active: open && testActive,
     constraints: audioConstraintsFromPrefs(prefs),
     gain: prefs.micGain,
@@ -93,7 +95,6 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
     void watchMicrophonePermission((state) => {
       if (cancelled) return;
       setPermission(state);
-      if (state === "granted") setTestActive(true);
     }).then((next) => {
       status = next;
     });
@@ -144,8 +145,8 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
     setTriedMic(true);
     setDeviceNotice(null);
     setTestActive(true);
-    void start();
-  }, [start]);
+    setMicAttempt((attempt) => attempt + 1);
+  }, []);
 
   const chooseOutput = React.useCallback(async () => {
     setOutputNotice(null);
@@ -198,8 +199,8 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
   }, [prefs.outputVolume, prefs.spkDeviceId]);
 
   const permissionError = isPermissionLikeError(errorName);
-  const micDenied = permission === "denied" || (permissionError && permission !== "granted");
-  const micSystemBlocked = permission === "granted" && permissionError;
+  const micDenied = permission === "denied";
+  const micSystemBlocked = permission !== "denied" && permissionError;
   const selectedInputMissing = errorName === "OverconstrainedError" || errorName === "ConstraintNotSatisfiedError";
   const granted = permission === "granted" || running;
   const status = getMicStatus({
@@ -317,6 +318,11 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
                       icon={<FiAlertTriangle className="h-3.5 w-3.5" />}
                       message={error ?? deviceNotice ?? ""}
                     >
+                      {debugInfo && (
+                        <div className="basis-full rounded-lg bg-black/5 px-2.5 py-1.5 font-mono text-[10px] text-current/75 dark:bg-white/8">
+                          {debugInfo}
+                        </div>
+                      )}
                       {selectedInputMissing && (
                         <button
                           onClick={() => update({ micDeviceId: "" })}

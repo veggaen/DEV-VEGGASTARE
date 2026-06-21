@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { describeCurrentMediaError, getMediaErrorName, isSelectedDeviceError } from "./media-devices";
+import { describeCurrentMediaError, getMediaErrorName, isSelectedDeviceError, queryMicrophonePermission } from "./media-devices";
 
 const BAR_COUNT = 28;
 
@@ -37,6 +37,7 @@ export function useMicLevel(opts?: {
   const [level, setLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [errorName, setErrorName] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [requesting, setRequesting] = useState(false);
 
@@ -45,6 +46,7 @@ export function useMicLevel(opts?: {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const gainRef = useRef<GainNode | null>(null);
   const rafRef = useRef(0);
+  const pendingTimerRef = useRef(0);
   const startSeqRef = useRef(0);
   const requestSeqRef = useRef(0);
   const requestingRef = useRef(false);
@@ -61,6 +63,8 @@ export function useMicLevel(opts?: {
 
   const stop = useCallback(() => {
     startSeqRef.current += 1;
+    window.clearTimeout(pendingTimerRef.current);
+    pendingTimerRef.current = 0;
     cancelAnimationFrame(rafRef.current);
     rafRef.current = 0;
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -81,6 +85,18 @@ export function useMicLevel(opts?: {
     const requestSeq = requestSeqRef.current + 1;
     requestSeqRef.current = requestSeq;
     setRequesting(true);
+    window.clearTimeout(pendingTimerRef.current);
+    pendingTimerRef.current = window.setTimeout(() => {
+      if (!requestingRef.current) return;
+      setError(
+        "Still waiting for Chrome to open the microphone. If no browser prompt is visible, close the site-info bubble, check the address bar for a hidden prompt, or reset microphone permission for this site and try again."
+      );
+      setDebugInfo(
+        `Browser request is still pending. Permission API was last known as unknown/prompt; secure context: ${
+          typeof window !== "undefined" && window.isSecureContext ? "yes" : "no"
+        }.`
+      );
+    }, 6500);
     const seq = startSeqRef.current + 1;
     startSeqRef.current = seq;
     cancelAnimationFrame(rafRef.current);
@@ -95,6 +111,7 @@ export function useMicLevel(opts?: {
     try {
       setError(null);
       setErrorName(null);
+      setDebugInfo(null);
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Microphone access is unavailable in this browser or context.");
       }
@@ -135,6 +152,8 @@ export function useMicLevel(opts?: {
       gainNode.connect(analyser);
       analyserRef.current = analyser;
       setRunning(true);
+      window.clearTimeout(pendingTimerRef.current);
+      pendingTimerRef.current = 0;
 
       const freq = new Uint8Array(analyser.frequencyBinCount);
       const tick = () => {
@@ -159,10 +178,20 @@ export function useMicLevel(opts?: {
       };
       rafRef.current = requestAnimationFrame(tick);
     } catch (e) {
-      setErrorName(getMediaErrorName(e));
+      const name = getMediaErrorName(e);
+      const permission = await queryMicrophonePermission();
+      const message = e instanceof Error && e.message ? `: ${e.message}` : "";
+      setErrorName(name);
+      setDebugInfo(
+        `Browser error: ${name}${message}. Permission API: ${permission}. Secure context: ${
+          typeof window !== "undefined" && window.isSecureContext ? "yes" : "no"
+        }.`
+      );
       setError(await describeCurrentMediaError(e));
       setRunning(false);
     } finally {
+      window.clearTimeout(pendingTimerRef.current);
+      pendingTimerRef.current = 0;
       if (requestSeqRef.current === requestSeq) {
         requestingRef.current = false;
         setRequesting(false);
@@ -178,7 +207,7 @@ export function useMicLevel(opts?: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, restartKey]);
 
-  return { bars, level, error, errorName, running, requesting, start, stop };
+  return { bars, level, error, errorName, debugInfo, running, requesting, start, stop };
 }
 
 function hasExactDeviceConstraint(audio: MediaTrackConstraints) {
