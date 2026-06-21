@@ -50,7 +50,7 @@ const productCardMotion = {
 
 const productImageMotion = {
 	rest: { scale: 1 },
-	hover: { scale: 1.045 },
+	hover: { scale: 1.032 },
 };
 
 const productMediaShadeMotion = {
@@ -176,12 +176,12 @@ const ProductCard = React.memo(
 				whileHover={outOfStock ? "rest" : "hover"}
 				variants={productCardMotion}
 				transition={{ type: "spring", stiffness: 420, damping: 36, mass: 0.8 }}
-				className={`group relative flex min-h-full flex-col overflow-hidden rounded-lg border border-black/10 bg-white/82 shadow-sm backdrop-blur-xl transition-colors duration-300 dark:border-white/10 dark:bg-black/42 ${outOfStock ? "opacity-70" : "hover:border-zinc-950/20 hover:shadow-2xl hover:shadow-sky-500/10 dark:hover:border-emerald-300/25 dark:hover:shadow-emerald-500/10"}`}
+				className={`group relative isolate flex min-h-full flex-col overflow-hidden rounded-lg border border-black/10 bg-white/95 shadow-sm backdrop-blur-xl transition-colors duration-300 dark:border-white/10 dark:bg-[rgb(2,6,23)] ${outOfStock ? "opacity-70" : "hover:border-zinc-950/20 hover:shadow-2xl hover:shadow-sky-500/10 dark:hover:border-emerald-300/25 dark:hover:shadow-emerald-500/10"}`}
 			>
 				<div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-sky-400/40 to-transparent dark:via-emerald-300/30" />
 				{/* ── Image / Carousel ── */}
 				<div
-					className="relative cursor-pointer overflow-hidden"
+					className="relative z-0 cursor-pointer overflow-hidden bg-zinc-950 after:pointer-events-none after:absolute after:inset-x-0 after:-bottom-0.5 after:z-30 after:h-2 after:bg-linear-to-b after:from-transparent after:to-white/95 dark:after:to-[rgb(2,6,23)]"
 					role="link"
 					tabIndex={0}
 					aria-label={`View ${product.title}`}
@@ -226,12 +226,12 @@ const ProductCard = React.memo(
 					</Carousel>
 
 					<motion.div
-						className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-36 bg-linear-to-t from-black/88 via-black/35 to-transparent"
+						className="pointer-events-none absolute inset-x-0 -bottom-px z-20 h-40 bg-linear-to-t from-black/92 via-black/42 to-transparent"
 						variants={reduceMotion ? undefined : productMediaShadeMotion}
 						transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
 					/>
 					<motion.div
-						className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-3 text-white"
+						className="pointer-events-none absolute inset-x-0 bottom-1 z-20 p-3 text-white"
 						variants={reduceMotion ? undefined : productMediaMetaMotion}
 						transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
 					>
@@ -258,7 +258,7 @@ const ProductCard = React.memo(
 				</div>
 
 				{/* ── Card body ── */}
-				<div className="flex grow flex-col gap-3 p-3">
+				<div className="relative z-10 -mt-px flex grow flex-col gap-3 bg-white/95 p-3 before:pointer-events-none before:absolute before:inset-x-0 before:-top-px before:h-2 before:bg-linear-to-b before:from-white/95 before:to-white/95 dark:bg-[rgb(2,6,23)] dark:before:from-[rgb(2,6,23)] dark:before:to-[rgb(2,6,23)]">
 					<div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
 						{sellerHref ? (
 							<Link
