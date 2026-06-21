@@ -23,6 +23,13 @@ interface MessageInputProps {
   parentId?: string | null;
 }
 
+interface DictationCorrection {
+  from: string;
+  to: string;
+}
+
+const DICTATION_CORRECTIONS_KEY = 'voice:dictation-corrections';
+
 export const MessageInput: React.FC<MessageInputProps> = ({
   conversationId,
   onMessageSent,
@@ -45,6 +52,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const [isFocused, setIsFocused] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const draftKey = useMemo(() => `chat_draft:${conversationId}`, [conversationId]);
+  const lastContentRef = useRef(initialContent);
+  const recentDictationUntilRef = useRef(0);
+  const [pendingCorrection, setPendingCorrection] = useState<DictationCorrection | null>(null);
 
   // Quick-access emoji row (additive — full picker can come later). Inserts at
   // the caret so it composes naturally with typed text.
@@ -72,14 +82,36 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const appendDictation = (chunk: string) => {
     setContent((c) => {
       const sep = c && !/\s$/.test(c) ? ' ' : '';
-      return (c + sep + chunk).slice(0, MAX_CHARS);
+      const next = (c + sep + chunk).slice(0, MAX_CHARS);
+      lastContentRef.current = next;
+      recentDictationUntilRef.current = Date.now() + 45000;
+      return next;
     });
     requestAnimationFrame(resizeTextarea);
+  };
+
+  const handleContentChange = (next: string) => {
+    const previous = lastContentRef.current;
+    if (Date.now() < recentDictationUntilRef.current) {
+      const correction = inferDictationCorrection(previous, next);
+      if (correction) setPendingCorrection(correction);
+    }
+    lastContentRef.current = next;
+    setContent(next);
+  };
+
+  const savePendingCorrection = async () => {
+    if (!pendingCorrection) return;
+    saveDictationCorrection(pendingCorrection);
+    setPendingCorrection(null);
+    const { toast } = await import('sonner');
+    toast.success('Saved to your voice dictionary.');
   };
   const [dictated, setDictated] = useState(false);
   const {
     supported: micSupported,
     listening,
+    requesting: dictationRequesting,
     interim,
     error: dictationError,
     toggle: toggleMic,
@@ -99,14 +131,18 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (!text || polishing) return;
     setPolishing(true);
     try {
+      const correctionContext = readDictationCorrections()
+        .slice(0, 8)
+        .map((entry) => `If speech-to-text produced "${entry.from}", the user often means "${entry.to}".`);
       const res = await fetch('/api/voice/polish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ raw: text }),
+        body: JSON.stringify({ raw: text, context: correctionContext }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data?.ok && data.text) {
+          lastContentRef.current = data.text.slice(0, MAX_CHARS);
           setContent(data.text.slice(0, MAX_CHARS));
           setDictated(false);
           requestAnimationFrame(() => {
@@ -136,6 +172,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     try {
       const saved = window.localStorage.getItem(draftKey);
       if (saved && !content) {
+        lastContentRef.current = saved;
         setContent(saved);
         requestAnimationFrame(() => {
           textareaRef.current?.focus();
@@ -232,6 +269,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       });
 
       if (response.ok) {
+        lastContentRef.current = '';
         setContent('');
         setImage(null);
         setImagePreview(null);
@@ -345,7 +383,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         <textarea
           ref={textareaRef}
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => handleContentChange(e.target.value)}
           placeholder="Write a message…"
           className={cn(
             'w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-[15px] leading-relaxed',
@@ -371,7 +409,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         />
 
         <AnimatePresence>
-          {(listening || interim || dictationError) && (
+          {(dictationRequesting || listening || interim || dictationError) && (
             <motion.div
               initial={{ opacity: 0, y: 6, height: 0 }}
               animate={{ opacity: 1, y: 0, height: 'auto' }}
@@ -396,8 +434,40 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                   </span>
                 )}
                 <span className="min-w-0 flex-1 truncate">
-                  {dictationError ?? (interim ? `Hearing: ${interim}` : 'Listening. Speak naturally, then tap the mic to finish.')}
+                  {dictationError ?? (dictationRequesting ? 'Opening microphone...' : interim ? `Hearing: ${interim}` : 'Listening. Speak naturally, then tap the mic to finish.')}
                 </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {pendingCorrection && !listening && (
+            <motion.div
+              initial={{ opacity: 0, y: 6, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: 6, height: 0 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+              className="overflow-hidden px-3"
+            >
+              <div className="mb-1 flex flex-wrap items-center gap-2 rounded-2xl border border-sky-500/20 bg-sky-500/8 px-3 py-2 text-xs text-sky-700 dark:text-sky-300">
+                <span className="min-w-0 flex-1">
+                  Did we mishear <span className="font-semibold">"{pendingCorrection.from}"</span> as <span className="font-semibold">"{pendingCorrection.to}"</span>?
+                </span>
+                <button
+                  type="button"
+                  onClick={savePendingCorrection}
+                  className="rounded-full bg-sky-500/15 px-2.5 py-1 font-medium transition-colors hover:bg-sky-500/25"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingCorrection(null)}
+                  className="rounded-full px-2.5 py-1 text-muted-foreground transition-colors hover:bg-black/5 dark:hover:bg-white/8"
+                >
+                  Dismiss
+                </button>
               </div>
             </motion.div>
           )}
@@ -422,7 +492,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           {micSupported && (
             <IconButton
               onClick={toggleMic}
-              disabled={isSending}
+              disabled={isSending || dictationRequesting}
               label={listening ? 'Stop dictation' : 'Dictate message'}
               active={listening}
             >
@@ -558,3 +628,63 @@ const IconButton: React.FC<{
     {children}
   </button>
 );
+
+function inferDictationCorrection(previous: string, next: string): DictationCorrection | null {
+  if (!previous || !next || previous === next) return null;
+  const delta = Math.abs(previous.length - next.length);
+  if (delta > 80) return null;
+
+  let start = 0;
+  while (start < previous.length && start < next.length && previous[start] === next[start]) start++;
+
+  let previousEnd = previous.length - 1;
+  let nextEnd = next.length - 1;
+  while (previousEnd >= start && nextEnd >= start && previous[previousEnd] === next[nextEnd]) {
+    previousEnd--;
+    nextEnd--;
+  }
+
+  const from = previous.slice(start, previousEnd + 1).trim();
+  const to = next.slice(start, nextEnd + 1).trim();
+  if (!from || !to || from === to) return null;
+  if (from.length > 64 || to.length > 64) return null;
+  if (from.split(/\s+/).length > 5 || to.split(/\s+/).length > 5) return null;
+
+  return { from, to };
+}
+
+function readDictationCorrections(): DictationCorrection[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(DICTATION_CORRECTIONS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry): entry is DictationCorrection =>
+        typeof entry?.from === 'string' &&
+        typeof entry?.to === 'string' &&
+        entry.from.trim().length > 0 &&
+        entry.to.trim().length > 0,
+      )
+      .slice(0, 50);
+  } catch {
+    return [];
+  }
+}
+
+function saveDictationCorrection(correction: DictationCorrection) {
+  if (typeof window === 'undefined') return;
+  const normalized = {
+    from: correction.from.trim(),
+    to: correction.to.trim(),
+  };
+  if (!normalized.from || !normalized.to) return;
+
+  const existing = readDictationCorrections().filter(
+    (entry) => entry.from.toLowerCase() !== normalized.from.toLowerCase(),
+  );
+  window.localStorage.setItem(
+    DICTATION_CORRECTIONS_KEY,
+    JSON.stringify([normalized, ...existing].slice(0, 50)),
+  );
+}

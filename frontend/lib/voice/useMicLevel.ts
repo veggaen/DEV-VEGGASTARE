@@ -38,6 +38,7 @@ export function useMicLevel(opts?: {
   const [error, setError] = useState<string | null>(null);
   const [errorName, setErrorName] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
@@ -45,6 +46,8 @@ export function useMicLevel(opts?: {
   const gainRef = useRef<GainNode | null>(null);
   const rafRef = useRef(0);
   const startSeqRef = useRef(0);
+  const requestSeqRef = useRef(0);
+  const requestingRef = useRef(false);
 
   // Live-update the gain node when the gain pref changes (no restart needed).
   useEffect(() => {
@@ -66,12 +69,18 @@ export function useMicLevel(opts?: {
     ctxRef.current = null;
     analyserRef.current = null;
     gainRef.current = null;
+    if (!requestingRef.current) setRequesting(false);
     setRunning(false);
     setBars(new Array(BAR_COUNT).fill(0));
     setLevel(0);
   }, []);
 
   const start = useCallback(async () => {
+    if (requestingRef.current) return;
+    requestingRef.current = true;
+    const requestSeq = requestSeqRef.current + 1;
+    requestSeqRef.current = requestSeq;
+    setRequesting(true);
     const seq = startSeqRef.current + 1;
     startSeqRef.current = seq;
     cancelAnimationFrame(rafRef.current);
@@ -153,6 +162,11 @@ export function useMicLevel(opts?: {
       setErrorName(getMediaErrorName(e));
       setError(describeMediaError(e));
       setRunning(false);
+    } finally {
+      if (requestSeqRef.current === requestSeq) {
+        requestingRef.current = false;
+        setRequesting(false);
+      }
     }
   }, []);
 
@@ -164,7 +178,7 @@ export function useMicLevel(opts?: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, restartKey]);
 
-  return { bars, level, error, errorName, running, start, stop };
+  return { bars, level, error, errorName, running, requesting, start, stop };
 }
 
 function hasExactDeviceConstraint(audio: MediaTrackConstraints) {

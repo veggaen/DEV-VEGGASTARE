@@ -19,15 +19,16 @@
 import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  FiAlertTriangle, FiMic, FiMicOff, FiPhoneOff, FiHeadphones, FiChevronRight, FiSettings, FiShield, FiUserX,
+  FiAlertTriangle, FiMic, FiMicOff, FiPhoneOff, FiHeadphones, FiChevronRight, FiSettings, FiShield, FiUserX, FiRefreshCw,
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { useVoiceRoom } from "@/lib/voice/useVoiceRoom";
 import { useVoiceChannelEvents } from "@/lib/voice/useVoiceChannelEvents";
 import type { VoiceMember, VoiceRole } from "@/lib/voice/types";
-import { readVoicePrefs } from "@/lib/voice/voice-prefs";
-import { describeMediaError, openMicrophoneStream } from "@/lib/voice/media-devices";
+import { readVoicePrefs, useVoicePrefs } from "@/lib/voice/voice-prefs";
+import { describeMediaError, enumerateAudioDevices, openMicrophoneStream } from "@/lib/voice/media-devices";
 import { VoiceSettingsModal } from "./VoiceSettingsModal";
+import { ThemedSelect, type SelectOption } from "./ThemedSelect";
 
 export interface SidebarMember {
   id: string;
@@ -84,10 +85,34 @@ export function ChatSidebar({
   const listeners = voice.members.filter((m) => m.role === "listener");
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [joinNotice, setJoinNotice] = React.useState<string | null>(null);
+  const [joinRequesting, setJoinRequesting] = React.useState(false);
+  const [voiceMics, setVoiceMics] = React.useState<MediaDeviceInfo[]>([]);
+  const { prefs, update: updateVoicePrefs } = useVoicePrefs();
   const canManageVoice = isHost || voice.self?.role === "host";
   const canRaiseHand = voice.self?.role === "listener" && !canManageVoice;
 
+  const loadVoiceDevices = React.useCallback(async () => {
+    try {
+      const devices = await enumerateAudioDevices();
+      setVoiceMics(devices.inputs);
+    } catch {
+      setVoiceMics([]);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadVoiceDevices();
+    navigator.mediaDevices?.addEventListener?.("devicechange", loadVoiceDevices);
+    return () => navigator.mediaDevices?.removeEventListener?.("devicechange", loadVoiceDevices);
+  }, [loadVoiceDevices]);
+
+  React.useEffect(() => {
+    if (settingsOpen || connected) void loadVoiceDevices();
+  }, [connected, loadVoiceDevices, settingsOpen]);
+
   const handleJoinVoice = React.useCallback(async () => {
+    if (joinRequesting || voice.connection === "connecting") return;
+    setJoinRequesting(true);
     setJoinNotice(null);
     try {
       const stream = await openMicrophoneStream(readVoicePrefs());
@@ -95,10 +120,15 @@ export function ChatSidebar({
     } catch (err) {
       setJoinNotice(describeMediaError(err));
       setSettingsOpen(true);
+      setJoinRequesting(false);
       return;
     }
-    await voice.join();
-  }, [voice]);
+    try {
+      await voice.join();
+    } finally {
+      setJoinRequesting(false);
+    }
+  }, [joinRequesting, voice]);
 
   return (
     <div className={cn("flex flex-col h-full min-h-0", className)}>
@@ -126,15 +156,37 @@ export function ChatSidebar({
           </div>
         </div>
 
+        {(voiceMics.length > 0 || prefs.micDeviceId) && (
+          <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
+            <ThemedSelect
+              ariaLabel="Voice microphone"
+              options={toVoiceDeviceOptions(voiceMics)}
+              value={prefs.micDeviceId}
+              onChange={(value) => {
+                updateVoicePrefs({ micDeviceId: value });
+                setJoinNotice(null);
+              }}
+            />
+            <button
+              onClick={() => void loadVoiceDevices()}
+              className="grid h-10 w-10 place-items-center rounded-xl border border-black/10 text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:border-white/12 dark:hover:bg-white/8"
+              aria-label="Refresh microphones"
+              title="Refresh microphones"
+            >
+              <FiRefreshCw className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {!connected ? (
           <>
           <button
             onClick={handleJoinVoice}
-            disabled={voice.connection === "connecting"}
+            disabled={voice.connection === "connecting" || joinRequesting}
             className="group w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-60"
           >
             <FiMic className="h-4 w-4 transition-transform group-hover:scale-110" />
-            {voice.connection === "connecting" ? "Joining…" : "Join voice"}
+            {joinRequesting ? "Opening mic..." : voice.connection === "connecting" ? "Joining..." : "Join voice"}
           </button>
           {(joinNotice || voice.error) && (
             <VoiceNotice message={joinNotice ?? voice.error ?? ""} onSettings={() => setSettingsOpen(true)} />
@@ -340,6 +392,23 @@ function VoiceNotice({
       </button>
     </div>
   );
+}
+
+function toVoiceDeviceOptions(devices: MediaDeviceInfo[]): SelectOption[] {
+  const seen = new Set<string>(["", "default"]);
+  return [
+    { value: "", label: "System default mic" },
+    ...devices
+      .filter((device) => {
+        if (!device.deviceId || seen.has(device.deviceId)) return false;
+        seen.add(device.deviceId);
+        return true;
+      })
+      .map((device, index) => ({
+        value: device.deviceId,
+        label: device.label || `Microphone ${index + 1}`,
+      })),
+  ];
 }
 
 /** Roster row: hover reveals actions; right-click opens the same host controls. */

@@ -58,7 +58,7 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
     [prefs.autoGainControl, prefs.echoCancellation, prefs.micDeviceId, prefs.noiseSuppression],
   );
 
-  const { bars, level, error, errorName, running, start, stop } = useMicLevel({
+  const { bars, level, error, errorName, running, requesting, start, stop } = useMicLevel({
     active: open && testActive,
     constraints: audioConstraintsFromPrefs(prefs),
     gain: prefs.micGain,
@@ -143,9 +143,9 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
   const enableMic = React.useCallback(() => {
     setTriedMic(true);
     setDeviceNotice(null);
-    if (testActive) void start();
-    else setTestActive(true);
-  }, [start, testActive]);
+    setTestActive(true);
+    void start();
+  }, [start]);
 
   const chooseOutput = React.useCallback(async () => {
     setOutputNotice(null);
@@ -244,7 +244,7 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <StatusBadge running={running} denied={micDenied} />
+                <StatusBadge running={running} denied={micDenied} requesting={requesting} />
                 <button
                   onClick={onClose}
                   aria-label="Close"
@@ -265,7 +265,7 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
                       </h3>
                       <p className={cn("mt-1 text-xs font-medium", status.className)}>{status.label}</p>
                     </div>
-                    <StatusBadge running={running} denied={micDenied} />
+                    <StatusBadge running={running} denied={micDenied} requesting={requesting} />
                   </div>
 
                   <div className="relative overflow-hidden rounded-xl border border-black/5 bg-background/70 dark:border-white/8">
@@ -280,10 +280,11 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
                       onClick={enableMic}
+                      disabled={requesting}
                       className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400"
                     >
                       <FiMic className="h-4 w-4" />
-                      {running ? "Re-test mic" : granted ? "Start mic test" : "Allow microphone"}
+                      {requesting ? "Opening microphone..." : running ? "Re-test mic" : granted ? "Start mic test" : "Allow microphone"}
                     </button>
                     {running && (
                       <button
@@ -483,7 +484,14 @@ function getMicStatus({
   return { label: "Mic test stopped", className: "text-muted-foreground" };
 }
 
-function StatusBadge({ running, denied }: { running: boolean; denied: boolean }) {
+function StatusBadge({ running, denied, requesting }: { running: boolean; denied: boolean; requesting?: boolean }) {
+  if (requesting) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/12 px-2 py-1 text-[10px] font-medium text-sky-600 dark:text-sky-400">
+        <span className="h-2 w-2 rounded-full bg-current animate-pulse" /> Asking
+      </span>
+    );
+  }
   if (running) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">

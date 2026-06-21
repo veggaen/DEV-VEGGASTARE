@@ -57,10 +57,12 @@ interface Options {
 export function useSpeechToText({ onResult, lang = 'en-US' }: Options) {
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
+  const [requesting, setRequesting] = useState(false);
   const [interim, setInterim] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const recRef = useRef<SpeechRecognitionLike | null>(null);
+  const requestingRef = useRef(false);
   // Keep the latest onResult without re-creating the recognizer each render.
   const onResultRef = useRef(onResult);
   onResultRef.current = onResult;
@@ -74,6 +76,7 @@ export function useSpeechToText({ onResult, lang = 'en-US' }: Options) {
   }, []);
 
   const start = useCallback(() => {
+    if (requestingRef.current) return;
     const Ctor = getRecognitionCtor();
     if (!Ctor) return;
     // Reuse a single recognizer instance.
@@ -112,6 +115,8 @@ export function useSpeechToText({ onResult, lang = 'en-US' }: Options) {
     }
     try {
       setError(null);
+      requestingRef.current = true;
+      setRequesting(true);
       void openMicrophoneStream(readVoicePrefs())
         .then((stream) => {
           stream.getTracks().forEach((track) => track.stop());
@@ -126,10 +131,16 @@ export function useSpeechToText({ onResult, lang = 'en-US' }: Options) {
           setError(describeMediaError(err));
           setListening(false);
           setInterim('');
+        })
+        .finally(() => {
+          requestingRef.current = false;
+          setRequesting(false);
         });
     } catch {
       // Recognition construction can throw in hardened browser contexts.
       setError('Could not start dictation.');
+      requestingRef.current = false;
+      setRequesting(false);
     }
   }, [lang]);
 
@@ -141,5 +152,5 @@ export function useSpeechToText({ onResult, lang = 'en-US' }: Options) {
   // Clean up on unmount.
   useEffect(() => () => recRef.current?.abort(), []);
 
-  return { supported, listening, interim, error, start, stop, toggle };
+  return { supported, listening, requesting, interim, error, start, stop, toggle };
 }
