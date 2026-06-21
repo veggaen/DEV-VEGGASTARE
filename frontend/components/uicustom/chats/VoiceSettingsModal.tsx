@@ -197,7 +197,9 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
     }
   }, [prefs.outputVolume, prefs.spkDeviceId]);
 
-  const micDenied = permission === "denied" || errorName === "NotAllowedError" || errorName === "PermissionDeniedError";
+  const permissionError = isPermissionLikeError(errorName);
+  const micDenied = permission === "denied" || (permissionError && permission !== "granted");
+  const micSystemBlocked = permission === "granted" && permissionError;
   const selectedInputMissing = errorName === "OverconstrainedError" || errorName === "ConstraintNotSatisfiedError";
   const granted = permission === "granted" || running;
   const status = getMicStatus({
@@ -244,7 +246,7 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <StatusBadge running={running} denied={micDenied} requesting={requesting} />
+                <StatusBadge running={running} denied={micDenied} systemBlocked={micSystemBlocked} requesting={requesting} />
                 <button
                   onClick={onClose}
                   aria-label="Close"
@@ -265,7 +267,7 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
                       </h3>
                       <p className={cn("mt-1 text-xs font-medium", status.className)}>{status.label}</p>
                     </div>
-                    <StatusBadge running={running} denied={micDenied} requesting={requesting} />
+                    <StatusBadge running={running} denied={micDenied} systemBlocked={micSystemBlocked} requesting={requesting} />
                   </div>
 
                   <div className="relative overflow-hidden rounded-xl border border-black/5 bg-background/70 dark:border-white/8">
@@ -329,6 +331,14 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
                           className="rounded-md bg-red-500/15 px-2.5 py-1 text-[11px] font-medium text-red-600 transition-colors hover:bg-red-500/25 dark:text-red-300"
                         >
                           Ask again
+                        </button>
+                      )}
+                      {micSystemBlocked && (
+                        <button
+                          onClick={enableMic}
+                          className="rounded-md bg-amber-500/15 px-2.5 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-500/25 dark:text-amber-300"
+                        >
+                          Retry after OS fix
                         </button>
                       )}
                     </Notice>
@@ -479,12 +489,25 @@ function getMicStatus({
   if (mediaError === "NotFoundError" || mediaError === "DevicesNotFoundError") {
     return { label: "No microphone found", className: "text-amber-600 dark:text-amber-400" };
   }
+  if (permission === "granted" && isPermissionLikeError(mediaError)) {
+    return { label: "Blocked by system or browser policy", className: "text-amber-600 dark:text-amber-400" };
+  }
   if (permission === "denied") return { label: "Permission denied", className: "text-red-600 dark:text-red-400" };
   if (permission === "prompt" || !triedMic) return { label: "Ready to ask permission", className: "text-muted-foreground" };
   return { label: "Mic test stopped", className: "text-muted-foreground" };
 }
 
-function StatusBadge({ running, denied, requesting }: { running: boolean; denied: boolean; requesting?: boolean }) {
+function StatusBadge({
+  running,
+  denied,
+  systemBlocked,
+  requesting,
+}: {
+  running: boolean;
+  denied: boolean;
+  systemBlocked?: boolean;
+  requesting?: boolean;
+}) {
   if (requesting) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/12 px-2 py-1 text-[10px] font-medium text-sky-600 dark:text-sky-400">
@@ -506,11 +529,22 @@ function StatusBadge({ running, denied, requesting }: { running: boolean; denied
       </span>
     );
   }
+  if (systemBlocked) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-2 py-1 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+        <FiAlertTriangle className="h-3 w-3" /> System
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-black/5 px-2 py-1 text-[10px] font-medium text-muted-foreground dark:bg-white/8">
       <FiMic className="h-3 w-3" /> Idle
     </span>
   );
+}
+
+function isPermissionLikeError(errorName: string | null) {
+  return errorName === "NotAllowedError" || errorName === "PermissionDeniedError" || errorName === "SecurityError";
 }
 
 function Notice({

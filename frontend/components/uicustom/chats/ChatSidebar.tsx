@@ -26,7 +26,7 @@ import { useVoiceRoom } from "@/lib/voice/useVoiceRoom";
 import { useVoiceChannelEvents } from "@/lib/voice/useVoiceChannelEvents";
 import type { VoiceMember, VoiceRole } from "@/lib/voice/types";
 import { readVoicePrefs, useVoicePrefs } from "@/lib/voice/voice-prefs";
-import { describeMediaError, enumerateAudioDevices, openMicrophoneStream } from "@/lib/voice/media-devices";
+import { describeCurrentMediaError, enumerateAudioDevices, openMicrophoneStream } from "@/lib/voice/media-devices";
 import { VoiceSettingsModal } from "./VoiceSettingsModal";
 import { ThemedSelect, type SelectOption } from "./ThemedSelect";
 
@@ -118,7 +118,7 @@ export function ChatSidebar({
       const stream = await openMicrophoneStream(readVoicePrefs());
       stream.getTracks().forEach((track) => track.stop());
     } catch (err) {
-      setJoinNotice(describeMediaError(err));
+      setJoinNotice(await describeCurrentMediaError(err));
       setSettingsOpen(true);
       setJoinRequesting(false);
       return;

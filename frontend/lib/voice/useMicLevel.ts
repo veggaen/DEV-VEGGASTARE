@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { describeMediaError, getMediaErrorName, isSelectedDeviceError } from "./media-devices";
+import { describeCurrentMediaError, getMediaErrorName, isSelectedDeviceError } from "./media-devices";
 
 const BAR_COUNT = 28;
 
@@ -160,7 +160,7 @@ export function useMicLevel(opts?: {
       rafRef.current = requestAnimationFrame(tick);
     } catch (e) {
       setErrorName(getMediaErrorName(e));
-      setError(describeMediaError(e));
+      setError(await describeCurrentMediaError(e));
       setRunning(false);
     } finally {
       if (requestSeqRef.current === requestSeq) {

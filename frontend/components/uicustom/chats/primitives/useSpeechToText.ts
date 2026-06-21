@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { describeMediaError, openMicrophoneStream } from '@/lib/voice/media-devices';
+import { describeCurrentMediaError, openMicrophoneStream } from '@/lib/voice/media-devices';
 import { readVoicePrefs } from '@/lib/voice/voice-prefs';
 
 // The Web Speech API isn't in the TS DOM lib by default; minimal shapes here.
@@ -127,8 +127,8 @@ export function useSpeechToText({ onResult, lang = 'en-US' }: Options) {
             // start() throws if already started — ignore.
           }
         })
-        .catch((err) => {
-          setError(describeMediaError(err));
+        .catch(async (err) => {
+          setError(await describeCurrentMediaError(err));
           setListening(false);
           setInterim('');
         })

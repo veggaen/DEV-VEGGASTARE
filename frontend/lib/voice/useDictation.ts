@@ -18,7 +18,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { describeMediaError, openMicrophoneStream } from "./media-devices";
+import { describeCurrentMediaError, openMicrophoneStream } from "./media-devices";
 import { readVoicePrefs } from "./voice-prefs";
 
 // Minimal structural type for the vendor-prefixed SpeechRecognition.
@@ -87,7 +87,7 @@ export function useDictation(opts: {
       const probe = await openMicrophoneStream(readVoicePrefs());
       probe.getTracks().forEach((t) => t.stop()); // we only needed the grant
     } catch (e) {
-      setError(describeMediaError(e));
+      setError(await describeCurrentMediaError(e));
       return;
     }
 
