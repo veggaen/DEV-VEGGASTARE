@@ -57,7 +57,7 @@ export const GET = async (request: Request) => {
     return NextResponse.json(parsed.data, {
       status: 200,
       headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        'Cache-Control': 'private, no-store',
       },
     });
   } catch (error) {

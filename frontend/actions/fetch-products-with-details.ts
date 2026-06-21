@@ -44,6 +44,7 @@ export const fetchProductsWithDetails = async ({
     const skip = (page - 1) * perPage;
 
     const whereClause: any = {
+      visibility: 'PUBLIC',
       price: {
         gte: minPrice,
       },
@@ -103,6 +104,7 @@ export const fetchProductsWithDetails = async ({
         userId: true,
         companyId: true,
         productType: true,
+        visibility: true,
         downloadsEnabled: true,
         ProductAcceptedToken: {
           select: {
@@ -161,6 +163,7 @@ export const fetchProductsWithDetails = async ({
         userId: String(p.userId),
         companyId: p.companyId ? String(p.companyId) : null,
         productType: p.productType ?? 'PHYSICAL',
+        visibility: p.visibility ?? 'PUBLIC',
         createdAt: toIsoString(p.createdAt),
         updatedAt: toIsoString(p.updatedAt),
         user,

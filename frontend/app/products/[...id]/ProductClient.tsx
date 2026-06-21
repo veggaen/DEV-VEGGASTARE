@@ -40,12 +40,11 @@ import { usePricing } from "@/components/crypto-related/PricingContext";
 import { useTheme } from "next-themes";
 import { useUiPreferences } from "@/components/providers/ui-preferences";
 import { fetchUserEmployeePermissions } from "@/actions/user-company-permissions";
-import { MyDeleteProductAction } from "@/actions/products";
+import { MyDeleteProductAction, MySetProductVisibilityAction } from "@/actions/products";
 import type { EmployeePermissions } from "@/lib/types/company-permissions";
-import { ArrowLeft, CreditCard, Heart, Pencil, ShieldCheck, ShoppingCart, Trash2, Loader2, Navigation, Flag, WalletCards } from "lucide-react";
+import { Archive, ArrowLeft, CreditCard, Eye, EyeOff, Heart, Pencil, ShieldCheck, ShoppingCart, Trash2, Loader2, Navigation, Flag, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { ReportDialog } from "@/components/uicustom/report/ReportDialog";
-import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
 
 function getNavigationType() {
   try {
@@ -335,6 +334,7 @@ interface Specification { key: string; value: string; }
 interface Feature { text: string; key?: string; icon?: string; }
 interface WarehouseLocation { id: string; country: string; postalCode: string; countryCode?: string; }
 interface Inventory { id: string; stock: number; warehouseId: string; }
+type ProductVisibility = "PUBLIC" | "HIDDEN" | "ARCHIVED";
 
 interface Product {
   id: string;
@@ -346,6 +346,9 @@ interface Product {
   acceptedFiatCurrencies: string[];
   stock: number;
   productType: "PHYSICAL" | "DIGITAL" | "HYBRID";
+  visibility: ProductVisibility;
+  hiddenAt?: string | null;
+  archivedAt?: string | null;
   downloadsEnabled: boolean;
   condition: string;
   image: string[];
@@ -1202,13 +1205,20 @@ function ProductDetails({ product }: { product: Product }) {
   const { prefs } = useUiPreferences();
 
   const [companyEditAllowed, setCompanyEditAllowed] = useState(false);
+  const [companyLifecycleAllowed, setCompanyLifecycleAllowed] = useState(false);
+  const [currentVisibility, setCurrentVisibility] = useState<ProductVisibility>(product.visibility ?? "PUBLIC");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
 
   const sessionUserId = (session as any)?.user?.id as string | undefined;
   const sessionRole = (session as any)?.user?.role as string | undefined;
   const isAdminLike = sessionRole === "ADMIN" || sessionRole === "OWNER";
+
+  useEffect(() => {
+    setCurrentVisibility(product.visibility ?? "PUBLIC");
+  }, [product.visibility]);
 
   const canEditProduct = useMemo(() => {
     if (!sessionUserId) return false;
@@ -1217,6 +1227,13 @@ function ProductDetails({ product }: { product: Product }) {
     if (product.companyId && companyEditAllowed) return true;
     return false;
   }, [companyEditAllowed, isAdminLike, product.companyId, product.userId, sessionUserId]);
+
+  const canManageProductLifecycle = useMemo(() => {
+    if (!sessionUserId) return false;
+    if (canEditProduct) return true;
+    if (product.companyId && companyLifecycleAllowed) return true;
+    return false;
+  }, [canEditProduct, companyLifecycleAllowed, product.companyId, sessionUserId]);
 
   const handleDeleteProduct = useCallback(async () => {
     setIsDeleting(true);
@@ -1227,15 +1244,37 @@ function ProductDetails({ product }: { product: Product }) {
         setIsDeleting(false);
         return;
       }
-      toast.success(result.success || "Product deleted successfully");
+      setCurrentVisibility("ARCHIVED");
+      toast.success(result.success || "Product archived");
       setDeleteDialogOpen(false);
-      // Redirect to products page
-      router.push("/products");
+      router.refresh();
     } catch (err) {
-      toast.error("Failed to delete product");
+      toast.error("Failed to archive product");
+    } finally {
       setIsDeleting(false);
     }
   }, [product.id, router]);
+
+  const handleSetVisibility = useCallback(
+    async (nextVisibility: ProductVisibility) => {
+      setIsUpdatingVisibility(true);
+      try {
+        const result = await MySetProductVisibilityAction(product.id, nextVisibility);
+        if (result.error) {
+          toast.error(result.error);
+          return;
+        }
+        setCurrentVisibility(result.visibility ?? nextVisibility);
+        toast.success(result.success || "Product visibility updated");
+        router.refresh();
+      } catch {
+        toast.error("Failed to update product visibility");
+      } finally {
+        setIsUpdatingVisibility(false);
+      }
+    },
+    [product.id, router]
+  );
 
   useEffect(() => {
     let alive = true;
@@ -1248,13 +1287,20 @@ function ProductDetails({ product }: { product: Product }) {
         if (!alive) return;
         if (!res.success) {
           setCompanyEditAllowed(false);
+          setCompanyLifecycleAllowed(false);
           return;
         }
         const perms = (res.permissions ?? {}) as EmployeePermissions;
         setCompanyEditAllowed(perms?.CAN_EDIT_PRODUCT_POSITION_PERMISSION === true);
+        setCompanyLifecycleAllowed(
+          perms?.CAN_EDIT_PRODUCT_POSITION_PERMISSION === true ||
+            perms?.CAN_DELETE_PRODUCT === true ||
+            perms?.CAN_MANAGE_PRODUCT_VISIBILITY === true
+        );
       } catch {
         if (!alive) return;
         setCompanyEditAllowed(false);
+        setCompanyLifecycleAllowed(false);
       }
     })();
     return () => {
@@ -1327,14 +1373,26 @@ function ProductDetails({ product }: { product: Product }) {
   const acceptedTokenSymbols = useMemo(() => getAcceptedTokenSymbols(product), [product]);
   const acceptedFiatCurrencies = useMemo(() => getAcceptedFiatCurrencies(product), [product]);
   const hasCryptoPayments = acceptedTokenSymbols.length > 0;
-  const availabilityLabel = isDigitalProduct
-    ? product.downloadsEnabled
-      ? "Digital access available"
-      : "Listing unavailable"
-    : totalStock > 0
-      ? `${totalStock} in stock`
-      : "Stock check needed";
-  const canPurchase = product.downloadsEnabled !== false && (isDigitalProduct || totalStock > 0);
+  const isPublicListing = currentVisibility === "PUBLIC";
+  const visibilityLabel =
+    currentVisibility === "PUBLIC"
+      ? "Public"
+      : currentVisibility === "HIDDEN"
+        ? "Hidden"
+        : "Archived";
+  const availabilityLabel =
+    currentVisibility === "ARCHIVED"
+      ? "Archived listing"
+      : currentVisibility === "HIDDEN"
+        ? "Hidden listing"
+        : isDigitalProduct
+          ? product.downloadsEnabled
+            ? "Digital access available"
+            : "Listing unavailable"
+          : totalStock > 0
+            ? `${totalStock} in stock`
+            : "Stock check needed";
+  const canPurchase = isPublicListing && product.downloadsEnabled !== false && (isDigitalProduct || totalStock > 0);
 
   // State for user's distance to closest warehouse
   const [userDistanceToWarehouseKm, setUserDistanceToWarehouseKm] = useState<number | undefined>(undefined);
@@ -1469,14 +1527,28 @@ function ProductDetails({ product }: { product: Product }) {
   return (
     <div className="relative w-full space-y-8 pb-24 text-white">
       <ProductDetailCursor />
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[760px] bg-[radial-gradient(circle_at_18%_18%,rgba(16,185,129,0.22),transparent_34%),radial-gradient(circle_at_84%_8%,rgba(56,189,248,0.12),transparent_32%),linear-gradient(180deg,rgba(2,6,23,0.72),transparent)]" />
-      <Link
-        href="/products"
-        className="group inline-flex items-center gap-2 text-sm font-medium text-zinc-400 transition-all duration-300 hover:-translate-x-0.5 hover:text-white"
-      >
-        <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
-        Back to products
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          href="/products"
+          aria-label="Back to products"
+          title="Back to products"
+          className="group inline-grid h-10 w-10 place-items-center border border-white/10 bg-white/[0.035] text-zinc-300 transition-all duration-300 hover:-translate-x-0.5 hover:border-emerald-300/50 hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+        </Link>
+        {canManageProductLifecycle && (
+          <div
+            className={cn(
+              "border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]",
+              currentVisibility === "PUBLIC" && "border-emerald-300/35 bg-emerald-400/10 text-emerald-200",
+              currentVisibility === "HIDDEN" && "border-amber-300/35 bg-amber-400/10 text-amber-200",
+              currentVisibility === "ARCHIVED" && "border-zinc-500/45 bg-zinc-500/10 text-zinc-300"
+            )}
+          >
+            {visibilityLabel}
+          </div>
+        )}
+      </div>
 
       {/* Top section */}
       <motion.section
@@ -1496,9 +1568,9 @@ function ProductDetails({ product }: { product: Product }) {
             show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.7, ease: premiumEase } },
           }}
         >
-          <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.045] p-3 shadow-[0_40px_120px_rgba(0,0,0,0.42)] backdrop-blur-2xl">
+          <div className="relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.045] p-3 shadow-[0_40px_120px_rgba(0,0,0,0.42)] backdrop-blur-2xl">
             <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_8%,rgba(255,255,255,0.18),transparent_32%),radial-gradient(circle_at_84%_80%,rgba(16,185,129,0.18),transparent_34%)]" />
-            <div className="relative overflow-hidden rounded-[1.5rem] bg-black/55">
+            <div className="relative overflow-hidden rounded-lg bg-black/55">
             <Carousel>
               <CarouselContent>
                 {product.image.map((src, idx) => (
@@ -1524,15 +1596,15 @@ function ProductDetails({ product }: { product: Product }) {
 
           {/* Quick stats — text on background, divided by hairlines (no boxes) */}
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-center shadow-[0_18px_70px_rgba(0,0,0,0.24)] backdrop-blur-2xl transition-transform duration-300 hover:-translate-y-1">
+            <div className="rounded-lg border border-white/10 bg-white/[0.055] px-4 py-3 text-center shadow-[0_18px_70px_rgba(0,0,0,0.24)] backdrop-blur-2xl transition-transform duration-300 hover:-translate-y-1">
               <div className="text-sm font-semibold text-white">{availabilityLabel}</div>
               <div className="mt-0.5 text-xs text-zinc-400">Availability</div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-center shadow-[0_18px_70px_rgba(0,0,0,0.24)] backdrop-blur-2xl transition-transform duration-300 hover:-translate-y-1">
+            <div className="rounded-lg border border-white/10 bg-white/[0.055] px-4 py-3 text-center shadow-[0_18px_70px_rgba(0,0,0,0.24)] backdrop-blur-2xl transition-transform duration-300 hover:-translate-y-1">
               <div className="text-sm font-semibold text-white">{product.condition}</div>
               <div className="mt-0.5 text-xs text-zinc-400">Condition</div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-center shadow-[0_18px_70px_rgba(0,0,0,0.24)] backdrop-blur-2xl transition-transform duration-300 hover:-translate-y-1">
+            <div className="rounded-lg border border-white/10 bg-white/[0.055] px-4 py-3 text-center shadow-[0_18px_70px_rgba(0,0,0,0.24)] backdrop-blur-2xl transition-transform duration-300 hover:-translate-y-1">
               <div className="text-sm font-semibold text-white">{isDigitalProduct ? "My downloads" : product.shipFromPostalId || "Not set"}</div>
               <div className="mt-0.5 text-xs text-zinc-400">{isDigitalProduct ? "Delivery" : "Ships from"}</div>
             </div>
@@ -1541,7 +1613,7 @@ function ProductDetails({ product }: { product: Product }) {
 
         {/* Details */}
         <motion.div
-          className="flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-black/40 p-6 shadow-[0_28px_110px_rgba(0,0,0,0.36)] backdrop-blur-2xl sm:p-7 lg:sticky lg:top-24 lg:col-span-5"
+          className="flex flex-col gap-4 rounded-xl border border-white/10 bg-black/40 p-6 shadow-[0_28px_110px_rgba(0,0,0,0.36)] backdrop-blur-2xl sm:p-7 lg:sticky lg:top-24 lg:col-span-5"
           variants={{
             hidden: { opacity: 0, x: 28, filter: "blur(12px)" },
             show: { opacity: 1, x: 0, filter: "blur(0px)", transition: { duration: 0.65, ease: premiumEase } },
@@ -1608,33 +1680,77 @@ function ProductDetails({ product }: { product: Product }) {
             </div>
 
             {/* Report button — visible to logged-in non-owners */}
-            {sessionUserId && !canEditProduct && (
+            {sessionUserId && !canManageProductLifecycle && (
               <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-red-600" onClick={() => setReportOpen(true)}>
                 <Flag className="h-4 w-4" />
                 Rapporter
               </Button>
             )}
 
-            {canEditProduct && (
-              <div className="flex items-center gap-2">
-                <Button asChild variant="outline" size="sm" className="gap-2">
-                  <Link href={`/products/edit/${product.id}`}>
-                    <Pencil className="h-4 w-4" />
-                    Edit listing
-                  </Link>
-                </Button>
+            {canManageProductLifecycle && (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {canEditProduct && (
+                  <Button asChild variant="outline" size="sm" className="gap-2">
+                    <Link href={`/products/edit/${product.id}`}>
+                      <Pencil className="h-4 w-4" />
+                      Edit listing
+                    </Link>
+                  </Button>
+                )}
+                {currentVisibility === "PUBLIC" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-amber-300/25 text-amber-200 hover:bg-amber-400/10"
+                    disabled={isUpdatingVisibility}
+                    onClick={() => handleSetVisibility("HIDDEN")}
+                  >
+                    {isUpdatingVisibility ? <Loader2 className="h-4 w-4 animate-spin" /> : <EyeOff className="h-4 w-4" />}
+                    Hide
+                  </Button>
+                ) : currentVisibility === "HIDDEN" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-emerald-300/25 text-emerald-200 hover:bg-emerald-400/10"
+                    disabled={isUpdatingVisibility}
+                    onClick={() => handleSetVisibility("PUBLIC")}
+                  >
+                    {isUpdatingVisibility ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+                    Publish
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-zinc-500/40 text-zinc-200 hover:bg-white/10"
+                    disabled={isUpdatingVisibility}
+                    onClick={() => handleSetVisibility("HIDDEN")}
+                  >
+                    {isUpdatingVisibility ? <Loader2 className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
+                    Restore hidden
+                  </Button>
+                )}
                 <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 text-red-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
+                      disabled={currentVisibility === "ARCHIVED"}
+                    >
                       <Trash2 className="h-4 w-4" />
-                      Remove
+                      Archive
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Remove listing</DialogTitle>
+                      <DialogTitle>Archive listing</DialogTitle>
                       <DialogDescription>
-                        This removes &quot;{product.title}&quot; from the marketplace and disables new purchases. Existing orders and download links stay valid.
+                        This removes &quot;{product.title}&quot; from the public marketplace and stops new purchases. Existing orders and download records stay valid.
                       </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:gap-0">
@@ -1652,7 +1768,7 @@ function ProductDetails({ product }: { product: Product }) {
                         className="gap-2"
                       >
                         {isDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
-                        {isDeleting ? "Removing..." : "Remove listing"}
+                        {isDeleting ? "Archiving..." : "Archive listing"}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
@@ -2144,10 +2260,8 @@ export default function ProductClient({ productId }: { productId: string }) {
 
   const pageShellClassName = "relative z-10 mx-auto w-full max-w-screen-2xl px-3 py-5 sm:px-4 md:px-6";
   const renderShell = (children: ReactNode) => (
-    <div className="relative isolate min-h-full w-full overflow-hidden bg-background text-foreground">
-      <HeroParticleField fixed density={0.72} centerFade={0.32} className="z-0 opacity-60 dark:opacity-75" />
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-linear-to-b from-sky-50/90 via-white/75 to-white dark:from-emerald-950/20 dark:via-black/80 dark:to-black" />
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(rgba(14,165,233,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(14,165,233,0.04)_1px,transparent_1px)] bg-[size:46px_46px] opacity-80 dark:bg-[linear-gradient(rgba(52,211,153,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(52,211,153,0.045)_1px,transparent_1px)] dark:opacity-35" />
+    <div className="relative isolate min-h-full w-full overflow-hidden bg-black text-white">
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(rgba(52,211,153,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(52,211,153,0.035)_1px,transparent_1px)] bg-[size:46px_46px] opacity-20" />
       <div className={pageShellClassName}>{children}</div>
     </div>
   );

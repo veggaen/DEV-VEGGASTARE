@@ -14,6 +14,7 @@ export interface EmployeePermissions {
   CAN_POST_PRODUCT_POSITION_PERMISSION?: boolean;
   CAN_EDIT_PRODUCT_POSITION_PERMISSION?: boolean;
   CAN_DELETE_PRODUCT?: boolean;
+  CAN_MANAGE_PRODUCT_VISIBILITY?: boolean;
   CAN_VIEW_ANALYTICS?: boolean;
   
   // Physical Products

@@ -2,6 +2,8 @@ import { fetchProductById } from '@/actions/fetch-product-by-id';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { ProductDetailsResponseSchema } from '@/lib/types/products';
+import { auth } from '@/auth';
+import { dbPrisma } from '@/lib/db';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -67,6 +69,31 @@ const paramsSchema = z.object({
   id: z.array(z.string().trim().min(1).max(200)).min(1).max(1),
 });
 
+async function canViewNonPublicProduct(product: any): Promise<boolean> {
+  const session = await auth();
+  const sessionUserId = session?.user?.id;
+  if (!sessionUserId) return false;
+
+  const role = session?.user?.role;
+  if (role === 'ADMIN' || role === 'OWNER') return true;
+  if (product.userId === sessionUserId) return true;
+  if (product.Company?.ownerId === sessionUserId) return true;
+
+  if (!product.companyId) return false;
+
+  const employee = await dbPrisma.employee.findFirst({
+    where: { userId: sessionUserId, companyId: product.companyId },
+    select: { permissions: true },
+  });
+
+  const permissions: any = employee?.permissions ?? {};
+  return (
+    permissions.CAN_EDIT_PRODUCT_POSITION_PERMISSION === true ||
+    permissions.CAN_DELETE_PRODUCT === true ||
+    permissions.CAN_MANAGE_PRODUCT_VISIBILITY === true
+  );
+}
+
 export async function GET(_request: Request, context: { params: Promise<{ id: string[] }> }) {
   const rawParams = await context.params;
   const parsed = paramsSchema.safeParse(rawParams);
@@ -81,6 +108,14 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    const visibility = (product as any).visibility ?? 'PUBLIC';
+    if (visibility !== 'PUBLIC') {
+      const canView = await canViewNonPublicProduct(product);
+      if (!canView) {
+        return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      }
     }
 
     const companyLocations = (product as any)?.Company?.WarehouseLocation;
@@ -118,6 +153,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         : [],
       stock: typeof (product as any).stock === 'number' ? (product as any).stock : 0,
       productType: (product as any).productType ?? 'PHYSICAL',
+      visibility,
+      hiddenAt: (product as any).hiddenAt ? toIsoString((product as any).hiddenAt) : null,
+      archivedAt: (product as any).archivedAt ? toIsoString((product as any).archivedAt) : null,
       downloadsEnabled: (product as any).downloadsEnabled !== false,
       condition: (product as any).condition,
       image: Array.isArray((product as any).image) ? (product as any).image : [],

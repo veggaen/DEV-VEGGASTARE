@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 const IsoDateStringSchema = z.string().min(1);
+export const ProductVisibilitySchema = z.enum(['PUBLIC', 'HIDDEN', 'ARCHIVED']);
 
 export const SellerWithCountSchema = z
   .object({
@@ -50,6 +51,7 @@ export const ProductsListItemSchema = z
 
     // Product type
     productType: z.enum(['PHYSICAL', 'DIGITAL', 'HYBRID']).optional().default('PHYSICAL'),
+    visibility: ProductVisibilitySchema.optional().default('PUBLIC'),
 
     // Web3 fields
     acceptedTokens: z.array(z.object({
@@ -109,6 +111,9 @@ export const ProductDetailsResponseSchema = z
     acceptedFiatCurrencies: z.array(z.enum(['USD', 'NOK', 'EUR', 'GBP'])).default([]),
     stock: z.number().int().finite(),
     productType: z.enum(['PHYSICAL', 'DIGITAL', 'HYBRID']).default('PHYSICAL'),
+    visibility: ProductVisibilitySchema.default('PUBLIC'),
+    hiddenAt: IsoDateStringSchema.nullable().optional(),
+    archivedAt: IsoDateStringSchema.nullable().optional(),
     downloadsEnabled: z.boolean().default(true),
     condition: z.string().min(1),
     image: z.array(z.string()),

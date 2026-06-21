@@ -751,6 +751,9 @@ model Product {
   
   // Product type (physical, digital, or hybrid)
   productType          ProductType            @default(PHYSICAL)
+  visibility           ProductVisibility      @default(PUBLIC)
+  hiddenAt             DateTime?
+  archivedAt           DateTime?
   
   // Digital product fields
   digitalAssetId       String?                @unique
@@ -792,6 +795,7 @@ model Product {
   @@index([createdAt])
   @@index([category, price])
   @@index([productType])
+  @@index([visibility])
   @@index([reachMomentum])
 }
 
@@ -2232,6 +2236,12 @@ enum ProductType {
   PHYSICAL      // Physical product requiring shipping
   DIGITAL       // Digital download only
   HYBRID        // Both physical item + digital content
+}
+
+enum ProductVisibility {
+  PUBLIC        // Visible in marketplace and purchasable
+  HIDDEN        // Hidden from public marketplace, visible to owner/company staff
+  ARCHIVED      // Removed from marketplace; existing orders/downloads stay valid
 }
 
 enum StorageProvider {

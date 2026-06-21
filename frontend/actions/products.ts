@@ -14,6 +14,7 @@ type UpdateProductResult = { error: string } | { success: string };
 type EnsureOwnerTestProductResult =
   | { error: string }
   | { success: string; productId: string; created: boolean };
+type ProductVisibilityValue = 'PUBLIC' | 'HIDDEN' | 'ARCHIVED';
 
 const OWNER_TEST_PRODUCT_TITLE = 'Veggat Digital Checkout Test';
 const OWNER_TEST_PRODUCT_CATEGORY = 'Digital Downloads';
@@ -74,6 +75,56 @@ const ProductUpdatePatchSchema = z
     acceptedTokens: z.array(ProductAcceptedTokenInputSchema).optional(),
   })
   .strict();
+
+const ProductVisibilitySchema = z.enum(['PUBLIC', 'HIDDEN', 'ARCHIVED']);
+
+async function canManageProductLifecycle(productId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { allowed: false as const, error: 'Unauthorized' };
+  }
+
+  const sessionUserId = session.user.id;
+  const role = session.user.role;
+  const product = await dbPrisma.product.findUnique({
+    where: { id: productId },
+    select: {
+      id: true,
+      userId: true,
+      companyId: true,
+      title: true,
+      Company: { select: { ownerId: true } },
+    },
+  });
+
+  if (!product) {
+    return { allowed: false as const, error: 'Product not found' };
+  }
+
+  const isAdminLike = role === 'ADMIN' || role === 'OWNER';
+  const isProductOwner = product.userId === sessionUserId;
+  const isCompanyOwner = product.Company?.ownerId === sessionUserId;
+  let allowed = isAdminLike || isProductOwner || isCompanyOwner;
+
+  if (!allowed && product.companyId) {
+    const employee = await dbPrisma.employee.findFirst({
+      where: { userId: sessionUserId, companyId: product.companyId },
+      select: { permissions: true },
+    });
+
+    const p: any = employee?.permissions ?? {};
+    allowed =
+      p?.CAN_DELETE_PRODUCT === true ||
+      p?.CAN_EDIT_PRODUCT_POSITION_PERMISSION === true ||
+      p?.CAN_MANAGE_PRODUCT_VISIBILITY === true;
+  }
+
+  if (!allowed) {
+    return { allowed: false as const, error: 'Forbidden - You do not have permission to manage this product' };
+  }
+
+  return { allowed: true as const, product };
+}
 
 // Helper: Handle categories - create new ones or link existing ones
 async function handleCategories(
@@ -761,81 +812,77 @@ export const MyUpdateProductAction = async (
   }
 };
 
+export const MySetProductVisibilityAction = async (
+  productId: string,
+  visibility: ProductVisibilityValue
+) => {
+  try {
+    const parsedVisibility = ProductVisibilitySchema.safeParse(visibility);
+    if (!parsedVisibility.success) {
+      return { error: 'Invalid product visibility' };
+    }
+
+    const access = await canManageProductLifecycle(productId);
+    if (!access.allowed) {
+      return { error: access.error };
+    }
+
+    const nextVisibility = parsedVisibility.data;
+    const now = new Date();
+    const data: any = {
+      visibility: nextVisibility,
+      updatedAt: now,
+    };
+
+    if (nextVisibility === 'PUBLIC') {
+      data.hiddenAt = null;
+      data.archivedAt = null;
+    }
+
+    if (nextVisibility === 'HIDDEN') {
+      data.hiddenAt = now;
+      data.archivedAt = null;
+    }
+
+    if (nextVisibility === 'ARCHIVED') {
+      data.hiddenAt = null;
+      data.archivedAt = now;
+      data.downloadsEnabled = false;
+    }
+
+    await dbPrisma.product.update({
+      where: { id: productId },
+      data,
+    });
+
+    revalidatePath('/products');
+    revalidatePath(`/products/${productId}`);
+
+    const action =
+      nextVisibility === 'PUBLIC'
+        ? 'published'
+        : nextVisibility === 'HIDDEN'
+          ? 'hidden from the public marketplace'
+          : 'archived';
+
+    return {
+      success: `Product "${access.product.title}" was ${action}. Existing orders and download records were preserved.`,
+      visibility: nextVisibility,
+    };
+  } catch (error) {
+    console.error('Error updating product visibility: ', error);
+    return { error: 'Failed to update product visibility.' };
+  }
+};
+
 /**
- * Delete a product (requires ownership or company permission)
+ * Archive a product (requires ownership or company permission)
  */
 export const MyDeleteProductAction = async (productId: string) => {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return { error: 'Unauthorized' };
-    }
-
-    const sessionUserId = session.user.id;
-    const role = session.user.role;
-
-    const product = await dbPrisma.product.findUnique({
-      where: { id: productId },
-      select: { 
-        id: true, 
-        userId: true, 
-        companyId: true, 
-        title: true,
-        Company: { select: { ownerId: true } },
-      },
-    });
-
-    if (!product) {
-      return { error: 'Product not found' };
-    }
-
-    // Check permissions
-    const isAdminLike = role === 'ADMIN' || role === 'OWNER';
-    const isProductOwner = product.userId === sessionUserId;
-    const isCompanyOwner = product.Company?.ownerId === sessionUserId;
-    let allowed = isAdminLike || isProductOwner || isCompanyOwner;
-
-    // Check employee permissions if not already allowed
-    if (!allowed && product.companyId) {
-      const employee = await dbPrisma.employee.findFirst({
-        where: { userId: sessionUserId, companyId: product.companyId },
-        select: { permissions: true },
-      });
-
-      const p: any = employee?.permissions ?? {};
-      // Can delete if they have delete product permission OR edit product permission (backwards compat)
-      const canDelete = p?.CAN_DELETE_PRODUCT === true || p?.CAN_EDIT_PRODUCT_POSITION_PERMISSION === true;
-      allowed = canDelete;
-    }
-
-    if (!allowed) {
-      return { error: 'Forbidden - You do not have permission to delete this product' };
-    }
-
-    // Archive/unpublish instead of hard-deleting. Orders and download tokens keep
-    // their product references, while marketplace queries hide unavailable rows.
-    await dbPrisma.$transaction(async (tx) => {
-      await tx.productAcceptedToken.deleteMany({
-        where: { productId },
-      });
-
-      await tx.inventory.deleteMany({
-        where: { productId },
-      });
-
-      await tx.product.update({
-        where: { id: productId },
-        data: {
-          stock: 0,
-          downloadsEnabled: false,
-          updatedAt: new Date(),
-        },
-      });
-    });
-
-    return { success: `Product "${product.title}" was removed from the marketplace. Existing orders and downloads were preserved.` };
+    return await MySetProductVisibilityAction(productId, 'ARCHIVED');
   } catch (error) {
     console.error('Error deleting product: ', error);
-    return { error: 'Failed to delete product.' };
+    return { error: 'Failed to archive product.' };
   }
 };
