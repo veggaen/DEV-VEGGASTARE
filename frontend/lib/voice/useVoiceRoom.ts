@@ -62,6 +62,7 @@ export function useVoiceRoom(cfg: VoiceProviderConfig) {
 
   const join = useCallback(() => provider.join(), [provider]);
   const leave = useCallback(() => provider.leave(), [provider]);
+  const setMuted = useCallback((muted: boolean) => provider.setMuted(muted), [provider]);
   const toggleMute = useCallback(() => {
     const me = provider.getState().members.find((m) => m.id === provider.getState().selfId);
     provider.setMuted(!me?.muted);
@@ -119,6 +120,7 @@ export function useVoiceRoom(cfg: VoiceProviderConfig) {
     isStub: provider.isStub,
     join,
     leave,
+    setMuted,
     toggleMute,
     toggleHand,
     promote,

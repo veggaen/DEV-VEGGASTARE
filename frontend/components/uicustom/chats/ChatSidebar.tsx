@@ -26,6 +26,7 @@ import { useVoiceRoom } from "@/lib/voice/useVoiceRoom";
 import { useVoiceChannelEvents } from "@/lib/voice/useVoiceChannelEvents";
 import type { VoiceMember, VoiceRole } from "@/lib/voice/types";
 import { readVoicePrefs, useVoicePrefs } from "@/lib/voice/voice-prefs";
+import { playVoiceCue } from "@/lib/voice/sounds";
 import { describeCurrentMediaError, enumerateAudioDevices, openMicrophoneStream } from "@/lib/voice/media-devices";
 import { VoiceSettingsModal } from "./VoiceSettingsModal";
 import { ThemedSelect, type SelectOption } from "./ThemedSelect";
@@ -90,6 +91,8 @@ export function ChatSidebar({
   const { prefs, update: updateVoicePrefs } = useVoicePrefs();
   const canManageVoice = isHost || voice.self?.role === "host";
   const canRaiseHand = voice.self?.role === "listener" && !canManageVoice;
+  const mutedBeforeSettingsTest = React.useRef<boolean | null>(null);
+  const previousVoiceIds = React.useRef<Set<string>>(new Set());
 
   const loadVoiceDevices = React.useCallback(async () => {
     try {
@@ -125,14 +128,68 @@ export function ChatSidebar({
     }
     try {
       await voice.join();
+      void playVoiceCue("join", prefs.spkDeviceId, prefs.outputVolume);
     } finally {
       setJoinRequesting(false);
     }
-  }, [joinRequesting, voice]);
+  }, [joinRequesting, prefs.outputVolume, prefs.spkDeviceId, voice]);
+
+  const handleLeaveVoice = React.useCallback(() => {
+    void playVoiceCue("leave", prefs.spkDeviceId, prefs.outputVolume);
+    void voice.leave();
+  }, [prefs.outputVolume, prefs.spkDeviceId, voice]);
+
+  const handleSettingsTestingChange = React.useCallback(
+    (testing: boolean) => {
+      if (!connected || !voice.self) return;
+
+      if (testing) {
+        if (mutedBeforeSettingsTest.current === null) {
+          mutedBeforeSettingsTest.current = !!voice.self.muted;
+        }
+        if (!voice.self.muted) voice.setMuted(true);
+        return;
+      }
+
+      const wasMuted = mutedBeforeSettingsTest.current;
+      mutedBeforeSettingsTest.current = null;
+      if (wasMuted === false && voice.self.muted) voice.setMuted(false);
+    },
+    [connected, voice],
+  );
+
+  React.useEffect(() => {
+    const ids = new Set(connected ? voice.members.map((member) => member.id) : []);
+    const previous = previousVoiceIds.current;
+
+    if (!connected) {
+      previousVoiceIds.current = ids;
+      return;
+    }
+
+    if (previous.size === 0) {
+      previousVoiceIds.current = ids;
+      return;
+    }
+
+    let cue: "join" | "leave" | null = null;
+    for (const id of ids) {
+      if (id !== self.id && !previous.has(id)) cue = "join";
+    }
+    for (const id of previous) {
+      if (id !== self.id && !ids.has(id)) cue = "leave";
+    }
+    if (cue) void playVoiceCue(cue, prefs.spkDeviceId, prefs.outputVolume);
+    previousVoiceIds.current = ids;
+  }, [connected, prefs.outputVolume, prefs.spkDeviceId, self.id, voice.members]);
 
   return (
     <div className={cn("flex flex-col h-full min-h-0", className)}>
-      <VoiceSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <VoiceSettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onTestingChange={handleSettingsTestingChange}
+      />
       {/* ── Voice channel ── */}
       <section className="px-4 pt-4 pb-3 border-b border-black/5 dark:border-white/8">
         <div className="flex items-center justify-between mb-3">
@@ -140,6 +197,9 @@ export function ChatSidebar({
             <FiHeadphones className="h-3.5 w-3.5" /> Voice
           </h3>
           <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-muted-foreground/70 border border-black/5 dark:border-white/10 rounded px-1.5 py-0.5">
+              {connected ? voice.members.length : 0} active
+            </span>
             {voice.isStub && (
               <span className="text-[9px] text-muted-foreground/60 border border-black/5 dark:border-white/10 rounded px-1.5 py-0.5">
                 Preview
@@ -250,7 +310,7 @@ export function ChatSidebar({
                 </ControlButton>
               )}
               <button
-                onClick={voice.leave}
+                onClick={handleLeaveVoice}
                 className="ml-auto grid place-items-center h-9 w-9 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors"
                 aria-label="Leave voice"
                 title="Leave voice"
@@ -264,9 +324,12 @@ export function ChatSidebar({
 
       {/* ── Members roster ── */}
       <section className="flex-1 overflow-y-auto px-3 py-3 min-h-0">
-        <h3 className="px-1 mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {membersTitle} · {members.length}
+        <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          Conversation · {members.length}
         </h3>
+        <p className="px-1 mb-2 mt-0.5 text-[10px] text-muted-foreground/70">
+          {membersTitle === "Members" ? "Message participants" : membersTitle}
+        </p>
         <div className="space-y-0.5">
           {members.map((m) => (
             <MemberRow

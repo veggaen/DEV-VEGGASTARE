@@ -114,7 +114,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     requesting: dictationRequesting,
     interim,
     error: dictationError,
-    toggle: toggleMic,
+    start: startDictation,
+    stop: stopDictation,
   } = useSpeechToText({
     onResult: (chunk) => {
       appendDictation(chunk);
@@ -162,6 +163,21 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const isTooLong = content.length > MAX_CHARS;
   const showMeta = isFocused || content.length > 0 || Boolean(imagePreview) || listening;
   const showCounter = isFocused || content.length > Math.floor(MAX_CHARS * 0.8) || isTooLong;
+
+  const startHoldDictation = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    if (isSending || dictationRequesting) return;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    startDictation();
+  };
+
+  const stopHoldDictation = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
+    stopDictation();
+  };
 
   // Draft persistence (text only). Skips edit mode.
   useEffect(() => {
@@ -490,11 +506,37 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
           {/* Speech-to-text — only shown where the browser supports it */}
           {micSupported && (
-            <IconButton
-              onClick={toggleMic}
+            <button
+              type="button"
+              onPointerDown={startHoldDictation}
+              onPointerUp={stopHoldDictation}
+              onPointerCancel={stopHoldDictation}
+              onPointerLeave={(event) => {
+                if (listening) stopHoldDictation(event);
+              }}
+              onKeyDown={(event) => {
+                if ((event.key === ' ' || event.key === 'Enter') && !listening) {
+                  event.preventDefault();
+                  startDictation();
+                }
+              }}
+              onKeyUp={(event) => {
+                if (event.key === ' ' || event.key === 'Enter') {
+                  event.preventDefault();
+                  stopDictation();
+                }
+              }}
               disabled={isSending || dictationRequesting}
-              label={listening ? 'Stop dictation' : 'Dictate message'}
-              active={listening}
+              aria-label={listening ? 'Release to stop dictation' : 'Hold to dictate message'}
+              aria-pressed={listening}
+              title={listening ? 'Release to stop dictation' : 'Hold to dictate message'}
+              className={cn(
+                'shrink-0 grid place-items-center h-9 w-9 rounded-full transition-colors',
+                'hover:bg-zinc-100 dark:hover:bg-white/10 active:scale-95 disabled:opacity-40',
+                listening
+                  ? 'text-sky-500 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
+                  : 'text-zinc-500 dark:text-white/55',
+              )}
             >
               {listening ? (
                 <span className="relative grid place-items-center">
@@ -505,7 +547,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               ) : (
                 <FiMic className="h-4.5 w-4.5" />
               )}
-            </IconButton>
+            </button>
           )}
 
           {/* Wispr-style polish — appears after dictation, cleans the text up */}
@@ -547,7 +589,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               ) : isTooLong ? (
                 'Message is too long'
               ) : (
-                'Enter to send · Shift+Enter for newline'
+                micSupported ? 'Hold mic to dictate · Enter to send' : 'Enter to send · Shift+Enter for newline'
               )}
             </span>
             <span

@@ -351,6 +351,18 @@ const FeedPage: React.FC = () => {
       setComposeText((prev) => (prev ? `${prev.replace(/\s+$/, '')} ${text}` : text));
     },
   });
+  const startPulseDictation = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    void dictation.start();
+  };
+  const stopPulseDictation = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
+    dictation.stop();
+  };
   const [includePoll, setIncludePoll] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
@@ -1520,16 +1532,33 @@ const FeedPage: React.FC = () => {
                       </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {/* Voice-to-text dictation (Wispr-Flow): hold-free toggle. */}
+                    {/* Voice-to-text dictation: hold to speak, release to stop. */}
                     {dictation.supported && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={dictation.toggle}
+                        onPointerDown={startPulseDictation}
+                        onPointerUp={stopPulseDictation}
+                        onPointerCancel={stopPulseDictation}
+                        onPointerLeave={(event) => {
+                          if (dictation.listening) stopPulseDictation(event);
+                        }}
+                        onKeyDown={(event) => {
+                          if ((event.key === ' ' || event.key === 'Enter') && !dictation.listening) {
+                            event.preventDefault();
+                            void dictation.start();
+                          }
+                        }}
+                        onKeyUp={(event) => {
+                          if (event.key === ' ' || event.key === 'Enter') {
+                            event.preventDefault();
+                            dictation.stop();
+                          }
+                        }}
                         aria-pressed={dictation.listening}
-                        aria-label={dictation.listening ? 'Stop voice typing' : 'Voice typing'}
-                        title={dictation.listening ? 'Stop voice typing' : 'Voice typing'}
+                        aria-label={dictation.listening ? 'Release to stop voice typing' : 'Hold to voice type'}
+                        title={dictation.listening ? 'Release to stop voice typing' : 'Hold to voice type'}
                         className={cn(
                           'relative grid place-items-center h-9 w-9 rounded-full transition-colors',
                           dictation.listening

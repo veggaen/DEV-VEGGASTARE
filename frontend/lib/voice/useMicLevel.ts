@@ -24,6 +24,12 @@ export function useMicLevel(opts?: {
   constraints?: MediaTrackConstraints;
   /** Input gain multiplier applied via a GainNode so the meter reflects mic gain. */
   gain?: number;
+  /** Plays the live mic stream back locally for setup/sidetone testing only. */
+  monitor?: boolean;
+  /** Preferred output device for local monitor playback. */
+  monitorDeviceId?: string;
+  /** Output volume for local monitor playback. */
+  monitorVolume?: number;
   /** Stable key that restarts the stream when selected device/constraints change. */
   restartKey?: string;
 }) {
@@ -31,6 +37,9 @@ export function useMicLevel(opts?: {
   const deviceId = opts?.deviceId;
   const constraints = opts?.constraints;
   const gain = opts?.gain ?? 1;
+  const monitor = opts?.monitor ?? false;
+  const monitorDeviceId = opts?.monitorDeviceId ?? "";
+  const monitorVolume = opts?.monitorVolume ?? 1;
   const restartKey = opts?.restartKey ?? deviceId ?? "";
 
   const [bars, setBars] = useState<number[]>(() => new Array(BAR_COUNT).fill(0));
@@ -38,13 +47,16 @@ export function useMicLevel(opts?: {
   const [error, setError] = useState<string | null>(null);
   const [errorName, setErrorName] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
+  const [monitorError, setMonitorError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [monitoring, setMonitoring] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const gainRef = useRef<GainNode | null>(null);
+  const monitorAudioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef(0);
   const pendingTimerRef = useRef(0);
   const startSeqRef = useRef(0);
@@ -56,13 +68,30 @@ export function useMicLevel(opts?: {
     if (gainRef.current) gainRef.current.gain.value = gain;
   }, [gain]);
 
+  useEffect(() => {
+    if (monitorAudioRef.current) monitorAudioRef.current.volume = clamp(monitorVolume, 0, 1);
+  }, [monitorVolume]);
+
   // Latest config read inside start() without making start() change identity
   // (constraints is a fresh object each render — depending on it would loop).
   const cfgRef = useRef({ deviceId, constraints, gain });
   cfgRef.current = { deviceId, constraints, gain };
+  const monitorCfgRef = useRef({ monitorDeviceId, monitorVolume });
+  monitorCfgRef.current = { monitorDeviceId, monitorVolume };
+
+  const stopMonitor = useCallback(() => {
+    const audio = monitorAudioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.srcObject = null;
+    }
+    monitorAudioRef.current = null;
+    setMonitoring(false);
+  }, []);
 
   const stop = useCallback(() => {
     startSeqRef.current += 1;
+    stopMonitor();
     window.clearTimeout(pendingTimerRef.current);
     pendingTimerRef.current = 0;
     cancelAnimationFrame(rafRef.current);
@@ -77,7 +106,7 @@ export function useMicLevel(opts?: {
     setRunning(false);
     setBars(new Array(BAR_COUNT).fill(0));
     setLevel(0);
-  }, []);
+  }, [stopMonitor]);
 
   const start = useCallback(async () => {
     if (requestingRef.current) return;
@@ -112,6 +141,7 @@ export function useMicLevel(opts?: {
       setError(null);
       setErrorName(null);
       setDebugInfo(null);
+      setMonitorError(null);
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Microphone access is unavailable in this browser or context.");
       }
@@ -199,6 +229,48 @@ export function useMicLevel(opts?: {
     }
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function connectMonitor() {
+      stopMonitor();
+      setMonitorError(null);
+      if (!monitor || !running || !streamRef.current) return;
+
+      const audio = new Audio();
+      audio.srcObject = streamRef.current;
+      audio.autoplay = true;
+      audio.muted = false;
+      audio.volume = clamp(monitorCfgRef.current.monitorVolume, 0, 1);
+
+      try {
+        const sinkId = monitorCfgRef.current.monitorDeviceId;
+        if (sinkId && "setSinkId" in audio) {
+          await audio.setSinkId(sinkId);
+        }
+        await audio.play();
+        if (cancelled) {
+          audio.pause();
+          audio.srcObject = null;
+          return;
+        }
+        monitorAudioRef.current = audio;
+        setMonitoring(true);
+      } catch (error) {
+        audio.pause();
+        audio.srcObject = null;
+        setMonitoring(false);
+        setMonitorError(error instanceof Error ? error.message : "Could not play your microphone through the selected output.");
+      }
+    }
+
+    void connectMonitor();
+    return () => {
+      cancelled = true;
+      stopMonitor();
+    };
+  }, [monitor, monitorDeviceId, running, stopMonitor]);
+
   // Start/stop with `active`, and restart when selected device/constraints change.
   useEffect(() => {
     if (active) void start();
@@ -207,7 +279,11 @@ export function useMicLevel(opts?: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, restartKey]);
 
-  return { bars, level, error, errorName, debugInfo, running, requesting, start, stop };
+  return { bars, level, error, errorName, debugInfo, monitorError, running, requesting, monitoring, start, stop };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
 }
 
 function getFeaturePolicyState(feature: string) {

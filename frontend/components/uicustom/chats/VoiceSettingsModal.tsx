@@ -35,7 +35,13 @@ import {
 } from "@/lib/voice/media-devices";
 import { cn } from "@/lib/utils";
 
-export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+interface VoiceSettingsModalProps {
+  open: boolean;
+  onClose: () => void;
+  onTestingChange?: (testing: boolean) => void;
+}
+
+export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSettingsModalProps) {
   const reduceMotion = useReducedMotion();
   const { prefs, update } = useVoicePrefs();
   const [mounted, setMounted] = React.useState(false);
@@ -48,6 +54,7 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
   const [deviceNotice, setDeviceNotice] = React.useState<string | null>(null);
   const [outputNotice, setOutputNotice] = React.useState<string | null>(null);
   const [testingOutput, setTestingOutput] = React.useState(false);
+  const [monitorActive, setMonitorActive] = React.useState(false);
 
   const micRestartKey = React.useMemo(
     () => [
@@ -60,10 +67,13 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
     [micAttempt, prefs.autoGainControl, prefs.echoCancellation, prefs.micDeviceId, prefs.noiseSuppression],
   );
 
-  const { bars, level, error, errorName, debugInfo, running, requesting, stop } = useMicLevel({
+  const { bars, level, error, errorName, debugInfo, monitorError, running, requesting, monitoring, stop } = useMicLevel({
     active: open && testActive,
     constraints: audioConstraintsFromPrefs(prefs),
     gain: prefs.micGain,
+    monitor: open && testActive && monitorActive,
+    monitorDeviceId: prefs.spkDeviceId,
+    monitorVolume: prefs.outputVolume,
     restartKey: micRestartKey,
   });
 
@@ -87,6 +97,7 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
       setTestActive(false);
       setTriedMic(false);
       setOutputNotice(null);
+      setMonitorActive(false);
       return;
     }
 
@@ -111,6 +122,10 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
       navigator.mediaDevices?.removeEventListener?.("devicechange", loadDevices);
     };
   }, [loadDevices, open]);
+
+  React.useEffect(() => {
+    onTestingChange?.(open && testActive && running);
+  }, [onTestingChange, open, running, testActive]);
 
   React.useEffect(() => {
     if (!running) return;
@@ -146,6 +161,13 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
     setDeviceNotice(null);
     setTestActive(true);
     setMicAttempt((attempt) => attempt + 1);
+  }, []);
+
+  const toggleMonitor = React.useCallback(() => {
+    setTriedMic(true);
+    setDeviceNotice(null);
+    setTestActive(true);
+    setMonitorActive((active) => !active);
   }, []);
 
   const chooseOutput = React.useCallback(async () => {
@@ -284,22 +306,39 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
                     <button
                       onClick={enableMic}
                       disabled={requesting}
-                      className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400"
+                      className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       <FiMic className="h-4 w-4" />
                       {requesting ? "Opening microphone..." : running ? "Re-test mic" : granted ? "Start mic test" : "Allow microphone"}
+                    </button>
+                    <button
+                      onClick={toggleMonitor}
+                      disabled={requesting}
+                      className={cn(
+                        "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                        monitorActive
+                          ? "border-sky-400/40 bg-sky-400/15 text-sky-700 hover:bg-sky-400/20 dark:text-sky-300"
+                          : "border-black/10 bg-black/3 text-muted-foreground hover:bg-black/5 hover:text-foreground dark:border-white/12 dark:bg-white/4 dark:hover:bg-white/8",
+                      )}
+                      aria-pressed={monitorActive}
+                      title="Play your microphone back through the selected output"
+                    >
+                      <FiHeadphones className="h-4 w-4" />
+                      {monitoring ? "Monitoring" : monitorActive ? "Monitor on" : "Monitor"}
                     </button>
                     {running && (
                       <button
                         onClick={() => {
                           setTestActive(false);
+                          setMonitorActive(false);
                           stop();
                         }}
-                        className="grid h-10 w-10 place-items-center rounded-xl border border-black/10 text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:border-white/12 dark:hover:bg-white/8"
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-black/10 px-3 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:border-white/12 dark:hover:bg-white/8"
                         aria-label="Stop mic test"
                         title="Stop mic test"
                       >
                         <FiMicOff className="h-4 w-4" />
+                        Stop test
                       </button>
                     )}
                     <button
@@ -348,6 +387,19 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
                         </button>
                       )}
                     </Notice>
+                  )}
+                  {(monitorActive || monitorError) && (
+                    <Notice
+                      tone={monitorError ? "amber" : monitoring ? "green" : "amber"}
+                      icon={<FiHeadphones className="h-3.5 w-3.5" />}
+                      message={
+                        monitorError
+                          ? monitorError
+                          : monitoring
+                            ? "Mic monitor is playing through your selected output. Use headphones to avoid feedback."
+                            : "Starting mic monitor. If you hear echo, lower output volume or turn monitor off."
+                      }
+                    />
                   )}
                 </section>
 
@@ -434,19 +486,19 @@ export function VoiceSettingsModal({ open, onClose }: { open: boolean; onClose: 
                 <Section icon={<FiSliders className="h-3.5 w-3.5" />} title="Noise & processing">
                 <ToggleRow
                   label="Noise suppression"
-                  desc="Filter background sound"
+                  desc="Browser-native background filter"
                   checked={prefs.noiseSuppression}
                   onChange={(value) => update({ noiseSuppression: value })}
                 />
                 <ToggleRow
                   label="Echo cancellation"
-                  desc="Reduce speaker echo"
+                  desc="Browser-native echo control"
                   checked={prefs.echoCancellation}
                   onChange={(value) => update({ echoCancellation: value })}
                 />
                 <ToggleRow
                   label="Auto gain control"
-                  desc="Auto-level your voice"
+                  desc="Let the browser auto-level voice"
                   checked={prefs.autoGainControl}
                   onChange={(value) => update({ autoGainControl: value })}
                 />
@@ -647,22 +699,35 @@ function ToggleRow({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-black/3 px-3 py-2.5 transition-colors hover:bg-black/5 dark:bg-white/4 dark:hover:bg-white/6">
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className="flex w-full items-center justify-between gap-3 rounded-xl bg-black/3 px-3 py-2.5 text-left transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/55 dark:bg-white/4 dark:hover:bg-white/6"
+    >
       <span className="min-w-0">
-        <span className="block text-sm">{label}</span>
+        <span className="block text-sm font-medium">{label}</span>
         <span className="block text-[11px] text-muted-foreground">{desc}</span>
       </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        onClick={() => onChange(!checked)}
-        className={cn("relative h-6 w-10 shrink-0 rounded-full transition-colors", checked ? "bg-emerald-500" : "bg-black/15 dark:bg-white/15")}
+      <span
+        aria-hidden
+        className={cn(
+          "relative h-7 w-12 shrink-0 rounded-full border p-0.5 transition-colors",
+          checked
+            ? "border-emerald-400/40 bg-emerald-500 shadow-[0_0_18px_rgba(16,185,129,0.22)]"
+            : "border-black/10 bg-black/15 dark:border-white/10 dark:bg-white/14",
+        )}
       >
-        <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform", checked ? "translate-x-[1.125rem]" : "translate-x-0.5")} />
-      </button>
-    </label>
+        <span
+          className={cn(
+            "block h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out",
+            checked ? "translate-x-5" : "translate-x-0",
+          )}
+        />
+      </span>
+    </button>
   );
 }
 
