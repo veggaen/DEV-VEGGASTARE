@@ -35,6 +35,8 @@ import { useViewTracking } from '@/hooks/useViewTracking';
 import usePusher from '@/hooks/usePusher';
 import { FiSend, FiBarChart2, FiTrendingUp, FiMessageCircle, FiPlus, FiX, FiHash, FiGlobe, FiUsers, FiLock, FiChevronDown, FiRepeat, FiEdit3, FiEyeOff, FiEdit2, FiTrash2, FiRefreshCw, FiFilter, FiEye, FiShield, FiAlertTriangle, FiFlag, FiUserCheck, FiUserX, FiMic } from 'react-icons/fi';
 import { useDictation } from '@/lib/voice/useDictation';
+import { enumerateAudioDevices } from '@/lib/voice/media-devices';
+import { useVoicePrefs } from '@/lib/voice/voice-prefs';
 import { Pin, PinOff, Eye, EyeOff, Users2, UserCheck, ArrowRightLeft, ShieldAlert, Zap as ZapIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PulseHeart, PulseFlat, PulsePositive } from '@/components/uicustom/icons/PulseIcons';
@@ -345,6 +347,38 @@ const FeedPage: React.FC = () => {
   // Compose state
   const [composeText, setComposeText] = useState('');
   const dictationBaseRef = useRef('');
+  const { prefs: voicePrefs, update: updateVoicePrefs } = useVoicePrefs();
+  const [pulseMics, setPulseMics] = useState<MediaDeviceInfo[]>([]);
+  const [micMenu, setMicMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const loadPulseMics = useCallback(async () => {
+    try {
+      const devices = await enumerateAudioDevices();
+      setPulseMics(devices.inputs);
+    } catch {
+      setPulseMics([]);
+    }
+  }, []);
+
+  const selectedPulseMicLabel = useMemo(() => {
+    if (!voicePrefs.micDeviceId) return 'System default mic';
+    const match = pulseMics.find((device) => device.deviceId === voicePrefs.micDeviceId);
+    return match?.label || 'Selected microphone';
+  }, [pulseMics, voicePrefs.micDeviceId]);
+
+  useEffect(() => {
+    if (!micMenu) return;
+    const close = () => setMicMenu(null);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('pointerdown', close);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [micMenu]);
 
   const mergeDictationText = useCallback((base: string, spoken: string) => {
     const cleanBase = base.replace(/\s+$/, '');
@@ -368,7 +402,9 @@ const FeedPage: React.FC = () => {
     },
   });
   const startPulseDictation = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
     event.preventDefault();
+    setMicMenu(null);
     dictationBaseRef.current = composeText;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     void dictation.start();
@@ -379,6 +415,12 @@ const FeedPage: React.FC = () => {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     }
     dictation.stop();
+  };
+  const openPulseMicMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMicMenu({ x: event.clientX, y: event.clientY });
+    void loadPulseMics();
   };
   const [includePoll, setIncludePoll] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
@@ -1246,13 +1288,16 @@ const FeedPage: React.FC = () => {
                       />
 
                       {/* Live dictation feedback: interim transcript + errors */}
-                      {dictation.listening && (
+                      {(dictation.listening || dictation.transcribing) && (
                         <p className="text-sm text-muted-foreground italic flex items-center gap-1.5">
-                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-                          {dictation.interim || 'Listening…'}
+                          <span className={cn(
+                            "inline-block h-1.5 w-1.5 rounded-full animate-pulse",
+                            dictation.transcribing ? "bg-emerald-400" : "bg-red-500",
+                          )} />
+                          {dictation.interim || (dictation.transcribing ? `Transcribing ${selectedPulseMicLabel}...` : `Listening on ${selectedPulseMicLabel}...`)}
                         </p>
                       )}
-                      {dictation.error && !dictation.listening && (
+                      {dictation.error && !dictation.listening && !dictation.transcribing && (
                         <p className="text-xs text-red-500">{dictation.error}</p>
                       )}
 
@@ -1558,6 +1603,7 @@ const FeedPage: React.FC = () => {
                         onPointerDown={startPulseDictation}
                         onPointerUp={stopPulseDictation}
                         onPointerCancel={stopPulseDictation}
+                        onContextMenu={openPulseMicMenu}
                         onPointerLeave={(event) => {
                           if (dictation.listening) stopPulseDictation(event);
                         }}
@@ -1575,7 +1621,7 @@ const FeedPage: React.FC = () => {
                         }}
                         aria-pressed={dictation.listening}
                         aria-label={dictation.listening ? 'Release to stop voice typing' : 'Hold to voice type'}
-                        title={dictation.listening ? 'Release to stop voice typing' : 'Hold to voice type'}
+                        title={dictation.listening ? 'Release to stop voice typing' : 'Hold to voice type. Right-click to choose microphone.'}
                         className={cn(
                           'relative grid place-items-center h-9 w-9 rounded-full transition-colors',
                           dictation.listening
@@ -1590,6 +1636,74 @@ const FeedPage: React.FC = () => {
                       </Button>
                     )}
                   </div>
+
+                  <AnimatePresence>
+                    {micMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                        transition={{ duration: 0.14 }}
+                        className="fixed z-50 w-72 overflow-hidden rounded-xl border border-white/10 bg-zinc-950/95 shadow-2xl shadow-black/40 backdrop-blur-xl"
+                        style={{
+                          left: Math.min(micMenu.x, window.innerWidth - 300),
+                          top: Math.min(micMenu.y, window.innerHeight - 260),
+                        }}
+                        onPointerDown={(event) => event.stopPropagation()}
+                      >
+                        <div className="border-b border-white/10 px-3 py-2">
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-zinc-500">Pulse microphone</p>
+                          <p className="mt-0.5 truncate text-xs text-zinc-300">{selectedPulseMicLabel}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateVoicePrefs({ micDeviceId: '' });
+                            setMicMenu(null);
+                          }}
+                          className={cn(
+                            "flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors hover:bg-white/10",
+                            !voicePrefs.micDeviceId ? "text-emerald-300" : "text-zinc-100",
+                          )}
+                        >
+                          <span>System default mic</span>
+                          {!voicePrefs.micDeviceId && <Check className="h-4 w-4" />}
+                        </button>
+                        <div className="max-h-56 overflow-y-auto py-1">
+                          {pulseMics.map((device, index) => (
+                            <button
+                              key={device.deviceId || `mic-${index}`}
+                              type="button"
+                              onClick={() => {
+                                updateVoicePrefs({ micDeviceId: device.deviceId });
+                                setMicMenu(null);
+                              }}
+                              className={cn(
+                                "flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-white/10",
+                                voicePrefs.micDeviceId === device.deviceId ? "text-emerald-300" : "text-zinc-100",
+                              )}
+                            >
+                              <span className="min-w-0 truncate">{device.label || `Microphone ${index + 1}`}</span>
+                              {voicePrefs.micDeviceId === device.deviceId && <Check className="h-4 w-4 shrink-0" />}
+                            </button>
+                          ))}
+                          {!pulseMics.length && (
+                            <p className="px-3 py-3 text-xs leading-relaxed text-zinc-400">
+                              Allow microphone access once to reveal device names.
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void loadPulseMics()}
+                          className="flex w-full items-center justify-center gap-2 border-t border-white/10 px-3 py-2.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/10"
+                        >
+                          <FiRefreshCw className="h-3.5 w-3.5" />
+                          Refresh devices
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   {/* User picker for SPECIFIC_USERS visibility */}
                   {visibility === 'SPECIFIC_USERS' && (
