@@ -112,6 +112,9 @@ export function describeMediaError(error: unknown, context?: MediaErrorContext):
   switch (name) {
     case "NotAllowedError":
     case "PermissionDeniedError":
+      if (getFeaturePolicyState("microphone") === "blocked") {
+        return "VeggaStare is blocking microphone access with its page Permissions-Policy header. Refresh after the latest deploy, then try again.";
+      }
       if (permission === "granted") {
         return `Chrome is allowed for this site, but the microphone is still blocked before VeggaStare can open it.${getOsMicrophoneGuidance()} Also close other apps that may be holding the mic, then restart Chrome and try again.`;
       }
@@ -163,6 +166,21 @@ function getClientPlatform() {
   if (typeof navigator === "undefined") return "";
   const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
   return nav.userAgentData?.platform || navigator.platform || "";
+}
+
+function getFeaturePolicyState(feature: string) {
+  if (typeof document === "undefined") return "unknown";
+  const doc = document as Document & {
+    permissionsPolicy?: { allowsFeature?: (name: string) => boolean };
+    featurePolicy?: { allowsFeature?: (name: string) => boolean };
+  };
+  try {
+    const policy = doc.permissionsPolicy ?? doc.featurePolicy;
+    if (!policy?.allowsFeature) return "unknown";
+    return policy.allowsFeature(feature) ? "allowed" : "blocked";
+  } catch {
+    return "unknown";
+  }
 }
 
 export function supportsAudioOutputPicker() {

@@ -293,7 +293,7 @@ function applySecurityHeaders(res: NextResponse, requestId: string, nonce: strin
   res.headers.set("x-frame-options", "DENY");
   res.headers.set(
     "permissions-policy",
-    "camera=(), microphone=(), geolocation=(self), payment=(), usb=(), magnetometer=(), gyroscope=()"
+    "camera=(self), microphone=(self), speaker-selection=(self), geolocation=(self), payment=(), usb=(), magnetometer=(), gyroscope=()"
   );
   // Wallet SDKs (Coinbase / Base Account, and other popup-based connectors) need
   // window.opener access, which a strict "same-origin" COOP blocks — Coinbase

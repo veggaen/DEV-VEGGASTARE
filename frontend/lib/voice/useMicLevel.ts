@@ -92,7 +92,7 @@ export function useMicLevel(opts?: {
         "Still waiting for Chrome to open the microphone. If no browser prompt is visible, close the site-info bubble, check the address bar for a hidden prompt, or reset microphone permission for this site and try again."
       );
       setDebugInfo(
-        `Browser request is still pending. Permission API was last known as unknown/prompt; secure context: ${
+        `Browser request is still pending. Permissions-Policy microphone: ${getFeaturePolicyState("microphone")}. Secure context: ${
           typeof window !== "undefined" && window.isSecureContext ? "yes" : "no"
         }.`
       );
@@ -183,7 +183,7 @@ export function useMicLevel(opts?: {
       const message = e instanceof Error && e.message ? `: ${e.message}` : "";
       setErrorName(name);
       setDebugInfo(
-        `Browser error: ${name}${message}. Permission API: ${permission}. Secure context: ${
+        `Browser error: ${name}${message}. Permission API: ${permission}. Permissions-Policy microphone: ${getFeaturePolicyState("microphone")}. Secure context: ${
           typeof window !== "undefined" && window.isSecureContext ? "yes" : "no"
         }.`
       );
@@ -208,6 +208,21 @@ export function useMicLevel(opts?: {
   }, [active, restartKey]);
 
   return { bars, level, error, errorName, debugInfo, running, requesting, start, stop };
+}
+
+function getFeaturePolicyState(feature: string) {
+  if (typeof document === "undefined") return "unknown";
+  const doc = document as Document & {
+    permissionsPolicy?: { allowsFeature?: (name: string) => boolean };
+    featurePolicy?: { allowsFeature?: (name: string) => boolean };
+  };
+  try {
+    const policy = doc.permissionsPolicy ?? doc.featurePolicy;
+    if (!policy?.allowsFeature) return "unknown";
+    return policy.allowsFeature(feature) ? "allowed" : "blocked";
+  } catch {
+    return "unknown";
+  }
 }
 
 function hasExactDeviceConstraint(audio: MediaTrackConstraints) {
