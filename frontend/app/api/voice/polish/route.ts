@@ -9,11 +9,72 @@ export const dynamic = "force-dynamic";
 const schema = z.object({
   /** Raw speech-to-text transcript to clean up. */
   raw: z.string().min(1).max(4000),
+  /** LanguageTool language code; "auto" lets the service detect it. */
+  language: z.string().max(20).optional(),
   /** Optional recent messages for tone/context (last few). */
   context: z.array(z.string().max(500)).max(8).optional(),
   /** Optional user style hint ("concise" | "casual" | "professional" | ...). */
   tone: z.string().max(40).optional(),
 });
+
+function cleanWithoutAi(input: string) {
+  let text = input
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,.!?;:])/g, "$1")
+    .replace(/([,.!?;:])([^\s])/g, "$1 $2")
+    .trim();
+
+  text = text.replace(
+    /\b(um+|uh+|erm+|ah+|you know|i mean|like)\b[,\s]*/gi,
+    "",
+  ).trim();
+
+  text = text.replace(/\b(i)\b/g, "I");
+  text = text.replace(/(^|[.!?]\s+)([a-z])/g, (_match, prefix: string, letter: string) => (
+    `${prefix}${letter.toUpperCase()}`
+  ));
+
+  if (text && !/[.!?]$/.test(text)) text += ".";
+  return text || input;
+}
+
+function applyLanguageToolMatches(text: string, matches: Array<{
+  offset?: number;
+  length?: number;
+  replacements?: Array<{ value?: string }>;
+}>) {
+  let output = text;
+  const ordered = [...matches].sort((a, b) => (b.offset ?? 0) - (a.offset ?? 0));
+  for (const match of ordered) {
+    const offset = match.offset;
+    const length = match.length;
+    const replacement = match.replacements?.find((item) => item.value)?.value;
+    if (typeof offset !== "number" || typeof length !== "number" || !replacement) continue;
+    output = `${output.slice(0, offset)}${replacement}${output.slice(offset + length)}`;
+  }
+  return cleanWithoutAi(output);
+}
+
+async function polishWithLanguageTool(raw: string, language: string) {
+  const endpoint = process.env.LANGUAGETOOL_API_URL || process.env.LANGUAGETOOL_URL || "";
+  if (!endpoint) return null;
+
+  const form = new URLSearchParams();
+  form.set("text", raw);
+  form.set("language", language || "auto");
+  form.set("level", "picky");
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form.toString(),
+  });
+  if (!res.ok) return null;
+
+  const data = await res.json().catch(() => null);
+  const matches = Array.isArray(data?.matches) ? data.matches : [];
+  return applyLanguageToolMatches(raw, matches);
+}
 
 /**
  * POST /api/voice/polish
@@ -38,6 +99,15 @@ export async function POST(req: NextRequest) {
   const raw = body.raw.trim();
   if (!raw) return NextResponse.json({ ok: true, text: "" });
 
+  try {
+    const text = await polishWithLanguageTool(raw, body.language ?? "auto");
+    if (text) {
+      return NextResponse.json({ ok: true, text, polished: true, provider: "languagetool" });
+    }
+  } catch {
+    /* fall through to Gemini/local cleanup */
+  }
+
   // Resolve a key: user's BYOK Google key, else the platform key.
   let apiKey = "";
   try {
@@ -48,7 +118,9 @@ export async function POST(req: NextRequest) {
   }
   if (!apiKey) apiKey = process.env.GOOGLE_API_KEY ?? process.env.GOOGLE_AI_API_KEY ?? "";
   // No key → just return the raw transcript (graceful, no error surfaced).
-  if (!apiKey) return NextResponse.json({ ok: true, text: raw, polished: false });
+  if (!apiKey) {
+    return NextResponse.json({ ok: true, text: cleanWithoutAi(raw), polished: false, provider: "local" });
+  }
 
   const contextBlock = body.context?.length
     ? `\nRecent conversation (for tone/context only — do NOT respond to it):\n${body.context.map((c) => `- ${c}`).join("\n")}\n`
@@ -78,13 +150,17 @@ export async function POST(req: NextRequest) {
         generationConfig: { temperature: 0.3, maxOutputTokens: 800 },
       }),
     });
-    if (!res.ok) return NextResponse.json({ ok: true, text: raw, polished: false });
+    if (!res.ok) {
+      return NextResponse.json({ ok: true, text: cleanWithoutAi(raw), polished: false, provider: "local" });
+    }
     const data = await res.json();
     let text = (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim();
     text = text.replace(/^["'`]+|["'`]+$/g, "").trim();
-    if (!text) return NextResponse.json({ ok: true, text: raw, polished: false });
-    return NextResponse.json({ ok: true, text, polished: true });
+    if (!text) {
+      return NextResponse.json({ ok: true, text: cleanWithoutAi(raw), polished: false, provider: "local" });
+    }
+    return NextResponse.json({ ok: true, text, polished: true, provider: "google" });
   } catch {
-    return NextResponse.json({ ok: true, text: raw, polished: false });
+    return NextResponse.json({ ok: true, text: cleanWithoutAi(raw), polished: false, provider: "local" });
   }
 }
