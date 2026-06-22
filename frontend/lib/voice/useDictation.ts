@@ -49,11 +49,13 @@ function getSRClass(): (new () => SR) | null {
 
 export function useDictation(opts: {
   onResult: (text: string) => void;
+  /** Called with live final+interim text while the user is still speaking. */
+  onInterim?: (text: string) => void;
   /** Run the transcript through /api/voice/polish before returning. Default true. */
   polish?: boolean;
   lang?: string;
 }) {
-  const { onResult, polish = true, lang = "en-US" } = opts;
+  const { onResult, onInterim, polish = true, lang = "en-US" } = opts;
   // Deterministic from the environment — compute once, no effect/setState needed.
   const [supported] = useState(() => getSRClass() !== null);
   const [listening, setListening] = useState(false);
@@ -62,9 +64,12 @@ export function useDictation(opts: {
 
   const recRef = useRef<SR | null>(null);
   const finalRef = useRef("");
+  const liveRef = useRef("");
   const onResultRef = useRef(onResult);
+  const onInterimRef = useRef(onInterim);
   // Keep the latest callback without re-creating start()/the recognizer.
   useEffect(() => { onResultRef.current = onResult; }, [onResult]);
+  useEffect(() => { onInterimRef.current = onInterim; }, [onInterim]);
 
   const stop = useCallback(() => {
     recRef.current?.stop();
@@ -78,6 +83,8 @@ export function useDictation(opts: {
     setError(null);
     setInterim("");
     finalRef.current = "";
+    liveRef.current = "";
+    onInterimRef.current?.("");
 
     // Explicitly request mic permission FIRST. SpeechRecognition alone is
     // unreliable about surfacing the prompt (and silently no-ops when blocked);
@@ -100,10 +107,13 @@ export function useDictation(opts: {
       let interimText = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
-        if (r.isFinal) finalRef.current += r[0].transcript;
+        if (r.isFinal) finalRef.current += ` ${r[0].transcript}`;
         else interimText += r[0].transcript;
       }
-      setInterim(interimText);
+      const live = `${finalRef.current} ${interimText}`.replace(/\s+/g, " ").trim();
+      liveRef.current = live;
+      setInterim(live);
+      onInterimRef.current?.(live);
     };
     rec.onerror = (e) => {
       setError(
@@ -118,9 +128,13 @@ export function useDictation(opts: {
       recRef.current = null;
       setListening(false);
       setInterim("");
-      const raw = finalRef.current.trim();
+      const raw = (finalRef.current.trim() || liveRef.current.trim()).trim();
       finalRef.current = "";
-      if (!raw) return;
+      liveRef.current = "";
+      if (!raw) {
+        onInterimRef.current?.("");
+        return;
+      }
 
       if (!polish) { onResultRef.current(raw); return; }
       // Best-effort polish; fall back to raw on any failure.

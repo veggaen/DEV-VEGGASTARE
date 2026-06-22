@@ -344,15 +344,32 @@ const FeedPage: React.FC = () => {
 
   // Compose state
   const [composeText, setComposeText] = useState('');
+  const dictationBaseRef = useRef('');
+
+  const mergeDictationText = useCallback((base: string, spoken: string) => {
+    const cleanBase = base.replace(/\s+$/, '');
+    const cleanSpoken = spoken.trim();
+    if (!cleanSpoken) return cleanBase;
+    return cleanBase ? `${cleanBase} ${cleanSpoken}` : cleanSpoken;
+  }, []);
+
   // Voice-to-text dictation (Wispr-Flow style): append the (polished) transcript
   // to whatever is already typed.
   const dictation = useDictation({
     onResult: (text) => {
-      setComposeText((prev) => (prev ? `${prev.replace(/\s+$/, '')} ${text}` : text));
+      const base = dictationBaseRef.current;
+      setComposeText(mergeDictationText(base, text));
+      dictationBaseRef.current = '';
+    },
+    onInterim: (text) => {
+      const base = dictationBaseRef.current;
+      if (!base && !text.trim()) return;
+      setComposeText(mergeDictationText(base, text));
     },
   });
   const startPulseDictation = (event: React.PointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
+    dictationBaseRef.current = composeText;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     void dictation.start();
   };
