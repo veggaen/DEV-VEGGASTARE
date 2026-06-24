@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { FiShoppingBag } from "react-icons/fi";
 import PriceAmount from "@/components/crypto-related/PriceAmount";
 import { useCurrencyRates } from "@/hooks/useCurrencyRates";
 
@@ -141,16 +142,31 @@ const CartPage = () => {
       </div>
 
       {cartItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-lg text-muted-foreground">Your cart is empty.</p>
+        <motion.div
+          className="flex flex-col items-center justify-center px-6 py-24 text-center"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {/* Icon in a soft ring — gives the empty state a focal point instead of
+              a lone line of text floating in a void. Subtle, no decorative glow. */}
+          <div className="relative grid h-16 w-16 place-items-center rounded-2xl bg-muted/60 ring-1 ring-border/60">
+            <FiShoppingBag className="h-7 w-7 text-muted-foreground/70" />
+          </div>
+          <h2 className="mt-6 text-lg font-semibold tracking-tight text-foreground">
+            Your cart is empty
+          </h2>
+          <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
+            Nothing here yet — explore the marketplace and add something you like.
+          </p>
           <button
             onClick={() => router.push("/products")}
-            className="group mt-5 inline-flex items-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-all duration-200 hover:gap-3"
+            className="group mt-6 inline-flex items-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-[gap] duration-200 hover:gap-3"
           >
             Browse products
             <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
           </button>
-        </div>
+        </motion.div>
       ) : (
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-14">
           {/* Items */}
