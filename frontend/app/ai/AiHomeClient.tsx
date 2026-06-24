@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
 import { HoverFollowGrid, HoverFollowItem } from "@/components/uicustom/HoverFollowGrid";
+import { useConfirm } from "@/components/providers/confirm-dialog";
 import { cn } from "@/lib/utils";
 
 interface Session {
@@ -43,6 +44,7 @@ function timeAgo(iso: string): string {
 export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeClientProps) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
+  const confirm = useConfirm();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -97,14 +99,14 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
   const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm("Delete this conversation?")) return;
+    if (!(await confirm({ title: "Delete this conversation?", confirmLabel: "Delete", destructive: true }))) return;
     try {
       const res = await fetch(`/api/ai-chat/sessions/${id}`, { method: "DELETE" });
       if (res.ok) {
         setSessions((prev) => prev.filter((s) => s.id !== id));
       }
     } catch {}
-  }, []);
+  }, [confirm]);
 
   const startPrompt = useCallback(async (prompt: string) => {
     if (!isLoggedIn) {

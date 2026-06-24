@@ -23,6 +23,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiCheck, FiX, FiMenu, FiMessageSquare } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { useUiPreferences } from "@/components/providers/ui-preferences";
+import { useConfirm } from "@/components/providers/confirm-dialog";
 
 interface ShellSession {
   id: string;
@@ -45,6 +46,7 @@ export function AiChatShell({
   const pathname = usePathname();
   const router = useRouter();
   const reduceMotion = useReducedMotion();
+  const confirm = useConfirm();
 
   const [sessions, setSessions] = React.useState<ShellSession[]>([]);
   const [query, setQuery] = React.useState("");
@@ -103,11 +105,11 @@ export function AiChatShell({
   }, [load]);
 
   const remove = React.useCallback(async (id: string) => {
-    if (!confirm("Delete this conversation?")) return;
+    if (!(await confirm({ title: "Delete this conversation?", confirmLabel: "Delete", destructive: true }))) return;
     setSessions((prev) => prev.filter((s) => s.id !== id)); // optimistic
     try { await fetch(`/api/ai-chat/sessions/${id}`, { method: "DELETE" }); } catch { void load(); }
     if (activeId === id) router.push("/ai");
-  }, [activeId, router, load]);
+  }, [activeId, router, load, confirm]);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();

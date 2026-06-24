@@ -10,6 +10,7 @@ import React, {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/providers/confirm-dialog";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ScrollToBottom } from "@/components/uicustom/chats/primitives/ScrollToBottom";
 import { TypingIndicator } from "@/components/uicustom/chats/primitives/TypingIndicator";
@@ -89,6 +90,7 @@ export default function AiConversationClient({
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const searchParams = useSearchParams();
+  const confirm = useConfirm();
 
   const [conv, setConv] = useState<ConvSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -405,10 +407,15 @@ export default function AiConversationClient({
 
   // ── Delete conversation ──
   const handleDelete = useCallback(async () => {
-    if (!confirm("Delete this conversation? This cannot be undone.")) return;
+    if (!(await confirm({
+      title: "Delete this conversation?",
+      description: "This cannot be undone.",
+      confirmLabel: "Delete",
+      destructive: true,
+    }))) return;
     const res = await fetch(`/api/ai-chat/sessions/${sessionId}`, { method: "DELETE" });
     if (res.ok) router.push("/ai");
-  }, [sessionId, router]);
+  }, [sessionId, router, confirm]);
 
   // ── Admin moderation (inline; replaces the old standalone /admin page) ──
   const [moderating, setModerating] = useState(false);

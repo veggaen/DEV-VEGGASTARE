@@ -25,6 +25,7 @@ import {
 import Spinner from '@/components/uicustom/spinner';
 import { ConversationListSkeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { useConfirm } from '@/components/providers/confirm-dialog';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { 
   FiPlus, FiMessageCircle, FiUsers, FiLock,
@@ -90,7 +91,8 @@ export default function ConversationsPage() {
   const reduceMotion = useReducedMotion();
   const router = useRouter();
   const currentUser = useCurrentUser();
-  
+  const confirm = useConfirm();
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +130,12 @@ export default function ConversationsPage() {
 
   const handleDelete = async (conversationId: string, visibility: 'PUBLIC' | 'PRIVATE' = 'PRIVATE', e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this conversation?')) return;
+    if (!(await confirm({
+      title: 'Delete this conversation?',
+      description: 'This conversation will be removed from your inbox.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
 
     setActionLoading(conversationId);
     try {

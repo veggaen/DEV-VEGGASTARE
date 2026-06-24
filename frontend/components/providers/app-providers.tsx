@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 
 import { EdgeStoreProvider } from "@/lib/edgestore";
 import { ThemeProvider } from "@/components/providers/themeprovider";
+import { ConfirmDialogProvider } from "@/components/providers/confirm-dialog";
 import { UiPreferencesProvider } from "@/components/providers/ui-preferences";
 import { ProfileThemeProvider } from "@/components/providers/profile-theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -102,6 +103,7 @@ export default function AppProviders({
                     <ActiveWalletProvider>
                     <TradeModeProvider>
                     <CartProvider>
+                    <ConfirmDialogProvider>
                     <UpdateBanner />
                     <MyTopBar />
                     <ImpersonationBanner />
@@ -114,6 +116,7 @@ export default function AppProviders({
                     <CookieBanner />
                     {!isImmersiveChat && <DevBanner />}
                     <Toaster />
+                    </ConfirmDialogProvider>
                     </CartProvider>
                     </TradeModeProvider>
                     </ActiveWalletProvider>
