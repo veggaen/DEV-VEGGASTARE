@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import Spinner from '@/components/uicustom/spinner';
+import { ConversationListSkeleton } from '@/components/ui/skeleton';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { 
   FiPlus, FiMessageCircle, FiUsers, FiLock,
@@ -440,9 +441,7 @@ export default function ConversationsPage() {
 
           {/* Content */}
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Spinner />
-            </div>
+            <ConversationListSkeleton count={6} className="pt-1" />
           ) : error ? (
             <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-6 text-center">
               <p className="text-red-400">{error}</p>

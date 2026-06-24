@@ -203,6 +203,43 @@ function FeedSkeleton({
 }
 
 /**
+ * Skeleton for a single conversation-list row.
+ * Mirrors the real row (rounded-xl px-3 py-3, 12×12 avatar, title + preview),
+ * so the skeleton→list swap doesn't reflow.
+ */
+function ConversationRowSkeleton({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <div style={style} className={cn("flex items-start gap-4 rounded-xl px-3 py-3", className)}>
+      <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
+      <div className="flex-1 space-y-2 py-0.5">
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-3 w-12" />
+        </div>
+        <Skeleton className="h-3 w-3/4" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Skeleton for the conversation list.
+ */
+function ConversationListSkeleton({ count = 6, className }: { count?: number; className?: string }) {
+  return (
+    <div className={cn("flex flex-col", className)}>
+      {Array.from({ length: count }).map((_, i) => (
+        <ConversationRowSkeleton
+          key={i}
+          className="animate-pulse"
+          style={{ opacity: Math.max(0.3, 1 - i * 0.13) }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
  * Skeleton for a data table row
  */
 function TableRowSkeleton({ 
@@ -338,6 +375,8 @@ export {
   WarehouseSkeleton,
   FeedPostSkeleton,
   FeedSkeleton,
+  ConversationRowSkeleton,
+  ConversationListSkeleton,
   TableRowSkeleton,
   TableSkeleton,
   CartItemSkeleton,
