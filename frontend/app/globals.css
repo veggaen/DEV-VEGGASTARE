@@ -140,7 +140,25 @@
 .scroll-smooth-feed {
   scroll-behavior: smooth;
 }
- 
+
+/* ─── Composer auto-grow (zero-JS, zero layout shift) ────────────────────────
+ * `field-sizing: content` makes a textarea grow to fit its content with NO
+ * JavaScript resize loop (the classic source of input lag + layout jank). The
+ * element still respects its max-height and scrolls internally past it. Baseline
+ * in 2026 Chromium/WebKit; older engines simply ignore it and keep the existing
+ * rows={1} + max-h behaviour, so it degrades cleanly. Apply to chat composers. */
+.field-size-content {
+  field-sizing: content;
+}
+
+/* ─── Scroll containment ─────────────────────────────────────────────────────
+ * Stop an inner scroll area (a sidebar rail, a chat thread) from "chaining" its
+ * scroll to the page once it hits its own top/bottom — the single detail that
+ * makes nested scrolling feel premium instead of twitchy. */
+.overscroll-contain-y {
+  overscroll-behavior-y: contain;
+}
+
 @layer base {
   :root {
     height: 100%;
@@ -944,6 +962,7 @@ html.dark .chat-send-btn:not(:disabled):hover {
 @media (prefers-reduced-motion: reduce) {
   .message-bubble-enter { animation: none; }
 }
+
 
 
 

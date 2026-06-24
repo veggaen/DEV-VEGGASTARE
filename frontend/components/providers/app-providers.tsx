@@ -109,7 +109,7 @@ export default function AppProviders({
                     <UpdateBanner />
                     <MyTopBar />
                     <ImpersonationBanner />
-                    <div className={`flex flex-1 flex-col min-h-0 ${isProductsRoute || isImmersiveChat ? 'overflow-hidden' : 'overflow-auto'}`}>
+                    <div className={`flex flex-1 flex-col min-h-0 overscroll-contain-y ${isProductsRoute || isImmersiveChat ? 'overflow-hidden' : 'overflow-auto'}`}>
                       <main id="main-content" tabIndex={-1} className={`flex flex-1 flex-col min-h-0 outline-none ${isImmersiveChat ? '' : 'pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]'}`}>
                         {children}
                       </main>

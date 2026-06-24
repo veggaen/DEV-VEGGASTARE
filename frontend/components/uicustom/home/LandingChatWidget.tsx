@@ -1858,7 +1858,7 @@ function ChatPanelInner({
             placeholder="Ask anything…"
             rows={1}
             disabled={state.isStreaming}
-            className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none max-h-32 disabled:opacity-50"
+            className="field-size-content flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none max-h-32 disabled:opacity-50"
             style={{ lineHeight: "1.4", scrollbarWidth: "none" }}
             aria-label="Chat message"
           />

@@ -236,7 +236,7 @@ function AiChatRail({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto px-2 pb-3 min-h-0">
+      <div className="flex-1 overflow-y-auto overscroll-contain-y px-2 pb-3 min-h-0">
         {sessions.length === 0 ? (
           <p className="px-3 py-8 text-center text-xs text-muted-foreground">
             {query ? "No chats match." : "No conversations yet."}

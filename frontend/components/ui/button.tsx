@@ -38,6 +38,10 @@ const buttonVariants = cva(
         default: "h-10 px-4 py-2",
         sm: "h-9 rounded-md px-3",
         lg: "h-11 rounded-md px-8",
+        // `touch` — 48px, the comfortable thumb target for mobile-primary CTAs
+        // (WCAG 2.2 §2.5.8 / Fitts' Law). Use for the main action on touch-first
+        // surfaces; default/lg stay for dense desktop layouts.
+        touch: "h-12 rounded-md px-6 text-[15px]",
         icon: "h-10 w-10",
       },
     },
