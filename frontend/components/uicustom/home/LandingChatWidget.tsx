@@ -168,14 +168,17 @@ function genId() {
 function CapBadge({ cap }: { cap: AiModelCapability }) {
   const b = CAPABILITY_BADGES[cap];
   if (!b) return null;
-  // Only "flagship" gets a colored highlight; everything else is muted
+  // Only "flagship" gets a colored highlight; everything else is a quiet chip.
+  // Borders on 9px pills just add visual noise (border overuse), so the muted
+  // chips drop the border and lean on a faint fill; flagship uses the brand
+  // accent instead of off-brand violet.
   const isHot = cap === "flagship";
   return (
     <span
-      className={`inline-flex items-center text-[9px] leading-none px-1.5 py-0.5 rounded-full border ${
+      className={`inline-flex items-center text-[9px] leading-none px-1.5 py-0.5 rounded-full ${
         isHot
-          ? "bg-violet-500/10 text-violet-400 border-violet-500/20"
-          : "bg-white/3 text-muted-foreground/50 border-white/6"
+          ? "bg-brand-accent/12 text-brand-accent"
+          : "bg-foreground/[0.04] text-muted-foreground/60"
       }`}
       title={b.tip}
     >
