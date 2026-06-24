@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { FiShoppingBag } from "react-icons/fi";
 
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -854,16 +855,29 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return (
-      <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center px-4 text-center">
-        <p className="text-lg text-muted-foreground">Your cart is empty.</p>
+      <motion.div
+        className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center px-4 text-center"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className="relative grid h-16 w-16 place-items-center rounded-2xl bg-muted/60 ring-1 ring-border/60">
+          <FiShoppingBag className="h-7 w-7 text-muted-foreground/70" />
+        </div>
+        <h2 className="mt-6 text-lg font-semibold tracking-tight text-foreground">
+          Nothing to check out
+        </h2>
+        <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
+          Your cart is empty — add something from the marketplace to continue.
+        </p>
         <button
           onClick={() => router.push("/products")}
-          className="group mt-5 inline-flex items-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-all duration-200 hover:gap-3"
+          className="group mt-6 inline-flex items-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-[gap] duration-200 hover:gap-3"
         >
           Browse products
           <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
         </button>
-      </div>
+      </motion.div>
     );
   }
 

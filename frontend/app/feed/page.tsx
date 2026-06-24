@@ -1773,7 +1773,11 @@ const FeedPage: React.FC = () => {
                     </div>
                   </>
                 ) : (
-                  <p className="text-muted-foreground">No pulses yet. Be the first to start the vibe!</p>
+                  <>
+                    <Sparkles className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                    <h3 className="font-semibold text-lg mb-2">No pulses yet</h3>
+                    <p className="text-muted-foreground">Be the first to start the vibe — share what&apos;s on your mind above.</p>
+                  </>
                 )}
               </div>
             ) : (
