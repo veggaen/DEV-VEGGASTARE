@@ -1525,7 +1525,7 @@ function ProductDetails({ product }: { product: Product }) {
   const createdAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.createdAt));
 
   return (
-    <div className="relative w-full space-y-8 pb-24 text-white">
+    <div data-product-detail className="relative w-full space-y-8 pb-24 text-white">
       <ProductDetailCursor />
       <div className="flex items-center justify-between gap-3">
         <Link

@@ -623,6 +623,58 @@ html.dark [data-theme-tinted] {
   color: hsl(var(--foreground)) !important;
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * Product detail (/products/[...id]) light-mode compatibility layer
+ *
+ * That page was authored as an immersive DARK glass showcase: the root forces
+ * `text-white` and the custom cards use white-hairline borders, `bg-white/[0.0x]`
+ * frosted panels, and `bg-black/4x` surfaces. With no `dark:` pairing it rendered
+ * white-on-near-white in light mode (unreadable). Rather than rewrite ~47 inline
+ * classes, we remap just those dark-glass families to themed light equivalents —
+ * but ONLY under `html:not(.dark) [data-product-detail]`, so dark mode is
+ * untouched by construction. Mirrors the poll-builder layer above.
+ *
+ * Accent colours (emerald/sky/amber/red) and already-themed tokens
+ * (text-muted-foreground, the Button components) are intentionally NOT touched.
+ * ────────────────────────────────────────────────────────────────────────── */
+html:not(.dark) [data-product-detail] {
+  color: hsl(var(--foreground));
+}
+/* White body/heading text → foreground ink */
+html:not(.dark) [data-product-detail] [class*="text-white"] {
+  color: hsl(var(--foreground)) !important;
+}
+/* Muted zinc text → muted foreground */
+html:not(.dark) [data-product-detail] [class*="text-zinc-200"],
+html:not(.dark) [data-product-detail] [class*="text-zinc-300"],
+html:not(.dark) [data-product-detail] [class*="text-zinc-400"] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+/* White-hairline borders → subtle ink border */
+html:not(.dark) [data-product-detail] [class*="border-white/"] {
+  border-color: rgba(0, 0, 0, 0.10) !important;
+}
+/* Frosted white-glass panels (bg-white/[0.0x]) → clean raised white surface */
+html:not(.dark) [data-product-detail] [class*="bg-white/"] {
+  background-color: hsl(var(--surface-1)) !important;
+}
+/* Dark scrim panels (bg-black/4x, bg-black/55) → soft light panel.
+   The gallery's inner bg-black/55 holds product imagery, so use a neutral light
+   so transparent PNGs still read. */
+html:not(.dark) [data-product-detail] [class*="bg-black/"] {
+  background-color: hsl(var(--surface-2)) !important;
+}
+/* The detail panel's heavy black drop-shadows are tuned for glow-on-black; soften
+   them so they read as gentle elevation on the light canvas instead of muddy blobs. */
+html:not(.dark) [data-product-detail] [class*="shadow-["] {
+  --tw-shadow: 0 8px 30px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+/* Pale emerald text (text-emerald-200/...) is low-contrast on white — deepen it. */
+html:not(.dark) [data-product-detail] [class*="text-emerald-200"] {
+  color: #047857 !important; /* emerald-700 */
+}
+
 /* ─── AI Chat + Landing Page Visual Effects ─────────────────────────────────── */
 
 /* Mouse spotlight — follows cursor via CSS custom properties set in JS.
