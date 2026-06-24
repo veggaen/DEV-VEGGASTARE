@@ -252,7 +252,7 @@ export default function ConversationPage() {
                 <div className="relative shrink-0">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={otherParticipant.image || undefined} />
-                    <AvatarFallback className="bg-linear-to-br from-indigo-500 to-purple-600 text-white text-sm">
+                    <AvatarFallback className="bg-linear-to-br from-sky-500 to-cyan-500 text-white text-sm">
                       {otherParticipant.name?.[0] || '?'}
                     </AvatarFallback>
                   </Avatar>
@@ -270,7 +270,7 @@ export default function ConversationPage() {
           </div>
         ) : (
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-linear-to-br from-indigo-500/15 to-purple-600/15 text-indigo-500 dark:text-indigo-300">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-linear-to-br from-sky-500/15 to-cyan-500/15 text-sky-600 dark:text-sky-300">
               {conversation.type === 'GROUP' ? <FiUsers className="h-4.5 w-4.5" /> : <FiMessageCircle className="h-4.5 w-4.5" />}
             </div>
             <div className="flex-1 min-w-0 leading-tight">

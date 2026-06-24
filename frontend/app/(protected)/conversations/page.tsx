@@ -220,7 +220,7 @@ export default function ConversationsPage() {
           {conversation.type === 'PRIVATE_DM' && otherParticipant ? (
             <Avatar className="h-12 w-12 shrink-0 ring-2 ring-border/30">
               <AvatarImage src={otherParticipant.image} />
-              <AvatarFallback className="bg-linear-to-br from-indigo-500 to-purple-600 text-white">
+              <AvatarFallback className="bg-linear-to-br from-sky-500 to-cyan-500 text-white">
                 {otherParticipant.name?.[0] || '?'}
               </AvatarFallback>
             </Avatar>
