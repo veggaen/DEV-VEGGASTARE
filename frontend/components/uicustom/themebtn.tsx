@@ -31,6 +31,26 @@ export function MyThemeBtn({ customName, onClick }: MyThemeBtnProps) {
 
   const handleClick = () => {
     const effective = (resolvedTheme ?? theme) as string | undefined;
+
+    // Smooth theme swap: next-themes ships with `disableTransitionOnChange`
+    // (it injects `*{transition:none}` so colors hard-cut). We keep that for
+    // initial load, but for an explicit user toggle we briefly opt INTO a
+    // color cross-fade by flagging <html> — globals.css enables a short
+    // background/border/color transition only while this class is present, so
+    // it never fights hover states or the kinetic intro. Respect reduced motion.
+    const root = document.documentElement;
+    const allowMotion =
+      typeof window !== "undefined" &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (allowMotion) {
+      root.classList.add("theme-transitioning");
+      window.clearTimeout((handleClick as any)._t);
+      (handleClick as any)._t = window.setTimeout(() => {
+        root.classList.remove("theme-transitioning");
+      }, 520); // matches the transition duration in globals.css (+ small buffer)
+    }
+
     setTheme(effective === "dark" ? "light" : "dark");
     if (onClick) onClick();
   };

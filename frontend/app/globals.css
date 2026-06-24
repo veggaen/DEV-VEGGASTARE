@@ -305,6 +305,33 @@
 
 }
 
+/* ─── Smooth theme cross-fade ──────────────────────────────────────────────────
+ * The theme toggle adds `.theme-transitioning` to <html> for ~500ms around the
+ * swap (see components/uicustom/themebtn.tsx). Only during that window do we let
+ * color-bearing properties transition — so light↔dark reads as a deliberate,
+ * calm cross-fade instead of a hard cut, WITHOUT permanently transitioning every
+ * element (which would smear hover states and the kinetic intro). We animate
+ * only colour properties (never layout: no width/height/margin), on the
+ * compositor-friendly side. Reduced-motion users never get the class added.
+ * ───────────────────────────────────────────────────────────────────────────── */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition-property: background-color, background-image, border-color, color, fill, stroke, box-shadow, outline-color !important;
+  transition-duration: 320ms !important;
+  /* Symmetric ease-in-out so the luminance flip ramps evenly both ways — avoids
+     the "sit dark then flash bright" feel of a back-loaded standard ease. */
+  transition-timing-function: cubic-bezier(0.45, 0, 0.25, 1) !important;
+  transition-delay: 0ms !important;
+}
+/* Particle/canvas layers and the cursor spotlight shouldn't ease — they repaint
+   every frame and a forced color transition just muddies them. */
+.theme-transitioning canvas,
+.theme-transitioning .hero-spotlight {
+  transition: none !important;
+}
+
 /* ─── Noise/Grain overlay to mask gradient banding on different monitors ─── */
 /* SVG noise filter - prevents visible color stepping in gradients */
 .noise-overlay {
@@ -404,11 +431,20 @@ body.light-mode {
   background-attachment: fixed;
 }
 
-/* Dark mode: true black, clean and premium */
+/* Dark mode: true black, clean and premium.
+   We use fully-transparent radials with the SAME 3-layer structure as light mode
+   (rather than `none`) so that during a theme swap the gradient layer can
+   cross-fade its colour stops instead of popping in/out — `background-image`
+   can't animate between `none` and a gradient, but it can between two gradients. */
 html.dark body,
 body.dark-mode {
   background-color: #000000;
-  background-image: none;
+  background-image:
+    radial-gradient(ellipse 90% 38% at 50% -6%,  rgba(56, 189, 248, 0) 0%, transparent 58%),
+    radial-gradient(ellipse 45% 22% at 92%  4%,  rgba(99, 102, 241, 0) 0%, transparent 50%),
+    radial-gradient(ellipse 35% 16% at 8%   4%,  rgba(14, 165, 233, 0) 0%, transparent 48%);
+  background-size: 100% 100%;
+  background-attachment: fixed;
 }
 
 /* Light mode card shadows for depth */
@@ -434,6 +470,31 @@ html:not(.dark) .border:not([class*="border-sky"]):not([class*="border-emerald"]
 
 html:not(.dark) .border-2:not([class*="border-sky"]):not([class*="border-emerald"]):not([class*="border-red"]):not([class*="border-blue"]):not([class*="border-violet"]):not([class*="border-amber"]):not([class*="border-orange"]):not([class*="border-green"]):not([class*="border-yellow"]):not([class*="border-pink"]):not([class*="border-purple"]):not([class*="border-cyan"]):not([class*="border-indigo"]) {
   border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* ─── Light mode: rescue the "fading" page-dividing borders ─────────────────────
+ * App-wide, dividers use `border-{zinc,gray,neutral,slate}-100` (≈#f4f4f5) paired
+ * with a dark-mode counterpart. On the soft #F9FAFB light background that pale
+ * gray drops to ~1.5% contrast and the divider visually disappears — sections,
+ * menus, sheets and stat grids stop reading as separated. The explicit color
+ * class means the bare-`.border` override above intentionally skips them, so we
+ * lift exactly that family here to a subtle-but-visible ink. We DON'T touch the
+ * dark counterparts (those are correct) or any accent-coloured border.
+ *
+ * `divide-*` paints the border on the second-and-later children (Tailwind's
+ * `> :not([hidden]) ~ :not([hidden])`), so it's targeted separately.
+ * ───────────────────────────────────────────────────────────────────────────── */
+html:not(.dark) [class*="border-zinc-100"],
+html:not(.dark) [class*="border-gray-100"],
+html:not(.dark) [class*="border-neutral-100"],
+html:not(.dark) [class*="border-slate-100"] {
+  border-color: rgba(0, 0, 0, 0.09) !important;
+}
+html:not(.dark) [class*="divide-zinc-100"] > :not([hidden]) ~ :not([hidden]),
+html:not(.dark) [class*="divide-gray-100"] > :not([hidden]) ~ :not([hidden]),
+html:not(.dark) [class*="divide-neutral-100"] > :not([hidden]) ~ :not([hidden]),
+html:not(.dark) [class*="divide-slate-100"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(0, 0, 0, 0.09) !important;
 }
 
 /* Light mode: Enhance rounded panels with subtle shadow */
