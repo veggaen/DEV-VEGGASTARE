@@ -24,15 +24,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import type { ConfirmOptions } from "./confirm-dialog-types";
+import { createConfirmController } from "./confirm-controller";
 
-export type ConfirmOptions = {
-  title: string;
-  description?: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  /** Style the confirm button as destructive (red). Defaults to false. */
-  destructive?: boolean;
-};
+export type { ConfirmOptions };
 
 type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>;
 
@@ -41,22 +36,28 @@ const ConfirmContext = React.createContext<ConfirmFn | null>(null);
 export function ConfirmDialogProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
   const [opts, setOpts] = React.useState<ConfirmOptions | null>(null);
-  // Hold the active promise's resolver so confirm/cancel can settle it.
-  const resolverRef = React.useRef<((value: boolean) => void) | null>(null);
 
-  const confirm = React.useCallback<ConfirmFn>((options) => {
-    setOpts(options);
-    setOpen(true);
-    return new Promise<boolean>((resolve) => {
-      resolverRef.current = resolve;
+  // The promise/resolver lifecycle lives in a pure, unit-tested controller; the
+  // provider just maps its onChange callback to React state. (controller is
+  // created once — refs keep the latest setState without re-instantiating it.)
+  const controllerRef = React.useRef<ReturnType<typeof createConfirmController> | null>(null);
+  if (controllerRef.current === null) {
+    controllerRef.current = createConfirmController((nextOpen, nextOpts) => {
+      setOpen(nextOpen);
+      if (nextOpts !== null) setOpts(nextOpts);
     });
-  }, []);
+  }
+  const controller = controllerRef.current;
 
-  const settle = React.useCallback((value: boolean) => {
-    resolverRef.current?.(value);
-    resolverRef.current = null;
-    setOpen(false);
-  }, []);
+  const confirm = React.useCallback<ConfirmFn>(
+    (options) => controller.open(options),
+    [controller]
+  );
+
+  const settle = React.useCallback(
+    (value: boolean) => controller.settle(value),
+    [controller]
+  );
 
   // Radix calls onOpenChange(false) on overlay click / Esc — treat as cancel.
   const handleOpenChange = React.useCallback(
