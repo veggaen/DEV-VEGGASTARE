@@ -219,8 +219,8 @@ const ProductCard = React.memo(
 						</CarouselContent>
 						{product.image.length > 1 && (
 							<>
-								<CarouselPrevious className="left-2 z-[60] h-8 w-8 rounded-lg border-white/20 bg-black/35 opacity-0 backdrop-blur-md transition-opacity hover:bg-black/50 group-hover:opacity-100" />
-								<CarouselNext className="right-2 z-[60] h-8 w-8 rounded-lg border-white/20 bg-black/35 opacity-0 backdrop-blur-md transition-opacity hover:bg-black/50 group-hover:opacity-100" />
+								<CarouselPrevious className="left-2 z-[60] h-11 w-11 rounded-lg border-white/20 bg-black/35 text-white opacity-0 backdrop-blur-md transition-opacity hover:bg-black/50 focus-visible:opacity-100 group-hover:opacity-100" aria-label="Previous image" />
+								<CarouselNext className="right-2 z-[60] h-11 w-11 rounded-lg border-white/20 bg-black/35 text-white opacity-0 backdrop-blur-md transition-opacity hover:bg-black/50 focus-visible:opacity-100 group-hover:opacity-100" aria-label="Next image" />
 							</>
 						)}
 					</Carousel>
@@ -332,7 +332,7 @@ const ProductCard = React.memo(
 						<motion.button
 							type="button"
 							whileTap={{ scale: 0.96 }}
-							className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-zinc-950 px-3 text-xs font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-55 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+							className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-zinc-950 px-3 text-xs font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
 							onClick={handleBuyNow}
 							disabled={buying || outOfStock}
 						>
@@ -342,8 +342,8 @@ const ProductCard = React.memo(
 						<motion.button
 							type="button"
 							whileTap={{ scale: 0.94 }}
-							className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-zinc-200 bg-white/75 text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-55 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200 dark:hover:bg-white/[0.08]"
-							title="Add to cart"
+							className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-zinc-200 bg-white/75 text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200 dark:hover:bg-white/[0.08]"
+							aria-label={added ? `${product.title} added to basket` : `Add ${product.title} to basket`}
 							onClick={handleAddToCart}
 							disabled={adding || outOfStock}
 						>
