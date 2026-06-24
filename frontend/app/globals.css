@@ -848,6 +848,25 @@ html.dark .chat-send-btn:not(:disabled):hover {
   .chat-panel-enter { animation: none; }
 }
 
+/* ─── App-wide keyboard focus baseline ──────────────────────────────────────
+ * Every keyboard-focusable element gets a consistent brand focus ring — but
+ * ONLY via :focus-visible (keyboard / programmatic focus), so mouse clicks never
+ * show an outline. We use `outline` (not box-shadow): it stacks alongside, and
+ * never fights, the shadcn components' Tailwind `focus-visible:ring-*`
+ * (box-shadow) styles — so components that already style focus keep theirs and
+ * everything else gains a sane default instead of nothing. Elements that opt out
+ * with `outline-none` + their own ring are unaffected.
+ * ──────────────────────────────────────────────────────────────────────────── */
+:where(a, button, [role="button"], input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid hsl(var(--brand-accent));
+  outline-offset: 2px;
+  border-radius: var(--radius-sm, 2px);
+}
+/* Inputs/textareas already carry a ring on focus; keep their outline tight. */
+:where(input, textarea, select):focus-visible {
+  outline-offset: 0px;
+}
+
 /* Emerald glow ring — shared focus style for AI chat inputs */
 .ai-input-ring:focus-within {
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35);
@@ -903,4 +922,5 @@ html.dark .chat-send-btn:not(:disabled):hover {
 @media (prefers-reduced-motion: reduce) {
   .message-bubble-enter { animation: none; }
 }
+
 
