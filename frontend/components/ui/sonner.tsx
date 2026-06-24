@@ -12,6 +12,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      // Give every toast an explicit dismiss affordance (user control / WCAG —
+      // not everyone can wait out or swipe a toast away).
+      closeButton
       toastOptions={{
         classNames: {
           toast:

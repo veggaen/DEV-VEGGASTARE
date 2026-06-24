@@ -5,7 +5,20 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
 import { cn } from "@/lib/utils"
 
-const TooltipProvider = TooltipPrimitive.Provider
+// Default the provider to a snappier 300ms open delay (Radix defaults to a
+// sluggish 700ms) with a short skip window so moving between adjacent tooltips
+// feels instant — calmer, more responsive than the stock timing.
+const TooltipProvider = ({
+  delayDuration = 300,
+  skipDelayDuration = 150,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Provider>) => (
+  <TooltipPrimitive.Provider
+    delayDuration={delayDuration}
+    skipDelayDuration={skipDelayDuration}
+    {...props}
+  />
+)
 
 const Tooltip = TooltipPrimitive.Root
 

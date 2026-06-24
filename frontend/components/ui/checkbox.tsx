@@ -16,10 +16,10 @@ const Checkbox = React.forwardRef<
       "peer h-4 w-4 shrink-0 rounded border transition-colors",
       // Unchecked state
       "border-zinc-300 dark:border-zinc-600 bg-transparent",
-      // Checked state - use a nice blue/indigo color
-      "data-[state=checked]:bg-sky-500 data-[state=checked]:border-sky-500 data-[state=checked]:text-white",
-      // Focus state
-      "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-950",
+      // Checked state — semantic brand accent (sky in light / emerald in dark)
+      "data-[state=checked]:bg-brand-accent data-[state=checked]:border-brand-accent data-[state=checked]:text-brand-accent-foreground",
+      // Focus state — 2px brand ring, theme-aware offset
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       // Disabled state
       "disabled:cursor-not-allowed disabled:opacity-50",
       className
