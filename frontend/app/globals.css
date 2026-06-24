@@ -848,6 +848,16 @@ html.dark .chat-send-btn:not(:disabled):hover {
   .chat-panel-enter { animation: none; }
 }
 
+/* ─── Anchor / scroll-into-view offset for the sticky header ─────────────────
+ * The app has a sticky ~72px header (--app-header). Without this, hash links and
+ * scrollIntoView() land the target UNDER the header, hidden. scroll-margin-top on
+ * elements that get scrolled to (headings + explicit ids/anchors) offsets them so
+ * the target sits just below the header. A few px of breathing room added on top.
+ * ──────────────────────────────────────────────────────────────────────────── */
+:where(h1, h2, h3, h4, [id], a[name], [data-scroll-anchor]) {
+  scroll-margin-top: calc(var(--app-header-offset, 72px) + 12px);
+}
+
 /* ─── App-wide keyboard focus baseline ──────────────────────────────────────
  * Every keyboard-focusable element gets a consistent brand focus ring — but
  * ONLY via :focus-visible (keyboard / programmatic focus), so mouse clicks never
@@ -922,5 +932,6 @@ html.dark .chat-send-btn:not(:disabled):hover {
 @media (prefers-reduced-motion: reduce) {
   .message-bubble-enter { animation: none; }
 }
+
 
 
