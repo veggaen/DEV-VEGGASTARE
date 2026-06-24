@@ -11,6 +11,7 @@ import { usePathname } from "next/navigation";
 import { EdgeStoreProvider } from "@/lib/edgestore";
 import { ThemeProvider } from "@/components/providers/themeprovider";
 import { ConfirmDialogProvider } from "@/components/providers/confirm-dialog";
+import SkipToContent from "@/components/uicustom/skip-to-content";
 import { UiPreferencesProvider } from "@/components/providers/ui-preferences";
 import { ProfileThemeProvider } from "@/components/providers/profile-theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -104,11 +105,12 @@ export default function AppProviders({
                     <TradeModeProvider>
                     <CartProvider>
                     <ConfirmDialogProvider>
+                    <SkipToContent />
                     <UpdateBanner />
                     <MyTopBar />
                     <ImpersonationBanner />
                     <div className={`flex flex-1 flex-col min-h-0 ${isProductsRoute || isImmersiveChat ? 'overflow-hidden' : 'overflow-auto'}`}>
-                      <main className={`flex flex-1 flex-col min-h-0 ${isImmersiveChat ? '' : 'pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]'}`}>
+                      <main id="main-content" tabIndex={-1} className={`flex flex-1 flex-col min-h-0 outline-none ${isImmersiveChat ? '' : 'pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]'}`}>
                         {children}
                       </main>
                     </div>
@@ -132,3 +134,4 @@ export default function AppProviders({
     </SessionProvider>
   );
 }
+
