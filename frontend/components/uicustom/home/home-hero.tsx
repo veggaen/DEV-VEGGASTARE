@@ -1538,9 +1538,13 @@ export default function HomeHero({
                         : {
                             // Dark mode: use light pastel tones (they glow on black)
                             // Light mode: use deep saturated tones (they read on white)
+                            // Dark keeps the designer's emerald↔violet glow (violet
+                            // pastels read well on black). Light mode swaps the violet
+                            // for cyan so the two-tone life stays within the blue brand
+                            // identity instead of injecting off-brand purple on white.
                             color: isDark
                               ? (tmColorSwapped ? (tmActiveWithOrb ? "#ddd6fe" : "#c4b5fd") : (tmActiveWithOrb ? "#6ee7b7" : "#34d399"))
-                              : (tmColorSwapped ? (tmActiveWithOrb ? "#6d28d9" : "#7c3aed") : (tmActiveWithOrb ? "#0284c7" : "#0369a1")),
+                              : (tmColorSwapped ? (tmActiveWithOrb ? "#0891b2" : "#0e7490") : (tmActiveWithOrb ? "#0284c7" : "#0369a1")),
                             textShadow: isDark
                               ? (tmColorSwapped ? (tmActiveWithOrb ? "0 0 8px rgba(167,139,250,0.35)" : "0 0 4px rgba(167,139,250,0.18)") : (tmActiveWithOrb ? "0 0 8px rgba(52,211,153,0.35)" : "0 0 4px rgba(52,211,153,0.18)"))
                               : "none",
@@ -1572,9 +1576,10 @@ export default function HomeHero({
                             filter: isDark ? "drop-shadow(0 0 12px rgba(236,72,153,0.22))" : "none",
                           }
                         : {
+                            // Opposite phase of T; light-mode violet → cyan (see T above).
                             color: isDark
                               ? (tmColorSwapped ? (tmActiveWithOrb ? "#6ee7b7" : "#34d399") : (tmActiveWithOrb ? "#ddd6fe" : "#c4b5fd"))
-                              : (tmColorSwapped ? (tmActiveWithOrb ? "#0284c7" : "#0369a1") : (tmActiveWithOrb ? "#6d28d9" : "#7c3aed")),
+                              : (tmColorSwapped ? (tmActiveWithOrb ? "#0284c7" : "#0369a1") : (tmActiveWithOrb ? "#0891b2" : "#0e7490")),
                             textShadow: isDark
                               ? (tmColorSwapped ? (tmActiveWithOrb ? "0 0 8px rgba(52,211,153,0.35)" : "0 0 4px rgba(52,211,153,0.18)") : (tmActiveWithOrb ? "0 0 8px rgba(167,139,250,0.35)" : "0 0 4px rgba(167,139,250,0.18)"))
                               : "none",
