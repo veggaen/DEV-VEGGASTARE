@@ -301,9 +301,11 @@ const StepCard = React.memo(function StepCard({
 
       {/* Step number: ghost base + emerald overlay that fades in on hover */}
       <div className="relative">
-        {/* Base ghost number */}
+        {/* Base ghost number — light mode needs a touch more ink than gray-200,
+            which all but vanishes on the soft #F9FAFB bg and made the whole step
+            sequence read as missing until hovered. */}
         <motion.span
-          className="select-none text-5xl font-black leading-none tracking-tighter text-gray-200 dark:text-white/[0.07]"
+          className="select-none text-5xl font-black leading-none tracking-tighter text-gray-300/80 dark:text-white/[0.07]"
           animate={{
             scale: isHovered ? 1.16 : isNeighbor ? 1.06 : 1,
             x: isHovered ? 8 : isNeighbor ? 3 : 0,

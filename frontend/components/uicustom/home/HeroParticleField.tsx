@@ -152,13 +152,20 @@ export default function HeroParticleField({
     const draw = () => {
       if (!running) return;
       ctx.clearRect(0, 0, w, h);
-      ctx.globalCompositeOperation = "lighter";
 
       const dark = isDark();
-      // brand accent rgb
-      const r = dark ? 52 : 14;
-      const g = dark ? 211 : 165;
-      const b = dark ? 153 : 233;
+      // Blend mode is the crux of light-mode depth: additive ("lighter") makes
+      // particles GLOW on black, but on white it can't exceed white so the whole
+      // field washes out and the hero reads flat. In light mode we draw normally
+      // ("source-over") with a deeper, more opaque sky tone so particles read as
+      // soft specks ON the white rather than failing to out-glow it.
+      ctx.globalCompositeOperation = dark ? "lighter" : "source-over";
+
+      // brand accent rgb — light mode uses a deeper sky (sky-600-ish) so it has
+      // enough contrast to register against the soft off-white background.
+      const r = dark ? 52 : 2;
+      const g = dark ? 211 : 132;
+      const b = dark ? 153 : 199;
 
       const t = performance.now() * 0.001;
 
@@ -198,7 +205,10 @@ export default function HeroParticleField({
 
         // fade out particles that wander into the central clean zone
         const centreFade = inEdgeBand(p.x, p.y) ? 1 : centerFade;
-        const alpha = Math.max(0, twAlpha * centreFade);
+        // Light mode draws normally (not additive), so equal alpha reads fainter
+        // than the dark glow — nudge it up a little for parity of presence.
+        const modeAlpha = dark ? 1 : 1.35;
+        const alpha = Math.max(0, twAlpha * centreFade * modeAlpha);
         if (alpha <= 0.01) continue;
 
         const radius = p.r;
