@@ -848,6 +848,18 @@ html.dark .chat-send-btn:not(:disabled):hover {
   .chat-panel-enter { animation: none; }
 }
 
+/* ─── Brand-tinted text selection ───────────────────────────────────────────
+ * Replaces the generic browser-blue selection with a subtle brand-accent wash
+ * (auto blue in light / emerald in dark via --brand-accent-glow). A small
+ * hand-crafted touch on every text drag, app-wide. Keeps text colour intact so
+ * contrast never breaks. */
+::selection {
+  background-color: hsl(var(--brand-accent) / 0.22);
+}
+::-moz-selection {
+  background-color: hsl(var(--brand-accent) / 0.22);
+}
+
 /* ─── Anchor / scroll-into-view offset for the sticky header ─────────────────
  * The app has a sticky ~72px header (--app-header). Without this, hash links and
  * scrollIntoView() land the target UNDER the header, hidden. scroll-margin-top on
@@ -932,6 +944,7 @@ html.dark .chat-send-btn:not(:disabled):hover {
 @media (prefers-reduced-motion: reduce) {
   .message-bubble-enter { animation: none; }
 }
+
 
 
 
