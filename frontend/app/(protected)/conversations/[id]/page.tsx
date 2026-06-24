@@ -12,6 +12,7 @@ import { TypingIndicator } from '@/components/uicustom/chats/primitives/TypingIn
 import { ChatSidebar, type SidebarMember } from '@/components/uicustom/chats/ChatSidebar';
 import { AnimatePresence } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useConfirm } from '@/components/providers/confirm-dialog';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -51,6 +52,7 @@ export default function ConversationPage() {
   const reduceMotion = useReducedMotion();
   const params = useParams();
   const router = useRouter();
+  const confirm = useConfirm();
   const conversationId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   
   const [messages, setMessages] = useState<any[]>([]);
@@ -150,7 +152,12 @@ export default function ConversationPage() {
   // the existing DELETE endpoint (the `?cancel=true` variant undoes it).
   const handleDeleteConversation = async () => {
     if (!conversationId) return;
-    if (!confirm('Delete this conversation? This will start the deletion process.')) return;
+    if (!(await confirm({
+      title: 'Delete this conversation?',
+      description: 'This will start the deletion process.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
     try {
       const res = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' });
       if (res.ok) {
