@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ScrollToBottom } from "@/components/uicustom/chats/primitives/ScrollToBottom";
 import { TypingIndicator } from "@/components/uicustom/chats/primitives/TypingIndicator";
@@ -444,7 +445,7 @@ export default function AiConversationClient({
       setConv((prev) => prev ? { ...prev, isPublic: true } : prev);
     }
     navigator.clipboard.writeText(`${window.location.origin}/ai/${sessionId}`).catch(() => {});
-    alert("Link copied to clipboard.");
+    toast.success("Link copied to clipboard");
   }, [conv, sessionId]);
 
   // ─── Render ────────────────────────────────────────────────────────────────

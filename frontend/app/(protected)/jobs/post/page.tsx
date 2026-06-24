@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, ChangeEvent, FC } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
@@ -216,14 +217,15 @@ export default function PostJobPage() {
       console.log(LOG_PREFIX, 'Job request submitted:', result);
   
       if (result.success) {
+        toast.success('Job request submitted');
         router.push('/jobs');
       } else {
         console.error(LOG_PREFIX, 'Error in job request submission:', result.error);
-        alert('Error submitting job request: ' + result.error);
+        toast.error('Error submitting job request: ' + result.error);
       }
     } catch (error) {
       console.error(LOG_PREFIX, 'Error submitting job request:', error);
-      alert('Error submitting job request: ' + (error as Error).message);
+      toast.error('Error submitting job request: ' + (error as Error).message);
     } finally {
       setIsSubmitting(false);
     }

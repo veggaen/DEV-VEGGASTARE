@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Spinner from '@/components/uicustom/spinner';
 import { ConversationListSkeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { 
   FiPlus, FiMessageCircle, FiUsers, FiLock,
@@ -135,13 +136,15 @@ export default function ConversationsPage() {
         method: 'DELETE',
       });
       if (response.ok) {
+        toast.success('Conversation deleted');
         fetchConversations(sort);
       } else {
-        const data = await response.json();
-        alert(data.message || 'Failed to delete conversation');
+        const data = await response.json().catch(() => ({}));
+        toast.error(data.message || 'Failed to delete conversation');
       }
     } catch (error) {
       console.error('Error deleting conversation:', error);
+      toast.error('Something went wrong. Please try again.');
     } finally {
       setActionLoading(null);
     }

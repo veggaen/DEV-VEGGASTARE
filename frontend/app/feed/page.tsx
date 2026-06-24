@@ -1963,7 +1963,7 @@ const FeedPage: React.FC = () => {
                       setFilter('polls');
                     } catch (error) {
                       console.error('Failed to create advanced poll:', error);
-                      alert(error instanceof Error ? error.message : 'Failed to create poll');
+                      toast.error(error instanceof Error ? error.message : 'Failed to create poll');
                     }
                   }}
                   onPreview={(data) => {
