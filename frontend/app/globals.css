@@ -640,6 +640,16 @@ html.dark [data-theme-tinted] {
 html:not(.dark) [data-product-detail] {
   color: hsl(var(--foreground));
 }
+/* The page shell itself is `bg-black` (no opacity slash) with an emerald grid
+   overlay. In light mode give it the app background and dial the grid right back
+   so it reads as a faint texture, not a dark scrim. */
+html:not(.dark) [data-product-detail].bg-black,
+html:not(.dark) [data-product-detail] > .bg-black {
+  background-color: hsl(var(--background)) !important;
+}
+html:not(.dark) [data-product-detail] [class*="bg-[linear-gradient"] {
+  opacity: 0.4 !important;
+}
 /* White body/heading text → foreground ink */
 html:not(.dark) [data-product-detail] [class*="text-white"] {
   color: hsl(var(--foreground)) !important;
@@ -893,3 +903,4 @@ html.dark .chat-send-btn:not(:disabled):hover {
 @media (prefers-reduced-motion: reduce) {
   .message-bubble-enter { animation: none; }
 }
+

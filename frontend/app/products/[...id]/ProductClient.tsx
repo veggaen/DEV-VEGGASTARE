@@ -2260,7 +2260,7 @@ export default function ProductClient({ productId }: { productId: string }) {
 
   const pageShellClassName = "relative z-10 mx-auto w-full max-w-screen-2xl px-3 py-5 sm:px-4 md:px-6";
   const renderShell = (children: ReactNode) => (
-    <div className="relative isolate min-h-full w-full overflow-hidden bg-black text-white">
+    <div data-product-detail className="relative isolate min-h-full w-full overflow-hidden bg-black text-white">
       <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(rgba(52,211,153,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(52,211,153,0.035)_1px,transparent_1px)] bg-[size:46px_46px] opacity-20" />
       <div className={pageShellClassName}>{children}</div>
     </div>
