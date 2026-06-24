@@ -72,7 +72,12 @@
       "Read(//tmp/**)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 5 -H \"Cookie: veggastare_access=granted_TWFpbkFkYzEyMw==\" http://localhost:3000/ai)",
       "Bash(python scripts/drive_ai_modal_bug.py http://localhost:3000)",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(t, '| dialog:', r.get\\('hasDialog'\\), '| backdrop:', r.get\\('hasFixedBackdrop'\\), '| title:', r.get\\('title'\\), '| BUG:', r.get\\('BUG_modal_on_hard_nav'\\)\\) for t,r in d['results'].items\\(\\)]\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(t, '| dialog:', r.get\\('hasDialog'\\), '| backdrop:', r.get\\('hasFixedBackdrop'\\), '| title:', r.get\\('title'\\), '| BUG:', r.get\\('BUG_modal_on_hard_nav'\\)\\) for t,r in d['results'].items\\(\\)]\")",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(echo \"BUILD_EXIT=$?\")",
+      "Bash(curl -s -o /dev/null -w \"dev:%{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"cdp:%{http_code}\\\\n\" http://127.0.0.1:9222/json/version)",
+      "Bash(python scripts/open_app_browser.py)"
     ],
     "additionalDirectories": [
       "C:\\Users\\v3gga\\Documents\\DEV-VEGGASTARE\\scripts\\_probe\\logged_out"
