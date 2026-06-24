@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useConfirm } from '@/components/providers/confirm-dialog';
 import { useEdgeStore } from '@/lib/edgestore';
 
 interface UserDetail {
@@ -81,6 +82,7 @@ export default function AdminUserEditPage() {
   const params = useParams();
   const userId = params.userId as string;
   const { edgestore } = useEdgeStore();
+  const confirm = useConfirm();
   
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -224,7 +226,11 @@ export default function AdminUserEditPage() {
   };
 
   const handleImpersonate = async () => {
-    if (!confirm(`Swap to ${user?.name || user?.email}'s account? Your session will switch to view the site as this user. All actions are logged.`)) {
+    if (!(await confirm({
+      title: `Swap to ${user?.name || user?.email}'s account?`,
+      description: 'Your session will switch to view the site as this user. All actions are logged.',
+      confirmLabel: 'Swap account',
+    }))) {
       return;
     }
 
