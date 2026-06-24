@@ -137,30 +137,40 @@ function WarehouseSkeleton({ className }: { className?: string }) {
 }
 
 /**
- * Skeleton for feed/post card
+ * Skeleton for feed/post card.
+ * Shape mirrors the real FeedCard (rounded-2xl, p-4 sm:p-5, 10×10 avatar, a
+ * three-pill action row) so the skeleton→content swap is a single quiet
+ * transition rather than two competing layouts.
  */
-function FeedPostSkeleton({ className }: { className?: string }) {
+function FeedPostSkeleton({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <div className={cn("flex flex-col space-y-3 p-4 border rounded-lg", className)}>
+    <div
+      style={style}
+      className={cn(
+        "rounded-2xl border border-border/50 bg-card/70 dark:bg-zinc-900/70 p-4 sm:p-5",
+        className
+      )}
+    >
       {/* Author header */}
-      <div className="flex items-center space-x-3">
-        <Skeleton className="h-10 w-10 rounded-full" />
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
         <div className="space-y-1.5">
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-3 w-20" />
         </div>
       </div>
       {/* Content */}
-      <div className="space-y-2">
+      <div className="mt-4 space-y-2.5">
+        <Skeleton className="h-4 w-[92%]" />
         <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-4 w-2/3" />
       </div>
-      {/* Actions */}
-      <div className="flex space-x-4 pt-2">
-        <Skeleton className="h-8 w-16" />
-        <Skeleton className="h-8 w-16" />
-        <Skeleton className="h-8 w-16" />
+      {/* Action row — pill-shaped to match the real reaction controls */}
+      <div className="mt-5 flex items-center gap-6">
+        <Skeleton className="h-7 w-14 rounded-full" />
+        <Skeleton className="h-7 w-14 rounded-full" />
+        <Skeleton className="h-7 w-14 rounded-full" />
+        <Skeleton className="ml-auto h-7 w-7 rounded-full" />
       </div>
     </div>
   );
@@ -169,17 +179,24 @@ function FeedPostSkeleton({ className }: { className?: string }) {
 /**
  * Skeleton for feed list
  */
-function FeedSkeleton({ 
-  count = 5, 
-  className 
-}: { 
+function FeedSkeleton({
+  count = 5,
+  className
+}: {
   count?: number;
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col space-y-4", className)}>
+    <div className={cn("flex flex-col space-y-3", className)}>
       {Array.from({ length: count }).map((_, i) => (
-        <FeedPostSkeleton key={i} />
+        <FeedPostSkeleton
+          key={i}
+          // Gentle top-down stagger + depth fade: later cards sit slightly
+          // dimmer, so the column reads as receding into "still loading" rather
+          // than a wall of identical blocks. Pure opacity — no layout shift.
+          className="animate-pulse"
+          style={{ opacity: Math.max(0.35, 1 - i * 0.16) }}
+        />
       ))}
     </div>
   );

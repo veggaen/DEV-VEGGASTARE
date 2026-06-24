@@ -29,6 +29,7 @@ import {
   DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu';
 import Spinner from '@/components/uicustom/spinner';
+import { FeedSkeleton } from '@/components/ui/skeleton';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { UseCurrentRole } from '@/hooks/use-current-role';
 import { useViewTracking } from '@/hooks/useViewTracking';
@@ -1752,9 +1753,7 @@ const FeedPage: React.FC = () => {
           {/* Feed - unified feed for all content types */}
           <div className="space-y-3">
             {loading ? (
-              <div className="flex justify-center py-12">
-                <Spinner />
-              </div>
+              <FeedSkeleton count={5} />
             ) : items.length === 0 ? (
               <div className="text-center py-12">
                 {filter === 'polls' ? (
