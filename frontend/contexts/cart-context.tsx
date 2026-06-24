@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useCurrencyRates } from "@/hooks/useCurrencyRates";
 
 interface CartItem {
   id: string;
@@ -36,20 +37,29 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
+  const { convertToUSD } = useCurrencyRates();
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const userId = session?.user?.id;
 
-  const itemCount = useMemo(() => 
+  const itemCount = useMemo(() =>
     items.reduce((sum, item) => sum + item.quantity, 0),
     [items]
   );
 
+  // BUG FIX: previously summed item.product.price RAW, ignoring per-item
+  // currency — so a mixed-currency cart (e.g. 100 NOK + 50 USD) totalled as if
+  // every price were the same currency. Sum in USD via convertToUSD so the
+  // context's totalPrice is correct for any consumer (matches the cart page).
   const totalPrice = useMemo(() =>
-    items.reduce((sum, item) => sum + item.quantity * item.product.price, 0),
-    [items]
+    items.reduce(
+      (sum, item) =>
+        sum + item.quantity * convertToUSD(item.product.price, item.product.priceCurrency ?? "USD"),
+      0
+    ),
+    [items, convertToUSD]
   );
 
   const refreshCart = useCallback(async () => {
