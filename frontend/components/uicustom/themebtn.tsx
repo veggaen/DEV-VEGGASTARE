@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useTheme } from "next-themes";
 import { Button, ButtonProps } from "@/components/ui/button";
 import { IoMoonOutline } from "react-icons/io5";
@@ -17,17 +16,9 @@ export function MyThemeBtn({ customName, onClick }: MyThemeBtnProps) {
   const { prefs } = useUiPreferences();
   const showFancyHover = prefs.hoverEffects === "colorful";
 
-  useEffect(() => {
-    const effective = (resolvedTheme ?? theme) as string | undefined;
-
-    if (effective === "light") {
-      document.body.classList.add("light-mode");
-      document.body.classList.remove("dark-mode");
-    } else if (effective === "dark") {
-      document.body.classList.add("dark-mode");
-      document.body.classList.remove("light-mode");
-    }
-  }, [theme, resolvedTheme]);
+  // Theme state lives ONLY on <html> via next-themes' `.dark` class.
+  // (The old body.light-mode/.dark-mode mirroring desynced when this button
+  // wasn't mounted, producing mixed light/dark backgrounds — removed.)
 
   const handleClick = () => {
     const effective = (resolvedTheme ?? theme) as string | undefined;

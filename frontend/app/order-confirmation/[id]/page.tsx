@@ -123,7 +123,7 @@ const OrderConfirmationPage = () => {
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link
-              className="border border-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black"
+              className="rounded-lg border border-brand-accent/50 bg-brand-accent/10 px-4 py-2 text-sm font-semibold text-brand-accent-hover transition-colors hover:bg-brand-accent hover:text-brand-accent-foreground dark:text-brand-accent-light"
               href="/my-orders"
             >
               Open My orders
@@ -142,16 +142,24 @@ const OrderConfirmationPage = () => {
 
   return (
     <main className="mx-auto w-full max-w-3xl p-4 lg:p-8">
-      <section className="mb-6 border-y border-emerald-500/50 py-6">
-        <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">Order confirmed</p>
-        <h1 className="mt-3 text-3xl font-semibold text-foreground">Thank you for your order</h1>
+      <section className="auth-card-enter mb-6 border-y border-emerald-500/40 py-6">
+        <div className="flex items-center gap-3">
+          {/* Confirmation moment — animated check, readable in both themes */}
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/30">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-emerald-600 dark:text-emerald-400">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </span>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Order confirmed</p>
+        </div>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Thank you for your order</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Order ID: <span className="font-mono text-foreground">{orderDetails.id}</span>
         </p>
       </section>
 
       {paymentNotice && (
-        <div className="mb-4 border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+        <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200">
           {paymentNotice === 'cancelled'
             ? 'Payment was cancelled. The order is kept here so you can retry or review it.'
             : 'Payment could not be confirmed. Please retry checkout or contact support if money was withdrawn.'}
@@ -192,7 +200,7 @@ const OrderConfirmationPage = () => {
         <section className="mb-4 border border-emerald-500/30 bg-emerald-500/[0.03] p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-emerald-300">Digital delivery</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Digital delivery</p>
               <h2 className="mt-1 text-lg font-semibold text-foreground">Your downloads are ready</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Download access is also saved in My downloads and your receipt email.
@@ -200,7 +208,7 @@ const OrderConfirmationPage = () => {
             </div>
             <Link
               href="/my-downloads"
-              className="text-sm font-medium text-emerald-300 transition-colors hover:text-emerald-200"
+              className="text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
             >
               Open all downloads
             </Link>
@@ -224,7 +232,7 @@ const OrderConfirmationPage = () => {
                   </div>
                   <a
                     href={`/api/download/${download.token}`}
-                    className="inline-flex justify-center bg-foreground px-4 py-2 text-sm font-semibold text-background transition-colors hover:bg-emerald-300"
+                    className="inline-flex justify-center rounded-lg bg-brand-accent px-4 py-2 text-sm font-semibold text-brand-accent-foreground transition-all hover:bg-brand-accent-hover motion-safe:hover:-translate-y-px"
                   >
                     Download file
                   </a>

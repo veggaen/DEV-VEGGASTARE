@@ -1538,15 +1538,17 @@ function VerifyActionRow({
     );
   }
 
-  // idle — show CTA
+  // idle — show CTA as a proper pill (verification is a trust action, not fine print)
   return (
     <div className="text-center">
       <button
         type="button"
         onClick={onVerify}
-        className="text-[9px] text-sky-500 dark:text-emerald-400 hover:underline transition-colors"
+        className="inline-flex items-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[9px] font-semibold text-sky-600 transition-all hover:bg-sky-500/15 hover:border-sky-500/60 motion-safe:hover:-translate-y-px dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/15 dark:hover:border-emerald-500/60"
+        title="Free — one signature proves you own this wallet. No transaction, no gas."
       >
-        Verify with free signature →
+        <FiShield className="h-2.5 w-2.5" />
+        Verify ownership · free signature
       </button>
     </div>
   );
@@ -1819,52 +1821,18 @@ function WalletRow({
               : "border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/70 dark:bg-zinc-900/45"
       }`}
     >
-      {/* Active badge — absolute top-right corner */}
-      {isActive && (
-        <div className="hidden">
-          {connectorType === 'LOCAL_RPC' && (
-            <span className="flex items-center gap-0.5 px-1.5 py-px rounded text-[8px] font-bold uppercase tracking-wider text-white bg-orange-500">
-              <FiTerminal className="h-2.5 w-2.5" />
-              &gt;_RPC
-            </span>
-          )}
-          <span className={`flex items-center gap-0.5 px-1.5 py-px rounded text-[8px] font-bold uppercase tracking-wider text-white ${
-            connectorType === 'LOCAL_RPC'
-              ? "bg-emerald-500"
-              : "bg-sky-500 dark:bg-emerald-500"
-          }`}>
-            <FiPower className="h-2.5 w-2.5 drop-shadow-[0_0_4px_currentColor]" />
-            Active
-          </span>
-        </div>
-      )}
+      {/* (Dead hidden badge/activate blocks removed — the inline chip on row 1
+          and the "Set active" action next to the address are the single source
+          of active-state UI now.) */}
 
-      {/* Set-active / reconnect button — unified for all non-active wallets */}
-      {!isActive && onSetActive && (
-        <div className="hidden">
-          {connectorType === 'LOCAL_RPC' && (
-            <span className="flex items-center gap-0.5 px-1.5 py-px rounded text-[8px] font-bold uppercase tracking-wider text-white bg-orange-500">
-              <FiTerminal className="h-2.5 w-2.5" />
-              &gt;_RPC
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={onSetActive}
-            className={`flex items-center gap-0.5 px-1.5 py-px rounded text-[8px] font-medium uppercase tracking-wider transition-colors cursor-pointer ${
-              isLive
-                ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-sky-500 dark:hover:bg-emerald-500 hover:text-white"
-                : "bg-zinc-300 dark:bg-zinc-600 text-zinc-600 dark:text-zinc-300 hover:bg-sky-500 dark:hover:bg-emerald-500 hover:text-white"
-            }`}
-            title={connectorType === 'LOCAL_RPC' ? "Local dev wallet — operates via direct RPC calls" : isLive ? "Switch to this wallet" : "Reconnect and activate"}
-          >
-            {connectorType === 'LOCAL_RPC' ? (
-              <><FiTerminal className="h-2.5 w-2.5" /> Activate</>
-            ) : (
-              <><FiPower className="h-2.5 w-2.5" /> Activate</>
-            )}
-          </button>
-        </div>
+      {/* Active accent rail — instant left-edge read of which wallet is live */}
+      {isActive && (
+        <span
+          aria-hidden
+          className={`absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full ${
+            connectorType === 'LOCAL_RPC' ? "bg-orange-500" : "bg-sky-500 dark:bg-emerald-500"
+          }`}
+        />
       )}
 
       <div className="flex items-center gap-2 px-3 py-2">
@@ -1919,13 +1887,16 @@ function WalletRow({
               </span>
             )}
             {isActive ? (
-              <span className={`inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-semibold uppercase tracking-wider ${
+              <span className={`inline-flex items-center gap-1 rounded px-1 py-px text-[8px] font-semibold uppercase tracking-wider ${
                 connectorType === 'LOCAL_RPC'
                   ? "bg-orange-500/15 text-orange-500 dark:text-orange-300"
                   : "bg-sky-500/10 text-sky-600 dark:bg-emerald-500/10 dark:text-emerald-300"
               }`}>
-                {connectorType === 'LOCAL_RPC' ? <FiTerminal className="h-2 w-2" /> : <FiPower className="h-2 w-2" />}
-                Active wallet
+                <span aria-hidden className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-60 motion-reduce:hidden" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-current" />
+                </span>
+                Active
               </span>
             ) : isLive ? (
               <span className="inline-flex items-center gap-0.5 rounded bg-zinc-500/10 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
@@ -2065,19 +2036,21 @@ function WalletRow({
             </span>
             <CopyChip text={address} label="Copy address" size="xs" />
 
+            {/* Set-active: NEUTRAL at rest — accent color is reserved for the
+                wallet that IS active. Hover previews the accent it would gain. */}
             {!isActive && onSetActive && (
               <button
                 type="button"
                 onClick={onSetActive}
                 className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors ${
                   connectorType === 'LOCAL_RPC'
-                    ? "bg-orange-500/10 text-orange-500 hover:bg-orange-500/15 dark:text-orange-300"
-                    : "bg-sky-500/10 text-sky-600 hover:bg-sky-500/15 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/15"
+                    ? "bg-muted/70 text-muted-foreground hover:bg-orange-500/15 hover:text-orange-500 dark:hover:text-orange-300"
+                    : "bg-muted/70 text-muted-foreground hover:bg-sky-500/15 hover:text-sky-600 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-300"
                 }`}
-                title={connectorType === 'LOCAL_RPC' ? "Use this local RPC wallet as the active wallet" : isLive ? "Use this connected wallet" : "Reconnect and use this wallet"}
+                title={connectorType === 'LOCAL_RPC' ? "Make this local RPC wallet the active wallet" : isLive ? "Make this the active wallet" : "Reconnect and make this the active wallet"}
               >
-                {connectorType === 'LOCAL_RPC' ? <FiTerminal className="h-2.5 w-2.5" /> : <FiPower className="h-2.5 w-2.5" />}
-                Use
+                {connectorType === 'LOCAL_RPC' ? <FiTerminal className="h-2.5 w-2.5" /> : <FiPower className="h-2.5 w-2.5 opacity-70" />}
+                Set active
               </button>
             )}
 
@@ -3257,6 +3230,7 @@ export default function SidebarWalletPanel({
   // Active wallet gets green styling but doesn't move.
 
   const hasAnyWallet = displayWallets.length > 0;
+  const activeDisplayWallet = displayWallets.find((w) => w.isActive) ?? null;
   const localRpcDisplayWallets = displayWallets.filter(
     (wallet) => wallet.family === "EVM" && wallet.connectorType === "LOCAL_RPC",
   );
@@ -4200,6 +4174,20 @@ export default function SidebarWalletPanel({
         {hasAnyWallet && (
           <span className="text-[10px] text-zinc-400 dark:text-zinc-500 tabular-nums">
             {displayWallets.length}
+          </span>
+        )}
+        {/* Active wallet at a glance — no scanning the list needed */}
+        {activeDisplayWallet && (
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-mono ${
+              activeDisplayWallet.connectorType === 'LOCAL_RPC'
+                ? "bg-orange-500/10 text-orange-500 dark:text-orange-300"
+                : "bg-sky-500/10 text-sky-600 dark:bg-emerald-500/10 dark:text-emerald-300"
+            }`}
+            title={`Active wallet: ${activeDisplayWallet.address}`}
+          >
+            <span aria-hidden className="h-1 w-1 rounded-full bg-current" />
+            {trimAddress(activeDisplayWallet.address, 4, 4)}
           </span>
         )}
         {isLoggedIn && web3Enabled && (

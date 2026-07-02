@@ -83,6 +83,23 @@
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  /* ─── ELEVATION SCALE ──────────────────────────────────────────────────────
+   * Theme-aware shadows: soft ink in light mode, near-invisible in dark mode
+   * (dark UIs express elevation via surface lightness, not shadows).
+   * Usage: shadow-e1 (resting card) · shadow-e2 (hover/raised) · shadow-e3 (modal)
+   * ─────────────────────────────────────────────────────────────────────── */
+  --shadow-e1: var(--elevation-1);
+  --shadow-e2: var(--elevation-2);
+  --shadow-e3: var(--elevation-3);
+
+  /* ─── MOTION TOKENS ────────────────────────────────────────────────────────
+   * ease-out-quart: decisive UI response (enter/hover) — fast start, soft landing
+   * ease-spring:    playful overshoot for small elements (chips, toggles)
+   * Usage: ease-out-quart / ease-spring in transition utilities.
+   * ─────────────────────────────────────────────────────────────────────── */
+  --ease-out-quart: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @utility bg-gradient-radial {
@@ -236,6 +253,11 @@
     --brand-accent-muted: 199 89% 48%;     /* sky-500 at lower opacity (use with /10, /20 etc) */
     --brand-accent-foreground: 0 0% 100%;  /* white text on accent */
     --brand-accent-glow: 199, 89%, 48%;    /* For rgba() usage: rgb(14, 165, 233) */
+
+    /* Elevation (light): layered soft ink shadows — realistic, never muddy */
+    --elevation-1: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
+    --elevation-2: 0 4px 8px -2px rgba(16, 24, 40, 0.08), 0 2px 4px -1px rgba(16, 24, 40, 0.05);
+    --elevation-3: 0 20px 40px -8px rgba(16, 24, 40, 0.14), 0 8px 16px -6px rgba(16, 24, 40, 0.08);
   }
  
   .dark {
@@ -298,6 +320,12 @@
     --brand-accent-muted: 160 84% 39%;     /* emerald-500 at lower opacity */
     --brand-accent-foreground: 0 0% 100%;  /* white text on accent */
     --brand-accent-glow: 160, 84%, 39%;    /* For rgba() usage: rgb(16, 185, 129) */
+
+    /* Elevation (dark): shadows barely read on black — keep them whisper-soft;
+       elevation is expressed through surface-1/2/3 lightness steps instead */
+    --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --elevation-2: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --elevation-3: 0 24px 48px -12px rgba(0, 0, 0, 0.75);
   }
 }
 /*  
@@ -434,8 +462,10 @@ body {
 /* Light mode: crisp off-white base with a focused emerald halo at the very top
    (behind the hero title) + a sky-blue whisper top-right for dimension.
    The gradient fades to clean white by mid-page so the chat widget area stays fresh. */
-html:not(.dark) body,
-body.light-mode {
+/* NOTE: theme state lives ONLY on <html> (next-themes `.dark` class).
+   The old body.light-mode/.dark-mode dual-tracking desynced and caused the
+   "light gradients on dark background" glitch — removed. */
+html:not(.dark) body {
   background-color: #ffffff;
   /* Soft halo above the hero — faint enough that text pops, present enough to add depth.
      Three tightly-positioned radials: emerald glow from top-center, sky hint top-right,
@@ -454,8 +484,7 @@ body.light-mode {
    (rather than `none`) so that during a theme swap the gradient layer can
    cross-fade its colour stops instead of popping in/out — `background-image`
    can't animate between `none` and a gradient, but it can between two gradients. */
-html.dark body,
-body.dark-mode {
+html.dark body {
   background-color: #000000;
   background-image:
     radial-gradient(ellipse 90% 38% at 50% -6%,  rgba(56, 189, 248, 0) 0%, transparent 58%),
@@ -864,6 +893,14 @@ html.dark .chat-send-btn:not(:disabled):hover {
 }
 @media (prefers-reduced-motion: reduce) {
   .chat-panel-enter { animation: none; }
+}
+
+/* Auth card entrance — slightly slower/calmer than the chat panel */
+.auth-card-enter {
+  animation: slide-up-fade 0.4s var(--ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-card-enter { animation: none; }
 }
 
 /* ─── Brand-tinted text selection ───────────────────────────────────────────

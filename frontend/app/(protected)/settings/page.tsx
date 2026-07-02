@@ -30,6 +30,7 @@ import { UserRole } from '@/generated/prisma/browser';
 import { useUiPreferences } from '@/components/providers/ui-preferences';
 import { useEdgeStore } from '@/lib/edgestore';
 import { FancyBackground } from '@/components/uicustom/fancy-background';
+import ImagePositionAdjuster from '@/components/uicustom/image-position-adjuster';
 import { NotificationSettings as NotificationSettingsComponent } from '@/components/uicustom/notifications/notification-settings';
 import { exportMyData } from '@/actions/gdpr-data-export';
 import { requestAccountDeletion, cancelAccountDeletion } from '@/actions/gdpr-account-deletion';
@@ -115,6 +116,8 @@ export default function SettingsPage() {
   
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  // Image position adjuster (drag-to-frame before save)
+  const [adjustingImage, setAdjustingImage] = useState<{ file: File; target: 'banner' | 'avatar' } | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -180,10 +183,28 @@ export default function SettingsPage() {
     }
   }, [edgestore]);
 
-  // Handle banner file selection (from input, paste, or drop)
+  // Upload a framed blob produced by the position adjuster
+  const uploadAdjusted = useCallback(async (blob: Blob, target: 'banner' | 'avatar') => {
+    const setBusy = target === 'banner' ? setIsUploadingBanner : setIsUploadingAvatar;
+    setBusy(true);
+    const framed = new File([blob], `${target}-framed.webp`, { type: 'image/webp' });
+    const url = await uploadImage(framed);
+    if (url) {
+      setPendingChanges(prev => target === 'banner' ? { ...prev, banner: url } : { ...prev, image: url });
+      toast.success(`${target === 'banner' ? 'Banner' : 'Avatar'} framed! Click Save to apply.`);
+    }
+    setBusy(false);
+  }, [uploadImage]);
+
+  // Handle banner file selection (from input, paste, or drop).
+  // Static images open the position adjuster first (drag to frame before
+  // saving); animated GIFs skip it so the animation isn't flattened.
   const handleBannerFile = useCallback(async (file: File) => {
     if (!validateImageFile(file)) return;
-    
+    if (file.type !== 'image/gif') {
+      setAdjustingImage({ file, target: 'banner' });
+      return;
+    }
     setIsUploadingBanner(true);
     const url = await uploadImage(file);
     if (url) {
@@ -196,7 +217,10 @@ export default function SettingsPage() {
   // Handle avatar file selection (from input, paste, or drop)
   const handleAvatarFile = useCallback(async (file: File) => {
     if (!validateImageFile(file)) return;
-    
+    if (file.type !== 'image/gif') {
+      setAdjustingImage({ file, target: 'avatar' });
+      return;
+    }
     setIsUploadingAvatar(true);
     const url = await uploadImage(file);
     if (url) {
@@ -648,7 +672,23 @@ export default function SettingsPage() {
                       onChange={handleBannerInputChange}
                       className="hidden"
                     />
-                    <p className="text-xs text-muted-foreground dark:text-white/40">Recommended: 1500x500px, JPG/PNG/GIF/WebP, max 5MB. Paste from clipboard or drag & drop!</p>
+                    <p className="text-xs text-muted-foreground dark:text-white/40">Recommended: 1500x500px, JPG/PNG/GIF/WebP, max 5MB. Paste from clipboard or drag & drop — you can drag to reframe before saving!</p>
+
+                    {/* Drag-to-frame dialog for banner & avatar (portal-rendered) */}
+                    <ImagePositionAdjuster
+                      file={adjustingImage?.file ?? null}
+                      aspect={adjustingImage?.target === 'avatar' ? 1 : 3}
+                      round={adjustingImage?.target === 'avatar'}
+                      outputWidth={adjustingImage?.target === 'avatar' ? 512 : 1500}
+                      outputHeight={adjustingImage?.target === 'avatar' ? 512 : 500}
+                      title={adjustingImage?.target === 'avatar' ? 'Position your profile picture' : 'Position your banner'}
+                      onCancel={() => setAdjustingImage(null)}
+                      onConfirm={(blob) => {
+                        const target = adjustingImage?.target ?? 'banner';
+                        setAdjustingImage(null);
+                        void uploadAdjusted(blob, target);
+                      }}
+                    />
                   </div>
 
                   {/* Avatar Upload - with drag & drop and paste */}

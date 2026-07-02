@@ -42,7 +42,7 @@ import { useUiPreferences } from "@/components/providers/ui-preferences";
 import { fetchUserEmployeePermissions } from "@/actions/user-company-permissions";
 import { MyDeleteProductAction, MySetProductVisibilityAction } from "@/actions/products";
 import type { EmployeePermissions } from "@/lib/types/company-permissions";
-import { Archive, ArrowLeft, CreditCard, Eye, EyeOff, Heart, Pencil, ShieldCheck, ShoppingCart, Trash2, Loader2, Navigation, Flag, WalletCards } from "lucide-react";
+import { Archive, ArrowLeft, CreditCard, Eye, EyeOff, Pencil, Share2, ShieldCheck, ShoppingCart, Trash2, Loader2, Navigation, Flag, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { ReportDialog } from "@/components/uicustom/report/ReportDialog";
 
@@ -1798,10 +1798,11 @@ function ProductDetails({ product }: { product: Product }) {
             >
               <Button
                 type="button"
-                variant="default"
-                className="h-[52px] w-full rounded-xl bg-white px-5 text-sm font-semibold text-black shadow-[0_12px_40px_rgba(255,255,255,0.12)] transition-colors hover:bg-emerald-200"
+                variant="vegaBuyBtn"
+                className="h-[52px] w-full rounded-xl px-5 text-sm"
                 onClick={handleBuyNow}
                 disabled={!canPurchase}
+                title={canPurchase ? undefined : "This product can't be purchased right now"}
               >
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 {canPurchase ? "Buy now" : "Unavailable"}
@@ -1821,8 +1822,8 @@ function ProductDetails({ product }: { product: Product }) {
             >
               <Button
                 type="button"
-                variant="outline"
-                className="h-[52px] rounded-xl border-white/10 bg-white/[0.05] px-5 text-sm font-semibold text-white hover:bg-white/10"
+                variant="vegaAddBasketBtn"
+                className="h-[52px] rounded-xl px-5 text-sm font-semibold"
                 onClick={handleAddToCart}
                 disabled={!canPurchase}
               >
@@ -1840,14 +1841,28 @@ function ProductDetails({ product }: { product: Product }) {
                 },
               }}
             >
+              {/* Repurposed: was a dead "Wishlist" button that only toasted
+                  "not connected yet" — now a working Share action. */}
               <Button
                 type="button"
-                variant="outline"
-                className="h-[52px] rounded-xl border-white/10 bg-white/[0.05] px-5 text-sm font-semibold text-white hover:bg-white/10"
-                onClick={() => toast.info("Wishlist is not connected yet.")}
+                variant="vegaAddWishlistBtn"
+                className="h-[52px] rounded-xl px-5 text-sm font-semibold"
+                onClick={async () => {
+                  const url = typeof window !== "undefined" ? window.location.href : "";
+                  try {
+                    if (navigator.share) {
+                      await navigator.share({ title: document.title, url });
+                    } else {
+                      await navigator.clipboard.writeText(url);
+                      toast.success("Link copied to clipboard");
+                    }
+                  } catch {
+                    /* user dismissed share sheet — no-op */
+                  }
+                }}
               >
-                <Heart className="mr-2 h-4 w-4" />
-                Wishlist
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
               </Button>
             </motion.div>
           </motion.div>

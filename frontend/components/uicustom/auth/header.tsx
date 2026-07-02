@@ -11,13 +11,18 @@ interface HeaderProps {
     label: string;
 }
 const LOG_PREFIX = '[frontend/components/uicustom/auth/header.tsx]'
+/**
+ * The page's headerLabel IS the title now (the old version rendered a literal
+ * "Auth" heading with the label demoted to a caption — meaningless to users).
+ */
 export const MyAuthHeader = ({ label }: HeaderProps) => {
     return (
-        <div className='w-full flex flex-col gap-y-4 items-center justify-center'>
-            <h1 className={cn('text-3xl font-semibold', font.className)}>Auth</h1>
-            <p className='text-muted-foreground text-sm'>
+        <div className='flex w-full flex-col items-center justify-center gap-y-3'>
+            {/* Brand accent tick — small, confident, theme-aware */}
+            <span aria-hidden className='h-1 w-10 rounded-full bg-brand-accent/80' />
+            <h1 className={cn('text-center text-2xl font-semibold tracking-tight text-foreground', font.className)}>
                 {label}
-            </p>
+            </h1>
         </div>
     )
 };

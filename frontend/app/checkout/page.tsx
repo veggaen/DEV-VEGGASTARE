@@ -232,7 +232,7 @@ export default function CheckoutPage() {
   // Shared input styling for the checkout — single hairline border, soft bg,
   // accent focus ring. Keeps every field visually consistent without nested boxes.
   const checkoutInputClass =
-    "w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30";
+    "w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/30";
 
   const focusDeliveryAddress = useCallback(() => {
     addressSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -839,7 +839,11 @@ export default function CheckoutPage() {
     );
   }
 
-  if (error && showError) {
+  // NOTE: errors no longer take over the whole page (which threw away the
+  // user's typed address/contact details). Load failures with an empty cart
+  // still get the focused treatment; everything else renders as an inline,
+  // dismissible banner above the checkout grid.
+  if (error && showError && items.length === 0) {
     return (
       <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center px-4 text-center">
         <p className="text-base text-foreground">{error}</p>
@@ -889,13 +893,39 @@ export default function CheckoutPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
       >
-        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Checkout
-        </div>
+        {/* Step indicator — orients the buyer inside the purchase journey */}
+        <nav aria-label="Checkout progress" className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em]">
+          <Link href="/cart" className="text-muted-foreground/70 transition-colors hover:text-foreground">Cart</Link>
+          <span aria-hidden className="text-muted-foreground/40">→</span>
+          <span className="text-brand-accent-hover dark:text-brand-accent-light">Checkout</span>
+          <span aria-hidden className="text-muted-foreground/40">→</span>
+          <span className="text-muted-foreground/50">Confirmation</span>
+        </nav>
         <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           Review &amp; pay
         </h1>
       </motion.div>
+
+      {/* Inline error banner — never blanks the page, never loses typed input */}
+      <AnimatePresence>
+        {error && showError && (
+          <motion.div
+            role="alert"
+            initial={{ opacity: 0, y: -8, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: "auto" }}
+            exit={{ opacity: 0, y: -8, height: 0 }}
+            className="mb-6 flex items-start justify-between gap-4 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-red-600 dark:text-red-400"
+          >
+            <p className="leading-5">{error}</p>
+            <button
+              onClick={() => setShowError(false)}
+              className="shrink-0 rounded-md px-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Dismiss
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-14">
         {/* Left: items + delivery */}
@@ -1096,7 +1126,7 @@ export default function CheckoutPage() {
                       {m.label}
                       <span
                         className={`absolute inset-x-0 bottom-0 h-0.5 rounded-full transition-all duration-200 ${
-                          selected ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-transparent'
+                          selected ? 'bg-brand-accent' : 'bg-transparent'
                         }`}
                       />
                     </button>
@@ -1169,7 +1199,9 @@ export default function CheckoutPage() {
               <WalletConnectChooser authenticateDirect={false}>
                 <Button
                   type="button"
-                  className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  variant="vegaBuyBtn"
+                  size="touch"
+                  className="w-full mt-5"
                   disabled={paying}
                 >
                   Connect wallet to pay
@@ -1181,7 +1213,9 @@ export default function CheckoutPage() {
               }}>
                 <DialogTrigger asChild>
                   <Button
-                    className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                    variant="vegaBuyBtn"
+                    size="touch"
+                    className="w-full mt-5"
                     disabled={paying || !isShippingValid || !isMainnetPaymentNetwork}
                     title={cryptoPayButtonTitle}
                   >
@@ -1280,10 +1314,12 @@ export default function CheckoutPage() {
 
                         <Button
                           onClick={handleConfirmPay}
-                          className="mt-5 w-full bg-emerald-600 text-white transition-colors hover:bg-emerald-500"
+                          variant="vegaBuyBtn"
+                          size="touch"
+                          className="mt-5 w-full"
                           disabled={paying || !isWalletReady || !totalInNative || !isMainnetPaymentNetwork}
                         >
-                          {verifyingTx ? "Verifying…" : paying ? "Processing…" : `Confirm & pay`}
+                          {verifyingTx ? "Verifying…" : paying ? "Processing…" : `Confirm & pay ${formatNativeAmount(totalInNative, nativeSymbol)}`}
                         </Button>
                       </motion.div>
                     )}
@@ -1293,13 +1329,24 @@ export default function CheckoutPage() {
             ) : (
               <Button
                 onClick={handlePayFiat}
-                className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                variant="vegaBuyBtn"
+                size="touch"
+                className="w-full mt-5"
                 disabled={paying || !isShippingValid}
                 title={!isShippingValid ? (allDigital ? "Fill in contact details" : "Fill in shipping address") : undefined}
               >
                 {paying ? "Processing…" : !isShippingValid ? (allDigital ? "Fill in contact" : "Fill in address") : `Pay with ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}`}
               </Button>
             )}
+
+            {/* Trust cue — small, quiet, but present on the money step */}
+            <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+              <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
+                <rect x="5" y="11" width="14" height="9" rx="2" />
+                <path d="M8 11V7a4 4 0 1 1 8 0v4" />
+              </svg>
+              Secure checkout — payment details never touch our servers
+            </p>
 
             <footer className="mt-8 text-center text-muted-foreground text-xs">
               <p>

@@ -13,7 +13,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         spellCheck="false"
         className={cn(
           // Base: 44px tall (h-11) meets the WCAG 2.2 touch-target floor on mobile.
-          "flex h-11 w-full rounded-md border border-input bg-zinc-50 px-3 py-2 text-sm transition-[border-color,box-shadow] duration-200 dark:bg-zinc-900",
+          // bg uses the --input token (soft in light, lifted in dark) — no hardcoded zinc.
+          "flex h-11 w-full rounded-md border border-border/70 bg-input px-3 py-2 text-sm text-foreground transition-[border-color,box-shadow] duration-200",
           // Placeholder + native file-input styling preserved.
           "placeholder:text-muted-foreground file:border-0 file:bg-transparent file:text-sm file:font-medium",
           // Focus: semantic brand-accent ring (auto sky in light / emerald in dark)

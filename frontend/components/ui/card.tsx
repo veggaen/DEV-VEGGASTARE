@@ -8,8 +8,11 @@ const Card = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
+    data-card=""
     className={cn(
-      "rounded-xl border border-zinc-200/80 dark:border-zinc-800/60 bg-card text-card-foreground shadow-sm dark:shadow-none transition-[border-color,box-shadow] duration-200",
+      // Token-based border (not hardcoded zinc) so theme changes propagate.
+      // data-card lets globals.css apply light-mode elevation consistently.
+      "rounded-xl border border-border/80 bg-card text-card-foreground shadow-sm dark:shadow-none transition-[border-color,box-shadow,transform] duration-200",
       className
     )}
     {...props}

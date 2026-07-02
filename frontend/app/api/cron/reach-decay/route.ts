@@ -44,7 +44,16 @@ function isAuthorized(req: Request): boolean {
   return authHeader === `Bearer ${cronSecret}`;
 }
 
-// ─── POST Handler ────────────────────────────────────────────────────────────
+// ─── Handlers ────────────────────────────────────────────────────────────────
+//
+// CRITICAL: Vercel Cron invokes cron paths with **GET** requests. This route
+// previously only exported POST, so the nightly job 405'd forever and the
+// whole Reach pipeline (decay, user aggregation, rollups) silently never ran.
+// GET now delegates to the same handler; POST kept for manual triggering.
+
+export async function GET(req: Request) {
+  return POST(req);
+}
 
 export async function POST(req: Request) {
   if (!isAuthorized(req)) {
@@ -365,6 +374,41 @@ export async function POST(req: Request) {
           },
         });
         stats.usersAggregated++;
+
+        // Per-user daily rollup — this is what the profile momentum-trend
+        // chart reads (dailyReachRollup where userId). It was never written
+        // before, so the chart was permanently empty.
+        const [userViewAgg, userEngagementsToday] = await Promise.all([
+          dbPrisma.conversation.aggregate({
+            where: { userId: userAgg.userId, visibility: 'PUBLIC' },
+            _sum: { viewCount: true },
+          }),
+          dbPrisma.engagementEvent.count({
+            where: {
+              conversation: { userId: userAgg.userId },
+              createdAt: { gte: today },
+            },
+          }),
+        ]);
+
+        await dbPrisma.dailyReachRollup.upsert({
+          where: { userId_date: { userId: userAgg.userId, date: today } },
+          update: {
+            addedLifetime: userAgg._sum.reachLifetime ?? 0,
+            addedMomentum: userAgg._sum.reachMomentum ?? 0,
+            totalViews: userViewAgg._sum.viewCount ?? 0,
+            totalEngagements: userEngagementsToday,
+          },
+          create: {
+            userId: userAgg.userId,
+            date: today,
+            addedLifetime: userAgg._sum.reachLifetime ?? 0,
+            addedMomentum: userAgg._sum.reachMomentum ?? 0,
+            totalViews: userViewAgg._sum.viewCount ?? 0,
+            totalEngagements: userEngagementsToday,
+          },
+        });
+        stats.rollupsCreated++;
       } catch {
         // User fields might not exist yet
       }

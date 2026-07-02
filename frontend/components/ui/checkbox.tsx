@@ -15,7 +15,7 @@ const Checkbox = React.forwardRef<
     className={cn(
       "peer h-4 w-4 shrink-0 rounded border transition-colors",
       // Unchecked state
-      "border-zinc-300 dark:border-zinc-600 bg-transparent",
+      "border-border bg-transparent hover:border-brand-accent/50",
       // Checked state — semantic brand accent (sky in light / emerald in dark)
       "data-[state=checked]:bg-brand-accent data-[state=checked]:border-brand-accent data-[state=checked]:text-brand-accent-foreground",
       // Focus state — 2px brand ring, theme-aware offset

@@ -216,10 +216,24 @@ export async function POST(req: Request) {
       // Echo propagation: if this pulse is a repost, echo credit flows upstream
       const conv = await dbPrisma.conversation.findUnique({
         where: { id: conversationId },
-        select: { repostOfConversationId: true },
+        select: { repostOfConversationId: true, userId: true },
       });
       if (conv?.repostOfConversationId) {
         await propagateEcho(conversationId, totalStrength);
+      }
+
+      // Real-time credit to the CONTENT OWNER — reach belongs to the creator,
+      // not the viewer. The nightly cron re-syncs these to the authoritative
+      // per-pulse sums, so live increments only make the number feel alive
+      // between runs (self-engagement is excluded).
+      if (conv?.userId && conv.userId !== userId) {
+        await dbPrisma.user.update({
+          where: { id: conv.userId },
+          data: {
+            reachLifetime: { increment: totalStrength },
+            reachMomentum: { increment: totalStrength },
+          },
+        }).catch(() => { /* reach fields might not exist pre-migration */ });
       }
 
       // Check for community resonance
@@ -270,18 +284,8 @@ export async function POST(req: Request) {
       });
     }
 
-    // Update user-level reach (materialized aggregate)
-    if (userId) {
-      await dbPrisma.user.update({
-        where: { id: userId },
-        data: {
-          // User reach grows from their engagements at a reduced rate
-          // (user reach mostly comes from their *content's* reach, not their browsing)
-        },
-      }).catch(() => {
-        // Fields might not exist yet
-      });
-    }
+    // (Removed: an empty user.update({data:{}}) no-op that lived here — the
+    // viewer's reach is untouched by browsing; owner credit happens above.)
 
     console.log(
       LOG_PREFIX,

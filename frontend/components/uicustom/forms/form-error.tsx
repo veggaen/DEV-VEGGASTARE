@@ -7,8 +7,12 @@ interface FormErrorProps {
 export const MyFormError = ({ message }: FormErrorProps) => {
     if (!message) return null;
     return (
-    <div className="bg-destructive/15 flex items-center gap-x-2 text-sm p-3 text-red-500 rounded-md">
-      <ExclamationTriangleIcon className="h-4 w-4" />
+    <div
+      role="alert"
+      aria-live="polite"
+      className="message-bubble-enter flex items-start gap-x-2.5 rounded-xl border border-destructive/25 bg-destructive/10 p-3 text-sm text-red-600 dark:text-red-400"
+    >
+      <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
       <p>{message}</p>
     </div>
     )

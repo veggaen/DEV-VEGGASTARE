@@ -24,15 +24,37 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        vegaThemeBtn: 'flex items-center justify-center rounded-lg p-2 transition duration-300 ease-in-out transform hover:scale-125 hover:bg-black/20 dark:hover:bg-zinc-700',
-        vegaThemeBtnDefault: 'flex items-center justify-center rounded-lg p-2 transition duration-300 ease-in-out transform hover:bg-black/20/0 dark:hover:bg-zinc-700/0',
-        vegaEmeraldBtn: 'border bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 border-emerald-300 dark:border-emerald-900 text-white transition duration-300 ease-in-out hover:scale-95 hover:text-md active:border active:border-sky-500',
-        vegaNormalBtnBlank: 'text-black/80 hover:text-black dark:text-white/80 hover:dark:text-white transition duration-300 ease-in-out',
-        vegaNormalBtn: 'border bg-gray-300/50 border-gray-500/10 dark:bg-zinc-700 dark:border-zinc-600 text-black/80 hover:text-black dark:text-white/80 hover:dark:text-white transition duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-500 active:border active:border-sky-500 hover:bg-sky-400 dark:hover:bg-sky-700',
-        vegaNormalBtnRed: 'border bg-gray-400 border-gray-500/10 dark:bg-zinc-700 dark:border-zinc-600 text-black/80 hover:text-black dark:text-white/80 hover:dark:text-white transition duration-300 ease-in-out hover:shadow-lg hover:border-red-500 dark:hover:border-red-500 active:border active:border-sky-500 hover:bg-red-400 dark:hover:bg-red-700',
-        vegaBuyBtn: 'bg-emerald-400 dark:bg-emerald-600 text-white transition duration-300 ease-in-out hover:scale-95 hover:text-md active:border active:border-sky-500 hover:bg-emerald-400 dark:hover:bg-emerald-700',
-        vegaAddBasketBtn: 'bg-sky-400 dark:bg-sky-600 text-white transition duration-300 ease-in-out hover:scale-95 hover:text-md active:border active:border-sky-500 hover:bg-orange-400 dark:hover:bg-orange-700',
-        vegaAddWishlistBtn: 'bg-zinc-400 dark:bg-zinc-600 text-white transition duration-300 ease-in-out hover:scale-95 hover:text-md active:border active:border-sky-500 hover:bg-sky-400 dark:hover:bg-sky-700',
+        /* ─── Vega legacy variant names, reimplemented on semantic tokens ─────
+         * Same names (call sites untouched), modern behaviour:
+         *  • colors come from --brand-accent & friends → correct in BOTH themes
+         *  • hover = lift (-translate-y) + shadow bloom, never a shrink
+         *  • press = the base active:scale for tactile feedback
+         * ──────────────────────────────────────────────────────────────────── */
+        vegaThemeBtn:
+          'flex items-center justify-center rounded-lg p-2 hover:bg-accent',
+        vegaThemeBtnDefault:
+          'flex items-center justify-center rounded-lg p-2',
+        // Primary CTA — solid brand accent (sky in light / emerald in dark)
+        vegaEmeraldBtn:
+          'bg-brand-accent text-brand-accent-foreground border border-brand-accent/20 shadow-sm hover:bg-brand-accent-hover motion-safe:hover:-translate-y-px hover:shadow-[0_4px_14px_hsl(var(--brand-accent)/0.35)]',
+        // Quiet text button
+        vegaNormalBtnBlank:
+          'text-foreground/75 hover:text-foreground',
+        // Neutral secondary — stays neutral on hover, accent only on the border
+        vegaNormalBtn:
+          'border border-border bg-secondary text-secondary-foreground hover:border-brand-accent/50 hover:bg-accent motion-safe:hover:-translate-y-px hover:shadow-sm',
+        // Neutral secondary that signals a destructive path
+        vegaNormalBtnRed:
+          'border border-border bg-secondary text-secondary-foreground hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive motion-safe:hover:-translate-y-px hover:shadow-sm',
+        // Commerce: Buy = the loudest thing on the page
+        vegaBuyBtn:
+          'bg-brand-accent text-brand-accent-foreground font-semibold shadow-sm hover:bg-brand-accent-hover motion-safe:hover:-translate-y-px hover:shadow-[0_4px_16px_hsl(var(--brand-accent)/0.4)]',
+        // Commerce: Add to basket = confident but one step quieter (accent outline)
+        vegaAddBasketBtn:
+          'border border-brand-accent/50 bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/15 hover:border-brand-accent motion-safe:hover:-translate-y-px hover:shadow-[0_2px_10px_hsl(var(--brand-accent)/0.25)]',
+        // Commerce: Wishlist = quietest of the trio
+        vegaAddWishlistBtn:
+          'border border-border bg-transparent text-muted-foreground hover:text-brand-accent hover:border-brand-accent/40 hover:bg-brand-accent/5',
       },
       size: {
         default: "h-10 px-4 py-2",
