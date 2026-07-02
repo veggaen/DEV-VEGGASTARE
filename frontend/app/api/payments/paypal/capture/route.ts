@@ -15,7 +15,11 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { dbPrisma } from '@/lib/db';
 import { getPaymentProvider } from '@/lib/payments/providers';
+<<<<<<< HEAD
 import { completeFiatOrder, releaseReservedOrderStock } from '@/lib/payments/complete-fiat-order';
+=======
+import { completeFiatOrder } from '@/lib/payments/complete-fiat-order';
+>>>>>>> dev
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -24,6 +28,7 @@ export async function GET(req: Request) {
   const cancelled = url.searchParams.get('cancelled');
   const origin = url.origin;
 
+<<<<<<< HEAD
   // Verify user session
   const session = await auth();
   if (!session?.user?.id) {
@@ -44,6 +49,11 @@ export async function GET(req: Request) {
       });
     }
 
+=======
+  // Handle cancellation
+  if (cancelled === 'true' && orderId) {
+    // Restore the cart? For now just redirect with flag
+>>>>>>> dev
     console.log(`[paypal-capture] Payment cancelled for order ${orderId}`);
     return NextResponse.redirect(`${origin}/order-confirmation?orderId=${orderId}&paymentCancelled=true`);
   }
@@ -53,6 +63,15 @@ export async function GET(req: Request) {
     return NextResponse.redirect(`${origin}/checkout?error=missing_payment_params`);
   }
 
+<<<<<<< HEAD
+=======
+  // Verify user session
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.redirect(`${origin}/auth/login?callbackUrl=/order-confirmation?orderId=${orderId}`);
+  }
+
+>>>>>>> dev
   // Verify order belongs to user
   const order = await dbPrisma.order.findUnique({
     where: { id: orderId },
@@ -78,10 +97,13 @@ export async function GET(req: Request) {
   const paypal = getPaymentProvider('paypal');
   if (!paypal || !('capturePayment' in paypal)) {
     console.error('[paypal-capture] PayPal provider not available');
+<<<<<<< HEAD
     await releaseReservedOrderStock(orderId, {
       status: 'FAILED',
       source: 'paypal-provider-unavailable',
     });
+=======
+>>>>>>> dev
     return NextResponse.redirect(`${origin}/order-confirmation?orderId=${orderId}&paymentFailed=true`);
   }
 
@@ -90,11 +112,14 @@ export async function GET(req: Request) {
 
     if (captureResult.status !== 'CAPTURED') {
       console.error(`[paypal-capture] Capture returned status: ${captureResult.status}`);
+<<<<<<< HEAD
       await releaseReservedOrderStock(orderId, {
         status: captureResult.status === 'CANCELLED' ? 'CANCELLED' : 'FAILED',
         paymentTransactionId: captureResult.transactionId ?? token,
         source: 'paypal-capture-not-captured',
       });
+=======
+>>>>>>> dev
       return NextResponse.redirect(
         `${origin}/order-confirmation?orderId=${orderId}&paymentFailed=true`
       );
@@ -103,7 +128,10 @@ export async function GET(req: Request) {
     // Complete the order (all side effects: email, tokens, repo access, etc.)
     const result = await completeFiatOrder(orderId, {
       paymentTransactionId: captureResult.transactionId ?? token,
+<<<<<<< HEAD
       origin,
+=======
+>>>>>>> dev
       source: 'paypal-capture',
     });
 

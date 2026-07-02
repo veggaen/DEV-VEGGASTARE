@@ -315,7 +315,11 @@ export class PayPalProvider implements PaymentProvider {
             value: (req.amount / 100).toFixed(2), // PayPal uses major units
           },
           // Route payment to seller if their verified PayPal email is provided
+<<<<<<< HEAD
           ...(enableSellerPayeeRouting && req.sellerEmail ? {
+=======
+          ...(req.sellerEmail ? {
+>>>>>>> dev
             payee: {
               email_address: req.sellerEmail,
             },

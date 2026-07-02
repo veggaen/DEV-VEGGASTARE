@@ -1,4 +1,5 @@
 /**
+<<<<<<< HEAD
  * @fileOverview Shared logic for completing a paid order after payment confirmation.
  * @stability stable
  *
@@ -15,6 +16,22 @@
  * - Digital-only auto-fulfilment
  * - Buyer confirmation email
  * - Seller and warehouse notification emails
+=======
+ * @fileOverview  Shared logic for completing a fiat (non-crypto) order after payment capture.
+ * @stability     stable
+ *
+ * Called from:
+ * - POST /api/payments/paypal/capture  (PayPal return URL)
+ * - POST /api/payments/webhook/[provider]  (webhook fallback)
+ *
+ * Handles:
+ * - Updating order & payment status → COMPLETED
+ * - hasWeb2Payment flag + verification tier   
+ * - Download token generation
+ * - Auto-fulfil digital-only orders
+ * - Order confirmation email
+ * - Seller & warehouse notifications
+>>>>>>> dev
  * - Repo access grants
  * - In-app notification
  */
@@ -24,16 +41,22 @@ import { sendOrderConfirmationEmail, sendSellerOrderNotification, sendWarehouseO
 import { generateDownloadTokensForOrder } from '@/lib/download-tokens';
 import { recalculateVerificationTier } from '@/lib/verification-recalc';
 import { grantRepoAccessForOrder } from '@/lib/github-repo-access';
+<<<<<<< HEAD
 import { pusherServer } from '@/lib/pusher';
 import { bookPaidOrderShipment } from '@/lib/shipping/book-paid-order-shipment';
 
 export interface CompletePaidOrderResult {
+=======
+
+export interface CompleteFiatOrderResult {
+>>>>>>> dev
   success: boolean;
   orderId: string;
   alreadyCompleted?: boolean;
   error?: string;
 }
 
+<<<<<<< HEAD
 export type CompleteFiatOrderResult = CompletePaidOrderResult;
 
 type CompletePaidOrderKind = 'web2' | 'web3';
@@ -72,6 +95,20 @@ export async function completePaidOrder(
     source: string;
   }
 ): Promise<CompletePaidOrderResult> {
+=======
+/**
+ * Transition a PENDING fiat order to COMPLETED and run all post-payment side effects.
+ * Idempotent — returns early if order is already COMPLETED.
+ */
+export async function completeFiatOrder(
+  orderId: string,
+  opts: {
+    paymentTransactionId?: string;
+    source: string; // e.g. 'paypal-capture', 'webhook-paypal'
+  }
+): Promise<CompleteFiatOrderResult> {
+  // 1. Fetch order + payment
+>>>>>>> dev
   const order = await dbPrisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -85,10 +122,15 @@ export async function completePaidOrder(
     return { success: false, orderId, error: 'Order not found' };
   }
 
+<<<<<<< HEAD
+=======
+  // Idempotent — don't re-complete
+>>>>>>> dev
   if (order.status === 'COMPLETED') {
     return { success: true, orderId, alreadyCompleted: true };
   }
 
+<<<<<<< HEAD
   if (order.status === 'FAILED' || order.status === 'CANCELLED') {
     return { success: false, orderId, error: `Order is ${order.status}` };
   }
@@ -247,6 +289,46 @@ export async function completePaidOrder(
   const items = order.OrderItem ?? [];
   let downloadTokens: Awaited<ReturnType<typeof generateDownloadTokensForOrder>> = [];
 
+=======
+  // 2. Update order + payment status
+  await dbPrisma.$transaction([
+    dbPrisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: 'COMPLETED',
+        transactionId: opts.paymentTransactionId ?? order.transactionId,
+      },
+    }),
+    ...(order.Payment
+      ? [
+          dbPrisma.payment.update({
+            where: { orderId },
+            data: {
+              status: 'COMPLETED',
+              transactionId: opts.paymentTransactionId ?? order.Payment.transactionId,
+            },
+          }),
+        ]
+      : []),
+  ]);
+
+  console.log(`[completeFiatOrder] Order ${orderId} completed via ${opts.source}`);
+
+  // 3. Set hasWeb2Payment flag + recalculate tier
+  try {
+    await dbPrisma.user.update({
+      where: { id: order.userId },
+      data: { hasWeb2Payment: true },
+    });
+    await recalculateVerificationTier(order.userId, { hasWeb2Payment: true });
+  } catch (err) {
+    console.error('[completeFiatOrder] Failed to set hasWeb2Payment:', err);
+  }
+
+  // 4. Generate download tokens for digital products
+  const items = order.OrderItem ?? [];
+  let downloadTokens: Awaited<ReturnType<typeof generateDownloadTokensForOrder>> = [];
+>>>>>>> dev
   if (items.length > 0) {
     try {
       downloadTokens = await generateDownloadTokensForOrder({
@@ -255,10 +337,18 @@ export async function completePaidOrder(
         orderItems: items.map((oi) => ({ id: oi.id, productId: oi.productId })),
       });
     } catch (err) {
+<<<<<<< HEAD
       console.error('[completePaidOrder] Download token generation failed:', err);
     }
   }
 
+=======
+      console.error('[completeFiatOrder] Download token generation failed:', err);
+    }
+  }
+
+  // 5. Auto-fulfil digital-only orders
+>>>>>>> dev
   if (items.length > 0) {
     try {
       const productIds = items.map((i) => i.productId);
@@ -268,7 +358,10 @@ export async function completePaidOrder(
       });
       const allDigital =
         productTypes.length > 0 && productTypes.every((p) => p.productType === 'DIGITAL');
+<<<<<<< HEAD
 
+=======
+>>>>>>> dev
       if (allDigital) {
         await dbPrisma.order.update({
           where: { id: order.id },
@@ -276,6 +369,7 @@ export async function completePaidOrder(
         });
       }
     } catch (err) {
+<<<<<<< HEAD
       console.error('[completePaidOrder] Auto-fulfil failed:', err);
     }
   }
@@ -293,6 +387,13 @@ export async function completePaidOrder(
     console.error('[completePaidOrder] Shipment booking failed:', err);
   }
 
+=======
+      console.error('[completeFiatOrder] Auto-fulfil failed:', err);
+    }
+  }
+
+  // 6. Send confirmation email (non-blocking)
+>>>>>>> dev
   const emailTo = order.shippingEmail || order.User?.email;
   if (emailTo) {
     try {
@@ -314,6 +415,7 @@ export async function completePaidOrder(
         downloadLinks: downloadTokens.length > 0 ? downloadTokens : undefined,
         shippingMethodName: order.shippingMethod ?? undefined,
         shippingCost: order.shippingCost ? Number(order.shippingCost) : undefined,
+<<<<<<< HEAD
         trackingNumber: shipment?.trackingNumber ?? undefined,
         trackingUrl: shipment?.trackingUrl ?? undefined,
         estimatedDelivery: shipment?.estimatedDelivery ?? undefined,
@@ -333,24 +435,56 @@ export async function completePaidOrder(
     console.error('[completePaidOrder] Repo access grant failed:', err);
   }
 
+=======
+      });
+    } catch (err) {
+      console.error('[completeFiatOrder] Confirmation email failed:', err);
+    }
+  }
+
+  // 7. Seller & warehouse notifications (fire-and-forget)
+  notifySellersInBackground(order).catch((err) =>
+    console.error('[completeFiatOrder] Seller notification error:', err)
+  );
+
+  // 8. Grant repo access
+  try {
+    await grantRepoAccessForOrder(order.id, opts.source);
+  } catch (err) {
+    console.error('[completeFiatOrder] Repo access grant failed:', err);
+  }
+
+  // 9. In-app notification
+>>>>>>> dev
   try {
     await dbPrisma.notification.create({
       data: {
         userId: order.userId,
         type: 'SYSTEM',
+<<<<<<< HEAD
         title: 'Payment confirmed - order complete',
         message: `Your order #${order.id.slice(0, 8)} has been paid and confirmed.`,
         preview: `Order #${order.id.slice(0, 8)} - ${items.length} item(s) - ${order.totalAmount}`,
+=======
+        title: 'Payment confirmed — order complete',
+        message: `Your order #${order.id.slice(0, 8)} has been paid and confirmed.`,
+        preview: `Order #${order.id.slice(0, 8)} • ${items.length} item(s) • ${order.totalAmount}`,
+>>>>>>> dev
         metadata: { orderId: order.id, orderStatus: 'COMPLETED', source: opts.source },
       },
     });
   } catch (err) {
+<<<<<<< HEAD
     console.error('[completePaidOrder] Notification creation failed:', err);
+=======
+    console.error('[completeFiatOrder] Notification creation failed:', err);
+>>>>>>> dev
   }
 
   return { success: true, orderId };
 }
 
+<<<<<<< HEAD
 export async function completeFiatOrder(
   orderId: string,
   opts: {
@@ -453,6 +587,24 @@ async function publishWarehouseInventoryUpdates(updates: InventoryUpdateEvent[],
 }
 
 async function notifySellersInBackground(order: OrderForNotifications) {
+=======
+/* ────────────────────────────────────────────────────────────── */
+
+async function notifySellersInBackground(
+  order: {
+    id: string;
+    totalAmount: unknown;
+    shippingName: string | null;
+    shippingAddress: string | null;
+    shippingCity: string | null;
+    shippingPostalCode: string | null;
+    shippingCountry: string | null;
+    shippingPhone: string | null;
+    shippingMethod: string | null;
+    OrderItem: { productId: string; quantity: number; title: string }[];
+  },
+) {
+>>>>>>> dev
   const items = order.OrderItem;
   if (items.length === 0) return;
 
@@ -470,8 +622,13 @@ async function notifySellersInBackground(order: OrderForNotifications) {
           id: true,
           name: true,
           Employee: {
+<<<<<<< HEAD
             where: { role: { in: ['OWNER', 'MANAGER', 'WAREHOUSE_MANAGER', 'WAREHOUSE_WORKER'] } },
             select: { role: true, User: { select: { email: true } } },
+=======
+            where: { role: 'OWNER' },
+            select: { User: { select: { email: true } } },
+>>>>>>> dev
           },
           WarehouseLocation: {
             where: { isActive: true },
@@ -482,12 +639,19 @@ async function notifySellersInBackground(order: OrderForNotifications) {
     },
   });
 
+<<<<<<< HEAD
+=======
+  // Group items by seller
+>>>>>>> dev
   type SellerEntry = {
     email: string;
     items: { productId: string; quantity: number; priceAtTime: number; title: string }[];
     isDigital: boolean;
   };
+<<<<<<< HEAD
 
+=======
+>>>>>>> dev
   const sellerMap = new Map<string, SellerEntry>();
 
   for (const product of productsWithOwners) {
@@ -495,6 +659,7 @@ async function notifySellersInBackground(order: OrderForNotifications) {
     if (!item) continue;
 
     const isDigital = product.productType === 'DIGITAL';
+<<<<<<< HEAD
     const ownerEmail =
       product.Company?.Employee?.find((e) => e.role === 'OWNER')?.User?.email ??
       product.User?.email ??
@@ -509,11 +674,31 @@ async function notifySellersInBackground(order: OrderForNotifications) {
         sellerMap.set(ownerEmail, {
           email: ownerEmail,
           items: [item],
+=======
+    let sellerEmail: string | null = null;
+
+    if (product.Company?.Employee?.[0]?.User?.email) {
+      sellerEmail = product.Company.Employee[0].User.email;
+    } else if (product.User?.email) {
+      sellerEmail = product.User.email;
+    }
+
+    if (sellerEmail) {
+      const existing = sellerMap.get(sellerEmail);
+      if (existing) {
+        existing.items.push({ ...item, priceAtTime: 0 });
+        if (!isDigital) existing.isDigital = false;
+      } else {
+        sellerMap.set(sellerEmail, {
+          email: sellerEmail,
+          items: [{ ...item, priceAtTime: 0 }],
+>>>>>>> dev
           isDigital,
         });
       }
     }
 
+<<<<<<< HEAD
     if (product.productType !== 'DIGITAL' && product.Company?.WarehouseLocation?.length) {
       const employeeEmails = product.Company.Employee
         ?.map((e) => e.User?.email)
@@ -537,6 +722,32 @@ async function notifySellersInBackground(order: OrderForNotifications) {
           });
         } catch (whErr) {
           console.error('[completePaidOrder] Warehouse email failed:', whErr);
+=======
+    // Warehouse notification for physical/hybrid
+    if (product.productType !== 'DIGITAL' && product.Company?.WarehouseLocation?.length) {
+      const employeeEmails = product.Company.Employee
+        ?.map((e: { User: { email: string | null } }) => e.User?.email)
+        .filter(Boolean) as string[];
+
+      for (const warehouse of product.Company.WarehouseLocation) {
+        if (employeeEmails.length > 0) {
+          try {
+            await sendWarehouseOrderNotification(employeeEmails, {
+              orderId: order.id,
+              items: [{ title: item.title, quantity: item.quantity }],
+              buyerName: order.shippingName || 'Customer',
+              shippingAddress: order.shippingAddress || '',
+              shippingCity: order.shippingCity || '',
+              shippingPostalCode: order.shippingPostalCode || '',
+              shippingCountry: order.shippingCountry || 'NO',
+              shippingPhone: order.shippingPhone ?? undefined,
+              shippingMethodName: order.shippingMethod ?? undefined,
+              warehouseName: warehouse.name || product.Company!.name,
+            });
+          } catch (whErr) {
+            console.error(`[completeFiatOrder] Warehouse email failed:`, whErr);
+          }
+>>>>>>> dev
         }
       }
     }
@@ -558,7 +769,11 @@ async function notifySellersInBackground(order: OrderForNotifications) {
         isDigital: seller.isDigital,
       });
     } catch (err) {
+<<<<<<< HEAD
       console.error('[completePaidOrder] Seller email failed:', err);
+=======
+      console.error(`[completeFiatOrder] Seller email failed:`, err);
+>>>>>>> dev
     }
   }
 }

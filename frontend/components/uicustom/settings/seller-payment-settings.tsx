@@ -69,10 +69,15 @@ export function SellerPaymentSettings() {
   }, []);
 
   useEffect(() => {
+<<<<<<< HEAD
     void (async () => {
       await fetchWallets();
       await fetchStatus();
     })();
+=======
+    fetchStatus();
+    fetchWallets();
+>>>>>>> dev
   }, [fetchStatus, fetchWallets]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -157,8 +162,12 @@ export function SellerPaymentSettings() {
           PayPal Receiving Email
         </h3>
         <p className="text-sm text-muted-foreground dark:text-white/40">
+<<<<<<< HEAD
           Save the PayPal email you want associated with seller records. Direct seller-routed PayPal payouts require
           PayPal multiparty onboarding; until then, checkout can use the platform PayPal merchant app when it is configured.
+=======
+          Buyers can pay you via PayPal to this address. We&apos;ll verify ownership first.
+>>>>>>> dev
         </p>
 
         {/* Current status badge */}
@@ -253,7 +262,11 @@ export function SellerPaymentSettings() {
           <div className="rounded-lg border border-dashed border-zinc-300 dark:border-white/10 p-6 text-center">
             <FiCreditCard className="mx-auto mb-2 h-8 w-8 text-zinc-400 dark:text-white/30" />
             <p className="text-sm text-zinc-500 dark:text-white/40">
+<<<<<<< HEAD
               No verified wallets yet. Connect and sign a wallet in{' '}
+=======
+              No verified wallets yet. Go to{' '}
+>>>>>>> dev
               <button
                 className="text-emerald-600 underline underline-offset-2 hover:text-emerald-700 dark:text-emerald-400"
                 onClick={() => {
@@ -266,7 +279,11 @@ export function SellerPaymentSettings() {
               >
                 Web3 & Wallet
               </button>{' '}
+<<<<<<< HEAD
               . The first verified wallet is now used automatically for new product sales.
+=======
+              to connect and verify a wallet first.
+>>>>>>> dev
             </p>
           </div>
         ) : (
@@ -307,10 +324,17 @@ export function SellerPaymentSettings() {
       <div className="rounded-lg border border-border dark:border-white/10 bg-zinc-50 dark:bg-white/2 p-4">
         <h3 className="text-sm font-medium text-foreground dark:text-white/80 mb-2">How it works</h3>
         <ul className="space-y-1 text-sm text-muted-foreground dark:text-white/50">
+<<<<<<< HEAD
           <li>PayPal - buyer checkout uses the configured merchant app. Automatic seller routing needs PayPal multiparty onboarding.</li>
           <li>Crypto wallet - buyers send supported tokens directly to your verified receiving wallet on-chain.</li>
           <li>Your first verified wallet becomes the default receiving wallet, and each product can override it.</li>
           <li>A product should have at least one working payment path before it is published.</li>
+=======
+          <li>• <strong>PayPal</strong> — Buyers pay via PayPal. Funds go to your verified email.</li>
+          <li>• <strong>Crypto wallet</strong> — Buyers send tokens directly to your wallet on-chain.</li>
+          <li>• You can override the receiving wallet on each product listing.</li>
+          <li>• At least one payment method is required before listing products for sale.</li>
+>>>>>>> dev
         </ul>
       </div>
     </div>

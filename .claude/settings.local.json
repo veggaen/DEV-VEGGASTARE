@@ -8,6 +8,7 @@
       "Bash(head:*)",
       "Bash(find:*)",
       "Bash(npx prisma *)",
+<<<<<<< HEAD
       "Bash(npx next *)",
       "PowerShell($env:NEXT_TELEMETRY_DISABLED = \"1\"; cd frontend; $out = npm run build 2>&1 | Out-String; \"EXIT CODE: $LASTEXITCODE\"; \"---PARAMS / ERROR / WARNING LINES---\"; \\($out -split \"`n\"\\) | Where-Object { $_ -match \"params|error|Error|Failed|failed|warn|Warning|Compiled|✓|✗\" } | Select-Object -First 60)",
       "Bash(git log *)",
@@ -81,6 +82,9 @@
     ],
     "additionalDirectories": [
       "C:\\Users\\v3gga\\Documents\\DEV-VEGGASTARE\\scripts\\_probe\\logged_out"
+=======
+      "Bash(npx next *)"
+>>>>>>> dev
     ]
   }
 }

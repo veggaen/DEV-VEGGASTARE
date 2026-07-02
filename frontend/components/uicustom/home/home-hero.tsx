@@ -304,12 +304,21 @@ function KineticTitle({
                   const charPosition = wordIdx * 10 + charIdx;
                   const hue = (charPosition * 40) % 360;
                   const glowColor = `hsl(${hue}, 80%, 65%)`;
+<<<<<<< HEAD
 
                   // Simple mode colors — brand accent per theme
                   // Light: sky-500 blue  |  Dark: emerald-500 green
                   const simpleHoverColor = hoverEffect.intensity >= 0.8
                     ? (isDark ? "rgb(16, 185, 129)" : "rgb(14, 165, 233)") // emerald-500 / sky-500
                     : hoverEffect.intensity >= 0.4
+=======
+                  
+                  // Simple mode colors — brand accent per theme
+                  // Light: sky-500 blue  |  Dark: emerald-500 green
+                  const simpleHoverColor = hoverEffect.intensity >= 0.8 
+                    ? (isDark ? "rgb(16, 185, 129)" : "rgb(14, 165, 233)") // emerald-500 / sky-500
+                    : hoverEffect.intensity >= 0.4 
+>>>>>>> dev
                       ? (isDark ? "rgb(52, 211, 153)" : "rgb(56, 189, 248)") // emerald-400 / sky-400
                       : undefined;
 
@@ -1386,7 +1395,54 @@ export default function HomeHero({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
       >
+<<<<<<< HEAD
         {/* (Removed: "Free to start · No card needed" trust badge + green dot) */}
+=======
+        {/* Trust badge — entry signal + orb collision target */}
+        <motion.div
+          ref={badgeRef}
+          className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium backdrop-blur-sm ${
+            orbBadgeGlow
+              ? "border-sky-500/90 dark:border-emerald-400/50 bg-sky-100 dark:bg-emerald-500/15 text-sky-700 dark:text-emerald-200"
+              : "border-sky-400/70 dark:border-emerald-500/20 bg-sky-50 dark:bg-emerald-500/[0.08] text-sky-700 dark:text-emerald-300/70"
+          }`}
+          initial={{ opacity: 0, y: -8, scale: 0.95 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            scale: orbBadgeGlow ? [1, 1.06, 1] : 1,
+          }}
+          transition={orbBadgeGlow
+            ? { scale: { duration: 0.35, ease: "easeOut" } }
+            : { delay: 0.04, duration: 0.45, ease: "easeOut" }
+          }
+          style={orbBadgeGlow ? {
+            boxShadow: isDark
+              ? "0 0 16px rgba(52,211,153,0.35), 0 0 32px rgba(52,211,153,0.15), inset 0 0 12px rgba(52,211,153,0.1)"
+              : "0 0 16px rgba(14,165,233,0.35), 0 0 32px rgba(14,165,233,0.15), inset 0 0 12px rgba(14,165,233,0.1)",
+          } : undefined}
+        >
+          <motion.span
+            className="h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-emerald-500"
+            animate={orbBadgeGlow
+              ? { opacity: 1, scale: [1, 1.8, 1] }
+              : { opacity: [1, 0.35, 1] }
+            }
+            transition={orbBadgeGlow
+              ? { scale: { duration: 0.4, ease: "easeOut" } }
+              : { duration: 2, repeat: Infinity, ease: "easeInOut" }
+            }
+          />
+          <span
+            style={orbBadgeGlow ? {
+              textShadow: isDark
+                ? "0 0 12px rgba(52,211,153,0.55), 0 0 24px rgba(52,211,153,0.25)"
+                : "0 0 12px rgba(14,165,233,0.55), 0 0 24px rgba(14,165,233,0.25)",
+              transition: "text-shadow 0.2s ease-out",
+            } : { transition: "text-shadow 0.4s ease-out" }}
+          >Free to start · No card needed</span>
+        </motion.div>
+>>>>>>> dev
 
         <div className="space-y-3">
           <motion.div
@@ -1544,7 +1600,11 @@ export default function HomeHero({
                             // identity instead of injecting off-brand purple on white.
                             color: isDark
                               ? (tmColorSwapped ? (tmActiveWithOrb ? "#ddd6fe" : "#c4b5fd") : (tmActiveWithOrb ? "#6ee7b7" : "#34d399"))
+<<<<<<< HEAD
                               : (tmColorSwapped ? (tmActiveWithOrb ? "#0891b2" : "#0e7490") : (tmActiveWithOrb ? "#0284c7" : "#0369a1")),
+=======
+                              : (tmColorSwapped ? (tmActiveWithOrb ? "#6d28d9" : "#7c3aed") : (tmActiveWithOrb ? "#0284c7" : "#0369a1")),
+>>>>>>> dev
                             textShadow: isDark
                               ? (tmColorSwapped ? (tmActiveWithOrb ? "0 0 8px rgba(167,139,250,0.35)" : "0 0 4px rgba(167,139,250,0.18)") : (tmActiveWithOrb ? "0 0 8px rgba(52,211,153,0.35)" : "0 0 4px rgba(52,211,153,0.18)"))
                               : "none",
@@ -1579,7 +1639,11 @@ export default function HomeHero({
                             // Opposite phase of T; light-mode violet → cyan (see T above).
                             color: isDark
                               ? (tmColorSwapped ? (tmActiveWithOrb ? "#6ee7b7" : "#34d399") : (tmActiveWithOrb ? "#ddd6fe" : "#c4b5fd"))
+<<<<<<< HEAD
                               : (tmColorSwapped ? (tmActiveWithOrb ? "#0284c7" : "#0369a1") : (tmActiveWithOrb ? "#0891b2" : "#0e7490")),
+=======
+                              : (tmColorSwapped ? (tmActiveWithOrb ? "#0284c7" : "#0369a1") : (tmActiveWithOrb ? "#6d28d9" : "#7c3aed")),
+>>>>>>> dev
                             textShadow: isDark
                               ? (tmColorSwapped ? (tmActiveWithOrb ? "0 0 8px rgba(52,211,153,0.35)" : "0 0 4px rgba(52,211,153,0.18)") : (tmActiveWithOrb ? "0 0 8px rgba(167,139,250,0.35)" : "0 0 4px rgba(167,139,250,0.18)"))
                               : "none",

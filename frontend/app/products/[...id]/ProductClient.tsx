@@ -1868,6 +1868,46 @@ function ProductDetails({ product }: { product: Product }) {
           </motion.div>
 
           {/* Accepted Payment Methods */}
+<<<<<<< HEAD
+=======
+          <motion.div
+            className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400"
+            variants={{
+              hidden: { opacity: 0 },
+              show: { opacity: 1, transition: { duration: 0.3, delay: 0.1 } },
+            }}
+          >
+            <span className="font-medium text-zinc-600 dark:text-zinc-300">Accepts:</span>
+
+            {/* Crypto chains from product's acceptedTokens */}
+            {Array.isArray(product.acceptedTokens) && product.acceptedTokens.length > 0 && (
+              <>
+                {[...new Set(product.acceptedTokens.map((t: any) => t.family as string))].map((family) => (
+                  <span
+                    key={family}
+                    className="inline-flex items-center gap-1 rounded-full border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-purple-400"
+                  >
+                    {family === "EVM" ? "⟠" : "◎"} {family === "EVM" ? "Ethereum" : "Solana"}
+                  </span>
+                ))}
+              </>
+            )}
+
+            {/* Fiat methods — always available on the platform */}
+            <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-blue-400">
+              PayPal
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/20 bg-orange-500/10 px-2 py-0.5 text-orange-400">
+              Vipps
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-pink-500/20 bg-pink-500/10 px-2 py-0.5 text-pink-400">
+              Klarna
+            </span>
+          </motion.div>
+
+          {/* shipping - Only show for logged-in users */}
+          {session ? (
+>>>>>>> dev
           <motion.div
             className="mt-4 flex flex-wrap items-center gap-2 text-xs text-zinc-400"
             variants={{

@@ -1714,7 +1714,11 @@ function ChatPanelInner({
             </div>
             {!isLoggedIn && (
               <a
+<<<<<<< HEAD
                 href="/auth/login"
+=======
+                href="/sign-in"
+>>>>>>> dev
                 className="text-[11px] text-sky-400 dark:text-emerald-400 hover:text-sky-300 dark:hover:text-emerald-300 underline underline-offset-2 transition-colors"
               >
                 Sign in for full access
@@ -1795,7 +1799,11 @@ function ChatPanelInner({
               </span>
               <div className="flex gap-2">
                 <a
+<<<<<<< HEAD
                   href="/auth/login"
+=======
+                  href="/sign-in"
+>>>>>>> dev
                   className="flex-1 text-center py-1.5 rounded-lg bg-sky-500 dark:bg-emerald-500 text-black text-xs font-semibold hover:bg-sky-400 dark:hover:bg-emerald-400 transition-colors"
                 >
                   Sign in

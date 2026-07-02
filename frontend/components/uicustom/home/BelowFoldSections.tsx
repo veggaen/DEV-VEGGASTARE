@@ -39,6 +39,7 @@ function HoverableHeading({
   // Brand accent RGB: sky-500 in light, emerald-400 in dark
   const accentRgb = isDark ? "52, 211, 153" : "14, 165, 233";
 
+<<<<<<< HEAD
   // Map an external 0..1 fraction onto a character index (spaces excluded so the
   // wave lands on real letters as you read left→right).
   const letterIndices = React.useMemo(
@@ -52,6 +53,8 @@ function HoverableHeading({
     return letterIndices[Math.max(0, Math.min(letterIndices.length - 1, pos))];
   }, [externalFraction, hoveredIdx, letterIndices]);
 
+=======
+>>>>>>> dev
   if (reduceMotion) return <span className={className}>{text}</span>;
 
   return (
@@ -247,6 +250,7 @@ const StepCard = React.memo(function StepCard({
   onMouseLeave?: () => void;
 }) {
   const isDark = useIsDark();
+<<<<<<< HEAD
   const reduceMotion = useReducedMotion();
   // Horizontal mouse position over the whole card (0 = left, 1 = right), which
   // drives the title's letter-by-letter highlight so it "reads" left→right as
@@ -269,6 +273,8 @@ const StepCard = React.memo(function StepCard({
 
   React.useEffect(() => () => { if (rafRef.current != null) cancelAnimationFrame(rafRef.current); }, []);
 
+=======
+>>>>>>> dev
   return (
     <motion.div
       className="relative flex flex-col gap-3 cursor-default"

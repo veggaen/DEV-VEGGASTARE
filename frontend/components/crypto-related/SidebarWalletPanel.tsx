@@ -9,7 +9,10 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+<<<<<<< HEAD
 import { useSession } from "next-auth/react";
+=======
+>>>>>>> dev
 import Link from "next/link";
 import {
   useAccount,
@@ -931,7 +934,10 @@ function Web3EnablePrompt() {
   const [enabling, setEnabling] = useState(false);
   const [done, setDone] = useState(false);
   const [authError, setAuthError] = useState(false);
+<<<<<<< HEAD
   const { update: updateSession } = useSession();
+=======
+>>>>>>> dev
 
   const handleEnable = async () => {
     setEnabling(true);
@@ -948,6 +954,7 @@ function Web3EnablePrompt() {
         return;
       }
       if (res.ok) {
+<<<<<<< HEAD
         try { localStorage.setItem('veggastare:web3ModeEnabled', 'true'); } catch { /* ok */ }
         setDone(true);
         // web3ModeEnabled lives in the JWT — a plain reload keeps the STALE token,
@@ -956,6 +963,13 @@ function Web3EnablePrompt() {
         // reload so the fresh value is in the cookie.
         try { await updateSession(); } catch { /* ignore */ }
         setTimeout(() => window.location.reload(), 400);
+=======
+        // Sync to localStorage for immediate UI effect
+        try { localStorage.setItem('veggastare:web3ModeEnabled', 'true'); } catch { /* ok */ }
+        setDone(true);
+        // Reload to refresh session token (web3ModeEnabled flows through JWT)
+        setTimeout(() => window.location.reload(), 600);
+>>>>>>> dev
       }
     } catch { /* ignore */ }
     setEnabling(false);
@@ -1538,17 +1552,27 @@ function VerifyActionRow({
     );
   }
 
+<<<<<<< HEAD
   // idle — show CTA as a proper pill (verification is a trust action, not fine print)
+=======
+  // idle — show CTA
+>>>>>>> dev
   return (
     <div className="text-center">
       <button
         type="button"
         onClick={onVerify}
+<<<<<<< HEAD
         className="inline-flex items-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[9px] font-semibold text-sky-600 transition-all hover:bg-sky-500/15 hover:border-sky-500/60 motion-safe:hover:-translate-y-px dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/15 dark:hover:border-emerald-500/60"
         title="Free — one signature proves you own this wallet. No transaction, no gas."
       >
         <FiShield className="h-2.5 w-2.5" />
         Verify ownership · free signature
+=======
+        className="text-[9px] text-sky-500 dark:text-emerald-400 hover:underline transition-colors"
+      >
+        Verify with free signature →
+>>>>>>> dev
       </button>
     </div>
   );
@@ -1821,6 +1845,7 @@ function WalletRow({
               : "border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/70 dark:bg-zinc-900/45"
       }`}
     >
+<<<<<<< HEAD
       {/* (Dead hidden badge/activate blocks removed — the inline chip on row 1
           and the "Set active" action next to the address are the single source
           of active-state UI now.) */}
@@ -1833,6 +1858,54 @@ function WalletRow({
             connectorType === 'LOCAL_RPC' ? "bg-orange-500" : "bg-sky-500 dark:bg-emerald-500"
           }`}
         />
+=======
+      {/* Active badge — absolute top-right corner */}
+      {isActive && (
+        <div className="absolute -top-1.5 right-2 flex items-center gap-1">
+          {connectorType === 'LOCAL_RPC' && (
+            <span className="flex items-center gap-0.5 px-1.5 py-px rounded text-[8px] font-bold uppercase tracking-wider text-white bg-orange-500">
+              <FiTerminal className="h-2.5 w-2.5" />
+              &gt;_RPC
+            </span>
+          )}
+          <span className={`flex items-center gap-0.5 px-1.5 py-px rounded text-[8px] font-bold uppercase tracking-wider text-white ${
+            connectorType === 'LOCAL_RPC'
+              ? "bg-emerald-500"
+              : "bg-sky-500 dark:bg-emerald-500"
+          }`}>
+            <FiPower className="h-2.5 w-2.5 drop-shadow-[0_0_4px_currentColor]" />
+            Active
+          </span>
+        </div>
+      )}
+
+      {/* Set-active / reconnect button — unified for all non-active wallets */}
+      {!isActive && onSetActive && (
+        <div className="absolute -top-1.5 right-2 flex items-center gap-1">
+          {connectorType === 'LOCAL_RPC' && (
+            <span className="flex items-center gap-0.5 px-1.5 py-px rounded text-[8px] font-bold uppercase tracking-wider text-white bg-orange-500">
+              <FiTerminal className="h-2.5 w-2.5" />
+              &gt;_RPC
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onSetActive}
+            className={`flex items-center gap-0.5 px-1.5 py-px rounded text-[8px] font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+              isLive
+                ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-sky-500 dark:hover:bg-emerald-500 hover:text-white"
+                : "bg-zinc-300 dark:bg-zinc-600 text-zinc-600 dark:text-zinc-300 hover:bg-sky-500 dark:hover:bg-emerald-500 hover:text-white"
+            }`}
+            title={connectorType === 'LOCAL_RPC' ? "Local dev wallet — operates via direct RPC calls" : isLive ? "Switch to this wallet" : "Reconnect and activate"}
+          >
+            {connectorType === 'LOCAL_RPC' ? (
+              <><FiTerminal className="h-2.5 w-2.5" /> Activate</>
+            ) : (
+              <><FiPower className="h-2.5 w-2.5" /> Activate</>
+            )}
+          </button>
+        </div>
+>>>>>>> dev
       )}
 
       <div className="flex items-center gap-2 px-3 py-2">
@@ -1886,6 +1959,7 @@ function WalletRow({
                 Primary
               </span>
             )}
+<<<<<<< HEAD
             {isActive ? (
               <span className={`inline-flex items-center gap-1 rounded px-1 py-px text-[8px] font-semibold uppercase tracking-wider ${
                 connectorType === 'LOCAL_RPC'
@@ -1903,6 +1977,8 @@ function WalletRow({
                 Connected
               </span>
             ) : null}
+=======
+>>>>>>> dev
             <span className="flex-1" />
             {walletTier !== "CONNECTED" ? (
               <TierBadge tier={walletTier} />
@@ -2036,6 +2112,7 @@ function WalletRow({
             </span>
             <CopyChip text={address} label="Copy address" size="xs" />
 
+<<<<<<< HEAD
             {/* Set-active: NEUTRAL at rest — accent color is reserved for the
                 wallet that IS active. Hover previews the accent it would gain. */}
             {!isActive && onSetActive && (
@@ -2066,6 +2143,8 @@ function WalletRow({
               </button>
             )}
 
+=======
+>>>>>>> dev
             {/* Transfer / Fund button */}
             {onTransfer && (((isActive && isLive && family === "EVM") || connectorType === 'LOCAL_RPC') || (!isActive && family === "EVM")) && (
               <button
@@ -2240,10 +2319,41 @@ function WalletRow({
                 </div>
               )}
 
+<<<<<<< HEAD
+=======
+              {/* Disconnect button — inside expanded area */}
+              {canDisconnect && onDisconnect && (
+                <button
+                  type="button"
+                  onClick={onDisconnect}
+                  className="flex items-center justify-center gap-1.5 w-full py-1.5 rounded-md text-[10px] text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                >
+                  <FiLogOut className="h-3 w-3" />
+                  Disconnect wallet
+                </button>
+              )}
+>>>>>>> dev
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+<<<<<<< HEAD
+=======
+
+      {/* Remove button for disconnected wallets (always visible, no expand needed) */}
+      {!isLive && onDisconnect && (
+        <div className="px-3 pb-2 pt-0.5">
+          <button
+            type="button"
+            onClick={onDisconnect}
+            className="flex items-center justify-center gap-1.5 w-full py-1 rounded-md text-[9px] text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+          >
+            <FiLogOut className="h-2.5 w-2.5" />
+            Remove from list
+          </button>
+        </div>
+      )}
+>>>>>>> dev
     </div>
   );
 }
@@ -3230,7 +3340,10 @@ export default function SidebarWalletPanel({
   // Active wallet gets green styling but doesn't move.
 
   const hasAnyWallet = displayWallets.length > 0;
+<<<<<<< HEAD
   const activeDisplayWallet = displayWallets.find((w) => w.isActive) ?? null;
+=======
+>>>>>>> dev
   const localRpcDisplayWallets = displayWallets.filter(
     (wallet) => wallet.family === "EVM" && wallet.connectorType === "LOCAL_RPC",
   );
@@ -3746,10 +3859,13 @@ export default function SidebarWalletPanel({
   }
 
   const handleDisconnect = async (w: DisplayWallet) => {
+<<<<<<< HEAD
     if (activeOverride?.address?.toLowerCase() === w.address.toLowerCase()) {
       clearOverride();
     }
 
+=======
+>>>>>>> dev
     // Remove from persistent registry so the card disappears
     for (const [key, entry] of walletRegistryRef.current) {
       if (

@@ -95,6 +95,7 @@ export async function POST(req: Request) {
       customerEmail: session.email ?? undefined,
       returnUrl,
       callbackUrl: `${origin}/api/payments/webhook/${providerType}`,
+<<<<<<< HEAD
       // Standard Checkout charges the merchant account behind the REST app.
       // Seller payee routing requires explicit PayPal marketplace/multiparty approval.
       ...(process.env.PAYPAL_ENABLE_SELLER_PAYEE_ROUTING === 'true' && bodyResult.data.sellerPaypalEmail
@@ -105,6 +106,12 @@ export async function POST(req: Request) {
     await dbPrisma.payment.update({
       where: { orderId },
       data: { transactionId: paymentSession.sessionId },
+=======
+      // Forward seller PayPal email for P2P routing
+      ...(bodyResult.data.sellerPaypalEmail
+        ? { sellerEmail: bodyResult.data.sellerPaypalEmail }
+        : {}),
+>>>>>>> dev
     });
 
     return NextResponse.json(paymentSession);

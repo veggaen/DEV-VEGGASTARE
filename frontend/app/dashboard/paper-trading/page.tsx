@@ -9,7 +9,10 @@
 import React, { useCallback, useEffect, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+<<<<<<< HEAD
 import { useConfirm } from "@/components/providers/confirm-dialog";
+=======
+>>>>>>> dev
 import {
   FiDollarSign,
   FiTrendingUp,
@@ -57,7 +60,10 @@ type TabId = "portfolio" | "trade" | "history";
 
 export default function PaperTradingPage() {
   const { mode, setMode } = useTradeMode();
+<<<<<<< HEAD
   const confirm = useConfirm();
+=======
+>>>>>>> dev
   const [activeTab, setActiveTab] = useState<TabId>("portfolio");
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,6 +113,7 @@ export default function PaperTradingPage() {
   }, [startingBalance, refreshPortfolio]);
 
   // Reset portfolio
+<<<<<<< HEAD
   const handleReset = useCallback(async () => {
     if (!(await confirm({
       title: "Reset paper portfolio?",
@@ -114,6 +121,15 @@ export default function PaperTradingPage() {
       confirmLabel: "Reset portfolio",
       destructive: true,
     }))) return;
+=======
+  const handleReset = useCallback(() => {
+    if (
+      !confirm(
+        "Reset paper portfolio? This deletes all positions and trade history. You have limited resets per week.",
+      )
+    )
+      return;
+>>>>>>> dev
     startTransition(async () => {
       const result = await resetPaperPortfolio();
       if (result.success) {
@@ -123,7 +139,11 @@ export default function PaperTradingPage() {
         toast.error(result.error);
       }
     });
+<<<<<<< HEAD
   }, [refreshPortfolio, confirm]);
+=======
+  }, [refreshPortfolio]);
+>>>>>>> dev
 
   // ── No portfolio → onboarding ─────────────────────────────────────────────
   if (!isLoading && !portfolio) {

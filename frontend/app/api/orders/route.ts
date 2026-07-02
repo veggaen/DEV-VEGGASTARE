@@ -4,7 +4,14 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { OrderDtoSchema } from '@/lib/types/orders';
+<<<<<<< HEAD
 import { z } from 'zod';
+=======
+import { sendOrderConfirmationEmail, sendSellerOrderNotification, sendWarehouseOrderNotification } from '@/lib/mail';
+import { generateDownloadTokensForOrder } from '@/lib/download-tokens';
+import { recalculateVerificationTier } from '@/lib/verification-recalc';
+import { grantRepoAccessForOrder } from '@/lib/github-repo-access';
+>>>>>>> dev
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -163,6 +170,7 @@ export async function POST(req: Request) {
     }
   }
 
+<<<<<<< HEAD
   if (hasPhysicalItems) {
     if (!normalizedShippingAddress || !normalizedShippingCity || !normalizedShippingPostalCode) {
       return NextResponse.json(
@@ -179,6 +187,11 @@ export async function POST(req: Request) {
     }
   }
 
+=======
+  // Determine initial status:
+  //   - crypto payments → CONFIRMING (finalized by /api/orders/confirm after on-chain verification)
+  //   - fiat (PayPal/Vipps/Klarna) → PENDING (finalized by capture endpoint or webhook)
+>>>>>>> dev
   const isCryptoPayment = !!chainFamily || method === PaymentMethod.CRYPTO_NATIVE;
   const isFiatProvider = method === PaymentMethod.PAYPAL || method === PaymentMethod.VIPPS || method === PaymentMethod.KLARNA;
   const initialOrderStatus = isCryptoPayment ? 'CONFIRMING' : (isFiatProvider ? 'PENDING' : 'COMPLETED');
@@ -264,20 +277,237 @@ export async function POST(req: Request) {
     }, {
       timeout: 15000,
       isolationLevel: 'Serializable',
+<<<<<<< HEAD
     });
     const orderWithPayment = order as typeof order & { Payment: CreatedPayment | null };
+=======
+    }) as Prisma.OrderGetPayload<{
+      include: {
+        Payment: true;
+        OrderItem: true;
+      };
+    }>;
 
+    // Set payment verification flag and recalculate tier
+    // Fiat provider orders are PENDING → completed later by capture endpoint / webhook
+    // Only run post-creation side effects for immediately-completed orders
+    if (!isCryptoPayment && !isFiatProvider) {
+      try {
+        await dbPrisma.user.update({
+          where: { id: userId },
+          data: { hasWeb2Payment: true },
+        });
+        await recalculateVerificationTier(userId, { hasWeb2Payment: true });
+      } catch (flagErr) {
+        console.error('[api/orders] Failed to set hasWeb2Payment flag:', flagErr);
+      }
+    }
+
+    // Generate download tokens for digital products
+    // (Skip for fiat providers — handled in completeFiatOrder after capture)
+    let downloadTokens: Awaited<ReturnType<typeof generateDownloadTokensForOrder>> = [];
+    if (!isFiatProvider && items && items.length > 0) {
+      try {
+        const orderItemsWithIds = order.OrderItem.map((oi, idx) => ({
+          id: oi.id,
+          productId: items[idx]?.productId || oi.productId,
+        }));
+        downloadTokens = await generateDownloadTokensForOrder({
+          orderId: order.id,
+          userId,
+          orderItems: orderItemsWithIds,
+        });
+      } catch (tokenError) {
+        console.error('[api/orders] Failed to generate download tokens:', tokenError);
+        // Don't fail the order if token generation fails
+      }
+    }
+
+    // Auto-fulfil digital-only orders — no warehouse packing needed
+    if (order.status === 'COMPLETED' && items && items.length > 0) {
+      try {
+        const productIds = items.map((i) => i.productId);
+        const productTypes = await dbPrisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { productType: true },
+        });
+        const allDigital = productTypes.length > 0 && productTypes.every((p) => p.productType === 'DIGITAL');
+        if (allDigital) {
+          await dbPrisma.order.update({
+            where: { id: order.id },
+            data: { fulfilmentStatus: 'DELIVERED', deliveredAt: new Date() },
+          });
+        }
+      } catch (autoFulfilErr) {
+        console.error('[api/orders] Auto-fulfil digital order failed:', autoFulfilErr);
+      }
+    }
+
+    // Send order confirmation email
+    // (Skip for fiat providers — emails sent after capture in completeFiatOrder)
+    const emailTo = shippingEmail || session.email;
+    if (!isFiatProvider && emailTo) {
+      try {
+        await sendOrderConfirmationEmail(emailTo, {
+          orderId: order.id,
+          name: shippingName || 'Kunde',
+          items: items ?? [],
+          totalAmount,
+          shippingAddress: shippingAddress ?? '',
+          shippingCity: shippingCity ?? '',
+          shippingPostalCode: shippingPostalCode ?? '',
+          shippingCountry: shippingCountry ?? 'NO',
+          transactionId: transactionId ?? undefined,
+          downloadLinks: downloadTokens.length > 0 ? downloadTokens : undefined,
+          shippingMethodName: shippingMethod ?? undefined,
+          shippingCost: shippingCost ?? undefined,
+        });
+      } catch (emailError) {
+        console.error('[api/orders] Failed to send confirmation email:', emailError);
+        // Don't fail the order if email fails
+      }
+    }
+
+    // ── Notify sellers + warehouse employees (non-blocking, fire-and-forget) ──
+    // (Skip for fiat providers — handled after capture in completeFiatOrder)
+    if (!isFiatProvider && items && items.length > 0) {
+      (async () => {
+        try {
+          // Fetch products with their owners, companies, and warehouse info
+          const productIds = items.map((i) => i.productId);
+          const productsWithOwners = await dbPrisma.product.findMany({
+            where: { id: { in: productIds } },
+            select: {
+              id: true,
+              productType: true,
+              userId: true,
+              companyId: true,
+              User: { select: { email: true, name: true } },
+              Company: {
+                select: {
+                  id: true,
+                  name: true,
+                  Employee: {
+                    where: { role: 'OWNER' },
+                    select: { User: { select: { email: true } } },
+                  },
+                  WarehouseLocation: {
+                    where: { isActive: true },
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          // Group items by seller (userId or company owner)
+          const sellerMap = new Map<string, { email: string; items: typeof items; isDigital: boolean }>();
+          for (const product of productsWithOwners) {
+            const item = items.find((i) => i.productId === product.id);
+            if (!item) continue;
+
+            const isDigital = product.productType === 'DIGITAL';
+            let sellerEmail: string | null = null;
+
+            if (product.Company?.Employee?.[0]?.User?.email) {
+              sellerEmail = product.Company.Employee[0].User.email;
+            } else if (product.User?.email) {
+              sellerEmail = product.User.email;
+            }
+
+            if (sellerEmail) {
+              const existing = sellerMap.get(sellerEmail);
+              if (existing) {
+                existing.items.push(item);
+                if (!isDigital) existing.isDigital = false;
+              } else {
+                sellerMap.set(sellerEmail, { email: sellerEmail, items: [item], isDigital });
+              }
+            }
+
+            // Warehouse notification for physical/hybrid products from companies
+            if (product.productType !== 'DIGITAL' && product.Company?.WarehouseLocation?.length) {
+              // Use company owner/employees for warehouse notifications
+              const employeeEmails = product.Company.Employee
+                ?.map((e: { User: { email: string | null } }) => e.User?.email)
+                .filter(Boolean) as string[];
+
+              for (const warehouse of product.Company.WarehouseLocation) {
+
+                if (employeeEmails.length > 0) {
+                  try {
+                    await sendWarehouseOrderNotification(employeeEmails, {
+                      orderId: order.id,
+                      items: [{ title: item.title, quantity: item.quantity }],
+                      buyerName: shippingName || 'Customer',
+                      shippingAddress: shippingAddress || '',
+                      shippingCity: shippingCity || '',
+                      shippingPostalCode: shippingPostalCode || '',
+                      shippingCountry: shippingCountry || 'NO',
+                      shippingPhone: shippingPhone ?? undefined,
+                      shippingMethodName: shippingMethod ?? undefined,
+                      warehouseName: warehouse.name || product.Company!.name,
+                    });
+                  } catch (whErr) {
+                    console.error(`[api/orders] Warehouse email failed for ${warehouse.id}:`, whErr);
+                  }
+                }
+              }
+            }
+          }
+
+          // Send seller notifications
+          for (const [, seller] of sellerMap) {
+            try {
+              await sendSellerOrderNotification(seller.email, {
+                orderId: order.id,
+                items: seller.items,
+                totalAmount,
+                buyerName: shippingName || 'Customer',
+                shippingAddress: shippingAddress ?? undefined,
+                shippingCity: shippingCity ?? undefined,
+                shippingPostalCode: shippingPostalCode ?? undefined,
+                shippingCountry: shippingCountry ?? undefined,
+                shippingPhone: shippingPhone ?? undefined,
+                shippingMethodName: shippingMethod ?? undefined,
+                isDigital: seller.isDigital,
+              });
+            } catch (sellerErr) {
+              console.error(`[api/orders] Seller email failed for ${seller.email}:`, sellerErr);
+            }
+          }
+        } catch (notifyErr) {
+          console.error('[api/orders] Seller/warehouse notification error:', notifyErr);
+        }
+      })();
+    }
+>>>>>>> dev
+
+    // In-app notification
     try {
       const notifTitle = isCryptoPayment
+<<<<<<< HEAD
         ? 'Order pending blockchain confirmation'
         : isFiatProvider
           ? 'Order placed - payment pending'
+=======
+        ? 'Order pending confirmation'
+        : isFiatProvider
+          ? 'Order placed — payment pending'
+>>>>>>> dev
           : 'Order confirmed';
       const notifMessage = isCryptoPayment
         ? `Order ${order.id.slice(0, 8)} is waiting for blockchain confirmation.`
         : isFiatProvider
           ? `Order ${order.id.slice(0, 8)} is waiting for payment confirmation.`
+<<<<<<< HEAD
           : `Order ${order.id.slice(0, 8)} is confirmed.`;
+=======
+          : `Order ${order.id.slice(0, 8)} is confirmed and ready for fulfilment updates.`;
+>>>>>>> dev
 
       await dbPrisma.notification.create({
         data: {
@@ -285,19 +515,38 @@ export async function POST(req: Request) {
           type: 'SYSTEM',
           title: notifTitle,
           message: notifMessage,
+<<<<<<< HEAD
           preview: `Order #${order.id.slice(0, 8)} - ${items?.length ?? 0} item(s) - ${totalAmount}`,
+=======
+          preview: `Order #${order.id.slice(0, 8)} • ${items?.length ?? 0} item(s) • ${totalAmount}`,
+>>>>>>> dev
           metadata: {
             orderId: order.id,
             orderStatus: order.status,
             paymentStatus: orderWithPayment.Payment?.status ?? null,
             isCryptoPayment,
             isFiatProvider,
+<<<<<<< HEAD
             stockReserved: true,
+=======
+>>>>>>> dev
           },
         },
       });
     } catch (notificationError) {
       console.error('[api/orders] Failed to create order notification:', notificationError);
+<<<<<<< HEAD
+=======
+    }
+
+    // Repo access: only for immediately completed orders (fiat handled in completeFiatOrder)
+    if (!isCryptoPayment && !isFiatProvider) {
+      try {
+        await grantRepoAccessForOrder(order.id, 'orders.post');
+      } catch (repoAccessError) {
+        console.error('[api/orders] Repo access grant failed:', repoAccessError);
+      }
+>>>>>>> dev
     }
 
     const payment = orderWithPayment.Payment
