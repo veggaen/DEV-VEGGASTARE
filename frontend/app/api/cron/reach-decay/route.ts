@@ -378,18 +378,29 @@ export async function POST(req: Request) {
         // Per-user daily rollup — this is what the profile momentum-trend
         // chart reads (dailyReachRollup where userId). It was never written
         // before, so the chart was permanently empty.
-        const [userViewAgg, userEngagementsToday] = await Promise.all([
+        const [userViewAgg, userPulseRows] = await Promise.all([
           dbPrisma.conversation.aggregate({
             where: { userId: userAgg.userId, visibility: 'PUBLIC' },
             _sum: { viewCount: true },
           }),
-          dbPrisma.engagementEvent.count({
+          dbPrisma.conversation.findMany({
             where: {
-              conversation: { userId: userAgg.userId },
-              createdAt: { gte: today },
+              userId: userAgg.userId,
+              type: 'PUBLIC_THREAD',
+              visibility: 'PUBLIC',
             },
+            select: { id: true },
           }),
         ]);
+        const userPulseIds = userPulseRows.map((pulse) => pulse.id);
+        const userEngagementsToday = userPulseIds.length
+          ? await dbPrisma.engagementEvent.count({
+              where: {
+                conversationId: { in: userPulseIds },
+                createdAt: { gte: today },
+              },
+            })
+          : 0;
 
         await dbPrisma.dailyReachRollup.upsert({
           where: { userId_date: { userId: userAgg.userId, date: today } },
