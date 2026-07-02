@@ -3,14 +3,7 @@ import { z } from 'zod';
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
-<<<<<<< HEAD
 import { completePaidOrder } from '@/lib/payments/complete-fiat-order';
-=======
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { recalculateVerificationTier } from '@/lib/verification-recalc';
-import { grantRepoAccessForOrder } from '@/lib/github-repo-access';
->>>>>>> dev
 
 /**
  * POST /api/orders/confirm
@@ -82,21 +75,9 @@ export async function POST(req: Request) {
       );
     }
 
-<<<<<<< HEAD
     return NextResponse.json({
       success: true,
       orderId,
-=======
-    try {
-      await grantRepoAccessForOrder(orderId, 'orders.confirm');
-    } catch (repoAccessError) {
-      console.error('[api/orders/confirm] Repo access grant failed:', repoAccessError);
-    }
-
-    return NextResponse.json({ 
-      success: true, 
-      orderId, 
->>>>>>> dev
       status: 'COMPLETED',
     });
   } catch (error) {

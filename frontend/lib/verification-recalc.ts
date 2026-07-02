@@ -71,7 +71,6 @@ export async function recalculateVerificationTier(
       return null;
     }
 
-<<<<<<< HEAD
     // Query wallets for donation-based trust + reach-engine provenance signals.
     let maxWalletDonationUsd = 0;
     let walletSignals: WalletSignal[] = [];
@@ -88,19 +87,6 @@ export async function recalculateVerificationTier(
       }));
     } catch {
       // columns may not exist yet (pre-migration) — ignore
-=======
-    // Query highest single-wallet donation total for donation-based trust
-    let maxWalletDonationUsd = 0;
-    try {
-      const topWallet = await dbPrisma.wallet.findFirst({
-        where: { ownerUserId: userId, verifiedAt: { not: null } },
-        orderBy: { donationTotalUsd: 'desc' },
-        select: { donationTotalUsd: true },
-      });
-      maxWalletDonationUsd = topWallet?.donationTotalUsd ?? 0;
-    } catch {
-      // donationTotalUsd column may not exist yet (pre-migration) — ignore
->>>>>>> dev
     }
 
     // Merge current DB state with any overrides (for just-changed flags)
@@ -109,7 +95,6 @@ export async function recalculateVerificationTier(
 
     const tier = determineUserVerificationTier(merged, donationOpts);
     const score = calculateVerificationScore(merged, donationOpts);
-<<<<<<< HEAD
 
     // ── True Reach engine (lib/reach) — class-based trust + risk + reach ──
     const reachInputs: ReachInputs = {
@@ -128,8 +113,6 @@ export async function recalculateVerificationTier(
       behaviorReach: merged.reachLifetime ?? 0,
     };
     const reach = computeReach(reachInputs);
-=======
->>>>>>> dev
 
     await dbPrisma.user.update({
       where: { id: userId },

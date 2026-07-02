@@ -200,40 +200,14 @@ export async function POST(
     const status = await provider.getStatus(sessionId);
 
     if (status.status === 'CAPTURED' || status.status === 'AUTHORIZED') {
-<<<<<<< HEAD
       const orderId = await resolveOrderIdForProvider(providerType, sessionId, body);
-=======
-      // Extract orderId: Vipps uses "order-{orderId}-{timestamp}" format, 
-      // PayPal uses its own ID but stores our orderId in purchase_units[0].reference_id
-      let orderId: string | undefined;
-      
-      if (providerType === 'paypal') {
-        // PayPal: extract from purchase_units reference_id or look up by transactionId
-        orderId = body.resource?.purchase_units?.[0]?.reference_id;
-        if (!orderId) {
-          // Fallback: find payment by PayPal order ID stored as transactionId
-          const payment = await dbPrisma.payment.findFirst({
-            where: { transactionId: sessionId },
-            select: { orderId: true },
-          });
-          orderId = payment?.orderId ?? undefined;
-        }
-      } else {
-        // Vipps/Klarna: parse from reference format "order-{orderId}-{timestamp}"
-        const orderIdMatch = sessionId.match(/^order-(.+?)-\d+$/);
-        orderId = orderIdMatch?.[1];
-      }
->>>>>>> dev
 
       if (orderId) {
         // Use the shared completeFiatOrder function for consistent post-payment logic
         const { completeFiatOrder } = await import('@/lib/payments/complete-fiat-order');
         const result = await completeFiatOrder(orderId, {
           paymentTransactionId: status.transactionId ?? sessionId,
-<<<<<<< HEAD
           origin: new URL(req.url).origin,
-=======
->>>>>>> dev
           source: `webhook-${providerType}`,
         });
 
@@ -259,25 +233,7 @@ export async function POST(
     }
 
     if (status.status === 'CANCELLED' || status.status === 'FAILED') {
-<<<<<<< HEAD
       const orderId = await resolveOrderIdForProvider(providerType, sessionId, body);
-=======
-      // Same lookup logic as above
-      let orderId: string | undefined;
-      if (providerType === 'paypal') {
-        orderId = body.resource?.purchase_units?.[0]?.reference_id;
-        if (!orderId) {
-          const payment = await dbPrisma.payment.findFirst({
-            where: { transactionId: sessionId },
-            select: { orderId: true },
-          });
-          orderId = payment?.orderId ?? undefined;
-        }
-      } else {
-        const orderIdMatch = sessionId.match(/^order-(.+?)-\d+$/);
-        orderId = orderIdMatch?.[1];
-      }
->>>>>>> dev
 
       if (orderId) {
         const existingOrder = await dbPrisma.order.findUnique({
@@ -320,11 +276,7 @@ export async function POST(
       // Resolve orderId for logging
       let orderId: string | null = null;
       if (providerType === 'paypal') {
-<<<<<<< HEAD
         orderId = (await resolveOrderIdForProvider(providerType, sessionId, body)) ?? null;
-=======
-        orderId = body.resource?.purchase_units?.[0]?.reference_id ?? null;
->>>>>>> dev
       } else {
         const m = sessionId.match(/^order-(.+?)-\d+$/);
         orderId = m?.[1] ?? null;

@@ -1,10 +1,6 @@
 'use client'
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub, FaDiscord } from "react-icons/fa";
-<<<<<<< HEAD
-=======
-import { Button } from "@/components/ui/button";
->>>>>>> dev
 import { signIn } from 'next-auth/react'
 import { DEFAULT_LOGIN_REDIRECT } from "@/routes";
 import { useSearchParams } from "next/navigation";
@@ -28,17 +24,12 @@ export const MySocialAuth = () => {
   const callbackUrl = searchParams.get("callbackUrl");
   const [pending, setPending] = useState<Provider | null>(null);
 
-<<<<<<< HEAD
   const onClick = (provider: Provider) => {
     setPending(provider);
-=======
-  const onClick = (provider: 'google' | 'github' | 'discord') => {
->>>>>>> dev
     signIn(provider, {
       callbackUrl: callbackUrl || DEFAULT_LOGIN_REDIRECT
     })
   }
-<<<<<<< HEAD
 
   return (
     <div className="grid w-full grid-cols-3 gap-2">
@@ -59,19 +50,6 @@ export const MySocialAuth = () => {
           <span className="hidden sm:inline">{label}</span>
         </button>
       ))}
-=======
-  return(
-    <div className="flex items-center w-full gap-x-2">
-        <Button size={'lg'} className="w-full" variant={"outline"} onClick={() => onClick('google')}>
-            <FcGoogle className="h-5 w-5" />
-        </Button>
-        <Button size={'lg'} className="w-full" variant={"outline"} onClick={() => onClick('github')}>
-            <FaGithub className="h-5 w-5" />
-        </Button>
-        <Button size={'lg'} className="w-full" variant={"outline"} onClick={() => onClick('discord')}>
-            <FaDiscord className="h-5 w-5 text-[#5865F2]" />
-        </Button>
->>>>>>> dev
     </div>
   )
 }

@@ -27,11 +27,7 @@ export default function VerifyPaypalPage() {
   const CUID_RE = /^c[a-z0-9]{24}$/;
   const isValidType = rawType === 'user' || rawType === 'company';
   const isValidToken = TOKEN_RE.test(rawToken);
-<<<<<<< HEAD
   const isValidId = rawType === 'company' ? CUID_RE.test(rawId) : true;
-=======
-  const isValidId = CUID_RE.test(rawId);
->>>>>>> dev
   const paramsValid = isValidType && isValidToken && isValidId;
 
   const entityType = isValidType ? (rawType as 'user' | 'company') : null;
@@ -59,11 +55,7 @@ export default function VerifyPaypalPage() {
             <h1 className="text-xl font-semibold">Invalid Link</h1>
           </CardHeader>
           <CardContent className="text-center text-sm text-zinc-500 dark:text-zinc-400">
-<<<<<<< HEAD
             This verification link is missing required parameters or has expired.
-=======
-            This verification link is missing required parameters.
->>>>>>> dev
           </CardContent>
         </Card>
       </div>

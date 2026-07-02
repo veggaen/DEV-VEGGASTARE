@@ -110,11 +110,7 @@ const accentBg: Record<string, string> = {
 
 export default async function DashboardPage() {
   const session = await auth();
-<<<<<<< HEAD
   if (!session?.user) redirect("/auth/login");
-=======
-  if (!session?.user) redirect("/login");
->>>>>>> dev
   const user = session.user;
   const firstName = user.name?.split(" ")[0] ?? "there";
 

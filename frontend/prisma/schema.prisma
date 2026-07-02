@@ -1151,14 +1151,11 @@ model User {
   PaperPortfolio                                                  PaperPortfolio?
   // Unified Trade History
   TradeRecords                                                    TradeRecord[]
-<<<<<<< HEAD
   // Voice channels + dictation (see docs/VOICE_AND_DICTATION_DESIGN.md)
   VoiceChannelsOwned                                              VoiceChannel[]                @relation("VoiceChannelOwner")
   VoiceChannelMemberships                                         VoiceChannelMember[]          @relation("VoiceChannelMembership")
   DictationProfile                                                DictationProfile?             @relation("DictationProfileOwner")
   DictationUtterances                                             DictationUtterance[]          @relation("DictationUtteranceOwner")
-=======
->>>>>>> dev
 }
 
 enum IdentityNameSource {
@@ -1255,13 +1252,9 @@ model Wallet {
   updatedAt        DateTime    @updatedAt
   verifiedAt       DateTime?
   donationTotalUsd Float       @default(0)
-<<<<<<< HEAD
   riskTier         String?     // reach engine provenance: 'kyc' | 'neutral' | 'fresh'
   Product                        Product[]
   AcceptedTokenReceivers          ProductAcceptedToken[] @relation("ProductAcceptedTokenReceiverWallet")
-=======
-  Product                        Product[]
->>>>>>> dev
   Donation                       Donation[]
   Company                        Company?    @relation(fields: [ownerCompanyId], references: [id])
   User                           User?       @relation(fields: [ownerUserId], references: [id])
@@ -2999,7 +2992,6 @@ enum PaperTradeType {
   P2P_SEND      // sent to another user in paper P2P trade
   P2P_RECEIVE   // received from another user in paper P2P trade
   FAUCET        // initial token grant or reset
-<<<<<<< HEAD
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3148,6 +3140,3 @@ model DictationCorrection {
 
   @@index([utteranceId])
 }
-=======
-}
->>>>>>> dev

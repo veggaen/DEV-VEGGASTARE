@@ -10,12 +10,9 @@
     "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
     "postinstall": "prisma generate",
     "seed:reach-poll": "npx ts-node --project tsconfig.json scripts/seed-reach-poll.ts",
-<<<<<<< HEAD
     "test": "vitest run --exclude '**/e2e/**'",
     "test:unit": "vitest run --exclude '**/e2e/**'",
     "test:watch": "vitest --exclude '**/e2e/**'",
-=======
->>>>>>> dev
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",

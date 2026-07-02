@@ -32,12 +32,9 @@ export const EvmWalletListItemSchema = z
     isDefault: z.boolean(),
     verifiedAt: IsoDateStringSchema.nullable(),
     donationTotalUsd: z.number().default(0),
-<<<<<<< HEAD
     connectorType: z.string().optional(),
     authProvider: z.string().optional(),
     socialEmail: z.string().optional(),
-=======
->>>>>>> dev
     createdAt: IsoDateStringSchema,
   })
   .strict();

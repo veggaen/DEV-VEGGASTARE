@@ -25,10 +25,7 @@ function toCartDto(cart: {
       id: string;
       title: string;
       price: number;
-<<<<<<< HEAD
       priceCurrency?: string;
-=======
->>>>>>> dev
       image: string[];
       productType?: string;
       shipFromPostalId?: string | null;

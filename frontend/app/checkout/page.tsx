@@ -151,9 +151,6 @@ export default function CheckoutPage() {
   /* Seller payment info (resolved from products in cart) */
   const [sellerPayment, setSellerPayment] = useState<CheckoutSellerPayment | null>(null);
 
-  /* Seller payment info (resolved from products in cart) */
-  const [sellerPayment, setSellerPayment] = useState<CheckoutSellerPayment | null>(null);
-
   /* shipping — address book + contact */
   const [selectedShipping, setSelectedShipping] = useState<SelectedShipping | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
@@ -275,15 +272,11 @@ export default function CheckoutPage() {
       const data = await res.json();
       const cartItems: CartItem[] = data.items ?? [];
       setItems(cartItems);
-<<<<<<< HEAD
       setPageLoading(false);
-=======
->>>>>>> dev
 
       // Resolve seller payment info for products in cart
       if (cartItems.length > 0) {
         const productIds = cartItems.map((it) => it.product.id);
-<<<<<<< HEAD
         resolveCheckoutPayment({ productIds })
           .then((spRes) => {
             if ('data' in spRes) {
@@ -295,12 +288,6 @@ export default function CheckoutPage() {
           });
       } else {
         setSellerPayment(null);
-=======
-        const spRes = await resolveCheckoutPayment({ productIds });
-        if ('data' in spRes) {
-          setSellerPayment(spRes.data);
-        }
->>>>>>> dev
       }
     } catch (e) {
       console.error(e);
@@ -376,7 +363,6 @@ export default function CheckoutPage() {
   }, [active, evm.address, sol.publicKey]);
 
   /**
-<<<<<<< HEAD
    * Receiver address: prefer product token/family routing, then the legacy EVM
    * seller wallet, then the platform receiver.
    */
@@ -394,20 +380,6 @@ export default function CheckoutPage() {
     }
     return platformReceiverFor(active);
   }, [active, nativeSymbol, sellerPayment]);
-=======
-   * Receiver address — prefer seller's configured wallet, fall back to platform.
-   * For EVM payments, the seller wallet is used as-is (it's already an EVM address).
-   * For Solana, we fall back to platform since seller wallets are EVM-only for now.
-   */
-  const receiverAddress = useMemo(() => {
-    // If seller has a unified EVM wallet and we're on EVM, use it
-    if (active.kind === "evm" && sellerPayment?.unifiedReceiverWallet) {
-      return sellerPayment.unifiedReceiverWallet;
-    }
-    // Fall back to platform receiver
-    return platformReceiverFor(active);
-  }, [active, sellerPayment]);
->>>>>>> dev
 
   /* network label */
   const networkLabel = useMemo(() => {
@@ -810,11 +782,7 @@ export default function CheckoutPage() {
           orderId: order.id,
           provider: paymentMethod,
           amount: Math.round(grandTotalUSD * 100), // cents/øre
-<<<<<<< HEAD
           currency: "USD",
-=======
-          currency: paymentMethod === "vipps" ? "NOK" : "USD",
->>>>>>> dev
           returnUrl,
           // Pass seller PayPal email so provider can route payment to seller
           ...(isPaypal && sellerPayment?.unifiedPaypalEmail
@@ -828,16 +796,7 @@ export default function CheckoutPage() {
       }
       const session = await sessionRes.json();
 
-<<<<<<< HEAD
       // 3. Redirect to provider. PayPal capture clears the cart after confirmed payment.
-=======
-      // 3. Clear cart (for PayPal, cart is cleared after capture returns)
-      if (!isPaypal) {
-        await fetch(`/api/cart/${user?.id}`, { method: "DELETE" });
-      }
-
-      // 4. Redirect to provider
->>>>>>> dev
       if (session.redirectUrl) {
         window.location.href = session.redirectUrl;
       } else {
@@ -1150,7 +1109,6 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-<<<<<<< HEAD
             {/* Payment method — quiet text toggle (no emoji, no filled boxes) */}
             <div className="mt-6">
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Payment</p>
@@ -1195,25 +1153,6 @@ export default function CheckoutPage() {
                   <p className="border-l-2 border-sky-500/50 pl-3 text-muted-foreground">
                     Seller PayPal on file: <span className="font-medium text-foreground">{sellerPayment.unifiedPaypalEmail}</span>
                   </p>
-=======
-            {/* Seller payment info / multi-seller warning */}
-            {sellerPayment && (
-              <div className="mt-3">
-                {sellerPayment.multiSeller && (
-                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400 mb-2">
-                    ⚠ Items from multiple sellers — payment goes to platform escrow.
-                  </div>
-                )}
-                {!sellerPayment.multiSeller && paymentMethod === 'crypto' && sellerPayment.unifiedReceiverWallet && active.kind === "evm" && (
-                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
-                    Paying seller directly → <span className="font-mono">{sellerPayment.unifiedReceiverWallet.slice(0, 6)}…{sellerPayment.unifiedReceiverWallet.slice(-4)}</span>
-                  </div>
-                )}
-                {!sellerPayment.multiSeller && paymentMethod === 'paypal' && sellerPayment.unifiedPaypalEmail && (
-                  <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-xs text-blue-700 dark:text-blue-400">
-                    PayPal payment to seller: <span className="font-medium">{sellerPayment.unifiedPaypalEmail}</span>
-                  </div>
->>>>>>> dev
                 )}
               </div>
             )}

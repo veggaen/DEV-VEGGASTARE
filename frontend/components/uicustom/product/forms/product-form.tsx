@@ -30,10 +30,7 @@ import { saveFormState, loadFormState, clearFormState, hasPendingFormData } from
 import { CategoryTagInput } from '../../category-tag-input';
 import { AddressInput, type AddressData } from '../../../uicustom/address-input';
 import { CryptoTokenSelector, type AcceptedTokenEntry } from './crypto-token-selector';
-<<<<<<< HEAD
 import EvmWalletVerify from '@/components/crypto-related/EvmWalletVerify';
-=======
->>>>>>> dev
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('ProductForm');
@@ -68,7 +65,6 @@ const SHIPPING_SPEC_KEYS = ['Weight (g)', 'Height (cm)', 'Length (cm)', 'Width (
 const GENERAL_SPEC_KEYS = ['Custom', 'Material', 'Color', 'Size', 'Brand', 'Model', 'Country of Origin', 'Warranty', 'Certification'];
 const REPO_ACCESS_SPEC_KEY = '__repo_access';
 
-<<<<<<< HEAD
 const shortAddress = (address?: string | null) => {
   if (!address) return 'Not set';
   return address.length > 12 ? `${address.slice(0, 6)}...${address.slice(-4)}` : address;
@@ -83,8 +79,6 @@ const productCreationErrorMessage = (error: unknown) => {
   return raw.length > 180 ? `${raw.slice(0, 180)}...` : raw;
 };
 
-=======
->>>>>>> dev
 type RepoAccessMode = 'COLLABORATOR' | 'TEAM';
 type RepoAccessPermission = 'pull' | 'push' | 'maintain' | 'admin';
 
@@ -101,7 +95,6 @@ type RepoAccessDraft = {
   notes: string;
 };
 
-<<<<<<< HEAD
 type SellerWalletOption = {
   id: string;
   label: string;
@@ -113,8 +106,6 @@ type SellerWalletOption = {
   verifiedAt: string | null;
 };
 
-=======
->>>>>>> dev
 const DEFAULT_REPO_ACCESS_DRAFT: RepoAccessDraft = {
   owner: '',
   repo: '',
@@ -197,11 +188,7 @@ export const MyProductCreationForm = () => {
   const [showWalletWarning, setShowWalletWarning] = useState(false);
   
   // Seller payment setup state (receiving wallet picker + PayPal status)
-<<<<<<< HEAD
   const [sellerWallets, setSellerWallets] = useState<SellerWalletOption[]>([]);
-=======
-  const [sellerWallets, setSellerWallets] = useState<Array<{ id: string; label: string; address: string; verifiedAt: string | null }>>([]);
->>>>>>> dev
   const [sellerPaypalEmail, setSellerPaypalEmail] = useState<string | null>(null);
   const [sellerPaypalVerified, setSellerPaypalVerified] = useState(false);
   const [selectedReceiverWalletId, setSelectedReceiverWalletId] = useState<string | null>(null);
@@ -350,7 +337,6 @@ export const MyProductCreationForm = () => {
     form.setValue('userId', clientUser.id, { shouldValidate: true, shouldDirty: false, shouldTouch: false });
   }, [clientUser?.id, form]);
 
-<<<<<<< HEAD
   const reloadSellerWallets = useCallback(async () => {
     const wRes = await fetch('/api/wallets');
     if (!wRes.ok) {
@@ -379,40 +365,24 @@ export const MyProductCreationForm = () => {
   // Check for verified wallet when user enables crypto tokens
   useEffect(() => {
     if (!hasEvmTokens || !clientUser?.id) {
-=======
-  // Check for verified wallet when user enables crypto tokens
-  useEffect(() => {
-    if (acceptedTokens.length === 0 || !clientUser?.id) {
->>>>>>> dev
       setShowWalletWarning(false);
       return;
     }
     // Only check once per session
     if (hasVerifiedWallet !== null) {
-<<<<<<< HEAD
       setShowWalletWarning(hasEvmTokens && !hasVerifiedWallet);
-=======
-      setShowWalletWarning(!hasVerifiedWallet);
->>>>>>> dev
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-<<<<<<< HEAD
         const res = await fetch('/api/wallets');
         if (!res.ok) {
           if (!cancelled) { setHasVerifiedWallet(false); setShowWalletWarning(hasEvmTokens); }
-=======
-        const res = await fetch('/api/wallets/evm');
-        if (!res.ok) {
-          if (!cancelled) { setHasVerifiedWallet(false); setShowWalletWarning(true); }
->>>>>>> dev
           return;
         }
         const data = await res.json();
         const wallets = Array.isArray(data?.wallets) ? data.wallets : [];
-<<<<<<< HEAD
         const hasVerified = wallets.some((w: { family?: string; verified?: boolean; verifiedAt?: string | null }) => w.family === 'EVM' && (w.verified || !!w.verifiedAt));
         if (!cancelled) {
           setHasVerifiedWallet(hasVerified);
@@ -424,19 +394,6 @@ export const MyProductCreationForm = () => {
     })();
     return () => { cancelled = true; };
   }, [hasEvmTokens, clientUser?.id, hasVerifiedWallet]);
-=======
-        const hasVerified = wallets.some((w: { verified?: boolean }) => w.verified);
-        if (!cancelled) {
-          setHasVerifiedWallet(hasVerified);
-          setShowWalletWarning(!hasVerified);
-        }
-      } catch {
-        if (!cancelled) { setHasVerifiedWallet(false); setShowWalletWarning(true); }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [acceptedTokens.length, clientUser?.id, hasVerifiedWallet]);
->>>>>>> dev
 
   // ── Fetch seller payment info (wallets + PayPal status) ─────────────────
   useEffect(() => {
@@ -444,17 +401,7 @@ export const MyProductCreationForm = () => {
     let cancelled = false;
     (async () => {
       try {
-<<<<<<< HEAD
         const verifiedWallets = await reloadSellerWallets();
-=======
-        // Fetch wallets
-        const wRes = await fetch('/api/wallets/evm');
-        if (wRes.ok) {
-          const wData = await wRes.json();
-          const all = Array.isArray(wData?.wallets) ? wData.wallets : [];
-          if (!cancelled) setSellerWallets(all.filter((w: any) => w.verifiedAt));
-        }
->>>>>>> dev
         // Fetch PayPal status via server action (import is already available)
         const { getSellerPaymentStatus } = await import('@/actions/seller-payment');
         const pRes = await getSellerPaymentStatus({ target: 'user' });
@@ -464,19 +411,15 @@ export const MyProductCreationForm = () => {
           // Default to user's default receiving wallet if set
           if (pRes.data.defaultReceivingWalletId && !selectedReceiverWalletId) {
             setSelectedReceiverWalletId(pRes.data.defaultReceivingWalletId);
-<<<<<<< HEAD
           } else if (!selectedReceiverWalletId && verifiedWallets.length > 0) {
             const preferred = verifiedWallets.find((w: { isDefault?: boolean }) => w.isDefault) ?? verifiedWallets[0];
             setSelectedReceiverWalletId(preferred.id);
-=======
->>>>>>> dev
           }
         }
       } catch { /* silently fail */ }
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-<<<<<<< HEAD
   }, [clientUser?.id, reloadSellerWallets]);
 
   const handleAcceptedTokensChange = useCallback((nextTokens: AcceptedTokenEntry[]) => {
@@ -563,9 +506,6 @@ export const MyProductCreationForm = () => {
       })
     );
   }, [selectedReceiverWalletId]);
-=======
-  }, [clientUser?.id]);
->>>>>>> dev
 
   useEffect(() => {
     if (!hasCompanyPrefillFromQuery || !prefilledCompanyId) return;
@@ -1208,11 +1148,7 @@ export const MyProductCreationForm = () => {
       }
     } catch (e) {
       log.error('Create product failed', e);
-<<<<<<< HEAD
       setError(productCreationErrorMessage(e));
-=======
-      setError('Failed to create product.');
->>>>>>> dev
     } finally {
       setIsSubmitting(false);
     }
@@ -1505,7 +1441,6 @@ export const MyProductCreationForm = () => {
     return 'review';
   };
 
-<<<<<<< HEAD
   // ── Funnel steps ─────────────────────────────────────────────────────────
   // Each step owns a slice of the form. `done` is a soft, glanceable signal for
   // the left rail (a quiet dot) — it never blocks navigation. The Digital step
@@ -1577,8 +1512,6 @@ export const MyProductCreationForm = () => {
   };
   const isStepActive = (id: string) => currentStep?.id === id;
 
-=======
->>>>>>> dev
   // Throttled form-state debug log — only fires once per 5 s to avoid console spam
   const lastFormLogRef = useRef(0);
   if (process.env.NODE_ENV === 'development') {
@@ -2185,11 +2118,7 @@ export const MyProductCreationForm = () => {
             </div>
 
             {/* ─── Seller Payment Status & Wallet Picker ─────────────────── */}
-<<<<<<< HEAD
             <div hidden={!isStepActive('delivery')} className={`${customStyles.sectionAlt} order-4`}>
-=======
-            <div className="space-y-3">
->>>>>>> dev
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Receiving Payment Methods</h4>
               
               {/* PayPal status indicator */}
@@ -2209,15 +2138,9 @@ export const MyProductCreationForm = () => {
                       : `${sellerPaypalEmail} (pending verification)`
                     : 'Not configured'}
                 </span>
-<<<<<<< HEAD
                 {(!sellerPaypalEmail || (sellerPaypalEmail && !sellerPaypalVerified)) && (
                   <a href="/settings?section=payments" target="_blank" rel="noopener noreferrer" className="ml-auto text-[10px] font-medium hover:underline">
                     {sellerPaypalEmail ? 'Manage' : 'Set up'} →
-=======
-                {!sellerPaypalEmail && (
-                  <a href="/settings?section=payments" target="_blank" rel="noopener noreferrer" className="ml-auto text-[10px] font-medium hover:underline">
-                    Set up →
->>>>>>> dev
                   </a>
                 )}
               </div>
@@ -2225,7 +2148,6 @@ export const MyProductCreationForm = () => {
               {/* Receiver wallet picker */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">
-<<<<<<< HEAD
                   Legacy EVM receiving wallet
                   {' '}
                   <span className="text-muted-foreground font-normal">(optional override)</span>
@@ -2234,40 +2156,19 @@ export const MyProductCreationForm = () => {
                   <select
                     value={selectedReceiverWalletId ?? ''}
                     onChange={(e) => setFamilyReceiverWallet('EVM', e.target.value || null)}
-=======
-                  Receiving wallet for this product
-                  <span className="ml-1 text-muted-foreground font-normal">(optional override)</span>
-                </label>
-                {sellerWallets.length > 0 ? (
-                  <select
-                    value={selectedReceiverWalletId ?? ''}
-                    onChange={(e) => setSelectedReceiverWalletId(e.target.value || null)}
->>>>>>> dev
                     disabled={isSubmitting}
                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <option value="">Use default from settings</option>
-<<<<<<< HEAD
                     {verifiedEvmWallets.map((w) => (
-=======
-                    {sellerWallets.map((w) => (
->>>>>>> dev
                       <option key={w.id} value={w.id}>
                         {w.label} — {w.address.slice(0, 6)}…{w.address.slice(-4)}
                       </option>
                     ))}
                   </select>
                 ) : (
-<<<<<<< HEAD
                   <div className="rounded-lg border border-dashed border-white/10 p-3 text-xs text-muted-foreground">
                     No verified wallet yet. You can verify one below without leaving this listing.
-=======
-                  <div className="text-xs text-muted-foreground">
-                    No verified wallets.{' '}
-                    <a href="/settings?section=wallet" target="_blank" rel="noopener noreferrer" className="text-emerald-600 dark:text-emerald-400 hover:underline">
-                      Connect a wallet
-                    </a>
->>>>>>> dev
                   </div>
                 )}
               </div>
@@ -2280,7 +2181,6 @@ export const MyProductCreationForm = () => {
                 onChange={handleAcceptedTokensChange}
                 disabled={isSubmitting}
               />
-<<<<<<< HEAD
               {acceptedTokens.length > 0 && (
                 <div className="space-y-4 border-t border-border pt-5">
                   <div>
@@ -2416,26 +2316,16 @@ export const MyProductCreationForm = () => {
                   </div>
                 </div>
               )}
-=======
->>>>>>> dev
               {/* Wallet verification warning — shown inline so user doesn't lose form state */}
               {showWalletWarning && acceptedTokens.length > 0 && (
                 <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
                   <span className="text-amber-500 shrink-0 mt-0.5">⚠️</span>
                   <div className="flex-1 space-y-1">
                     <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
-<<<<<<< HEAD
                       Add a receiving wallet before publishing crypto checkout
                     </p>
                     <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80 leading-relaxed">
                       Crypto payments go directly to your verified EVM address. Signing is gasless and keeps this product form intact.
-=======
-                      No verified wallet address found
-                    </p>
-                    <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80 leading-relaxed">
-                      Cryptocurrency transactions are <strong>irreversible</strong>. You need a verified wallet address to receive crypto payments.
-                      Connect and verify a wallet in your account settings first.
->>>>>>> dev
                     </p>
                     <a
                       href="/settings?section=wallet"
@@ -2445,7 +2335,6 @@ export const MyProductCreationForm = () => {
                     >
                       Open Wallet Settings ↗
                     </a>
-<<<<<<< HEAD
                     <div className="mt-2 rounded-lg bg-black/10 p-2 dark:bg-black/20">
                       <EvmWalletVerify
                         enabled={true}
@@ -2458,12 +2347,6 @@ export const MyProductCreationForm = () => {
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-=======
-                  </div>
-                </div>
-              )}
-              <div className="text-xs text-muted-foreground rounded-md border border-border bg-muted/20 px-3 py-2">
->>>>>>> dev
                 {acceptedTokens.length > 0
                   ? `${acceptedTokens.length} token${acceptedTokens.length !== 1 ? 's' : ''} selected. Buyers can still pay with fiat if enabled at checkout.`
                   : 'No tokens selected yet — buyers can still use whatever checkout methods are enabled (fiat and/or native crypto).'}
@@ -2471,175 +2354,6 @@ export const MyProductCreationForm = () => {
             </div>
 
             <div hidden={!isStepActive('delivery')} className={`${customStyles.sectionAlt} order-7`}>
-              <h3 className={customStyles.sectionTitle}>GitHub Repo Access</h3>
-              <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
-                Sell access to a private GitHub repository. After purchase, the buyer&apos;s GitHub account is automatically
-                added as a collaborator or team member with the permission level you choose.
-              </p>
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={repoAccessEnabled}
-                    disabled={isSubmitting || (productType !== 'DIGITAL' && productType !== 'HYBRID')}
-                    onChange={(e) => setRepoAccessEnabled(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  Enable automatic GitHub access grant after purchase
-                </label>
-                {productType !== 'DIGITAL' && productType !== 'HYBRID' && (
-                  <p className="text-xs text-muted-foreground">
-                    Switch product type to Digital or Hybrid to enable repo access.
-                  </p>
-                )}
-
-                {repoAccessEnabled && (
-                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/10 p-3">
-                    {/* Repo identification */}
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Repository</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <Input
-                          value={repoAccessDraft.owner}
-                          onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, owner: e.target.value }))}
-                          placeholder="GitHub owner/org (e.g. v3gga)"
-                          className={customStyles.input}
-                        />
-                        <Input
-                          value={repoAccessDraft.repo}
-                          onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, repo: e.target.value }))}
-                          placeholder="Repository name (e.g. my-app)"
-                          className={customStyles.input}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Grant mode + permission */}
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Access Configuration</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <Select
-                          value={repoAccessDraft.mode}
-                          onValueChange={(value) => setRepoAccessDraft((prev) => ({ ...prev, mode: value as RepoAccessMode }))}
-                        >
-                          <SelectTrigger className={customStyles.selectTrigger}>
-                            <SelectValue placeholder="Grant mode" />
-                          </SelectTrigger>
-                          <SelectContent className={customStyles.selectContent}>
-                            <SelectItem value="COLLABORATOR" className={customStyles.selectItem}>
-                              Collaborator — direct repo access
-                            </SelectItem>
-                            <SelectItem value="TEAM" className={customStyles.selectItem}>
-                              Team — add to org team
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        <Select
-                          value={repoAccessDraft.permission}
-                          onValueChange={(value) => setRepoAccessDraft((prev) => ({ ...prev, permission: value as RepoAccessPermission }))}
-                        >
-                          <SelectTrigger className={customStyles.selectTrigger}>
-                            <SelectValue placeholder="Permission" />
-                          </SelectTrigger>
-                          <SelectContent className={customStyles.selectContent}>
-                            <SelectItem value="pull" className={customStyles.selectItem}>
-                              Pull — read-only (recommended for buyers)
-                            </SelectItem>
-                            <SelectItem value="push" className={customStyles.selectItem}>
-                              Push — read + write
-                            </SelectItem>
-                            <SelectItem value="maintain" className={customStyles.selectItem}>
-                              Maintain — push + manage issues/PRs
-                            </SelectItem>
-                            <SelectItem value="admin" className={customStyles.selectItem}>
-                              Admin — full control (use carefully)
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {repoAccessDraft.mode === 'TEAM' && (
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Team Details</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <Input
-                            value={repoAccessDraft.org}
-                            onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, org: e.target.value }))}
-                            placeholder="Org name (if different from owner)"
-                            className={customStyles.input}
-                          />
-                          <Input
-                            value={repoAccessDraft.teamSlug}
-                            onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, teamSlug: e.target.value }))}
-                            placeholder="Team slug (required)"
-                            className={customStyles.input}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Branch metadata — optional context for buyers */}
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Branch Info (optional — shown to buyers)</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <Input
-                          value={repoAccessDraft.defaultBranch}
-                          onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, defaultBranch: e.target.value }))}
-                          placeholder="main"
-                          className={customStyles.input}
-                        />
-                      <Input
-                        value={repoAccessDraft.previewBranch}
-                        onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, previewBranch: e.target.value }))}
-                        placeholder="preview"
-                        className={customStyles.input}
-                      />
-                      <Input
-                        value={repoAccessDraft.devBranch}
-                        onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, devBranch: e.target.value }))}
-                        placeholder="dev"
-                        className={customStyles.input}
-                      />
-                      </div>
-                    </div>
-
-                    {/* Internal notes */}
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Internal Notes</p>
-                      <Textarea
-                        value={repoAccessDraft.notes}
-                        onChange={(e) => setRepoAccessDraft((prev) => ({ ...prev, notes: e.target.value }))}
-                        placeholder="Private notes about this access policy (not shown to buyers)"
-                        rows={2}
-                        className={customStyles.textarea}
-                      />
-                    </div>
-
-                    {/* Buyer experience preview */}
-                    {repoAccessDraft.owner && repoAccessDraft.repo && (
-                      <div className="rounded-md border border-green-500/30 bg-green-500/5 px-3 py-2.5 text-xs">
-                        <p className="font-semibold text-green-700 dark:text-green-400 mb-1">Buyer Experience Preview</p>
-                        <p className="text-muted-foreground leading-relaxed">
-                          After payment, the buyer will be prompted to enter their GitHub username.
-                          They&apos;ll receive <strong>{repoAccessDraft.permission}</strong> access to{' '}
-                          <code className="bg-muted px-1 py-0.5 rounded text-[11px]">
-                            {repoAccessDraft.owner}/{repoAccessDraft.repo}
-                          </code>
-                          {repoAccessDraft.mode === 'TEAM' && repoAccessDraft.teamSlug
-                            ? ` via the "${repoAccessDraft.teamSlug}" team`
-                            : ' as a direct collaborator'}
-                          . A confirmation email will be sent once access is granted.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className={customStyles.sectionAlt}>
               <h3 className={customStyles.sectionTitle}>GitHub Repo Access</h3>
               <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
                 Sell access to a private GitHub repository. After purchase, the buyer&apos;s GitHub account is automatically

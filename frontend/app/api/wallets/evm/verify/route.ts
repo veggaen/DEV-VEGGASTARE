@@ -202,10 +202,6 @@ async function createOrUpdateWallet(
 		where: {
 			family: ChainFamily.EVM,
 			address,
-<<<<<<< HEAD
-=======
-			chainId,
->>>>>>> dev
 			ownerUserId: me.id,
 			ownerCompanyId: null,
 		},
@@ -248,10 +244,7 @@ async function createOrUpdateWallet(
 					label: existingWallet.label || walletLabel,
 					chainId: chainId ?? existingWallet.chainId,
 					verifiedAt: new Date(),
-<<<<<<< HEAD
 					...(shouldBecomeDefault ? { isDefault: true } : {}),
-=======
->>>>>>> dev
 					// Update connector metadata if provided (may have changed across sessions)
 					...(connMeta.connectorType ? { connectorType: connMeta.connectorType } : {}),
 					...(connMeta.authProvider ? { authProvider: connMeta.authProvider } : {}),
