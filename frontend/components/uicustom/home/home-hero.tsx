@@ -1635,18 +1635,14 @@ export default function HomeHero({
           >
             {/* Animated gradient border — spins faster on hover (conic-like rotation) */}
             <motion.div
-              className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-sky-500 via-cyan-400 to-sky-500 dark:from-emerald-500 dark:via-cyan-400 dark:to-emerald-500 blur-[2px] group-hover:blur-[3px]"
+              className="absolute -inset-px rounded-lg bg-brand-accent/25 blur-[1px] group-hover:bg-brand-accent/35"
               animate={{
-                backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
                 opacity: [0.5, 0.8, 0.5],
               }}
-              whileHover={{ opacity: 1, rotate: 360 }}
+              whileHover={{ opacity: 1 }}
               transition={{
-                backgroundPosition: { duration: 3, repeat: Infinity, ease: "linear" },
                 opacity: { duration: 2, repeat: Infinity, ease: "easeInOut" },
-                rotate: { duration: 2, repeat: Infinity, ease: "linear" },
               }}
-              style={{ backgroundSize: "200% 200%" }}
             />
             {/* Glow on hover */}
             <motion.div
@@ -1656,14 +1652,12 @@ export default function HomeHero({
               whileHover={{ opacity: 0.25 }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               style={{
-                background: isDark
-                  ? "radial-gradient(closest-side, rgba(34,197,94,0.25), transparent 70%)"
-                  : "radial-gradient(closest-side, rgba(14,165,233,0.25), transparent 70%)",
+                background: "linear-gradient(90deg, transparent, hsl(var(--brand-accent) / 0.2), transparent)",
               }}
             />
             <Link
               href="/products"
-              className="relative flex items-center gap-2 rounded-xl bg-sky-600 dark:bg-black/80 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 group-hover:bg-sky-700 dark:group-hover:bg-black/90 group-hover:text-sky-100 dark:group-hover:text-emerald-300"
+              className="relative flex items-center gap-2 rounded-lg bg-brand-accent px-6 py-3 text-sm font-semibold text-brand-accent-foreground transition-colors duration-300 hover:bg-brand-accent-hover"
             >
               <motion.span
                 className="inline-block"
@@ -1706,15 +1700,14 @@ export default function HomeHero({
           >
             {/* Subtle idle border pulse */}
             <motion.div
-              className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-gray-400/20 via-gray-400/40 to-gray-400/20 dark:from-white/5 dark:via-white/15 dark:to-white/5 blur-[1px]"
+              className="absolute -inset-px rounded-lg bg-border/60 blur-[1px]"
               animate={{ opacity: [0.2, 0.4, 0.2] }}
               whileHover={{ opacity: 0.7 }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              style={{ backgroundSize: "200% 200%" }}
             />
             <Link
               href="/pulse"
-              className="relative flex items-center gap-2 rounded-xl border border-gray-300 dark:border-white/20 bg-gray-100/80 dark:bg-white/5 px-5 py-3 text-sm font-medium text-gray-700 dark:text-white/80 backdrop-blur-sm transition-all duration-300 hover:border-gray-400 dark:hover:border-white/40 hover:bg-gray-200/80 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white group-hover:shadow-[0_0_20px_rgba(0,0,0,0.08)] dark:group-hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+              className="surface-card relative flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-medium text-muted-foreground transition-[background-color,border-color,color] duration-300 hover:border-brand-accent/35 hover:bg-brand-accent/5 hover:text-foreground"
             >
               <span className="relative h-4 w-4">
                 <span className="absolute inset-0 opacity-60 transition-all duration-300 group-hover:opacity-0 group-hover:-rotate-12">

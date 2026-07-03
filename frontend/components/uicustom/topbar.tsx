@@ -61,8 +61,8 @@ const NavLink = ({ href, children, isActive, ...rest }: NavLinkProps & React.Anc
 		{...rest}
 		className={`relative px-2.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
 			isActive
-				? "text-zinc-900 dark:text-zinc-100"
-				: "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+				? "text-foreground"
+				: "text-muted-foreground hover:text-foreground"
 		}`}
 	>
 		{children}
@@ -577,13 +577,13 @@ const MyTopBar = () => {
 						transition={{ duration: 0.22, ease: "easeOut" }}
 						style={{ willChange: "clip-path, opacity" }}
 					>
-						<div className="absolute inset-0 bg-white/75 dark:bg-black/70 backdrop-blur-xl" />
+						<div className="absolute inset-0 border-b app-chrome" />
 					</motion.div>
 
 					{/* Bottom line reveals after the fill finishes */}
 					<motion.div
 						aria-hidden
-						className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-black/10 dark:bg-white/10"
+						className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[hsl(var(--border)/0.78)]"
 						initial={false}
 						animate={
 							prefersReducedMotion
@@ -609,7 +609,7 @@ const MyTopBar = () => {
 						{navIndicator && (
 							<div
 								aria-hidden
-								className="absolute pointer-events-none z-50 border border-sky-500/50 dark:border-emerald-400/40 hidden md:block"
+								className="absolute pointer-events-none z-50 border border-brand-accent/45 hidden md:block"
 								style={{
 									left: navIndicator.left,
 									top: navIndicator.top,
@@ -626,7 +626,7 @@ const MyTopBar = () => {
 								href="/"
 								data-nav-key="logo"
 								onMouseEnter={handleNavHover}
-								className="shrink-0 text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 px-1.5 py-1"
+								className="shrink-0 px-1.5 py-1 text-base font-semibold tracking-tight text-foreground"
 							>
 								VeggaStare
 							</Link>
@@ -736,7 +736,7 @@ const MyTopBar = () => {
 										onMouseEnter={handleNavHover}
 										className={`flex items-center justify-center rounded-full transition-all duration-200 hover:scale-105 ${clientUser
 											? "h-14 w-14"
-											: "h-14 w-14 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+											: "h-14 w-14 surface-card text-muted-foreground hover:text-foreground"
 											}`}
 										aria-label="Open menu"
 									>
@@ -758,7 +758,7 @@ const MyTopBar = () => {
 
 								<SheetContent
 									side="right"
-									className="w-[92vw] max-w-[380px] bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800"
+									className="app-menu-panel w-[92vw] max-w-[380px] border-l"
 									onTouchStart={onMenuTouchStart}
 									onTouchEnd={onMenuTouchEnd}
 									accessibleTitle="Navigation Menu"
@@ -875,6 +875,17 @@ const MyTopBar = () => {
 											{/* Navigation Pane */}
 											{(!clientUser || menuPane === "nav") && (
 												<div className="p-3">
+													<CreatorCockpit
+														isLoggedIn={!!clientUser}
+														pathname={pathname}
+														unreadCount={unreadCount}
+														cartCount={cartCount}
+														onClose={() => setMenuOpen(false)}
+														onOpenNexus={() => {
+															setMenuOpen(false);
+															setTimeout(() => setNexusOpen(true), 0);
+														}}
+													/>
 													{/* Grouped navigation */}
 													<nav className="space-y-4">
 														{menuGroups.map((group) => (
@@ -1061,6 +1072,135 @@ const MyTopBar = () => {
 		</>
 	);
 };
+
+function getSurfaceLabel(pathname: string) {
+	if (pathname === "/") return "Landing";
+	if (pathname.startsWith("/products/create")) return "Product Studio";
+	if (pathname.startsWith("/products")) return "Marketplace";
+	if (pathname.startsWith("/pulse")) return "Pulse";
+	if (pathname.startsWith("/ai")) return "AI Chat";
+	if (pathname.startsWith("/conversations")) return "Messages";
+	if (pathname.startsWith("/dashboard")) return "Dashboard";
+	if (pathname.startsWith("/settings")) return "Settings";
+	if (pathname.startsWith("/checkout") || pathname.startsWith("/cart")) return "Checkout";
+	return "Workspace";
+}
+
+function CreatorCockpit({
+	isLoggedIn,
+	pathname,
+	unreadCount,
+	cartCount,
+	onClose,
+	onOpenNexus,
+}: {
+	isLoggedIn: boolean;
+	pathname: string;
+	unreadCount: number;
+	cartCount: number;
+	onClose: () => void;
+	onOpenNexus: () => void;
+}) {
+	const currentSurface = getSurfaceLabel(pathname);
+	const primaryActions = isLoggedIn
+		? [
+			{ href: "/dashboard", label: "Dashboard", desc: "Orders, listings, status", icon: FiGrid },
+			{ href: "/products/create", label: "Create Listing", desc: "Ship a product faster", icon: FiPackage },
+			{ href: "/pulse", label: "Pulse", desc: "Post, poll, test demand", icon: PulseHeart },
+			{ href: "/ai", label: "AI Chat", desc: "Think through next steps", icon: FiZap },
+		]
+		: [
+			{ href: "/products", label: "Products", desc: "Browse the marketplace", icon: FiPackage },
+			{ href: "/pulse", label: "Pulse", desc: "Watch public signals", icon: PulseHeart },
+			{ href: "/ai", label: "AI Preview", desc: "Ask what to do here", icon: FiZap },
+		];
+
+	return (
+		<section
+			aria-label="Creator cockpit"
+			className="surface-panel mb-4 rounded-lg p-3"
+		>
+			<div className="flex items-start justify-between gap-3">
+				<div className="min-w-0">
+					<p className="text-[10px] font-semibold uppercase text-zinc-400 dark:text-zinc-500">
+						Creator Cockpit
+					</p>
+					<h2 className="mt-1 truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+						{currentSurface}
+					</h2>
+				</div>
+				<button
+					type="button"
+					onClick={onOpenNexus}
+					className="surface-card inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-brand-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50"
+				>
+					<TbHexagons className="h-3.5 w-3.5" aria-hidden="true" />
+					Nexus
+				</button>
+			</div>
+
+			<div className="mt-3 grid grid-cols-2 gap-2">
+				{primaryActions.map((item) => {
+					const active = isActivePath(pathname, item.href);
+					const Icon = item.icon;
+					return (
+						<Link
+							key={item.href}
+							href={item.href}
+							onClick={onClose}
+							aria-current={active ? "page" : undefined}
+							className={`group/cockpit min-w-0 rounded-lg border p-2.5 text-left transition-[background-color,border-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 ${
+								active
+									? "border-brand-accent/35 bg-brand-accent/10 text-foreground"
+									: "surface-card text-muted-foreground hover:border-brand-accent/30 hover:bg-brand-accent/5 hover:text-foreground"
+							}`}
+						>
+							<span className="flex items-center gap-2">
+								<Icon
+									className={`h-4 w-4 shrink-0 ${
+										active ? "text-brand-accent" : "text-zinc-400 group-hover/cockpit:text-brand-accent"
+									}`}
+									aria-hidden="true"
+								/>
+								<span className="truncate text-xs font-semibold">{item.label}</span>
+							</span>
+							<span className="mt-1 line-clamp-2 block text-[10px] leading-snug text-zinc-500 dark:text-zinc-500">
+								{item.desc}
+							</span>
+						</Link>
+					);
+				})}
+			</div>
+
+			{isLoggedIn && (
+				<div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/70 pt-3 text-[11px]">
+					<Link
+						href="/conversations"
+						onClick={onClose}
+						className="flex items-center justify-between rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:bg-brand-accent/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50"
+					>
+						<span className="inline-flex items-center gap-1.5">
+							<FiMessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+							Messages
+						</span>
+						<span className="font-mono text-zinc-400">{Math.max(0, unreadCount)}</span>
+					</Link>
+					<Link
+						href="/cart"
+						onClick={onClose}
+						className="flex items-center justify-between rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:bg-brand-accent/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50"
+					>
+						<span className="inline-flex items-center gap-1.5">
+							<FiShoppingCart className="h-3.5 w-3.5" aria-hidden="true" />
+							Cart
+						</span>
+						<span className="font-mono text-zinc-400">{Math.max(0, cartCount)}</span>
+					</Link>
+				</div>
+			)}
+		</section>
+	);
+}
 
 /**
  * Quick-copy strips for sidebar header: email + active wallet address.
