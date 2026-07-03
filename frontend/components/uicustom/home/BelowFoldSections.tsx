@@ -453,11 +453,6 @@ export default function BelowFoldSections() {
 
   return (
     <div className="relative w-full">
-      {/* Top divider */}
-      <div className="mx-auto max-w-5xl px-6 xl:max-w-6xl">
-        <div className="app-divider h-px" />
-      </div>
-
       {/* ── Features grid ──────────────────────────────────────────────────── */}
       <div className="mx-auto max-w-5xl px-6 py-16 sm:py-24 xl:max-w-6xl">
         <SectionHeading

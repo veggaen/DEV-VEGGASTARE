@@ -1,7 +1,6 @@
 import dynamic from "next/dynamic";
 import HomeHero from "@/components/uicustom/home/home-hero";
 import LandingChatWidget from "@/components/uicustom/home/LandingChatWidget";
-import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
 import { MyLibUserAuth } from "@/lib/user-auth";
 
 // Split below-fold content into a separate JS chunk so the hero can hydrate
@@ -16,10 +15,6 @@ export default async function Home() {
 
   return (
     <>
-      {/* Full-page particle background — fixed, covers the whole landing page and
-          sits behind the navbar + all content while scrolling. */}
-      <HeroParticleField fixed className="z-0" />
-
       <HomeHero isLoggedIn={!!user} userName={(user as any)?.name ?? null}>
         <LandingChatWidget
           isLoggedIn={!!user}

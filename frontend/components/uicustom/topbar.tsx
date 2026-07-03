@@ -173,7 +173,6 @@ const MyTopBar = () => {
 	// Re-add when server-side notification triggers are implemented.
 
 	const headerRef = useRef<HTMLElement | null>(null);
-	const { resolvedTheme, setTheme } = useTheme();
 	const [menuOpen, setMenuOpen] = useState(false);
 	// Which OAuth provider is mid-redirect, so its button can show a spinner
 	// instead of feeling unresponsive while the browser navigates to the provider.
@@ -234,11 +233,6 @@ const MyTopBar = () => {
 	const effectiveWeb3ModeEnabled = clientUser
 		? (!!(clientUser as any).web3ModeEnabled || web3ModeEnabled)
 		: web3ModeEnabled;
-
-	const toggleTheme = () => {
-		const next = resolvedTheme === "dark" ? "light" : "dark";
-		setTheme(next);
-	};
 
 	const [isScrolled, setIsScrolled] = useState(false);
 
@@ -577,13 +571,13 @@ const MyTopBar = () => {
 						transition={{ duration: 0.22, ease: "easeOut" }}
 						style={{ willChange: "clip-path, opacity" }}
 					>
-						<div className="absolute inset-0 border-b app-chrome" />
+						<div className="absolute inset-0 bg-white/45 backdrop-blur-lg dark:bg-black/35" />
 					</motion.div>
 
 					{/* Bottom line reveals after the fill finishes */}
 					<motion.div
 						aria-hidden
-						className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-[hsl(var(--border)/0.78)]"
+						className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-black/10 dark:bg-white/10"
 						initial={false}
 						animate={
 							prefersReducedMotion
@@ -736,7 +730,7 @@ const MyTopBar = () => {
 										onMouseEnter={handleNavHover}
 										className={`flex items-center justify-center rounded-full transition-all duration-200 hover:scale-105 ${clientUser
 											? "h-14 w-14"
-											: "h-14 w-14 surface-card text-muted-foreground hover:text-foreground"
+											: "h-14 w-14 border border-zinc-200/70 bg-white/55 text-zinc-600 backdrop-blur-md hover:bg-white/80 hover:text-zinc-950 dark:border-zinc-800/70 dark:bg-zinc-950/35 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-zinc-100"
 											}`}
 										aria-label="Open menu"
 									>
@@ -758,7 +752,7 @@ const MyTopBar = () => {
 
 								<SheetContent
 									side="right"
-									className="app-menu-panel w-[92vw] max-w-[380px] border-l"
+									className="w-[92vw] max-w-[380px] border-l border-zinc-200/80 bg-white/95 dark:border-zinc-800/80 dark:bg-zinc-950/95"
 									onTouchStart={onMenuTouchStart}
 									onTouchEnd={onMenuTouchEnd}
 									accessibleTitle="Navigation Menu"
@@ -793,42 +787,6 @@ const MyTopBar = () => {
 												</Link>
 												{/* Quick-copy strips: email + active wallet */}
 												<SidebarQuickCopyStrips email={clientUser.email ?? undefined} />
-												{/* Theme quick-toggle */}
-												<div className="mx-3 mb-2 flex items-center gap-2">
-													<button
-														type="button"
-														onClick={() => setTheme("light")}
-														className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors ${
-															resolvedTheme === "light"
-																? "bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/30"
-																: "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-transparent"
-														}`}
-													>
-														<FiSun className="h-3 w-3" /> Light
-													</button>
-													<button
-														type="button"
-														onClick={() => setTheme("dark")}
-														className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors ${
-															resolvedTheme === "dark"
-																? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-																: "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-transparent"
-														}`}
-													>
-														<FiMoon className="h-3 w-3" /> Dark
-													</button>
-													<button
-														type="button"
-														onClick={() => setTheme("system")}
-														className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors ${
-															resolvedTheme !== "light" && resolvedTheme !== "dark"
-																? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/30"
-																: "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-transparent"
-														}`}
-													>
-														<FiMonitor className="h-3 w-3" /> System
-													</button>
-												</div>
 												<div className="border-b border-zinc-100 dark:border-zinc-800" />
 											</>
 										) : (

@@ -1325,60 +1325,9 @@ export default function HomeHero({
       ref={heroRef}
       className="relative flex flex-col min-h-[calc(100dvh-var(--app-header,72px))] w-full"
     >
-      {/* Orbiting green dot removed — the edge particle field below replaces it.
-          (HeroOrbit disabled per design: the dot orbiting the text was
-          distracting.) */}
+      {/* HeroOrbit stays disabled because the moving dot distracted from the headline. */}
 
-      {/* Particle field is now mounted once on the landing page as a fixed
-          full-page background (see app/page.tsx), behind the navbar and all
-          sections — so it covers the whole page, not just the hero. */}
-
-      {/* (Mouse spotlight removed — replaced by the particle field's cursor interaction) */}
-
-      {/* Top edge scrim — softens orbs / spotlight near the fixed navbar */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-0 left-0 right-0 z-[2] h-20 bg-linear-to-b from-white/25 dark:from-black/35 to-transparent"
-      />
-
-      {/* Bottom edge fade — smooth transition into below-fold */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 left-0 right-0 z-[2] h-24 bg-linear-to-t from-white/25 dark:from-black/35 to-transparent"
-      />
-
-      {/* Conditional animated background - only shows for logged in users with fancy mode enabled */}
-      {showFancyEffects && (
-        <div className="pointer-events-none absolute inset-0 noise-overlay">
-          <div className="absolute inset-0" />
-          {/* Orb 1 - screen blend on dark, multiply on light (screen × white = invisible) */}
-          <motion.div
-            className="absolute right-8 top-8 h-[520px] w-[520px] rounded-full"
-            animate={showAnimations ? { x: [0, -18, 0], y: [0, 12, 0], opacity: [0.16, 0.26, 0.16], scale: [1, 1.05, 1] } : { opacity: 0.2 }}
-            transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
-            style={{
-              background: isDark
-                ? "radial-gradient(closest-side, rgba(34,197,94,0.24) 0%, rgba(34,197,94,0.18) 25%, rgba(16,185,129,0.12) 50%, rgba(34,197,94,0.04) 75%, rgba(34,197,94,0) 100%)"
-                : "radial-gradient(closest-side, rgba(16,185,129,0.22) 0%, rgba(16,185,129,0.14) 30%, rgba(5,150,105,0.07) 60%, rgba(16,185,129,0) 100%)",
-              mixBlendMode: isDark ? "screen" : "multiply",
-              filter: "blur(60px)",
-            }}
-          />
-          {/* Orb 2 */}
-          <motion.div
-            className="absolute bottom-10 left-10 h-[580px] w-[580px] rounded-full"
-            animate={showAnimations ? { x: [0, 24, 0], y: [0, -14, 0], opacity: [0.12, 0.22, 0.12], scale: [1, 1.04, 1] } : { opacity: 0.15 }}
-            transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
-            style={{
-              background: isDark
-                ? "radial-gradient(closest-side, rgba(56,189,248,0.18) 0%, rgba(56,189,248,0.12) 30%, rgba(167,139,250,0.08) 55%, rgba(56,189,248,0.02) 80%, rgba(56,189,248,0) 100%)"
-                : "radial-gradient(closest-side, rgba(56,189,248,0.18) 0%, rgba(56,189,248,0.12) 30%, rgba(99,102,241,0.07) 55%, rgba(56,189,248,0) 80%, rgba(56,189,248,0) 100%)",
-              mixBlendMode: isDark ? "screen" : "multiply",
-              filter: "blur(60px)",
-            }}
-          />
-        </div>
-      )}
+      {/* (Mouse spotlight removed — the hero now stays visually quiet.) */}
 
       <motion.div
         className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-6 px-6 text-center xl:max-w-6xl"

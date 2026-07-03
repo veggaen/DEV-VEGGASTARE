@@ -27,6 +27,8 @@ export default function DevBanner() {
   const ref = React.useRef<HTMLDivElement | null>(null);
 
   const hideOnAuthPages = pathname?.startsWith("/auth/");
+  const hideOnLandingPage = pathname === "/";
+  const hideNotice = hideOnAuthPages || hideOnLandingPage;
   const isLoggedIn = !!currentUser?.id;
 
   const readLocalDismissedVersion = React.useCallback(() => {
@@ -110,7 +112,7 @@ export default function DevBanner() {
   // Resolve dismissal state
   React.useEffect(() => {
     if (!mounted) return;
-    if (hideOnAuthPages) {
+    if (hideNotice) {
       setReady(true);
       setDismissed(true);
       return;
@@ -147,7 +149,7 @@ export default function DevBanner() {
     return () => {
       cancelled = true;
     };
-  }, [fetchServerPref, hideOnAuthPages, isLoggedIn, mounted, persistServerPref, readLocalDismissedVersion]);
+  }, [fetchServerPref, hideNotice, isLoggedIn, mounted, persistServerPref, readLocalDismissedVersion]);
 
   // Lift above footer and cookie banner
   React.useEffect(() => {
@@ -197,7 +199,7 @@ export default function DevBanner() {
     };
   }, [mounted]);
 
-  const isVisible = mounted && ready && !dismissed && !hideOnAuthPages;
+  const isVisible = mounted && ready && !dismissed && !hideNotice;
 
   const setDevOffsetVar = React.useCallback((px: number) => {
     try {
