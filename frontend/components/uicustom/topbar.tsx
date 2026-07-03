@@ -571,13 +571,13 @@ const MyTopBar = () => {
 						transition={{ duration: 0.22, ease: "easeOut" }}
 						style={{ willChange: "clip-path, opacity" }}
 					>
-						<div className="absolute inset-0 bg-white/45 backdrop-blur-lg dark:bg-black/35" />
+						<div className="absolute inset-0 bg-transparent" />
 					</motion.div>
 
 					{/* Bottom line reveals after the fill finishes */}
 					<motion.div
 						aria-hidden
-						className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-black/10 dark:bg-white/10"
+						className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-transparent"
 						initial={false}
 						animate={
 							prefersReducedMotion
@@ -603,7 +603,7 @@ const MyTopBar = () => {
 						{navIndicator && (
 							<div
 								aria-hidden
-								className="absolute pointer-events-none z-50 border border-brand-accent/45 hidden md:block"
+								className="hidden"
 								style={{
 									left: navIndicator.left,
 									top: navIndicator.top,
