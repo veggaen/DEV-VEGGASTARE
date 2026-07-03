@@ -1325,9 +1325,60 @@ export default function HomeHero({
       ref={heroRef}
       className="relative flex flex-col min-h-[calc(100dvh-var(--app-header,72px))] w-full"
     >
-      {/* HeroOrbit stays disabled because the moving dot distracted from the headline. */}
+      {/* Orbiting green dot removed — the edge particle field below replaces it.
+          (HeroOrbit disabled per design: the dot orbiting the text was
+          distracting.) */}
 
-      {/* (Mouse spotlight removed — the hero now stays visually quiet.) */}
+      {/* Particle field is now mounted once on the landing page as a fixed
+          full-page background (see app/page.tsx), behind the navbar and all
+          sections — so it covers the whole page, not just the hero. */}
+
+      {/* (Mouse spotlight removed — replaced by the particle field's cursor interaction) */}
+
+      {/* Top edge scrim — softens orbs / spotlight near the fixed navbar */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-0 left-0 right-0 z-[2] h-20 bg-linear-to-b from-white/25 dark:from-black/35 to-transparent"
+      />
+
+      {/* Bottom edge fade — smooth transition into below-fold */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 left-0 right-0 z-[2] h-24 bg-linear-to-t from-white/25 dark:from-black/35 to-transparent"
+      />
+
+      {/* Conditional animated background - only shows for logged in users with fancy mode enabled */}
+      {showFancyEffects && (
+        <div className="hidden">
+          <div className="absolute inset-0" />
+          {/* Orb 1 - screen blend on dark, multiply on light (screen × white = invisible) */}
+          <motion.div
+            className="absolute right-8 top-8 h-[520px] w-[520px] rounded-full"
+            animate={showAnimations ? { x: [0, -18, 0], y: [0, 12, 0], opacity: [0.16, 0.26, 0.16], scale: [1, 1.05, 1] } : { opacity: 0.2 }}
+            transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
+            style={{
+              background: isDark
+                ? "radial-gradient(closest-side, rgba(34,197,94,0.24) 0%, rgba(34,197,94,0.18) 25%, rgba(16,185,129,0.12) 50%, rgba(34,197,94,0.04) 75%, rgba(34,197,94,0) 100%)"
+                : "radial-gradient(closest-side, rgba(16,185,129,0.22) 0%, rgba(16,185,129,0.14) 30%, rgba(5,150,105,0.07) 60%, rgba(16,185,129,0) 100%)",
+              mixBlendMode: isDark ? "screen" : "multiply",
+              filter: "blur(60px)",
+            }}
+          />
+          {/* Orb 2 */}
+          <motion.div
+            className="absolute bottom-10 left-10 h-[580px] w-[580px] rounded-full"
+            animate={showAnimations ? { x: [0, 24, 0], y: [0, -14, 0], opacity: [0.12, 0.22, 0.12], scale: [1, 1.04, 1] } : { opacity: 0.15 }}
+            transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
+            style={{
+              background: isDark
+                ? "radial-gradient(closest-side, rgba(56,189,248,0.18) 0%, rgba(56,189,248,0.12) 30%, rgba(167,139,250,0.08) 55%, rgba(56,189,248,0.02) 80%, rgba(56,189,248,0) 100%)"
+                : "radial-gradient(closest-side, rgba(56,189,248,0.18) 0%, rgba(56,189,248,0.12) 30%, rgba(99,102,241,0.07) 55%, rgba(56,189,248,0) 80%, rgba(56,189,248,0) 100%)",
+              mixBlendMode: isDark ? "screen" : "multiply",
+              filter: "blur(60px)",
+            }}
+          />
+        </div>
+      )}
 
       <motion.div
         className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-6 px-6 text-center xl:max-w-6xl"
@@ -1584,14 +1635,18 @@ export default function HomeHero({
           >
             {/* Animated gradient border — spins faster on hover (conic-like rotation) */}
             <motion.div
-              className="absolute -inset-px rounded-lg bg-brand-accent/25 blur-[1px] group-hover:bg-brand-accent/35"
+              className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-sky-500 via-cyan-400 to-sky-500 dark:from-emerald-500 dark:via-cyan-400 dark:to-emerald-500 blur-[2px] group-hover:blur-[3px]"
               animate={{
+                backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
                 opacity: [0.5, 0.8, 0.5],
               }}
-              whileHover={{ opacity: 1 }}
+              whileHover={{ opacity: 1, rotate: 360 }}
               transition={{
+                backgroundPosition: { duration: 3, repeat: Infinity, ease: "linear" },
                 opacity: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+                rotate: { duration: 2, repeat: Infinity, ease: "linear" },
               }}
+              style={{ backgroundSize: "200% 200%" }}
             />
             {/* Glow on hover */}
             <motion.div
@@ -1601,12 +1656,14 @@ export default function HomeHero({
               whileHover={{ opacity: 0.25 }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               style={{
-                background: "linear-gradient(90deg, transparent, hsl(var(--brand-accent) / 0.2), transparent)",
+                background: isDark
+                  ? "radial-gradient(closest-side, rgba(34,197,94,0.25), transparent 70%)"
+                  : "radial-gradient(closest-side, rgba(14,165,233,0.25), transparent 70%)",
               }}
             />
             <Link
               href="/products"
-              className="relative flex items-center gap-2 rounded-lg bg-brand-accent px-6 py-3 text-sm font-semibold text-brand-accent-foreground transition-colors duration-300 hover:bg-brand-accent-hover"
+              className="relative flex items-center gap-2 rounded-xl bg-sky-600 dark:bg-black/80 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 group-hover:bg-sky-700 dark:group-hover:bg-black/90 group-hover:text-sky-100 dark:group-hover:text-emerald-300"
             >
               <motion.span
                 className="inline-block"
@@ -1649,14 +1706,15 @@ export default function HomeHero({
           >
             {/* Subtle idle border pulse */}
             <motion.div
-              className="absolute -inset-px rounded-lg bg-border/60 blur-[1px]"
+              className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-gray-400/20 via-gray-400/40 to-gray-400/20 dark:from-white/5 dark:via-white/15 dark:to-white/5 blur-[1px]"
               animate={{ opacity: [0.2, 0.4, 0.2] }}
               whileHover={{ opacity: 0.7 }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              style={{ backgroundSize: "200% 200%" }}
             />
             <Link
               href="/pulse"
-              className="surface-card relative flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-medium text-muted-foreground transition-[background-color,border-color,color] duration-300 hover:border-brand-accent/35 hover:bg-brand-accent/5 hover:text-foreground"
+              className="relative flex items-center gap-2 rounded-xl border border-gray-300 dark:border-white/20 bg-gray-100/80 dark:bg-white/5 px-5 py-3 text-sm font-medium text-gray-700 dark:text-white/80 backdrop-blur-sm transition-all duration-300 hover:border-gray-400 dark:hover:border-white/40 hover:bg-gray-200/80 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white group-hover:shadow-[0_0_20px_rgba(0,0,0,0.08)] dark:group-hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
             >
               <span className="relative h-4 w-4">
                 <span className="absolute inset-0 opacity-60 transition-all duration-300 group-hover:opacity-0 group-hover:-rotate-12">

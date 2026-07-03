@@ -49,7 +49,6 @@ export default function AppProviders({
   // bottom padding. Matches /ai/[id] and a DM conversation (but NOT the /ai list).
   const isImmersiveChat =
     /^\/ai\/[^/]+$/.test(pathname ?? '') || /^\/conversations\/[^/]+$/.test(pathname ?? '');
-  const hasInlineFooter = !isProductsRoute && !isImmersiveChat;
   
   // Gate page gets minimal layout - no providers, no header/footer
   if (pathname === '/gate') {
@@ -110,12 +109,12 @@ export default function AppProviders({
                     <UpdateBanner />
                     <MyTopBar />
                     <ImpersonationBanner />
-                    <div data-app-shell-scroll-root className={`app-canvas flex flex-1 flex-col min-h-0 overscroll-contain-y ${isProductsRoute || isImmersiveChat ? 'overflow-hidden' : 'overflow-auto'}`}>
-                      <main id="main-content" tabIndex={-1} className={`flex flex-col outline-none ${hasInlineFooter ? 'min-h-full shrink-0' : 'flex-1 min-h-0'} ${isImmersiveChat ? '' : 'pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]'}`}>
+                    <div className={`flex flex-1 flex-col min-h-0 overscroll-contain-y ${isProductsRoute || isImmersiveChat ? 'overflow-hidden' : 'overflow-auto'}`}>
+                      <main id="main-content" tabIndex={-1} className={`flex flex-1 flex-col min-h-0 outline-none ${isImmersiveChat ? '' : 'pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]'}`}>
                         {children}
                       </main>
-                      {hasInlineFooter && <SiteFooter />}
                     </div>
+                    {!isProductsRoute && !isImmersiveChat && <SiteFooter />}
                     <CookieBanner />
                     {!isImmersiveChat && <DevBanner />}
                     <Toaster />

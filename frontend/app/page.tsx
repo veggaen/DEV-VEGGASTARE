@@ -16,8 +16,9 @@ export default async function Home() {
 
   return (
     <>
-      {/* Full-page star field for the landing/start page. */}
-      <HeroParticleField fixed className="z-0" />
+      {/* Full-page particle background — fixed, covers the whole landing page and
+          sits behind the navbar + all content while scrolling. */}
+      <HeroParticleField fixed density={0.72} className="z-0 opacity-70" />
 
       <HomeHero isLoggedIn={!!user} userName={(user as any)?.name ?? null}>
         <LandingChatWidget
