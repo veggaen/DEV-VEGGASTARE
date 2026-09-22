@@ -1274,7 +1274,7 @@ export default function HomeHero({
 
       <motion.div
         className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-6 px-6 text-center xl:max-w-6xl"
-        initial={{ opacity: 0, y: 14 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
       >
@@ -1505,16 +1505,16 @@ export default function HomeHero({
         {/* (Removed: feature chip row — 6 AI Models / Live Polls / 12-Tier
             Verification / Bring Your Key) */}
 
-        {/* CTAs — hidden in portrait, visible in landscape/desktop */}
+        {/* CTAs are immediately visible in every orientation; hover motion remains. */}
         <motion.div
           className="flex flex-wrap items-center justify-center gap-3"
-          initial={{ opacity: 0 }}
+          initial={false}
           animate={{ opacity: 1 }}
           transition={{ delay: buttonsStart, duration: 0.22, ease: "easeOut" }}
         >
           {/* Browse products: shown for ALL users */}
           <motion.div
-            initial={{ opacity: 0, x: -44, y: 34 }}
+            initial={false}
             animate={{ opacity: 1, x: 0, y: 0 }}
             transition={{
               delay: browseDelay,
@@ -1584,7 +1584,7 @@ export default function HomeHero({
 
           {/* Open Pulse: shown for ALL users */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={false}
             animate={{ opacity: 1, scale: 1 }}
             transition={{
               delay: openFeedDelay,
@@ -1649,7 +1649,7 @@ export default function HomeHero({
           {/* Sign in: only for non-logged-in users - stealth style */}
           {!isLoggedIn && (
             <motion.div
-              initial={{ opacity: 0, y: 18 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: buttonsStart + 0.05, duration: 0.35, ease: "easeOut" }}
               className="relative group"
@@ -1673,7 +1673,7 @@ export default function HomeHero({
           {/* Nexus settings: only for logged-in users */}
           {isLoggedIn && (
             <motion.div
-              initial={{ opacity: 0, x: 22 }}
+              initial={false}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: nexusDelay, duration: 0.5, ease: "easeOut" }}
               className="relative group"

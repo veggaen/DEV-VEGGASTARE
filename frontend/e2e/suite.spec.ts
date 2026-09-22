@@ -387,6 +387,20 @@ test.describe("Layer 5 — API Data Shapes", () => {
   });
 
   /* ---------- Authenticated data tests (skip if no creds) -------- */
+  test("model picker selects platform Groq without a key (authed)", async ({ page }) => {
+    test.skip(!hasAuth, "Requires E2E_TEST_EMAIL/PASSWORD");
+    test.setTimeout(PAGE_TIMEOUT);
+    await visitPage(page, "/");
+    const essentialOnly = page.getByRole("button", { name: "Essential Only", exact: true });
+    if (await essentialOnly.isVisible()) await essentialOnly.click();
+    const picker = page.getByTitle("Choose AI model", { exact: true });
+    await picker.click();
+    await page.getByPlaceholder(/Search models/).fill("GPT-OSS 20B");
+    await page.getByRole("button").filter({ hasText: "GPT-OSS 20B" }).click();
+    await expect(picker).toContainText("GPT-OSS 20B");
+    await expect(page.getByPlaceholder("Paste your API key…")).not.toBeVisible();
+  });
+
   test("GET /api/wallets returns data (authed)", async ({ request }) => {
     test.skip(!hasAuth, "Requires E2E_TEST_EMAIL/PASSWORD");
     const res = await request.get("/api/wallets");

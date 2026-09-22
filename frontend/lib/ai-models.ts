@@ -116,9 +116,9 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     emoji: "⚡",
     tagline: "Blazing-fast open models on custom hardware",
     getKeyUrl: "https://console.groq.com/keys",
-    freeAvailable: false,
-    tier: "byok-only",
-    pricingNote: "Bring your Groq API key",
+    freeAvailable: true,
+    tier: "free",
+    pricingNote: "Free with sign-in, subject to daily limits",
     models: [
       { value: "openai/gpt-oss-20b",      label: "GPT-OSS 20B",               description: "Fast, cost-efficient open-weight model", isDefault: true, capabilities: ["fast", "cheap", "reasoning", "tools"], group: "recommended", contextSize: "128K" },
       { value: "openai/gpt-oss-120b",     label: "GPT-OSS 120B",              description: "Large open-weight reasoning model",                       capabilities: ["reasoning", "tools"],                  group: "recommended", contextSize: "128K" },

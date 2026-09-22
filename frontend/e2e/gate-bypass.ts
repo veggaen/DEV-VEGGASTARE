@@ -12,7 +12,7 @@ import { test as setup } from "@playwright/test";
  */
 
 export const GATE_FILE = "./e2e/.auth/gate.json";
-const GATE_PASSWORD = process.env.GATE_PASSWORD ?? "MainAdc123";
+const GATE_PASSWORD = process.env.GATE_PASSWORD;
 
 setup("bypass access gate", async ({ page }) => {
   // Try loading the homepage and see if we get redirected to /gate
@@ -27,6 +27,9 @@ setup("bypass access gate", async ({ page }) => {
   }
 
   // Gate is active — submit the password via the API
+  if (!GATE_PASSWORD) {
+    throw new Error("Set GATE_PASSWORD for tests against a gated environment.");
+  }
   const response = await page.request.post("/api/access-gate", {
     data: { password: GATE_PASSWORD },
   });

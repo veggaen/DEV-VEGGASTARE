@@ -216,6 +216,7 @@ export default function CookieBanner() {
                             type="button"
                             role="switch"
                             aria-checked={analytics}
+                            aria-label="Analytics"
                             onClick={() => setAnalytics((v) => !v)}
                             className={`relative h-6 w-11 rounded-full transition-all duration-200 ${
                               analytics 
@@ -241,6 +242,7 @@ export default function CookieBanner() {
                             type="button"
                             role="switch"
                             aria-checked={marketing}
+                            aria-label="Marketing"
                             onClick={() => setMarketing((v) => !v)}
                             className={`relative h-6 w-11 rounded-full transition-all duration-200 ${
                               marketing 

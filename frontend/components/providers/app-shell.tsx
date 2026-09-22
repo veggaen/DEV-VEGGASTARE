@@ -29,7 +29,6 @@ const Web3Providers = dynamic(
 
 import MyTopBar from "@/components/uicustom/topbar";
 import SiteFooter from "@/components/uicustom/site-footer";
-import DevBanner from "@/components/uicustom/dev-banner";
 import CookieBanner from "@/components/uicustom/cookie-banner";
 import { ActiveWalletProvider } from "@/contexts/active-wallet-context";
 import { TradeModeProvider } from "@/contexts/trade-mode-context";
@@ -81,7 +80,6 @@ export default function AppShell({
                     </div>
                     {!isProductsRoute && !isImmersiveChat && <SiteFooter />}
                     <CookieBanner />
-                    {!isImmersiveChat && <DevBanner />}
                     <Toaster />
                     </ConfirmDialogProvider>
                     </CartProvider>
