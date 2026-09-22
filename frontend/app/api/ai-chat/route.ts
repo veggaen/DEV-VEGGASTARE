@@ -76,6 +76,9 @@ VeggaStare is a modern marketplace + social platform that combines:
 // Free tier: Google + Groq (free APIs) — available to all authenticated users.
 // Paid tier: OpenAI + Anthropic — available to owner and users with purchased credits.
 const PLATFORM_GOOGLE_KEY = process.env.GOOGLE_API_KEY ?? process.env.GOOGLE_AI_API_KEY ?? "";
+// Vercel deployments receive a short-lived OIDC token automatically. This lets
+// the showcase use AI Gateway without storing another long-lived secret.
+const VERCEL_AI_GATEWAY_AUTH = process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN ?? "";
 const PLATFORM_GROQ_KEY = process.env.GROQ_API_KEY ?? "";
 const PLATFORM_GROK_KEY = process.env.GROK_API_KEY ?? "";
 const PLATFORM_OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
@@ -237,6 +240,7 @@ interface StreamInput {
   model: string;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
   systemPrompt?: string;
+  viaVercelGateway?: boolean;
 }
 
 async function streamGemini(input: StreamInput): Promise<Response> {
@@ -319,6 +323,51 @@ async function streamOpenAICompat(input: StreamInput): Promise<Response> {
   return new Response(readable, { headers: SSE_HEADERS });
 }
 
+async function streamVercelGateway(input: StreamInput): Promise<Response> {
+  const { apiKey, model, messages, systemPrompt } = input;
+  const apiMessages = [
+    ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
+    ...messages.map(message => ({ role: message.role, content: message.content })),
+  ];
+
+  const upstream = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: `google/${model}`,
+      messages: apiMessages,
+      stream: true,
+      max_tokens: 2048,
+      temperature: 0.7,
+    }),
+  });
+
+  if (!upstream.ok) {
+    const err = await upstream.text().catch(() => "upstream error");
+    console.error("[ai-chat][VERCEL_GATEWAY] upstream error:", upstream.status, err.slice(0, 300));
+    let upstreamMessage = "Vercel AI Gateway is temporarily unavailable. Try again in a moment.";
+    try {
+      const parsed = JSON.parse(err);
+      upstreamMessage = parsed?.error?.message ?? parsed?.message ?? upstreamMessage;
+    } catch { /* keep the safe fallback */ }
+    return NextResponse.json(
+      { error: "AI_UPSTREAM_ERROR", message: upstreamMessage },
+      { status: 502 },
+    );
+  }
+  if (!upstream.body) return NextResponse.json({ error: "NO_STREAM_BODY" }, { status: 502 });
+
+  const readable = createSseStream(
+    upstream.body,
+    (parsed: any) => parsed?.choices?.[0]?.delta?.content ?? null,
+    "VERCEL_GATEWAY",
+  );
+  return new Response(readable, { headers: SSE_HEADERS });
+}
+
 async function streamAnthropic(input: StreamInput): Promise<Response> {
   const { apiKey, model, messages, systemPrompt } = input;
 
@@ -364,6 +413,8 @@ async function streamAnthropic(input: StreamInput): Promise<Response> {
 // ── Stream dispatcher ──────────────────────────────────────────────────────
 
 async function streamProvider(input: StreamInput): Promise<Response> {
+  if (input.viaVercelGateway) return streamVercelGateway(input);
+
   switch (input.provider) {
     case "GOOGLE":    return streamGemini(input);
     case "ANTHROPIC": return streamAnthropic(input);
@@ -426,6 +477,7 @@ export async function POST(req: NextRequest) {
   let apiKey = "";
   let resolvedModel = defaultModelForProvider(requestedProvider);
   let usingPlatformKey = true;
+  let viaVercelGateway = false;
   let costTier: "free" | "premium" | "byok" = "free";
 
   if (!session) {
@@ -443,11 +495,12 @@ export async function POST(req: NextRequest) {
         { status: 413 }
       );
     }
-    if (!PLATFORM_GOOGLE_KEY) {
+    if (!PLATFORM_GOOGLE_KEY && !VERCEL_AI_GATEWAY_AUTH) {
       return NextResponse.json({ error: "AI_NOT_CONFIGURED" }, { status: 503 });
     }
     resolvedProvider = "GOOGLE";
-    apiKey = PLATFORM_GOOGLE_KEY;
+    apiKey = PLATFORM_GOOGLE_KEY || VERCEL_AI_GATEWAY_AUTH;
+    viaVercelGateway = !PLATFORM_GOOGLE_KEY;
     resolvedModel = defaultModelForProvider("GOOGLE");
   } else {
     // ── Authenticated: try inline BYOK → saved BYOK → platform key ───────
@@ -498,10 +551,11 @@ export async function POST(req: NextRequest) {
 
       // ── Free-tier providers (Google, Groq) ───────────────────────────
       if (requestedProvider === "GOOGLE") {
-        if (!PLATFORM_GOOGLE_KEY) {
+        if (!PLATFORM_GOOGLE_KEY && !VERCEL_AI_GATEWAY_AUTH) {
           return NextResponse.json({ error: "AI_NOT_CONFIGURED", message: "Google AI is not configured on this platform. Add your own Google API key via BYOK." }, { status: 503 });
         }
-        apiKey = PLATFORM_GOOGLE_KEY;
+        apiKey = PLATFORM_GOOGLE_KEY || VERCEL_AI_GATEWAY_AUTH;
+        viaVercelGateway = !PLATFORM_GOOGLE_KEY;
         resolvedProvider = "GOOGLE";
         resolvedModel = body.model || defaultModelForProvider("GOOGLE");
       } else if (requestedProvider === "GROQ") {
@@ -637,6 +691,7 @@ export async function POST(req: NextRequest) {
     model: resolvedModel,
     messages: cappedMessages,
     systemPrompt: CHAT_SYSTEM_PROMPT,
+    viaVercelGateway,
   });
 
   // Always attach metadata headers so the client UI can show cost hints

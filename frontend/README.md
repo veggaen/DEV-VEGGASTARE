@@ -230,7 +230,8 @@ OAuth callback URL requirements:
 
 | Variable | Description |
 |----------|-------------|
-| `GOOGLE_API_KEY` | Required for the anonymous Gemini preview and signed-in free-tier Gemini chat. Create it in Google AI Studio. |
+| `GOOGLE_API_KEY` | Optional direct Google key for the anonymous preview and signed-in Gemini chat. Create it in Google AI Studio. |
+| `AI_GATEWAY_API_KEY` | Optional Vercel AI Gateway key. Vercel deployments otherwise use their automatic `VERCEL_OIDC_TOKEN`. |
 | `GROQ_API_KEY` | Optional shared Groq key for signed-in free-tier models. |
 | `GROK_API_KEY` | Optional shared xAI/Grok key for signed-in models. |
 | `OPENAI_API_KEY` | Optional shared OpenAI key for the owner and users with AI credits. |
@@ -239,6 +240,8 @@ OAuth callback URL requirements:
 
 Set platform keys only in Vercel's encrypted environment variables, never in
 `NEXT_PUBLIC_*` variables or committed files. Redeploy after changing them.
+The Vercel OIDC fallback is short-lived deployment identity and should not be
+copied into an environment variable or source control.
 
 ### Backend Connection
 
