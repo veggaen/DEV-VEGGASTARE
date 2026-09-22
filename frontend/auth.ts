@@ -1,6 +1,6 @@
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import { cookies } from "next/headers"
+import { isDemoUserId } from "@/lib/demo-policy"
 
 import { dbPrisma } from "@/lib/db"
 import authConfig from "@/auth.config"
@@ -350,7 +350,7 @@ export const {
           // If JWT was invalidated (user deleted or tokenVersion mismatch),
           // clear the session so the client detects it as logged-out
           if (!token.sub) {
-            return session;
+            return { ...session, user: undefined };
           }
 
           if (token.sub && session.user) {
@@ -404,6 +404,7 @@ export const {
 
           // Pass impersonation info through to the session
           if (session.user) {
+            session.user.isDemo = isDemoUserId(token.sub);
             session.user.isImpersonating = token.isImpersonating as boolean || false;
             session.user.impersonatingFromId = token.impersonatingFromId as string | undefined;
             session.user.impersonatingFromName = token.impersonatingFromName as string | undefined;
@@ -421,12 +422,16 @@ export const {
           // callback swaps the token to represent the target user while
           // preserving the owner's original identity in extra fields.
           try {
-            const cookieStore = await cookies();
-            const impersonateOwnerId  = cookieStore.get('x-impersonate-owner-id')?.value;
-            const impersonateOwnerName = cookieStore.get('x-impersonate-owner-name')?.value;
-            const impersonateTargetId = cookieStore.get('x-impersonate-target-id')?.value;
+            // Only authenticated JWT claims can authorize impersonation. Plain
+            // metadata cookies are attacker-controlled, even if marked HttpOnly.
+            const impersonateOwnerId = token.isImpersonating === true && typeof token.impersonatingFromId === 'string'
+              ? token.impersonatingFromId : undefined;
+            const impersonateOwnerName = typeof token.impersonatingFromName === 'string' ? token.impersonatingFromName : 'Owner';
+            const impersonateTargetId = impersonateOwnerId ? token.sub : undefined;
 
             if (impersonateOwnerId && impersonateTargetId) {
+              const owner = await getUserById(impersonateOwnerId);
+              if (owner?.role !== 'OWNER') return { ...token, sub: undefined };
               // Load the target user
               const targetUser = await getUserById(impersonateTargetId);
               if (targetUser) {
@@ -467,6 +472,11 @@ export const {
           if (!existingUser) {
             if (isDev) console.log(`${LOG_PREFIX} jwt: user ${token.sub} not found — invalidating session`);
             return { ...token, sub: undefined, email: undefined, name: undefined };
+          }
+
+          // Demo sessions expire after a day, even if a browser keeps refreshing them.
+          if (isDemoUserId(existingUser.id) && Date.now() - existingUser.createdAt.getTime() > 86_400_000) {
+            return { ...token, sub: undefined };
           }
 
           // Session versioning: if tokenVersion changed, force re-login

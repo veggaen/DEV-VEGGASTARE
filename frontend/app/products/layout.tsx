@@ -9,7 +9,7 @@ interface ProtectedLayoutProps {
 const MyProtectedLayout = ({ children }: ProtectedLayoutProps) => {
 
   return (
-		<div className="w-full h-[calc(100dvh-var(--app-header-offset))] min-h-0 overflow-hidden flex">
+		<div className="w-full h-[calc(100dvh-var(--app-header-offset)-var(--demo-notice-height,0px))] min-h-0 overflow-hidden flex">
       <CategoriesProvider>
         <ProductProvider>
             {children}

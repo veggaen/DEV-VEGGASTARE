@@ -28,7 +28,7 @@ if (googleClientId && googleClientSecret) {
     Google({
       clientId: googleClientId,
       clientSecret: googleClientSecret,
-      allowDangerousEmailAccountLinking: true,
+      allowDangerousEmailAccountLinking: false,
     })
   )
 } else if (isDev) {
@@ -43,7 +43,7 @@ if (githubClientId && githubClientSecret) {
     Github({
       clientId: githubClientId,
       clientSecret: githubClientSecret,
-      allowDangerousEmailAccountLinking: true,
+      allowDangerousEmailAccountLinking: false,
     })
   )
 } else if (isDev) {
@@ -55,7 +55,7 @@ if (discordClientId && discordClientSecret) {
     Discord({
       clientId: discordClientId,
       clientSecret: discordClientSecret,
-      allowDangerousEmailAccountLinking: true,
+      allowDangerousEmailAccountLinking: false,
     })
   )
 } else if (isDev) {
@@ -68,6 +68,13 @@ if (discordClientId && discordClientSecret) {
 export default {
   providers: [
   ...oauthProviders,
+  Credentials({
+    id: "demo", name: "Interview demo", credentials: {},
+    async authorize(_credentials, request) {
+      const { createDemoUser } = await import("@/lib/demo-user");
+      return createDemoUser(request);
+    },
+  }),
   // Magic-link login provider for auto-login after email verification
   Credentials({
     id: "email-login-token",

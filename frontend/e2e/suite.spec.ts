@@ -171,6 +171,60 @@ test.describe("Layer 2 — Routing", () => {
 /*  Now we know routes work, verify they render something meaningful.  */
 /* ================================================================== */
 test.describe("Layer 3 — Content", () => {
+  test("public home and isolated demo sign-in (public S1)", async ({ browser }) => {
+    test.setTimeout(PAGE_TIMEOUT);
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    const response = await page.goto("http://localhost:3000/", { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("button", { name: "Try the demo — no payment", exact: true })).toBeVisible();
+    await expect(page.locator("footer")).toHaveCount(0);
+    const essential = page.getByRole("button", { name: "Essential Only", exact: true });
+    if (await essential.isVisible()) await essential.click();
+    await page.getByRole("button", { name: "Try the demo — no payment", exact: true }).click();
+    await page.waitForURL("**/products");
+    await expect(page.getByRole("complementary", { name: "Demo mode" })).toBeVisible();
+    const session = await (await page.request.get("http://localhost:3000/api/auth/session")).json();
+    expect(session.user.isDemo).toBe(true);
+    expect(session.user.role).toBe("USER");
+    expect((await page.request.post("http://localhost:3000/api/orders", { data: {} })).status()).toBe(403);
+    expect((await page.request.post("http://localhost:3000/settings", { data: {} })).status()).toBe(403);
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await page.getByRole("button", { name: "Exit demo", exact: true }).click();
+    await page.waitForURL("http://localhost:3000/");
+    await expect(page.getByRole("button", { name: "Try the demo — no payment", exact: true })).toBeVisible();
+    await context.close();
+  });
+
+  test("Products metadata does not restart the loading skeleton (public S1)", async ({ page }) => {
+    test.setTimeout(PAGE_TIMEOUT);
+    let productRequests = 0;
+    page.on("request", request => { if (new URL(request.url()).pathname === "/api/products") productRequests++; });
+    const metadata = page.waitForResponse(response => new URL(response.url()).pathname === "/api/filter-counts");
+    await visitPage(page, "/products");
+    await metadata;
+    await expect(page.getByRole("status", { name: "Loading products", exact: true })).toHaveCount(0);
+    // Observe beyond the old 300ms metadata-triggered debounce window.
+    await page.waitForTimeout(600);
+    expect(productRequests).toBe(1);
+    await expect(page.locator("footer")).toHaveCount(0);
+  });
+
+  test("footer follows content without overlapping it (public S1)", async ({ page }) => {
+    test.setTimeout(PAGE_TIMEOUT);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await visitPage(page, "/info");
+    const footer = page.locator("footer");
+    await expect(footer).toBeAttached();
+    expect(await footer.evaluate(element => element.getBoundingClientRect().top >= innerHeight)).toBe(true);
+    expect(await footer.evaluate(element => getComputedStyle(element).position)).toBe("static");
+    await footer.scrollIntoViewIfNeeded();
+    await expect(footer).toBeInViewport();
+  });
+
   /* ---------- 3a. Critical public pages render ------------------- */
   test("homepage renders heading", async ({ page }) => {
     await visitPage(page, "/");
@@ -387,6 +441,23 @@ test.describe("Layer 5 — API Data Shapes", () => {
   });
 
   /* ---------- Authenticated data tests (skip if no creds) -------- */
+  test("plain cookies cannot restore an impersonated identity (authed)", async ({ context, request }) => {
+    test.skip(!hasAuth, "Requires E2E_TEST_EMAIL/PASSWORD");
+    if (process.env.GATE_PASSWORD) {
+      await request.post("/api/access-gate", { data: { password: process.env.GATE_PASSWORD } });
+    }
+    const before = await (await request.get("/api/auth/session")).json();
+    expect(before.user.role).toBe("USER");
+    await context.addCookies([
+      { name: "x-impersonate-owner-id", value: before.user.id, domain: "localhost", path: "/" },
+      { name: "x-impersonate-target-id", value: "not-a-real-account", domain: "localhost", path: "/" },
+    ]);
+    expect((await request.post("/api/admin/impersonate/end")).status()).toBe(403);
+    const after = await (await request.get("/api/auth/session")).json();
+    expect(after.user.id).toBe(before.user.id);
+    expect(after.user.isImpersonating).toBe(false);
+  });
+
   test("model picker selects platform Groq without a key (authed)", async ({ page }) => {
     test.skip(!hasAuth, "Requires E2E_TEST_EMAIL/PASSWORD");
     test.setTimeout(PAGE_TIMEOUT);

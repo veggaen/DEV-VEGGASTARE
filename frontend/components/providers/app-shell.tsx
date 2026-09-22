@@ -34,6 +34,7 @@ import { ActiveWalletProvider } from "@/contexts/active-wallet-context";
 import { TradeModeProvider } from "@/contexts/trade-mode-context";
 import ImpersonationBanner from "@/components/uicustom/ImpersonationBanner";
 import { UpdateBanner } from "@/components/uicustom/UpdateBanner";
+import DemoSessionNotice from "@/components/uicustom/auth/demo-session-notice";
 
 export default function AppShell({
   session,
@@ -73,12 +74,13 @@ export default function AppShell({
                     <UpdateBanner />
                     <MyTopBar />
                     <ImpersonationBanner />
+                    <DemoSessionNotice />
                     <div className={`flex flex-1 flex-col min-h-0 overscroll-contain-y ${isProductsRoute || isImmersiveChat ? 'overflow-hidden' : 'overflow-auto'}`}>
-                      <main id="main-content" tabIndex={-1} className={`flex flex-1 flex-col min-h-0 outline-none ${isImmersiveChat ? '' : 'pb-[calc(var(--cookie-banner-offset,0px)+var(--dev-banner-offset,0px))]'}`}>
+                      <main id="main-content" tabIndex={-1} className={`min-w-0 outline-none ${isProductsRoute || isImmersiveChat ? 'flex flex-1 flex-col min-h-0' : 'shrink-0 min-h-[calc(100dvh-var(--app-header-offset,0px)-var(--demo-notice-height,0px))]'} ${isImmersiveChat ? '' : 'pb-[var(--cookie-banner-offset,0px)]'}`}>
                         {children}
                       </main>
+                      {!isProductsRoute && !isImmersiveChat && pathname !== '/' && <SiteFooter />}
                     </div>
-                    {!isProductsRoute && !isImmersiveChat && <SiteFooter />}
                     <CookieBanner />
                     <Toaster />
                     </ConfirmDialogProvider>

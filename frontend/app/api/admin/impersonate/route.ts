@@ -7,6 +7,7 @@ import { cookies } from 'next/headers';
 import { encode } from 'next-auth/jwt';
 import { getAccountByUserId } from '@/lib/account';
 import { z } from 'zod';
+import { AUTH_COOKIE_OPTIONS, SESSION_COOKIE_NAME } from '@/lib/auth-cookies';
 
 const ImpersonateBodySchema = z.object({
   targetUserId: z.string().min(1, 'targetUserId is required'),
@@ -15,11 +16,9 @@ const ImpersonateBodySchema = z.object({
 
 const LOG_PREFIX = '[api/admin/impersonate]';
 
-const isSecure = process.env.NODE_ENV === 'production';
+const isSecure = AUTH_COOKIE_OPTIONS.secure;
 /** NextAuth v5 session-token cookie name */
-const SESSION_COOKIE = isSecure
-  ? '__Secure-authjs.session-token'
-  : 'authjs.session-token';
+const SESSION_COOKIE = SESSION_COOKIE_NAME;
 
 /**
  * POST /api/admin/impersonate

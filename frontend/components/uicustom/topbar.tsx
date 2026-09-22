@@ -624,7 +624,7 @@ const MyTopBar = () => {
 								onMouseEnter={handleNavHover}
 								className="shrink-0 text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 px-1.5 py-1"
 							>
-								VeggaStare
+								Veggat
 							</Link>
 
 							<nav className="hidden md:flex items-center gap-1">

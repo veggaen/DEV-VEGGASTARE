@@ -9,6 +9,7 @@ import { MyLoginButton } from "@/components/uicustom/auth/buttons/login-button";
 import { FaLock, FaUnlockAlt } from "react-icons/fa";
 import AnimatedTitle from "@/components/uicustom/animated-title";
 import { useUiPreferences } from "@/components/providers/ui-preferences";
+import DemoLoginButton from "@/components/uicustom/auth/demo-login-button";
 
 type IgniteState = {
   untilMs: number;
@@ -980,7 +981,7 @@ export default function HomeHero({
     },
   }), [reduceMotion]);
 
-  const headline = "Where every choice is yours";
+  const headline = "Digital goods. Built on trust.";
   const mountAtRef = React.useRef<number | null>(null);
   const [whereGlowUntilMs, setWhereGlowUntilMs] = React.useState(0);
   const [titleGlowUntilMs, setTitleGlowUntilMs] = React.useState(0);
@@ -990,14 +991,14 @@ export default function HomeHero({
   // SEQUENCE: a fast, confident cascade. Title → Description + Headline →
   // Buttons all arrive within ~0.6s so the page feels instant and premium
   // (was a ~3s staggered char-by-char reveal that felt slow/unfinished).
-  const titleTextMain = "Freedom Store";
+  const titleTextMain = "Veggat";
   const titleStart = reduceMotion ? 0.05 : 0.08;
 
   // Description + headline come in right after the title, together.
   const descriptionStart = 0;
   const headlineStart = descriptionStart; // Same time as description
   const descriptionText =
-    "A marketplace for digital products, built around people. Discover products, ask AI, and take part in live community polls — with secure checkout and tools for independent sellers.";
+    "Veggat is a trust-first marketplace for digital products. Explore the demo, discover creator-made files, and try AI — no payment needed to take a look.";
 
   // Buttons land almost immediately after — don't make users wait.
   const buttonsStart = 0;
@@ -1506,6 +1507,7 @@ export default function HomeHero({
             Verification / Bring Your Key) */}
 
         {/* CTAs are immediately visible in every orientation; hover motion remains. */}
+        {!isLoggedIn && <DemoLoginButton />}
         <motion.div
           className="flex flex-wrap items-center justify-center gap-3"
           initial={false}

@@ -619,7 +619,7 @@ export default function BelowFoldSections() {
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
             <h2 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
-              <HoverableHeading text="Start exploring Freedom Store™" />
+              <HoverableHeading text="Start exploring Veggat" />
             </h2>
             <p className="max-w-md text-sm leading-relaxed text-gray-400 dark:text-white/40">
               SaaS, shop, and crypto in one platform — free to start. Subscribe for

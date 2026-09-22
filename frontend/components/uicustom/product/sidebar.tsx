@@ -508,7 +508,7 @@ export const MySidebarProductsMenu = () => {
     };
 
     const isAdmin = userRole === UserRole.ADMIN || userRole === UserRole.OWNER;
-    const hasPriceChanges = initialPriceRange && (minPrice !== initialPriceRange.min || maxPrice !== initialPriceRange.max);
+    const hasPriceChanges = minPrice !== null || maxPrice !== null;
 
     return (
       <div className="flex h-full flex-col">

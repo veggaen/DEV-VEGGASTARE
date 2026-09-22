@@ -13,6 +13,7 @@ export type ExtendedUser = DefaultSession['user'] & {
     productsListed: Product[]
     reviews: Review[]
     isOAuth: boolean;
+    isDemo?: boolean;
     employee?: Employee[];
   	web3ModeEnabled: boolean;
     identityNameSource?: 'AUTO' | 'MANUAL' | 'GOOGLE' | 'GITHUB' | 'DISCORD';

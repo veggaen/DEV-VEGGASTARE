@@ -1727,7 +1727,7 @@ function ChatPanelInner({
                   ? byokActive
                     ? `Chat with ${providerDef?.label ?? activeProvider} (your key)`
                     : `Chat with ${getProviderDef(provider)?.label ?? provider}`
-                  : "Ask anything about Freedom Store™"}
+                  : "Ask anything about Veggat"}
               </p>
               <p className="text-xs text-muted-foreground max-w-60 mx-auto">
                 {isLoggedIn

@@ -15,6 +15,7 @@ import { useSearchParams } from 'next/navigation';
 import { MyLoginAction } from '@/actions/login';
 import { signIn } from 'next-auth/react';
 import { MySocialAuth } from '@/components/uicustom/auth/buttons/social';
+import DemoLoginButton from '@/components/uicustom/auth/demo-login-button';
 import { IS_WEB3_CONFIGURED } from '@/lib/web3-config';
 import dynamic from 'next/dynamic';
 const WalletConnectChooser = dynamic(() => import('@/components/crypto-related/WalletConnectChooser'), { ssr: false });
@@ -169,6 +170,7 @@ export default function LoginPage() {
           {/* Social Auth */}
           <div className="mb-6">
             <MySocialAuth />
+            <div className="mt-4"><DemoLoginButton /></div>
           </div>
 
           {/* Web3 — opens a chooser: AppKit (600+ wallets) vs direct (MetaMask /

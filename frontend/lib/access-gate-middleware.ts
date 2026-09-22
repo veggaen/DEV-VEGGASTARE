@@ -11,6 +11,7 @@ const GATE_BYPASS_ROUTES = ACCESS_GATE_CONFIG.bypassRoutes;
 
 export function accessGateMiddleware(request: NextRequest): NextResponse | null {
   const { pathname } = request.nextUrl;
+  if (!ACCESS_GATE_CONFIG.enabled || !(pathname === '/admin' || pathname.startsWith('/admin/'))) return null;
 
   // Skip gate for bypass routes
   if (GATE_BYPASS_ROUTES.some(route => pathname.startsWith(route))) {

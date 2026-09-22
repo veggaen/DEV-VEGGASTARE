@@ -5,13 +5,13 @@ import { cookies } from 'next/headers';
 import { encode } from 'next-auth/jwt';
 import { getUserById } from '@/data/user';
 import { getAccountByUserId } from '@/lib/account';
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { AUTH_COOKIE_OPTIONS, SESSION_COOKIE_NAME } from '@/lib/auth-cookies';
 
 const LOG_PREFIX = '[api/admin/impersonate/end]';
 
-const isSecure = process.env.NODE_ENV === 'production';
-const SESSION_COOKIE = isSecure
-  ? '__Secure-authjs.session-token'
-  : 'authjs.session-token';
+const isSecure = AUTH_COOKIE_OPTIONS.secure;
+const SESSION_COOKIE = SESSION_COOKIE_NAME;
 
 /**
  * POST /api/admin/impersonate/end
@@ -22,12 +22,15 @@ const SESSION_COOKIE = isSecure
  */
 export async function POST() {
   const cookieStore = await cookies();
-  const ownerId = cookieStore.get('x-impersonate-owner-id')?.value;
-  const targetId = cookieStore.get('x-impersonate-target-id')?.value;
+  const session = await MyLibUserAuth();
+  const ownerId = session?.isImpersonating ? session.impersonatingFromId : undefined;
+  const targetId = session?.id;
 
   if (!ownerId) {
-    return NextResponse.json({ error: 'Not currently impersonating' }, { status: 400 });
+    return NextResponse.json({ error: 'Not currently impersonating' }, { status: 403 });
   }
+  const verifiedOwner = await getUserById(ownerId);
+  if (verifiedOwner?.role !== 'OWNER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   // Log the end of impersonation
   if (targetId) {

@@ -12,6 +12,9 @@ import { makeGateCookieValue } from "@/lib/access-gate-cookie";
 // Shared with auth.ts so the middleware's session detection can never drift
 // from the actual configured cookie name.
 import { SESSION_COOKIE_NAMES } from "@/lib/auth-cookies";
+import { SESSION_COOKIE_NAME } from "@/lib/auth-cookies";
+import { getToken } from "next-auth/jwt";
+import { isDemoUserId, allowsDemoMutation } from "@/lib/demo-policy";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API RATE LIMITING — Edge-compatible, in-memory, per-instance
@@ -202,6 +205,9 @@ function checkAccessGate(req: NextRequest): NextResponse | null {
 
   const { pathname } = req.nextUrl;
 
+  // The product is public. A second access gate may only protect unfinished admin tools.
+  if (!(pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/api/admin' || pathname.startsWith('/api/admin/'))) return null;
+
   // ─── BYPASS CHECKS FIRST (before any blocking) ───
 
   // Never gate NextAuth/Auth.js endpoints. OAuth redirects and callbacks rely on these.
@@ -333,7 +339,7 @@ function hasSessionCookie(req: NextRequest): boolean {
   return SESSION_COOKIE_NAMES.some((name) => Boolean(req.cookies.get(name)?.value));
 }
 
-export default function proxy(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
   // ─── ACCESS GATE CHECK (first priority) ───
   const gateResponse = checkAccessGate(req);
   if (gateResponse) {
@@ -342,7 +348,20 @@ export default function proxy(req: NextRequest) {
 
   const { nextUrl } = req;
   const { pathname } = nextUrl;
-  const isLoggedIn = hasSessionCookie(req);
+  const token = hasSessionCookie(req) ? await getToken({
+    req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+    cookieName: SESSION_COOKIE_NAME, salt: SESSION_COOKIE_NAME,
+  }) : null;
+  const isLoggedIn = Boolean(token?.sub);
+
+  if (isDemoUserId(token?.sub)) {
+    const isWrite = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+    const isAccountLink = pathname.startsWith('/api/auth/') &&
+      !['/api/auth/session', '/api/auth/csrf', '/api/auth/providers', '/api/auth/signout', '/api/auth/callback/demo'].includes(pathname);
+    if ((isWrite && !allowsDemoMutation(pathname)) || isAccountLink) {
+      return NextResponse.json({ error: 'DEMO_READ_ONLY', message: 'This action is unavailable in demo mode. Browse products and preview your cart, or exit the demo to use your own account.' }, { status: 403 });
+    }
+  }
 
   const requestHeaders = new Headers(req.headers);
   const requestId = crypto.randomUUID();

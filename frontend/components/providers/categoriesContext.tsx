@@ -101,8 +101,8 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
           typeof fetchedPriceRange.max === 'number'
         ) {
           setInitialPriceRange({ min: fetchedPriceRange.min, max: fetchedPriceRange.max });
-          if (minPrice === null) setMinPrice(fetchedPriceRange.min);
-          if (maxPrice === null) setMaxPrice(fetchedPriceRange.max);
+          // Range metadata is not a user filter. Setting these after first paint
+          // triggered a second product request and empty-state → skeleton flicker.
         }
       } catch (error) {
         console.error('Failed to fetch filter data:', error);
@@ -113,7 +113,6 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
     };
 
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch dynamic counts when filters change
@@ -174,14 +173,9 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
 
   // Reset functions
   const resetPriceFilters = useCallback(() => {
-    if (initialPriceRange) {
-      setMinPrice(initialPriceRange.min);
-      setMaxPrice(initialPriceRange.max);
-    } else {
-      setMinPrice(null);
-      setMaxPrice(null);
-    }
-  }, [initialPriceRange]);
+    setMinPrice(null);
+    setMaxPrice(null);
+  }, []);
 
   const resetCategoryFilters = useCallback(() => {
     setSelectedCategories([]);
@@ -203,7 +197,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
     selectedCategories.length +
     selectedSellers.length +
     (searchTerm ? 1 : 0) +
-    (initialPriceRange && (minPrice !== initialPriceRange.min || maxPrice !== initialPriceRange.max) ? 1 : 0);
+    (minPrice !== null || maxPrice !== null ? 1 : 0);
 
   return (
     <CategoriesContext.Provider

@@ -5,7 +5,7 @@
  */
 export default function ProductsSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 3xl:grid-cols-5 4xl:grid-cols-5 gap-2 md:gap-3">
+    <div role="status" aria-label="Loading products" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 3xl:grid-cols-5 4xl:grid-cols-5 gap-2 md:gap-3">
       {Array.from({ length: 8 }).map((_, i) => (
         <div
           key={i}

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { legacyCheckoutPaused } from '@/lib/checkout-release';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { dbPrisma } from '@/lib/db';
 import { getPaymentProvider, getAvailablePaymentMethods } from '@/lib/payments/providers';
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
   }
 
   const bodyResult = await parseJsonOrError(req, CreatePaymentSchema);
+  if (legacyCheckoutPaused()) return NextResponse.json({ error: 'CHECKOUT_UPGRADING', message: 'Checkout is being upgraded. No payment has been taken.' }, { status: 503 });
   if (!bodyResult.ok) return bodyResult.response;
 
   const { provider: providerType, orderId, amount, returnUrl } = bodyResult.data;
