@@ -11,7 +11,6 @@ import { ACCESS_GATE_CONFIG } from "@/lib/site-config";
 import { makeGateCookieValue } from "@/lib/access-gate-cookie";
 // Shared with auth.ts so the middleware's session detection can never drift
 // from the actual configured cookie name.
-import { SESSION_COOKIE_NAMES } from "@/lib/auth-cookies";
 import { SESSION_COOKIE_NAME } from "@/lib/auth-cookies";
 import { getToken } from "next-auth/jwt";
 import { isDemoUserId, allowsDemoMutation } from "@/lib/demo-policy";
@@ -336,10 +335,26 @@ function applySecurityHeaders(res: NextResponse, requestId: string, nonce: strin
 }
 
 function hasSessionCookie(req: NextRequest): boolean {
-  return SESSION_COOKIE_NAMES.some((name) => Boolean(req.cookies.get(name)?.value));
+  // Auth.js splits large sessions into .0/.1 cookies; getToken reassembles them.
+  return req.cookies.getAll().some(({ name, value }) => Boolean(value) && (name === SESSION_COOKIE_NAME || name.startsWith(`${SESSION_COOKIE_NAME}.`)));
 }
 
 export default async function proxy(req: NextRequest) {
+  // Start production OAuth on the same host that receives its callback. Preview
+  // deployments and localhost are deliberately excluded from canonicalization.
+  if (process.env.VERCEL_ENV === 'production' && ['veggat.com', 'dev-veggastare.vercel.app'].includes(req.nextUrl.hostname)) {
+    const canonical = new URL(process.env.AUTH_URL || 'https://www.veggat.com');
+    if (canonical.hostname !== req.nextUrl.hostname) {
+      if (req.method === 'GET' || req.method === 'HEAD') {
+        const target = req.nextUrl.clone();
+        target.protocol = canonical.protocol; target.host = canonical.host;
+        return NextResponse.redirect(target, 307);
+      }
+      if (req.nextUrl.pathname.startsWith('/auth/') || req.nextUrl.pathname.startsWith('/api/auth/')) {
+        return NextResponse.json({ error: 'Please open www.veggat.com and sign in again.' }, { status: 409 });
+      }
+    }
+  }
   // ─── ACCESS GATE CHECK (first priority) ───
   const gateResponse = checkAccessGate(req);
   if (gateResponse) {

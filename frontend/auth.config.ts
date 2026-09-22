@@ -1,4 +1,6 @@
 import bcrypt from "bcryptjs"
+import { timingSafeEqual } from 'node:crypto';
+import { allowAuthAttempt } from '@/lib/auth-rate-limit';
 import type { NextAuthConfig } from "next-auth"
 import Credentials from 'next-auth/providers/credentials'
 import Discord from 'next-auth/providers/discord'
@@ -83,7 +85,7 @@ export default {
       email: { label: "Email", type: "email" },
       loginToken: { label: "Login Token", type: "text" }
     },
-    async authorize(credentials) {
+    async authorize(credentials, request) {
       const validateFields = MyEmailLoginTokenSchema.safeParse(credentials);
       if (!validateFields.success) {
         if (isDev) console.log(`${LOG_PREFIX} email-login-token authorize: invalid fields`);
@@ -91,6 +93,7 @@ export default {
       }
 
       const { email, loginToken } = validateFields.data;
+      if (!await allowAuthAttempt('email-login', email, request)) return null;
 
       // Find and validate the login token
       const existingToken = await getEmailLoginTokenByToken(loginToken);
@@ -104,38 +107,37 @@ export default {
       if (hasExpired) {
         if (isDev) console.log(`${LOG_PREFIX} email-login-token authorize: token expired`);
         // Clean up expired token
-        await dbPrisma.emailLoginToken.delete({ where: { id: existingToken.id } });
+        await dbPrisma.emailLoginToken.deleteMany({ where: { id: existingToken.id } });
         return null;
       }
 
       // Verify email matches
-      if (existingToken.email !== email) {
+      if (existingToken.email.toLowerCase() !== email.toLowerCase()) {
         if (isDev) console.log(`${LOG_PREFIX} email-login-token authorize: email mismatch`);
         return null;
       }
 
       // Get the user
       const user = await getUserByEmail(email);
-      if (!user) {
+      if (!user || !user.emailVerified || user.isTwoFactorEnabled) {
         if (isDev) console.log(`${LOG_PREFIX} email-login-token authorize: user not found`);
         return null;
       }
 
       // Delete the token (one-time use)
-      await dbPrisma.emailLoginToken.delete({ where: { id: existingToken.id } });
-
-      if (isDev) console.log(`${LOG_PREFIX} email-login-token authorize: success for ${email}`);
-      return user;
+      const consumed = await dbPrisma.emailLoginToken.deleteMany({ where: { id: existingToken.id, expires: { gt: new Date() } } });
+      return consumed.count === 1 ? user : null;
     }
   }),
   // Standard credentials provider for email/password login
   Credentials({
     id: "credentials",
     name: "Credentials",
-    async authorize(credentials){
+    async authorize(credentials, request){
         const validateFields = MyAuthLoginSchema.safeParse(credentials);
         if ( validateFields.success){
-            const { email, password } = validateFields.data
+            const { email, password, code } = validateFields.data
+            if (!await allowAuthAttempt('password-provider', email, request)) return null;
             
             const user = await getUserByEmail(email);
             
@@ -152,11 +154,20 @@ export default {
 
             // Return null for invalid credentials (user not found OR wrong password)
             // Use same error path to prevent user enumeration
-            if (!user || !user.password || !passwordMatch) {
+            if (!user || !user.password || !passwordMatch || !user.emailVerified) {
               if (isDev) console.log(`${LOG_PREFIX} credentials authorize: invalid credentials`);
               return null;
             }
 
+            // Validate and consume the second factor in this exact sign-in request.
+            // A shared per-user confirmation row must never authorize another request.
+            if (user.isTwoFactorEnabled) {
+              if (!code || !user.email) return null;
+              const token = await dbPrisma.twoFactorToken.findFirst({ where: { email: user.email, expires: { gt: new Date() } }, orderBy: { expires: 'desc' } });
+              if (!token || token.token.length !== code.length || !timingSafeEqual(Buffer.from(token.token), Buffer.from(code))) return null;
+              const consumed = await dbPrisma.twoFactorToken.deleteMany({ where: { id: token.id, expires: { gt: new Date() } } });
+              if (consumed.count !== 1) return null;
+            }
             return user;
         }
 

@@ -2,7 +2,7 @@ import 'dotenv/config'
 import { defineConfig } from 'prisma/config'
 
 const vercelEnv = process.env.VERCEL_ENV // 'production' | 'preview' | 'development'
-const isProduction = vercelEnv === 'production' || process.env.NODE_ENV === 'production'
+const isProduction = vercelEnv === 'production' || (!vercelEnv && process.env.NODE_ENV === 'production')
 const isPreview = vercelEnv === 'preview'
 
 const resolvedDatasourceUrl = isProduction
@@ -17,12 +17,20 @@ if (!resolvedDatasourceUrl) {
   )
 }
 
+// Migration advisory locks need a session connection, not transaction pooling.
+// Derive only Neon's documented direct endpoint; keep the selected environment,
+// database and credentials identical. Runtime Prisma still uses its pooled URL.
+const migrationUrl = new URL(resolvedDatasourceUrl);
+if (migrationUrl.hostname.endsWith('.neon.tech')) {
+  migrationUrl.hostname = migrationUrl.hostname.replace('-pooler.', '.');
+}
+
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
   },
   datasource: {
-    url: resolvedDatasourceUrl,
+    url: migrationUrl.toString(),
   },
 })

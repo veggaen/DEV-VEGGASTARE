@@ -6,7 +6,6 @@ import { dbPrisma } from "@/lib/db"
 import authConfig from "@/auth.config"
 import { UserRole } from "@/generated/prisma/browser"
 import { getUserById } from "@/data/user"
-import { getTwoFactorConfirmationByUserId } from "@/data/two-factor-confirmation"
 import { getAccountByUserId } from "./lib/account"
 import { recalculateVerificationTier } from "@/lib/verification-recalc"
 import { sendOauthLinkConfirmationEmail } from "@/lib/mail"
@@ -319,29 +318,7 @@ export const {
               if (isDev) console.log(`${LOG_PREFIX} callbacks.signIn: email not verified`)
               return false;
             };
-            // 2fa check
-            if ( existingUser.isTwoFactorEnabled ) {
-              const twoFactorConfirmation = await getTwoFactorConfirmationByUserId(existingUser.id)
-              if (isDev) console.log(`${LOG_PREFIX} callbacks.signIn: 2fa check`)
-              if (!twoFactorConfirmation) return false
-
-              // Reject if the 2FA confirmation is older than 10 minutes
-              const TEN_MINUTES_MS = 10 * 60 * 1000;
-              const confirmationAge = Date.now() - new Date(twoFactorConfirmation.createdAt).getTime();
-              if (confirmationAge > TEN_MINUTES_MS) {
-                if (isDev) console.log(`${LOG_PREFIX} callbacks.signIn: 2fa confirmation expired (${Math.round(confirmationAge / 1000)}s old)`);
-                await dbPrisma.twoFactorConfirmation.delete({
-                  where: { id: twoFactorConfirmation.id }
-                });
-                return false;
-              }
-              
-              // delete two factor confirmation for next sign in
-              await dbPrisma.twoFactorConfirmation.delete({
-                where: { id: twoFactorConfirmation.id }
-              });
-
-            };
+            // The credentials provider has already consumed this request's 2FA code.
           } // unsure if I should add a 'return false' in a 'else' statment here or just continue to return true below. Reason, no 'user.id' being present?
           
           return true;

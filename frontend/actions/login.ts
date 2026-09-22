@@ -2,18 +2,15 @@
 import * as z from 'zod'
 import bcrypt from 'bcryptjs';
 
-import crypto from 'crypto';
-
 import { signIn } from '@/auth';
 import { AuthError } from 'next-auth';
 import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
 import { getUserByEmail } from '@/data/user';
-import { getTwoFactortokenByEmail } from '@/data/two-factor-token';
 import { MyAuthLoginSchema } from '@/schemas'
 import { sendVerificationEmail, sendTwoFactorTokenEmail } from '@/lib/mail';
 import { generateVerificationToken, generateTwoFactorToken } from '@/lib/tokens';
-import { dbPrisma } from '@/lib/db';
-import { getTwoFactorConfirmationByUserId } from '@/data/two-factor-confirmation';
+import { allowAuthAttempt, AUTH_RETRY_MESSAGE } from '@/lib/auth-rate-limit';
+import { safeAuthRedirect } from '@/lib/auth-navigation';
 
 type LoginResult =
   | { error: string }
@@ -29,6 +26,7 @@ export const MyLoginAction = async (values: z.infer<typeof MyAuthLoginSchema>, c
     }
 
     const { email, password, code } = validateFields.data;
+    if (!await allowAuthAttempt('login-form', email)) return { error: AUTH_RETRY_MESSAGE };
 
     const existingUser = await getUserByEmail(email);
 
@@ -47,57 +45,24 @@ export const MyLoginAction = async (values: z.infer<typeof MyAuthLoginSchema>, c
     }
 
     if (!existingUser.emailVerified){
-      const verificationToken = await generateVerificationToken(existingUser.email);
-      await sendVerificationEmail(verificationToken.email, verificationToken.token);
-      return {success: 'Confirmation email sent!'}
+      try {
+        const verificationToken = await generateVerificationToken(existingUser.email);
+        await sendVerificationEmail(verificationToken.email, verificationToken.token);
+        return {success: 'Confirmation email sent!'};
+      } catch {
+        return { error: 'We could not send your verification email. Please try again shortly.' };
+      }
     }
     
     if (existingUser.isTwoFactorEnabled && existingUser.email){
-      if (code) {
-        const twoFactorToken = await getTwoFactortokenByEmail(existingUser.email)
-
-        if (!twoFactorToken) {
-          return { error: 'Invalid code!'}
-        };
-
-        // SECURITY: Use constant-time comparison to prevent timing attacks on 2FA codes
-        const codeBuffer = Buffer.from(code.padEnd(10, '0'));
-        const tokenBuffer = Buffer.from(twoFactorToken.token.padEnd(10, '0'));
-        const isValidCode = crypto.timingSafeEqual(codeBuffer, tokenBuffer);
-
-        if (!isValidCode) {
-          return { error: 'Invalid code!'}
-        };
-
-        const hasExpired = new Date(twoFactorToken.expires) < new Date();
-
-        if (hasExpired){
-          return { error: 'Code has expired!'}
-        };
-
-        await dbPrisma.twoFactorToken.delete({
-          where: { id: twoFactorToken.id }
-        });
-
-        const existingConfirmation = await getTwoFactorConfirmationByUserId(existingUser.id);
-
-        if (existingConfirmation){
-          await dbPrisma.twoFactorConfirmation.delete({
-            where: { id: existingConfirmation.id }
-          });
-        };
-
-        await dbPrisma.twoFactorConfirmation.create({
-          data: {
-            userId: existingUser.id
-          }
-        });
-        
-      } else {
-        const twoFactorToken = await generateTwoFactorToken(existingUser.email);
-        await sendTwoFactorTokenEmail(twoFactorToken.email, twoFactorToken.token);
-  
-        return { twoFactor: true };
+      if (!code) {
+        try {
+          const token = await generateTwoFactorToken(existingUser.email);
+          await sendTwoFactorTokenEmail(token.email, token.token);
+          return { twoFactor: true };
+        } catch {
+          return { error: 'We could not send your sign-in code. Please try again shortly.' };
+        }
       }
     }
 
@@ -105,6 +70,7 @@ export const MyLoginAction = async (values: z.infer<typeof MyAuthLoginSchema>, c
       const result = await signIn('credentials', {
         email,
         password,
+        ...(code ? { code } : {}),
         redirect: false, // Use redirect: false to handle the redirect manually
       });
   
@@ -112,7 +78,7 @@ export const MyLoginAction = async (values: z.infer<typeof MyAuthLoginSchema>, c
         throw new AuthError(result.error);
       }
   
-      return { success: 'Signed in successfully!', redirectUrl: callbackUrl || DEFAULT_LOGIN_REDIRECT };
+      return { success: 'Signed in successfully!', redirectUrl: safeAuthRedirect(callbackUrl, DEFAULT_LOGIN_REDIRECT) };
     } catch(error){
       if (error instanceof AuthError){
         switch (error.type){

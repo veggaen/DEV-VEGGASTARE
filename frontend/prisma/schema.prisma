@@ -7,6 +7,15 @@ datasource db {
   provider = "postgresql"
 }
 
+// HMAC-only identifiers; short-lived, atomic authentication attempt counters.
+model AuthRateBucket {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String

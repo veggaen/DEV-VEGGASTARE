@@ -15,7 +15,6 @@ import { MyAuthNewPasswordSchema } from '@/schemas';
 import { useSearchParams } from 'next/navigation';
 import { CardWrapper } from '@/components/uicustom/auth/card-wrapper';
 
-const MyLogPrefix = '[frontend/components/uicustom/auth/forms/new-password-form.tsx]'
 export const MyNewPasswordForm = () => {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -32,7 +31,6 @@ export const MyNewPasswordForm = () => {
   );
 
   const onSubmit = (values: z.infer<typeof MyAuthNewPasswordSchema>) => {
-    console.log(`${MyLogPrefix} onSubmit 1/2 (values)`, values)
     let isMounted = true;
       setError('');
       setSuccess('');
@@ -42,14 +40,12 @@ export const MyNewPasswordForm = () => {
         if (!isMounted) return;
         if ('success' in data) {
           setSuccess(data.success)
-          console.log(`${MyLogPrefix} onSubmit 2/2 (success)`, data)
         }
         if ('error' in data){
           if (!isMounted) return;
           setError(data.error)
-          console.log(`${MyLogPrefix} onSubmit 2/2 (data.error)`, data)
         }
-      })
+      }).catch(() => setError('Password reset is temporarily unavailable. Please try again.'))
     });
     return () => {
       isMounted = false;
@@ -72,7 +68,7 @@ export const MyNewPasswordForm = () => {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input {...field} disabled={isPending} placeholder='******' type='password'/>
+                    <Input {...field} disabled={isPending} placeholder='At least 8 characters' type='password' autoComplete='new-password' className='h-12 text-base'/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -80,7 +76,7 @@ export const MyNewPasswordForm = () => {
           </div>
           <MyFormError message={error}/>
           <MyFormSuccess message={success}/>
-          <Button type='submit' disabled={isPending} className='w-full' variant='vegaEmeraldBtn'>
+          <Button type='submit' disabled={isPending || Boolean(success)} className='w-full min-h-12' variant='vegaEmeraldBtn'>
             Reset Password
           </Button>
         </form>

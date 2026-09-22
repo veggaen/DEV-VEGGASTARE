@@ -37,7 +37,6 @@ export const MyLoginForm2 = () => {
   );
 
   const onSubmit = (values: z.infer<typeof MyAuthLoginSchema>) => {
-    console.log(`${LOG_PREFIX} onSubmit 1/2 (values)`, values)
       setError('');
       setSuccess('');
     startTransition(() => {

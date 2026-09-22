@@ -1,4 +1,102 @@
 import { test, expect } from "@playwright/test";
+
+test.describe('S2 — account recovery', () => {
+  test('register, verify, reset, reject replay, revoke session, login and logout', async ({ browser, baseURL }) => {
+    // Opt-in only: sends two safe Resend test emails and provisions one isolated
+    // USER in the explicitly selected live database (also used by local next start).
+    test.skip(process.env.E2E_AUTH_RECOVERY !== 'live-db', 'Requires explicit recovery-fixture opt-in');
+    test.setTimeout(120_000);
+    const { Pool } = await import('pg');
+    const { randomBytes } = await import('node:crypto');
+    const database = new URL(process.env.DATABASE_URL_MAINLIVE!);
+    database.searchParams.set('uselibpqcompat', 'true');
+    const pool = new Pool({ connectionString: database.toString(), max: 2 });
+    const origin = new URL(baseURL!).origin;
+    const email = `delivered+veggat-s2-${Date.now()}@resend.dev`;
+    const firstPassword = randomBytes(24).toString('base64url');
+    const nextPassword = randomBytes(24).toString('base64url');
+    const first = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const second = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const page = await first.newPage();
+    const recovery = await second.newPage();
+    const errors: string[] = [];
+    let secretLogged = false;
+    for (const p of [page, recovery]) {
+      p.on('pageerror', error => errors.push(error.message));
+      p.on('console', message => { if (message.text().includes(firstPassword) || message.text().includes(nextPassword)) secretLogged = true; });
+    }
+    try {
+      await page.goto(`${origin}/auth/register`, { waitUntil: 'domcontentloaded' });
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      await page.getByPlaceholder('Choose a name').fill('Veggat QA recovery');
+      await page.locator('input[name=email]').fill(email);
+      await page.locator('input[name=password]').fill(firstPassword);
+      await page.getByRole('button', { name: 'Register', exact: true }).click();
+      await expect(page.getByText(/Check your email to verify/)).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const user = (await pool.query('SELECT id FROM "User" WHERE email=$1', [email])).rows[0];
+      // Read only this fixture's app-issued token. No verification/session bypass.
+      const verification = (await pool.query('SELECT token FROM "VerificationToken" WHERE email=$1 ORDER BY "createdAt" DESC LIMIT 1', [email])).rows[0];
+      expect(verification).toBeTruthy();
+      await page.goto(`${origin}/auth/new-verification?token=${encodeURIComponent(verification.token)}`, { waitUntil: 'domcontentloaded' });
+      await page.waitForURL(/\/(nexus|products|pulse)(?:[/?#]|$)/, { waitUntil: 'domcontentloaded' });
+      expect((await (await first.request.get(`${origin}/api/auth/session`)).json()).user.id).toBe(user.id);
+      await recovery.goto(`${origin}/auth/reset`, { waitUntil: 'domcontentloaded' });
+      await recovery.locator('input[type=email]').fill(email);
+      await recovery.getByRole('button', { name: 'Send reset email', exact: true }).click();
+      await expect(recovery.getByText(/If an account matches/)).toBeVisible();
+      const reset = (await pool.query('SELECT token FROM "PasswordResetToken" WHERE email=$1 ORDER BY "createdAt" DESC LIMIT 1', [email])).rows[0];
+      expect(reset).toBeTruthy();
+      const resetUrl = `${origin}/auth/new-password?token=${encodeURIComponent(reset.token)}`;
+      await recovery.goto(resetUrl, { waitUntil: 'domcontentloaded' });
+      await recovery.locator('input[type=password]').fill(nextPassword);
+      await recovery.getByRole('button', { name: 'Reset Password', exact: true }).click();
+      await expect(recovery.getByText('Password updated! Sign in with your new password.')).toBeVisible();
+      expect((await (await first.request.get(`${origin}/api/auth/session`)).json())?.user?.id).toBeFalsy();
+      await recovery.goto(resetUrl, { waitUntil: 'domcontentloaded' });
+      await recovery.locator('input[type=password]').fill(nextPassword);
+      await recovery.getByRole('button', { name: 'Reset Password', exact: true }).click();
+      await expect(recovery.getByText(/Token does not exist|invalid or already used/)).toBeVisible();
+      await recovery.goto(`${origin}/auth/login?callbackUrl=https%3A%2F%2Fevil.example`, { waitUntil: 'domcontentloaded' });
+      await recovery.getByPlaceholder('you@example.com').fill(email);
+      await recovery.locator('input[type=password]').fill(nextPassword);
+      await recovery.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await recovery.waitForURL(/\/(nexus|products|pulse)(?:[/?#]|$)/, { waitUntil: 'domcontentloaded' });
+      expect(new URL(recovery.url()).origin).toBe(origin);
+      expect((await (await second.request.get(`${origin}/api/auth/session`)).json()).user.id).toBe(user.id);
+      // Auth.js sign-out form exercises its own CSRF token, not a forged session.
+      await recovery.goto(`${origin}/api/auth/signout`, { waitUntil: 'domcontentloaded' });
+      await recovery.getByRole('button', { name: 'Sign out', exact: true }).click();
+      await expect.poll(async () => (await (await second.request.get(`${origin}/api/auth/session`)).json())?.user?.id).toBeFalsy();
+      // Enable 2FA only on the just-created fixture, then exercise its real UI.
+      await pool.query('UPDATE "User" SET "isTwoFactorEnabled"=true WHERE id=$1 AND email=$2', [user.id, email]);
+      await recovery.goto(`${origin}/auth/login`, { waitUntil: 'domcontentloaded' });
+      await recovery.getByPlaceholder('you@example.com').fill(email);
+      await recovery.locator('input[type=password]').fill(nextPassword);
+      await recovery.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await expect(recovery.locator('input[name=code]')).toBeVisible();
+      const direct = await browser.newContext();
+      try {
+        const csrf = (await (await direct.request.get(`${origin}/api/auth/csrf`)).json()).csrfToken;
+        await direct.request.post(`${origin}/api/auth/callback/credentials`, { form: { csrfToken: csrf, email, password: nextPassword, callbackUrl: `${origin}/products` }, headers: { 'X-Auth-Return-Redirect': '1' } });
+        expect((await (await direct.request.get(`${origin}/api/auth/session`)).json())?.user?.id).toBeFalsy();
+        const otp = (await pool.query('SELECT token FROM "TwoFactorToken" WHERE email=$1 AND expires>now() ORDER BY "createdAt" DESC LIMIT 1', [email])).rows[0];
+        expect(otp).toBeTruthy();
+        await recovery.locator('input[name=code]').fill(otp.token);
+        await recovery.getByRole('button', { name: 'Verify Code', exact: true }).click();
+        await recovery.waitForURL(/\/(nexus|products|pulse)(?:[/?#]|$)/, { waitUntil: 'domcontentloaded' });
+        expect((await (await second.request.get(`${origin}/api/auth/session`)).json()).user.id).toBe(user.id);
+        await direct.request.post(`${origin}/api/auth/callback/credentials`, { form: { csrfToken: csrf, email, password: nextPassword, code: otp.token, callbackUrl: `${origin}/products` }, headers: { 'X-Auth-Return-Redirect': '1' } });
+        expect((await (await direct.request.get(`${origin}/api/auth/session`)).json())?.user?.id).toBeFalsy();
+      } finally { await direct.close(); }
+      expect(secretLogged).toBe(false);
+      expect(errors).toEqual([]);
+    } finally {
+      await first.close(); await second.close(); await pool.end();
+    }
+  });
+});
 import {
   PAGE_TIMEOUT,
   HEAVY_PAGE_TIMEOUT,
@@ -171,11 +269,11 @@ test.describe("Layer 2 — Routing", () => {
 /*  Now we know routes work, verify they render something meaningful.  */
 /* ================================================================== */
 test.describe("Layer 3 — Content", () => {
-  test("public home and isolated demo sign-in (public S1)", async ({ browser }) => {
+  test("public home and isolated demo sign-in (public S1)", async ({ browser, baseURL }) => {
     test.setTimeout(PAGE_TIMEOUT);
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
     const page = await context.newPage();
-    const response = await page.goto("http://localhost:3000/", { waitUntil: "domcontentloaded" });
+    const response = await page.goto("/", { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("button", { name: "Try the demo — no payment", exact: true })).toBeVisible();
     await expect(page.locator("footer")).toHaveCount(0);
@@ -184,17 +282,17 @@ test.describe("Layer 3 — Content", () => {
     await page.getByRole("button", { name: "Try the demo — no payment", exact: true }).click();
     await page.waitForURL("**/products");
     await expect(page.getByRole("complementary", { name: "Demo mode" })).toBeVisible();
-    const session = await (await page.request.get("http://localhost:3000/api/auth/session")).json();
+    const session = await (await page.request.get("/api/auth/session")).json();
     expect(session.user.isDemo).toBe(true);
     expect(session.user.role).toBe("USER");
-    expect((await page.request.post("http://localhost:3000/api/orders", { data: {} })).status()).toBe(403);
-    expect((await page.request.post("http://localhost:3000/settings", { data: {} })).status()).toBe(403);
+    expect((await page.request.post("/api/orders", { data: {} })).status()).toBe(403);
+    expect((await page.request.post("/settings", { data: {} })).status()).toBe(403);
     for (const width of [390, 1280]) {
       await page.setViewportSize({ width, height: 844 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
     await page.getByRole("button", { name: "Exit demo", exact: true }).click();
-    await page.waitForURL("http://localhost:3000/");
+    await page.waitForURL(`${baseURL}/`);
     await expect(page.getByRole("button", { name: "Try the demo — no payment", exact: true })).toBeVisible();
     await context.close();
   });
@@ -441,7 +539,7 @@ test.describe("Layer 5 — API Data Shapes", () => {
   });
 
   /* ---------- Authenticated data tests (skip if no creds) -------- */
-  test("plain cookies cannot restore an impersonated identity (authed)", async ({ context, request }) => {
+  test("plain cookies cannot restore an impersonated identity (authed)", async ({ context, request, baseURL }) => {
     test.skip(!hasAuth, "Requires E2E_TEST_EMAIL/PASSWORD");
     if (process.env.GATE_PASSWORD) {
       await request.post("/api/access-gate", { data: { password: process.env.GATE_PASSWORD } });
@@ -449,8 +547,8 @@ test.describe("Layer 5 — API Data Shapes", () => {
     const before = await (await request.get("/api/auth/session")).json();
     expect(before.user.role).toBe("USER");
     await context.addCookies([
-      { name: "x-impersonate-owner-id", value: before.user.id, domain: "localhost", path: "/" },
-      { name: "x-impersonate-target-id", value: "not-a-real-account", domain: "localhost", path: "/" },
+      { name: "x-impersonate-owner-id", value: before.user.id, domain: new URL(baseURL!).hostname, path: "/" },
+      { name: "x-impersonate-target-id", value: "not-a-real-account", domain: new URL(baseURL!).hostname, path: "/" },
     ]);
     expect((await request.post("/api/admin/impersonate/end")).status()).toBe(403);
     const after = await (await request.get("/api/auth/session")).json();

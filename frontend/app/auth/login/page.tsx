@@ -13,7 +13,6 @@ import { Input } from '@/components/ui/input';
 import { MyAuthLoginSchema } from '@/schemas';
 import { useSearchParams } from 'next/navigation';
 import { MyLoginAction } from '@/actions/login';
-import { signIn } from 'next-auth/react';
 import { MySocialAuth } from '@/components/uicustom/auth/buttons/social';
 import DemoLoginButton from '@/components/uicustom/auth/demo-login-button';
 import { IS_WEB3_CONFIGURED } from '@/lib/web3-config';
@@ -22,7 +21,6 @@ const WalletConnectChooser = dynamic(() => import('@/components/crypto-related/W
 const AppKitSignInBridge = dynamic(() => import('@/components/crypto-related/AppKitSignInBridge'), { ssr: false });
 import { FiMail, FiLock, FiArrowRight, FiShield, FiZap, FiUsers, FiSun, FiMoon, FiLink } from 'react-icons/fi';
 
-const LOG_PREFIX = '[frontend/app/auth/login/page.tsx]';
 
 export default function LoginPage() {
   const reduceMotion = useReducedMotion();
@@ -47,21 +45,18 @@ export default function LoginPage() {
   });
 
   const onSubmit = (values: z.infer<typeof MyAuthLoginSchema>) => {
-    console.log(`${LOG_PREFIX} onSubmit`, values);
     setError('');
     setSuccess('');
 
     startTransition(() => {
-      MyLoginAction(values)
+      MyLoginAction(values, callbackUrl)
         .then((data) => {
           if ('error' in data) {
-            form.reset();
             setError(data.error);
           }
           if ('success' in data) {
-            signIn('credentials', { redirectTo: callbackUrl || '/products' });
             setSuccess(data.success);
-            form.reset();
+            if ('redirectUrl' in data) window.location.assign(data.redirectUrl);
           }
           if ('twoFactor' in data) {
             setShowTwoFactor(true);

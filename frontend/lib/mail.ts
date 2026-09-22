@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { SecurityActionType } from '@/generated/prisma/browser';
+import { authOrigin } from '@/lib/auth-navigation';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const LOG_PREFIX = '[mail.ts]';
@@ -21,13 +22,10 @@ async function sendEmailViaResend(payload: Parameters<typeof resend.emails.send>
   }
 }
 // Simplified environment detection (no trailing slash; callers add leading '/')
-const whatENV =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:3000"
-    : "https://www.veggat.com";
+const whatENV = authOrigin();
 
 export const sendTwoFactorTokenEmail = async (email: string, token: string): Promise<void> => {
-  await resend.emails.send({
+  await sendEmailViaResend({
     from: 'Veggat-Security@veggat.com',
     to: email,
     subject: 'Your Veggat 2FA Code',
@@ -54,7 +52,7 @@ export const sendTwoFactorTokenEmail = async (email: string, token: string): Pro
 */
 export const sendPasswordResetEmail = async (email: string, token: string): Promise<void> => {
 	const resetLink = `${whatENV}/auth/new-password?token=${token}`;
-  await resend.emails.send({
+  await sendEmailViaResend({
     from: 'Veggat-PasswordReset@veggat.com',
     to: email,
     subject: 'Reset Your Veggat Password',
@@ -81,7 +79,7 @@ export const sendPasswordResetEmail = async (email: string, token: string): Prom
 */
 export const sendVerificationEmail = async (email: string, token: string): Promise<void> => {
 	const confirmLink = `${whatENV}/auth/new-verification?token=${token}`;
-  await resend.emails.send({
+  await sendEmailViaResend({
     from: 'Veggat-Registration@veggat.com',
     to: email,
     subject: 'Welcome to Veggat - Confirm Your Email',

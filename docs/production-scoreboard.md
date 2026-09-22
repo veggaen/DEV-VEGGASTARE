@@ -2,14 +2,25 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-## S1 — First impression (in progress)
+## S1 — First impression (DONE)
 
-- DONE locally: public home, product story, isolated demo sign-in/logout at 390 and 1280; current live checks pending.
+- DONE locally and live: public home, product story, isolated demo sign-in/logout at 390 and 1280.
 - DONE locally: Products makes one initial request after filter metadata settles; header remains the same DOM node through link navigation; no whole-app loading fallback reappears.
 - DONE locally: footer absent on home/Products; moved into page flow elsewhere. Further route checks pending.
 - Auth prerequisite: plain-cookie impersonation authorization removed; forged-cookie regression returns 403 and preserves the QA identity. Automatic cross-provider email linking is disabled; link explicitly from a signed-in account.
 - Money prerequisite: legacy new-order/payment creation paused. Do not advertise checkout as ready until S4.
-- Validation: 50 unit tests; S1 Playwright 3/3 and authenticated/security checks 6/6; production build passed. Touched-file lint has no errors.
+- Validation: 50 unit tests; S1 Playwright 4/4 and authenticated/security checks 6/6 both locally and live; production build passed. Touched-file lint has no errors. Deployment `dpl_GepfndFS7kRu9V1hEWy5wXoU11B9`.
+
+## S2 — Authentication (in progress)
+
+- Local browser round trip passed: register → app-issued email verification → normal session → password reset → old-session revocation → reset-token replay rejection → password login → logout. Callback origin assertion passed (3/3 including setup).
+- Local 2FA UI passed; direct password login without a code and replay of a consumed code both denied. Passwords were not emitted to browser console.
+- Atomic reset/verification/magic-login token consumption; reset increments session tokenVersion. 2FA is validated in the exact credentials request, not through a shared confirmation row. Password-form logging removed.
+- Durable HMAC-keyed auth throttling fails closed across replicas. Additive migration applied successfully. Migration commands now use the selected Neon's direct endpoint, preserve locking, and stop deployment if migration fails. One stale idle pooled connection holding the migration lock (no transaction) was terminated; no data deleted.
+- Auth email links use configured AUTH_URL, including local production builds on port 3000. Canonical production aliases redirect before OAuth initiation. PKCE/state/cookie protections retained.
+- Focused unit tests 44/44. TypeScript + production build passed. Live recovery/OAuth consent still pending.
+- Delivery testing uses [Resend's labelled test recipients](https://resend.com/docs/dashboard/emails/send-test-emails), not disposable public inboxes. Provider accepted sends; reading email-delivery history with the configured key returned 401. Tokens were read only for the isolated fixture from the database, then consumed through the real UI; inbox delivery to a human is not claimed.
+- Migration connection rationale: [Prisma / Neon direct connections](https://docs.prisma.io/docs/orm/v6/overview/databases/neon). Network throttling uses [Vercel's forwarded-client header](https://vercel.com/docs/headers/request-headers#x-vercel-forwarded-for).
 
 ## Feature scoreboard
 
@@ -27,7 +38,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 | AI | Chat, selector, streaming | DONE (previous deployment) — local/live Gemini, Groq, OpenAI/Grok one-time-key UI tests |
 | AI | Credit debit, zero balance, no overcharge | PARTIAL — existing premium denial tested; atomic ledger/fuse not implemented |
 | Wallets | Connect UI, no crash | PARTIAL — actual connect/disconnect/missing-config tests pending |
-| Platform | Public homepage | PARTIAL — S1 in progress |
+| Platform | Public homepage | DONE — S1 verified locally and live |
 | Platform | Consent controls Analytics/Speed Insights | DONE — no scripts before consent/Essential Only; both 200 after opt-in; real visitor metrics pending |
 | Platform | Health | PARTIAL — frontend checked previously; Hapi `/v1/health` pending |
 | Quality | Touched-file lint | PARTIAL — run after each slice |

@@ -28,7 +28,6 @@ export const MyResetForm = () => {
   );
 
   const onSubmit = (values: z.infer<typeof MyAuthResetSchema>) => {
-    console.log(`${MyLogPrefix} onSubmit 1/2 (values)`, values)
       setError('');
       setSuccess('');
     startTransition(() => {

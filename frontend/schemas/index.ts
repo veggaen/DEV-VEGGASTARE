@@ -39,52 +39,42 @@ export const MyAuthSettingsSchema = z.object({
 })
 
 // Reset schema for 'email'
+const authEmail = z.string().trim().email({ message: 'Enter a valid email address' }).max(254).transform(value => value.toLowerCase());
+const newPassword = z.string().min(8, { message: 'Minimum 8 characters required' }).max(72)
+  .refine(value => new TextEncoder().encode(value).length <= 72, { message: 'Password must be at most 72 bytes' });
+
 export const MyAuthNewPasswordSchema = z.object({
-    password: z.string().min(6, {
-        message: 'Minimum 6 characters required'
-    }),
+    password: newPassword,
 })
 
 // Reset schema for 'email'
 export const MyAuthResetSchema = z.object({
-    email: z.string().email({
-        message: 'Email is required'
-    }),
+    email: authEmail,
 })
 
 // Login schema for 'email' and 'password'
 export const MyAuthLoginSchema = z.object({
-    email: z.string().email({
-        message: 'Email is required'
-    }),
+    email: authEmail,
     password: z.string().min(1, {
         message: 'Password is required'
-    }),
-    code: z.optional(z.string()),
+    }).max(1024),
+    code: z.union([z.literal(''), z.string().regex(/^\d{6}$/, 'Enter the six-digit code')]).optional(),
 })
 
 // Schema for magic-link login via email verification token
 export const MyEmailLoginTokenSchema = z.object({
-    email: z.string().email({
-        message: 'Email is required'
-    }),
-    loginToken: z.string().min(1, {
-        message: 'Login token is required'
-    }),
+    email: authEmail,
+    loginToken: z.string().uuid('This sign-in link is invalid'),
 })
 
 export const MyAuthRegisterSchema = z.object({
-    email: z.string().email({
-        message: 'Email is required'
-    }),
-    password: z.string().min(6, {
-        message: 'Minimum 6 characters required'
-    }),
-    name: z.string().min(1, {
+    email: authEmail,
+    password: newPassword,
+    name: z.string().trim().max(100).min(1, {
         message: 'Name is required'
     }),
     referredBy: z.union([z.string().length(0), z.string().min(3)]).optional().transform(e => e === "" ? undefined : e), // `referredBy` is a string that can be either optional (undefined or missing), empty, or min 3
-    image: z.string().optional(),
+    image: z.union([z.literal(''), z.string().url().max(2048)]).optional(),
 })
 
 /**
