@@ -22,6 +22,15 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 - Delivery testing uses [Resend's labelled test recipients](https://resend.com/docs/dashboard/emails/send-test-emails), not disposable public inboxes. Provider accepted sends; reading email-delivery history with the configured key returned 401. Tokens were read only for the isolated fixture from the database, then consumed through the real UI; inbox delivery to a human is not claimed.
 - Migration connection rationale: [Prisma / Neon direct connections](https://docs.prisma.io/docs/orm/v6/overview/databases/neon). Network throttling uses [Vercel's forwarded-client header](https://vercel.com/docs/headers/request-headers#x-vercel-forwarded-for).
 
+## S3 — Marketplace (in progress)
+
+- Seeded only two new, fixed-ID reviewer products and Veggat Studio; existing listings were preserved. Interview Pack: 29 NOK; AI credits: 39 NOK. Seed supports transactional `--dry-run`.
+- Original AI-generated fjord artwork is disclosed as such. Optimized public gallery previews are deployed; full-resolution JPG/PNG and the actual TXT remain private and are not yet provisioned for paid delivery. See `showcase-artwork.md` for generation provenance.
+- Local production build: home → normal demo sign-in → both product pages → add each → two separate cart lines → reload cart at 390/1280 passed (2/2 including setup). Images decoded successfully; no browser exceptions or horizontal overflow.
+- Fixed session-loading cart redirect and exchange-rate-driven cart reloading. Storage SDK read-only initialization is permitted for demos; upload/delete remain denied. Both buckets reject anonymous/demo uploads. Employee permission reads require the signed-in identity. Removed PDP's blurred entrance and word-by-word title delay.
+- Focused security unit tests 20/20; touched-file lint and production TypeScript/build pass. Live verification of this fix is pending deployment.
+- Remaining: checkout, paid order/receipt, seller order visibility, private signed downloads and credit grants (S4/S5). Do not claim this vertical slice is complete yet.
+
 ## Feature scoreboard
 
 | Area | Feature | Status / evidence |
@@ -30,11 +39,11 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 | Auth | Register, reset/verify, logout | DONE — current local/live UI round trips and token replay protection; human inbox delivery not independently confirmed |
 | Auth | Google | PARTIAL — owner completed normal Chrome locally; automated browser blocked by Google |
 | Auth | GitHub, Discord | PARTIAL — initiation checked, full consent/callback pending |
-| Shop | List, PDP, images | PARTIAL — public list works but empty; fixtures/PDP pending |
-| Shop | Cart, checkout | PARTIAL — legacy new orders fail closed during verified-checkout replacement |
+| Shop | List, PDP, images | PARTIAL — seeded gallery/list/PDP verified locally; updated live flow pending |
+| Shop | Cart, checkout | PARTIAL — two-line demo cart/reload verified locally; legacy new orders fail closed during replacement |
 | Shop | Live PayPal, sandbox PayPal | PARTIAL — no payment made; environment verification and server-priced orders pending |
 | Shop | Confirmation, signed download | PARTIAL — verified-capture/entitlement tests pending |
-| Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — not seeded |
+| Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — seeded at 29/39 NOK; paid fulfillment pending |
 | AI | Chat, selector, streaming | DONE (previous deployment) — local/live Gemini, Groq, OpenAI/Grok one-time-key UI tests |
 | AI | Credit debit, zero balance, no overcharge | PARTIAL — existing premium denial tested; atomic ledger/fuse not implemented |
 | Wallets | Connect UI, no crash | PARTIAL — actual connect/disconnect/missing-config tests pending |
@@ -42,7 +51,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 | Platform | Consent controls Analytics/Speed Insights | DONE — no scripts before consent/Essential Only; both 200 after opt-in; real visitor metrics pending |
 | Platform | Health | PARTIAL — frontend checked previously; Hapi `/v1/health` pending |
 | Quality | Touched-file lint | PARTIAL — run after each slice |
-| Quality | Home → demo → product → cart E2E | PARTIAL — needs demo inventory; CI payment mock pending |
+| Quality | Home → demo → product → cart E2E | PARTIAL — local browser test passes; live verification and CI payment mock pending |
 | Layout | Core path at 360 and 2560, other requested sizes, 125% zoom | PARTIAL — earlier 390/1440 smoke checks only |
 | Interview | Root README | PARTIAL — human README exists; demo and live SKU details pending |
 

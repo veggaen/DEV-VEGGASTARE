@@ -269,6 +269,52 @@ test.describe("Layer 2 — Routing", () => {
 /*  Now we know routes work, verify they render something meaningful.  */
 /* ================================================================== */
 test.describe("Layer 3 — Content", () => {
+  test("S3 — demo marketplace: real images, separate cart lines and reload", async ({ browser, baseURL }) => {
+    test.setTimeout(120_000);
+    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    try {
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      await page.getByRole('button', { name: 'Try the demo — no payment', exact: true }).click();
+      await page.waitForURL('**/products', { waitUntil: 'domcontentloaded' });
+      for (const [index, title] of ['Veggat Interview Pack', 'Interviewer AI Credits'].entries()) {
+        if (index) await page.goto('/products', { waitUntil: 'domcontentloaded' });
+        await page.getByText(title, { exact: true }).first().click();
+        await expect(page.getByRole('heading', { name: title, exact: true, level: 1 })).toBeVisible();
+        const gallery = page.getByRole('img', { name: title, exact: true }).first();
+        await expect(gallery).toBeVisible();
+        await expect.poll(() => gallery.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+        for (const width of [390, 1280]) {
+          await page.setViewportSize({ width, height: 844 });
+          expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        }
+        await page.getByRole('button', { name: 'Add to basket', exact: true }).click();
+        await expect(page.getByText('Added to basket', { exact: true })).toBeVisible();
+      }
+      await page.getByRole('button', { name: 'View basket', exact: true }).click();
+      await page.waitForURL('**/cart', { waitUntil: 'domcontentloaded' });
+      for (const width of [390, 1280]) {
+        await page.setViewportSize({ width, height: 844 });
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await expect(page.getByRole('heading', { name: 'Your cart', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true })).toBeVisible();
+        expect(new URL(page.url()).pathname).toBe('/cart');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      }
+      const session = await (await context.request.get('/api/auth/session')).json();
+      const cart = await (await context.request.get(`/api/cart/${session.user.id}`)).json();
+      expect(cart.items).toHaveLength(2);
+      expect(cart.items.every((item: { quantity: number }) => item.quantity === 1)).toBe(true);
+      expect((await context.request.post('/api/edgestore/request-upload', { data: {} })).status()).toBe(403);
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
   test("public home and isolated demo sign-in (public S1)", async ({ browser, baseURL }) => {
     test.setTimeout(PAGE_TIMEOUT);
     const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });

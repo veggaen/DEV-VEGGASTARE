@@ -1280,7 +1280,7 @@ function ProductDetails({ product }: { product: Product }) {
     let alive = true;
     (async () => {
       try {
-        if (!sessionUserId) return;
+        if (!sessionUserId || session?.user?.isDemo) return;
         if (!product.companyId) return;
         // Ask server for employee permissions
         const res = await fetchUserEmployeePermissions({ id: sessionUserId }, product.companyId);
@@ -1306,7 +1306,7 @@ function ProductDetails({ product }: { product: Product }) {
     return () => {
       alive = false;
     };
-  }, [product.companyId, sessionUserId]);
+  }, [product.companyId, sessionUserId, session?.user?.isDemo]);
 
   const [userPostalCode, setUserPostalCode] = useState<string | null>(null);
   const [userCity, setUserCity] = useState<string | null>(null);
@@ -1553,19 +1553,18 @@ function ProductDetails({ product }: { product: Product }) {
       {/* Top section */}
       <motion.section
         className="grid min-h-[calc(100vh-150px)] grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-10"
-        initial={reduceMotion ? false : "hidden"}
-        animate={reduceMotion ? undefined : "show"}
+        initial={false}
+        animate="show"
         variants={{
           hidden: {},
-          show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+          show: {},
         }}
       >
         {/* Gallery */}
         <motion.div
           className="lg:col-span-7"
           variants={{
-            hidden: { opacity: 0, y: 22, filter: "blur(14px)" },
-            show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.7, ease: premiumEase } },
+            show: { opacity: 1, y: 0 },
           }}
         >
           <div className="relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.045] p-3 shadow-[0_40px_120px_rgba(0,0,0,0.42)] backdrop-blur-2xl">
@@ -1575,14 +1574,14 @@ function ProductDetails({ product }: { product: Product }) {
               <CarouselContent>
                 {product.image.map((src, idx) => (
                   <CarouselItem key={idx} className="bg-transparent">
-                    <AspectRatio ratio={4 / 5}>
+                    <AspectRatio ratio={3 / 2}>
                       <Image
                         src={src}
                         alt={product.title}
                         fill
                         sizes="(max-width: 1024px) 100vw, 62vw"
-                        loading={idx === 0 ? "eager" : "lazy"}
-                        className="object-contain p-4 transition-transform duration-700 ease-out hover:scale-[1.018]"
+                        priority={idx === 0}
+                        className="object-contain p-2 motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:hover:scale-[1.018]"
                       />
                     </AspectRatio>
                   </CarouselItem>
@@ -1615,8 +1614,7 @@ function ProductDetails({ product }: { product: Product }) {
         <motion.div
           className="flex flex-col gap-4 rounded-xl border border-white/10 bg-black/40 p-6 shadow-[0_28px_110px_rgba(0,0,0,0.36)] backdrop-blur-2xl sm:p-7 lg:sticky lg:top-24 lg:col-span-5"
           variants={{
-            hidden: { opacity: 0, x: 28, filter: "blur(12px)" },
-            show: { opacity: 1, x: 0, filter: "blur(0px)", transition: { duration: 0.65, ease: premiumEase } },
+            show: { opacity: 1, x: 0 },
           }}
         >
           {/* category + title */}
@@ -1643,17 +1641,7 @@ function ProductDetails({ product }: { product: Product }) {
                 </span>
               </div>
               <h1 className="mt-5 max-w-2xl text-4xl font-semibold leading-[0.98] tracking-normal text-white md:text-6xl lg:text-5xl xl:text-6xl">
-                {product.title.split(" ").map((word, index) => (
-                  <motion.span
-                    key={`${word}-${index}`}
-                    className="mr-3 inline-block"
-                    initial={reduceMotion ? false : { opacity: 0, y: 28 }}
-                    animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                    transition={{ duration: 0.58, ease: premiumEase, delay: 0.08 + index * 0.045 }}
-                  >
-                    {word}
-                  </motion.span>
-                ))}
+                {product.title}
               </h1>
               <div className="mt-5 text-2xl font-semibold text-emerald-200">
                 <PriceAmount

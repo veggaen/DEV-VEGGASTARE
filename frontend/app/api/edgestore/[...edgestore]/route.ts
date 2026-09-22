@@ -1,6 +1,7 @@
 import { initEdgeStore } from '@edgestore/server';
 import { createEdgeStoreNextHandler } from '@edgestore/server/adapters/next/app';
 import { auth } from '@/auth';
+import { isDemoUserId } from '@/lib/demo-policy';
 
 type Context = {
   userId: string;
@@ -53,7 +54,7 @@ const edgeStoreRouter = es.router({
   myPublicImages: es.fileBucket({
     maxSize: 1024 * 1024 * 10, // 10MB max
     accept: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'],
-  }),
+  }).beforeUpload(({ ctx }) => Boolean(ctx.userId && ctx.userId !== 'anonymous' && !isDemoUserId(ctx.userId))),
   
   // Protected digital assets (downloadable products)
   // Only authenticated users can upload to this bucket
@@ -76,7 +77,7 @@ const edgeStoreRouter = es.router({
     })
     .beforeUpload(({ ctx }) => {
       // Only allow authenticated users to upload digital assets
-      if (!ctx.userId || ctx.userId === 'anonymous') {
+      if (!ctx.userId || ctx.userId === 'anonymous' || isDemoUserId(ctx.userId)) {
         return false;
       }
       return true;

@@ -27,11 +27,13 @@ const CartPage = () => {
   const [totalQuantity, setTotalQuantity] = useState<number>(0);
   const [totalPrice, setTotalPrice] = useState<number>(0); // USD
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   // Per-item pending set: mutating one row disables just that row's controls
   // instead of flashing the whole page back to the skeleton (perceived perf).
   const [pendingItems, setPendingItems] = useState<Set<string>>(new Set());
   const [checkingOut, setCheckingOut] = useState(false);
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const userId = session?.user?.id;
   const router = useRouter();
   const { convertToUSD } = useCurrencyRates();
 
@@ -52,28 +54,33 @@ const CartPage = () => {
   );
 
   const fetchCartItems = useCallback(async () => {
+    setLoadError(false);
     try {
-      const response = await fetch(`/api/cart/${session?.user?.id}`);
+      const response = await fetch(`/api/cart/${userId}`);
       if (!response.ok) {
         throw new Error("Failed to fetch cart items");
       }
       const data = await response.json();
       const items: CartItem[] = data.items;
       setCartItems(items);
-      recompute(items);
     } catch (error) {
+      setLoadError(true);
       console.error("Error fetching cart items:", error);
     }
-  }, [session?.user?.id, recompute]);
+  }, [userId]);
+
+  // Exchange-rate updates change totals, not the cart's loading state.
+  useEffect(() => { recompute(cartItems); }, [cartItems, recompute]);
 
   useEffect(() => {
-    if (session) {
+    if (status === "loading") return;
+    if (userId) {
       setLoading(true);
       fetchCartItems().finally(() => setLoading(false));
     } else {
-      router.push("/auth/login");
+      router.replace("/auth/login?callbackUrl=%2Fcart");
     }
-  }, [session, fetchCartItems, router]);
+  }, [status, userId, fetchCartItems, router]);
 
   const setPending = (itemId: string, on: boolean) => {
     setPendingItems((prev) => {
@@ -176,6 +183,14 @@ const CartPage = () => {
 
   if (!session) {
     return <p className="p-8 text-sm text-muted-foreground">Loading…</p>;
+  }
+
+  if (loadError) {
+    return <div className="mx-auto w-full max-w-5xl px-4 py-12" role="alert">
+      <h1 className="text-2xl font-semibold">Your cart couldn’t load</h1>
+      <p className="mt-2 text-muted-foreground">Your items are still saved. Please try again.</p>
+      <button className="mt-6 min-h-11 rounded-md bg-primary px-5 text-primary-foreground" onClick={() => { setLoading(true); void fetchCartItems().finally(() => setLoading(false)); }}>Try again</button>
+    </div>;
   }
 
   return (

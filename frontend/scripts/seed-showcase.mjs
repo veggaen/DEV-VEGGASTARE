@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 const target = process.argv[2];
+const dryRun = process.argv.includes('--dry-run');
 if (!['development', 'production'].includes(target)) throw new Error('Usage: node --env-file=.env.local scripts/seed-showcase.mjs development|production');
 const configured = target === 'production' ? process.env.DATABASE_URL_MAINLIVE : process.env.DATABASE_URL_MAINDEV;
 if (!configured) throw new Error(`Missing database configuration for ${target}`);
@@ -49,8 +50,8 @@ try {
       const saved = (await client.query('SELECT "companyId", "userId" FROM "Product" WHERE id=$1', [product.id])).rows[0];
       if (saved?.companyId !== companyId || saved?.userId !== owner) throw new Error('Showcase SKU collision; no changes applied.');
     }
-    await client.query('COMMIT');
-    console.log(`Showcase catalog ready in ${target}: one company, two fixed reviewer SKUs. Existing listings preserved. Checkout remains paused until verified fulfillment ships.`);
+    await client.query(dryRun ? 'ROLLBACK' : 'COMMIT');
+    console.log(`${dryRun ? 'Validated and rolled back' : 'Saved'} showcase catalog in ${target}: one company, two fixed reviewer SKUs. Existing listings preserved. Checkout remains paused until verified fulfillment ships.`);
   } catch (error) { await client.query('ROLLBACK'); throw error; }
   finally { client.release(); }
 } finally { await pool.end(); }

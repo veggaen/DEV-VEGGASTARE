@@ -9,5 +9,7 @@ export function isDemoUserId(id: unknown): id is string {
 export function allowsDemoMutation(path: string): boolean {
   return path === "/api/auth/signout" || path === "/api/auth/callback/demo" ||
     path === "/api/demo/checkout" ||
+    // SDK session initialization is read-only. Upload/delete routes stay denied.
+    path === "/api/edgestore/init" ||
     path === "/api/cart" || path.startsWith("/api/cart/");
 }
