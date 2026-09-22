@@ -78,7 +78,7 @@ VeggaStare is a modern marketplace + social platform that combines:
 const PLATFORM_GOOGLE_KEY = process.env.GOOGLE_API_KEY ?? process.env.GOOGLE_AI_API_KEY ?? "";
 // Vercel deployments receive a short-lived OIDC token automatically. This lets
 // the showcase use AI Gateway without storing another long-lived secret.
-const VERCEL_AI_GATEWAY_AUTH = process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN ?? "";
+const VERCEL_AI_GATEWAY_KEY = process.env.AI_GATEWAY_API_KEY ?? "";
 const PLATFORM_GROQ_KEY = process.env.GROQ_API_KEY ?? "";
 const PLATFORM_GROK_KEY = process.env.GROK_API_KEY ?? "";
 const PLATFORM_OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
@@ -433,6 +433,13 @@ export async function POST(req: NextRequest) {
   // from leaking into Prisma queries (Prisma 7 rejects undefined for required fields).
   const session = rawSession?.id ? rawSession : null;
   const ip = getRequestIp(req);
+  // At function runtime Vercel injects OIDC into the request rather than the
+  // process environment. The env form remains useful for builds/local `vercel dev`.
+  const vercelAiGatewayAuth =
+    VERCEL_AI_GATEWAY_KEY ||
+    process.env.VERCEL_OIDC_TOKEN ||
+    req.headers.get("x-vercel-oidc-token") ||
+    "";
 
   let body: z.infer<typeof requestSchema>;
   try {
@@ -495,11 +502,11 @@ export async function POST(req: NextRequest) {
         { status: 413 }
       );
     }
-    if (!PLATFORM_GOOGLE_KEY && !VERCEL_AI_GATEWAY_AUTH) {
+    if (!PLATFORM_GOOGLE_KEY && !vercelAiGatewayAuth) {
       return NextResponse.json({ error: "AI_NOT_CONFIGURED" }, { status: 503 });
     }
     resolvedProvider = "GOOGLE";
-    apiKey = PLATFORM_GOOGLE_KEY || VERCEL_AI_GATEWAY_AUTH;
+    apiKey = PLATFORM_GOOGLE_KEY || vercelAiGatewayAuth;
     viaVercelGateway = !PLATFORM_GOOGLE_KEY;
     resolvedModel = defaultModelForProvider("GOOGLE");
   } else {
@@ -551,10 +558,10 @@ export async function POST(req: NextRequest) {
 
       // ── Free-tier providers (Google, Groq) ───────────────────────────
       if (requestedProvider === "GOOGLE") {
-        if (!PLATFORM_GOOGLE_KEY && !VERCEL_AI_GATEWAY_AUTH) {
+        if (!PLATFORM_GOOGLE_KEY && !vercelAiGatewayAuth) {
           return NextResponse.json({ error: "AI_NOT_CONFIGURED", message: "Google AI is not configured on this platform. Add your own Google API key via BYOK." }, { status: 503 });
         }
-        apiKey = PLATFORM_GOOGLE_KEY || VERCEL_AI_GATEWAY_AUTH;
+        apiKey = PLATFORM_GOOGLE_KEY || vercelAiGatewayAuth;
         viaVercelGateway = !PLATFORM_GOOGLE_KEY;
         resolvedProvider = "GOOGLE";
         resolvedModel = body.model || defaultModelForProvider("GOOGLE");
