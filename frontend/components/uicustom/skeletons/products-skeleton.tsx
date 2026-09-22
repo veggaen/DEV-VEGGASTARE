@@ -13,7 +13,7 @@ export default function ProductsSkeleton() {
         >
           {/* Image area — 1:1 matching ProductCard carousel */}
           <div className="relative">
-            <div className="aspect-square bg-muted/50 animate-pulse" />
+            <div className="aspect-[4/5] bg-muted/50 animate-pulse motion-reduce:animate-none" />
             {/* Category badge placeholder */}
             <div className="absolute left-3 bottom-3">
               <div className="h-5 w-16 rounded-sm bg-black/20 animate-pulse" />

@@ -25,6 +25,16 @@ const nextConfig = {
                 destination: "/pulse",
                 permanent: true,
             },
+            {
+                source: "/messages",
+                destination: "/conversations",
+                permanent: true,
+            },
+            {
+                source: "/messages/:path*",
+                destination: "/conversations/:path*",
+                permanent: true,
+            },
         ];
     },
     // Two lockfiles exist (repo root + frontend/), so Next can't infer the

@@ -385,63 +385,6 @@ const KineticDescription = React.forwardRef<HTMLParagraphElement, {
     () => words.reduce((sum, w) => sum + w.length, 0),
     [words]
   );
-  const [revealCount, setRevealCount] = React.useState(0);
-  const [started, setStarted] = React.useState(false);
-  const innerTimeoutRef = React.useRef<number | null>(null);
-
-  // Reveal left-to-right, the way a person actually reads. (Previously this
-  // revealed from the centre outward, so the middle of the sentence appeared
-  // first — disorienting.)
-  const revealOrder = React.useMemo(
-    () => Array.from({ length: Math.max(0, totalChars) }, (_, i) => i),
-    [totalChars]
-  );
-
-  const revealed = React.useMemo(() => {
-    const set = new Set<number>();
-    for (let i = 0; i < Math.min(revealCount, revealOrder.length); i += 1) {
-      set.add(revealOrder[i]);
-    }
-    return set;
-  }, [revealCount, revealOrder]);
-
-  React.useEffect(() => {
-    setRevealCount(0);
-    setStarted(false);
-    if (reduceMotion) return;
-    if (totalChars <= 0) return;
-
-    // Cap the WHOLE reveal to a target duration so long copy can't crawl. The
-    // old per-char setTimeout had an 8ms floor → ~2.2s+ for a ~280-char string
-    // (caught mid-reveal at 3.5s in recordings). We instead step several chars
-    // per frame (~60fps) so the full text is readable within ~MAX_REVEAL_MS,
-    // independent of length, while keeping the left-to-right cascade feel.
-    const MAX_REVEAL_MS = 900;
-    const FRAME_MS = 16;
-    const charsPerFrame = Math.max(1, Math.ceil(totalChars / (MAX_REVEAL_MS / FRAME_MS)));
-
-    const startTimer = window.setTimeout(() => {
-      setStarted(true);
-      let i = 0;
-
-      const tick = () => {
-        i = Math.min(totalChars, i + charsPerFrame);
-        setRevealCount(i);
-        if (i >= totalChars) return;
-        innerTimeoutRef.current = window.setTimeout(tick, FRAME_MS);
-      };
-
-      innerTimeoutRef.current = window.setTimeout(tick, FRAME_MS);
-    }, Math.max(0, Math.round(startDelay * 1000)));
-
-    return () => {
-      window.clearTimeout(startTimer);
-      if (innerTimeoutRef.current) window.clearTimeout(innerTimeoutRef.current);
-    };
-    // startSpeed/endSpeed are now superseded by the duration cap above; kept in
-    // the signature for API compatibility but intentionally not deps.
-  }, [reduceMotion, totalChars, startDelay]);
-
   const wordStartIndices = React.useMemo(() => {
     return words.reduce<number[]>((acc, word) => {
       const prevStart = acc.length === 0 ? 0 : acc[acc.length - 1] + words[acc.length - 1].length;
@@ -457,7 +400,7 @@ const KineticDescription = React.forwardRef<HTMLParagraphElement, {
     <motion.p
       ref={ref}
       className={className}
-      initial={{ opacity: 0, y: 8 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22, ease: "easeOut", delay: startDelay }}
       // Use will-change to hint GPU compositing and prevent layout thrashing
@@ -481,11 +424,7 @@ const KineticDescription = React.forwardRef<HTMLParagraphElement, {
                       key={cIdx}
                       className="inline-block"
                       initial={false}
-                      animate={
-                        started && revealed.has(charGlobalIdx)
-                          ? { opacity: 1, y: 0 }
-                          : { opacity: 0, y: 2 }
-                      }
+                      animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.12, ease: "easeOut" }}
                       style={{
                         willChange: 'opacity, transform',
@@ -536,8 +475,7 @@ const KineticHeadline = React.forwardRef<HTMLSpanElement, {
   const showFancyHover = prefs.hoverEffects === "colorful";
   const words = React.useMemo(() => text.split(/\s+/).filter(Boolean), [text]);
 
-  const [stageIndex, setStageIndex] = React.useState(0);
-  const [introDone, setIntroDone] = React.useState(false);
+  const introDone = true;
   const [hoveredChar, setHoveredChar] = React.useState<string | null>(null);
   const [hoveredPosition, setHoveredPosition] = React.useState<{ wordIdx: number; charIdx: number } | null>(null);
   
@@ -550,53 +488,7 @@ const KineticHeadline = React.forwardRef<HTMLSpanElement, {
   const onCompleteRef = React.useRef(onAnimationComplete);
   onCompleteRef.current = onAnimationComplete;
 
-  const stages = React.useMemo(() => buildFixedPositionStages(words), [words]);
-
-  React.useEffect(() => {
-    if (reduceMotion) {
-      setStageIndex(stages.length - 1);
-      setIntroDone(true);
-      onCompleteRef.current?.();
-      return;
-    }
-
-    setStageIndex(0);
-    setIntroDone(false);
-
-    let cancelled = false;
-    const run = async () => {
-      await new Promise((r) => setTimeout(r, startDelay * 1000));
-      if (cancelled) return;
-
-      const totalStages = stages.length;
-      // Cap the WHOLE staged reveal to a target duration. Measured before this:
-      // "Where every choice is yours" had ~30 stages × ~80ms ≈ 3.5s to finish,
-      // so a glance in the first 1-2s saw a clipped acronym ("WH EV C I Y").
-      // Now we spread all stages across ≈TARGET_MS so it completes within the
-      // "<1.5s fully visible" rule while keeping the cascade. baseSpeed still
-      // sets a floor/ceiling so very short titles don't reveal instantly.
-      const TARGET_MS = 1000;
-      const perStage = clamp(
-        Math.round(TARGET_MS / Math.max(1, totalStages - 1)),
-        14,
-        baseSpeed,
-      );
-      for (let i = 1; i < totalStages; i++) {
-        if (cancelled) return;
-        setStageIndex(i);
-        await new Promise((r) => setTimeout(r, perStage));
-      }
-
-      await new Promise((r) => setTimeout(r, 200));
-      if (!cancelled) {
-        setIntroDone(true);
-        onCompleteRef.current?.();
-      }
-    };
-    run();
-
-    return () => { cancelled = true; };
-  }, [reduceMotion, stages, startDelay, baseSpeed]);
+  React.useEffect(() => { onCompleteRef.current?.(); }, []);
 
   // Handle hover end with fade-out
   const handlePointerLeave = React.useCallback(() => {
@@ -677,16 +569,16 @@ const KineticHeadline = React.forwardRef<HTMLSpanElement, {
     return <span ref={ref} className={className}>{text}</span>;
   }
 
-  const currentStage = stages[stageIndex] || { revealed: words.map((w) => w.length), activeWordIdx: -1, activeCharIdx: -1 };
+  const currentStage = { revealed: words.map((w) => w.length), activeWordIdx: -1, activeCharIdx: -1 };
   const { revealed, activeWordIdx, activeCharIdx } = currentStage;
 
   return (
     <motion.span
       ref={ref}
       className={className}
-      initial={{ opacity: 0 }}
+      initial={false}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.3, ease: "easeOut", delay: startDelay }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
       onPointerLeave={handlePointerLeave}
     >
       {/* Horizontal inline layout with proper word spacing */}
@@ -1102,13 +994,13 @@ export default function HomeHero({
   const titleStart = reduceMotion ? 0.05 : 0.08;
 
   // Description + headline come in right after the title, together.
-  const descriptionStart = reduceMotion ? 0.18 : titleStart + 0.22;
+  const descriptionStart = 0;
   const headlineStart = descriptionStart; // Same time as description
   const descriptionText =
-    "A marketplace built around AI and the people who use it. Interact using AI models — or bring your own key for unlimited access. Vote in real-time polls where verified voices carry more weight, ship smarter, Reach out and embrace your place own in a system that actually means something.";
+    "A marketplace for digital products, built around people. Discover products, ask AI, and take part in live community polls — with secure checkout and tools for independent sellers.";
 
   // Buttons land almost immediately after — don't make users wait.
-  const buttonsStart = reduceMotion ? 0.22 : titleStart + 0.4;
+  const buttonsStart = 0;
   const welcomeStart = reduceMotion ? 0.18 : buttonsStart + 0.15;
   
   // State for title hover effect (to animate TM)
@@ -1615,7 +1507,7 @@ export default function HomeHero({
 
         {/* CTAs — hidden in portrait, visible in landscape/desktop */}
         <motion.div
-          className="portrait:hidden flex flex-wrap items-center justify-center gap-3"
+          className="flex flex-wrap items-center justify-center gap-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: buttonsStart, duration: 0.22, ease: "easeOut" }}

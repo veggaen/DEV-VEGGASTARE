@@ -13,7 +13,8 @@ export default function GatePage() {
 
   // Get redirect URL from query params
   const rawRedirectTo = searchParams.get('redirect') || '/';
-  const redirectTo = rawRedirectTo.startsWith('/') ? rawRedirectTo : '/';
+  const redirectTo = rawRedirectTo.startsWith('/') && !rawRedirectTo.startsWith('//') && !rawRedirectTo.includes('\\')
+    ? rawRedirectTo : '/';
 
   // Check if already authenticated on mount
   useEffect(() => {
@@ -68,7 +69,7 @@ export default function GatePage() {
       <main className="flex-1 flex items-center justify-center relative z-10 px-4 py-12">
         <div 
           className={`w-full max-w-md p-8 rounded-2xl bg-neutral-900 border border-neutral-800 shadow-2xl ${
-            shake ? 'animate-shake' : ''
+            shake ? 'motion-safe:animate-shake' : ''
           }`}
         >
           {/* Logo/Brand */}
@@ -94,13 +95,12 @@ export default function GatePage() {
                 placeholder="Enter password"
                 className="w-full px-4 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-neutral-600 transition-all"
                 autoComplete="off"
-                autoFocus
                 disabled={isLoading}
               />
             </div>
 
             {error && (
-              <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20">
+              <div role="alert" className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20">
                 <p className="text-red-400 text-sm text-center">{error}</p>
               </div>
             )}

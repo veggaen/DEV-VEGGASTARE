@@ -207,9 +207,9 @@ const ProductCard = React.memo(
 												src={image}
 												alt={product.title}
 												fill
-												sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-												loading={priority || eagerImageSources?.has(image) ? "eager" : "lazy"}
-												preload={priority}
+												sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw"
+												loading={idx === 0 && (priority || eagerImageSources?.has(image)) ? "eager" : "lazy"}
+												preload={priority && idx === 0}
 												className="object-cover"
 											/>
 										</motion.div>
@@ -405,7 +405,7 @@ export default function MyProductsPage() {
 	);
 
 	const eagerImageSources = useMemo(
-		() => new Set(products.slice(0, 8).flatMap((product) => product.image)),
+		() => new Set(products.slice(0, 4).map((product) => product.image[0])),
 		[products]
 	);
 
@@ -482,6 +482,7 @@ export default function MyProductsPage() {
 		// Avoid duplicate work (including dev StrictMode effect re-runs) by only
 		// refetching when the effective filter key changes.
 		if (lastFilterKeyRef.current === filterKey) return;
+		const isInitialLoad = lastFilterKeyRef.current === '';
 		lastFilterKeyRef.current = filterKey;
 
 		// If the page size changed, clear the list immediately to avoid showing stale
@@ -497,9 +498,10 @@ export default function MyProductsPage() {
     setHasMore(true);
 		// Use immediate fetch to ensure UI updates quickly; debounce still helps when user
 		// types/adjusts multiple controls rapidly.
-		debouncedFetchProducts(1, perPage, true);
+		if (isInitialLoad) void fetchProducts(1, perPage, true);
+		else debouncedFetchProducts(1, perPage, true);
     return () => debouncedFetchProducts.cancel();
-	}, [filterKey, debouncedFetchProducts, perPage]);
+	}, [filterKey, debouncedFetchProducts, fetchProducts, perPage]);
 
   const gridClasses = useMemo(() => {
 			// Larger cards / less dense grid.
@@ -664,7 +666,7 @@ export default function MyProductsPage() {
 									<ProductCard
 										key={product.id}
 										product={product}
-										priority={idx < 8}
+										priority={idx < 4}
 										eagerImageSources={eagerImageSources}
 										authStatus={authStatus}
 									/>

@@ -1,0 +1,12 @@
+# Local credentials, browser sessions, and generated test/build artifacts.
+**/.env
+**/.env.*
+**/.auth/**
+**/.next/**
+**/.next-*/**
+**/node_modules/**
+**/playwright-report/**
+**/test-results/**
+**/%SystemDrive%/**
+**/database-backups/**
+.git

@@ -15,7 +15,7 @@
 # next.js
 /.next/
 # Isolated build dir for the parallel test server (NEXT_DIST_DIR, see next.config.mjs)
-/.next-test/
+/.next-*/
 /out/
 
 # production
@@ -46,3 +46,5 @@ next-env.d.ts
 
 # lint dump (transient)
 components-lint.txt
+
+.env*

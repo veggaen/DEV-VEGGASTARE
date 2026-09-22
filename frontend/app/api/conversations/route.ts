@@ -598,44 +598,30 @@ export async function GET(req: Request) {
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
 
-    // If logged in, also compute whether the current user has reposted each conversation
-    const repostedSet = new Set<string>();
-    if (userId && conversations.length > 0) {
-      const reposts = await dbPrisma.conversationRepost.findMany({
-        where: {
-          userId,
-          conversationId: { in: conversations.map((c) => c.id) },
-        },
-        select: { conversationId: true },
-      });
-      for (const r of reposts) repostedSet.add(r.conversationId);
-    }
-
-    // Get user's pulses on these conversations
-    const userPulseMap = new Map<string, 'POSITIVE' | 'NEGATIVE'>();
-    if (userId && conversations.length > 0) {
-      const pulses = await dbPrisma.pulse.findMany({
-        where: {
-          userId,
-          conversationId: { in: conversations.map((c) => c.id) },
-        },
-        select: { conversationId: true, type: true },
-      });
-      for (const p of pulses) userPulseMap.set(p.conversationId, p.type);
-    }
-
-    // Extract all participant IDs from all conversations
+    // These independent lookups must not form a serial Railway round-trip chain.
+    const conversationIds = conversations.map(conversation => conversation.id);
     const allParticipantIds = Array.from(
       new Set(conversations.flatMap((conversation) => conversation.participants as string[]))
     );
-
-    // Fetch details for all participants
-    const users = await fetchUserManyDetails(allParticipantIds);
+    const [reposts, pulses, users] = await Promise.all([
+      userId && conversationIds.length ? dbPrisma.conversationRepost.findMany({
+        where: { userId, conversationId: { in: conversationIds } },
+        select: { conversationId: true },
+      }) : Promise.resolve([]),
+      userId && conversationIds.length ? dbPrisma.pulse.findMany({
+        where: { userId, conversationId: { in: conversationIds } },
+        select: { conversationId: true, type: true },
+      }) : Promise.resolve([]),
+      allParticipantIds.length ? fetchUserManyDetails(allParticipantIds) : Promise.resolve([]),
+    ]);
+    const repostedSet = new Set(reposts.map(repost => repost.conversationId));
+    const userPulseMap = new Map(pulses.map(pulse => [pulse.conversationId, pulse.type]));
+    const usersById = new Map(users.map(user => [user.id, user]));
 
     // Add participant details to each conversation
     const conversationsWithUserDetails = conversations.map((conversation): z.infer<typeof ConversationListItemSchema> => {
       const participantDetails = (conversation.participants as string[])
-        .map((id) => users.find((u) => u.id === id))
+        .map((id) => usersById.get(id))
         .filter((p): p is NonNullable<typeof p> => Boolean(p));
 
       const lastMessage = conversation.Message?.[0]
@@ -846,7 +832,14 @@ export async function GET(req: Request) {
       );
     }
 
-    return NextResponse.json(validated.data, { status: 200 });
+    return NextResponse.json(validated.data, {
+      status: 200,
+      headers: {
+        // This URL also serves personalized pulse/repost state to signed-in
+        // viewers, so it must never share a CDN response across sessions.
+        'Cache-Control': 'private, no-store',
+      },
+    });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error fetching conversations:', error);
 

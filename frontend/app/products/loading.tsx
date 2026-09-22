@@ -47,7 +47,7 @@ export default function ProductsLoading() {
               className="rounded-lg border border-black/5 dark:border-white/5 bg-muted/30 animate-pulse"
             >
               {/* Image area — matches ProductCard 1:1 aspect */}
-              <div className="aspect-square rounded-t-lg bg-muted/50" />
+              <div className="aspect-[4/5] rounded-t-lg bg-muted/50" />
               {/* Content area — matches ProductCard padding & line heights */}
               <div className="p-3 md:p-4 space-y-2.5">
                 <div className="h-4 w-3/4 rounded bg-muted/60" />

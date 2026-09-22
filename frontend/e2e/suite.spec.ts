@@ -83,6 +83,16 @@ test.describe.serial("Layer 1 — System Alive", () => {
 /*  Public pages serve, protected pages redirect, APIs guard.          */
 /* ================================================================== */
 test.describe("Layer 2 — Routing", () => {
+  test("OAuth callbacks stay on the tested app origin", async ({ request, baseURL }) => {
+    const response = await request.get("/api/auth/providers");
+    expect(response.ok()).toBeTruthy();
+    const providers = await response.json();
+    for (const provider of Object.values(providers) as { type: string; callbackUrl: string }[]) {
+      if (provider.type !== "oauth" && provider.type !== "oidc") continue;
+      expect(new URL(provider.callbackUrl).origin).toBe(new URL(baseURL!).origin);
+    }
+  });
+
   /* ---------- 2a. Every public page returns 200 via API ----------- */
   test.describe("Public pages respond (API-level)", () => {
     for (const route of PUBLIC_PAGES) {
@@ -178,7 +188,7 @@ test.describe("Layer 3 — Content", () => {
     await selector.click();
 
     await expect(
-      page.getByText("Vercel AI Gateway is available as a free preview.", { exact: false }),
+      page.getByText("Gemini 2.5 Flash-Lite is available as a free preview.", { exact: false }),
     ).toBeVisible({ timeout: EXPECT_TIMEOUT });
     await expect(page.getByPlaceholder(/Search models/)).toBeVisible();
   });
@@ -205,7 +215,7 @@ test.describe("Layer 3 — Content", () => {
     });
     await expect(page.locator('input[type="password"]')).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /sign in|log in|continue/i }),
+      page.getByRole("button", { name: "Sign in", exact: true }),
     ).toBeVisible();
   });
 
@@ -381,7 +391,7 @@ test.describe("Layer 5 — API Data Shapes", () => {
     test.skip(!hasAuth, "Requires E2E_TEST_EMAIL/PASSWORD");
     const res = await request.get("/api/wallets");
     expect(res.ok()).toBeTruthy();
-    expect(Array.isArray(await res.json())).toBeTruthy();
+    expect(Array.isArray((await res.json()).wallets)).toBeTruthy();
   });
 
   test("GET /api/notifications returns data (authed)", async ({ request }) => {

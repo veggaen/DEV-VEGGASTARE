@@ -347,7 +347,7 @@ function ModelSelector({
               >
             {!isLoggedIn && (
               <div className="mx-3 mt-3 rounded-lg border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-[11px] leading-relaxed text-sky-100">
-                Vercel AI Gateway is available as a free preview.{" "}
+                Gemini 2.5 Flash-Lite is available as a free preview.{" "}
                 <button
                   type="button"
                   onClick={requestSignIn}
@@ -422,9 +422,9 @@ function ModelSelector({
                         model={m}
                         providerEmoji={prov.emoji}
                         isActive={prov.value === provider && m.value === model}
-                        locked={!isLoggedIn && !(prov.value === "VERCEL" && m.value === model)}
+                        locked={!isLoggedIn && !(prov.value === "GOOGLE" && m.value === "gemini-2.5-flash-lite")}
                         onClick={() => {
-                          if (!isLoggedIn && !(prov.value === "VERCEL" && m.value === model)) {
+                          if (!isLoggedIn && !(prov.value === "GOOGLE" && m.value === "gemini-2.5-flash-lite")) {
                             requestSignIn();
                           } else {
                             onSelectModel(prov.value, m.value);
@@ -454,9 +454,9 @@ function ModelSelector({
                           isActive={
                             prov.value === provider && m.value === model
                           }
-                          locked={!isLoggedIn && !(prov.value === "VERCEL" && m.value === model)}
+                          locked={!isLoggedIn && !(prov.value === "GOOGLE" && m.value === "gemini-2.5-flash-lite")}
                           onClick={() => {
-                            if (!isLoggedIn && !(prov.value === "VERCEL" && m.value === model)) {
+                            if (!isLoggedIn && !(prov.value === "GOOGLE" && m.value === "gemini-2.5-flash-lite")) {
                               requestSignIn();
                             } else {
                               onSelectModel(prov.value, m.value);
@@ -794,8 +794,8 @@ export default function LandingChatWidget({
   const reduceMotion = useReducedMotion();
 
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
-  const [provider, setProvider] = useState<AiProvider>("VERCEL");
-  const [model, setModel] = useState<string>("inclusionai/ling-3.0-flash-fin-free");
+  const [provider, setProvider] = useState<AiProvider>("GOOGLE");
+  const [model, setModel] = useState<string>("gemini-2.5-flash-lite");
   const [viewMode, setViewMode] = useState<ViewMode>("widget");
   const [showLongMsgGate, setShowLongMsgGate] = useState(false);
   const [sensitiveBanner, setSensitiveBanner] = useState<string[] | null>(null);
@@ -925,8 +925,8 @@ export default function LandingChatWidget({
           body: JSON.stringify({
             userMessage: userContent,
             assistantMessage: aiContent,
-            providerUsed: providerUsed ?? "VERCEL",
-            modelUsed: modelUsed ?? "inclusionai/ling-3.0-flash-fin-free",
+            providerUsed: providerUsed ?? "GOOGLE",
+            modelUsed: modelUsed ?? "gemini-2.5-flash-lite",
           }),
         });
       } catch {
@@ -1411,7 +1411,7 @@ function ChatPanelInner({
           {!isLoggedIn && (
             <span
               className="text-[10px] text-muted-foreground bg-white/5 rounded px-1.5 py-0.5"
-              title="Free preview powered by Vercel AI Gateway. Sign in for all models."
+              title="Free Gemini preview with automatic Vercel fallback. Sign in for all models."
             >
               Free preview
             </span>
@@ -1732,7 +1732,7 @@ function ChatPanelInner({
               <p className="text-xs text-muted-foreground max-w-60 mx-auto">
                 {isLoggedIn
                   ? "Pick a model above or bring your own key to unlock all providers."
-                  : "Free preview powered by Vercel AI Gateway. Sign in to choose from 20+ AI models."}
+                  : "Free Gemini preview with automatic Vercel fallback. Sign in to choose from 20+ AI models."}
               </p>
             </div>
             <div

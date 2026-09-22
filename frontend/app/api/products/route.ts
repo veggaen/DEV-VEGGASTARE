@@ -57,7 +57,10 @@ export const GET = async (request: Request) => {
     return NextResponse.json(parsed.data, {
       status: 200,
       headers: {
-        'Cache-Control': 'private, no-store',
+        // Product listings contain public catalog data only. A short CDN TTL
+        // removes a Railway round trip from repeat route loads while keeping
+        // newly published products visible quickly.
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=300',
       },
     });
   } catch (error) {

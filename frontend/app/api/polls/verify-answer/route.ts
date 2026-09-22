@@ -3,7 +3,7 @@
  *
  * Lightweight AI fallback for TEXT quiz answers.
  * When fuzzy-text-match rejects an answer, call this endpoint to get
- * a second opinion from Groq (free tier, Llama 3.3 70B, ~200ms).
+ * a second opinion from Groq using GPT-OSS 20B.
  *
  * Body: { userAnswer: string; correctAnswer: string; questionText?: string }
  * Returns: { isCorrect: boolean }
@@ -60,10 +60,12 @@ Reply with ONLY the word YES or NO.`;
         Authorization: `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-20b",
         messages: [{ role: "user", content: prompt }],
         temperature: 0,
-        max_tokens: 4,
+        max_completion_tokens: 512,
+        reasoning_effort: "low",
+        include_reasoning: false,
       }),
     });
 

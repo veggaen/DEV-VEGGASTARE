@@ -22,7 +22,6 @@ type LoginResult =
   | { twoFactor: true };
 
 export const MyLoginAction = async (values: z.infer<typeof MyAuthLoginSchema>, callbackUrl?: string | null): Promise<LoginResult> => {
-    console.log('MyLoginAction', values);
     const validateFields = MyAuthLoginSchema.safeParse(values);
 
     if (!validateFields.success){

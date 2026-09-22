@@ -23,21 +23,31 @@ export const MySocialAuth = () => {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
   const [pending, setPending] = useState<Provider | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const onClick = (provider: Provider) => {
+  const onClick = async (provider: Provider) => {
+    setError(null);
     setPending(provider);
-    signIn(provider, {
-      callbackUrl: callbackUrl || DEFAULT_LOGIN_REDIRECT
-    })
+    try {
+      await signIn(provider, {
+        callbackUrl: callbackUrl || DEFAULT_LOGIN_REDIRECT
+      });
+    } catch {
+      setError("Couldn't connect to sign-in. Check your connection and try again.");
+    } finally {
+      setPending(null);
+    }
   }
 
   return (
+    <div className="space-y-3">
     <div className="grid w-full grid-cols-3 gap-2">
       {PROVIDERS.map(({ id, label, Icon }) => (
         <button
           key={id}
           type="button"
           disabled={pending !== null}
+          aria-busy={pending === id}
           onClick={() => onClick(id)}
           aria-label={`Continue with ${label}`}
           className="group flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border/70 bg-surface-1/60 text-sm font-medium text-foreground/80 transition-all duration-200 ease-out hover:border-brand-accent/40 hover:bg-accent hover:text-foreground motion-safe:hover:-translate-y-px hover:shadow-e1 motion-safe:active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60"
@@ -50,6 +60,8 @@ export const MySocialAuth = () => {
           <span className="hidden sm:inline">{label}</span>
         </button>
       ))}
+    </div>
+    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </div>
   )
 }

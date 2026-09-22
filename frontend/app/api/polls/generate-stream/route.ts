@@ -306,7 +306,7 @@ function canPersistProvider(provider: ResolvedAuth["provider"]): provider is "OP
 function defaultModelForProvider(provider: ResolvedAuth["provider"]): string {
   switch (provider) {
     case "GROQ":
-      return "llama-3.3-70b-versatile";
+      return "openai/gpt-oss-20b";
     case "OPENROUTER":
       return "openai/gpt-4o-mini";
     case "ANTHROPIC":

@@ -36,7 +36,7 @@ const requestSchema = z.object({
   provider: z
     .enum(["VERCEL", "OPENAI", "OPENROUTER", "ANTHROPIC", "GOOGLE", "GROK", "GROQ"])
     .optional()
-    .default("VERCEL"),
+    .default("GOOGLE"),
   /** Optional inline BYOK — lets the client send a one-time API key */
   aiAuth: z.object({
     mode: z.literal("one_time"),
@@ -89,11 +89,11 @@ const PLATFORM_ANTHROPIC_KEY = process.env.CLAUDE_API_KEY ?? process.env.ANTHROP
 function defaultModelForProvider(provider: Provider): string {
   switch (provider) {
     case "VERCEL":    return "inclusionai/ling-3.0-flash-fin-free";
-    case "GROQ":       return "llama-3.3-70b-versatile";
+    case "GROQ":       return "openai/gpt-oss-20b";
     case "OPENROUTER": return "openai/gpt-4o-mini";
     case "ANTHROPIC":  return "claude-sonnet-4-6";
     case "GROK":       return "grok-4.7";
-    case "GOOGLE":     return "gemini-3.8-flash";
+    case "GOOGLE":     return "gemini-2.5-flash-lite";
     case "OPENAI":
     default:           return "gpt-5.6-luna";
   }
@@ -506,13 +506,20 @@ export async function POST(req: NextRequest) {
         { status: 413 }
       );
     }
-    if (!vercelAiGatewayAuth) {
+    if (!PLATFORM_GOOGLE_KEY && !vercelAiGatewayAuth) {
       return NextResponse.json({ error: "AI_NOT_CONFIGURED" }, { status: 503 });
     }
-    resolvedProvider = "VERCEL";
-    apiKey = vercelAiGatewayAuth;
-    viaVercelGateway = true;
-    resolvedModel = defaultModelForProvider("VERCEL");
+    if (PLATFORM_GOOGLE_KEY) {
+      resolvedProvider = "GOOGLE";
+      apiKey = PLATFORM_GOOGLE_KEY;
+      viaVercelGateway = false;
+      resolvedModel = defaultModelForProvider("GOOGLE");
+    } else {
+      resolvedProvider = "VERCEL";
+      apiKey = vercelAiGatewayAuth;
+      viaVercelGateway = true;
+      resolvedModel = defaultModelForProvider("VERCEL");
+    }
   } else {
     // ── Authenticated: try inline BYOK → saved BYOK → platform key ───────
     // 1. Inline one-time key (sent directly from the client)
@@ -704,7 +711,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Stream ─────────────────────────────────────────────────────────────
-  const streamResponse = await streamProvider({
+  let streamResponse = await streamProvider({
     provider: resolvedProvider,
     apiKey,
     model: resolvedModel,
@@ -712,6 +719,22 @@ export async function POST(req: NextRequest) {
     systemPrompt: CHAT_SYSTEM_PROMPT,
     viaVercelGateway,
   });
+
+  // Keep the anonymous showcase resilient when Google's free tier is busy.
+  // The Vercel gateway model was already verified in production and is a
+  // transparent fallback only when Gemini rejects the request before streaming.
+  if (!session && resolvedProvider === "GOOGLE" && !streamResponse.ok && vercelAiGatewayAuth) {
+    resolvedProvider = "VERCEL";
+    resolvedModel = defaultModelForProvider("VERCEL");
+    streamResponse = await streamProvider({
+      provider: resolvedProvider,
+      apiKey: vercelAiGatewayAuth,
+      model: resolvedModel,
+      messages: cappedMessages,
+      systemPrompt: CHAT_SYSTEM_PROMPT,
+      viaVercelGateway: true,
+    });
+  }
 
   // Always attach metadata headers so the client UI can show cost hints
   const headers = new Headers(streamResponse.headers);

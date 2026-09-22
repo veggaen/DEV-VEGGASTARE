@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react';
 import { usePathname, useRouter, useSearchParams, redirect } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -47,16 +48,19 @@ import { PollDisplay } from '@/components/uicustom/chats/poll-display';
 import { DiscoverPeople } from '@/components/uicustom/social/DiscoverPeople';
 import RichTextContent from '@/components/uicustom/pulse/RichTextContent';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
-import { PollBuilder } from '@/components/uicustom/polls/PollBuilder';
 import { PulsePollCard, type PulsePollData } from '@/components/uicustom/polls/PulsePollCard';
-import { PollTakerModal } from '@/components/uicustom/polls/PollTakerModal';
 import { ReachPollV3 } from '@/components/uicustom/polls/ReachPollV3';
 import { UserPicker } from '@/components/uicustom/social/UserPicker';
 import { Zap, Target, Rocket, PlayCircle, Copy, FileUp, Download, Sparkles, Check } from 'lucide-react';
-import { PollImportModal } from '@/components/uicustom/polls/PollImportModal';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const PollBuilder = dynamic(() => import('@/components/uicustom/polls/PollBuilder').then(module => module.PollBuilder), {
+  loading: () => <div role="status" className="p-8 text-sm text-muted-foreground">Loading poll editor…</div>,
+});
+const PollTakerModal = dynamic(() => import('@/components/uicustom/polls/PollTakerModal').then(module => module.PollTakerModal));
+const PollImportModal = dynamic(() => import('@/components/uicustom/polls/PollImportModal').then(module => module.PollImportModal));
 
 interface User {
   id: string;
@@ -2039,7 +2043,7 @@ const FeedPage: React.FC = () => {
           )}
 
           {/* Poll Import Modal */}
-          <PollImportModal
+          {showPollImport && <PollImportModal
             open={showPollImport}
             onOpenChange={setShowPollImport}
             onImport={async (importedPoll) => {
@@ -2103,7 +2107,7 @@ const FeedPage: React.FC = () => {
                 });
               }
             }}
-          />
+          />}
         </div>
 
         {/* Explore sidebar */}

@@ -4,9 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Cookie, Settings2 } from "lucide-react";
+import { CONSENT_CHANGED_EVENT, CONSENT_STORAGE_KEY } from "@/lib/telemetry-policy";
 
 const COOKIE_CONSENT_VERSION = 1;
-const STORAGE_KEY = "veggat:cookieConsent";
+const STORAGE_KEY = CONSENT_STORAGE_KEY;
 
 type CookieConsent = {
   version: number;
@@ -39,6 +40,7 @@ function readConsent(): CookieConsent | null {
 function writeConsent(consent: CookieConsent) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(consent));
+    window.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
   } catch {
     // ignore
   }
@@ -76,6 +78,7 @@ export default function CookieBanner() {
   const resetConsent = React.useCallback(() => {
     try {
       window.localStorage.removeItem(STORAGE_KEY);
+      window.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
     } catch {
       // ignore
     }

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
+import useSWR from 'swr';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -26,7 +27,7 @@ import Spinner from '@/components/uicustom/spinner';
 import { ConversationListSkeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useConfirm } from '@/components/providers/confirm-dialog';
-import { useCurrentUser } from '@/hooks/use-current-user';
+import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
 import { 
   FiPlus, FiMessageCircle, FiUsers, FiLock,
   FiTrash2, FiMoreVertical, FiEdit, FiShare2, FiEye, FiEyeOff,
@@ -90,43 +91,30 @@ const TYPE_ICONS: Record<Conversation['type'], React.ReactNode> = {
 export default function ConversationsPage() {
   const reduceMotion = useReducedMotion();
   const router = useRouter();
-  const currentUser = useCurrentUser();
+  const { user: currentUser, status: sessionStatus } = useCurrentUserWithStatus();
   const confirm = useConfirm();
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState<string | null>(null);
   const [sort, setSort] = useState<SortType>('recent');
   const [searchQuery, setSearchQuery] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchConversations = useCallback(async (sortBy: SortType) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      // Only fetch user's private conversations (DMs, groups - excludes public threads/pulse)
-      const response = await fetch(`/api/conversations?filter=private&sort=${sortBy}`);
+  // Per-user memory cache makes return navigation immediate without ever
+  // sharing an inbox between accounts or persisting private data to disk.
+  const { data: conversations = [], error: loadError, isLoading, mutate } = useSWR<Conversation[]>(
+    currentUser?.id ? ['private-conversations', currentUser.id, sort] : null,
+    async () => {
+      const response = await fetch(`/api/conversations?filter=private&sort=${sort === 'unread' ? 'recent' : sort}`);
+      if (!response.ok) throw new Error('Unable to load conversations. Please try again.');
       const data = await response.json();
-
-      if (data.conversations && Array.isArray(data.conversations)) {
-        setConversations(data.conversations);
-      } else if (Array.isArray(data)) {
-        setConversations(data);
-      } else {
-        throw new Error('Unexpected response format');
-      }
-    } catch (err) {
-      console.error('Error fetching conversations:', err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchConversations(sort);
-  }, [sort, fetchConversations]);
+      const items = Array.isArray(data) ? data : data.conversations;
+      if (!Array.isArray(items)) throw new Error('Unexpected response format');
+      return items;
+    },
+    { dedupingInterval: 15_000, keepPreviousData: false }
+  );
+  const error = loadError instanceof Error ? loadError.message : null;
+  const fetchConversations = (_sortBy: SortType) => mutate();
 
   const handleDelete = async (conversationId: string, visibility: 'PUBLIC' | 'PRIVATE' = 'PRIVATE', e: React.MouseEvent) => {
     e.stopPropagation();
@@ -375,8 +363,10 @@ export default function ConversationsPage() {
 
   if (!currentUser) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      <div className="mx-auto w-full max-w-3xl px-4 py-8">
+        {sessionStatus === 'loading' ? <ConversationListSkeleton count={6} /> : (
+          <div className="py-12 text-center"><p className="mb-4">Sign in to see your messages.</p><Link href="/auth/login"><Button>Sign in</Button></Link></div>
+        )}
       </div>
     );
   }
