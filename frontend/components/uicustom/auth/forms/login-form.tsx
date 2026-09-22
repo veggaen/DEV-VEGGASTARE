@@ -2,8 +2,6 @@
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import MySlate700Image from "../../../public/slate700_1.webp"
-import MySlate200Image from "../../../public/slate200_2.webp"
 import { useState } from "react";
 
 const LOG_PREFIX = '[[USE CLIENT] login-form.tsx]'
@@ -17,7 +15,7 @@ export const MyLoginForm = () => {
                 <div className={`relative flex flex-col items-center justify-center w-full h-72 sm:h-96 md:h-full md:min-h-[720px] transition ease-linear duration-300`}>
                   <Image
                     className={`object-cover hidden dark:block`}
-                    src={MySlate700Image} 
+                    src="/slate700_1.webp"
                     alt={'LoginAnimationgif'} 
                     fill
                     sizes="100%"
@@ -27,7 +25,7 @@ export const MyLoginForm = () => {
                   />
                   <Image
                     className={`object-cover dark:hidden`}
-                    src={MySlate200Image} 
+                    src="/slate200_2.webp"
                     alt={'LoginAnimationgif'} 
                     fill
                     sizes="100%"

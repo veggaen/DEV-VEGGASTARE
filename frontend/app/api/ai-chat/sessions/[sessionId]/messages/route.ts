@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const saveSchema = z.object({
   userMessage: z.string().min(1).max(4000),
   assistantMessage: z.string().min(1).max(8000),
-  modelUsed: z.string().max(100).optional().default("gemini-1.5-flash"),
+  modelUsed: z.string().max(100).optional().default("gemini-3.8-flash"),
   providerUsed: z.string().max(50).optional().default("GOOGLE"),
   tokenCount: z.number().int().min(0).optional(),
 });

@@ -226,12 +226,16 @@ function ModelSelector({
 
   // Toggle + compute position synchronously (batched with setOpen — no flash)
   const handleToggle = useCallback(() => {
-    if (!isLoggedIn) return;
     if (!open && triggerRef.current) {
       setPos(calcDropdownPos(triggerRef.current));
     }
     setOpen((prev) => !prev);
-  }, [isLoggedIn, open]);
+  }, [open]);
+
+  const requestSignIn = useCallback(() => {
+    setOpen(false);
+    window.location.assign("/auth/login?callbackUrl=%2F");
+  }, []);
 
   // Close on click outside (checks both trigger and portal dropdown)
   useEffect(() => {
@@ -293,17 +297,14 @@ function ModelSelector({
       <button
         ref={triggerRef}
         onClick={handleToggle}
-        disabled={!isLoggedIn}
-        className={`flex items-center gap-1.5 text-[11px] rounded-lg border transition-all ${
-          isLoggedIn
-            ? "cursor-pointer hover:border-sky-500/30 dark:hover:border-emerald-500/30 hover:bg-sky-500/5 dark:hover:bg-emerald-500/5"
-            : "cursor-default opacity-70"
-        } ${
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className={`flex cursor-pointer items-center gap-1.5 text-[11px] rounded-lg border transition-all hover:border-sky-500/30 dark:hover:border-emerald-500/30 hover:bg-sky-500/5 dark:hover:bg-emerald-500/5 ${
           byokActive
             ? "border-sky-500/30 dark:border-emerald-500/30 bg-sky-500/10 dark:bg-emerald-500/10 text-sky-400 dark:text-emerald-400"
             : "border-black/12 dark:border-white/10 text-muted-foreground"
         } px-2 py-1`}
-        title={isLoggedIn ? "Choose AI model" : "Sign in to choose a model"}
+        title={isLoggedIn ? "Choose AI model" : "Browse AI models"}
       >
         <span>{activeProviderDef?.emoji}</span>
         <span className="font-medium truncate max-w-30">
@@ -317,19 +318,17 @@ function ModelSelector({
             title="Using your API key"
           />
         )}
-        {isLoggedIn && (
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="shrink-0 opacity-60"
-          >
-            <path d={open ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
-          </svg>
-        )}
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="shrink-0 opacity-60"
+        >
+          <path d={open ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
+        </svg>
       </button>
 
       {/* Dropdown — rendered via portal to escape overflow:hidden ancestors */}
@@ -343,9 +342,22 @@ function ModelSelector({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.98 }}
                 transition={{ duration: 0.12 }}
-                className="fixed z-200 w-80 max-h-[min(420px,70vh)] overflow-hidden rounded-xl border border-white/10 bg-[#0f0f14]/98 backdrop-blur-xl shadow-2xl shadow-black/40 flex flex-col"
+                className="fixed z-[200] w-80 max-h-[min(420px,70vh)] overflow-hidden rounded-xl border border-white/10 bg-[#0f0f14]/98 backdrop-blur-xl shadow-2xl shadow-black/40 flex flex-col"
                 style={{ top: pos.top, left: pos.left }}
               >
+            {!isLoggedIn && (
+              <div className="mx-3 mt-3 rounded-lg border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-[11px] leading-relaxed text-sky-100">
+                Gemini is available as a free preview.{" "}
+                <button
+                  type="button"
+                  onClick={requestSignIn}
+                  className="font-semibold text-sky-300 underline underline-offset-2 hover:text-white"
+                >
+                  Sign in
+                </button>{" "}
+                to choose other models or add your own API key.
+              </div>
+            )}
             {/* Search */}
             <div className="px-3 pt-3 pb-2">
               <div className="relative">
@@ -401,7 +413,7 @@ function ModelSelector({
                         {prov.emoji} {prov.label}
                       </span>
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 dark:bg-emerald-500/15 text-sky-400 dark:text-emerald-400 border border-sky-500/20 dark:border-emerald-500/20">
-                        FREE
+                        {isLoggedIn ? "FREE" : "FREE PREVIEW"}
                       </span>
                     </div>
                     {recommended.map((m) => (
@@ -410,10 +422,15 @@ function ModelSelector({
                         model={m}
                         providerEmoji={prov.emoji}
                         isActive={prov.value === provider && m.value === model}
+                        locked={!isLoggedIn && !(prov.value === "GOOGLE" && m.value === model)}
                         onClick={() => {
-                          onSelectModel(prov.value, m.value);
-                          setOpen(false);
-                          setSearch("");
+                          if (!isLoggedIn && !(prov.value === "GOOGLE" && m.value === model)) {
+                            requestSignIn();
+                          } else {
+                            onSelectModel(prov.value, m.value);
+                            setOpen(false);
+                            setSearch("");
+                          }
                         }}
                       />
                     ))}
@@ -437,10 +454,15 @@ function ModelSelector({
                           isActive={
                             prov.value === provider && m.value === model
                           }
+                          locked={!isLoggedIn && !(prov.value === "GOOGLE" && m.value === model)}
                           onClick={() => {
-                            onSelectModel(prov.value, m.value);
-                            setOpen(false);
-                            setSearch("");
+                            if (!isLoggedIn && !(prov.value === "GOOGLE" && m.value === model)) {
+                              requestSignIn();
+                            } else {
+                              onSelectModel(prov.value, m.value);
+                              setOpen(false);
+                              setSearch("");
+                            }
                           }}
                         />
                       ))}
@@ -490,10 +512,15 @@ function ModelSelector({
                         model={m}
                         providerEmoji={prov.emoji}
                         isActive={prov.value === provider && m.value === model}
+                        locked={!isLoggedIn}
                         onClick={() => {
-                          onSelectModel(prov.value, m.value);
-                          setOpen(false);
-                          setSearch("");
+                          if (!isLoggedIn) {
+                            requestSignIn();
+                          } else {
+                            onSelectModel(prov.value, m.value);
+                            setOpen(false);
+                            setSearch("");
+                          }
                         }}
                       />
                     ))}
@@ -517,10 +544,15 @@ function ModelSelector({
                           isActive={
                             prov.value === provider && m.value === model
                           }
+                          locked={!isLoggedIn}
                           onClick={() => {
-                            onSelectModel(prov.value, m.value);
-                            setOpen(false);
-                            setSearch("");
+                            if (!isLoggedIn) {
+                              requestSignIn();
+                            } else {
+                              onSelectModel(prov.value, m.value);
+                              setOpen(false);
+                              setSearch("");
+                            }
                           }}
                         />
                       ))}
@@ -561,8 +593,12 @@ function ModelSelector({
                       ) : (
                         <button
                           onClick={() => {
-                            onOpenByok();
-                            setOpen(false);
+                            if (!isLoggedIn) {
+                              requestSignIn();
+                            } else {
+                              onOpenByok();
+                              setOpen(false);
+                            }
                           }}
                           className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10 transition-colors flex items-center gap-1"
                           title={`Add your ${prov.label} API key`}
@@ -759,7 +795,7 @@ export default function LandingChatWidget({
 
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
   const [provider, setProvider] = useState<AiProvider>("GOOGLE");
-  const [model, setModel] = useState<string>("gemini-2.5-flash");
+  const [model, setModel] = useState<string>("gemini-3.8-flash");
   const [viewMode, setViewMode] = useState<ViewMode>("widget");
   const [showLongMsgGate, setShowLongMsgGate] = useState(false);
   const [sensitiveBanner, setSensitiveBanner] = useState<string[] | null>(null);
@@ -890,7 +926,7 @@ export default function LandingChatWidget({
             userMessage: userContent,
             assistantMessage: aiContent,
             providerUsed: providerUsed ?? "GOOGLE",
-            modelUsed: modelUsed ?? "gemini-2.5-flash",
+            modelUsed: modelUsed ?? "gemini-3.8-flash",
           }),
         });
       } catch {

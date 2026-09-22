@@ -15,9 +15,6 @@ const COOKIE_DOMAIN = ACCESS_GATE_CONFIG.cookieDomain;
 // Simple hash of the password - in production you'd use a proper secret
 const COOKIE_VALUE = makeGateCookieValue(CORRECT_PASSWORD);
 
-// DEBUG: Log cookie value on startup
-console.log('[access-gate/route.ts] COOKIE_VALUE:', COOKIE_VALUE, 'COOKIE_NAME:', COOKIE_NAME, 'COOKIE_DOMAIN:', COOKIE_DOMAIN);
-
 // Brute force protection - in-memory store (resets on server restart)
 // For production, consider using Redis or a database
 const attemptStore = new Map<string, { count: number; firstAttempt: number; lockedUntil: number }>();

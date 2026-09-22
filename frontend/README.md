@@ -226,6 +226,20 @@ OAuth callback URL requirements:
 | `EDGE_STORE_ACCESS_KEY` | EdgeStore access key |
 | `EDGE_STORE_SECRET_KEY` | EdgeStore secret key |
 
+### AI Chat
+
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_API_KEY` | Required for the anonymous Gemini preview and signed-in free-tier Gemini chat. Create it in Google AI Studio. |
+| `GROQ_API_KEY` | Optional shared Groq key for signed-in free-tier models. |
+| `GROK_API_KEY` | Optional shared xAI/Grok key for signed-in models. |
+| `OPENAI_API_KEY` | Optional shared OpenAI key for the owner and users with AI credits. |
+| `ANTHROPIC_API_KEY` | Optional shared Anthropic key for the owner and users with AI credits. |
+| `BYOK_ENCRYPTION_KEY` | Required to store users' bring-your-own-provider keys encrypted at rest. |
+
+Set platform keys only in Vercel's encrypted environment variables, never in
+`NEXT_PUBLIC_*` variables or committed files. Redeploy after changing them.
+
 ### Backend Connection
 
 | Variable | Description |

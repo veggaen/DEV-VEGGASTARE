@@ -81,22 +81,17 @@ const PLATFORM_GROK_KEY = process.env.GROK_API_KEY ?? "";
 const PLATFORM_OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 const PLATFORM_ANTHROPIC_KEY = process.env.CLAUDE_API_KEY ?? process.env.ANTHROPIC_API_KEY ?? "";
 
-/** Providers that cost real money — require premium access or BYOK */
-const PAID_PROVIDERS = new Set<Provider>(["OPENAI", "ANTHROPIC"]);
-/** Providers where we have a free platform key */
-const FREE_PROVIDERS = new Set<Provider>(["GOOGLE", "GROQ", "GROK"]);
-
 // ── Provider helpers (adapted from poll builder) ───────────────────────────
 
 function defaultModelForProvider(provider: Provider): string {
   switch (provider) {
     case "GROQ":       return "llama-3.3-70b-versatile";
     case "OPENROUTER": return "openai/gpt-4o-mini";
-    case "ANTHROPIC":  return "claude-haiku-4-5-20251001";
-    case "GROK":       return "grok-3-mini";
-    case "GOOGLE":     return "gemini-2.5-flash";
+    case "ANTHROPIC":  return "claude-sonnet-4-6";
+    case "GROK":       return "grok-4.7";
+    case "GOOGLE":     return "gemini-3.8-flash";
     case "OPENAI":
-    default:           return "gpt-4o-mini";
+    default:           return "gpt-5.6-luna";
   }
 }
 
@@ -296,10 +291,16 @@ async function streamOpenAICompat(input: StreamInput): Promise<Response> {
     headers["X-Title"] = "VeggaStare AI Chat";
   }
 
+  const usesModernOpenAiParameters =
+    provider === "OPENAI" && (/^gpt-[5-9]/.test(model) || /^o\d/.test(model));
+  const requestBody = usesModernOpenAiParameters
+    ? { model, messages: apiMessages, stream: true, max_completion_tokens: 2048 }
+    : { model, messages: apiMessages, stream: true, max_tokens: 2048, temperature: 0.7 };
+
   const upstream = await fetch(endpoint, {
     method: "POST",
     headers,
-    body: JSON.stringify({ model, messages: apiMessages, stream: true, max_tokens: 2048, temperature: 0.7 }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!upstream.ok) {
@@ -495,7 +496,7 @@ export async function POST(req: NextRequest) {
       const paidEntitlement = await getPaidAiEntitlement(session.id!);
       const hasPremiumAccess = isOwner || paidEntitlement.hasAccess;
 
-      // ── Free-tier providers (Google, Groq, Grok) ──────────────────────
+      // ── Free-tier providers (Google, Groq) ───────────────────────────
       if (requestedProvider === "GOOGLE") {
         if (!PLATFORM_GOOGLE_KEY) {
           return NextResponse.json({ error: "AI_NOT_CONFIGURED", message: "Google AI is not configured on this platform. Add your own Google API key via BYOK." }, { status: 503 });
@@ -514,6 +515,12 @@ export async function POST(req: NextRequest) {
         resolvedProvider = "GROQ";
         resolvedModel = body.model || defaultModelForProvider("GROQ");
       } else if (requestedProvider === "GROK") {
+        if (!hasPremiumAccess) {
+          return NextResponse.json(
+            { error: "PREMIUM_REQUIRED", message: "Grok models require Premium AI credits. Purchase a credit pack, or add your own xAI key via BYOK.", provider: "GROK" },
+            { status: 402 }
+          );
+        }
         if (!PLATFORM_GROK_KEY) {
           return NextResponse.json(
             { error: "BYOK_REQUIRED", message: `Grok is not configured. Add your xAI key via BYOK — get one at ${PROVIDER_CONSOLE_URLS["GROK"]}.`, provider: "GROK" },
@@ -523,6 +530,7 @@ export async function POST(req: NextRequest) {
         apiKey = PLATFORM_GROK_KEY;
         resolvedProvider = "GROK";
         resolvedModel = body.model || defaultModelForProvider("GROK");
+        costTier = "premium";
 
       // ── Paid-tier providers (OpenAI, Anthropic) — owner or purchased credits ──
       } else if (requestedProvider === "OPENAI") {

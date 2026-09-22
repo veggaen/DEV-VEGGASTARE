@@ -310,14 +310,14 @@ function defaultModelForProvider(provider: ResolvedAuth["provider"]): string {
     case "OPENROUTER":
       return "openai/gpt-4o-mini";
     case "ANTHROPIC":
-      return "claude-haiku-4-5-20251001";
+      return "claude-sonnet-4-6";
     case "GROK":
-      return "grok-3-mini";
+      return "grok-4.7";
     case "GOOGLE":
-      return "gemini-2.5-flash";
+      return "gemini-3.8-flash";
     case "OPENAI":
     default:
-      return process.env.OPENAI_MODEL || "gpt-4o-mini";
+      return process.env.OPENAI_MODEL || "gpt-5.6-luna";
   }
 }
 

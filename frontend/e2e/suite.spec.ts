@@ -167,6 +167,22 @@ test.describe("Layer 3 — Content", () => {
     await expect(page.locator("body")).toBeVisible();
   });
 
+  test("anonymous AI model selector opens with clear sign-in guidance", async ({
+    page,
+  }) => {
+    test.setTimeout(PAGE_TIMEOUT);
+    await visitPage(page, "/");
+
+    const selector = page.getByTitle("Browse AI models");
+    await expect(selector).toBeVisible({ timeout: EXPECT_TIMEOUT });
+    await selector.click();
+
+    await expect(
+      page.getByText("Gemini is available as a free preview.", { exact: false }),
+    ).toBeVisible({ timeout: EXPECT_TIMEOUT });
+    await expect(page.getByPlaceholder(/Search models/)).toBeVisible();
+  });
+
   test("products page renders content", async ({ page }) => {
     test.setTimeout(PAGE_TIMEOUT);
     await visitPage(page, "/products");

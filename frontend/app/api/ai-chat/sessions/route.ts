@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         userId: null,
         displayName: "Gemini",
         aiProvider: "GOOGLE",
-        aiModel: "gemini-1.5-flash",
+        aiModel: "gemini-3.8-flash",
         byokUserId: null,
       },
     });

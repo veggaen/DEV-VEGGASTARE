@@ -74,7 +74,7 @@ export async function POST(
   // Get API key
   let apiKey: string;
   let provider = aiParticipant.aiProvider ?? "GOOGLE";
-  const model = aiParticipant.aiModel ?? "gemini-1.5-flash";
+  const model = aiParticipant.aiModel ?? "gemini-3.8-flash";
 
   if (aiParticipant.type === "AI_BYOK" && aiParticipant.byokUserId) {
     const keyResult = await getUserAiKeyForGeneration({
