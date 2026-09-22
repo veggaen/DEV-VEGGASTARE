@@ -44,6 +44,9 @@ next-env.d.ts
 # prisma generated client
 /generated/
 
+# Full-resolution downloadable originals; provisioned to private storage, never public Git/CDN.
+/.private-showcase/
+
 # lint dump (transient)
 components-lint.txt
 

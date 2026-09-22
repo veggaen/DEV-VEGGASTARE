@@ -9,4 +9,6 @@
 **/test-results/**
 **/%SystemDrive%/**
 **/database-backups/**
+**/.private-showcase/**
+**/*.tsbuildinfo
 .git

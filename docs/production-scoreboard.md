@@ -13,12 +13,12 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## S2 — Authentication (in progress)
 
-- Local browser round trip passed: register → app-issued email verification → normal session → password reset → old-session revocation → reset-token replay rejection → password login → logout. Callback origin assertion passed (3/3 including setup).
-- Local 2FA UI passed; direct password login without a code and replay of a consumed code both denied. Passwords were not emitted to browser console.
+- Local AND live browser round trip passed: register → app-issued email verification → normal session → password reset → old-session revocation → reset-token replay rejection → password login → logout → 2FA. Callback origin assertion passed (3/3 including setup, both environments).
+- Local AND live 2FA UI passed; direct password login without a code and replay of a consumed code both denied. Passwords were not emitted to browser console.
 - Atomic reset/verification/magic-login token consumption; reset increments session tokenVersion. 2FA is validated in the exact credentials request, not through a shared confirmation row. Password-form logging removed.
 - Durable HMAC-keyed auth throttling fails closed across replicas. Additive migration applied successfully. Migration commands now use the selected Neon's direct endpoint, preserve locking, and stop deployment if migration fails. One stale idle pooled connection holding the migration lock (no transaction) was terminated; no data deleted.
 - Auth email links use configured AUTH_URL, including local production builds on port 3000. Canonical production aliases redirect before OAuth initiation. PKCE/state/cookie protections retained.
-- Focused unit tests 44/44. TypeScript + production build passed. Live recovery/OAuth consent still pending.
+- Focused unit tests 44/44. TypeScript + production build and touched-file lint passed. Auth pages have no horizontal overflow at 390/1280 locally. Production deployment `dpl_DgeGqdcet7R354MBCg1PgPTpdys8` (commit `dde372b`) is READY and verified at www.veggat.com. Production alias redirects verified. All three local OAuth buttons reached provider login pages, S256 PKCE and localhost callbacks confirmed, no provider configuration error shown. Full owner OAuth consent/callback remains pending; GitHub owner action requested.
 - Delivery testing uses [Resend's labelled test recipients](https://resend.com/docs/dashboard/emails/send-test-emails), not disposable public inboxes. Provider accepted sends; reading email-delivery history with the configured key returned 401. Tokens were read only for the isolated fixture from the database, then consumed through the real UI; inbox delivery to a human is not claimed.
 - Migration connection rationale: [Prisma / Neon direct connections](https://docs.prisma.io/docs/orm/v6/overview/databases/neon). Network throttling uses [Vercel's forwarded-client header](https://vercel.com/docs/headers/request-headers#x-vercel-forwarded-for).
 
@@ -26,8 +26,8 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 | Area | Feature | Status / evidence |
 | --- | --- | --- |
-| Auth | Email login, session | PARTIAL — QA passed previous local/live build; revalidate changed auth |
-| Auth | Register, reset/verify, logout | PARTIAL — full current round trips pending |
+| Auth | Email login, session | DONE — current local/live browser round trips, revoked sessions rejected |
+| Auth | Register, reset/verify, logout | DONE — current local/live UI round trips and token replay protection; human inbox delivery not independently confirmed |
 | Auth | Google | PARTIAL — owner completed normal Chrome locally; automated browser blocked by Google |
 | Auth | GitHub, Discord | PARTIAL — initiation checked, full consent/callback pending |
 | Shop | List, PDP, images | PARTIAL — public list works but empty; fixtures/PDP pending |

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#071b17"/>
+  <rect x="48" y="48" width="1104" height="704" rx="32" fill="#0c2721" stroke="#256653" stroke-width="2"/>
+  <path d="M920 150l26 66 66 26-66 26-26 66-26-66-66-26 66-26z" fill="#6ee7b7"/>
+  <text x="112" y="160" fill="#a7c8bc" font-family="Arial,sans-serif" font-size="24" letter-spacing="5">VEGGAT · REVIEWER EDITION</text>
+  <text x="100" y="460" fill="#ecfdf5" font-family="Arial,sans-serif" font-size="264" font-weight="700" letter-spacing="-18">100</text>
+  <text x="112" y="552" fill="#6ee7b7" font-family="Arial,sans-serif" font-size="58" font-weight="700">AI CREDITS</text>
+  <path d="M112 612h976" stroke="#256653" stroke-width="2"/>
+  <text x="112" y="678" fill="#c2d9cf" font-family="Arial,sans-serif" font-size="27">Prepaid. No subscription. No automatic top-ups.</text>
+</svg>
