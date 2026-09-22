@@ -51,11 +51,16 @@ The Groq catalog incorrectly marked the provider as BYOK-only even though the se
 
 The follow-up production build and all 38 unit tests passed. Seven selected authenticated Playwright checks passed, including the new selector regression. Homepage entry fades and the floating development notice were removed; development disclosure remains in the footer. Cookie-preference switches now have accessible names. No public demo gate or paid-credit checkout was enabled by this change.
 
+Commit `38e27dc` deployed as `dpl_9aHLVSWB2ZoVQWZdLQKfBFTC23so` and was aliased to `www.veggat.com`. Fresh live password sign-in passed. Live Groq selection returned the expected rendered answer using the platform key; OpenAI and Grok again returned expected rendered answers with one-time keys, then were disconnected. The QA account still has zero saved provider keys. Anonymous Gemini also returned the expected rendered answer. Both telemetry scripts returned HTTP 200 after opt-in, with zero script requests before consent.
+
+An additional 26 public-route, auth-page, and content checks passed locally. These are smoke checks, not exhaustive feature tests. The current public products API returns an empty array, so image-heavy inventory and checkout still need realistic test fixtures. Mobile Pulse was visually checked live without horizontal overflow.
+
 ## Remaining acceptance work
 
 - Real-visitor telemetry ingestion and representative field measurements.
 - Full GitHub and Discord OAuth round trips in a supported browser.
 - Sandbox PayPal checkout, order fulfillment, and seller visibility.
+- Clearly labeled demo inventory and image-heavy product performance checks (the current catalog is empty).
 - Atomic AI-credit reservations, authoritative prices, verified payment amounts, idempotent credit grants, model allowlists, and spending caps before launching new paid-credit products.
 - Broader route and accessibility audits, realistic performance sampling, and a short interview walkthrough.
 
