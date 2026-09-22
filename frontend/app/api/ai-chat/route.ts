@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type Provider = "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GOOGLE" | "GROK" | "GROQ";
+type Provider = "VERCEL" | "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GOOGLE" | "GROK" | "GROQ";
 
 // ── Schemas ────────────────────────────────────────────────────────────────
 
@@ -34,9 +34,9 @@ const requestSchema = z.object({
   sessionId: z.string().cuid().optional().nullable(),
   model: z.string().max(100).optional(),
   provider: z
-    .enum(["OPENAI", "OPENROUTER", "ANTHROPIC", "GOOGLE", "GROK", "GROQ"])
+    .enum(["VERCEL", "OPENAI", "OPENROUTER", "ANTHROPIC", "GOOGLE", "GROK", "GROQ"])
     .optional()
-    .default("GOOGLE"),
+    .default("VERCEL"),
   /** Optional inline BYOK — lets the client send a one-time API key */
   aiAuth: z.object({
     mode: z.literal("one_time"),
@@ -53,7 +53,7 @@ const CHAT_SYSTEM_PROMPT = `You are VeggaStare AI — the in-app assistant for V
 ## What VeggaStare is
 VeggaStare is a modern marketplace + social platform that combines:
 - **A products marketplace** — buy and sell physical and digital products. Listings show real-time stock, location-aware shipping estimates (via Bring), and prices in the visitor's chosen currency (NOK, USD, EUR, GBP) as well as crypto (ETH, SOL, etc.). Checkout supports card and crypto/web3 payments.
-- **AI chat** — chat with multiple AI models. There's a free tier (Google Gemini, Groq) for signed-in users, paid models (OpenAI, Anthropic) via credits, and "bring your own key" (BYOK) for unlimited access with your own provider key.
+- **AI chat** — chat with multiple AI models. There's a free Vercel AI Gateway preview, provider models for signed-in users, and "bring your own key" (BYOK) for unlimited access with your own provider key.
 - **Pulse** — a real-time social feed of posts ("pulses") and updates, with reach/engagement metrics.
 - **Polls** — real-time polls with *verification-weighted voting*, where more-trusted (verified) accounts carry more weight, plus AI-assisted poll creation.
 - **A 12-tier trust/verification system** — users earn a verification tier that affects reach and voting weight; linking OAuth providers (Google, GitHub, Discord) and other signals raise your tier.
@@ -88,6 +88,7 @@ const PLATFORM_ANTHROPIC_KEY = process.env.CLAUDE_API_KEY ?? process.env.ANTHROP
 
 function defaultModelForProvider(provider: Provider): string {
   switch (provider) {
+    case "VERCEL":    return "inclusionai/ling-3.0-flash-fin-free";
     case "GROQ":       return "llama-3.3-70b-versatile";
     case "OPENROUTER": return "openai/gpt-4o-mini";
     case "ANTHROPIC":  return "claude-sonnet-4-6";
@@ -99,6 +100,7 @@ function defaultModelForProvider(provider: Provider): string {
 }
 
 const PROVIDER_CONSOLE_URLS: Record<Provider, string> = {
+  VERCEL:     "vercel.com/ai-gateway",
   OPENAI:     "platform.openai.com/api-keys",
   OPENROUTER: "openrouter.ai/keys",
   ANTHROPIC:  "console.anthropic.com/settings/keys",
@@ -108,6 +110,7 @@ const PROVIDER_CONSOLE_URLS: Record<Provider, string> = {
 };
 
 const PROVIDER_LABELS: Record<Provider, string> = {
+  VERCEL:     "Vercel AI Gateway",
   OPENAI:     "OpenAI",
   OPENROUTER: "OpenRouter",
   ANTHROPIC:  "Anthropic",
@@ -337,7 +340,7 @@ async function streamVercelGateway(input: StreamInput): Promise<Response> {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: `google/${model}`,
+      model: model.includes("/") ? model : `google/${model}`,
       messages: apiMessages,
       stream: true,
       max_tokens: 2048,
@@ -416,6 +419,7 @@ async function streamProvider(input: StreamInput): Promise<Response> {
   if (input.viaVercelGateway) return streamVercelGateway(input);
 
   switch (input.provider) {
+    case "VERCEL":   return streamVercelGateway(input);
     case "GOOGLE":    return streamGemini(input);
     case "ANTHROPIC": return streamAnthropic(input);
     case "OPENAI":
@@ -502,13 +506,13 @@ export async function POST(req: NextRequest) {
         { status: 413 }
       );
     }
-    if (!PLATFORM_GOOGLE_KEY && !vercelAiGatewayAuth) {
+    if (!vercelAiGatewayAuth) {
       return NextResponse.json({ error: "AI_NOT_CONFIGURED" }, { status: 503 });
     }
-    resolvedProvider = "GOOGLE";
-    apiKey = PLATFORM_GOOGLE_KEY || vercelAiGatewayAuth;
-    viaVercelGateway = !PLATFORM_GOOGLE_KEY;
-    resolvedModel = defaultModelForProvider("GOOGLE");
+    resolvedProvider = "VERCEL";
+    apiKey = vercelAiGatewayAuth;
+    viaVercelGateway = true;
+    resolvedModel = defaultModelForProvider("VERCEL");
   } else {
     // ── Authenticated: try inline BYOK → saved BYOK → platform key ───────
     // 1. Inline one-time key (sent directly from the client)
@@ -530,7 +534,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Saved BYOK key
-    if (usingPlatformKey) {
+    if (usingPlatformKey && requestedProvider !== "VERCEL") {
       try {
         const byok = await getUserAiKeyForGeneration({ userId: session.id!, provider: requestedProvider });
         // Only use the BYOK key if it is for the same provider the user selected.
@@ -557,12 +561,20 @@ export async function POST(req: NextRequest) {
       const hasPremiumAccess = isOwner || paidEntitlement.hasAccess;
 
       // ── Free-tier providers (Google, Groq) ───────────────────────────
-      if (requestedProvider === "GOOGLE") {
-        if (!PLATFORM_GOOGLE_KEY && !vercelAiGatewayAuth) {
+      if (requestedProvider === "VERCEL") {
+        if (!vercelAiGatewayAuth) {
+          return NextResponse.json({ error: "AI_NOT_CONFIGURED", message: "Vercel AI Gateway is not configured on this deployment." }, { status: 503 });
+        }
+        apiKey = vercelAiGatewayAuth;
+        viaVercelGateway = true;
+        resolvedProvider = "VERCEL";
+        resolvedModel = body.model || defaultModelForProvider("VERCEL");
+      } else if (requestedProvider === "GOOGLE") {
+        if (!PLATFORM_GOOGLE_KEY) {
           return NextResponse.json({ error: "AI_NOT_CONFIGURED", message: "Google AI is not configured on this platform. Add your own Google API key via BYOK." }, { status: 503 });
         }
-        apiKey = PLATFORM_GOOGLE_KEY || vercelAiGatewayAuth;
-        viaVercelGateway = !PLATFORM_GOOGLE_KEY;
+        apiKey = PLATFORM_GOOGLE_KEY;
+        viaVercelGateway = false;
         resolvedProvider = "GOOGLE";
         resolvedModel = body.model || defaultModelForProvider("GOOGLE");
       } else if (requestedProvider === "GROQ") {

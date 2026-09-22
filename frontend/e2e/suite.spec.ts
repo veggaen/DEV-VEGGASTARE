@@ -178,7 +178,7 @@ test.describe("Layer 3 — Content", () => {
     await selector.click();
 
     await expect(
-      page.getByText("Gemini is available as a free preview.", { exact: false }),
+      page.getByText("Vercel AI Gateway is available as a free preview.", { exact: false }),
     ).toBeVisible({ timeout: EXPECT_TIMEOUT });
     await expect(page.getByPlaceholder(/Search models/)).toBeVisible();
   });

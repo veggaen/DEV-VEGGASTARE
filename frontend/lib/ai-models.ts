@@ -6,7 +6,7 @@
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type AiProvider = "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GOOGLE" | "GROK" | "GROQ";
+export type AiProvider = "VERCEL" | "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GOOGLE" | "GROK" | "GROQ";
 
 export type AiModelCapability =
   | "vision"
@@ -81,14 +81,27 @@ export const CAPABILITY_BADGES: Record<
 
 export const AI_PROVIDERS: AiProviderDef[] = [
   {
+    value: "VERCEL",
+    label: "Vercel AI Gateway",
+    emoji: "▲",
+    tagline: "Fast hosted preview with no API key required",
+    getKeyUrl: "https://vercel.com/ai-gateway",
+    freeAvailable: true,
+    tier: "free",
+    pricingNote: "Free preview",
+    models: [
+      { value: "inclusionai/ling-3.0-flash-fin-free", label: "Ling 3.0 Flash", description: "Fast free preview model routed by Vercel", isDefault: true, capabilities: ["fast", "reasoning"], group: "recommended" },
+    ],
+  },
+  {
     value: "GOOGLE",
     label: "Google Gemini",
     emoji: "🔷",
     tagline: "Lightning-fast with surprising capability",
     getKeyUrl: "https://aistudio.google.com/apikey",
-    freeAvailable: true,
-    tier: "free",
-    pricingNote: "Free tier available",
+    freeAvailable: false,
+    tier: "byok-only",
+    pricingNote: "Bring your Google API key",
     models: [
       { value: "gemini-3.8-flash",       label: "Gemini 3.8 Flash",      description: "Latest stable Flash model — fast and highly capable", isDefault: true, capabilities: ["flagship", "fast", "vision", "tools", "reasoning"], group: "recommended", contextSize: "1M" },
       { value: "gemini-3.7-flash",       label: "Gemini 3.7 Flash",      description: "Stable previous-generation Flash model",                              capabilities: ["fast", "vision", "tools"],                          group: "recommended", contextSize: "1M" },
@@ -102,9 +115,9 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     emoji: "⚡",
     tagline: "Blazing-fast open models on custom hardware",
     getKeyUrl: "https://console.groq.com/keys",
-    freeAvailable: true,
-    tier: "free",
-    pricingNote: "Free tier available",
+    freeAvailable: false,
+    tier: "byok-only",
+    pricingNote: "Bring your Groq API key",
     models: [
       { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B",             description: "Versatile open model — great for most tasks",  isDefault: true, capabilities: ["fast", "tools"],                group: "recommended", contextSize: "128K" },
       { value: "openai/gpt-oss-120b",     label: "GPT-OSS 120B",              description: "Large open-weight reasoning model",                              capabilities: ["reasoning", "tools"],           group: "recommended", contextSize: "128K" },
