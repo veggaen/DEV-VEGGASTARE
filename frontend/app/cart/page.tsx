@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { FiShoppingBag, FiMinus, FiPlus, FiTrash2, FiLoader } from "react-icons/fi";
 import PriceAmount from "@/components/crypto-related/PriceAmount";
 import { useCurrencyRates } from "@/hooks/useCurrencyRates";
+import { useCart } from "@/contexts/cart-context";
 
 interface CartItem {
   id: string;
@@ -36,6 +37,7 @@ const CartPage = () => {
   const userId = session?.user?.id;
   const router = useRouter();
   const { convertToUSD } = useCurrencyRates();
+  const { syncCart } = useCart();
 
   const recompute = useCallback(
     (items: CartItem[]) => {
@@ -63,11 +65,12 @@ const CartPage = () => {
       const data = await response.json();
       const items: CartItem[] = data.items;
       setCartItems(items);
+      syncCart(items);
     } catch (error) {
       setLoadError(true);
       console.error("Error fetching cart items:", error);
     }
-  }, [userId]);
+  }, [userId, syncCart]);
 
   // Exchange-rate updates change totals, not the cart's loading state.
   useEffect(() => { recompute(cartItems); }, [cartItems, recompute]);

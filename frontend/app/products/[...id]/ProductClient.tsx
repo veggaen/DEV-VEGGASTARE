@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import { CiStar } from "react-icons/ci";
 import { useSession } from "next-auth/react";
+import { useCart } from "@/contexts/cart-context";
 import { CiMapPin } from "react-icons/ci";
 import { GoPackage } from "react-icons/go";
 import { CiDeliveryTruck } from "react-icons/ci";
@@ -1201,6 +1202,7 @@ function ProductDetailCursor() {
 function ProductDetails({ product }: { product: Product }) {
   const router = useRouter();
   const { data: session } = useSession();
+  const { addItem } = useCart();
   const reduceMotion = useReducedMotion();
   const { prefs } = useUiPreferences();
 
@@ -1476,14 +1478,8 @@ function ProductDetails({ product }: { product: Product }) {
       });
       return;
     }
-    const userId = (session as any)?.user?.id;
     try {
-      const res = await fetch(`/api/cart/${userId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: product.id, quantity: 1 }),
-      });
-      if (!res.ok) throw new Error("Failed to add item to cart");
+      if (!await addItem(product.id, 1)) throw new Error("Failed to add item to cart");
       toast.success('Added to basket', {
         description: product.title,
         action: { label: 'View basket', onClick: () => router.push('/cart') },
@@ -1492,7 +1488,7 @@ function ProductDetails({ product }: { product: Product }) {
     } catch {
       toast.error('Failed to add item to basket');
     }
-  }, [canPurchase, session, product.id, product.title, router]);
+  }, [canPurchase, session, product.id, product.title, router, addItem]);
 
   // Buy Now - add to cart then go straight to checkout
   const handleBuyNow = useCallback(async () => {
@@ -1506,19 +1502,13 @@ function ProductDetails({ product }: { product: Product }) {
       });
       return;
     }
-    const userId = (session as any)?.user?.id;
     try {
-      const res = await fetch(`/api/cart/${userId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: product.id, quantity: 1 }),
-      });
-      if (!res.ok) throw new Error("Failed to add item");
+      if (!await addItem(product.id, 1)) throw new Error("Failed to add item");
       router.push('/checkout');
     } catch {
       toast.error('Something went wrong. Please try again.');
     }
-  }, [canPurchase, session, product.id, router]);
+  }, [canPurchase, session, product.id, router, addItem]);
 
   const productKindLabel = isDigitalProduct ? "Digital artifact" : product.productType === "HYBRID" ? "Hybrid product" : "Physical product";
   const updatedAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.updatedAt));

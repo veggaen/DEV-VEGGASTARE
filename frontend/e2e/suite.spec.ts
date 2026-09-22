@@ -271,7 +271,10 @@ test.describe("Layer 2 — Routing", () => {
 test.describe("Layer 3 — Content", () => {
   test("S3 — demo marketplace: real images, separate cart lines and reload", async ({ browser, baseURL }) => {
     test.setTimeout(120_000);
-    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+    // Reuse an app-issued demo session for repeated local QA without relaxing
+    // the real five-per-day signup cap. CI/default still tests the demo button.
+    const savedDemo = process.env.E2E_DEMO_STORAGE_STATE;
+    const context = await browser.newContext({ baseURL, storageState: savedDemo, viewport: { width: 390, height: 844 } });
     const page = await context.newPage();
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -279,7 +282,14 @@ test.describe("Layer 3 — Content", () => {
       await page.goto('/', { waitUntil: 'domcontentloaded' });
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
       if (await consent.isVisible()) await consent.click();
-      await page.getByRole('button', { name: 'Try the demo — no payment', exact: true }).click();
+      if (savedDemo) {
+        const demo = await (await context.request.get('/api/auth/session')).json();
+        expect(demo.user.isDemo).toBe(true);
+        expect((await context.request.delete(`/api/cart/${demo.user.id}`)).ok()).toBe(true);
+        await page.goto('/products', { waitUntil: 'domcontentloaded' });
+      } else {
+        await page.getByRole('button', { name: 'Try the demo — no payment', exact: true }).click();
+      }
       await page.waitForURL('**/products', { waitUntil: 'domcontentloaded' });
       for (const [index, title] of ['Veggat Interview Pack', 'Interviewer AI Credits'].entries()) {
         if (index) await page.goto('/products', { waitUntil: 'domcontentloaded' });
@@ -294,6 +304,7 @@ test.describe("Layer 3 — Content", () => {
         }
         await page.getByRole('button', { name: 'Add to basket', exact: true }).click();
         await expect(page.getByText('Added to basket', { exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: `${index + 1} item${index ? 's' : ''} in basket`, exact: true })).toBeVisible();
       }
       await page.getByRole('button', { name: 'View basket', exact: true }).click();
       await page.waitForURL('**/cart', { waitUntil: 'domcontentloaded' });
@@ -310,6 +321,14 @@ test.describe("Layer 3 — Content", () => {
       const cart = await (await context.request.get(`/api/cart/${session.user.id}`)).json();
       expect(cart.items).toHaveLength(2);
       expect(cart.items.every((item: { quantity: number }) => item.quantity === 1)).toBe(true);
+      const titlesBefore = await page.getByRole('heading', { level: 2 }).allTextContents();
+      await page.getByRole('button', { name: 'Increase quantity', exact: true }).first().click();
+      await expect(page.getByRole('button', { name: '3 items in basket', exact: true })).toBeVisible();
+      await expect.poll(() => page.getByRole('heading', { level: 2 }).allTextContents()).toEqual(titlesBefore);
+      await page.getByRole('button', { name: 'Decrease quantity', exact: true }).first().click();
+      await expect(page.getByRole('button', { name: '2 items in basket', exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Remove', exact: true }).first().click();
+      await expect(page.getByRole('button', { name: '1 item in basket', exact: true })).toBeVisible();
       expect((await context.request.post('/api/edgestore/request-upload', { data: {} })).status()).toBe(403);
       expect(errors).toEqual([]);
     } finally { await context.close(); }

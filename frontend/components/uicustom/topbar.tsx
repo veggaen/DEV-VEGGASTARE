@@ -16,7 +16,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FaUser, FaDiscord, FaGithub } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
-import useSWR from "swr";
+import { useCart } from "@/contexts/cart-context";
 import { toast } from "sonner";
 import { TbHexagons } from "react-icons/tb";
 import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiSliders, FiShield, FiBell, FiLock, FiDollarSign, FiSun, FiMoon, FiMonitor, FiTrash2, FiEye, FiEyeOff, FiBellOff, FiVolume2, FiVolumeX, FiKey, FiCamera, FiEdit2, FiExternalLink, FiCopy, FiLink, FiRefreshCw, FiCheck, FiPackage, FiZap, FiHome, FiGrid, FiCreditCard, FiSettings, FiHelpCircle } from "react-icons/fi";
@@ -73,9 +73,6 @@ function isActivePath(pathname: string, href: string) {
 	if (href === "/") return pathname === "/";
 	return pathname === href || pathname.startsWith(`${href}/`);
 }
-
-// Fetcher for SWR
-const fetcher = (url: string) => fetch(url).then(res => res.ok ? res.json() : { items: [] });
 
 /** Key for sessionStorage flag that prevents OAuth redirect loops */
 const OAUTH_BRIDGE_KEY_PREFIX = 'veggat_oauth_bridge_';
@@ -151,13 +148,8 @@ const MyTopBar = () => {
 		markAllAsRead 
 	} = useNotifications({ refreshInterval: 60000, enabled: !!clientUser });
 
-	// Fetch cart count for logged-in users
-	const { data: cartData, mutate: mutateCart } = useSWR(
-		clientUser?.id ? `/api/cart/${clientUser.id}` : null,
-		fetcher,
-		{ refreshInterval: 60000, dedupingInterval: 5000, revalidateOnFocus: true }
-	);
-	const cartCount = cartData?.items?.reduce((sum: number, item: { quantity: number }) => sum + item.quantity, 0) || 0;
+	// One shared cart cache: mutations update the badge without a poll or reload.
+	const { itemCount: cartCount, refreshCart: mutateCart } = useCart();
 
 	// Real-time cart updates via Pusher
 	usePusher<{ userId: string }>(

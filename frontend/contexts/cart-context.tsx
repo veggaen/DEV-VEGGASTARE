@@ -31,6 +31,7 @@ interface CartContextType {
   updateQuantity: (itemId: string, changeType: "increment" | "decrement") => Promise<boolean>;
   clearCart: () => Promise<boolean>;
   refreshCart: () => Promise<void>;
+  syncCart: (items: CartItem[]) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -189,6 +190,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         updateQuantity,
         clearCart,
         refreshCart,
+        syncCart: setItems,
       }}
     >
       {children}

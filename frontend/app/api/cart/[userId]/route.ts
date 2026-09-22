@@ -92,7 +92,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const cart = await dbPrisma.cart.findUnique({
       where: { userId },
-      include: { CartItem: { include: { Product: true } } },
+      // PostgreSQL row order is not stable after an update unless requested.
+      include: { CartItem: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], include: { Product: true } } },
     });
 
     if (!cart) {
