@@ -1083,7 +1083,9 @@ function ProductDetails({ product }: { product: Product }) {
             <div key={idx} className="flex justify-between gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm ">
               <dt className="text-sm text-muted-foreground">{spec.key}</dt>
               <dd className="text-right text-sm font-medium text-foreground">
-                {spec.value}
+                {spec.key.trim().toLowerCase() === 'price'
+                  ? <PriceAmount amount={product.price} currency={product.priceCurrency || 'USD'} />
+                  : spec.value}
                 {spec.key === "Weight" && " g"}
                 {["Height", "Length", "Width"].includes(spec.key) && " cm"}
               </dd>

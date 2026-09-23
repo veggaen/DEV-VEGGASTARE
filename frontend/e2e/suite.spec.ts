@@ -46,6 +46,9 @@ test('S7 global fiat and crypto selection persists across shopping, receipt and 
     await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1, EUR: 1.1 }, fresh: true }, crypto: { prices: { ETH: 2000, BTC: 100000 }, fresh: true } } }));
     await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-product-price]')).toContainText(/USD\s*3\.90\s*\(0\.00195 ETH\)/);
+    const specificationPrice = page.locator('dt').filter({ hasText: /^Price$/ }).locator('..');
+    await expect(specificationPrice).toContainText(/USD\s*3\.90\s*\(0\.00195 ETH\)/);
+    await expect(specificationPrice).not.toContainText('NOK');
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) await consent.click();
     const trigger = page.getByRole('button', { name: /^Display currency:/ });
