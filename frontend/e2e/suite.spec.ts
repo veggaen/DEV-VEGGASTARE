@@ -1412,11 +1412,25 @@ test.describe("Layer 3 — Content", () => {
         const triggerBox = await trigger.boundingBox();
         expect(triggerBox!.height).toBeGreaterThanOrEqual(44);
         expect(await page.getByRole('checkbox', { name: /^Digital art /i }).count()).toBe(0);
-        const background = await page.locator('[data-app-scroll-container]').evaluate(e => e.scrollTop);
+        // locator.click may scroll its trigger into view after a viewport change.
+        // Capture the actual pointer-down position so that movement is distinct
+        // from opening the drawer or leaking wheel gestures through it.
+        const beforeAction = await page.locator('[data-app-scroll-container]').evaluate(e => e.scrollTop);
+        await trigger.evaluate(button => button.addEventListener('pointerdown', () => {
+          const scroller = document.querySelector('[data-app-scroll-container]');
+          scroller?.setAttribute('data-scroll-at-pointer', String(scroller.scrollTop));
+        }, { once: true }));
         await trigger.click();
+        const pointerScroll = await page.locator('[data-app-scroll-container]').getAttribute('data-scroll-at-pointer');
+        expect(pointerScroll).not.toBeNull();
+        const background = Number(pointerScroll);
+        expect(Number.isFinite(background)).toBe(true);
         const panel = page.getByRole('dialog', { name: 'Product filters', exact: true });
         await expect(panel).toBeVisible();
         await panel.evaluate(async e => { await Promise.all(e.getAnimations().map(a => a.finished.catch(() => {}))); });
+        const afterOpen = await page.locator('[data-app-scroll-container]').evaluate(e => e.scrollTop);
+        test.info().annotations.push({ type: 'filter-scroll', description: JSON.stringify({ viewport: size, beforeAction, atPointerDown: background, afterOpen }) });
+        expect(afterOpen).toBe(background);
         const scroller = panel.locator('[data-product-filter-scroll]');
         const box = await scroller.boundingBox();
         await page.mouse.move(box!.x + 20, box!.y + box!.height / 2);

@@ -511,7 +511,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   bottom scrolling finds a Contact section but no nearby contact action; the only
   GitHub link is above it. These are queued defects, not verified fixes.
 
-### Pricing and Info/contact (local verified; live verification pending)
+### Pricing and Info/contact (local/live verified; follow-up findings retained)
 
 - Reproduced Pricing's API-key CTA opening Profile instead of AI Keys, and its
   contact CTA targeting a nonexistent fragment. Added focused regressions before
@@ -583,6 +583,24 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Register's only H1 is hidden below `lg`; the form title is an H2. Products also
   lacks a semantic page H1. These are queued separately from Pricing/Info, not
   counted as fixed by this slice.
+- Release `69b28f5` / `dpl_FPtEEKqcze5djFprwV1QLvTSxUW3` is READY at
+  www.veggat.com. First live batch **15/16**: all new Pricing/Info tests and
+  Pulse regressions passed, but Product filters recorded an 11px background
+  difference between pre-click and post-wheel samples. Manual tracing found
+  movement around the click, not the wheel gestures. Three unchanged repeats
+  then passed. The test now records pointer-down separately and independently
+  requires no movement on drawer opening or wheel scrolling. Five instrumented
+  live repetitions (**6/6** with setup, 40.7s) recorded 0 -> 0 -> 0 at all three
+  sizes; local counterpart **2/2** (9.4s). This does not conclusively explain the
+  original intermittent movement, which remains tracked for the Products audit.
+  Final combined live verification **16/16** (1.7m, including setup) passes on
+  the same release. Phone Contact reload/footer and ultrawide Pricing visuals
+  were inspected; document scroll stays 0, the demo notice remains visible and
+  the 1280px canvas is centered at 2560px. Private screenshots are retained in
+  `.private-showcase/responsive-audit/`; they are excluded from deployment/git.
+- Visual follow-up: Pricing's middle price starts 20px above the other cards
+  because descriptions wrap differently. A browser-only subgrid experiment
+  aligned all three prices; that refinement is not yet in source or deployed.
 
 ## Research references
 

@@ -273,7 +273,7 @@ member-to-member delivery remains separate from the mocked error test.
   Whole-app audit, real Chrome access, physical keyboard and 125% browser zoom
   remain incomplete. Next: verified Pricing/Info link defects and remaining routes.
 
-## S7/S8 — Pricing, Info and shell scrolling (local verified; deployment pending)
+## S7/S8 — Pricing, Info and shell scrolling (local/live verified)
 
 - Server-rendered Info now presents the marketplace story, free demo flow,
   architecture and a real Contact section. Pricing links to the correct AI Keys
@@ -286,7 +286,16 @@ member-to-member delivery remains separate from the mocked error test.
 - Production build/TypeScript/touched lint pass; helper units **9/9**. Local
   browser **16/16** (1.6m, including setup): all eight target sizes, real scrolling,
   links/auth callback, delayed scripts, Pulse/footer, Products, Settings, AI,
-  Messages and hydration. Live deployment/verification is the next step.
+  Messages and hydration. Release `69b28f5` /
+  `dpl_FPtEEKqcze5djFprwV1QLvTSxUW3` is READY at www.veggat.com. Final combined
+  live browser **16/16** (1.7m) passes. Live Contact reload/footer and 2560px
+  Pricing visuals confirm a stationary document and centered 1280px canvas.
+- First live batch was 15/16: an intermittent 11px Product-filter background
+  difference was measured across the whole click sequence. Follow-up separates
+  pointer-down from drawer opening and wheel input; five live repetitions
+  **6/6** with setup and local **2/2** pass with zero movement at each stage.
+  Original intermittent movement remains in the audit, not silently discarded.
+  Pricing card price baselines also have a small remaining alignment refinement.
 - Owner Chrome remains unavailable after a fresh inventory and open-tab attempt.
   Full-app completion, physical keyboard/125% Chrome zoom, paid checkout and
   owner OAuth consent are not claimed. Remaining auth-page layout and AI Keys
