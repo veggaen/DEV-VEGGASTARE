@@ -115,7 +115,9 @@ geometry scans are triage, not a substitute for viewing the screenshots.
   trigger focus. Toolbar targets are named and 44px, and the responsive breakpoint
   matches the shell. Actual Digital Art selection/reset and visual review passed.
   Focused local S3/S7 run: **5/5 including setup in 42.9s**. Build/TypeScript and
-  touched-file lint passed. These latest filter/detail changes await live checks.
+  touched-file lint passed. Final live S3/S7/S8 **6/6 including setup in 1.0m**,
+  release `6b8adc1` / `dpl_ABEFDCXREp97puGonJb9PzvkFFqp`. Live warehouse phone
+  screenshot also confirmed a 44px refresh button and no horizontal overflow.
 - Ignored evidence directory: `frontend/.private-showcase/responsive-audit/`
   (`core-local`, `all-local`). Never commit storageState, private URLs or tokens.
 - Lab timings are diagnostic only, not field Speed Insights or a claimed Core

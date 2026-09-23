@@ -76,7 +76,23 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   GET: local read/refresh/back navigation passed at 360/390/1280/2560; S8 regression
   2/2 including setup. Product filter Sheet/focus/scroll and category selection
   passed at 360/390/short landscape; focused local S3/S7 5/5 in 42.9s. Production
-  build/TypeScript and touched-file lint passed. Latest fixes await live checks.
+  build/TypeScript and touched-file lint passed. Final live S3/S7/S8 run **6/6**
+  including setup in 1.0m, release `6b8adc1` / `dpl_ABEFDCXREp97puGonJb9PzvkFFqp`.
+  Live warehouse phone screenshot confirmed a 44px refresh target and no overflow.
+
+## S5 — Atomic credit foundation (PARTIAL, not connected to live chat)
+
+- Added reservation/refund state machine, one-time isolated demo grant, environment
+  separation, daily quota and an independent bounded platform budget. No owner bypass.
+- Real PostgreSQL tests in a disposable schema: concurrent last-credit spends,
+  duplicate requests/refunds, interrupted reservation recovery, concurrent demo
+  grants, exhausted budget, BYOK and database constraints. **19/19 tests passed**;
+  touched-file lint and TypeScript passed. Temporary schema was removed; no real
+  balance/order/provider call was touched.
+- Migration tested only in the isolated schema. Runtime integration, cost/model
+  allowlist, all provider-call paths, streaming settlement and the UI are still
+  pending. Existing public chat is unchanged; do not claim the fuse protects it yet.
+- See [AI credit safety](ai-credit-safety.md) for invariants and remaining gates.
 
 ## Feature scoreboard
 
@@ -93,7 +109,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 | Shop | Confirmation, signed download | PARTIAL — local/live demo receipt and actual JPG/TXT downloads pass; anonymous 401 and idempotent replay pass; paid verification blocked on PayPal keys |
 | Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — seeded at 29/39 NOK; paid fulfillment pending |
 | AI | Chat, selector, streaming | DONE (previous deployment) — local/live Gemini, Groq, OpenAI/Grok one-time-key UI tests |
-| AI | Credit debit, zero balance, no overcharge | PARTIAL — existing premium denial tested; atomic ledger/fuse not implemented |
+| AI | Credit debit, zero balance, no overcharge | PARTIAL — atomic ledger/fuse foundation passes 19 tests; not yet wired into provider paths/UI or deployed |
 | Wallets | Connect UI, no crash | PARTIAL — actual connect/disconnect/missing-config tests pending |
 | Platform | Public homepage | DONE — S1 verified locally and live |
 | Platform | Consent controls Analytics/Speed Insights | DONE — no scripts before consent/Essential Only; both 200 after opt-in; real visitor metrics pending |

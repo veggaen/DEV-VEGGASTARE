@@ -59,6 +59,7 @@ model AiCreditAccount {
   updatedAt DateTime @updatedAt
   User      User     @relation(fields: [userId], references: [id])
   Entries   AiCreditEntry[]
+  Reservations AiGenerationReservation[]
 
   @@unique([userId, environment])
 }
@@ -73,6 +74,30 @@ model AiCreditEntry {
   Account   AiCreditAccount @relation(fields: [accountId], references: [id])
 
   @@index([accountId, createdAt])
+}
+
+// Conservative provider-cost ceiling, shared by local/preview/live when the DB
+// is shared. Refunding a customer never replenishes this independent fuse.
+model AiPlatformSpendDay {
+  date             DateTime @id @db.Date
+  reservedMicroUsd Int      @default(0)
+  requests         Int      @default(0)
+}
+
+model AiGenerationReservation {
+  id               String   @id @default(uuid())
+  requestKey       String   @unique
+  accountId        String?
+  provider         String
+  model            String
+  credits          Int
+  reservedMicroUsd Int
+  state            String   @default("RESERVED")
+  createdAt        DateTime @default(now())
+  settledAt        DateTime?
+  Account          AiCreditAccount? @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, state, createdAt])
 }
 
 model Account {
