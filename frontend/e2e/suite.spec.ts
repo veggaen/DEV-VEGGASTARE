@@ -484,27 +484,30 @@ test('S2 — auth layouts, fields, theme and scrolling stay usable from phone to
       // for its actual arrival; an early isVisible() can miss the later overlay.
       if (route === 'login') await expect(consent).toBeVisible();
       if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
-      const site = page.locator('[data-site-scroll]');
+      // Next's streamed response can briefly retain an inert hidden shell.
+      // Audit the one visible scroller, never an arbitrary first DOM match.
+      const site = page.locator('[data-site-scroll]:visible');
+      await expect(site).toHaveCount(1);
       for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
         test.info().annotations.push({ type: 'auth-viewport', description: `${route}: ${size.width}x${size.height}` });
         await page.setViewportSize(size);
         await site.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
-        await expect(page.locator('main h1')).toBeInViewport();
+        await expect(site.getByRole('heading', { level: 1 })).toBeInViewport();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('main, [data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
-        const measurements = await page.locator('main input:not([type=hidden])').evaluateAll(xs => xs.map(x => ({ labels: (x as HTMLInputElement).labels?.length ?? 0, height: x.getBoundingClientRect().height, font: parseFloat(getComputedStyle(x).fontSize) })));
+        const measurements = await site.locator('main input:not([type=hidden])').evaluateAll(xs => xs.map(x => ({ labels: (x as HTMLInputElement).labels?.length ?? 0, height: x.getBoundingClientRect().height, font: parseFloat(getComputedStyle(x).fontSize) })));
         for (const field of measurements) { expect(field.labels).toBeGreaterThan(0); expect(field.height).toBeGreaterThanOrEqual(48); expect(field.font).toBeGreaterThanOrEqual(16); }
-        const card = page.locator('[data-auth-card]');
+        const card = site.locator('[data-auth-card]');
         if (await card.count()) {
           const box = await card.boundingBox();
           expect(Math.abs(box!.x + box!.width / 2 - size.width / 2)).toBeLessThan(2);
           expect(box!.width).toBeLessThanOrEqual(448);
         }
-        const canvas = page.locator('[data-auth-canvas]');
+        const canvas = site.locator('[data-auth-canvas]');
         if (await canvas.count()) expect((await canvas.boundingBox())!.width).toBeLessThanOrEqual(1280);
-        await expect(page.locator('footer')).not.toBeInViewport();
+        await expect(site.locator('footer')).not.toBeInViewport();
         await page.mouse.move(size.width / 2, size.height - 30);
         await page.mouse.wheel(0, 7000);
-        await expect(page.locator('footer')).toBeInViewport();
+        await expect(site.locator('footer')).toBeInViewport();
         await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
         await page.mouse.wheel(0, -7000);
         await expect.poll(() => site.evaluate(e => e.scrollTop)).toBe(0);

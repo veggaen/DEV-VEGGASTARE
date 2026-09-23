@@ -355,7 +355,7 @@ member-to-member delivery remains separate from the mocked error test.
   owner OAuth consent are not claimed. Remaining auth-page layout and AI Keys
   management findings are recorded in the responsive audit.
 
-## S7 — Shared session first paint (local verified; live pending)
+## S7 — Shared session first paint (local/live verified; speed work remains)
 
 - Root SSR initializes the existing SessionProvider from verified Auth.js state.
   Demo banner/Pulse composer no longer appear after scrolling begins. The page
@@ -376,10 +376,19 @@ member-to-member delivery remains separate from the mocked error test.
   early click before hydration. Navigation/demo-exit now stay disabled until
   their handlers attach. Both new slow-script cases failed on the old build,
   then pass with the fix; local combined follow-up **22/22** and repeated
-  auth/scroll/voice units **33/33** pass. Live follow-up remains pending.
+  auth/scroll/voice units **33/33** pass. Live follow-up is recorded below.
 - First post-deploy live Pulse FCP was 5.38s; subsequent full-HTML requests were
   817/285/261ms. Cold-start/server bundle work remains a real speed finding,
   not hidden by local warm timings. Actual deployment runtime is arn1.
+- Final app release `1c4de5c` / `dpl_98ErvyrqpWrqcPRRfjmvXTgdDzBD` is READY at
+  www.veggat.com. Final combined live browser **24/24** (2.4m) passes, including
+  real account recovery/2FA, private-session caching, both held-script cases,
+  eight-size scrolling, Settings/AI/Messages/profile and marketplace flow.
+  The preceding **21/22** run hit a transient duplicate DOM locator in a streamed
+  auth page; the audit now requires one visible scroller and scopes its geometry
+  there. Exact dimensions/scroll assertions and browser-error checks remain.
+  Local/live frontend health and anonymous local backend health are 200.
+  Corrected auth-layout local repetitions **3/3** pass (32.4s including setup).
 
 | Area | Feature | Status / evidence |
 | --- | --- | --- |

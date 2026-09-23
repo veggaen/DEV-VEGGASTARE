@@ -802,7 +802,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   copy and inconsistent canvas/border tokens. No owner controls, payments or
   extra AI credit grants were invoked during this cart audit.
 
-## Shared session first-paint follow-up (local verified; live pending)
+## Shared session first-paint follow-up (local/live verified; speed work remains)
 
 - The server now passes its verified Auth.js session into the existing provider
   tree. Demo chrome and the Pulse composer no longer depend on a client session
@@ -823,7 +823,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   eight-size cart/catalog/Pulse scrolling, auth layout, Settings, AI, Messages,
   profile and the real marketplace cart flow. Real register/verify/reset/replay/
   revocation/login/logout/2FA plus OAuth-origin checks also pass **3/3** (14s).
-  Live verification remains pending.
+  Subsequent live verification is recorded below.
 - Before-change warm local full-HTML round trips (three sequential samples,
   not TTFB/field CWV): guest Products 7/7/9ms, Pulse 5/6/5ms; demo Products
   10/9/9ms, Pulse 8/6/7ms, cart 6/7/6ms. These previously shared-cached bodies
@@ -851,7 +851,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   navigation, the global menu and demo exit now share hydration-safe disabled
   states. Corrected local production build/TypeScript, touched lint, combined
   browser **22/22** and auth/scroll/voice units **33/33** pass. Live follow-up
-  remains pending.
+  is recorded below.
 - Live actual feed: scrolled through the filtered batches, used Check more posts,
   reached the end marker and then the footer; the footer stayed hidden while
   further batches remained. A first screenshot during scrolling did not paint
@@ -867,6 +867,20 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - Ultrawide Pulse content remains centered/bounded with no page overflow, but
   the shared topbar uses a wider canvas than the 1280px body. Cross-route chrome
   alignment and persistent desktop navigation remain separate unfinished work.
+- Follow-up release `1c4de5c` / `dpl_98ErvyrqpWrqcPRRfjmvXTgdDzBD` is READY.
+  First combined live pass **21/22**: navigation is fixed, but the auth-layout
+  test's unscoped DOM locator matched two scroller copies during the streamed
+  reset page. It now scopes geometry/scroll checks to the visible scroller and
+  requires exactly one visible match (not `.first()` or relaxed dimensions).
+  A separate warm login/register/reset DOM observation saw one visible shell
+  throughout and did not reproduce the transient duplicate; no visible duplicate
+  page is claimed. Final combined live rerun **24/24** passes (2.4m), including
+  real recovery/2FA, private cache boundaries, both slow-script cases, eight-size
+  scrolling and marketplace flow. Phone Settings drawer was visually inspected
+  after its transition and Escape returns focus correctly. Local/live frontend
+  health and fresh anonymous local Hapi health are 200. Whole-app completion,
+  physical phone keyboard/Chrome zoom and cold-start speed are not claimed.
+  Corrected auth-layout local repetitions **3/3** pass (32.4s including setup).
 
 ## Research references
 
