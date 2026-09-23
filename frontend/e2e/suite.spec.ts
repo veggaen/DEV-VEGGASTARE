@@ -22,9 +22,13 @@ test('S7 — cart layout, exact currency and scrolling work at eight sizes', asy
     // late demo-notice shift is recorded in the shared-shell audit backlog.
     await expect(page.getByRole('button', { name: 'Exit demo', exact: true })).toBeVisible();
     const before = await page.getByRole('heading', { name: 'Your cart', exact: true }).boundingBox();
+    const skeletonRow = await page.getByRole('status', { name: 'Loading cart', exact: true }).locator('[aria-hidden="true"]').first().locator(':scope > div').first().boundingBox();
     release();
     const rows = page.getByRole('region', { name: 'Cart items', exact: true }).getByRole('listitem');
     await expect(rows).toHaveCount(2);
+    const loadedRow = await rows.first().boundingBox();
+    expect(Math.abs(loadedRow!.y - skeletonRow!.y)).toBeLessThanOrEqual(2);
+    expect(Math.abs(loadedRow!.height - skeletonRow!.height)).toBeLessThanOrEqual(2);
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
     expect((await page.getByRole('heading', { name: 'Your cart', exact: true }).boundingBox())!.y).toBe(before!.y);
@@ -2136,6 +2140,9 @@ test.describe("Layer 3 — Content", () => {
       await page.goto('/pulse', { waitUntil: 'domcontentloaded' });
       const feed = page.getByRole('feed', { name: 'Pulse feed' });
       await expect(feed).toHaveAttribute('aria-busy', 'false');
+      // This case isolates pagination from the separately recorded late-auth
+      // composer/banner shift (63px/53px). Establish the retained session first.
+      if (process.env.E2E_DEMO_STORAGE_STATE) await expect(page.getByRole('button', { name: 'Exit demo', exact: true })).toBeVisible();
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
       if (await consent.isVisible()) await consent.click();
       await expect(page.locator('footer')).toBeHidden();

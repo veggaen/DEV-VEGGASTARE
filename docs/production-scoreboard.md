@@ -46,7 +46,12 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   content. Successful edits no longer require another GET. Focused units 11/11,
   touched-file lint and corrected production build/TypeScript pass. Initial
   browser batch 6/8, corrected new tests 3/3; combined local regression **8/8**
-  (40.2s), expanded cart/scroll units **20/20**. Live release check pending.
+  (40.2s), expanded cart/scroll units **20/20**. Release `176fc7a` /
+  `dpl_5HGMUdQXeZbQEsvuFuKCBJwNKzch` is READY at www.veggat.com. Live first
+  batch **7/8** exposed the separate late-auth Pulse composer shift; after
+  explicitly establishing auth for pagination-only checks, the combined live
+  regression **8/8** passes (46.8s). Auth-delay geometry remains an open defect,
+  not a claimed repair. Local pagination isolation recheck **3/3** passes.
   Separate 53px late-demo-banner shift remains explicitly tracked in
   the responsive audit. No payment or credit grant performed.
 

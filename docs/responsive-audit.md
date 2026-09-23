@@ -39,6 +39,14 @@ Each result records route, session type, viewport, top/middle/bottom observation
 navigation/control coverage, defects, and screenshot/report paths. Automated
 geometry scans are triage, not a substitute for viewing the screenshots.
 
+The renewed research pass also uses W3C's evaluation methodology to distinguish
+page inventories from complete processes and state coverage. Its accessibility
+methodology does not replace payment/security QA or justify a whole-site WCAG
+claim from a sample. Playwright's user-visible locators and isolated contexts
+support repeatable interactions; full owner/provider sessions and physical-device
+behavior remain separate evidence. Layout-shift investigations include late
+auth chrome, not just image dimensions or skeleton-to-content measurements.
+
 ## Current findings
 
 - `frontend/components/checkout/payment-verification.tsx`: crash left the entire
@@ -750,11 +758,44 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   batch **8/8** passes (40.2s), including real demo cart persistence/quantity/
   removal/badge and catalog Buy-now to checkout, plus Pulse/drawer regressions.
   Expanded cart/scroll units **20/20** pass.
+- Additional skeleton geometry assertion passes **2/2** with setup locally:
+  loaded first-row position/height stays within 2px of its placeholder. Local
+  light mode was selected through Settings → Appearance, then the cart and
+  footer were visually checked; actual page wheel reaches the 221px boundary.
+  The drawer's quick appearance buttons are behind a hover face on touch and
+  need a separate keyboard/touch audit; clicking its visible Appearance card
+  correctly opens the full settings route.
 - Remaining shared-shell finding: `DemoSessionNotice` inserts 53px after the
   client session resolves on hard load. Cart geometry is stable after that
   chrome resolves, but this is **not** a zero-CLS claim. A shared SSR/session
   solution needs its own auth/cache regression pass; do not hide this finding
   by merely loosening the cart assertion.
+- Live cart release `176fc7a` / `dpl_5HGMUdQXeZbQEsvuFuKCBJwNKzch` is READY
+  at www.veggat.com. Initial live batch **7/8**: cart cases passed, but phone
+  Pulse pagination recorded a 63px scroll-offset change. Three unchanged
+  repetitions then passed (**4/4** with setup). A controlled delayed-session
+  browser experiment established the cause: before auth scrollTop=2000,
+  clientHeight=772, scrollHeight=3245; after auth scrollTop=2063,
+  clientHeight=719, scrollHeight=3308. The signed-in composer grows 63px and the
+  demo notice occupies 53px. This is a genuine shared auth-layout defect, not
+  a pagination failure or a claimed fix. The pagination case now explicitly
+  establishes its retained demo session; shared first-paint work remains open.
+- Final combined live regression **8/8** passes (46.8s) with that scope; local
+  pagination recheck **3/3** passes (5.0s). Live phone and ultrawide cart visuals
+  were inspected, including the actual footer scroll: 1280px canvas centered at
+  x=640 on 2560px, document scrollY=0, no uncaught browser errors. The full app
+  is still PARTIAL, especially the confirmed late-auth shift and owner-only
+  PayPal/OAuth/Railway prerequisites. Production and local frontend health 200.
+- Backend health check distinguishes contexts: anonymous `/v1/health` is 200,
+  but a request carrying the frontend browser's localhost cookies returns 400
+  `Invalid cookie value`. This is a separate Hapi cookie-parsing compatibility
+  finding; do not relax authentication or call the service down from that one
+  request. Railway deployment still needs owner authorization.
+- On the unchanged live release, a settled loading-to-error experiment kept
+  scrollTop=2351 and the last article's y=585.375 unchanged; only the bottom
+  status/error panel size differed. Local actual cart → checkout → back → add
+  the second SKU → checkout showed the updated two-line quote, not a stale
+  prefetch. No checkout was submitted.
 - Remaining PDP/checkout audit: pending duplicate Add/Buy lock; generic digital
   delivery copy incorrectly implies files for AI credits; forced dark PDP error
   colors; delayed below-fold sections; checkout's unqualified download-expiry
@@ -764,6 +805,9 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
+- [W3C evaluation methodology: scope, states and complete processes](https://www.w3.org/TR/WCAG-EM/)
+- [W3C preliminary checks and their limits](https://www.w3.org/WAI/test-evaluate/preliminary/)
+- [Playwright user-visible testing and isolation](https://playwright.dev/docs/best-practices)
 - [WCAG 2.2 Reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html)
 - [Focus not obscured](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html)
 - [Target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)
