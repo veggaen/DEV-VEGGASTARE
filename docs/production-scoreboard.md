@@ -6,8 +6,9 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 - Shared `PriceAmount` renders selected fiat followed only by selected crypto in
   parentheses. `NONE` removes the secondary amount. Product listings/PDP, cart,
-  mini-cart, checkout, receipts, orders, company storefronts, pricing and shipping
-  estimates use it. Seller/company APIs expose stored order currency, rather
+  mini-cart, checkout, receipts, orders, company storefronts, pricing, job budgets
+  and shipping estimates use it. Mixed listing currencies convert separately
+  into one display subtotal. Seller/company APIs expose stored order currency, rather
   than assuming historical orders were NOK. Unknown currencies/rates are not
   silently valued at 1 USD. Original captured amounts remain unchanged and are
   available under receipt payment details; display conversions are not quotes.
@@ -17,7 +18,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   two-part selection, bounded scrolling and an explicit Done action replace the
   old closing-on-every-selection menu. Mobile now has the header selector too.
 - Formatter tests **18/18**, expanded currency/history/order/payment tests
-  **76/76**, touched lint and strict local/Preview builds pass. Real Chrome
+  **81/81**, touched lint and strict local/Preview builds pass. Real Chrome
   confirms USD (ETH) / NOK (ETH), checkout, actual Sandbox order details and the
   existing paid receipt without another payment. Browser regression found and
   fixed the hidden mobile selector and an early click before hydration. Final

@@ -43,7 +43,7 @@ test('S7 global fiat and crypto selection persists across shopping, receipt and 
       }
       localStorage.removeItem('veggastare_currency_rates');
     });
-    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1 }, fresh: true }, crypto: { prices: { ETH: 2000, BTC: 100000 }, fresh: true } } }));
+    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1, EUR: 1.1 }, fresh: true }, crypto: { prices: { ETH: 2000, BTC: 100000 }, fresh: true } } }));
     await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-product-price]')).toContainText(/USD\s*3\.90\s*\(0\.00195 ETH\)/);
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
@@ -134,6 +134,24 @@ test('S7 global fiat and crypto selection persists across shopping, receipt and 
     await expect(page.getByRole('heading', { name: 'Your demo order is ready', exact: true })).toBeVisible();
     await expect(page.getByRole('list', { name: 'Receipt items', exact: true }).locator('[data-price-display]').first()).toContainText('ETH)');
     await page.screenshot({ path: 'test-results/currency-receipt-390.png' });
+    // Read-only browser fixtures cover unlike listing currencies; never edit a real cart.
+    const savedCart = await (await context.request.get(`/api/cart/${session.user.id}`)).json();
+    const fixtureItem = savedCart.items[0];
+    await page.route(`**/api/cart/${session.user.id}`, route => route.request().method() !== 'GET' ? route.abort() : route.fulfill({ json: { ...savedCart, items: [
+      { ...fixtureItem, quantity: 1, product: { ...fixtureItem.product, price: 39, priceCurrency: 'NOK' } },
+      { ...fixtureItem, id: 'qa-eur-row', quantity: 1, product: { ...fixtureItem.product, id: 'qa-eur-product', title: 'Euro display fixture', price: 2, priceCurrency: 'EUR' } },
+    ] } }));
+    await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+    const mixedSummary = page.getByRole('region', { name: 'Cart summary', exact: true });
+    await expect(mixedSummary.locator('[data-price-display]')).toHaveCount(1);
+    await expect(mixedSummary).toContainText(/USD\s*6\.10\s*\(0\.00305 ETH\)/);
+    await expect(mixedSummary).not.toContainText('NOK'); await expect(mixedSummary).not.toContainText('EUR');
+    await expect(page.getByRole('button', { name: 'Proceed to checkout', exact: true })).toBeDisabled();
+    await page.route('**/api/job-requests/currency-qa', route => route.fulfill({ json: { id: 'currency-qa', title: 'Currency display QA', descriptions: ['Read-only budget fixture'], images: [], links: [], docs: [], price: 24, negotiable: false, paymentMethod: null, delivery: null, additionalNotes: null, createdAt: '2026-09-23T12:00:00Z', user: { id: session.user.id, name: 'Demo reviewer', image: null } } }));
+    await page.goto('/jobs/currency-qa', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Currency display QA', exact: true })).toBeVisible();
+    await expect(page.locator('main [data-price-display]')).toHaveCount(2);
+    for (const budget of await page.locator('main [data-price-display]').all()) await expect(budget).toContainText(/USD\s*24\.00\s*\(0\.012 ETH\)/);
     expect(errors).toEqual([]);
   } finally { await context.close(); }
 });

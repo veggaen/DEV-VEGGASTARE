@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import PriceAmount from '@/components/crypto-related/PriceAmount';
 import { formatDistanceToNow, format } from 'date-fns';
 import { FiArrowLeft, FiExternalLink, FiFileText, FiTruck, FiDollarSign, FiMessageSquare } from 'react-icons/fi';
 
@@ -183,7 +184,7 @@ export default function JobDetailPage() {
               )}
               {jobRequest.price && (
                 <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-600 dark:text-indigo-300">
-                  Budget: ${jobRequest.price}
+                  Budget: <PriceAmount usd={jobRequest.price} />
                 </span>
               )}
               {jobRequest.delivery && (
@@ -279,7 +280,7 @@ export default function JobDetailPage() {
                     <FiDollarSign className="h-4 w-4 text-zinc-400 dark:text-white/40" />
                     <div>
                       <p className="text-zinc-500 dark:text-white/50">Budget</p>
-                      <p className="text-zinc-800 dark:text-white/90">${jobRequest.price}</p>
+                      <p className="text-zinc-800 dark:text-white/90"><PriceAmount usd={jobRequest.price} /></p>
                     </div>
                   </div>
                 )}

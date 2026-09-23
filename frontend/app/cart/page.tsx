@@ -1,6 +1,6 @@
 "use client";
 
-/** @fileOverview Accessible, responsive cart with row-isolated updates and original-currency totals. @stability stable */
+/** @fileOverview Responsive cart with row-isolated updates and globally selected display totals. @stability stable */
 import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,7 @@ import { useCart } from "@/contexts/cart-context";
 import { useCartPage } from "@/hooks/use-cart-page";
 import { cartCurrencyTotals } from "@/lib/cart-display";
 import PreferredMoney from '@/components/checkout/preferred-money';
+import { PriceTotal } from '@/components/crypto-related/PriceAmount';
 import { isShowcaseProduct } from "@/lib/showcase-catalog";
 import CartSkeleton, { CartHeader, cartCanvas, cartColumns } from "@/components/checkout/cart-skeleton";
 
@@ -80,9 +81,9 @@ export default function CartPage() {
         <h2 className="text-lg font-semibold">Summary</h2>
         <dl className="mt-5 space-y-4 text-sm">
           <div className="flex items-baseline justify-between gap-3"><dt className="text-muted-foreground">Items</dt><dd className="tabular-nums">{items.reduce((sum, item) => sum + item.quantity, 0)}</dd></div>
-          {totals ? totals.map(total => <div key={total.currency} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-4">
-            <dt className="font-medium">{totals.length > 1 ? `${total.currency} subtotal` : "Subtotal"}</dt><dd className="text-xl font-semibold tabular-nums"><PreferredMoney currency={total.currency} amount={items.filter(item => (item.product.priceCurrency ?? 'USD') === total.currency).reduce((sum, item) => sum + item.product.price * item.quantity, 0)} /></dd>
-          </div>) : <div><dt>Subtotal</dt><dd>Price unavailable. Refresh your saved cart.</dd></div>}
+          {totals ? <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-4">
+            <dt className="font-medium">Subtotal</dt><dd className="text-xl font-semibold tabular-nums"><PriceTotal entries={items.map(item => ({ amount: item.product.price * item.quantity, currency: item.product.priceCurrency ?? 'USD' }))} /></dd>
+          </div> : <div><dt>Subtotal</dt><dd>Price unavailable. Refresh your saved cart.</dd></div>}
         </dl>
         {!supported ? <p className="mt-4 text-sm leading-6 text-muted-foreground">Checkout is currently available for the Interview Pack and Interviewer AI Credits. Remove other listings to continue.</p>
           : !validQuantities && <p className="mt-4 text-sm leading-6 text-muted-foreground">Reviewer checkout supports one of each product. Set each quantity to 1 to continue.</p>}
