@@ -9,7 +9,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { FaFileUpload } from "react-icons/fa";
 import { FiXCircle, FiPlus, FiTrash2, FiLink, FiFileText, FiTruck, FiMessageSquare, FiDollarSign, FiChevronDown, FiChevronUp } from "react-icons/fi";
-import { useCurrentUser } from '@/hooks/use-current-user';
+import { useCurrentUser, useCurrentUserWithStatus } from '@/hooks/use-current-user';
+import { isDemoUserId } from '@/lib/demo-policy';
+import { Button } from '@/components/ui/button';
 import { useEdgeStore } from '@/lib/edgestore';
 import { ImageHandlerJobAsk } from '@/components/uicustom/company/img-handler-job-ask';
 
@@ -37,9 +39,26 @@ interface FormData {
   [key: string]: any;
 }
 
-const LOG_PREFIX = '[frontend/app/(protected)/jobs/post/page.tsx]';
-
 export default function PostJobPage() {
+  const { user, isLoading } = useCurrentUserWithStatus();
+  if (isLoading) return <p role="status" className="mx-auto max-w-3xl px-4 py-12 text-muted-foreground">Loading your session…</p>;
+  if (!user || isDemoUserId(user.id)) return (
+    <section className="mx-auto w-full max-w-3xl space-y-5 px-4 py-10 sm:px-6">
+      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Experimental · Job board</p>
+      <h1 className="text-balance text-3xl font-semibold">{user ? 'Request publishing preview' : 'Sign in to post a request'}</h1>
+      <p className="text-muted-foreground">{user
+        ? 'The demo is read-only here. Browse requests freely; use your own account to publish a request or upload files. Nothing will be posted from this demo.'
+        : 'Use your own account to publish a request. The request board does not process project payments.'}</p>
+      <div className="flex flex-wrap gap-3">
+        <Button asChild variant="outline" className="min-h-11"><Link href="/jobs">Back to requests</Link></Button>
+        {!user && <Button asChild className="min-h-11"><Link href="/auth/login?callbackUrl=%2Fjobs%2Fpost">Sign in</Link></Button>}
+      </div>
+    </section>
+  );
+  return <PostJobForm />;
+}
+
+function PostJobForm() {
   const reduceMotion = useReducedMotion();
   const user = useCurrentUser();
   const router = useRouter();
@@ -189,19 +208,14 @@ export default function PostJobPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || !user || isDemoUserId(user.id)) return;
     setIsSubmitting(true);
-    
-    console.log(LOG_PREFIX, 'User:', user);
-    console.log(LOG_PREFIX, 'FormData:', formData);
   
     try {
       const updatedImages = await Promise.all(
         formData.images.flat().map((image) => ImageHandlerJobAsk(image, edgestore))
       );
-      console.log(LOG_PREFIX, 'Updated images:', updatedImages);
   
-      if (!user) throw new Error('User not logged in');
       const response = await fetch('/api/job-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -214,18 +228,15 @@ export default function PostJobPage() {
       });
   
       const result = await response.json();
-      console.log(LOG_PREFIX, 'Job request submitted:', result);
   
       if (result.success) {
         toast.success('Job request submitted');
         router.push('/jobs');
       } else {
-        console.error(LOG_PREFIX, 'Error in job request submission:', result.error);
-        toast.error('Error submitting job request: ' + result.error);
+        toast.error('Could not publish your request. Review the fields and try again.');
       }
-    } catch (error) {
-      console.error(LOG_PREFIX, 'Error submitting job request:', error);
-      toast.error('Error submitting job request: ' + (error as Error).message);
+    } catch {
+      toast.error('Could not publish your request. Check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -277,6 +288,7 @@ export default function PostJobPage() {
         >
           {/* Header */}
           <header className="space-y-3 mb-10">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Experimental · Job board</p>
             <Link 
               href="/jobs" 
               className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors mb-4"

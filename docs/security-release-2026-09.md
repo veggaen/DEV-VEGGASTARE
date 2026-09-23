@@ -108,5 +108,24 @@ The new check reads the isolated database before/after and confirms that the
 credit account and ledger entries remain absent. Its first run matched a hidden
 streaming copy; scoping assertions to the main landmark fixed the test ambiguity.
 Real Chrome at 390px confirms the five-credit allowance, USD (ETH), receipt
-footer scrolling and matching history with no activity entries. Deployment
-verification is pending; production remains unchanged.
+footer scrolling and matching history with no activity entries.
+
+Candidate `d5d3bad`, deployment `dpl_31QwjyymHZVHk8UdGDQBT4v8MCTf`, is READY.
+The stable Preview alias was explicitly assigned and read back before testing.
+Deployed focused Playwright **7/7** passes in 58.4 seconds, including the
+before/after isolated-database assertions. Health is 200; unsigned capture
+notification is rejected with 401 `INVALID_SIGNATURE`. Real Chrome confirms
+the deployed NOK (ETH) to USD (ETH) selection keeps Ethereum, updates prices,
+and Done restores focus to the selector. Production remains unchanged.
+
+## Production-only backport — 24 September
+
+The exact dependency manifests were applied independently to production source
+`88729d0`, with no payment/UI/schema changes. Commit `37866d8`, deployment
+`dpl_7jL8ZAP6MDY5xRdEWCHJA2Sj4A5u`, is now READY on the production aliases.
+Production-source units **72/72**, strict local/Vercel builds, local browser
+**7/7** and live browser **6/6** pass. No database migrations were pending.
+Real Chrome retains the owner's signed-in live session; product navigation and
+390px catalog scrolling work. Health 200 and unsigned webhook 401 were verified.
+The newer showcase features remain Preview-only. The earlier statements that
+production was unchanged describe those candidate checks before this backport.

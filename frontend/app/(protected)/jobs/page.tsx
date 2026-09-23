@@ -1,269 +1,167 @@
 'use client';
+/** @fileOverview Accessible experimental request browser with account-scoped caching. @stability experimental */
 
-import { useEffect, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useMemo, useState } from 'react';
+import useSWR from 'swr';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { formatDistanceToNow } from 'date-fns';
-import { FancyBackground } from '@/components/uicustom/fancy-background';
-import { useUiPreferences } from '@/components/providers/ui-preferences';
+import { RefreshCw, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import PriceAmount from '@/components/crypto-related/PriceAmount';
+import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
+import { JobRequestsListResponseSchema } from '@/lib/types/job-requests';
 
-interface UserSummary {
-  id: string;
-  name: string | null;
-  image: string | null;
+async function fetchRequests([url]: readonly [string, string]) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(response.status === 401
+    ? 'Your session has expired. Sign in again to browse requests.'
+    : 'Check your connection and try again.');
+  const result = JobRequestsListResponseSchema.safeParse(await response.json());
+  if (!result.success) throw new Error('The request list is temporarily unavailable. Please try again.');
+  return result.data;
 }
 
-interface JobRequest {
-  id: string;
-  title: string;
-  user: UserSummary;
-  descriptions: string[];
-  images: string[];
-  links: string[];
-  docs: string[];
-  price: number | null;
-  negotiable: boolean | null;
-  paymentMethod: string | null;
-  delivery: string | null;
-  additionalNotes: string | null;
-  createdAt: string;
+const dateFormatter = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'UTC' });
+function requestDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Date unavailable' : dateFormatter.format(date);
 }
 
 export default function JobsPage() {
-  const reduceMotion = useReducedMotion();
-  const { prefs } = useUiPreferences();
-  const [jobRequests, setJobRequests] = useState<JobRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sortOption, setSortOption] = useState('newest');
-  const [filterText, setFilterText] = useState('');
+  const { user, isLoading: sessionLoading } = useCurrentUserWithStatus();
+  const searchParams = useSearchParams();
+  const search = searchParams.get('q') ?? '';
+  const sort = searchParams.get('sort') === 'oldest' ? 'oldest' : 'newest';
+  const [visibleCount, setVisibleCount] = useState(50);
+  // Never reuse another account's private/company requests after a session change.
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
+    user?.id ? ['/api/job-requests', user.id] as const : null,
+    fetchRequests,
+    { revalidateOnFocus: false, shouldRetryOnError: false },
+  );
+  const requests = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return (data ?? []).filter(job => !query
+      || job.title?.toLowerCase().includes(query)
+      || job.descriptions.some(description => description.toLowerCase().includes(query))
+      || job.additionalNotes?.toLowerCase().includes(query))
+      .sort((a, b) => {
+        const difference = (Date.parse(a.createdAt) || 0) - (Date.parse(b.createdAt) || 0);
+        return sort === 'oldest' ? difference : -difference;
+      });
+  }, [data, search, sort]);
+  const initialLoading = sessionLoading || (isLoading && !data);
 
-  useEffect(() => {
-    const fetchJobRequests = async () => {
-      try {
-        const response = await fetch('/api/job-requests');
-        if (!response.ok) throw new Error('Failed to fetch job requests');
-        const data = await response.json();
-        setJobRequests(data);
-      } catch (error) {
-        console.error('Error fetching job requests:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchJobRequests();
-  }, []);
-
-  const sortJobRequests = (requests: JobRequest[]) => {
-    return [...requests].sort((a, b) => {
-      if (sortOption === 'newest') {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      } else if (sortOption === 'oldest') {
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      }
-      return 0;
-    });
-  };
-
-  const filterJobRequests = (requests: JobRequest[]) => {
-    if (!filterText.trim()) return requests;
-    const lower = filterText.toLowerCase();
-    return requests.filter((request) => {
-      return (
-        request.title?.toLowerCase().includes(lower) ||
-        request.descriptions.some(d => d.toLowerCase().includes(lower)) ||
-        request.additionalNotes?.toLowerCase().includes(lower)
-      );
-    });
-  };
-
-  const sortedAndFilteredRequests = filterJobRequests(sortJobRequests(jobRequests));
-  const noAnimations = reduceMotion || prefs.pageAnimations === "none";
+  function updateFilter(key: 'q' | 'sort', value: string) {
+    const url = new URL(window.location.href);
+    if (value) url.searchParams.set(key, value);
+    else url.searchParams.delete(key);
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    setVisibleCount(50);
+  }
 
   return (
-    <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
-      {/* Conditional fancy background */}
-      <FancyBackground
-        gradient
-        spheres={[
-          { position: "top-right", color: "indigo", size: "lg" },
-          { position: "bottom-left", color: "emerald", size: "xl", delay: 2 },
-        ]}
-      />
+    <div className="mx-auto w-full min-w-0 max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+      <header className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Experimental · Job board</p>
+        <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">Browse requests</h1>
+        <p className="max-w-2xl text-pretty text-muted-foreground">
+          Explore requests for products, services, and custom work. This experimental board is separate from the marketplace and does not process project payments.
+        </p>
+      </header>
 
-      <div className="relative mx-auto w-full max-w-6xl px-6 py-10 lg:py-12">
-        <motion.div
-          initial={noAnimations ? undefined : { opacity: 0, y: 14 }}
-          animate={noAnimations ? undefined : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
-        >
-          {/* Header */}
-          <header className="space-y-3 mb-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70">
-              <motion.span
-                className="h-2 w-2 rounded-full bg-indigo-400"
-                aria-hidden
-                animate={noAnimations ? undefined : { opacity: [0.55, 1, 0.55] }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-              />
-              <span>Job Board</span>
-            </div>
-            <h1 className="text-balance text-3xl font-semibold text-zinc-900 dark:text-white sm:text-4xl">
-              Browse Requests
-            </h1>
-            <p className="max-w-2xl text-pretty text-sm text-zinc-600 dark:text-white/70 sm:text-base">
-              Explore open requests from customers looking for products, services, or custom work.
-              Connect with potential clients and find your next project.
-            </p>
-          </header>
-
-          {/* Controls */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <select
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value)}
-                className="h-10 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-sm text-zinc-700 dark:text-white/90 outline-none transition-colors hover:bg-black/10 dark:hover:bg-white/10 focus:border-indigo-500/50"
-              >
-                <option value="newest" className="bg-white dark:bg-zinc-900">Newest first</option>
-                <option value="oldest" className="bg-white dark:bg-zinc-900">Oldest first</option>
-              </select>
-              <Link
-                href="/jobs/post"
-                className="rounded-xl bg-indigo-500/20 px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-300 transition-colors hover:bg-indigo-500/30"
-              >
-                + Post Request
-              </Link>
-            </div>
-            <div className="relative">
-              <input
-                type="text"
-                value={filterText}
-                onChange={(e) => setFilterText(e.target.value)}
-                placeholder="Search requests..."
-                className="h-10 w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 pl-4 pr-10 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/40 outline-none transition-colors hover:bg-black/10 dark:hover:bg-white/10 focus:border-indigo-500/50 sm:w-64"
-              />
-              <svg className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="min-w-0 space-y-2">
+          <label htmlFor="request-search" className="text-sm font-medium">Search requests</label>
+          <div className="relative">
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+            <input id="request-search" name="q" type="search" autoComplete="off" value={search}
+              onChange={event => updateFilter('q', event.target.value)} placeholder="Search titles and descriptions…"
+              className="h-11 w-full min-w-0 rounded-lg border border-input bg-background pl-10 pr-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring" />
           </div>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="request-sort" className="text-sm font-medium">Sort requests</label>
+          <select id="request-sort" name="sort" value={sort} onChange={event => updateFilter('sort', event.target.value)}
+            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+          <Button asChild className="min-h-11"><Link href="/jobs/post">Post request</Link></Button>
+          <Button type="button" variant="outline" className="min-h-11 gap-2" disabled={!user || isValidating}
+            onClick={() => void mutate()}>
+            <RefreshCw aria-hidden="true" className={isValidating ? 'h-4 w-4 animate-spin motion-reduce:animate-none' : 'h-4 w-4'} />
+            {isValidating && data ? 'Refreshing…' : 'Refresh requests'}
+          </Button>
+        </div>
+      </div>
 
-          {/* Content */}
-          {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-                  <div className="h-6 w-2/3 rounded bg-white/10 mb-3" />
-                  <div className="h-4 w-full rounded bg-white/5 mb-2" />
-                  <div className="h-4 w-4/5 rounded bg-white/5" />
+      {!sessionLoading && !user ? (
+        <section className="rounded-xl border border-border bg-card p-6">
+          <h2 className="font-semibold">Sign in to browse requests</h2>
+          <Button asChild className="mt-4 min-h-11"><Link href="/auth/login?callbackUrl=%2Fjobs">Sign in</Link></Button>
+        </section>
+      ) : (
+        <>
+          {error && (
+            <section role="alert" className="space-y-3 rounded-xl border border-destructive/40 bg-card p-5">
+              <h2 className="font-semibold">Could not load requests</h2>
+              <p className="text-sm text-muted-foreground">{error instanceof Error ? error.message : 'Please try again.'}</p>
+              {data && <p className="text-sm text-muted-foreground">Your last loaded results are still shown below.</p>}
+              <Button type="button" variant="outline" className="min-h-11" disabled={isValidating} onClick={() => void mutate()}>Try again</Button>
+            </section>
+          )}
+          {initialLoading ? (
+            <div role="status" aria-label="Loading requests" className="space-y-4">
+              <span className="sr-only">Loading requests…</span>
+              {[0, 1, 2].map(index => (
+                <div key={index} aria-hidden="true" className="min-h-40 space-y-3 rounded-xl border border-border bg-card p-5">
+                  <Skeleton className="h-4 w-32" /><Skeleton className="h-6 w-2/3" />
+                  <Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-1/2" />
                 </div>
               ))}
             </div>
-          ) : sortedAndFilteredRequests.length === 0 ? (
-            <motion.div
-              initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
-              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] p-12 text-center"
-            >
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/5">
-                <svg className="h-8 w-8 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                </svg>
-              </div>
-              <p className="text-lg font-medium text-white/80">No requests found</p>
-              <p className="mt-1 text-sm text-white/50">
-                {filterText ? 'Try adjusting your search' : 'Be the first to post a request'}
-              </p>
-              <Link
-                href="/jobs/post"
-                className="mt-6 inline-flex rounded-xl bg-indigo-500/20 px-5 py-2.5 text-sm font-medium text-indigo-300 transition-colors hover:bg-indigo-500/30"
-              >
-                Post Request
-              </Link>
-            </motion.div>
-          ) : (
+          ) : data && requests.length === 0 ? (
+            <section className="rounded-xl border border-border bg-card px-5 py-12 text-center">
+              <h2 className="text-lg font-semibold">{search.trim() ? 'No matching requests' : 'No requests yet'}</h2>
+              <p className="mt-2 text-muted-foreground">{search.trim() ? 'Try a different search or clear the filter.' : 'New public requests and requests shared with your companies will appear here.'}</p>
+              {search.trim() && <Button type="button" variant="outline" className="mt-5 min-h-11" onClick={() => updateFilter('q', '')}>Clear search</Button>}
+            </section>
+          ) : data ? (
             <div className="space-y-4">
-              {sortedAndFilteredRequests.map((job, index) => (
-                <motion.div
-                  key={job.id}
-                  initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
-                  animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                >
-                  <Link
-                    href={`/jobs/${job.id}`}
-                    className="group block rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-all hover:border-white/20 hover:bg-white/[0.04]"
-                  >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          {job.user?.image && (
-                            <Image
-                              src={job.user.image}
-                              alt={job.user.name || 'User'}
-                              width={32}
-                              height={32}
-                              className="h-8 w-8 rounded-full object-cover ring-1 ring-white/10"
-                            />
-                          )}
-                          <div className="min-w-0">
-                            <span className="text-sm text-zinc-500 dark:text-white/60">{job.user?.name || 'Anonymous'}</span>
-                            <span className="mx-2 text-zinc-300 dark:text-white/30">·</span>
-                            <span className="text-sm text-zinc-400 dark:text-white/40">
-                              {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
-                            </span>
-                          </div>
-                        </div>
-                        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors truncate">
-                          {job.title || `Request #${job.id.slice(0, 8)}`}
-                        </h3>
-                        <p className="mt-1 text-sm text-zinc-500 dark:text-white/60 line-clamp-2">
-                          {job.descriptions[0] || 'No description provided'}
-                        </p>
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          {job.images.length > 0 && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-black/5 dark:bg-white/5 px-2 py-0.5 text-xs text-zinc-500 dark:text-white/50">
-                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              {job.images.length} image{job.images.length > 1 ? 's' : ''}
-                            </span>
-                          )}
-                          {job.links.filter(l => l).length > 0 && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-black/5 dark:bg-white/5 px-2 py-0.5 text-xs text-zinc-500 dark:text-white/50">
-                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                              </svg>
-                              {job.links.filter(l => l).length} link{job.links.filter(l => l).length > 1 ? 's' : ''}
-                            </span>
-                          )}
-                          {job.negotiable && (
-                            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400">
-                              Negotiable
-                            </span>
-                          )}
+              <p role="status" className="text-sm tabular-nums text-muted-foreground">
+                {requests.length} request{requests.length === 1 ? '' : 's'}{isValidating ? ' · Updating…' : ''}
+              </p>
+              <ul aria-label="Job requests" className="space-y-4">
+                {requests.slice(0, visibleCount).map(job => (
+                  <li key={job.id}>
+                    <Link href={`/jobs/${job.id}`} className="group flex min-h-40 min-w-0 gap-4 rounded-xl border border-border bg-card p-5 outline-none hover:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{job.user.name || 'Member'} · {requestDate(job.createdAt)}</p>
+                        <h2 className="text-lg font-semibold [overflow-wrap:anywhere]">{job.title || `Request #${job.id.slice(0, 8)}`}</h2>
+                        <p className="line-clamp-2 text-sm text-muted-foreground [overflow-wrap:anywhere]">{job.descriptions[0] || 'Open this request for details.'}</p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                          {job.price != null && <span>Budget: <PriceAmount usd={job.price} /></span>}
+                          {job.negotiable && <span className="text-muted-foreground">Negotiable</span>}
+                          {job.images.length > 0 && <span className="text-muted-foreground">{job.images.length} image{job.images.length === 1 ? '' : 's'}</span>}
                         </div>
                       </div>
-                      {job.images[0] && (
-                        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-black/5 dark:bg-white/5 sm:h-24 sm:w-24">
-                          <Image
-                            src={job.images[0]}
-                            alt="Request preview"
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
+                      {job.images[0] && <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-24">
+                        <Image src={job.images[0]} alt="" fill sizes="(min-width: 640px) 96px, 64px" className="object-cover" />
+                      </div>}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {requests.length > visibleCount && <Button type="button" variant="outline" className="min-h-11" onClick={() => setVisibleCount(count => count + 50)}>Show more requests</Button>}
             </div>
-          )}
-        </motion.div>
-      </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

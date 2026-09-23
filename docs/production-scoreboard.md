@@ -2,6 +2,28 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Production security hotfix — 24 September 2026
+
+- A separate worktree/branch `fix/production-security-september` starts from
+  production `88729d0`; only frontend dependency manifests and release notes
+  change. No custom-credit, currency, payment, auth-policy or schema changes
+  were included. Commit `37866d8` / deployment
+  `dpl_7jL8ZAP6MDY5xRdEWCHJA2Sj4A5u` is READY on www.veggat.com, veggat.com and
+  dev-veggastare.vercel.app. Next.js 16.3.6, Auth.js and compatible runtime fixes
+  now reach production; runtime audit **0 critical/0 high/25 moderate**.
+- Production-source unit tests **72/72**, strict local/Vercel builds, local
+  browser **7/7** and live browser **6/6** pass. Live health/home/products/login
+  are 200; unsigned PayPal notification is 401 `INVALID_SIGNATURE`. No pending
+  database migration was applied. Real Chrome retains the owner's live session,
+  loads products and scrolls the 390px catalog without horizontal overflow.
+- This does **not** release the newer global currency/custom-credit UI from
+  Preview. Those remain at verified candidate `d5d3bad`, with **7/7** checks on
+  both local and Preview. Localhost:3000 is restored to that newer build. No
+  Live purchase has been made. PayPal Developer still needs owner passkey login;
+  hosted GitHub CI remains blocked by the account billing lock.
+- Rollback reference remains `dpl_CfYkdh23aWaFe5CMQuM8kQ6M96tw`. Moderate runtime
+  and dev/build findings are follow-up work, not an all-clear security audit.
+
 ## CI and release audit — 23 September 2026
 
 - `883ab64` adds the isolated interview workflow: empty loopback PostgreSQL,
@@ -33,7 +55,10 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   confirms the 390px receipt and history agree. Compatible Axios/WebSocket/
   Socket.IO parser/brace-expansion fixes bring the production dependency audit
   to **0 critical/0 high/25 moderate**; build/dev findings remain separately
-  tracked. This follow-up is not yet deployed. PayPal Developer remains at owner
+  tracked. Candidate `d5d3bad` / `dpl_31QwjyymHZVHk8UdGDQBT4v8MCTf` is READY on
+  the verified stable Preview alias; deployed browser **7/7**, health 200 and
+  unsigned webhook rejection 401 pass. Real Chrome confirms USD (ETH) and menu
+  focus return. Production is unchanged. PayPal Developer remains at owner
   passkey sign-in; no further paid acceptance was attempted.
 
 ## Custom credit quantities — verified local/Preview candidate, 23 September 2026

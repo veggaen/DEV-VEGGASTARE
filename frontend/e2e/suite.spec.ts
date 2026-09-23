@@ -1,5 +1,78 @@
 import { test, expect } from "@playwright/test";
 
+test('S8 requests recover from failure, preserve filters and keep demo publishing read-only', async ({ browser, baseURL }, testInfo) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo; browser fixtures only');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  await context.addInitScript(() => {
+    localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency: 'USD', preferredCryptoCurrency: 'ETH' }));
+    localStorage.removeItem('veggastare_currency_rates');
+  });
+  const page = await context.newPage(), exceptions: string[] = [], writes: string[] = [];
+  await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1 }, fresh: true }, crypto: { prices: { ETH: 2000 }, fresh: true } } }));
+  page.on('pageerror', error => exceptions.push(error.message));
+  page.on('request', request => {
+    const path = new URL(request.url()).pathname;
+    // EdgeStore's shared provider initializes on every app load; this is not an upload.
+    if (request.method() !== 'GET' && path !== '/api/edgestore/init' && /^\/api\/(job-requests|edgestore)(\/|$)/.test(path)) writes.push(path);
+  });
+  const fixtures = ['Illustration brief', 'Website brief'].map((title, index) => ({
+    id: `qa-request-${index}`, title, userId: 'qa-owner', user: { id: 'qa-owner', name: 'Demo creator', image: null },
+    descriptions: ['A read-only request fixture for layout and error recovery.'], images: [], links: [], docs: [], companyIds: [],
+    price: 100, negotiable: false, paymentMethod: null, delivery: null, additionalNotes: null,
+    createdAt: `2026-09-${index ? '23' : '22'}T12:00:00Z`, updatedAt: '2026-09-23T12:00:00Z',
+  }));
+  let calls = 0;
+  await page.route('**/api/job-requests', route => {
+    calls++;
+    return route.fulfill(calls === 1 || calls === 3 ? { status: 503, json: { error: 'QA unavailable' } } : { json: fixtures });
+  });
+  try {
+    await page.goto('/jobs', { waitUntil: 'domcontentloaded' });
+    const main = page.getByRole('main');
+    await expect(main.getByRole('alert')).toContainText('Could not load requests');
+    await expect(main.getByText('No requests yet', { exact: true })).toHaveCount(0);
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    await main.getByRole('button', { name: 'Try again', exact: true }).click();
+    const list = main.getByRole('list', { name: 'Job requests', exact: true });
+    await expect(list.getByRole('link')).toHaveCount(2);
+    await expect(list.getByRole('link').first()).toContainText('Website brief');
+    await expect(list.locator('[data-price-display]').first()).toContainText(/USD\s*100\.00\s*\(0\.05 ETH\)/);
+    await main.getByRole('button', { name: 'Refresh requests', exact: true }).click();
+    await expect(main.getByRole('alert')).toContainText('Your last loaded results are still shown below.');
+    await expect(list.getByRole('link')).toHaveCount(2);
+    await main.getByRole('button', { name: 'Try again', exact: true }).click();
+    await expect(main.getByRole('alert')).toHaveCount(0);
+    await main.getByRole('combobox', { name: 'Sort requests', exact: true }).selectOption('oldest');
+    await expect(list.getByRole('link').first()).toContainText('Illustration brief');
+    await main.getByRole('searchbox', { name: 'Search requests', exact: true }).fill('no-match');
+    await expect(main.getByText('No matching requests', { exact: true })).toBeVisible();
+    await main.getByRole('button', { name: 'Clear search', exact: true }).click();
+    await main.getByRole('searchbox', { name: 'Search requests', exact: true }).fill('Website');
+    await expect(list.getByRole('link')).toHaveCount(1);
+    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('Website');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(main.getByRole('searchbox', { name: 'Search requests', exact: true })).toHaveValue('Website');
+    await expect(main.getByRole('combobox', { name: 'Sort requests', exact: true })).toHaveValue('oldest');
+    for (const width of [360, 390, 1280, 2560]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect((await main.getByRole('searchbox', { name: 'Search requests', exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await page.mouse.move(width - 25, 650); await page.mouse.wheel(0, 2000);
+      await expect(main.getByRole('link', { name: /Website brief/ })).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`request-list-${width}.png`), fullPage: true });
+    }
+    await main.getByRole('link', { name: 'Post request', exact: true }).click();
+    await expect(main.getByRole('heading', { name: 'Request publishing preview', exact: true })).toBeVisible();
+    await expect(main.locator('input[type=file]')).toHaveCount(0);
+    await expect(main.getByRole('button', { name: /submit|publish/i })).toHaveCount(0);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: testInfo.outputPath('request-demo-preview-390.png') });
+    expect(writes).toEqual([]); expect(exceptions).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S5 demo receipt, chat and history agree without granting or replenishing credits', async ({ browser, baseURL }, testInfo) => {
   test.skip(process.env.E2E_ALLOWANCE_DISPLAY !== '1', 'Explicit read-only isolated demo regression');
   const { isolatedPreviewEnv } = await import('../scripts/with-preview-database.mjs');
