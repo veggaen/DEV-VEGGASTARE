@@ -1,5 +1,6 @@
 /** @fileOverview Shared, explicit public/member navigation for the desktop rail and mobile drawer. @stability stable */
 import type { ComponentType } from 'react';
+import { FiBell } from 'react-icons/fi';
 import { FiHome, FiPackage, FiZap, FiGrid, FiMessageSquare, FiShoppingCart, FiCreditCard, FiSettings, FiHelpCircle, FiLock, FiDownload, FiUser, FiFileText, FiDollarSign, FiBox, FiHexagon, FiShield, FiUsers } from 'react-icons/fi';
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
 
@@ -19,6 +20,7 @@ export const memberNavigation: NavigationGroup[] = [
   { label: 'Account', items: [
     { href: '/dashboard', label: 'Dashboard', icon: FiGrid },
     { href: '/conversations', label: 'Messages', icon: FiMessageSquare },
+    { href: '/notifications', label: 'Alerts', icon: FiBell },
     { href: '/cart', label: 'Cart', icon: FiShoppingCart },
     { href: '/checkout', label: 'Checkout', icon: FiCreditCard },
     { href: '/my-downloads', label: 'Downloads', icon: FiDownload },

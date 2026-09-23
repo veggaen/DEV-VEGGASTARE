@@ -175,6 +175,7 @@ export const notificationTypes = {
   },
   
   // System/milestone notifications
+  SYSTEM: { type: 'SYSTEM', emoji: '🔔', icon: 'bell', color: 'emerald', title: 'Account update' },
   MILESTONE: {
     type: 'MILESTONE',
     emoji: '🏆',

@@ -993,9 +993,60 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   charged-vs-list-price presentation against the verified receipt before changing
   monetary storage. No payment/grant was made by this navigation audit.
 
+## Notifications: interaction and responsive repair (in verification)
+
+- Baseline mobile inbox clipped its header controls; back/refresh were unnamed,
+  Filter/Load more were inactive, unread used the wrong query parameter, and
+  mark-read called a nonexistent endpoint. System alerts were silently hidden
+  because their display configuration was absent. Header navigation used full
+  reloads and the page targeted the nonexistent `/messages/:id` route.
+- Reused the existing tokens, buttons, NavigationLink and Radix Popover. Header
+  actions wrap into 44px mobile controls, rows wrap long text, and inbox filters
+  have URL/back-button state. Pagination, archive/restore and mark-read/all-read
+  are real confirmed server operations. Demo notifications remain read-only.
+  Added Alerts to both shared navigation surfaces. Removed unbounded row stagger,
+  bell shaking and infinite ping. Dropdown height is bounded by available space;
+  its list scrolls independently, with a persistent full-inbox link.
+- Hardened the private endpoints: bounded/validated filters; stable createdAt/id
+  cursor without skipping the lookahead row; owner-scoped cursors/reads/writes;
+  rate limits; expired-row filtering; private no-store responses; no ordinary
+  member-created forged system notifications. Server event producers still write
+  verified notifications directly. No schema, auth-cookie or CSRF changes.
+- Failure handling preserves readable rows, exposes retry, bounds requests to
+  15 seconds and never claims a rejected mutation succeeded. Write locking avoids
+  duplicate clicks. Real-account QA found a stale recently-visited filter cache
+  after Restore; zero deduplication delay now revalidates that filter, covered by
+  a hook regression. Another real keyboard check found the surrounding Tooltip
+  consuming Escape before the Popover; the redundant tooltip wrapper is removed.
+- Unit coverage **50/50**, including cache restore, failure/duplicate writes,
+  authorization, pagination and demo isolation. Initial focused browser batch
+  **11/12** passed, with a test selector colliding with Next's route announcer;
+  that locator is now scoped to the inbox. Further real-user checks reached all
+  eight viewport/scroll sizes and exposed the Escape bug above. The repaired
+  full local batch then passed **12/12 (59.7s)**, including real inbox mutations,
+  independent dropdown/main/sidebar scrolling, Escape/focus, Pulse footer and AI
+  layout. Dark screenshot review caught over-bright default card outlines; a
+  final token-only border correction passes the rebuilt targeted check **3/3
+  (20.3s)**. Fresh 390px dark and short-landscape popover images were reviewed;
+  card borders are subdued, the popover remains opaque/contained after its short
+  entrance, and the content controls retain focus. Screenshot capture now waits
+  for finite entrance animations rather than recording a partial transition.
+  Local production build/TypeScript passed with an 8GB process heap after the
+  default 4GB heap ran out during checking of accumulated local build types.
+  No checks were skipped and no Vercel billing/resource setting changed.
+  Live deployment/pass remain pending; this is not yet a live release pass.
+- Fixtures use new, explicitly named QA-only USER identities. Only their synthetic
+  notifications are deleted afterward, and their password/session access is
+  disabled. No public messages, real-recipient alerts, credits or purchases.
+  Screenshots: `.private-showcase/responsive-audit/notifications-local/`.
+- Real Chrome recheck: the computer-use inventory returned no browsers; explicit
+  Chrome tab creation returned `Browser is not available: chrome`. Playwright
+  remains the authorized test path; no claim of a real-Chrome pass.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
+- [Radix Popover: viewport constraints, collision handling and keyboard focus](https://www.radix-ui.com/primitives/docs/components/popover)
 - [W3C evaluation methodology: scope, states and complete processes](https://www.w3.org/TR/WCAG-EM/)
 - [W3C preliminary checks and their limits](https://www.w3.org/WAI/test-evaluate/preliminary/)
 - [Playwright user-visible testing and isolation](https://playwright.dev/docs/best-practices)

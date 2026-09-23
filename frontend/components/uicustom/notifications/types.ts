@@ -109,7 +109,7 @@ export interface UserPresence {
 
 // Helper function to get notification config
 export function getNotificationConfig(type: NotificationTypeName) {
-  return notificationTypes[type];
+  return notificationTypes[type] ?? notificationTypes.SYSTEM;
 }
 
 // Helper function to get presence config

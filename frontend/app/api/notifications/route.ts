@@ -3,6 +3,14 @@ import { auth } from "@/auth";
 import { dbPrisma as db } from "@/lib/db";
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 import { z } from 'zod';
+import type { Prisma } from '@/generated/prisma/client';
+
+const ListNotificationsSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().min(1).max(200).optional(),
+  unread: z.enum(['true', 'false']).default('false'),
+  archived: z.enum(['true', 'false']).default('false'),
+});
 
 const CreateNotificationSchema = z.object({
   userId: z.string().min(1),
@@ -32,39 +40,38 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const cursor = searchParams.get("cursor");
-    const unreadOnly = searchParams.get("unread") === "true";
-
-    const where: {
-      userId: string;
-      isArchived: boolean;
-      isRead?: boolean;
-      id?: { lt: string };
-    } = {
+    const rl = await checkRateLimit(`notifications:read:${getClientIdentifier(request, session.user.id)}`, 'read');
+    if (!rl.success) return rateLimitedResponse(rl);
+    const parsed = ListNotificationsSchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
+    if (!parsed.success) return NextResponse.json({ error: 'Invalid notification filters' }, { status: 400 });
+    const { limit, cursor, unread, archived } = parsed.data;
+    const active = { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] };
+    const where: Prisma.NotificationWhereInput = {
       userId: session.user.id,
-      isArchived: false,
+      isArchived: archived === 'true',
+      AND: [active],
     };
-
-    if (unreadOnly) {
-      where.isRead = false;
-    }
-
+    if (unread === 'true') where.isRead = false;
     if (cursor) {
-      where.id = { lt: cursor };
+      // A cursor is scoped to its owner, and sorted by the same tuple as the list.
+      const anchor = await db.notification.findFirst({ where: { id: cursor, userId: session.user.id }, select: { id: true, createdAt: true } });
+      if (!anchor) return NextResponse.json({ error: 'Invalid notification cursor. Refresh your inbox.' }, { status: 400 });
+      where.AND = [active, { OR: [
+        { createdAt: { lt: anchor.createdAt } },
+        { createdAt: anchor.createdAt, id: { lt: anchor.id } },
+      ] }];
     }
 
     const notifications = await db.notification.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
     });
 
     let nextCursor: string | null = null;
     if (notifications.length > limit) {
-      const nextItem = notifications.pop();
-      nextCursor = nextItem?.id || null;
+      notifications.pop();
+      nextCursor = notifications.at(-1)?.id || null;
     }
 
     // Get unread count
@@ -73,6 +80,7 @@ export async function GET(request: Request) {
         userId: session.user.id,
         isRead: false,
         isArchived: false,
+        ...active,
       },
     });
 
@@ -80,7 +88,7 @@ export async function GET(request: Request) {
       notifications,
       nextCursor,
       unreadCount,
-    });
+    }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error("[NOTIFICATIONS_GET]", error);
     return NextResponse.json(
@@ -91,8 +99,8 @@ export async function GET(request: Request) {
 }
 
 // POST /api/notifications - Create a notification (internal use)
-// SECURITY: actorId is ALWAYS set to the authenticated user to prevent IDOR.
-// Only ADMIN users can create notifications for other users.
+// User actions create their own verified notifications on the server. This
+// administrative endpoint must never let a member send forged system alerts.
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -100,16 +108,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (!['ADMIN', 'OWNER'].includes(session.user.role)) {
+      return NextResponse.json({ error: 'Only administrators can create notifications' }, { status: 403 });
+    }
     // Rate limit
     const rl = await checkRateLimit(getClientIdentifier(request, session.user.id), 'write');
     if (!rl.success) return rateLimitedResponse(rl);
 
-    const json = await request.json();
+    const json = await request.json().catch(() => null);
     const parsed = CreateNotificationSchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid payload", issues: parsed.error.issues }, { status: 400 });
     }
-    let {
+    const {
       userId,
       type,
       title,
@@ -123,12 +134,6 @@ export async function POST(request: Request) {
       groupKey,
       metadata,
     } = parsed.data;
-
-    // SECURITY: Prevent IDOR — non-admin users can only create notifications where
-    // actorId is themselves. They cannot impersonate other users as notification senders.
-    if ((session.user as any).role !== 'ADMIN') {
-      actorId = session.user.id;
-    }
 
     // Check if user has muted the actor
     if (actorId) {

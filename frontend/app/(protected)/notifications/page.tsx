@@ -1,289 +1,57 @@
 "use client";
-
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { NotificationItem, GroupedNotificationItem } from "@/components/uicustom/notifications/notification-item";
-import { 
-  type Notification, 
-  type NotificationGroup,
-  groupNotifications 
-} from "@/components/uicustom/notifications/types";
-import { 
-  FiSettings, 
-  FiCheck, 
-  FiCheckCircle,
-  FiInbox, 
-  FiArchive, 
-  FiBell,
-  FiFilter,
-  FiTrash2,
-  FiRefreshCw,
-  FiChevronLeft
-} from "react-icons/fi";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-type TabType = "all" | "unread" | "archived";
+/** @fileOverview Responsive private inbox with URL filters and confirmed state changes. @stability stable */
+import { useSearchParams } from 'next/navigation';
+import Link from '@/components/ui/navigation-link';
+import { Button } from '@/components/ui/button';
+import { FiBell, FiRefreshCw, FiSettings } from 'react-icons/fi';
+import { NotificationItem } from '@/components/uicustom/notifications/notification-item';
+import { useNotifications } from '@/hooks/use-notifications';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { isDemoUserId } from '@/lib/demo-policy';
 
 export default function NotificationsPage() {
-  const router = useRouter();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>("all");
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Fetch notifications
-  const fetchNotifications = useCallback(async (showRefresh = false) => {
-    if (showRefresh) setIsRefreshing(true);
-    else setIsLoading(true);
-    
-    try {
-      const params = new URLSearchParams();
-      params.set("limit", "100");
-      if (activeTab === "unread") params.set("unreadOnly", "true");
-      if (activeTab === "archived") params.set("archived", "true");
-      
-      const res = await fetch(`/api/notifications?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch notifications:", error);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
-
-  // Mark notification as read
-  const markAsRead = async (id: string) => {
-    try {
-      await fetch(`/api/notifications/${id}/read`, { method: "POST" });
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, isRead: true, readAt: new Date() } : n)
-      );
-    } catch (error) {
-      console.error("Failed to mark as read:", error);
-    }
+  const user = useCurrentUser();
+  const query = useSearchParams();
+  const filter = query.get('filter');
+  const tab = filter === 'unread' || filter === 'archived' ? filter : 'all';
+  const readOnly = isDemoUserId(user?.id);
+  const inbox = useNotifications({ limit: 20, unreadOnly: tab === 'unread', archived: tab === 'archived', enabled: !!user, userId: user?.id, readOnly, refreshInterval: 60000 });
+  const selectTab = (value: string) => {
+    const params = new URLSearchParams(query);
+    if (value === 'all') params.delete('filter'); else params.set('filter', value);
+    window.history.pushState(null, '', '/notifications' + (params.size ? '?' + params.toString() : ''));
   };
-
-  // Mark all as read
-  const markAllAsRead = async () => {
-    try {
-      await fetch("/api/notifications/mark-all-read", { method: "POST" });
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, isRead: true, readAt: new Date() }))
-      );
-    } catch (error) {
-      console.error("Failed to mark all as read:", error);
-    }
-  };
-
-  // Handle notification click
-  const handleNotificationClick = (notification: Notification) => {
-    markAsRead(notification.id);
-    
-    // Navigate based on notification type
-    if (notification.pulseId) {
-      router.push(`/pulse/${notification.pulseId}`);
-    } else if (notification.conversationId) {
-      router.push(`/messages/${notification.conversationId}`);
-    }
-  };
-
-  // Filter notifications (simplified - no category filter for now)
-  const filteredNotifications = notifications;
-
-  // Group notifications for condensed view
-  const groupedNotifications = groupNotifications(filteredNotifications);
-  
-  // Unread count
-  const unreadCount = notifications.filter(n => !n.isRead).length;
-
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-3xl px-4 py-6">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => router.back()}
-              className="h-9 w-9"
-            >
-              <FiChevronLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <FiBell className="h-6 w-6 text-emerald-500" />
-                Notifications
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {unreadCount > 0 ? `${unreadCount} unread` : "All caught up!"}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => fetchNotifications(true)}
-                disabled={isRefreshing}
-                className="h-9 w-9"
-              >
-                <FiRefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-              </Button>
-              <Link href="/settings?section=notifications">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <FiSettings className="h-4 w-4" />
-                  Settings
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg w-fit">
-            {[
-              { id: "all" as TabType, label: "All", icon: FiInbox },
-              { id: "unread" as TabType, label: "Unread", icon: FiBell },
-              { id: "archived" as TabType, label: "Archived", icon: FiArchive },
-            ].map(tab => (
-              <Button
-                key={tab.id}
-                variant={activeTab === tab.id ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "gap-1.5",
-                  activeTab === tab.id && "bg-background shadow-sm"
-                )}
-              >
-                <tab.icon className="h-4 w-4" />
-                {tab.label}
-                {tab.id === "unread" && unreadCount > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 text-xs bg-emerald-500 text-white rounded-full">
-                    {unreadCount}
-                  </span>
-                )}
-              </Button>
-            ))}
-          </div>
+  const loading = !user || inbox.isLoading;
+  return <section aria-labelledby="notifications-title" className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 id="notifications-title" className="flex items-center gap-2 text-2xl font-semibold tracking-tight"><FiBell className="h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />Notifications</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{loading ? 'Your order and account updates' : `${inbox.unreadCount} unread in your inbox`}</p>
         </div>
-
-        {/* Actions Bar */}
-        {filteredNotifications.length > 0 && (
-          <div className="flex items-center justify-between mb-4 pb-4 border-b">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-muted-foreground hover:text-foreground"
-              >
-                <FiFilter className="h-4 w-4" />
-                Filter
-              </Button>
-            </div>
-            {unreadCount > 0 && activeTab !== "archived" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={markAllAsRead}
-                className="gap-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
-              >
-                <FiCheckCircle className="h-4 w-4" />
-                Mark all as read
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Notifications List */}
-        <div className="space-y-1">
-          {isLoading ? (
-            // Loading skeleton
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <div 
-                  key={i}
-                  className="h-20 rounded-xl bg-muted/50 animate-pulse"
-                />
-              ))}
-            </div>
-          ) : filteredNotifications.length === 0 ? (
-            // Empty state
-            <div className="py-16 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
-                {activeTab === "archived" ? (
-                  <FiArchive className="h-8 w-8 text-muted-foreground" />
-                ) : activeTab === "unread" ? (
-                  <FiCheckCircle className="h-8 w-8 text-emerald-500" />
-                ) : (
-                  <FiBell className="h-8 w-8 text-muted-foreground" />
-                )}
-              </div>
-              <h3 className="text-lg font-semibold mb-1">
-                {activeTab === "archived" 
-                  ? "No archived notifications"
-                  : activeTab === "unread"
-                  ? "All caught up!"
-                  : "No notifications yet"
-                }
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                {activeTab === "archived"
-                  ? "Notifications you archive will appear here"
-                  : activeTab === "unread"
-                  ? "You've read all your notifications"
-                  : "When you get notifications, they'll show up here"
-                }
-              </p>
-            </div>
-          ) : (
-            // Notifications list
-            <AnimatePresence mode="popLayout">
-              {groupedNotifications.map((group, index) => (
-                <motion.div
-                  key={group.key}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ delay: index * 0.03 }}
-                >
-                  {group.notifications.length > 1 ? (
-                    <GroupedNotificationItem
-                      group={group}
-                      onClick={() => handleNotificationClick(group.notifications[0])}
-                    />
-                  ) : (
-                    <NotificationItem
-                      notification={group.notifications[0]}
-                      onClick={() => handleNotificationClick(group.notifications[0])}
-                      onMarkRead={() => markAsRead(group.notifications[0].id)}
-                    />
-                  )}
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          )}
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <Button variant="outline" className="h-11 flex-1 gap-2 sm:flex-none" disabled={inbox.isRefreshing || loading} onClick={() => void inbox.refresh()}><FiRefreshCw aria-hidden />{inbox.isRefreshing ? 'Refreshing…' : 'Refresh'}</Button>
+          <Button variant="outline" asChild className="h-11 flex-1 gap-2 sm:flex-none"><Link href="/settings?section=notifications"><FiSettings aria-hidden />Settings</Link></Button>
         </div>
-
-        {/* Load More */}
-        {filteredNotifications.length >= 100 && (
-          <div className="mt-6 text-center">
-            <Button variant="outline" size="sm">
-              Load more
-            </Button>
-          </div>
-        )}
       </div>
+      {readOnly && <p className="mb-4 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">Demo notifications are read-only. Sign in to your own account to mark updates as read or archive them.</p>}
+      <div className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-muted/50 p-1" role="group" aria-label="Notification filters">
+        {(['all', 'unread', 'archived'] as const).map(value => <Button key={value} variant={tab === value ? 'secondary' : 'ghost'} className="h-11 min-w-0 px-2 capitalize" aria-pressed={tab === value} onClick={() => selectTab(value)}>{value === 'all' ? 'Inbox' : value}</Button>)}
+      </div>
+      {!readOnly && tab !== 'archived' && <div className="mb-3 flex justify-end"><Button variant="ghost" className="h-11" disabled={inbox.pending || !inbox.unreadCount || loading} onClick={() => void inbox.markAllAsRead()}>{inbox.pending ? 'Saving…' : 'Mark all as read'}</Button></div>}
+      {inbox.isError && <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"><p>{inbox.error instanceof Error ? inbox.error.message : 'Could not load notifications.'}</p><Button className="mt-3 h-11" variant="outline" onClick={() => void inbox.refresh()}>Try again</Button></div>}
+      {loading ? <div role="status" aria-label="Loading notifications" className="space-y-3">{[0, 1, 2, 3, 4].map(i => <div key={i} className="flex min-h-28 gap-3 rounded-xl border border-border p-4"><span className="h-10 w-10 shrink-0 rounded-xl bg-muted motion-safe:animate-pulse" /><span className="flex-1 space-y-3 py-1"><span className="block h-4 w-2/3 rounded bg-muted motion-safe:animate-pulse" /><span className="block h-4 rounded bg-muted motion-safe:animate-pulse" /><span className="block h-3 w-20 rounded bg-muted motion-safe:animate-pulse" /></span></div>)}</div>
+        : inbox.notifications.length ? <ul aria-label="Notifications" className="space-y-3">
+          {inbox.notifications.map(row => <li key={row.id} className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+            <NotificationItem notification={row} onMarkRead={readOnly || inbox.pending || row.isRead ? undefined : () => void inbox.markAsRead(row.id)} />
+            {!readOnly && <div className="flex flex-wrap justify-end gap-1 border-t border-border px-2 py-1">
+              <Button variant="ghost" className="h-11" disabled={inbox.pending} onClick={() => void inbox.updateNotification(row.id, { isRead: !row.isRead })}>{row.isRead ? 'Mark unread' : 'Mark read'}</Button>
+              <Button variant="ghost" className="h-11" disabled={inbox.pending} onClick={() => void inbox.updateNotification(row.id, { isArchived: !row.isArchived })}>{row.isArchived ? 'Restore to inbox' : 'Archive'}</Button>
+            </div>}
+          </li>)}
+        </ul>
+        : !inbox.isError && <div className="rounded-2xl border border-border border-dashed px-6 py-12 text-center"><FiBell className="mx-auto mb-4 h-8 w-8 text-muted-foreground" aria-hidden /><h2 className="text-lg font-semibold">{tab === 'archived' ? 'No archived notifications' : tab === 'unread' ? 'All caught up' : 'No notifications yet'}</h2><p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">{tab === 'archived' ? 'Archived updates stay here until you restore them.' : 'Order, message, and account updates will appear here.'}</p></div>}
+      {inbox.nextCursor && <div className="mt-5 flex justify-center"><Button variant="outline" className="h-11" disabled={inbox.isRefreshing} onClick={inbox.loadMore}>{inbox.isLoadingMore ? 'Loading more…' : 'Load more notifications'}</Button></div>}
     </div>
-  );
+  </section>;
 }

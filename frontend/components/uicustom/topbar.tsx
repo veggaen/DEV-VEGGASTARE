@@ -32,6 +32,7 @@ import ThemeToggleMenu from "@/components/uicustom/ThemeToggleMenu";
 import { CurrencySelector } from "@/components/uicustom/currency-selector";
 import { NotificationDropdown } from "@/components/uicustom/notifications/notification-dropdown";
 import { useNotifications } from "@/hooks/use-notifications";
+import { isDemoUserId } from '@/lib/demo-policy';
 import { useUiPreferences } from "@/components/providers/ui-preferences";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import usePusher from "@/hooks/usePusher";
@@ -146,9 +147,12 @@ const MyTopBar = () => {
 		notifications, 
 		unreadCount, 
 		isLoading: notificationsLoading,
+		isError: notificationsError,
+		pending: notificationsPending,
+		refresh: refreshNotifications,
 		markAsRead,
 		markAllAsRead 
-	} = useNotifications({ refreshInterval: 60000, enabled: !!clientUser });
+	} = useNotifications({ refreshInterval: 60000, enabled: !!clientUser, userId: clientUser?.id, readOnly: isDemoUserId(clientUser?.id) });
 
 	// One shared cart cache: mutations update the badge without a poll or reload.
 	const { itemCount: cartCount, refreshCart: mutateCart } = useCart();
@@ -417,32 +421,19 @@ const MyTopBar = () => {
 								{clientUser && (
 									<>
 										{/* Notification Bell */}
-										<Tooltip>
-											<TooltipTrigger asChild>
 												<div data-nav-key="notifications" className="relative">
 													<NotificationDropdown
 														notifications={notifications}
 														unreadCount={unreadCount}
 														isLoading={notificationsLoading}
+														isError={notificationsError}
+														pending={notificationsPending}
+														readOnly={isDemoUserId(clientUser?.id)}
+														onRefresh={refreshNotifications}
 														onMarkRead={markAsRead}
 														onMarkAllRead={markAllAsRead}
-														onNotificationClick={(notif) => {
-															if (notif.type === 'TRADE_REQUEST' && notif.metadata?.tradeId) {
-																window.location.href = `/trade/${notif.metadata.tradeId}`;
-															} else if (notif.conversationId) {
-																window.location.href = `/conversations/${notif.conversationId}`;
-															} else if (notif.pulseId) {
-																window.location.href = `/pulse/${notif.pulseId}`;
-															} else if (notif.actorId) {
-																window.location.href = `/profile/${notif.actorId}`;
-															}
-														}}
-														condensed
 													/>
 												</div>
-											</TooltipTrigger>
-											<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Notifications</TooltipContent>
-										</Tooltip>
 										
 										{/* Mini Cart Dropdown */}
 										<Tooltip>

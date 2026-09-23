@@ -1,5 +1,140 @@
 import { test, expect } from "@playwright/test";
 
+test('S8 — notifications real private inbox, pagination, read/archive, recovery and responsive scrolling', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_NOTIFICATIONS !== 'live-db', 'Explicit isolated fixture opt-in only');
+  test.setTimeout(180_000);
+  const { Pool } = await import('pg');
+  const { randomBytes } = await import('node:crypto');
+  const { default: bcrypt } = await import('bcryptjs');
+  const { mkdir } = await import('node:fs/promises');
+  const screenshots = '.private-showcase/responsive-audit/notifications-' + (new URL(baseURL!).hostname === 'localhost' ? 'local' : 'live');
+  await mkdir(screenshots, { recursive: true });
+  const database = new URL(process.env.DATABASE_URL_MAINLIVE!); database.searchParams.set('uselibpqcompat', 'true');
+  const pool = new Pool({ connectionString: database.toString(), max: 2 });
+  const id = 'qa_inbox_' + randomBytes(12).toString('hex');
+  const email = id + '@example.invalid', password = randomBytes(24).toString('base64url');
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  let leaked = false;
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.text().includes(password)) leaked = true; });
+  try {
+    await pool.query('INSERT INTO "User" (id,name,email,password,"emailVerified","updatedAt","web3ModeEnabled") VALUES ($1,$2,$3,$4,NOW(),NOW(),false)', [id, 'QA inbox fixture', email, await bcrypt.hash(password, 12)]);
+    const fixtureTime = Date.now();
+    for (let i = 0; i < 26; i++) {
+      await pool.query('INSERT INTO "Notification" (id,"userId",type,title,message,"isArchived","expiresAt","createdAt","updatedAt") VALUES ($1,$2,\'SYSTEM\',$3,$4,$5,$6,$7,NOW())',
+        [`${id}_${String(i).padStart(2, '0')}`, id, `QA update ${String(i).padStart(2, '0')}`, i === 0 ? 'A-long-notification-without-spaces-'.repeat(9) : 'Private order and account update for this QA session only.', i === 24, i === 25 ? new Date(0) : null, new Date(fixtureTime - Math.floor(i / 2) * 1000)]);
+    }
+    await pool.query('INSERT INTO "Notification" (id,"userId",type,title,message,"updatedAt") VALUES ($1,$2,\'SYSTEM\',\'Private other fixture\',\'Must never be visible\',NOW())', [`${id}_foreign`, `${id}_other`]);
+    await page.goto('/auth/login?callbackUrl=%2Fnotifications', { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await page.getByPlaceholder('you@example.com').fill(email); await page.locator('input[name=password]').fill(password);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page).toHaveURL(/\/notifications$/);
+    const list = page.getByRole('list', { name: 'Notifications', exact: true });
+    await expect(list.locator(':scope > li')).toHaveCount(20);
+    if (await consent.isVisible()) await consent.click();
+    expect((await (await context.request.get('/api/auth/session')).json()).user.id === id).toBe(true);
+    expect((await context.request.get('/api/notifications?limit=-1')).status()).toBe(400);
+    expect((await context.request.get('/api/notifications?cursor=' + id + '_foreign')).status()).toBe(400);
+    expect((await context.request.patch('/api/notifications/' + id + '_foreign', { data: { isRead: true } })).status()).toBe(404);
+    expect((await context.request.post('/api/notifications', { data: { userId: id + '_other', type: 'SYSTEM', title: 'Forged', message: 'Must not be created' } })).status()).toBe(403);
+    let cursor: string | null = null; const seen: string[] = [];
+    do {
+      const data = await (await context.request.get('/api/notifications?limit=7' + (cursor ? '&cursor=' + cursor : ''))).json();
+      seen.push(...data.notifications.map((row: { id: string }) => row.id)); cursor = data.nextCursor;
+    } while (cursor && seen.length < 40);
+    expect(seen.length).toBe(24); expect(new Set(seen).size).toBe(24); expect(seen.every(value => value.startsWith(id + '_'))).toBe(true);
+    await page.getByRole('button', { name: 'Load more notifications', exact: true }).click(); await expect(list.locator(':scope > li')).toHaveCount(24);
+    const first = list.locator(':scope > li').filter({ hasText: 'QA update 00' });
+    await expect(first.getByRole('button')).toHaveCount(2); // Explicit state controls, not a disappearing clickable text block.
+    await first.getByRole('button', { name: 'Mark read', exact: true }).click(); await expect(first.getByRole('button', { name: 'Mark unread', exact: true })).toBeVisible();
+    await first.getByRole('button', { name: 'Archive', exact: true }).click(); await expect(first).toHaveCount(0);
+    const filters = page.getByRole('group', { name: 'Notification filters', exact: true });
+    await filters.getByRole('button', { name: /^archived$/i }).click(); await expect(page).toHaveURL(/filter=archived/); await expect(list.locator(':scope > li')).toHaveCount(2);
+    await first.getByRole('button', { name: 'Restore to inbox', exact: true }).click(); await expect(first).toHaveCount(0);
+    await filters.getByRole('button', { name: 'Inbox', exact: true }).click(); await expect(first).toBeVisible();
+    // A failed server mutation must not pretend this row became unread.
+    await page.route('**/api/notifications/' + id + '_00', route => route.request().method() === 'PATCH' ? route.fulfill({ status: 503, json: { error: 'Controlled QA failure' } }) : route.continue());
+    await first.getByRole('button', { name: 'Mark unread', exact: true }).click(); await expect(page.getByText('Notifications could not be updated. Please try again.', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Close toast', exact: true }).click();
+    await expect(first.getByRole('button', { name: 'Mark unread', exact: true })).toBeVisible(); await page.unroute('**/api/notifications/' + id + '_00');
+    await first.getByRole('button', { name: 'Mark unread', exact: true }).click(); await expect(first.getByRole('button', { name: 'Mark read', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Mark all as read', exact: true }).click(); await expect(page.getByText('0 unread in your inbox', { exact: true })).toBeVisible();
+    await filters.getByRole('button', { name: /^unread$/i }).click(); await expect(page.getByRole('heading', { name: 'All caught up', exact: true })).toBeVisible();
+    await page.goBack({ waitUntil: 'domcontentloaded' }); await expect(filters.getByRole('button', { name: 'Inbox', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await page.route('**/api/notifications?**', route => new URL(route.request().url()).searchParams.get('limit') === '20' ? route.fulfill({ status: 503, json: { error: 'Controlled QA read failure' } }) : route.continue());
+    const inboxAlert = page.locator('section[aria-labelledby="notifications-title"]').getByRole('alert');
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click(); await expect(inboxAlert).toBeVisible(); await expect(first).toBeVisible();
+    await expect(page.getByRole('status', { name: 'Loading notifications' })).toHaveCount(0);
+    await page.unroute('**/api/notifications?**'); await page.getByRole('button', { name: 'Try again', exact: true }).click(); await expect(inboxAlert).toHaveCount(0);
+    const scroller = page.locator('[data-app-scroll-container]:visible');
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size); await scroller.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+      const heading = await page.getByRole('heading', { name: 'Notifications', exact: true, level: 1 }).boundingBox();
+      expect(heading!.x).toBeGreaterThanOrEqual(16); expect(heading!.x + heading!.width).toBeLessThanOrEqual(size.width - 15);
+      expect(await scroller.evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+      if ([360, 390, 1280, 2560].includes(size.width)) await page.screenshot({ path: `${screenshots}/${size.width}-top.png` });
+      for (const control of ['Refresh', 'Settings']) {
+        const bounds = await page.locator('section[aria-labelledby="notifications-title"]').getByRole(control === 'Settings' ? 'link' : 'button', { name: control, exact: true }).boundingBox();
+        expect(bounds!.height).toBeGreaterThanOrEqual(44); expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(size.width - 15);
+      }
+      await page.mouse.move(size.width / 2, Math.min(size.height / 2, 400)); await page.mouse.wheel(0, 700); await expect.poll(() => scroller.evaluate(e => e.scrollTop)).toBeGreaterThan(0);
+      await page.mouse.wheel(0, 40000); await expect(page.locator('footer')).toBeInViewport();
+      const lastRowBox = await list.locator(':scope > li').last().boundingBox(), footerBox = await page.locator('footer').boundingBox();
+      expect(footerBox!.y).toBeGreaterThanOrEqual(lastRowBox!.y + lastRowBox!.height);
+      if ([360, 1280].includes(size.width)) await page.screenshot({ path: `${screenshots}/${size.width}-bottom.png` });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && scrollY === 0)).toBe(true);
+    }
+    // Test popover clipping and independent wheel scrolling in short landscape.
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(page.locator('html')).toHaveClass(/dark/);
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 844 }); await scroller.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+      await page.screenshot({ path: `${screenshots}/${width}-dark-top.png` });
+      expect(await scroller.evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+    }
+    await page.setViewportSize({ width: 1280, height: 390 }); await scroller.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+    const bell = page.getByRole('button', { name: 'Notifications', exact: true }); await bell.click();
+    const popover = page.getByRole('dialog', { name: 'Notification inbox', exact: true }); await expect(popover).toBeVisible();
+    await popover.evaluate(async element => { await Promise.all(element.getAnimations().filter(animation => Number.isFinite(animation.effect?.getComputedTiming().iterations)).map(animation => animation.finished.catch(() => {}))); });
+    const box = await popover.boundingBox(); expect(box!.y).toBeGreaterThanOrEqual(0); expect(box!.y + box!.height).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: `${screenshots}/popover-landscape.png` });
+    const popupList = popover.locator('[data-notification-scroll]'), popupBox = await popupList.boundingBox();
+    await page.mouse.move(popupBox!.x + popupBox!.width / 2, popupBox!.y + popupBox!.height / 2); await page.mouse.wheel(0, 5000);
+    await expect.poll(() => popupList.evaluate(e => e.scrollTop)).toBeGreaterThan(0); expect(await scroller.evaluate(e => e.scrollTop)).toBe(0);
+    await page.keyboard.press('Escape'); await expect(popover).toHaveCount(0); await expect(bell).toBeFocused();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    const menu = page.getByRole('dialog', { name: 'Navigation Menu', exact: true }); await menu.getByRole('link', { name: 'Alerts', exact: true }).click(); await expect(menu).toHaveCount(0);
+    await page.locator('section[aria-labelledby="notifications-title"]').getByRole('link', { name: 'Settings', exact: true }).click(); await expect(page).toHaveURL(/settings\?section=notifications/);
+    expect(leaked).toBe(false); expect(errors).toEqual([]);
+  } finally {
+    await page.unrouteAll({ behavior: 'wait' }); await context.close();
+    // Only this run's synthetic private records; no public or owner data touched.
+    if (!/^qa_inbox_[a-f0-9]{24}$/.test(id)) throw new Error('Unsafe fixture cleanup');
+    await pool.query('DELETE FROM "Notification" WHERE "userId" = ANY($1::text[])', [[id, id + '_other']]);
+    await pool.query('UPDATE "User" SET password=NULL,"tokenVersion"="tokenVersion"+1 WHERE id=$1 AND email=$2 AND role=\'USER\'', [id, email]);
+    await pool.end();
+  }
+});
+
+test('S8 — demo inbox is read-only and private notification APIs stay protected', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  try {
+    await page.goto('/notifications', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByText(/Demo notifications are read-only/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mark all as read', exact: true })).toHaveCount(0);
+    expect((await context.request.post('/api/notifications/mark-all-read')).status()).toBe(403);
+    const result = await context.request.get('/api/notifications?archived=true&limit=20'); expect(result.status()).toBe(200);
+    const rows = (await result.json()).notifications; expect(rows.every((row: { isArchived: boolean }) => row.isArchived)).toBe(true);
+    const guest = await browser.newContext({ baseURL });
+    try { expect((await guest.request.get('/api/notifications')).status()).toBe(401); } finally { await guest.close(); }
+  } finally { await context.close(); }
+});
+
 test('S7 — shared header stays aligned and desktop rail scroll is independent', async ({ browser, baseURL }) => {
   test.setTimeout(120_000);
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');

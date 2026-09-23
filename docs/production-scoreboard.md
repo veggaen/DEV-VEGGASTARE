@@ -2,6 +2,15 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+Current follow-up: Notifications API safety, responsive inbox and real controls
+passed local verification: 12/12 browser regressions and final styling recheck
+3/3, plus strict build/TypeScript and touched-file lint. Fifty focused unit tests
+pass. Real-account
+checks found and repaired stale archive/restore caching and a tooltip/popover
+Escape conflict; deployment/live checks are still pending. See the
+responsive audit for scope and fixture cleanup. This does not change S4's
+missing PayPal secrets or imply that all routes/features are complete.
+
 ## S1 — First impression (DONE)
 
 - DONE locally and live: public home, product story, isolated demo sign-in/logout at 390 and 1280.
