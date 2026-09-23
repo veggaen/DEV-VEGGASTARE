@@ -2,6 +2,33 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+Current wallet/PayPal candidate (not yet deployed): optional AppKit startup and
+automatic wallet reconnection no longer run for ordinary marketplace visitors.
+Stable providers remain mounted. Local browser **12/12 (1.0m)** and focused
+units **65/65** pass, with strict webpack/TypeScript. The batch includes
+Products-to-Pulse request observation, hydration readiness, delayed picker
+cancellation/retry, locked-wallet Set active cancellation/retry, unchanged demo
+auth, and independent sidebar/Pulse scrolling. Wallet activation uses permission
+requests only, never signatures or transactions. Mobile badge wrapping and
+44px activation controls were visually checked. The pre-fix hydration test failed
+as expected; an intermittent ignored first click prompted the readiness guard.
+
+Touched-file lint passes except the large legacy `SidebarWalletPanel.tsx`, whose
+full lint does not finish in bounded runs (also reproduced on unchanged HEAD).
+Base lint and exhaustive-deps separately report no errors and one existing unused
+disable warning there; this is **not** a full hook-lint pass. No lint rules were
+disabled in the repository. Actual owner-extension prompts remain unverified.
+
+PayPal postback verification now preserves the raw event JSON, rejects missing
+signature fields before provider calls, and remains mandatory in Sandbox.
+Example settings and [setup/acceptance guidance](paypal-setup.md) use the correct
+`/api/webhooks/paypal` path and event. Vercel Production variable names were
+rechecked: `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` remain
+absent. Refund reconciliation and real Sandbox/Live transactions remain open.
+The owner screenshot shows a signed-in PayPal Live dashboard with no REST apps;
+the control tool still reports no attached browsers. No credentials or charges
+were created, no owner wallet was accessed, and no billing setting changed.
+
 Latest verified follow-up: reproduced and fixed cold-load Pulse disappearance while a
 closed poll module loads, plus the resulting early-scroll/footer jump. Optional
 poll/import dialogs now load independently with cancellable fallbacks. Strict

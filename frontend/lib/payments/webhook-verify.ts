@@ -107,6 +107,21 @@ export async function verifyPayPalWebhook(
     return false;
   }
 
+  const verificationHeaders = {
+    auth_algo: headers.get('paypal-auth-algo'),
+    cert_url: headers.get('paypal-cert-url'),
+    transmission_id: headers.get('paypal-transmission-id'),
+    transmission_sig: headers.get('paypal-transmission-sig'),
+    transmission_time: headers.get('paypal-transmission-time'),
+    webhook_id: webhookId,
+  };
+  // Reject obviously unsigned/malformed input before spending a provider call.
+  if (Object.values(verificationHeaders).some(value => !value)) return false;
+  try {
+    const event = JSON.parse(rawBody);
+    if (!event || typeof event !== 'object' || Array.isArray(event)) return false;
+  } catch { return false; }
+
   // Get access token
   const tokenRes = await fetch(`${baseUrl}/v1/oauth2/token`, {
     method: 'POST',
@@ -126,15 +141,10 @@ export async function verifyPayPalWebhook(
   const { access_token } = await tokenRes.json();
 
   // Build verification request
-  const verifyBody = {
-    auth_algo: headers.get('paypal-auth-algo') ?? '',
-    cert_url: headers.get('paypal-cert-url') ?? '',
-    transmission_id: headers.get('paypal-transmission-id') ?? '',
-    transmission_sig: headers.get('paypal-transmission-sig') ?? '',
-    transmission_time: headers.get('paypal-transmission-time') ?? '',
-    webhook_id: webhookId,
-    webhook_event: JSON.parse(rawBody),
-  };
+  // PayPal verifies the original event bytes. Preserve whitespace, escapes and
+  // number representations instead of parse/stringify changing the signature.
+  // rawBody is a validated complete JSON object, not an interpolated string.
+  const verifyBody = `${JSON.stringify(verificationHeaders).slice(0, -1)},"webhook_event":${rawBody}}`;
 
   const verifyRes = await fetch(`${baseUrl}/v1/notifications/verify-webhook-signature`, {
     method: 'POST',
@@ -143,7 +153,7 @@ export async function verifyPayPalWebhook(
       'Authorization': `Bearer ${access_token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(verifyBody),
+    body: verifyBody,
   });
 
   if (!verifyRes.ok) {

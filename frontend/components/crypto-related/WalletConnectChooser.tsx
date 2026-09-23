@@ -28,6 +28,7 @@ import {
 import { FiChevronRight } from "react-icons/fi";
 import { IS_WEB3_CONFIGURED } from "@/lib/web3-config";
 import DirectWalletConnect from "./DirectWalletConnect";
+import { useClientReady } from "@/hooks/use-client-ready";
 
 export default function WalletConnectChooser({
   children,
@@ -36,26 +37,38 @@ export default function WalletConnectChooser({
   children: React.ReactNode;
   authenticateDirect?: boolean;
 }) {
+  const clientReady = useClientReady();
   const [open, setOpen] = React.useState(false);
   const [opening, setOpening] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const openingRequest = React.useRef(0);
+  React.useEffect(() => () => { openingRequest.current++; }, []);
+  const changeOpen = (next: boolean) => {
+    openingRequest.current++;
+    setOpen(next);
+    if (!next) setOpening(false);
+  };
 
   const openAppKit = async () => {
     if (!IS_WEB3_CONFIGURED || opening) return;
     setOpening(true);
     setError(null);
+    const request = ++openingRequest.current;
     try {
-      const { ModalController } = await import("@reown/appkit-controllers");
-      await ModalController.open({ view: "Connect" });
-      setOpen(false);
+      const { ensureAppKit } = await import('./AppKitInit');
+      const appKit = await ensureAppKit();
+      if (request !== openingRequest.current) return;
+      await appKit.open({ view: 'Connect' });
+      if (request !== openingRequest.current) { await appKit.close(); return; }
+      changeOpen(false);
     } catch {
-      setError("WalletConnect could not open. Try a browser wallet below, or try again later.");
-    } finally { setOpening(false); }
+      if (request === openingRequest.current) setError("WalletConnect could not open. Try a browser wallet below, or try again later.");
+    } finally { if (request === openingRequest.current) setOpening(false); }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog open={open} onOpenChange={changeOpen}>
+      <DialogTrigger asChild disabled={!clientReady} aria-busy={!clientReady}>{children}</DialogTrigger>
       <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto overscroll-contain sm:max-w-md rounded-2xl border-border/60 bg-card p-4 shadow-2xl sm:p-6 [&>button]:right-2 [&>button]:top-2 [&>button]:flex [&>button]:size-11 [&>button]:items-center [&>button]:justify-center motion-reduce:animate-none">
         <DialogHeader className="pr-10 text-left">
           <DialogTitle className="text-lg">Connect a wallet</DialogTitle>
@@ -102,7 +115,7 @@ export default function WalletConnectChooser({
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Browser wallets
             </p>
-            <DirectWalletConnect authenticateOnConnect={authenticateDirect} onConnected={() => setOpen(false)} />
+            <DirectWalletConnect authenticateOnConnect={authenticateDirect} onConnected={() => changeOpen(false)} />
             <p className="mt-2 text-[11px] text-muted-foreground/70">
               Goes straight to your wallet — no third-party picker.
             </p>

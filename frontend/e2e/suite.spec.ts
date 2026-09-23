@@ -1,5 +1,175 @@
 import { test, expect } from "@playwright/test";
 
+test('S6 — wallet chooser does not accept clicks before hydration', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  try {
+    const page = await context.newPage();
+    await page.route('**/_next/static/chunks/**', async route => { await pending; await route.continue(); });
+    await page.goto('/settings?section=wallet', { waitUntil: 'commit' });
+    const opener = page.getByRole('button', { name: 'Choose wallet connection method', exact: true });
+    await expect(opener).toBeVisible(); await expect(opener).toBeDisabled();
+    release(); await expect(opener).toBeEnabled();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await opener.click(); await expect(page.getByRole('dialog', { name: 'Connect a wallet', exact: true })).toBeVisible();
+  } finally { release(); await context.close(); }
+});
+
+test('S6 — cancelled slow wallet picker stays closed and can retry', async ({ browser, baseURL }) => {
+  test.setTimeout(90_000);
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required');
+  for (const guest of [true, false]) {
+    const context = await browser.newContext({ baseURL, storageState: guest ? undefined : process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+    const page = await context.newPage(), errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    let release!: () => void, delayed = false;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    try {
+      await page.route('**/_next/static/chunks/**', async route => {
+        const response = await route.fetch();
+        if ((await response.text()).includes('data-testid="w3m-modal-overlay"')) { delayed = true; await pending; }
+        await route.fulfill({ response });
+      });
+      await page.goto(guest ? '/products' : '/settings?section=wallet', { waitUntil: 'domcontentloaded' });
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+      const opener = page.getByRole('button', { name: guest ? 'Open menu' : 'Choose wallet connection method', exact: true });
+      await opener.click();
+      const chooser = page.getByRole('dialog', { name: guest ? 'Navigation Menu' : 'Connect a wallet', exact: true });
+      const connect = chooser.getByRole('button', { name: guest ? 'Connect with Web3' : /WalletConnect · Reown/ });
+      await connect.click();
+      await expect.poll(() => delayed).toBe(true);
+      await expect(chooser.getByRole('button', { name: /Opening wallet|Opening WalletConnect/ })).toBeDisabled();
+      await page.keyboard.press('Escape'); await expect(chooser).toBeHidden();
+      release();
+      // Wait for the requested, cancelled SDK initialization to settle, not for
+      // generic network idleness. No late modal should steal the user's focus.
+      await page.evaluate(async () => { await (globalThis as unknown as { __veggatAppKitPromise: Promise<unknown> }).__veggatAppKitPromise; });
+      await expect(page.locator('[data-testid="w3m-modal-overlay"]')).toBeHidden();
+      await opener.click(); await connect.click();
+      await expect(page.locator('[data-testid="w3m-modal-overlay"]')).toBeVisible();
+      await expect(chooser).toBeHidden();
+      await page.screenshot({ path: '.private-showcase/wallet-picker-' + (guest ? 'guest-' : 'demo-') + new URL(baseURL!).hostname + '.png' });
+      expect(errors).toEqual([]);
+    } catch (error) {
+      await page.screenshot({ path: '.private-showcase/wallet-picker-failure-' + (guest ? 'guest' : 'demo') + '.png' });
+      throw error;
+    } finally { release(); await context.close(); }
+  }
+});
+
+test('S6 — Set active requests locked wallet access and preserves selection on cancel', async ({ browser, baseURL }) => {
+  test.setTimeout(90_000);
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  await context.addInitScript(() => {
+    const state = [{ connected: false, reject: false, requests: 0 }, { connected: false, reject: false, requests: 0 }];
+    Object.assign(window, { __qaActivation: state });
+    state.forEach((wallet, index) => {
+      const address = '0x' + String(index + 1).padStart(40, '0');
+      const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+      const provider = {
+        request: async ({ method }: { method: string }) => {
+          if (method === 'eth_chainId') return '0x1';
+          if (method === 'eth_accounts') return wallet.connected ? [address] : [];
+          if (method === 'eth_requestAccounts') {
+            wallet.requests++;
+            if (wallet.reject) { wallet.reject = false; throw Object.assign(new Error('User rejected connection'), { code: 4001 }); }
+            wallet.connected = true; return [address];
+          }
+          if (method === 'wallet_requestPermissions' || method === 'wallet_getPermissions') return [{ parentCapability: 'eth_accounts' }];
+          if (method === 'wallet_revokePermissions') { wallet.connected = false; return null; }
+          if (/sign|sendTransaction/i.test(method)) throw new Error('QA wallet forbids signing and transactions');
+          throw Object.assign(new Error('Unsupported QA method'), { code: 4200 });
+        },
+        on: (event: string, listener: (...args: unknown[]) => void) => { const set = listeners.get(event) ?? new Set(); set.add(listener); listeners.set(event, set); },
+        removeListener: (event: string, listener: (...args: unknown[]) => void) => { listeners.get(event)?.delete(listener); },
+      };
+      const announce = () => window.dispatchEvent(new CustomEvent('eip6963:announceProvider', { detail: {
+        info: { uuid: `83b13b23-24f7-498f-a49d-26fca16003a${index}`, name: `Veggat QA Wallet ${index + 1}`, icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>', rdns: `test.veggat.wallet${index}` }, provider,
+      } }));
+      window.addEventListener('eip6963:requestProvider', announce); announce();
+    });
+  });
+  const page = await context.newPage(), errors: string[] = [], forbidden: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (/\/api\/(auth\/wallet\/nonce|wallets\/evm\/verify|payments)/.test(request.url()) && request.method() === 'POST') forbidden.push(new URL(request.url()).pathname); });
+  try {
+    const before = (await (await context.request.get('/api/auth/session')).json()).user.id;
+    await page.goto('/settings?section=wallet', { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    for (const index of [1, 2]) {
+      await page.getByRole('button', { name: 'Choose wallet connection method', exact: true }).click();
+      const chooser = page.getByRole('dialog', { name: 'Connect a wallet', exact: true });
+      await chooser.getByRole('button', { name: new RegExp(`Veggat QA Wallet ${index}`) }).click();
+      await expect(chooser).toBeHidden();
+    }
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    const menu = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
+    const first = menu.getByRole('group', { name: 'Veggat QA Wallet 1 wallet', exact: true });
+    const second = menu.getByRole('group', { name: 'Veggat QA Wallet 2 wallet', exact: true });
+    await expect(second).toHaveAttribute('data-wallet-active', 'true');
+    // Simulate an extension locking without notifying a cached wagmi connection.
+    await page.evaluate(() => { const wallets = (window as unknown as { __qaActivation: { connected: boolean; reject: boolean }[] }).__qaActivation; wallets[0].connected = false; wallets[0].reject = true; });
+    await first.getByRole('button', { name: 'Set active', exact: true }).click();
+    await expect(menu.getByRole('alert')).toContainText('Wallet activation cancelled');
+    await expect(second).toHaveAttribute('data-wallet-active', 'true');
+    await first.getByRole('button', { name: 'Set active', exact: true }).click();
+    await expect(first).toHaveAttribute('data-wallet-active', 'true');
+    const requests = () => page.evaluate(() => (window as unknown as { __qaActivation: { requests: number }[] }).__qaActivation.map(wallet => wallet.requests));
+    const afterUnlock = await requests();
+    expect(afterUnlock[0]).toBeGreaterThanOrEqual(3);
+    await second.getByRole('button', { name: 'Set active', exact: true }).click();
+    await expect(second).toHaveAttribute('data-wallet-active', 'true');
+    await first.getByRole('button', { name: 'Set active', exact: true }).click();
+    await expect(first).toHaveAttribute('data-wallet-active', 'true');
+    expect(await requests()).toEqual(afterUnlock);
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size);
+      expect(await menu.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+      await second.getByRole('button', { name: 'Set active', exact: true }).scrollIntoViewIfNeeded();
+      const button = await second.getByRole('button', { name: 'Set active', exact: true }).boundingBox(); expect(button!.height).toBeGreaterThanOrEqual(44);
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await first.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: '.private-showcase/wallet-activation-' + new URL(baseURL!).hostname + '.png' });
+    expect((await (await context.request.get('/api/auth/session')).json()).user.id).toBe(before);
+    expect(forbidden).toEqual([]); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S7 — ordinary browsing does not initialize optional wallet services', async ({ browser, baseURL }) => {
+  test.setTimeout(90_000);
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required');
+  for (const storageState of [undefined, process.env.E2E_DEMO_STORAGE_STATE]) {
+    const context = await browser.newContext({ baseURL, storageState, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+    const page = await context.newPage(), walletRequests: string[] = [], errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('request', request => {
+      const url = new URL(request.url());
+      if (/web3modal|reown|walletconnect|coinbase|walletlink/.test(url.hostname) || (request.method() === 'HEAD' && url.origin === new URL(baseURL!).origin)) walletRequests.push(request.method() + ' ' + url.hostname + url.pathname);
+    });
+    try {
+      await page.goto('/products', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('article', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+      const header = await page.locator('[data-header-canvas]').elementHandle();
+      await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+      const menu = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
+      await menu.getByRole('link', { name: 'Pulse', exact: true }).click();
+      await expect(page.getByRole('feed', { name: 'Pulse feed' })).toHaveAttribute('aria-busy', 'false');
+      await page.mouse.move(220, 620); await page.mouse.wheel(0, 500);
+      await expect.poll(() => page.locator('[data-app-scroll-container]').evaluate(e => e.scrollTop)).toBeGreaterThan(0);
+      expect(await header!.evaluate(e => e.isConnected)).toBe(true);
+      // Deliberate observation window after actual hydration/navigation, not a
+      // readiness sleep: catches deferred SDK timers and wallet telemetry.
+      await page.waitForTimeout(1500);
+      expect(walletRequests).toEqual([]); expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  }
+});
+
 test('S7 — a closed slow poll bundle cannot replace the Pulse feed or reset early scrolling', async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });

@@ -3,7 +3,6 @@
 import React, { ReactNode, useEffect, useMemo, useRef } from "react";
 import { WagmiProvider, useAccount } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { reconnect } from "@wagmi/core";
 
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
@@ -73,7 +72,7 @@ function SolanaLayer({ children }: { children: ReactNode }) {
 
   const wallets = useMemo(
     () => [new PhantomWalletAdapter()],
-    [cluster]
+    []
   );
 
   return (
@@ -88,19 +87,11 @@ function SolanaLayer({ children }: { children: ReactNode }) {
 
 export default function Web3Providers({ children }: { children: ReactNode }) {
   const queryClient = useMemo(() => new QueryClient(), []);
-  const didReconnectRef = useRef(false);
-
-  // Rehydrate wagmi sessions
-  useEffect(() => {
-    if (didReconnectRef.current) return;
-    didReconnectRef.current = true;
-    reconnect(wagmiConfig).catch(() => {});
-  }, []);
 
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>
-        {/* Initialize AppKit modal for polished wallet UX */}
+        {/* Restore opted-in wallets only; ordinary browsing does no SDK work. */}
         <AppKitInitializer />
         <ActiveNetworkProvider>
           <PricingProvider>

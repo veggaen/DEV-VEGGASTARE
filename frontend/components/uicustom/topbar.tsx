@@ -171,7 +171,32 @@ const MyTopBar = () => {
 	// Re-add when server-side notification triggers are implemented.
 
 	const headerRef = useRef<HTMLElement | null>(null);
-	const [menuOpen, setMenuOpen] = useState(false);
+	const [menuOpen, updateMenuOpen] = useState(false);
+	const [walletOpening, setWalletOpening] = useState(false);
+	const walletOpeningRequest = useRef(0);
+	const setMenuOpen = useCallback((open: boolean) => {
+		walletOpeningRequest.current++;
+		updateMenuOpen(open);
+		if (!open) setWalletOpening(false);
+	}, []);
+	useEffect(() => () => { walletOpeningRequest.current++; }, []);
+	const openGuestWallet = async () => {
+		if (walletOpening || !IS_WEB3_CONFIGURED) return;
+		const request = ++walletOpeningRequest.current;
+		setWalletOpening(true);
+		try {
+			const { ensureAppKit } = await import('../crypto-related/AppKitInit');
+			const appKit = await ensureAppKit();
+			if (request !== walletOpeningRequest.current) return;
+			await appKit.open({ view: 'Connect' });
+			if (request !== walletOpeningRequest.current) { await appKit.close(); return; }
+			setMenuOpen(false);
+		} catch {
+			if (request === walletOpeningRequest.current) toast.error('Wallet connect is unavailable. Try again or use email, Google, GitHub or Discord.');
+		} finally {
+			if (request === walletOpeningRequest.current) setWalletOpening(false);
+		}
+	};
 	// Which OAuth provider is mid-redirect, so its button can show a spinner
 	// instead of feeling unresponsive while the browser navigates to the provider.
 	const [oauthPending, setOauthPending] = useState<null | 'google' | 'discord' | 'github'>(null);
@@ -321,7 +346,7 @@ const MyTopBar = () => {
 		const onOpenMenu = () => setMenuOpen(true);
 		window.addEventListener("veggat:open-menu", onOpenMenu as any);
 		return () => window.removeEventListener("veggat:open-menu", onOpenMenu as any);
-	}, []);
+	}, [setMenuOpen]);
 
 	useEffect(() => {
 		try {
@@ -339,7 +364,7 @@ const MyTopBar = () => {
 		const onCloseMenu = () => setMenuOpen(false);
 		window.addEventListener("veggat:close-menu", onCloseMenu as any);
 		return () => window.removeEventListener("veggat:close-menu", onCloseMenu as any);
-	}, []);
+	}, [setMenuOpen]);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
@@ -672,32 +697,11 @@ const MyTopBar = () => {
 													{/* Web3 connect — top option */}
 													<button
 														type="button"
-														onClick={async () => {
-															try {
-																const { ModalController } = await import('@reown/appkit-controllers');
-																// If AppKit hasn't initialized yet (it's lazy-loaded), opening
-																// can no-op silently. Open, then verify it actually opened and
-																// give feedback / fall back to the email login route otherwise.
-																ModalController.open({ view: 'Connect' });
-																setMenuOpen(false);
-																setTimeout(() => {
-																	const isOpen = (ModalController as unknown as { state?: { open?: boolean } })?.state?.open;
-																	if (!isOpen) {
-																		import('sonner').then(({ toast }) =>
-																			toast.error('Wallet connect is still loading — please try again in a moment, or use Google / GitHub / Discord.')
-																		);
-																	}
-																}, 600);
-															} catch {
-																import('sonner').then(({ toast }) =>
-																	toast.error('Wallet connect unavailable right now. Try Google / GitHub / Discord instead.')
-																);
-															}
-														}}
-														disabled={!IS_WEB3_CONFIGURED} title={IS_WEB3_CONFIGURED ? "Connect a crypto wallet" : "Wallet connect coming soon"} className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 dark:bg-white px-4 py-3 text-sm font-medium text-white dark:text-zinc-900 enabled:hover:bg-zinc-800 dark:enabled:hover:bg-zinc-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+														onClick={openGuestWallet}
+														disabled={!IS_WEB3_CONFIGURED || walletOpening} aria-busy={walletOpening} title={IS_WEB3_CONFIGURED ? "Connect a crypto wallet" : "Wallet connect coming soon"} className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 dark:bg-white px-4 py-3 text-sm font-medium text-white dark:text-zinc-900 enabled:hover:bg-zinc-800 dark:enabled:hover:bg-zinc-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 													>
 														<FiLink className="w-4 h-4" />
-														{IS_WEB3_CONFIGURED ? 'Connect with Web3' : 'Web3 wallet — coming soon'}
+														{walletOpening ? 'Opening wallet…' : IS_WEB3_CONFIGURED ? 'Connect with Web3' : 'Web3 wallet — coming soon'}
 													</button>
 
 													{/* OAuth providers row */}

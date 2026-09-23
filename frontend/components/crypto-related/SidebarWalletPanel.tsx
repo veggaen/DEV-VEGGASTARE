@@ -49,6 +49,7 @@ import { formatUnits, isAddress, parseEther } from "viem";
 import { toast } from "sonner";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { createLogger } from "@/lib/logger";
+import { ensureWalletAccount, walletActivationMessage, WalletActivationError } from '@/lib/wallet-activation';
 
 const log = createLogger('WalletPanel');
 
@@ -449,7 +450,15 @@ function ConnectWalletButton({
   previousAuthProvider?: string;
   onRestore?: () => void;
 }) {
-  const handleOpen = async () => {
+  const [opening, setOpening] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const openWallet = async () => {
+    // Start optional services before disconnecting an existing AUTH wallet.
+    // Closing the sidebar while this loads must not produce a late popup.
+    const { ensureAppKit } = await import('./AppKitInit');
+    const appKit = await ensureAppKit();
+    if (!mounted.current) return;
     // Disconnect any active AUTH session first so all social providers
     // are available in the modal (AppKit grays them out otherwise).
     let disconnectedProvider: string | undefined;
@@ -461,7 +470,14 @@ function ConnectWalletButton({
     }
 
     // Open the Connect modal
-    ModalController.open({ view: 'Connect' });
+    try {
+      if (!mounted.current) return;
+      await appKit.open({ view: 'Connect' });
+      if (!mounted.current) { await appKit.close(); return; }
+    } catch {
+      toast.error('WalletConnect could not open. Try a browser wallet or try again later.');
+      return;
+    }
 
     // If we disconnected an AUTH session, watch for modal close.
     // If the modal closes without establishing a new AUTH connection,
@@ -507,14 +523,24 @@ function ConnectWalletButton({
     }
   };
 
+  const handleOpen = async () => {
+    if (opening) return;
+    setOpening(true);
+    try { await openWallet(); }
+    catch { if (mounted.current) toast.error('WalletConnect could not open. Try a browser wallet or try again later.'); }
+    finally { if (mounted.current) setOpening(false); }
+  };
+
   return (
     <button
       type="button"
       onClick={handleOpen}
-      className="w-full flex items-center gap-2 text-[10px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:border-sky-500/50 dark:hover:border-emerald-500/50 transition-colors"
+      disabled={opening}
+      aria-busy={opening}
+      className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-600 transition-colors hover:border-sky-500/50 hover:text-sky-500 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-emerald-500/50 dark:hover:text-emerald-400"
     >
       <WalletIcon src={REOWN_ICON_DATA_URI} alt="Reown" />
-      <span className="truncate flex-1 text-left">Reown · Social · Email · 520+ wallets</span>
+      <span className="min-w-0 flex-1 text-left">{opening ? 'Opening wallet…' : 'Reown · Social · Email · 520+ wallets'}</span>
     </button>
   );
 }
@@ -972,7 +998,7 @@ function Web3EnablePrompt() {
   return (
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700/60 bg-zinc-50 dark:bg-zinc-900/50 p-3 space-y-2">
       <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-        Web3 is currently disabled. Enable it to connect wallets, trade tokens, and accept crypto payments.
+        Advanced Web3 tools are disabled. Enable them to explore the experimental trading tools. Wallet connection is available separately.
       </p>
       {authError && (
         <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
@@ -1695,6 +1721,7 @@ function WalletRow({
   canDisconnect,
   onVerified,
   onSetActive,
+  activationPending,
   onTransfer,
   onRename,
   connectorName,
@@ -1732,6 +1759,7 @@ function WalletRow({
   canDisconnect?: boolean;
   onVerified?: () => void;
   onSetActive?: () => void;
+  activationPending?: boolean;
   onTransfer?: () => void;
   onRename?: (newName: string) => void;
   connectorName?: string;
@@ -1820,6 +1848,9 @@ function WalletRow({
               ? "border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60"
               : "border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/70 dark:bg-zinc-900/45"
       }`}
+      role="group"
+      aria-label={`${displayName} wallet`}
+      data-wallet-active={isActive}
     >
       {/* (Dead hidden badge/activate blocks removed — the inline chip on row 1
           and the "Set active" action next to the address are the single source
@@ -1865,12 +1896,12 @@ function WalletRow({
         {/* Info column */}
         <div className="min-w-0 flex-1">
           {/* Row 1: Title + via source + badge */}
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <span
-              className="inline-flex items-center gap-1 shrink-0"
+              className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-1"
               title={`${displayName}${sourceMethodLabel ? ` (via ${sourceMethodLabel})` : ""}${label && label !== displayName ? ` — ${label}` : ""}`}
             >
-              <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300 shrink-0">
+              <span className="min-w-0 break-words text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 {displayName}
               </span>
               {sourceMethodLabel && (
@@ -2027,7 +2058,7 @@ function WalletRow({
             </span>
           )}
           {/* Address + copy + inline actions */}
-          <span className="flex items-center gap-1">
+          <span className="flex flex-wrap items-center gap-1">
             <span
               className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 truncate"
               title={address}
@@ -2042,7 +2073,8 @@ function WalletRow({
               <button
                 type="button"
                 onClick={onSetActive}
-                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors ${
+                disabled={activationPending}
+                className={`inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 ${
                   connectorType === 'LOCAL_RPC'
                     ? "bg-muted/70 text-muted-foreground hover:bg-orange-500/15 hover:text-orange-500 dark:hover:text-orange-300"
                     : "bg-muted/70 text-muted-foreground hover:bg-sky-500/15 hover:text-sky-600 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-300"
@@ -2320,6 +2352,9 @@ export default function SidebarWalletPanel({
 
   const [linkedWallets, setLinkedWallets] = useState<LinkedWallet[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activationPending, setActivationPending] = useState(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const activationLock = useRef(false);
 
   // Donation hook — shared across all wallet rows
   const { step: donateStep, error: donateError, txHash: donateTxHash, donate: execDonate, reset: donateReset } = useDonate({
@@ -3795,7 +3830,7 @@ export default function SidebarWalletPanel({
    * NOTE: Switching wallets NEVER touches the NextAuth web2 session.
    * The user stays logged in regardless of which wallet is active.
    */
-  const handleSetActive = async (w: DisplayWallet) => {
+  const activateWallet = async (w: DisplayWallet) => {
     if (w.isActive || w.family !== "EVM") return;
 
     // LOCAL_RPC wallets: Just set the active wallet override — NO MetaMask/Coinbase prompt!
@@ -3855,9 +3890,6 @@ export default function SidebarWalletPanel({
       return;
     }
 
-    // Activating a non-LOCAL_RPC wallet — clear any local override
-    clearOverride();
-
     // Try finding in live connections first
     const conn = connections.find((c) =>
       c.accounts.some(
@@ -3870,7 +3902,9 @@ export default function SidebarWalletPanel({
       const isAuthSwitch = conn.connector.type === 'AUTH' || conn.connector.id === 'auth';
       let switchSucceeded = false;
       try {
+        if (!isAuthSwitch) await ensureWalletAccount(conn.connector, w.address);
         await switchAccountAsync({ connector: conn.connector });
+        clearOverride();
         switchSucceeded = true;
         if (isAuthSwitch) {
           toast.success(`Switched to ${w.authProvider ? authProviderLabel(w.authProvider) : 'Reown'} wallet`);
@@ -3883,8 +3917,7 @@ export default function SidebarWalletPanel({
           log.warn('AUTH switchAccount failed, session may be expired:', switchErr);
           toast.info('Wallet session expired — reconnecting…');
         } else {
-          fetchLinked();
-          return;
+          throw switchErr;
         }
       }
       // If switch worked (AUTH or not), we're done
@@ -4087,7 +4120,9 @@ export default function SidebarWalletPanel({
         return;
       }
 
-      if (!resolvedConnector) return;
+      if (!resolvedConnector) throw new WalletActivationError('This wallet extension is not available. Open or install it, then try Set active again.');
+
+      await ensureWalletAccount(resolvedConnector, w.address);
 
       // For injected/EIP-6963 wallets: disconnect the currently active
       // injected wallet first, otherwise wagmiConnect returns the same provider.
@@ -4108,15 +4143,25 @@ export default function SidebarWalletPanel({
       }
 
       await wagmiConnect(wagmiConfig, { connector: resolvedConnector });
+      clearOverride();
 
       // AppKit may disconnect the previous wallet — registry keeps it visible.
       setTimeout(() => {
         forceRegistryUpdate((v) => v + 1);
         fetchLinked();
       }, 600);
-    } catch {
+    } catch (error) {
       forceRegistryUpdate((v) => v + 1);
+      throw error;
     }
+  };
+
+  const handleSetActive = async (wallet: DisplayWallet) => {
+    if (activationLock.current) return;
+    activationLock.current = true; setActivationPending(true); setActivationError(null);
+    try { await activateWallet(wallet); }
+    catch (error) { setActivationError(walletActivationMessage(error)); }
+    finally { activationLock.current = false; setActivationPending(false); }
   };
 
   /**
@@ -4203,6 +4248,8 @@ export default function SidebarWalletPanel({
 
       {/* Body */}
       <div className="space-y-1.5">
+        {activationPending && <p role="status" className="rounded-lg border border-border p-3 text-sm text-muted-foreground">Check your wallet extension. Activation never requests a signature or payment.</p>}
+        {activationError && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{activationError}</p>}
         {/* Wallet list */}
         <AnimatePresence initial={false}>
         {displayWallets.map((w) => (
@@ -4291,6 +4338,7 @@ export default function SidebarWalletPanel({
                 ? () => handleSetActive(w)
                 : undefined
             }
+            activationPending={activationPending}
             onTransfer={
               // Active wallets: "Transfer" button. Inactive EVM wallets: "Fund" button.
               (w.isActive && w.isLive && w.family === "EVM") || w.connectorType === 'LOCAL_RPC' || (!w.isActive && w.family === "EVM")
