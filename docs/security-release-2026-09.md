@@ -54,8 +54,59 @@ are not safe substitutes for compatibility testing.
   Done closes the menu and restores selector focus. A rate-fetch error was
   recorded during the server restart/reload; the subsequent rates endpoint
   returns 200 and the receipt renders converted amounts.
-- Deployed Preview verification is pending. Production is not yet patched by
-  this candidate, and owner OAuth consent is not implied by protocol checks.
+- Candidate `477e83b`, deployment `dpl_7meZLg3agnyw1ALukw4nANB1xTYi`, is READY
+  on the stable showcase Preview alias. Git deployment did not move the pinned
+  alias automatically; the alias was explicitly updated and read back before
+  the final tests. An initial run against the old alias was stopped and is not
+  counted as candidate evidence.
+- Deployed Preview Playwright **9/9** passes in 1.4 minutes: the above auth,
+  recovery, checkout and cross-feature checks. All Google/GitHub/Discord
+  providers are advertised and their initiation checks run; this does not
+  imply completed owner consent. Health is 200; a valid-shaped but unsigned
+  capture notification returns 401 `INVALID_SIGNATURE`.
+- Real Chrome confirms deployed typed 555 credits, its progressive discount,
+  and NOK (ETH) pricing. Local 390px receipt/footer and independently scrolling
+  mobile drawer were visually inspected; the viewport override was reset.
+  An unaffordable premium model keeps Send disabled with a nonempty draft.
+  No AI provider request or payment was made by these extra manual checks.
+- Production is unchanged and is not yet patched by this candidate.
+
+## Follow-up observed during QA
+
+A brand-new demo account's receipt shows a stored balance of 0 before chat
+initializes its free allowance, while chat advertises 5 demo credits. Harmonize
+that display without granting credits from the receipt, resetting spent
+balances, or treating a free demo order as a paid credit purchase. The remaining
+dependency findings, actual owner OAuth completion, custom paid Sandbox
+webhook/refund acceptance and Live acceptance still remain separate work.
 
 The hosted GitHub workflow remains blocked by the owner's account billing
 lock, before any job step. No spending or billing settings were changed.
+
+## Follow-up candidate: compatible runtime fixes and demo presentation
+
+WebSocket 8.x now has a patched minimum of 8.21.3, including nested viem paths;
+WebSocket 7.x remains on its own major (updated to 7.5.13). Socket.IO parser is
+4.2.7, brace-expansion 5.0.12 and Axios 1.20.0. Scoped overrides retain Axios 1.x
+and WebSocket 8.x API families, without downgrading Solana or migrating wagmi.
+`npm audit --omit=dev` now reports **0 critical, 0 high, 25 moderate** entries.
+The full dependency tree still has **8 high build/dev-tool entries** (Faker,
+Prisma/config/deepmerge-ts/mysql2, browserslist, fast-uri and js-yaml); these
+remain tracked work, not a clean full-repository security audit.
+
+The demo presentation candidate shares one pure helper between receipt, history
+and chat. A missing demo account displays its five-credit first-send allowance
+and identifies it as free/unclaimed. Existing zero/partial balances remain
+unchanged; missing paid accounts display zero. Reads do not grant credits or
+make ledger entries. The grant is still the existing idempotent guarded-send
+transaction. Focused unit checks **62/62** and real isolated Postgres ledger
+checks **30/30** pass. Strict webpack build (187 generated routes), standalone
+type-check and touched-file lint pass. Local focused Playwright **7/7** passes:
+read-only demo balance across receipt/history/config, auth protocol/password
+login/logout, global currency, buyer history and injected wallet cancellation.
+The new check reads the isolated database before/after and confirms that the
+credit account and ledger entries remain absent. Its first run matched a hidden
+streaming copy; scoping assertions to the main landmark fixed the test ambiguity.
+Real Chrome at 390px confirms the five-credit allowance, USD (ETH), receipt
+footer scrolling and matching history with no activity entries. Deployment
+verification is pending; production remains unchanged.

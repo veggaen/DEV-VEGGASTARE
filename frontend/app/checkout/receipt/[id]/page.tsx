@@ -7,6 +7,7 @@ import { moneyString, type ShowcaseQuote } from '@/lib/payments/showcase-policy'
 import CreditRefundNotice from '@/components/checkout/credit-refund-notice';
 import ReceiptDownloads from '@/components/checkout/receipt-downloads';
 import PreferredMoney from '@/components/checkout/preferred-money';
+import { displayCreditPosition } from '@/lib/ai-credit-display';
 
 export default async function ReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,6 +17,8 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     OrderItem: true, DownloadToken: { where: { isRevoked: false, expiresAt: { gt: new Date() } }, include: { DigitalAsset: { select: { fileName: true } } } },
   } } } });
   if (!receipt || receipt.userId !== session.user.id) notFound();
+  const environment = receipt.environment;
+  if (environment !== 'DEMO' && environment !== 'LIVE' && environment !== 'SANDBOX') notFound();
   const demo = receipt.environment === 'DEMO', complete = receipt.state === 'COMPLETED', refunded = receipt.state === 'REFUNDED';
   const reversed = receipt.state === 'REVERSED', review = receipt.state === 'PAYMENT_REVIEW';
   const availableFiles = receipt.Order.DownloadToken.filter(file => file.usedCount < file.maxUses);
@@ -23,6 +26,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   const purchasedCredits = lines.reduce((sum, line) => sum + line.credits, 0);
   const hasDigitalFiles = lines.some(line => line.kind === 'DIGITAL_FILES') || receipt.Order.DownloadToken.length > 0;
   const balance = await dbPrisma.aiCreditAccount.findUnique({ where: { id: `${receipt.environment}:${session.user.id}` }, select: { balance: true, refundAdjustment: true } });
+  const display = displayCreditPosition(balance, environment);
   return <section className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{demo ? 'Demo · no payment collected' : receipt.environment === 'SANDBOX' ? 'Sandbox · no real money' : 'PayPal Live'}</p>
     <h1 className="mt-3 text-balance text-3xl font-semibold">{refunded ? 'Your order was refunded' : reversed ? 'Your payment was reversed' : review ? 'Your payment is under review' : complete ? demo ? 'Your demo order is ready' : 'Your order is confirmed' : 'Order awaiting confirmation'}</h1>
@@ -30,7 +34,9 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     <dl className="mt-8 grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2 sm:p-6">
       <div><dt className="text-sm text-muted-foreground">{demo ? 'Charged' : 'Order total'}</dt><dd className="mt-1 text-xl font-semibold"><PreferredMoney amount={demo ? 0 : receipt.totalOre / 100} /></dd></div>
       <div className="min-w-0"><dt className="text-sm text-muted-foreground">Receipt ID</dt><dd className="mt-1 break-all font-mono text-sm">{receipt.captureId ?? receipt.orderId}</dd></div>
-      <div><dt className="text-sm text-muted-foreground">AI credit balance</dt><dd className="mt-1 font-semibold">{balance?.balance ?? 0}{receipt.environment === 'SANDBOX' ? ' test credits' : ' credits'}</dd></div>
+      <div><dt className="text-sm text-muted-foreground">AI credit balance</dt><dd data-testid="receipt-ai-credit-balance" className="mt-1 font-semibold">{display.available}{demo ? ' demo credits' : receipt.environment === 'SANDBOX' ? ' test credits' : ' credits'}</dd>
+        {display.unclaimedDemoAllowance > 0 && <p className="mt-2 text-sm text-muted-foreground">Includes your free demo allowance, activated on your first supported message. This order did not buy credits.</p>}
+      </div>
       <div><dt className="text-sm text-muted-foreground">Status</dt><dd className="mt-1">{receipt.state.toLowerCase().replaceAll('_', ' ')}</dd></div>
       {receipt.refundedOre > 0 && <div><dt className="text-sm text-muted-foreground">Verified refund amount</dt><dd className="mt-1 font-semibold"><PreferredMoney amount={receipt.refundedOre / 100} /></dd></div>}
       {receipt.refundReference && <div className="min-w-0"><dt className="text-sm text-muted-foreground">Payment adjustment reference</dt><dd className="mt-1 break-all font-mono text-sm">{receipt.refundReference}</dd></div>}

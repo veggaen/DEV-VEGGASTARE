@@ -5,21 +5,23 @@ import { aiCreditLedger, aiCreditEnvironment, DEMO_AI_CREDITS, AI_DAILY_REQUEST_
 import { isDemoUserId } from '@/lib/demo-policy';
 import { FUNDED_AI_MODELS, pricingIsReviewed } from '@/lib/ai-chat/credit-policy';
 import { platformAiKey, aiErrorResponse } from '@/lib/ai-chat/generation';
+import { displayCreditPosition } from '@/lib/ai-credit-display';
 export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   try {
     const user = await MyLibUserAuth(), demo = isDemoUserId(user?.id);
     const keys = user?.id && !demo ? await dbPrisma.userAiApiKey.findMany({ where: { userId: user.id }, select: { provider: true } }) : [];
     const position = user?.id ? await aiCreditLedger.position(user.id) : { balance: 0, refundAdjustment: 0 };
-    let balance = position.balance;
+    let displayAccount: typeof position | null = position;
     if (demo && user?.id) {
       const account = await dbPrisma.aiCreditAccount.findUnique({ where: { id: `DEMO:${user.id}` }, select: { id: true } });
       // Old demo sessions get their one-time allowance on the first guarded send.
-      if (!account) balance = DEMO_AI_CREDITS;
+      if (!account) displayAccount = null;
     }
+    const display = displayCreditPosition(displayAccount, aiCreditEnvironment(user?.id));
     const date = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
     const usage = user?.id ? await dbPrisma.dailyAiUsage.findUnique({ where: { userId_date: { userId: user.id, date } }, select: { count: true } }) : null;
-    return Response.json({ balance, refundAdjustment: position.refundAdjustment, demo, authenticated: Boolean(user?.id), environment: aiCreditEnvironment(user?.id), dailyUsed: usage?.count ?? 0,
+    return Response.json({ balance: display.available, unclaimedDemoAllowance: display.unclaimedDemoAllowance, refundAdjustment: position.refundAdjustment, demo, authenticated: Boolean(user?.id), environment: aiCreditEnvironment(user?.id), dailyUsed: usage?.count ?? 0,
       dailyLimit: demo ? DEMO_AI_CREDITS : AI_DAILY_REQUEST_LIMIT, savedProviders: keys.map(key => key.provider),
       models: FUNDED_AI_MODELS.map(item => ({ provider: item.provider, model: item.model, label: item.label,
         credits: demo ? Math.max(1, item.credits) : item.credits,

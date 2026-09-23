@@ -1,5 +1,52 @@
 import { test, expect } from "@playwright/test";
 
+test('S5 demo receipt, chat and history agree without granting or replenishing credits', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_ALLOWANCE_DISPLAY !== '1', 'Explicit read-only isolated demo regression');
+  const { isolatedPreviewEnv } = await import('../scripts/with-preview-database.mjs');
+  const { Pool } = await import('pg');
+  const isolated = isolatedPreviewEnv();
+  expect(['http://localhost:3000', 'https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app']).toContain(baseURL);
+  expect(process.env.DATABASE_URL_MAINPREVIEW === isolated.DATABASE_URL_MAINPREVIEW).toBe(true);
+  const database = new URL(isolated.DATABASE_URL_MAINPREVIEW);
+  database.searchParams.set('sslmode', 'verify-full');
+  const pool = new Pool({ connectionString: database.toString(), max: 1 });
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.isDemo && session.user.id.startsWith('demo_')).toBe(true);
+    const accountId = `DEMO:${session.user.id}`;
+    const account = async () => (await pool.query('SELECT balance, "refundAdjustment" FROM "AiCreditAccount" WHERE id=$1', [accountId])).rows;
+    const entries = async () => (await pool.query('SELECT id FROM "AiCreditEntry" WHERE "accountId"=$1 ORDER BY id', [accountId])).rows;
+    const beforeAccount = await account(), beforeEntries = await entries();
+    // This retained fixture has never sent an AI message; the actual grant must
+    // remain absent even after all read surfaces and a receipt reload.
+    expect(beforeAccount).toEqual([]);
+    expect(beforeEntries).toEqual([]);
+    const config = await (await context.request.get('/api/ai-chat/config')).json();
+    expect(config).toMatchObject({ demo: true, balance: 5, unclaimedDemoAllowance: 5 });
+    const orders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
+    const order = orders.find((item: { id: string; checkout?: { environment: string; state: string } }) => item.checkout?.environment === 'DEMO' && item.checkout.state === 'COMPLETED');
+    expect(order).toBeTruthy();
+    const page = await context.newPage();
+    const main = page.getByRole('main');
+    await page.goto(`/checkout/receipt/${order.id}`, { waitUntil: 'domcontentloaded' });
+    await expect(main.getByTestId('receipt-ai-credit-balance')).toHaveText('5 demo credits');
+    await expect(main.getByText('Includes your free demo allowance, activated on your first supported message. This order did not buy credits.', { exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('demo-receipt-allowance-390.png') });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(main.getByTestId('receipt-ai-credit-balance')).toHaveText('5 demo credits');
+    await page.goto('/ai/credits', { waitUntil: 'domcontentloaded' });
+    const available = main.getByRole('term').filter({ hasText: /^Available$/ }).locator('..').getByRole('definition');
+    await expect(available).toHaveText('5');
+    await expect(main.getByText('Available includes your free 5-credit demo allowance.', { exact: false })).toBeVisible();
+    expect(await account()).toEqual(beforeAccount);
+    expect(await entries()).toEqual(beforeEntries);
+  } finally { await context.close(); await pool.end(); }
+});
+
 test('S2 security patch rejects malformed sessions and preserves OAuth host and cookie checks', async ({ playwright, baseURL }) => {
   test.skip(process.env.E2E_SECURITY_REGRESSION !== '1', 'Explicit auth protocol regression only');
   const origin = new URL(baseURL!).origin;

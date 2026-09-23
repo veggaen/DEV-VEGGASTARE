@@ -7,8 +7,9 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { paypalEnvironment } from '@/lib/payments/showcase-policy';
 import { applyAiCreditDelta } from '@/lib/ai-credit-adjustment';
+import { DEMO_AI_CREDITS } from '@/lib/ai-credit-display';
 
-export const DEMO_AI_CREDITS = 5;
+export { DEMO_AI_CREDITS } from '@/lib/ai-credit-display';
 export const AI_DAILY_REQUEST_LIMIT = 20;
 export const AI_CONCURRENT_REQUEST_LIMIT = 2;
 export const AI_PLATFORM_DAILY_REQUEST_LIMIT = 500;

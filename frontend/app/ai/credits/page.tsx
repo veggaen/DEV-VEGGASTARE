@@ -33,7 +33,7 @@ export default async function CreditHistoryPage() {
         <dl className="grid gap-4 sm:grid-cols-3">
           {[['Available', history.available], ['Reserved', history.reserved], ['Refund adjustment', history.refundAdjustment]].map(([label, value]) => <div key={label} className="min-w-0 rounded-xl border border-border bg-card p-5"><dt className="text-sm text-muted-foreground">{label}</dt><dd className="mt-2 text-3xl font-semibold tabular-nums">{number(value as number)}</dd></div>)}
         </dl>
-        {history.unclaimedDemoAllowance > 0 && <p className="rounded-xl border border-border p-4 text-sm">Your {history.unclaimedDemoAllowance}-credit demo allowance will be added when you send your first supported message.</p>}
+        {history.unclaimedDemoAllowance > 0 && <p className="rounded-xl border border-border p-4 text-sm">Available includes your free {history.unclaimedDemoAllowance}-credit demo allowance. It activates on your first supported message; it is not a credit purchase.</p>}
         <section aria-labelledby="credit-explanation" className="space-y-2 text-sm text-muted-foreground">
           <h2 id="credit-explanation" className="font-medium text-foreground">How your balance works</h2>
           <p>Reserved credits are already deducted from Available. {number(history.pendingRequests)} requests are awaiting settlement. A successful reply keeps its reservation; a failed reply returns its credits once. Interrupted requests may take up to two minutes to settle when you return to chat.</p>

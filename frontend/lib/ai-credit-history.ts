@@ -1,7 +1,8 @@
 /** @fileOverview Buyer-scoped, read-only credit activity; no payment identifiers or provider secrets. @stability active */
 import 'server-only';
 import { dbPrisma } from '@/lib/db';
-import { aiCreditEnvironment, DEMO_AI_CREDITS } from '@/lib/ai-credit-ledger';
+import { aiCreditEnvironment } from '@/lib/ai-credit-ledger';
+import { displayCreditPosition } from '@/lib/ai-credit-display';
 
 export async function readBuyerCreditHistory(userId: string) {
   const environment = aiCreditEnvironment(userId);
@@ -13,8 +14,7 @@ export async function readBuyerCreditHistory(userId: string) {
         select: { id: true, kind: true, delta: true, createdAt: true } }),
       tx.aiGenerationReservation.aggregate({ where: { accountId, state: 'RESERVED' }, _sum: { credits: true }, _count: { _all: true } }),
     ]);
-    return { environment, available: account?.balance ?? 0, refundAdjustment: account?.refundAdjustment ?? 0,
-      unclaimedDemoAllowance: !account && environment === 'DEMO' ? DEMO_AI_CREDITS : 0,
+    return { environment, ...displayCreditPosition(account, environment),
       reserved: pending._sum.credits ?? 0, pendingRequests: pending._count._all,
       entries: entries.map(entry => ({ ...entry, createdAt: entry.createdAt.toISOString() })) };
   }, { isolationLevel: 'RepeatableRead', maxWait: 5_000, timeout: 15_000 });

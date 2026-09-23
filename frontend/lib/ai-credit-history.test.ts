@@ -36,7 +36,7 @@ describe('buyer history', () => {
   it('shows an unclaimed demo allowance separately without issuing a grant', async () => {
     m.environment.mockReturnValue('DEMO'); m.account.mockResolvedValue(null); m.entries.mockResolvedValue([]);
     m.pending.mockResolvedValue({ _sum: { credits: null }, _count: { _all: 0 } });
-    expect(await readBuyerCreditHistory('demo')).toMatchObject({ available: 0, unclaimedDemoAllowance: 5, reserved: 0, entries: [] });
+    expect(await readBuyerCreditHistory('demo')).toMatchObject({ available: 5, recordedBalance: 0, unclaimedDemoAllowance: 5, reserved: 0, entries: [] });
   });
   it('does not promise a demo grant again after the balance has been spent', async () => {
     m.environment.mockReturnValue('DEMO'); m.account.mockResolvedValue({ balance: 0, refundAdjustment: 0 });

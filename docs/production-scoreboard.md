@@ -20,8 +20,21 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   Strict local build, five installed-token-parser checks, 93 focused unit
   checks, 30 isolated PostgreSQL ledger checks and two browser runs **5/5 each**
   pass. Auth recovery fixtures now refuse the live DB. Real Chrome retains its
-  demo session and switches receipt USD (ETH) correctly. Preview rollout is
-  pending; production is unchanged. See [security release evidence](security-release-2026-09.md).
+  demo session and switches receipt USD (ETH) correctly. Candidate `477e83b`,
+  deployment `dpl_7meZLg3agnyw1ALukw4nANB1xTYi`, is READY on the stable Preview
+  alias after explicitly updating the pinned alias. Deployed browser **9/9**
+  passes (auth/recovery/2FA, demo checkout retry/replay, currency/history/wallet
+  and private-session checks). Health 200; unsigned webhook 401. Production is
+  unchanged. See [security release evidence](security-release-2026-09.md).
+- Follow-up candidate resolves the 0-versus-5 demo balance presentation without
+  granting from receipt/history or replenishing an existing spent balance.
+  Shared read-only presentation: 62 focused unit tests, 30 isolated ledger
+  tests, strict build/type-check/lint and local browser **7/7** pass. Real Chrome
+  confirms the 390px receipt and history agree. Compatible Axios/WebSocket/
+  Socket.IO parser/brace-expansion fixes bring the production dependency audit
+  to **0 critical/0 high/25 moderate**; build/dev findings remain separately
+  tracked. This follow-up is not yet deployed. PayPal Developer remains at owner
+  passkey sign-in; no further paid acceptance was attempted.
 
 ## Custom credit quantities — verified local/Preview candidate, 23 September 2026
 
