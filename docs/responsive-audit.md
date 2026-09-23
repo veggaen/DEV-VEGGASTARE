@@ -99,10 +99,39 @@ geometry scans are triage, not a substitute for viewing the screenshots.
   0.00 NOK receipt, real 539,906-byte JPG and 2,682-byte TXT downloads. Signed-out
   download returns 401; replay returns the same order. Demo AI allowance remains
   an unfinished S5 item; no PayPal transaction was made.
+- Live free demo flow also passed: same two real file types/sizes, 0.00 NOK
+  receipt, anonymous 401 and same-order replay. Final live focused regression
+  **4/4 in 40.6s**, release `c965d86` / `dpl_B1DDWufH2bBHurwbhyBTF8bomUy6`.
+  Actual live Pulse scroll/filter reproduction also passed (700→0; footer y=844).
+- Warehouse detail **API**: anonymous 401; demo 200 with empty inventory/products,
+  locally and live. Three role-isolation unit tests added. This is distinct from
+  its detail page, whose old Server Action still produces a demo error (next fix).
 - Ignored evidence directory: `frontend/.private-showcase/responsive-audit/`
   (`core-local`, `all-local`). Never commit storageState, private URLs or tokens.
 - Lab timings are diagnostic only, not field Speed Insights or a claimed Core
   Web Vitals pass. Test/automation traffic is not genuine visitor telemetry.
+
+## Remaining audit queue (not passes)
+
+- Products: two mobile toolbar icons lack accessible names and measure 36px high.
+  The closed custom filter sidebar remains in the accessibility tree. Align its
+  responsive breakpoint and focus management with the global drawer. Real
+  category selection, search/empty state, gallery arrows and portrait filter
+  scroll containment were exercised successfully; short-landscape filter panel
+  and full keyboard traversal still need work.
+- Pulse action controls, notifications and experimental polls: inspect accessible
+  names in the actual accessibility tree. The raw button scanner over-counts
+  controls named by associated labels (for example filter checkboxes).
+- Analytics, company creation and jobs posting: demo permissions produce access
+  denials. Replace raw/unhelpful error states where needed without allowing writes.
+- Dynamic company/warehouse/order/download pages need seeded-record flows, not
+  placeholder IDs. Paid seller view still needs owner/payment evidence.
+- Confirmed dynamic defect: `/warehouses/[id]` still calls `fetchWarehouseById`
+  as a Server Action; demo gets "An unexpected response was received from the
+  server." Replace with the secured GET DTO, show role-aware inventory guidance,
+  and secure/deprecate the legacy read action. Width-only checks missed this.
+- Actual Chrome, physical keyboard/safe-area behavior and 125% browser zoom remain
+  unverified after the PC crash. No connected Chrome surface is available yet.
 
 ## References
 

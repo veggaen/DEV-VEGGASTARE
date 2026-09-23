@@ -35,7 +35,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 - Final release `f2e68c7`, deployment `dpl_PJxBHUGyQunCL9pU2jvTdmvA2h9h`, is READY at www.veggat.com. Expanded marketplace test passes locally 2/2 (14.2s) and live 2/2 (27.8s), including setup. Live uses a fresh demo from the visible homepage button, both real product images, separate cart lines, reload at 390/1280, add/increment/decrement/remove badge synchronization, stable row order and demo upload denial. No browser exceptions.
 - Remaining: checkout, paid order/receipt, seller order visibility, private signed downloads and credit grants (S4/S5). Do not claim this vertical slice is complete yet.
 
-## S4 — Verified checkout (PARTIAL, local implementation)
+## S4 — Verified checkout (PARTIAL, demo verified local/live)
 
 - Additive production database migration applied: server-side checkout attempts,
   unique capture/request IDs, separate environment credit ledgers and nonnegative
@@ -46,7 +46,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 - Real private JPG/TXT files provisioned; raw storage URLs deny unauthenticated
   access. Authenticated entitlement route checks ownership, completion, expiry,
   revocation and usage cap before returning verified file bytes.
-- Local browser: free demo checkout completed with both items, 0.00 NOK receipt,
+- Local and live browsers: free demo checkout completed with both items, 0.00 NOK receipt,
   real JPG/TXT downloads, signed-out download 401, replay returns the same order.
   Demo purchase intentionally grants no paid balance; S5 free grant is pending.
 - Payment/storage/entitlement unit tests **60/60**; database constraint checks
@@ -54,7 +54,10 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 - `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` remain missing.
   Normal payment CTA fails closed. Production values belong only in Vercel
   Production; local/preview use Sandbox. Refund workflow remains unfinished.
-- New S4 code is not yet deployed. Previous S3 deployment remains live.
+- S4 and responsive corrections deployed; current production commit `c965d86`,
+  deployment `dpl_B1DDWufH2bBHurwbhyBTF8bomUy6`, READY at https://www.veggat.com.
+  Actual Live PayPal is still unavailable; production environment-name listing
+  reconfirmed all three required PayPal variables absent. No charge was made.
 
 ## S7/S8 — Restarted mobile audit (PARTIAL)
 
@@ -64,7 +67,13 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   verified in their recorded scope. Production build passed; focused browser
   regressions **4/4** (30.4s including setup), payment/storage/warehouse units
   **62/62**. Warehouses GET/refresh 200; mobile dashboard rail is hidden and the
-  paper-trading demo is explicitly read-only. Full feature/live audit is incomplete.
+  paper-trading demo is explicitly read-only. Final live regressions **4/4**
+  (40.6s including setup). Actual live Pulse scroll→Polls test resets 700→0 and
+  keeps footer at y=844 in an 844px viewport. Full feature audit is incomplete.
+- Warehouse detail API now requires auth and omits inventory for USER/demo;
+  local/live 401 anonymous and 200 with zero inventory for demo confirmed.
+  Three new role-isolation unit tests pass. The **detail page UI** still uses a
+  separate blocked Server Action and shows an unhelpful demo error; fix next.
 
 ## Feature scoreboard
 
@@ -78,7 +87,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 | Shop | Cart | DONE — two lines, reload, quantity/removal, stable ordering and badge synchronization locally/live |
 | Shop | Checkout | PARTIAL — local free demo UI completed; normal payment safely disabled without keys |
 | Shop | Live PayPal, sandbox PayPal | BLOCKED on PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_WEBHOOK_ID; implementation and mocked validation done, provider transactions not run |
-| Shop | Confirmation, signed download | PARTIAL — local demo receipt and actual JPG/TXT downloads pass; anonymous 401 and idempotent replay pass; live pending |
+| Shop | Confirmation, signed download | PARTIAL — local/live demo receipt and actual JPG/TXT downloads pass; anonymous 401 and idempotent replay pass; paid verification blocked on PayPal keys |
 | Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — seeded at 29/39 NOK; paid fulfillment pending |
 | AI | Chat, selector, streaming | DONE (previous deployment) — local/live Gemini, Groq, OpenAI/Grok one-time-key UI tests |
 | AI | Credit debit, zero balance, no overcharge | PARTIAL — existing premium denial tested; atomic ledger/fuse not implemented |
