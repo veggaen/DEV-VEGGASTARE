@@ -1145,8 +1145,25 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   exceptions in the passing batch. Light/dark screenshots, avatar controls,
   long connections and peer actions visually reviewed:
   `.private-showcase/responsive-audit/profile-local/`.
-- Live verification pending. Real Chrome inventory remains empty; explicit tab
-  creation still returns `Browser is not available: chrome`. This is Playwright
+- Production release `d2c3da0`, deployment `dpl_Au9r5r2W5FsCbxjgKQkxCs3gdn83`,
+  is READY at www.veggat.com and both other main aliases. Live focused browser
+  **9/9 (1.4m)** passes, including actual isolated-account follow/unfollow and
+  private DM creation/sequential reuse. Live light/dark, phone/desktop, long-name
+  connections and footer screenshots were compared with local results:
+  `.private-showcase/responsive-audit/profile-live/`. Health returns 200. A
+  separate read-only DB check confirms **zero** remaining Profile fixture users,
+  conversations, notifications and presence rows.
+- Console follow-up: retained live-browser navigation logged three Coinbase
+  Wallet SDK `Error checking Cross-Origin-Opener-Policy: Failed to fetch` errors.
+  SDK source performs HEAD requests to the current page; subsequent navigation
+  diagnostics showed aborted document/HEAD/storage-initialization requests.
+  No additional such errors appeared after page readiness, failed Profile API
+  responses or uncaught page exceptions were observed. This suggests navigation
+  cancellation, not proof of a broken COOP header. Keep wallet initialization/
+  unnecessary requests on the remaining audit list; no browser protection was
+  weakened and no console-error suppression was added.
+- Real Chrome inventory remains empty; explicit tab creation still returns
+  `Browser is not available: chrome`. This is Playwright
   evidence, not native-Chrome, physical keyboard, 125% zoom, field CWV, all-route
   or all-feature completion. The UI-review/animation skills informed the bounded
   layout, visible touch details and reduced-motion changes.

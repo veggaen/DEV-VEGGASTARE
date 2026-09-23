@@ -2,13 +2,18 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-Current candidate: Profile loading, real Connections, follow counts, mobile
-alignment and controls. Final local browser **9/9 (51.4s)**, including shared
-header/sidebar, touch settings and Pulse/footer regressions. Strict webpack build
-and TypeScript, touched-file lint and **35/35** focused units pass. Live deployment
-and verification pending. No payment, credit grant, cap reset or owner mutation.
+Latest verified follow-up: Profile loading, real Connections, follow counts,
+mobile alignment and controls shipped as `d2c3da0` /
+`dpl_Au9r5r2W5FsCbxjgKQkxCs3gdn83`, READY at www.veggat.com. Final local browser
+**9/9 (51.4s)** and live **9/9 (1.4m)** include shared header/sidebar, touch
+settings and Pulse/footer regressions. Strict webpack/TypeScript, touched-file
+lint and **35/35** focused units pass. Eight-size scrolling, real private-account
+follow/unfollow and DM reuse, error recovery and light/dark screenshots verified.
+No payment, credit grant, cap reset or owner mutation. All disposable Profile
+fixtures removed. External image-storage upload and wallet-SDK navigation-abort
+console diagnostics remain open; no full-app, native-Chrome or field-CWV claim.
 
-Latest verified follow-up: Orders, receipts and downloads shipped as `e73a27b` /
+Previous verified follow-up: Orders, receipts and downloads shipped as `e73a27b` /
 `dpl_5ZmwRus2KfRMexm5MytTCVG2Sz1e`, READY at www.veggat.com. Final local browser
 **7/7 (56.6s)** and live **7/7 (1.2m)** pass, including shared header/sidebar and
 Pulse/footer scrolling regressions (counts include gate setup). Eight viewport
