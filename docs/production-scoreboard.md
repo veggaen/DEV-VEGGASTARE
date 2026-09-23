@@ -450,6 +450,29 @@ member-to-member delivery remains separate from the mocked error test.
 | Layout | Core path at 360 and 2560, other requested sizes, 125% zoom | PARTIAL — core route/drawer/scroll tests include 360/390/landscape/768/1024/1280/1920/2560; all-route interaction, real phone keyboard and actual Chrome 125% zoom remain unverified |
 | Interview | Root README | PARTIAL — public demo, optional 29/39 NOK SKUs, architecture, four decisions and S5 evidence documented; payment and walkthrough still pending |
 
+## S7 — Shared navigation alignment (verification in progress)
+
+- One bounded header canvas, unchanged by scrolling; persistent independently
+  scrolling desktop rail and existing mobile drawer share route definitions.
+  Dashboard's overlapping legacy dock is no longer mounted. Role-appropriate
+  admin/business/sales/trading destinations are preserved; authorization is
+  unchanged. Auth and wallet providers stay mounted.
+- Quick settings use visible 44px touch/keyboard controls instead of hover-only
+  flip cards. Links preserve client navigation. Removed blanket storage/cookie
+  deletion shortcuts; dedicated privacy/notification settings remain available.
+- Controlled slow wallet-bundle test reproduced a 150px drawer-height jump,
+  then passed after reserving the panel's geometry. Intermediate local batch
+  **24/24** passed. Final candidate adds Dashboard single-rail hit-testing,
+  light/dark layout, footer scrolling and eight-size coverage.
+- Read-only follow-up triage: 28 route/viewport checks, no browser exceptions or
+  failed same-origin requests. Notifications has mobile overflow and two
+  unnamed controls; its dead Filter/Load more actions and error handling need
+  the next scoped audit. Profile's initial loading capture is not a feature pass.
+- Final candidate: webpack/TypeScript, touched-file lint and local focused
+  browser **25/25** pass (2.6m). Not a whole-app or measured CWV completion claim.
+  Live deployment/results
+  are recorded after final local verification.
+
 ## Environment and safety
 
 - Backend follow-up: retired unauthenticated stock/Pusher endpoints (410), removed

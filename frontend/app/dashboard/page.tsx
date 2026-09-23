@@ -6,7 +6,7 @@
 
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/ui/navigation-link";
 import { dbPrisma } from "@/lib/db";
 import {
   FiPackage,
@@ -29,7 +29,7 @@ import {
 const QUICK_LINKS = [
   {
     href: "/dashboard/trading",
-    label: "Trading Hub",
+    label: "Trading · experimental",
     description: "P2P, DEX swap, paper trading & crypto inventory",
     icon: FiHexagon,
     accent: "sky",
@@ -72,7 +72,7 @@ const QUICK_LINKS = [
   {
     href: "/ai",
     label: "AI Chat",
-    description: "BYOK-powered assistant — bring your own API key",
+    description: "Use your credit balance or bring your own API key",
     icon: FiZap,
     accent: "rose",
   },
@@ -134,13 +134,13 @@ export default async function DashboardPage() {
     : "—";
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <div className="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       {/* ── Welcome ──────────────────────────────────────── */}
       <section className="mb-12">
-        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-100 tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
           Welcome back, {firstName}
         </h1>
-        <p className="mt-1.5 text-sm text-zinc-500">
+        <p className="mt-1.5 text-sm text-muted-foreground">
           Here&apos;s an overview of your account and quick links to everything
           you need.
         </p>
@@ -162,7 +162,7 @@ export default async function DashboardPage() {
         />
         <StatCard
           icon={FiRepeat}
-          label="DEX Swaps"
+          label="DEX · experimental"
           value="—"
           accent="violet"
         />
@@ -176,7 +176,7 @@ export default async function DashboardPage() {
 
       {/* ── Quick Links — clean open cards ─────────────── */}
       <section>
-        <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 mb-5">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-5">
           Quick Access
         </h2>
         <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -187,7 +187,7 @@ export default async function DashboardPage() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="group flex items-start gap-3.5 px-4 py-3.5 rounded-lg transition-colors hover:bg-white/5"
+                className="group flex min-w-0 items-start gap-3.5 px-4 py-3.5 rounded-lg transition-colors duration-200 motion-reduce:transition-none hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div
                   className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-lg ${bg}`}
@@ -196,15 +196,15 @@ export default async function DashboardPage() {
                 </div>
                 <div className="min-w-0 flex-1 pt-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-medium text-zinc-200 group-hover:text-white transition-colors">
+                    <span className="text-sm font-medium text-foreground">
                       {link.label}
                     </span>
                   </div>
-                  <p className="text-[11px] text-zinc-500 mt-0.5 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                     {link.description}
                   </p>
                 </div>
-                <FiArrowRight className="shrink-0 h-3.5 w-3.5 text-zinc-700 group-hover:text-zinc-400 group-hover:translate-x-0.5 transition-all mt-1 opacity-0 group-hover:opacity-100" />
+                <FiArrowRight aria-hidden="true" className="shrink-0 h-3.5 w-3.5 text-muted-foreground mt-1" />
               </Link>
             );
           })}
@@ -228,10 +228,10 @@ function StatCard({
 }) {
   const txt = accentText[accent] ?? "text-zinc-400";
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex items-center gap-2">
         <Icon className={`h-3.5 w-3.5 ${txt}`} />
-        <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium">
+        <span className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
           {label}
         </span>
       </div>

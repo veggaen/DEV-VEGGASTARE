@@ -1,27 +1,24 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import dynamic from 'next/dynamic';
 import Link from "@/components/ui/navigation-link";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { motion } from "framer-motion";
-import { useHydratedReducedMotion as useReducedMotion } from "@/hooks/use-hydrated-reduced-motion";
 import { useClientReady } from "@/hooks/use-client-ready";
 import AppKitButton from "../crypto-related/AppKitButton";
 import NetworkSyncBridge from "@/components/crypto-related/NetworkSyncBridge";
 import { MyDialogbarNavigator } from "@/app/(protected)/_components/dialog-bar";
 import { useTheme } from "next-themes";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FaUser, FaDiscord, FaGithub } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import { useCart } from "@/contexts/cart-context";
 import { toast } from "sonner";
 import { TbHexagons } from "react-icons/tb";
-import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiSliders, FiShield, FiBell, FiLock, FiDollarSign, FiSun, FiMoon, FiMonitor, FiTrash2, FiEye, FiEyeOff, FiBellOff, FiVolume2, FiVolumeX, FiKey, FiCamera, FiEdit2, FiExternalLink, FiCopy, FiLink, FiRefreshCw, FiCheck, FiPackage, FiZap, FiHome, FiGrid, FiCreditCard, FiSettings, FiHelpCircle } from "react-icons/fi";
-import { PulseHeart } from "@/components/uicustom/icons/PulseIcons";
+import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiShield, FiBell, FiLock, FiSun, FiMoon, FiMonitor, FiCopy, FiLink, FiCheck, FiPackage } from "react-icons/fi";
 import { IS_WEB3_CONFIGURED } from "@/lib/web3-config";
 import {
 	Sheet,
@@ -41,12 +38,13 @@ import usePusher from "@/hooks/usePusher";
 import { MiniCartDropdown } from "@/components/uicustom/mini-cart-dropdown";
 import { ChatLiteDropdown } from "@/components/uicustom/chat-lite-dropdown";
 import { useCleanLogout } from "@/hooks/use-clean-logout";
-import { useAccount, useChainId, useChains, useSwitchChain, useConnections, useDisconnect } from "wagmi";
+import { useAccount, useChainId, useChains, useSwitchChain, useConnections } from "wagmi";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { CopyChip } from "@/components/uicustom/CopyChip";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { isLocalChain } from "@/lib/is-local-chain";
 import { FiMenu } from 'react-icons/fi';
+import { getNavigationGroups, isActiveNavigationPath as isActivePath } from './site-navigation';
 
 // These panels are only mounted inside the open navigation/settings sheet.
 // Keep connection providers stable; defer optional UI, not the entire app tree.
@@ -68,7 +66,7 @@ const NavLink = ({ href, children, isActive, ...rest }: NavLinkProps & React.Anc
 		href={href}
 		aria-current={isActive ? "page" : undefined}
 		{...rest}
-		className={`relative px-2.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+		className={`relative inline-flex min-h-11 items-center rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
 			isActive
 				? "text-zinc-900 dark:text-zinc-100"
 				: "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
@@ -78,10 +76,6 @@ const NavLink = ({ href, children, isActive, ...rest }: NavLinkProps & React.Anc
 	</Link>
 );
 
-function isActivePath(pathname: string, href: string) {
-	if (href === "/") return pathname === "/";
-	return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 /** Key for sessionStorage flag that prevents OAuth redirect loops */
 const OAUTH_BRIDGE_KEY_PREFIX = 'veggat_oauth_bridge_';
@@ -146,7 +140,6 @@ const MyTopBar = () => {
 	const clientReady = useClientReady();
 	const pathname = usePathname();
 	const clientUser = useCurrentUser();
-	const prefersReducedMotion = useReducedMotion();
 
 	// Fetch notifications for logged-in users
 	const { 
@@ -183,14 +176,11 @@ const MyTopBar = () => {
 		signIn(provider, { callbackUrl: '/products' });
 	};
 	const [isMobile, setIsMobile] = useState(false);
-	const [productsTopbarVisible, setProductsTopbarVisible] = useState(true);
-	const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState<number>(72);
 	const [nexusOpen, setNexusOpen] = useState(false);
 	const [web3ModeEnabled, setWeb3ModeEnabled] = useState(false);
 	const [walletRefreshToken, setWalletRefreshToken] = useState(0);
 	const [menuPane, setMenuPane] = useState<"nav" | "settings">("nav");
 	const cleanLogout = useCleanLogout();
-	const collapseForProducts = pathname.startsWith("/products") && isMobile && !productsTopbarVisible;
 	const menuSwipeRef = useRef<{ x: number; y: number; t: number } | null>(null);
 	const onMenuTouchStart = (e: React.TouchEvent) => {
 		if (!isMobile) return;
@@ -286,40 +276,19 @@ const MyTopBar = () => {
 		};
 	}, [pathname]);
 
-	// Keep a CSS variable in sync with the actual rendered header height.
-	// This avoids overlap/gaps for components that need to sit *below* the sticky
-	// header (e.g. /products sidebar overlay).
+	// Measure the mounted header only on actual resize, never animate its geometry.
 	useLayoutEffect(() => {
-		const headerEl = headerRef.current;
-		if (!headerEl) return;
-		// Desktop should NEVER collapse the topbar; only mobile on /products can collapse
-		const collapseForProducts = pathname.startsWith("/products") && isMobile && !productsTopbarVisible;
-
+		const header = headerRef.current;
+		if (!header) return;
 		const update = () => {
-			// Desktop always shows header offset
-			if (collapseForProducts && isMobile) {
-				document.documentElement.style.setProperty("--app-header-offset", "0px");
-				return;
-			}
-			const h = headerEl.getBoundingClientRect().height;
-			if (Number.isFinite(h) && h > 0) {
-				setMeasuredHeaderHeight(Math.round(h));
-				document.documentElement.style.setProperty(
-					"--app-header-offset",
-					`${h}px`
-				);
-			}
+			const height = header.getBoundingClientRect().height;
+			if (height > 0) document.documentElement.style.setProperty("--app-header-offset", `${height}px`);
 		};
-
 		update();
-		const ro = new ResizeObserver(() => update());
-		ro.observe(headerEl);
-		return () => ro.disconnect();
-	}, [pathname, isScrolled, isMobile, productsTopbarVisible]);
-
-	const morphTransition = prefersReducedMotion
-		? { duration: 0 }
-		: { type: "tween", duration: 0.18, ease: "easeOut" };
+		const observer = new ResizeObserver(update);
+		observer.observe(header);
+		return () => observer.disconnect();
+	}, [pathname]);
 
 	// Simplified desktop nav - main discovery paths only
 	// Messages is now an icon in the topbar, not a text link
@@ -334,55 +303,7 @@ const MyTopBar = () => {
 			: []),
 	];
 
-	const menuGroups = useMemo(() => {
-		if (clientUser) {
-			return [
-				{
-					label: "Explore",
-					items: [
-						{ href: "/", label: "Home", icon: FiHome },
-						{ href: "/products", label: "Products", icon: FiPackage },
-						{ href: "/pulse", label: "Pulse", icon: PulseHeart },
-						{ href: "/ai", label: "AI Chat", icon: FiZap },
-					],
-				},
-				{
-					label: "Account",
-					items: [
-						{ href: "/dashboard", label: "Dashboard", icon: FiGrid },
-						{ href: "/conversations", label: "Messages", icon: FiMessageSquare },
-						{ href: "/cart", label: "Cart", icon: FiShoppingCart },
-						{ href: "/checkout", label: "Checkout", icon: FiCreditCard },
-						{ href: "/settings", label: "Settings", icon: FiSettings },
-					],
-				},
-				{
-					label: "Info",
-					items: [
-						{ href: "/info", label: "Contact", icon: FiHelpCircle },
-						{ href: "/privacy", label: "Privacy", icon: FiLock },
-					],
-				},
-			];
-		}
-		return [
-			{
-				label: "Explore",
-				items: [
-					{ href: "/", label: "Home", icon: FiHome },
-					{ href: "/products", label: "Products", icon: FiPackage },
-					{ href: "/pulse", label: "Pulse", icon: PulseHeart },
-				],
-			},
-			{
-				label: "Info",
-				items: [
-					{ href: "/info", label: "Contact", icon: FiHelpCircle },
-					{ href: "/privacy", label: "Privacy", icon: FiLock },
-				],
-			},
-		];
-	}, [clientUser]);
+	const menuGroups = getNavigationGroups(clientUser);
 
 	const openCookieSettings = () => {
 		try {
@@ -425,94 +346,6 @@ const MyTopBar = () => {
 		return () => mq?.removeEventListener?.("change", update);
 	}, []);
 
-	// Reset topbar visibility when navigating away from /products, switching to desktop,
-	// or navigating to a different page within /products/* (like /products/create)
-	useEffect(() => {
-		// Always reset topbar visibility on pathname change - the ProductProvider will
-		// re-hide it if needed based on scroll position
-		const timeoutId = window.setTimeout(() => setProductsTopbarVisible(true), 0);
-		return () => window.clearTimeout(timeoutId);
-	}, [pathname]);
-
-	// Also reset when switching to desktop
-	useEffect(() => {
-		if (!isMobile) {
-			const timeoutId = window.setTimeout(() => setProductsTopbarVisible(true), 0);
-			return () => window.clearTimeout(timeoutId);
-		}
-	}, [isMobile]);
-
-	useEffect(() => {
-		const onChrome = (e: Event) => {
-			if (!pathname.startsWith("/products")) return;
-			const ce = e as CustomEvent<{ topbarVisible?: boolean }>;
-			setProductsTopbarVisible(Boolean(ce?.detail?.topbarVisible ?? true));
-		};
-		window.addEventListener("veggat:products-chrome", onChrome as any);
-		return () => window.removeEventListener("veggat:products-chrome", onChrome as any);
-	}, [pathname]);
-
-	// ── Nav sliding indicator ─────────────────────────────────────────────
-	const navBarRef = useRef<HTMLDivElement>(null);
-	const [navIndicator, setNavIndicator] = useState<{
-		left: number; top: number; width: number; height: number; radius: number;
-	} | null>(null);
-	const navHoverRef = useRef(false);
-
-	const computeNavPos = useCallback((el: HTMLElement | null) => {
-		const container = navBarRef.current;
-		if (!container || !el) return null;
-		const cr = container.getBoundingClientRect();
-		const er = el.getBoundingClientRect();
-		return {
-			left: er.left - cr.left,
-			top: er.top - cr.top,
-			width: er.width,
-			height: er.height,
-			radius: el.dataset.navRound === "true" ? Math.min(er.width, er.height) / 2 : 0,
-		};
-	}, []);
-
-	const snapNavToActive = useCallback(() => {
-		const container = navBarRef.current;
-		if (!container) return;
-		const activeEl = container.querySelector('[data-nav-active="true"]') as HTMLElement | null;
-		if (activeEl) {
-			const pos = computeNavPos(activeEl);
-			if (pos) setNavIndicator(pos);
-		}
-	}, [computeNavPos]);
-
-	const handleNavHover = useCallback((e: React.MouseEvent<HTMLElement>) => {
-		navHoverRef.current = true;
-		const pos = computeNavPos(e.currentTarget);
-		if (pos) setNavIndicator(pos);
-	}, [computeNavPos]);
-
-	const handleNavBarLeave = useCallback(() => {
-		navHoverRef.current = false;
-		snapNavToActive();
-	}, [snapNavToActive]);
-
-	// Snap to active route on mount, route change, scroll state change
-	useEffect(() => {
-		const raf = requestAnimationFrame(() => {
-			if (!navHoverRef.current) snapNavToActive();
-		});
-		return () => cancelAnimationFrame(raf);
-	}, [pathname, isScrolled, snapNavToActive]);
-
-	// Recompute on container resize
-	useEffect(() => {
-		const container = navBarRef.current;
-		if (!container) return;
-		const ro = new ResizeObserver(() => {
-			if (!navHoverRef.current) snapNavToActive();
-		});
-		ro.observe(container);
-		return () => ro.disconnect();
-	}, [snapNavToActive]);
-
 	// Avoid rendering the full navigation on auth screens.
 	const hideOnAuthPages = pathname.startsWith("/auth/");
 	if (hideOnAuthPages) return <><NetworkSyncBridge /><AppKitOAuthBridge /></>;
@@ -528,107 +361,23 @@ const MyTopBar = () => {
 				hideTrigger
 				onOpen={() => setMenuOpen(false)}
 			/>
-			<motion.header
-				ref={headerRef}
-				className="sticky top-0 z-60 w-full shrink-0"
-				style={{
-					pointerEvents: collapseForProducts ? "none" : "auto",
-				}}
-				initial={false}
-				animate={
-					prefersReducedMotion
-						? {}
-						: collapseForProducts
-							? { opacity: 0, y: -10 }
-							: { opacity: 1, y: 0 }
-				}
-				transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.18, ease: "easeOut" }}
-			>
-				<motion.div
-					initial={false}
-					animate={
-						prefersReducedMotion
-							? {}
-							: {
-								paddingLeft: isScrolled ? 0 : 12,
-								paddingRight: isScrolled ? 0 : 12,
-								borderRadius: isScrolled ? 0 : 24,
-							}
-					}
-					transition={morphTransition}
-					style={{ transformOrigin: "50% 0%", willChange: "padding, border-radius", maxHeight: collapseForProducts ? 0 : measuredHeaderHeight }}
-					className="relative w-full overflow-hidden transition-[max-height] duration-200 ease-out"
-				>
-					{/* Center-out background reveal (prevents the sudden square flash) */}
-					<motion.div
-						aria-hidden
-						className="pointer-events-none absolute inset-0"
-						initial={false}
-						animate={
-							prefersReducedMotion
-								? { opacity: showTopbarChrome ? 1 : 0 }
-								: showTopbarChrome
-									? { opacity: 1, clipPath: "inset(0% 0% 0% 0%)" }
-									: { opacity: 0, clipPath: "inset(50% 50% 50% 50%)" }
-						}
-						transition={{ duration: 0.22, ease: "easeOut" }}
-						style={{ willChange: "clip-path, opacity" }}
-					>
-						<div className="absolute inset-0 bg-white/75 dark:bg-black/70 backdrop-blur-xl" />
-					</motion.div>
-
-					{/* Bottom line reveals after the fill finishes */}
-					<motion.div
-						aria-hidden
-						className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-black/10 dark:bg-white/10"
-						initial={false}
-						animate={
-							prefersReducedMotion
-								? { opacity: showTopbarChrome ? 1 : 0 }
-								: showTopbarChrome
-									? { opacity: 1, clipPath: "inset(0% 0% 0% 0%)" }
-									: { opacity: 0, clipPath: "inset(0% 50% 0% 50%)" }
-						}
-						transition={
-							prefersReducedMotion
-								? { duration: 0 }
-								: showTopbarChrome
-									? { duration: 0.18, ease: "easeOut", delay: 0.18 }
-									: { duration: 0.12, ease: "easeOut", delay: 0 }
-						}
-					/>
+			<header ref={headerRef} className="sticky top-0 z-60 w-full shrink-0">
+				<div className="relative w-full lg:pl-20">
+					<div aria-hidden="true" className="pointer-events-none absolute inset-0 border-b border-border bg-background/90 backdrop-blur-xl transition-opacity duration-200 motion-reduce:transition-none" style={{ opacity: showTopbarChrome ? 1 : 0 }} />
 					<div
-						ref={navBarRef}
-						className="relative mx-auto flex h-[var(--app-header)] max-w-screen-2xl items-center justify-between px-3 sm:px-4 md:px-6"
-						onMouseLeave={handleNavBarLeave}
+						data-header-canvas
+						className="relative mx-auto flex h-[var(--app-header)] w-full min-w-0 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8"
 					>
-						{/* ── Sliding accent indicator ── */}
-						{navIndicator && (
-							<div
-								aria-hidden
-								className="hidden"
-								style={{
-									left: navIndicator.left,
-									top: navIndicator.top,
-									width: navIndicator.width,
-									height: navIndicator.height,
-									borderRadius: navIndicator.radius,
-									transition: "left 0.35s cubic-bezier(0.22,1,0.36,1), top 0.35s cubic-bezier(0.22,1,0.36,1), width 0.35s cubic-bezier(0.22,1,0.36,1), height 0.35s cubic-bezier(0.22,1,0.36,1), border-radius 0.35s cubic-bezier(0.22,1,0.36,1)",
-								}}
-							/>
-						)}
-
 						<div className="flex min-w-0 items-center gap-6">
 							<Link
 								href="/"
 								data-nav-key="logo"
-								onMouseEnter={handleNavHover}
-								className="shrink-0 text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 px-1.5 py-1"
+								className="inline-flex min-h-11 shrink-0 items-center rounded-md text-base font-semibold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 							>
 								Veggat
 							</Link>
 
-							<nav className="hidden md:flex items-center gap-1">
+							<nav aria-label="Header navigation" className="hidden items-center gap-1 md:flex lg:hidden">
 								{nav.map((item) => (
 									<NavLink
 										key={item.href}
@@ -636,12 +385,10 @@ const MyTopBar = () => {
 										isActive={isActivePath(pathname, item.href)}
 										data-nav-key={item.href}
 										data-nav-active={isActivePath(pathname, item.href) ? "true" : undefined}
-										onMouseEnter={handleNavHover}
 									>
 										{item.href === "/pulse" ? (
 											<span className="inline-flex items-center gap-1.5">
 												<span className="relative flex h-2 w-2">
-													<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 dark:bg-emerald-400 opacity-75" />
 													<span className="relative inline-flex h-2 w-2 rounded-full bg-sky-500 dark:bg-emerald-500" />
 												</span>
 												<span>{item.label}</span>
@@ -660,7 +407,7 @@ const MyTopBar = () => {
 							<div className="hidden md:flex items-center gap-1">
 								<Tooltip>
 									<TooltipTrigger asChild>
-										<div data-nav-key="currency" onMouseEnter={handleNavHover} className="relative [&_button:hover]:!bg-transparent">
+										<div data-nav-key="currency" className="relative">
 											<CurrencySelector variant="ghost" size="sm" />
 										</div>
 									</TooltipTrigger>
@@ -672,7 +419,7 @@ const MyTopBar = () => {
 										{/* Notification Bell */}
 										<Tooltip>
 											<TooltipTrigger asChild>
-												<div data-nav-key="notifications" onMouseEnter={handleNavHover} className="relative [&_button:hover]:!bg-transparent">
+												<div data-nav-key="notifications" className="relative">
 													<NotificationDropdown
 														notifications={notifications}
 														unreadCount={unreadCount}
@@ -700,7 +447,7 @@ const MyTopBar = () => {
 										{/* Mini Cart Dropdown */}
 										<Tooltip>
 											<TooltipTrigger asChild>
-												<div data-nav-key="cart" onMouseEnter={handleNavHover} className="relative [&_button:hover]:!bg-transparent">
+												<div data-nav-key="cart" className="relative">
 													<MiniCartDropdown
 														userId={clientUser?.id}
 														cartCount={cartCount}
@@ -714,7 +461,7 @@ const MyTopBar = () => {
 										{/* Chat lite dropdown */}
 										<Tooltip>
 											<TooltipTrigger asChild>
-												<div data-nav-key="conversations" onMouseEnter={handleNavHover} className="relative [&_button:hover]:!bg-transparent">
+												<div data-nav-key="conversations" className="relative">
 													<ChatLiteDropdown />
 												</div>
 											</TooltipTrigger>
@@ -730,14 +477,13 @@ const MyTopBar = () => {
 										type="button"
 										data-nav-key="avatar"
 										data-nav-round="true"
-										onMouseEnter={handleNavHover}
-										className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-14 lg:w-14 lg:rounded-full lg:border-0 lg:p-0"
+										className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-12 lg:w-12 lg:rounded-full lg:border-0 lg:p-0"
 										aria-label="Open menu"
 										disabled={!clientReady}
 									>
 										<span className="inline-flex items-center gap-2 lg:hidden"><FiMenu aria-hidden="true" className="size-5" /><span>Menu</span></span>
 										<span className="hidden lg:inline-flex">{clientUser ? (
-											<Avatar className="h-14 w-14">
+											<Avatar className="h-12 w-12">
 												<AvatarImage
 													src={clientUser.image || "/users/avatar.webp"}
 													alt="User"
@@ -810,6 +556,7 @@ const MyTopBar = () => {
 												<button
 													type="button"
 													onClick={() => setMenuPane("nav")}
+													aria-pressed={menuPane === "nav"}
 													className={`flex-1 py-3 text-sm font-medium transition-colors ${menuPane === "nav"
 														? "text-zinc-900 dark:text-zinc-100 border-b-2 border-zinc-900 dark:border-zinc-100"
 														: "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
@@ -820,6 +567,7 @@ const MyTopBar = () => {
 												<button
 													type="button"
 													onClick={() => setMenuPane("settings")}
+													aria-pressed={menuPane === "settings"}
 													className={`flex-1 py-3 text-sm font-medium transition-colors ${menuPane === "settings"
 														? "text-zinc-900 dark:text-zinc-100 border-b-2 border-zinc-900 dark:border-zinc-100"
 														: "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
@@ -859,7 +607,6 @@ const MyTopBar = () => {
 																				<span>{item.label}</span>
 																				{item.href === "/pulse" && (
 																					<span className="relative flex h-1.5 w-1.5 ml-0.5 shrink-0">
-																						<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 dark:bg-emerald-400 opacity-75" />
 																						<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-emerald-500" />
 																					</span>
 																				)}
@@ -892,17 +639,21 @@ const MyTopBar = () => {
 													{/* Web3 Wallets — only for logged-in users */}
 													{clientUser && (
 														<div className="mt-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
+															{/* Reserve the disconnected panel's geometry while its
+															    optional bundle/data loads; do not move a scrolled drawer. */}
+															<div data-navigation-wallet-slot className="min-h-64">
 															<SidebarWalletPanel
 																isLoggedIn={!!clientUser}
 																web3Enabled={effectiveWeb3ModeEnabled}
 																onClose={() => setMenuOpen(false)}
 																userName={clientUser?.name}
 															/>
+															</div>
 														</div>
 													)}
 												</div>
 											)}
-											{/* Settings Pane - Lite Mode with Hover Dropdowns */}
+											{/* Settings pane with visible touch/keyboard controls */}
 											{clientUser && menuPane === "settings" && (
 												<SettingsPaneLite 
 													setMenuOpen={setMenuOpen}
@@ -1017,8 +768,8 @@ const MyTopBar = () => {
 							</Sheet>
 						</div>
 					</div>
-				</motion.div>
-			</motion.header>
+				</div>
+			</header>
 		</>
 	);
 };
@@ -1214,7 +965,7 @@ function SidebarWalletInfo() {
 				<button
 					type="button"
 					onClick={copyAddress}
-					className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors shrink-0"
+						className="flex size-11 shrink-0 items-center justify-center rounded hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					title="Copy full address"
 				>
 					{copied ? (
@@ -1231,7 +982,8 @@ function SidebarWalletInfo() {
 					Network
 				</span>
 				<select
-					className="text-xs rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-1.5 py-0.5 text-zinc-700 dark:text-zinc-300 max-w-[140px]"
+					aria-label="Wallet network"
+					className="min-h-11 min-w-0 max-w-[180px] rounded border border-border bg-background px-2 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					value={effectiveChainId ?? ""}
 					onChange={(e) => {
 						const id = Number(e.target.value);
@@ -1257,132 +1009,56 @@ function SidebarWalletInfo() {
 	);
 }
 
-// Settings Pane Lite Component with Hover Dropdowns
+// Explicit controls work equally with touch, mouse and keyboard.
 function SettingsPaneLite({
-	setMenuOpen,
-	effectiveWeb3ModeEnabled,
-	walletRefreshToken,
-	setWalletRefreshToken,
-	openCookieSettings,
+  setMenuOpen, effectiveWeb3ModeEnabled, walletRefreshToken, setWalletRefreshToken, openCookieSettings,
 }: {
-	setMenuOpen: (open: boolean) => void;
-	effectiveWeb3ModeEnabled: boolean;
-	walletRefreshToken: number;
-	setWalletRefreshToken: (fn: (t: number) => number) => void;
-	openCookieSettings: () => void;
+  setMenuOpen: (open: boolean) => void;
+  effectiveWeb3ModeEnabled: boolean;
+  walletRefreshToken: number;
+  setWalletRefreshToken: (fn: (t: number) => number) => void;
+  openCookieSettings: () => void;
 }) {
-	const { resolvedTheme, setTheme } = useTheme();
-	const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-	const clientUser = useCurrentUser();
+  const { theme, setTheme } = useTheme();
+  const { prefs, setPrefs } = useUiPreferences();
+  const settingsItems = [
+    { id: 'profile', icon: FiImage, label: 'Profile', desc: 'Avatar, banner & bio' },
+    { id: 'account', icon: FiUser, label: 'Account', desc: 'Name & email' },
+    { id: 'security', icon: FiShield, label: 'Security', desc: 'Password & two-factor authentication' },
+    { id: 'notifications', icon: FiBell, label: 'Notifications', desc: 'Alerts & sounds' },
+    { id: 'privacy', icon: FiLock, label: 'Privacy', desc: 'Visibility & data' },
+  ];
+  const choiceClass = "flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border border-border px-2 text-xs font-medium transition-colors duration-200 motion-reduce:transition-none hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:border-brand-accent aria-pressed:bg-brand-accent/10 aria-pressed:text-foreground";
 
-	// Settings items with quick actions on hover
-	const settingsItems = [
-		{ 
-			id: 'profile', 
-			href: '/settings?section=profile', 
-			icon: FiImage, 
-			label: 'Profile', 
-			desc: 'Avatar, banner & bio',
-			quickActions: [
-				{ id: 'view', icon: FiExternalLink, label: 'View', actionType: 'link', link: `/profile/${clientUser?.id}` },
-				{ id: 'avatar', icon: FiCamera, label: 'Avatar', actionType: 'link', link: '/settings?section=profile' },
-				{ id: 'edit', icon: FiEdit2, label: 'Edit Bio', actionType: 'link', link: '/settings?section=profile' },
-			],
-		},
-		{ 
-			id: 'account', 
-			href: '/settings?section=account', 
-			icon: FiUser, 
-			label: 'Account', 
-			desc: 'Name & email',
-			quickActions: [
-				{ id: 'edit', icon: FiEdit2, label: 'Edit Name', actionType: 'link', link: '/settings?section=account' },
-				// Only show email edit for non-OAuth users (credential-based accounts)
-				...(!clientUser?.isOAuth ? [
-					{ id: 'editEmail', icon: FiEdit2, label: 'Change Email', actionType: 'link', link: '/settings?section=account' },
-				] : []),
-			],
-		},
-		{ 
-			id: 'appearance', 
-			href: '/settings?section=appearance', 
-			icon: FiSliders, 
-			label: 'Appearance', 
-			desc: 'Theme & effects',
-			quickActions: [
-				{ id: 'light', icon: FiSun, label: 'Light', actionType: 'theme' },
-				{ id: 'dark', icon: FiMoon, label: 'Dark', actionType: 'theme' },
-				{ id: 'system', icon: FiMonitor, label: 'System', actionType: 'theme' },
-			],
-			currentValue: resolvedTheme,
-		},
-		{ 
-			id: 'currency', 
-			href: '/settings?section=currency', 
-			icon: FiDollarSign, 
-			label: 'Currency', 
-			desc: 'Display currency',
-			quickActions: [
-				{ id: 'USD', icon: () => <span className="text-sm font-medium">$</span>, label: 'USD', actionType: 'currency' },
-				{ id: 'EUR', icon: () => <span className="text-sm font-medium">€</span>, label: 'EUR', actionType: 'currency' },
-				{ id: 'GBP', icon: () => <span className="text-sm font-medium">£</span>, label: 'GBP', actionType: 'currency' },
-				{ id: 'NOK', icon: () => <span className="text-sm font-medium">kr</span>, label: 'NOK', actionType: 'currency' },
-			],
-		},
-		{ 
-			id: 'security', 
-			href: '/settings?section=security', 
-			icon: FiShield, 
-			label: 'Security', 
-			desc: 'Password & 2FA',
-			quickActions: [
-				{ id: 'password', icon: FiKey, label: 'Password', actionType: 'link', link: '/settings?section=security' },
-				{ id: '2fa', icon: FiShield, label: '2FA', actionType: 'link', link: '/settings?section=security' },
-			],
-		},
-		{ 
-			id: 'notifications', 
-			href: '/settings?section=notifications', 
-			icon: FiBell, 
-			label: 'Notifications', 
-			desc: 'Alerts & sounds',
-			quickActions: [
-				{ id: 'mute', icon: FiBellOff, label: 'Mute All', actionType: 'notification', action: 'mute' },
-				{ id: 'unmute', icon: FiVolume2, label: 'Unmute', actionType: 'notification', action: 'unmute' },
-			],
-		},
-		{ 
-			id: 'privacy', 
-			href: '/settings?section=privacy', 
-			icon: FiLock, 
-			label: 'Privacy', 
-			desc: 'Visibility & data',
-			quickActions: [
-				{ id: 'clearCookies', icon: FiTrash2, label: 'Clear Cookies', actionType: 'privacy', action: 'clearCookies' },
-				{ id: 'clearCache', icon: FiTrash2, label: 'Clear Cache', actionType: 'privacy', action: 'clearCache' },
-			],
-		},
-	];
-
-	return (
-		<div className="p-4 space-y-3">
-			{/* Quick Settings Links with Hover Dropdowns */}
-			<div className="space-y-1">
-				<div className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 px-2 mb-2">
-					Quick Access
-				</div>
-				{settingsItems.map((item) => (
-					<SettingsItemWithHover
-						key={item.id}
-						item={item}
-						isHovered={hoveredItem === item.id}
-						onHover={() => setHoveredItem(item.id)}
-						onLeave={() => setHoveredItem(null)}
-						setMenuOpen={setMenuOpen}
-					/>
-				))}
-			</div>
-
+  return (
+    <div className="space-y-4 p-4">
+      <fieldset className="min-w-0 space-y-2">
+        <legend className="mb-2 text-sm font-medium">Appearance</legend>
+        <div className="flex gap-1.5">
+          {([{ id: 'light', label: 'Light', icon: FiSun }, { id: 'dark', label: 'Dark', icon: FiMoon }, { id: 'system', label: 'System', icon: FiMonitor }] as const).map(({ id, label, icon: Icon }) => (
+            <button key={id} type="button" aria-pressed={theme === id} className={choiceClass} onClick={() => setTheme(id)}>
+              <Icon className="size-3.5 shrink-0" aria-hidden="true" />{label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset className="min-w-0 space-y-2">
+        <legend className="mb-2 text-sm font-medium">Display currency</legend>
+        <div className="grid grid-cols-4 gap-1.5">
+          {(['USD', 'EUR', 'GBP', 'NOK'] as const).map(currency => (
+            <button key={currency} type="button" aria-pressed={prefs.preferredFiatCurrency === currency} className={choiceClass} onClick={() => setPrefs({ preferredFiatCurrency: currency })}>{currency}</button>
+          ))}
+        </div>
+        <p className="text-xs leading-relaxed text-muted-foreground">Display preference only. Checkout shows the charged currency.</p>
+      </fieldset>
+      <nav aria-label="Quick settings" className="space-y-1">
+        {settingsItems.map(({ id, icon: Icon, label, desc }) => (
+          <Link key={id} href={`/settings?section=${id}`} onClick={() => setMenuOpen(false)} className="flex min-h-14 items-center gap-3 rounded-xl px-3 py-2 transition-colors duration-200 motion-reduce:transition-none hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0"><span className="block text-sm font-medium">{label}</span><span className="block text-xs leading-relaxed text-muted-foreground">{desc}</span></span>
+          </Link>
+        ))}
+      </nav>
 			{/* Wallet Section */}
 			{effectiveWeb3ModeEnabled && (
 				<div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 p-3">
@@ -1393,7 +1069,7 @@ function SettingsPaneLite({
 						<Link
 							href="/settings?section=wallet"
 							onClick={() => setMenuOpen(false)}
-							className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-sky-500 dark:hover:text-emerald-400 transition-colors"
+							className="inline-flex min-h-11 items-center rounded-md px-2 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 						>
 							Manage →
 						</Link>
@@ -1411,10 +1087,10 @@ function SettingsPaneLite({
 						<Link
 							href="/dashboard/trading"
 							onClick={() => setMenuOpen(false)}
-							className="flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+							className="flex min-h-11 items-center gap-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
 						>
 							<FiPackage className="h-3.5 w-3.5 text-sky-500 dark:text-emerald-500" />
-							<span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Trading</span>
+							<span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Trading · experimental</span>
 							<span className="ml-auto text-[10px] text-zinc-400">→</span>
 						</Link>
 
@@ -1427,248 +1103,12 @@ function SettingsPaneLite({
 				</div>
 			)}
 
-			{/* All Settings & Cookie Preferences */}
-			<div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-1">
-				<Link
-					href="/settings"
-					onClick={() => setMenuOpen(false)}
-					className="flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-				>
-					All Settings
-				</Link>
-				<button
-					type="button"
-					onClick={() => {
-						setMenuOpen(false);
-						setTimeout(() => openCookieSettings(), 0);
-					}}
-					className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs text-zinc-500 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
-				>
-					Cookie preferences
-				</button>
-			</div>
-		</div>
-	);
-}
-
-// Individual settings item with flip card animation
-function SettingsItemWithHover({
-	item,
-	isHovered,
-	onHover,
-	onLeave,
-	setMenuOpen,
-}: {
-	item: any;
-	isHovered: boolean;
-	onHover: () => void;
-	onLeave: () => void;
-	setMenuOpen: (open: boolean) => void;
-}) {
-	const { resolvedTheme, setTheme } = useTheme();
-	const { prefs, setPrefs } = useUiPreferences();
-	const [isClearing, setIsClearing] = useState(false);
-	
-	const hasQuickActions = item.quickActions && item.quickActions.length > 0;
-	
-	// Get current value for highlighting
-	const getCurrentValue = () => {
-		if (item.id === 'appearance') return resolvedTheme;
-		if (item.id === 'currency') return prefs.preferredFiatCurrency;
-		return null;
-	};
-	
-	// Clear non-essential cookies while preserving auth
-	const clearNonEssentialCookies = async () => {
-		setIsClearing(true);
-		try {
-			const cookies = document.cookie.split(';');
-			const essentialPrefixes = ['next-auth', 'authjs', '__Secure-', '__Host-', 'csrf'];
-			let clearedCount = 0;
-			
-			cookies.forEach(cookie => {
-				const [name] = cookie.split('=').map(c => c.trim());
-				const isEssential = essentialPrefixes.some(prefix => 
-					name.toLowerCase().startsWith(prefix.toLowerCase())
-				);
-				if (!isEssential && name) {
-					document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
-					clearedCount++;
-				}
-			});
-			
-			const essentialStorage = ['veggastare:', 'next-auth', 'ui-preferences'];
-			const keysToRemove: string[] = [];
-			for (let i = 0; i < localStorage.length; i++) {
-				const key = localStorage.key(i);
-				if (key && !essentialStorage.some(prefix => key.startsWith(prefix))) {
-					keysToRemove.push(key);
-				}
-			}
-			keysToRemove.forEach(key => localStorage.removeItem(key));
-			
-			toast.success(`Cleared ${clearedCount} cookies and ${keysToRemove.length} cached items`, {
-				description: 'Your session remains active',
-			});
-		} catch (err) {
-			toast.error('Failed to clear cookies');
-		} finally {
-			setIsClearing(false);
-		}
-	};
-	
-	// Clear browser cache
-	const clearBrowserCache = async () => {
-		setIsClearing(true);
-		try {
-			if ('caches' in window) {
-				const cacheNames = await caches.keys();
-				await Promise.all(cacheNames.map(name => caches.delete(name)));
-			}
-			sessionStorage.clear();
-			toast.success('Cache cleared successfully', {
-				description: 'Page may reload to apply changes',
-			});
-			setTimeout(() => window.location.reload(), 1000);
-		} catch (err) {
-			toast.error('Failed to clear cache');
-		} finally {
-			setIsClearing(false);
-		}
-	};
-	
-	// Toggle notification mute
-	const toggleNotificationMute = async (mute: boolean) => {
-		try {
-			const res = await fetch('/api/notifications/settings', {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ inAppEnabled: !mute, pushEnabled: !mute }),
-			});
-			if (res.ok) {
-				toast.success(mute ? 'Notifications muted' : 'Notifications enabled');
-			} else {
-				toast.error('Failed to update notifications');
-			}
-		} catch (err) {
-			toast.error('Failed to update notifications');
-		}
-	};
-	
-	const handleQuickAction = (action: any, e: React.MouseEvent) => {
-		e.preventDefault();
-		e.stopPropagation();
-		
-		switch (action.actionType) {
-			case 'theme':
-				setTheme(action.id);
-				break;
-			case 'currency':
-				setPrefs({ preferredFiatCurrency: action.id });
-				break;
-			case 'link':
-				setMenuOpen(false);
-				window.location.href = action.link;
-				break;
-			case 'notification':
-				if (action.action === 'mute') toggleNotificationMute(true);
-				if (action.action === 'unmute') toggleNotificationMute(false);
-				break;
-			case 'privacy':
-				if (action.action === 'clearCookies') clearNonEssentialCookies();
-				if (action.action === 'clearCache') clearBrowserCache();
-				break;
-		}
-	};
-
-	// Click on front card navigates to settings
-	const handleFrontClick = () => {
-		setMenuOpen(false);
-		window.location.href = item.href;
-	};
-
-	return (
-		<div
-			className="relative h-[52px]"
-			style={{ perspective: '1000px' }}
-			onMouseEnter={onHover}
-			onMouseLeave={onLeave}
-		>
-			{/* Card container with 3D flip */}
-			<div
-				className="relative w-full h-full transition-transform duration-300 ease-out"
-				style={{ 
-					transformStyle: 'preserve-3d',
-					transform: hasQuickActions && isHovered ? 'rotateX(180deg)' : 'rotateX(0deg)',
-				}}
-			>
-				{/* Front of card - Normal view */}
-				<div
-					className="absolute inset-0 w-full h-full rounded-lg px-3 py-2 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-					style={{ backfaceVisibility: 'hidden' }}
-					onClick={handleFrontClick}
-				>
-					<div className="flex items-center gap-3 h-full">
-						<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
-							<item.icon className="h-4 w-4" />
-						</div>
-						<div className="flex-1 min-w-0">
-							<div className="font-medium text-sm text-zinc-700 dark:text-zinc-200">{item.label}</div>
-							<div className="text-[11px] text-zinc-500 dark:text-zinc-500 truncate">{item.desc}</div>
-						</div>
-						{item.currentValue && (
-							<div className="text-[10px] text-zinc-400 dark:text-zinc-600">
-								{item.currentValue}
-							</div>
-						)}
-					</div>
-				</div>
-
-				{/* Back of card - Quick actions */}
-				{hasQuickActions && (
-					<div
-						className="absolute inset-0 w-full h-full rounded-lg bg-zinc-100 dark:bg-zinc-800 px-2 py-1.5"
-						style={{ 
-							backfaceVisibility: 'hidden',
-							transform: 'rotateX(180deg)',
-						}}
-					>
-						<div className="flex items-center justify-center gap-1 h-full">
-							{item.quickActions.map((action: any) => {
-								const isActive = getCurrentValue() === action.id;
-								const IconComponent = action.icon;
-								const isDanger = action.action === 'clearCookies' || action.action === 'clearCache';
-								
-								return (
-									<button
-										key={action.id}
-										type="button"
-										disabled={isClearing}
-										onClick={(e) => handleQuickAction(action, e)}
-										className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
-											isActive
-												? 'bg-sky-500 dark:bg-emerald-500 text-white shadow-sm'
-												: isDanger
-													? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60'
-													: 'bg-white dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-600 shadow-sm'
-										} ${isClearing ? 'opacity-50 cursor-wait' : ''}`}
-										title={action.label}
-									>
-										{typeof IconComponent === 'function' ? (
-											<IconComponent className="h-3.5 w-3.5" />
-										) : (
-											<IconComponent className="h-3.5 w-3.5" />
-										)}
-										<span>{action.label}</span>
-									</button>
-								);
-							})}
-						</div>
-					</div>
-				)}
-			</div>
-		</div>
-	);
+      <div className="space-y-1 border-t border-border pt-3">
+        <Link href="/settings" onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center justify-center rounded-xl bg-muted px-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All settings</Link>
+        <button type="button" onClick={() => { setMenuOpen(false); setTimeout(openCookieSettings, 0); }} className="flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Cookie preferences</button>
+      </div>
+    </div>
+  );
 }
 
 export default MyTopBar;

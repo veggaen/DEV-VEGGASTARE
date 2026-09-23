@@ -1,5 +1,180 @@
 import { test, expect } from "@playwright/test";
 
+test('S7 — shared header stays aligned and desktop rail scroll is independent', async ({ browser, baseURL }) => {
+  test.setTimeout(120_000);
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    const main = page.locator('[data-app-scroll-container]:visible');
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 390 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size);
+      await main.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+      const logo = page.locator('[data-nav-key="logo"]');
+      const before = await logo.boundingBox();
+      expect(before!.height).toBeGreaterThanOrEqual(44);
+      const canvas = await page.locator('[data-header-canvas]').boundingBox();
+      expect(canvas!.width).toBeLessThanOrEqual(1280);
+      const contentEdge = await page.getByRole('link', { name: 'Back to products', exact: true }).boundingBox();
+      expect(Math.abs(contentEdge!.x - before!.x)).toBeLessThanOrEqual(1);
+      await page.mouse.move(size.width - 24, Math.min(size.height - 100, 500));
+      await page.mouse.wheel(0, 800);
+      await expect.poll(() => main.evaluate(e => e.scrollTop)).toBeGreaterThan(0);
+      const after = await logo.boundingBox();
+      expect(after).toEqual(before);
+      const rail = page.getByRole('navigation', { name: 'Primary navigation', exact: true });
+      if (size.width >= 1024) {
+        await expect(rail).toBeInViewport();
+        const mainTop = await main.evaluate(e => e.scrollTop);
+        const bounds = await rail.boundingBox();
+        await page.mouse.move(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
+        await page.mouse.wheel(0, 5000);
+        await expect.poll(() => rail.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+        await expect(rail.getByRole('link', { name: 'Privacy', exact: true })).toBeInViewport();
+        await page.mouse.wheel(0, 5000);
+        expect(await main.evaluate(e => e.scrollTop)).toBe(mainTop);
+        await page.mouse.wheel(0, -5000);
+        await expect.poll(() => rail.evaluate(e => e.scrollTop)).toBe(0);
+        expect(await main.evaluate(e => e.scrollTop)).toBe(mainTop);
+      } else await expect(rail).toBeHidden();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && scrollY === 0)).toBe(true);
+    }
+    let documents = 0;
+    page.on('request', request => { if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documents++; });
+    const nav = page.getByRole('navigation', { name: 'Primary navigation', exact: true });
+    await nav.getByRole('link', { name: 'Products', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Marketplace', level: 1 })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Products', exact: true })).toHaveAttribute('aria-current', 'page');
+    await nav.getByRole('link', { name: 'Cart', exact: true }).click();
+    await expect(page).toHaveURL(/\/cart$/);
+    await expect(nav.getByRole('link', { name: 'Cart', exact: true })).toHaveAttribute('aria-current', 'page');
+    expect(documents).toBe(0);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S7 — quick settings work on touch and keyboard without a document reload', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  try {
+    await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.tap();
+    await page.getByRole('button', { name: 'Open menu', exact: true }).tap();
+    const menu = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
+    await menu.getByRole('button', { name: 'Settings', exact: true }).tap();
+    for (const mode of ['Light', 'Dark', 'System']) {
+      const button = menu.getByRole('button', { name: mode, exact: true });
+      expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await button.tap();
+      await expect(button).toHaveAttribute('aria-pressed', 'true');
+      if (mode !== 'System') await expect(page.locator('html')).toHaveClass(new RegExp(mode.toLowerCase()));
+    }
+    for (const currency of ['USD', 'NOK']) {
+      const button = menu.getByRole('button', { name: currency, exact: true });
+      await button.focus();
+      await page.keyboard.press('Enter');
+      await expect(button).toHaveAttribute('aria-pressed', 'true');
+    }
+    await expect(menu.getByRole('button', { name: /Clear Cookies|Clear Cache/ })).toHaveCount(0);
+    let documents = 0;
+    page.on('request', request => { if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documents++; });
+    const profile = menu.getByRole('navigation', { name: 'Quick settings' }).getByRole('link', { name: /^Profile / });
+    await profile.focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/settings\?section=profile$/);
+    await expect(menu).toBeHidden();
+    expect(documents).toBe(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  } finally { await context.close(); }
+});
+
+test('S7 — delayed wallet controls do not move a scrolled navigation drawer', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 360, height: 800 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  try {
+    await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    const trigger = page.getByRole('button', { name: 'Open menu', exact: true });
+    await expect(trigger).toBeEnabled();
+    await page.route('**/_next/static/chunks/**', async route => { await pending; await route.continue(); });
+    await trigger.click();
+    const menu = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
+    await expect(menu.getByText('Loading wallet controls…', { exact: true })).toBeVisible();
+    const scroll = page.locator('[data-navigation-scroll]');
+    const box = await scroll.boundingBox();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    await page.mouse.wheel(0, 5000);
+    await expect.poll(() => scroll.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+    const before = await scroll.evaluate(e => ({ height: e.scrollHeight, top: e.scrollTop }));
+    release();
+    await expect(menu.getByText('Connect a wallet to get started', { exact: true })).toBeVisible();
+    expect(await scroll.evaluate(e => ({ height: e.scrollHeight, top: e.scrollTop }))).toEqual(before);
+    await page.keyboard.press('Escape');
+    await expect(trigger).toBeFocused();
+  } finally { release(); await context.close(); }
+});
+
+test('S7 — dashboard shares one unobscured navigation rail in both themes', async ({ browser, baseURL }) => {
+  test.setTimeout(90_000);
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: /Welcome back,/ })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(value => localStorage.setItem('veggat:theme', value), theme);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      const heading = page.getByRole('heading', { name: /Welcome back,/ });
+      await expect(heading).toBeVisible();
+      await expect(page.locator('html')).toHaveClass(new RegExp(theme));
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        const scroll = page.locator('[data-site-scroll]');
+        await scroll.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('main,[data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+        const logo = await page.locator('[data-nav-key="logo"]').boundingBox();
+        expect((await heading.boundingBox())!.x).toBe(logo!.x);
+        await expect(page.locator('a[href="/dashboard"]:visible')).toHaveCount(size.width >= 1024 ? 1 : 0);
+        if (size.width >= 1024) {
+          const dashboard = page.getByRole('navigation', { name: 'Primary navigation', exact: true }).getByRole('link', { name: 'Dashboard', exact: true });
+          await dashboard.scrollIntoViewIfNeeded();
+          expect(await dashboard.evaluate(e => { const r = e.getBoundingClientRect(); return e.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); })).toBe(true);
+          await expect(dashboard).toHaveAttribute('aria-current', 'page');
+        }
+        await page.mouse.move(size.width / 2, size.height - 30);
+        await page.mouse.wheel(0, 5000);
+        await expect.poll(() => scroll.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+        await expect(page.locator('footer')).toBeInViewport();
+        expect(await page.evaluate(() => scrollY)).toBe(0);
+      }
+    }
+    await page.locator('[data-site-scroll]').evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+    let documents = 0;
+    page.on('request', request => { if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documents++; });
+    await page.locator('main').getByRole('link', { name: /^Products Browse/ }).click();
+    await expect(page.getByRole('heading', { name: 'Marketplace', level: 1 })).toBeVisible();
+    expect(documents).toBe(0);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S7 — product detail layout, gallery and real scrolling at eight sizes in both themes', async ({ browser, baseURL }) => {
   test.setTimeout(120_000);
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');

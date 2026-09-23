@@ -29,6 +29,7 @@ const Web3Providers = dynamic(
 );
 
 import MyTopBar from "@/components/uicustom/topbar";
+import DesktopNavigation from "@/components/uicustom/desktop-navigation";
 import SiteFooter from "@/components/uicustom/site-footer";
 import CookieBanner from "@/components/uicustom/cookie-banner";
 import { ActiveWalletProvider } from "@/contexts/active-wallet-context";
@@ -107,6 +108,8 @@ export default function AppShell({
                     <MyTopBar />
                     <ImpersonationBanner />
                     <DemoSessionNotice />
+                    <div className="flex min-h-0 min-w-0 flex-1">
+                    <DesktopNavigation />
                     <PageScroller scrollKey={scrollKey} contained={Boolean(isProductsRoute || isImmersiveChat)}>
                       {/* Use the actual remaining shell height, not header/demo
                           measurements which only become available in effects. */}
@@ -115,6 +118,7 @@ export default function AppShell({
                       </main>
                       {!isProductsRoute && !isImmersiveChat && pathname !== '/' && <SiteFooter />}
                     </PageScroller>
+                    </div>
                     <CookieBanner />
                     <Toaster />
                     </div>

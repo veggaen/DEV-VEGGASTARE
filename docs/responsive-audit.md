@@ -918,6 +918,45 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Playwright remains the active test browser. Physical phone keyboard and real
   Chrome 125% zoom have not been substituted with CSS zoom or claimed tested.
 
+## Shared navigation / alignment follow-up
+
+- Shared route definitions now drive both the mobile drawer and a persistent
+  80px desktop rail from `lg`. The rail scrolls independently; providers and
+  the main scroller stay mounted during navigation. Downloads, orders and
+  profile are directly discoverable. Auth pages keep their uncluttered shell.
+- Header geometry no longer morphs on scroll. Its 1280px canvas and 16/24/32px
+  gutters align with the available main canvas, including the desktop rail.
+  At 2560px the logo/content left edge is 712px, versus the former header's
+  536px edge. Removed layout reads for an invisible hover indicator.
+- Hover-only 3D settings cards replaced with explicit 44px touch/keyboard
+  controls. System theme selection is retained rather than inferred from the
+  resolved light/dark theme. Real links keep client navigation; privacy and
+  notification editing use their dedicated settings pages. Blanket cookie,
+  localStorage and sessionStorage deletion shortcuts were removed so they
+  cannot erase consent, wallet or in-progress auth state unexpectedly.
+- Initial local focused run **22/23** passed. The failure identified a real
+  late drawer-height increase, not a scroll-test tolerance issue. Controlled
+  delayed wallet JS reproduced scrollHeight **933 -> 1083px** while scrollTop
+  remained 330px. A reserved wallet slot now matches the disconnected panel;
+  rebuild passed webpack/TypeScript and the combined local regression **24/24**
+  passes (2.2m), including the deterministic delayed-bundle case.
+- Additional read-only triage captured 14 routes at 390/2560 with top/middle/
+  bottom wheel scrolling (28 route/viewport checks). No browser exceptions;
+  Notifications has mobile horizontal overflow and is the next scoped repair.
+  This is not a claim that every button or screenshot has passed review.
+- Visual inspection then caught Dashboard's old floating dock covering the new
+  rail. Removed the duplicate dashboard-only shell; preserved its destinations
+  in shared navigation, including role-appropriate admin links. Dashboard now
+  uses the common canvas, readable light/dark tokens and accurate credit/BYOK
+  copy. A new regression checks a single hit-testable rail, canvas alignment,
+  footer scrolling and client-side navigation at eight sizes in both themes.
+  Final webpack/TypeScript build, touched-file lint and combined local browser
+  regression **25/25** pass (2.6m). Dashboard was also visually reviewed at
+  390/1280 in light mode; the duplicate dock is absent and text is readable.
+  Live deployment/results are recorded below when complete.
+- Real Chrome inventory remains empty. Playwright is the working browser;
+  physical-phone keyboard and native 125% Chrome zoom remain unverified.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
