@@ -646,7 +646,23 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Pulse pagination/drawer/footer regressions and the catalogue/cart flow.
   **30/30** focused unit tests, touched-file lint and Webpack production build
   pass. Local first-attempt failures and their fixes are documented above rather
-  than treated as passes. Production verification is the next step. Owner Chrome's
+  than treated as passes. Added demo-denial regression **2/2** locally: exact URL
+  pathname matching intercepts Auth.js's trailing `?` and asserts no session was
+  created. The earlier manual glob missed that delimiter, so it exercised a real
+  successful demo sign-in instead; one isolated local demo was created normally
+  and retained privately. No cap/balance reset or AI generation occurred.
+- Production release `2c143df` / `dpl_53ubXcvth4nMahFFNGG73tejaCLa` is READY
+  at www.veggat.com. Live batch **18/19** (2.3m): the layout test missed the late
+  cookie banner and wheeled over that overlay. It now waits for actual consent
+  readiness before dismissing it. Two complete eight-viewport auth audit repeats
+  then pass (**3/3** with setup, 39.7s), so all targeted cases have passed on the
+  unchanged release. Full live recovery/2FA, pricing alignment, delayed scripts,
+  transport errors, demo-denial, Pulse and catalogue/cart checks passed.
+- Google, GitHub and Discord buttons reach each provider's own sign-in page both
+  locally and live. Full owner OAuth consent/callback is still not claimed.
+  Live phone and 2560px visuals were inspected: 1280px canvas centered at x=640,
+  footer begins at y=1440 before scrolling. Phone recovery footer was reached by
+  a real wheel event, with the document remaining at scrollY=0. Owner Chrome's
   connector still reports `apps: [], browsers: []`; this is Playwright evidence.
   Physical phone keyboard behavior and real browser 125% zoom remain unverified.
 

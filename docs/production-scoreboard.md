@@ -20,7 +20,13 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   Request-rendered auth and readiness-guarded inputs prevent skeleton-only first
   paint and lost pre-hydration input. Auth's hidden-header offset no longer brings
   the footer into view early. Full local focused batch **18/18**, auth/scroll unit
-  tests **30/30**, touched lint and production build pass; live rollout follows.
+  tests **30/30**, touched lint and production build pass. Release `2c143df`,
+  deployment `dpl_53ubXcvth4nMahFFNGG73tejaCLa`, is READY at www.veggat.com.
+  Live: **18/19** initially; correcting the test's late-cookie-banner readiness
+  yielded two passing complete auth-layout repetitions (**3/3** with setup).
+  Every targeted case has now passed, including real recovery/2FA and shared
+  Pulse/catalogue/cart regressions. All three OAuth buttons initiate locally
+  and live; owner consent remains pending. See the audit for exact coverage.
 
 - Local AND live browser round trip passed: register → app-issued email verification → normal session → password reset → old-session revocation → reset-token replay rejection → password login → logout → 2FA. Callback origin assertion passed (3/3 including setup, both environments).
 - Local AND live 2FA UI passed; direct password login without a code and replay of a consumed code both denied. Passwords were not emitted to browser console.

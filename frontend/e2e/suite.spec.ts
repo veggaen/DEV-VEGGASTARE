@@ -12,9 +12,13 @@ test('S2 — auth layouts, fields, theme and scrolling stay usable from phone to
       await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Toggle theme', exact: true })).toBeEnabled();
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      // Consent mounts independently of the auth form. In a fresh browser wait
+      // for its actual arrival; an early isVisible() can miss the later overlay.
+      if (route === 'login') await expect(consent).toBeVisible();
       if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
       const site = page.locator('[data-site-scroll]');
       for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        test.info().annotations.push({ type: 'auth-viewport', description: `${route}: ${size.width}x${size.height}` });
         await page.setViewportSize(size);
         await site.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
         await expect(page.locator('main h1')).toBeInViewport();
@@ -96,6 +100,26 @@ test('S2 — auth essential text is readable before JavaScript in both motion pr
       expect(blocked).toBeGreaterThan(0);
     } finally { await context.close(); }
   }
+});
+
+test('S2 — demo button recovers from denial without creating an account', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  let attempts = 0;
+  try {
+    // Auth.js appends a query delimiter. Match the parsed path, not a glob that
+    // silently misses "/demo?" and accidentally creates a real demo identity.
+    await context.route(url => url.pathname === '/api/auth/callback/demo', async route => {
+      attempts++;
+      await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ url: new URL('/auth/error?error=CredentialsSignin', baseURL!).href }) });
+    });
+    const page = await context.newPage();
+    await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Try the demo — no payment', exact: true }).click();
+    await expect(page.getByText('Demo is busy. Please try again later or create an account.', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Try the demo — no payment', exact: true })).toBeEnabled();
+    expect(attempts).toBe(1);
+    expect((await (await context.request.get('/api/auth/session')).json())?.user).toBeFalsy();
+  } finally { await context.close(); }
 });
 
 test('S2 — slow scripts cannot discard early recovery-form input', async ({ browser, baseURL }) => {
