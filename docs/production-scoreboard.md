@@ -250,7 +250,7 @@ member-to-member delivery remains separate from the mocked error test.
 
 ## Feature scoreboard
 
-### S8 Crypto follow-up — local verification
+### S8 Crypto follow-up — local/live verification
 
 - Removed the duplicate footer and unified the historical-price page with the
   responsive analytics shell. Labelled 48px filters, stable lazy chart geometry,
@@ -265,8 +265,13 @@ member-to-member delivery remains separate from the mocked error test.
   sizes, page/table/drawer scrolling and late-response isolation covered.
 - Final chart-axis/contrast build and TypeScript pass; targeted local browser
   **5/5** (15.7s), plus the preceding combined run **9/9** (34.8s).
-  Production deployment/live verification pending. Whole-app audit,
-  real Chrome access, physical keyboard and 125% browser zoom remain incomplete.
+  Release `6f9a804` / `dpl_F8CpxqRgrmtkZENRUpszL8dMKVz3` is READY at
+  www.veggat.com. Live combined regression **9/9** (44.9s); actual provider
+  reads for the same five pairs are 200, with 365 observations and shared-cache
+  reuse confirmed. Live phone table/footer and ultrawide screenshots inspected;
+  one footer, no page overflow/JS exceptions and contained real table scrolling.
+  Whole-app audit, real Chrome access, physical keyboard and 125% browser zoom
+  remain incomplete. Next: verified Pricing/Info link defects and remaining routes.
 
 | Area | Feature | Status / evidence |
 | --- | --- | --- |

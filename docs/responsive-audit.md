@@ -455,7 +455,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - Remaining: Crypto is covered in the next entry. Real Chrome/OS zoom and
   real-phone keyboard checks remain unverified. The whole app audit is PARTIAL.
 
-### Crypto price history (local verified; production verification pending)
+### Crypto price history (local/live verified)
 
 - Actual browser reproduction found two footers, unlabelled 40px selectors,
   incompatible page spacing and a large, fixed-height chart. Reused AnalyticsShell
@@ -494,10 +494,22 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   pass. Settled phone inspection caught touching date labels; added axis label
   spacing, rebuilt and visually verified distinct dates. Final targeted Crypto
   regression **5/5** (15.7s); preceding combined analytics regression **9/9**
-  (34.8s). Production deployment and live verification are next.
+  (34.8s).
+- Release `6f9a804` / `dpl_F8CpxqRgrmtkZENRUpszL8dMKVz3` is READY at
+  www.veggat.com. Combined live analytics regression **9/9** (44.9s), including
+  setup. Actual live Ethereum USD/EUR/NOK, Bitcoin USD and WPLS USD requests
+  all return 200 with 365 observations; short-range and legacy monthly requests
+  reuse the same retrieval time. Real phone chart/table/footer and 2560px canvas
+  inspected: one footer, contained table scrolling, no horizontal page overflow
+  and no JavaScript exceptions. Browser fixtures independently test failures;
+  they are not the evidence for provider availability. Private screenshots:
+  `.private-showcase/responsive-audit/crypto-live-{phone-table,phone-footer,wide}.png`.
 - Next-route triage: Pricing's “Manage API keys” link actually lands on the
   Profile panel (`/settings#ai-keys`); Settings expects `?section=ai`. Confirmed
   through the visible button in the real local app, not just source inspection.
+  Its contact CTA also reaches `/info#contact` without a matching anchor. Actual
+  bottom scrolling finds a Contact section but no nearby contact action; the only
+  GitHub link is above it. These are queued defects, not verified fixes.
 
 ## Research references
 
