@@ -1,5 +1,70 @@
 import { test, expect } from "@playwright/test";
 
+test('S7 — a closed slow poll bundle cannot replace the Pulse feed or reset early scrolling', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let release!: () => void, releaseImport!: () => void, pollBundleRequested = false;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  const pendingImport = new Promise<void>(resolve => { releaseImport = resolve; });
+  try {
+    await page.route('**/_next/static/chunks/**', async route => {
+      const response = await route.fetch();
+      const source = await response.text();
+      if (source.includes('[PollTakerModal] Submit error:')) { pollBundleRequested = true; await pending; }
+      if (source.includes("Invalid JSON structure. Expected array of questions or object with 'questions' property.")) await pendingImport;
+      await route.fulfill({ response });
+    });
+    await page.route('**/api/conversations?**', route => route.fulfill({ json: {
+      conversations: Array.from({ length: 25 }, (_, index) => ({ id: 'qa-cold-feed-' + index, title: 'Cold-load layout fixture', description: 'This unpublished fixture keeps the feed tall while optional poll code is delayed.', type: 'PUBLIC_THREAD', tags: [], userId: 'qa-layout', user: { id: 'qa-layout', name: 'Layout fixture', email: '' }, createdAt: '2026-01-01T00:00:00Z', messageCount: 1, hasPoll: index === 3, ...(index === 3 ? { advancedPoll: { id: 'qa-slow-poll', title: 'Delayed module poll', type: 'SURVEY', totalResponses: 0, avgCompletionPct: 0 } } : {}) })), nextCursor: null,
+    } }));
+    await page.route('**/api/advanced-polls/qa-slow-poll', route => route.fulfill({ json: { poll: { id: 'qa-slow-poll', title: 'Delayed module poll', description: 'Unpublished test fixture.', type: 'SURVEY', creatorId: 'qa-layout', isAnonymous: true, allowPartial: true, requiresAuth: false, totalResponses: 0, avgCompletionPct: 0, questions: [{ id: 'qa-question', text: 'Test question', type: 'SINGLE_CHOICE', orderIndex: 0, isRequired: true, options: [{ id: 'qa-option', text: 'Test answer', orderIndex: 0 }] }] } } }));
+    await page.goto('/pulse', { waitUntil: 'domcontentloaded' });
+    const feed = page.getByRole('feed', { name: 'Pulse feed' }); await expect(feed).toBeVisible();
+    await page.mouse.move(210, 620); await page.mouse.wheel(0, 350);
+    await expect(feed).toHaveAttribute('aria-busy', 'false', { timeout: 8_000 });
+    expect(pollBundleRequested).toBe(false);
+    await expect(page.locator('footer')).not.toBeInViewport();
+    await expect.poll(() => page.locator('[data-app-scroll-container]').evaluate(e => e.scrollTop)).toBeGreaterThan(0);
+    expect(await page.locator('[data-app-scroll-container]').evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+    const screenshotPrefix = '.private-showcase/pulse-cold-' + (new URL(baseURL!).hostname === 'localhost' ? 'local' : 'live');
+    await page.screenshot({ path: screenshotPrefix + '-feed.png' });
+    const openPoll = page.getByRole('button', { name: /Delayed module poll/ });
+    await openPoll.scrollIntoViewIfNeeded();
+    const before = await page.locator('[data-app-scroll-container]').evaluate(e => e.scrollTop);
+    await openPoll.click();
+    const loading = page.getByRole('dialog', { name: 'Loading poll…', exact: true });
+    await expect(loading).toBeVisible(); await expect.poll(() => pollBundleRequested).toBe(true);
+    await expect(page.locator('[role="feed"][aria-label="Pulse feed"]')).toBeVisible();
+    expect(await page.locator('[data-app-scroll-container]').evaluate(e => e.scrollTop)).toBe(before);
+    for (const size of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+      await page.setViewportSize(size);
+      await expect.poll(() => loading.evaluate(e => Math.max(0, -e.getBoundingClientRect().top, e.getBoundingClientRect().bottom - innerHeight))).toBe(0);
+      const bounds = await loading.boundingBox();
+      expect(bounds!.x).toBeGreaterThanOrEqual(15); expect(bounds!.y).toBeGreaterThanOrEqual(15); expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(size.width - 15); expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(size.height - 15);
+      await page.screenshot({ path: screenshotPrefix + '-dialog-' + size.width + '.png' });
+    }
+    await loading.getByRole('button', { name: 'Cancel loading', exact: true }).click(); await expect(loading).toBeHidden(); await expect(feed).toBeVisible();
+    await openPoll.click(); await expect(loading).toBeVisible(); release();
+    const poll = page.getByRole('dialog', { name: 'Delayed module poll', exact: true }); await expect(poll).toBeVisible();
+    await page.keyboard.press('Escape'); await expect(poll).toBeHidden(); await expect(feed).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    const openImport = async () => {
+      await page.getByRole('button', { name: 'Poll options', exact: true }).click();
+      await page.getByRole('menuitem', { name: /Import from JSON/ }).click();
+    };
+    await openImport();
+    const importLoading = page.getByRole('dialog', { name: 'Loading poll import…', exact: true }); await expect(importLoading).toBeVisible();
+    await expect(page.locator('[role="feed"][aria-label="Pulse feed"]')).toBeVisible();
+    await page.keyboard.press('Escape'); await expect(importLoading).toBeHidden();
+    await openImport(); await expect(importLoading).toBeVisible(); releaseImport();
+    const importer = page.getByRole('dialog', { name: 'Import Poll', exact: true }); await expect(importer).toBeVisible();
+    await page.keyboard.press('Escape'); await expect(importer).toBeHidden(); await expect(feed).toBeVisible();
+    expect(errors).toEqual([]);
+  } finally { release(); releaseImport(); await page.unrouteAll({ behavior: 'wait' }); await context.close(); }
+});
+
 test('S7 — profile image uploads persist and retry without duplicate files', async ({ browser, baseURL }) => {
   test.skip(process.env.E2E_PROFILE_UPLOAD !== 'live-db', 'Explicit tiny QA upload and isolated-account opt-in');
   test.setTimeout(240_000);

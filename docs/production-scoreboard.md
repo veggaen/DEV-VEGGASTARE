@@ -2,6 +2,13 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+Current candidate: reproduced and fixed cold-load Pulse disappearance while a
+closed poll module loads, plus the resulting early-scroll/footer jump. Optional
+poll/import dialogs now load independently with cancellable fallbacks. Strict
+build/TypeScript, touched lint and local browser **7/7 (33.7s)** pass; additional
+capture run **2/2 (7.8s)** passes. Phone/landscape/desktop dialog screenshots were
+reviewed. Live deployment/verification is pending; other route work continues.
+
 Latest verified follow-up: Profile uploads/storage boundary release `9d088f4`,
 deployment `dpl_8XHLyTALxFrBkxtuc95eUeYQJKwN`, READY at all three main aliases.
 Strict webpack/TypeScript, touched-file lint, **68/68** units, local browser

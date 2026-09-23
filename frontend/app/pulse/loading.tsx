@@ -7,7 +7,7 @@ import { FeedSkeleton, Skeleton } from "@/components/ui/skeleton";
  */
 export default function PulseLoading() {
   return (
-    <div role="status" aria-label="Loading Pulse" className="mx-auto w-full max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
+    <div role="status" aria-label="Loading Pulse" data-feed-footer-pending="true" className="mx-auto w-full max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
       <span className="sr-only">Loading Pulse…</span>
       <div aria-hidden="true" className="flex h-[60px] items-center justify-between">
         <Skeleton className="h-7 w-16" />

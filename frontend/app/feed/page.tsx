@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Spinner from '@/components/uicustom/spinner';
 import { FeedSkeleton } from '@/components/ui/skeleton';
+import PulseLoading from '@/app/pulse/loading';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { UseCurrentRole } from '@/hooks/use-current-role';
 import { useViewTracking } from '@/hooks/useViewTracking';
@@ -61,6 +62,19 @@ const PollBuilder = dynamic(() => import('@/components/uicustom/polls/PollBuilde
 });
 const PollTakerModal = dynamic(() => import('@/components/uicustom/polls/PollTakerModal').then(module => module.PollTakerModal));
 const PollImportModal = dynamic(() => import('@/components/uicustom/polls/PollImportModal').then(module => module.PollImportModal));
+
+/** Keep optional dialog loading inside its own boundary, never the entire feed. */
+function PollDialogLoading({ title, onClose }: { title: string; onClose: () => void }) {
+  return <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+    <DialogContent hideCloseButton className="w-[calc(100%_-_2rem)] max-w-md max-h-[calc(100dvh_-_2rem)] overflow-y-auto overscroll-contain data-[state=open]:animate-none data-[state=closed]:animate-none transition-none">
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription role="status">Preparing the editor. Your feed will stay in place.</DialogDescription>
+      </DialogHeader>
+      <Button variant="secondary" className="min-h-11" onClick={onClose}>Cancel loading</Button>
+    </DialogContent>
+  </Dialog>;
+}
 
 interface User {
   id: string;
@@ -240,8 +254,13 @@ const FeedPage: React.FC = () => {
   const [tagFilter, setTagFilter] = useState<string | null>(null);
 
   // Reset the actual app scroller before a shorter result list can clamp the
-  // old offset to its footer. Window scrolling does not move this feed.
+  // old offset to its footer. Preserve gestures made on SSR content before
+  // hydration; the initial selection is not a user-requested filter change.
+  const previousSelection = useRef({ filter, sortBy, tagFilter });
   useLayoutEffect(() => {
+    const previous = previousSelection.current;
+    previousSelection.current = { filter, sortBy, tagFilter };
+    if (previous.filter === filter && previous.sortBy === sortBy && previous.tagFilter === tagFilter) return;
     document.querySelector<HTMLElement>('[data-site-scroll="true"]')?.scrollTo({ top: 0, behavior: 'instant' });
   }, [filter, sortBy, tagFilter]);
   
@@ -2035,6 +2054,7 @@ const FeedPage: React.FC = () => {
 
           {/* Poll Taker Modal - for taking advanced polls */}
           {/* Use ReachPollV3 for REACH Assessment polls (interactive drag/drop experience), regular modal for others */}
+          {selectedAdvancedPollId && <Suspense fallback={<PollDialogLoading title="Loading poll…" onClose={closePoll} />}>
           {isReachAuditPoll ? (
             <ReachPollV3
               key={selectedAdvancedPollId ?? 'reach-none'}
@@ -2096,9 +2116,10 @@ const FeedPage: React.FC = () => {
               }}
             />
           )}
+          </Suspense>}
 
           {/* Poll Import Modal */}
-          {showPollImport && <PollImportModal
+          {showPollImport && <Suspense fallback={<PollDialogLoading title="Loading poll import…" onClose={() => setShowPollImport(false)} />}><PollImportModal
             open={showPollImport}
             onOpenChange={setShowPollImport}
             onImport={async (importedPoll) => {
@@ -2162,7 +2183,7 @@ const FeedPage: React.FC = () => {
                 });
               }
             }}
-          />}
+          /></Suspense>}
         </div>
 
         {/* Explore sidebar */}
@@ -3476,7 +3497,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 // Wrap with Suspense for useSearchParams
 function FeedPageWrapper() {
   return (
-    <Suspense fallback={<div className="flex justify-center py-12"><Spinner /></div>}>
+    <Suspense fallback={<PulseLoading />}>
       <FeedPage />
     </Suspense>
   );

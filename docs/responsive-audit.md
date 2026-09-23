@@ -1219,6 +1219,35 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   object after Cancel/navigation; product temporary-image confirmation needs its
   own audit. No client deletion capability or broad cleanup job was enabled.
 
+## Pulse cold-load and optional-dialog regression
+
+- The new delayed-module test reproduced the live blank-feed observation on the
+  deployed code: the SSR feed was initially present, then disappeared while the
+  closed `PollTakerModal` chunk was held. The whole-feed Suspense spinner reduced
+  content height, exposed the footer and clamped scroll. This differs from the
+  already-covered pagination-footer behavior.
+- Candidate mounts the poll taker only with a selected poll. Poll taking and
+  importing have independent Suspense boundaries with accessible, cancellable
+  dialogs. The whole-feed fallback reuses the route-shaped skeleton and carries
+  the pending-footer marker. Initial hydration no longer resets page scrolling;
+  actual filter/sort/tag changes still reset their result lists.
+- The closed poll-taker chunk measured 98,546 bytes uncompressed in the baseline
+  build. It should no longer be requested on the initial feed; this is a bundle
+  dependency improvement, not a measured field-CWV claim.
+- First candidate reached feed readiness without requesting that chunk and
+  retained early scroll, but the expanded viewport test exposed a legacy dialog
+  entrance animation placing the loading dialog partly off-screen. Candidate
+  removes that transient animation from the small loading dialog. Remaining
+  existing scroll tests **6/6** (including setup) passed. Final strict webpack/
+  TypeScript, touched lint and local browser **7/7 (33.7s)** pass; a supplementary
+  screenshot capture run **2/2 (7.8s)** also passes. Feed-at-scroll and loading
+  dialog screenshots at 390px, landscape 844x390 and desktop 1280px were reviewed:
+  `.private-showcase/pulse-cold-local-*.png`. Live verification is pending.
+- The regression additionally opens, cancels and reopens delayed poll/import
+  dialogs, verifies the feed remains mounted, and closes the loaded dialogs.
+  Poll data is intercepted unpublished fixture content; no real poll is posted,
+  imported, answered or deleted.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
@@ -1245,3 +1274,4 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - [CSS subgrid](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Grid_layout/Subgrid)
 - [EdgeStore context reset and lifecycle hooks](https://edgestore.dev/docs/configuration)
 - [EdgeStore backend file operations](https://edgestore.dev/docs/backend-client)
+- [React Suspense boundary and visible-content behavior](https://react.dev/reference/react/Suspense)
