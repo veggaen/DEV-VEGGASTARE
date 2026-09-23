@@ -359,6 +359,42 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   that run. Continue verifying readiness and session initialization rather than
   treating the initial screenshot or a single metric as proof of stable loading.
 
+### Pulse pagination footer follow-up (under verification)
+
+- Scoped footer visibility to the feed's real pagination boundary: no provisional
+  footer while loading, when another cursor exists, or while a failed batch needs
+  retry. No scroll-event polling, fixed-position overlay or footer remount loop.
+- Check HTTP/schema failures before treating a response as an empty final page.
+  Preserve loaded posts on pagination failures, show explicit retry, and stop
+  automatic retry loops. Superseded requests are aborted so an earlier filter
+  cannot overwrite the current result. Empty filtered batches offer an explicit
+  check-more action rather than trapping the cursor behind a missing sentinel.
+- Added delayed-success/503/retry/true-end browser fixtures at 390 and 1280px.
+  The new 390px test failed on the pre-fix build because its footer stayed visible,
+  proving the regression covers the real-feed issue missed by finite fixtures.
+- Actual reduced-motion lower-homepage scrolling also exposed delayed opacity
+  entrances. Removed initial hiding from essential below-fold sections while
+  preserving hover effects; pre-bundle test now scrolls to a lower heading and
+  checks ancestor opacity. That test also exposed letter-by-letter accessible
+  names (`T h r e e …`): added one semantic text copy and hid decorative glyphs
+  from assistive technology in the lower headings, hero description and kicker.
+- Initial combined run **6 pass / 4 fail**: one real accessible-name defect,
+  two new pagination assertions targeted a non-rendered title (the cards display
+  their description), and a wallet-dialog wheel stopped 3px before its settled
+  bottom. Pagination checks now assert visible articles/counts; wallet test waits
+  for opening animation and continues actual wheel gestures without relaxing its
+  <2px bottom threshold. Targeted rerun **4/4** (16.2s): Settings plus both
+  pagination viewports. Final Webpack build/TypeScript/touched lint pass; combined
+  local browser run **10/10** (47.4s): Settings, injected wallet, early paint,
+  390/1280px reduced-motion hydration, finite-feed/drawer scrolling, paginated
+  feed retry/scroll preservation/footer and marketplace/cart. Actual phone
+  screenshots confirm lower sections are readable immediately, accessible
+  headings read whole words, and the real feed keeps its footer hidden while
+  more posts remain. Live verification is pending.
+- Real Chrome connector was checked again: its inventory still returned no apps
+  or browsers. These tests use the explicitly authorized Playwright browser, not
+  the owner's real Chrome session.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
@@ -371,3 +407,4 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - [Wagmi v2 SSR](https://2.x.wagmi.sh/react/guides/ssr)
 - [React hydration consistency](https://react.dev/reference/react-dom/client/hydrateRoot)
 - [React external-store server snapshots](https://react.dev/reference/react/useSyncExternalStore)
+- [CSS relational selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Selectors/:has)

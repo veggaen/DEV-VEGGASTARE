@@ -404,7 +404,8 @@ const KineticDescription = React.forwardRef<HTMLParagraphElement, {
       style={{ willChange: 'opacity, transform' }}
     >
       {/* Use standard inline text flow instead of flex to prevent word-by-word wrapping issues */}
-      <span className="inline leading-relaxed">
+      <span className="sr-only">{text}</span>
+      <span aria-hidden="true" className="inline leading-relaxed">
         {words.map((word, wIdx) => {
           const startIdx = wordStartIndices[wIdx] ?? 0;
           return (
@@ -575,7 +576,8 @@ const KineticHeadline = React.forwardRef<HTMLSpanElement, {
       onPointerLeave={handlePointerLeave}
     >
       {/* Horizontal inline layout with proper word spacing */}
-      <span className="inline-flex flex-wrap items-center justify-center gap-x-[0.5em]">
+      <span className="sr-only">{text}</span>
+      <span aria-hidden="true" className="inline-flex flex-wrap items-center justify-center gap-x-[0.5em]">
         {words.map((word, wordIdx) => {
           const revealedCount = revealed[wordIdx] || 0;
           return (

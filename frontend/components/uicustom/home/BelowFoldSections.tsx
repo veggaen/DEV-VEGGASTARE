@@ -59,10 +59,11 @@ function HoverableHeading({
       className={`${className ?? ""} cursor-default`}
       onPointerLeave={() => setHoveredIdx(null)}
     >
+      <span className="sr-only">{text}</span>
       {Array.from(text).map((char, i) => {
         if (char === " ") {
           return (
-            <span key={i} className="inline-block" style={{ width: "0.28em" }}>
+            <span key={i} aria-hidden="true" className="inline-block" style={{ width: "0.28em" }}>
               &nbsp;
             </span>
           );
@@ -73,6 +74,7 @@ function HoverableHeading({
         return (
           <span
             key={i}
+            aria-hidden="true"
             className="inline-block origin-bottom"
             style={{
               color: active ? `rgba(${accentRgb}, ${0.5 + 0.5 * intensity})` : undefined,
@@ -190,7 +192,7 @@ const FeatureCard = React.memo(function FeatureCard({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 28 }}
+      initial={false}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px 0px" }}
       transition={{ delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -274,7 +276,7 @@ const StepCard = React.memo(function StepCard({
   return (
     <motion.div
       className="relative flex flex-col gap-3 cursor-default"
-      initial={{ opacity: 0, y: 20 }}
+      initial={false}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px 0px" }}
       transition={{ delay, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
@@ -356,7 +358,7 @@ const SectionHeading = React.memo(function SectionHeading({
     <div className="mb-12 text-center">
       <motion.p
         className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-600 dark:text-emerald-400/60"
-        initial={{ opacity: 0 }}
+        initial={false}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}
         transition={{ duration: 0.45 }}
@@ -365,7 +367,7 @@ const SectionHeading = React.memo(function SectionHeading({
       </motion.p>
       <motion.h2
         className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-3xl"
-        initial={{ opacity: 0, y: 10 }}
+        initial={false}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.45, delay: 0.1 }}
@@ -375,7 +377,7 @@ const SectionHeading = React.memo(function SectionHeading({
       {subtitle && (
         <motion.p
           className="mx-auto mt-3 max-w-lg text-sm text-gray-400 dark:text-white/35"
-          initial={{ opacity: 0 }}
+          initial={false}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.45, delay: 0.2 }}
@@ -563,7 +565,7 @@ export default function BelowFoldSections() {
                   statCellRefs.current[i] = el;
                 }}
                 className="flex flex-col items-center justify-center gap-1 px-6 py-8 text-center cursor-default"
-                initial={{ opacity: 0, y: 10 }}
+                initial={false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-50px 0px" }}
                 transition={{ delay: i * 0.08, duration: 0.4, ease: "easeOut" }}
@@ -615,7 +617,7 @@ export default function BelowFoldSections() {
         <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20 xl:max-w-6xl">
           <motion.div
             className="flex flex-col items-center gap-5 text-center"
-            initial={{ opacity: 0, y: 16 }}
+            initial={false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, ease: "easeOut" }}

@@ -233,6 +233,8 @@ const FeedPage: React.FC = () => {
   // Feed state
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
+  const feedRequestRef = useRef<AbortController | null>(null);
   const [filter, setFilter] = useState<ContentFilter>('all');
   const [sortBy, setSortBy] = useState<SortType>('recent');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -574,9 +576,17 @@ const FeedPage: React.FC = () => {
   // additional server pages until we have enough client-visible items, because
   // the server doesn't know about the poll/pulse distinction.
   const fetchFeed = useCallback(async (resetNewCount = true, cursor?: string) => {
+    feedRequestRef.current?.abort();
+    const request = new AbortController();
+    feedRequestRef.current = request;
+    setFeedError(null);
     const isFirstPage = !cursor;
     if (isFirstPage) {
       setLoading(true);
+      setItems([]);
+      setNextCursor(null);
+      setHasMore(true);
+      setIsFetchingMore(false);
     } else {
       setIsFetchingMore(true);
     }
@@ -606,8 +616,10 @@ const FeedPage: React.FC = () => {
           url += `&cursor=${encodeURIComponent(currentCursor)}`;
         }
         
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: request.signal });
+        if (!res.ok) throw new Error('Feed unavailable');
         const data = await res.json();
+        if (!Array.isArray(data.conversations)) throw new Error('Invalid feed response');
         let feedItems = (data.conversations || []) as FeedItem[];
         const serverCursor = data.nextCursor || null;
         
@@ -634,6 +646,7 @@ const FeedPage: React.FC = () => {
         }
       }
       
+      if (request.signal.aborted) return;
       if (isFirstPage) {
         setItems(collectedItems);
       } else {
@@ -653,20 +666,24 @@ const FeedPage: React.FC = () => {
       if (resetNewCount) {
         setNewPulsesCount(0);
       }
-    } catch (error) {
-      console.error('Failed to fetch feed:', error);
+    } catch {
+      if (!request.signal.aborted) setFeedError(isFirstPage
+        ? 'Pulse could not load. Please try again.'
+        : 'More posts could not load. Your place in the feed is saved.');
     } finally {
-      setLoading(false);
-      setIsFetchingMore(false);
-      setIsLoadingNew(false);
+      if (!request.signal.aborted) {
+        setLoading(false);
+        setIsFetchingMore(false);
+        setIsLoadingNew(false);
+      }
     }
   }, [filter, sortBy, tagFilter]);
 
   // Load more items (next page)
   const loadMore = useCallback(() => {
-    if (isFetchingMore || !hasMore || !nextCursor) return;
+    if (loading || feedError || isFetchingMore || !hasMore || !nextCursor) return;
     fetchFeed(false, nextCursor);
-  }, [fetchFeed, isFetchingMore, hasMore, nextCursor]);
+  }, [fetchFeed, loading, feedError, isFetchingMore, hasMore, nextCursor]);
 
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
@@ -688,6 +705,7 @@ const FeedPage: React.FC = () => {
 
   useEffect(() => {
     fetchFeed();
+    return () => feedRequestRef.current?.abort();
   }, [fetchFeed]);
   
   // Subscribe to real-time new pulse events
@@ -1777,9 +1795,17 @@ const FeedPage: React.FC = () => {
           )}
 
           {/* Feed - unified feed for all content types */}
-          <div role="feed" aria-label="Pulse feed" aria-busy={loading} className="space-y-3">
+          <div role="feed" aria-label="Pulse feed" aria-busy={loading}
+            data-feed-footer-pending={loading || hasMore || isFetchingMore || !!feedError} className="space-y-3">
             {loading ? (
               <FeedSkeleton count={5} />
+            ) : items.length === 0 && (feedError || hasMore) ? (
+              !feedError && <div className="rounded-xl border border-border p-6 text-center">
+                <p className="mb-4 text-sm text-muted-foreground">No matching posts in this batch. There are more posts to check.</p>
+                <Button variant="outline" className="min-h-11" disabled={isFetchingMore} onClick={loadMore}>
+                  {isFetchingMore ? 'Loading more posts…' : 'Check more posts'}
+                </Button>
+              </div>
             ) : items.length === 0 ? (
               <div className="text-center py-12">
                 {filter === 'polls' ? (
@@ -1820,10 +1846,10 @@ const FeedPage: React.FC = () => {
                 ))}
 
                 {/* Infinite scroll sentinel */}
-                <div ref={loadMoreRef} className="h-1" />
+                {hasMore && !feedError && <div ref={loadMoreRef} className="h-1" />}
                 {isFetchingMore && (
-                  <div className="flex justify-center py-6">
-                    <Spinner />
+                  <div role="status" className="flex items-center justify-center gap-3 py-6 text-sm text-muted-foreground">
+                    <Spinner /><span>Loading more posts…</span>
                   </div>
                 )}
                 {!hasMore && items.length > 0 && (
@@ -1832,6 +1858,13 @@ const FeedPage: React.FC = () => {
                   </p>
                 )}
               </>
+            )}
+            {feedError && !loading && (
+              <div role="alert" className="rounded-xl border border-border bg-muted/30 p-4 text-center">
+                <p className="mb-3 text-sm text-muted-foreground">{feedError}</p>
+                <Button variant="outline" className="min-h-11"
+                  onClick={() => fetchFeed(false, nextCursor || undefined)}>Retry loading posts</Button>
+              </div>
             )}
           </div>
 

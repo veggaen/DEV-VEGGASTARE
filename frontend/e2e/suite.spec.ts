@@ -329,10 +329,18 @@ test.describe("Layer 3 — Content", () => {
       for (const size of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
         await page.setViewportSize(size);
         await expect(walletDialog).toBeInViewport({ ratio: 0.99 });
+        await walletDialog.evaluate(async element => {
+          await Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {})));
+        });
         const box = await walletDialog.boundingBox();
         await page.mouse.move(box!.x + 30, box!.y + box!.height / 2);
         await page.mouse.wheel(0, 5000);
-        await expect.poll(() => walletDialog.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThan(2);
+        await expect.poll(async () => {
+          // Keep scrolling if responsive/font settling added a few pixels after
+          // the first wheel; do not weaken the actual bottom-boundary assertion.
+          await page.mouse.wheel(0, 1000);
+          return walletDialog.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop));
+        }).toBeLessThan(2);
         await page.mouse.wheel(0, -5000);
         await expect.poll(() => walletDialog.evaluate(el => el.scrollTop)).toBe(0);
         await expect(walletDialog.getByRole('button', { name: 'Close', exact: true })).toBeInViewport();
@@ -543,10 +551,21 @@ test.describe("Layer 3 — Content", () => {
       await page.goto('/', { waitUntil: 'domcontentloaded' });
       await expect(page.getByRole('link', { name: 'Browse products', exact: true }).first()).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Veggat', exact: true })).toBeVisible();
-      await expect(page.getByText('Veggat is a trust-first marketplace for digital products.', { exact: false }).first()).toBeVisible();
+      await expect(page.locator('p').filter({ hasText: 'Veggat is a trust-first marketplace for digital products.' }).first()).toBeVisible();
       const chatIntro = page.getByText('Try a limited free preview. Sign in for more models with clear per-message credit costs.', { exact: true });
       await expect(chatIntro).toBeVisible();
       expect(await chatIntro.evaluate(element => {
+        for (let current: Element | null = element; current; current = current.parentElement) {
+          if (Number.parseFloat(getComputedStyle(current).opacity) === 0) return false;
+        }
+        return true;
+      })).toBe(true);
+      // Scroll beyond the hero while app scripts are still blocked. Essential
+      // section text must not be left transparent by an entrance animation.
+      const lowerHeading = page.getByRole('heading', { name: /Three\s+steps\s+to\s+get\s+started/i });
+      await lowerHeading.scrollIntoViewIfNeeded();
+      await expect(lowerHeading).toBeInViewport();
+      expect(await lowerHeading.evaluate(element => {
         for (let current: Element | null = element; current; current = current.parentElement) {
           if (Number.parseFloat(getComputedStyle(current).opacity) === 0) return false;
         }
@@ -1044,6 +1063,76 @@ test.describe("Layer 3 — Content", () => {
       expect(errors).toEqual([]);
     } finally { await context.close(); }
   });
+
+  for (const width of [390, 1280]) {
+  test(`S7 — Pulse footer waits for pagination and failed batches can retry (${width}px)`, async ({ browser, baseURL }) => {
+    test.setTimeout(60_000);
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width, height: 844 }, colorScheme: 'dark' });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    let releaseFailure!: () => void;
+    let releaseSuccess!: () => void;
+    const failureGate = new Promise<void>(resolve => { releaseFailure = resolve; });
+    const successGate = new Promise<void>(resolve => { releaseSuccess = resolve; });
+    let nextPageCalls = 0;
+    const item = (index: number) => ({
+      id: `pagination-fixture-${index}`, title: `Pagination post ${index}`,
+      description: 'A repeatable post for checking the actual scroll boundary while the next page is delayed.',
+      type: 'PUBLIC_THREAD', tags: ['layout'], userId: 'layout-fixture-user',
+      user: { id: 'layout-fixture-user', name: 'Layout reviewer', email: '' },
+      createdAt: '2026-01-01T12:00:00.000Z', messageCount: 1, hasPoll: false,
+    });
+    await page.route('**/api/conversations?**', async route => {
+      if (!new URL(route.request().url()).searchParams.has('cursor')) {
+        return route.fulfill({ json: { conversations: Array.from({ length: 12 }, (_, i) => item(i)), nextCursor: 'qa-next-page' } });
+      }
+      nextPageCalls++;
+      if (nextPageCalls === 1) {
+        await failureGate;
+        return route.fulfill({ status: 503, json: { error: 'Temporary fixture failure' } });
+      }
+      await successGate;
+      return route.fulfill({ json: { conversations: [item(12), item(13)], nextCursor: null } });
+    });
+    try {
+      await page.goto('/pulse', { waitUntil: 'domcontentloaded' });
+      const feed = page.getByRole('feed', { name: 'Pulse feed' });
+      await expect(feed).toHaveAttribute('aria-busy', 'false');
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      await expect(page.locator('footer')).toBeHidden();
+      await page.mouse.move(width / 2, 700);
+      await page.mouse.wheel(0, 12000);
+      await expect(feed.getByRole('status')).toHaveText('Loading more posts…');
+      await expect(page.locator('footer')).toBeHidden();
+      expect(nextPageCalls).toBe(1);
+      const savedPosition = await page.locator('[data-site-scroll]').evaluate(e => e.scrollTop);
+      releaseFailure();
+      await expect(feed.getByRole('alert')).toContainText('Your place in the feed is saved.');
+      expect(await page.locator('[data-site-scroll]').evaluate(e => e.scrollTop)).toBe(savedPosition);
+      await expect(feed.getByRole('article')).toHaveCount(12);
+      await expect(feed.getByRole('article').last()).toBeInViewport();
+      await expect(page.locator('footer')).toBeHidden();
+      await feed.getByRole('button', { name: 'Retry loading posts', exact: true }).click();
+      await expect(feed.getByRole('status')).toHaveText('Loading more posts…');
+      await expect.poll(() => nextPageCalls).toBe(2);
+      releaseSuccess();
+      await expect(feed.getByRole('article')).toHaveCount(14);
+      await expect(feed.getByText("You've reached the end of the flow", { exact: true })).toBeVisible();
+      await page.mouse.move(width / 2, 700);
+      await page.mouse.wheel(0, 4000);
+      await expect(page.locator('footer')).toBeInViewport();
+      expect(nextPageCalls).toBe(2);
+      expect(await page.locator('[data-site-scroll]').evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+      await page.locator('footer').getByRole('link', { name: 'Kontakt', exact: true }).click();
+      await expect(page).toHaveURL(/\/info$/);
+      await expect(page.locator('footer')).toBeVisible();
+      expect(errors).toEqual([]);
+    } finally { releaseFailure(); releaseSuccess(); await context.close(); }
+  });
+  }
 
   test("S3 — demo marketplace: real images, separate cart lines and reload", async ({ browser, baseURL }) => {
     test.setTimeout(120_000);

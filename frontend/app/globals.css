@@ -988,6 +988,13 @@ html.dark .chat-send-btn:not(:disabled):hover {
   }
 }
 
+/* A paginated feed has no page end until its final batch has arrived. Keep the
+   shared footer out of layout while more posts (or an explicit retry) remain,
+   so it cannot flash into view and then be pushed away by the next response. */
+[data-site-scroll]:has([data-feed-footer-pending="true"]) > footer {
+  display: none;
+}
+
 /* AI chat message bubble animations */
 @keyframes message-in {
   from { opacity: 0; transform: translateY(6px); }
