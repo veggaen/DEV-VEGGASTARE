@@ -3,6 +3,8 @@
 import { type ReactNode, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import PriceAmount from '@/components/crypto-related/PriceAmount';
+import CreditAmountEditor from '@/components/checkout/credit-amount-editor';
+import { DEFAULT_PURCHASE_CREDITS, quoteCreditPurchase } from '@/lib/ai-credit-purchase';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
@@ -148,6 +150,8 @@ function ProductDetails({ product }: { product: Product }) {
   const { data: session } = useSession();
   const { addItem, items: cartItems, isLoading: cartLoading, error: cartError } = useCart();
   const purchaseLock = useRef(false);
+  const [selectedCredits, setSelectedCredits] = useState(DEFAULT_PURCHASE_CREDITS);
+  const [dirtyCredits, setDirtyCredits] = useState(false);
   const [purchasePending, setPurchasePending] = useState<'add' | 'buy' | null>(null);
   const [purchaseFailure, setPurchaseError] = useState('');
   const purchaseError = purchaseFailure || (cartError ? 'We could not verify your saved basket. Open your basket and refresh it before purchasing.' : '');
@@ -418,7 +422,7 @@ function ProductDetails({ product }: { product: Product }) {
   // One lock for both desktop/mobile actions, including clicks before React paints.
   // An uncertain network response must be reviewed in the cart, not blindly replayed.
   const purchase = useCallback(async (action: 'add' | 'buy') => {
-    if (purchaseLock.current || cartLoading || purchaseError || !canPurchase) return;
+    if (purchaseLock.current || cartLoading || dirtyCredits || purchaseError || !canPurchase) return;
     if (!session?.user?.id) {
       router.push(`/auth/login?callbackUrl=${encodeURIComponent(`/products/${product.id}`)}`);
       return;
@@ -428,14 +432,14 @@ function ProductDetails({ product }: { product: Product }) {
     let navigating = false;
     try {
       const alreadyInCart = cartItems.some(item => item.product.id === product.id);
-      if (!(alreadyInCart && (action === 'buy' || isDigitalProduct))) {
-        if (!await addItem(product.id, 1)) throw new Error('Cart update not confirmed');
+      if (isCreditPack || !(alreadyInCart && (action === 'buy' || isDigitalProduct))) {
+        if (!await addItem(product.id, 1, isCreditPack ? selectedCredits : undefined)) throw new Error('Cart update not confirmed');
       }
       if (action === 'buy') {
         navigating = true;
         router.push('/checkout');
       } else {
-        toast.success(alreadyInCart && isDigitalProduct ? 'Already in your basket' : 'Added to basket', {
+        toast.success(isCreditPack && alreadyInCart ? 'Credit amount updated' : alreadyInCart && isDigitalProduct ? 'Already in your basket' : 'Added to basket', {
           description: product.title,
           action: { label: 'View basket', onClick: () => router.push('/cart') },
           duration: 4000,
@@ -446,11 +450,11 @@ function ProductDetails({ product }: { product: Product }) {
     } finally {
       if (!navigating) { purchaseLock.current = false; setPurchasePending(null); }
     }
-  }, [cartLoading, purchaseError, canPurchase, session?.user?.id, router, product.id, product.title, cartItems, isDigitalProduct, addItem]);
+  }, [cartLoading, dirtyCredits, purchaseError, canPurchase, session?.user?.id, router, product.id, product.title, cartItems, isDigitalProduct, isCreditPack, selectedCredits, addItem]);
   const handleAddToCart = () => purchase('add');
   const handleBuyNow = () => purchase('buy');
-  const purchaseDisabled = !canPurchase || cartLoading || purchasePending !== null || Boolean(purchaseError);
-  const displayPrice = <PriceAmount amount={product.price} currency={product.priceCurrency || 'USD'} />;
+  const purchaseDisabled = !canPurchase || dirtyCredits || cartLoading || purchasePending !== null || Boolean(purchaseError);
+  const displayPrice = <PriceAmount amount={isCreditPack ? quoteCreditPurchase(selectedCredits).amountOre / 100 : product.price} currency={isCreditPack ? 'NOK' : product.priceCurrency || 'USD'} />;
   const productKindLabel = isCreditPack ? "AI usage credits" : isDigitalProduct ? "Digital download" : product.productType === "HYBRID" ? "Hybrid product" : "Physical product";
   const updatedAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.updatedAt));
   const createdAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.createdAt));
@@ -571,6 +575,8 @@ function ProductDetails({ product }: { product: Product }) {
           </motion.div>
 
           {/* rating */}
+          {isCreditPack && <CreditAmountEditor value={selectedCredits} onSave={setSelectedCredits} onDirtyChange={setDirtyCredits}
+            disabled={cartLoading || purchasePending !== null} />}
           <motion.div
             className="flex flex-wrap items-center justify-between gap-3"
           >
@@ -968,7 +974,7 @@ function ProductDetails({ product }: { product: Product }) {
             <div className="grid gap-px bg-white/10 sm:grid-cols-2">
               <div className="bg-card p-4">
                 <div className="text-xs font-medium text-muted-foreground">Access</div>
-                <div className="mt-1.5 text-sm text-foreground">{isCreditPack ? "100 usage credits" : "Account-protected downloads"}</div>
+                <div className="mt-1.5 text-sm text-foreground">{isCreditPack ? `${selectedCredits} usage credits` : "Account-protected downloads"}</div>
               </div>
               <div className="bg-card p-4">
                 <div className="text-xs font-medium text-muted-foreground">Delivery model</div>
@@ -989,7 +995,7 @@ function ProductDetails({ product }: { product: Product }) {
               </div>
               <div className="mt-1.5 text-sm text-foreground">
                 {isDigitalProduct ? (
-                  product.downloadsEnabled ? (isCreditPack ? "100 usage credits" : "Digital download") : <span className="text-amber-600 dark:text-amber-400">Unavailable</span>
+                  product.downloadsEnabled ? (isCreditPack ? `${selectedCredits} usage credits` : "Digital download") : <span className="text-amber-600 dark:text-amber-400">Unavailable</span>
                 ) : totalStock > 0 ? (
                   closestWarehouse ? (
                     stockAtClosest > 0
@@ -1084,7 +1090,7 @@ function ProductDetails({ product }: { product: Product }) {
               <dt className="text-sm text-muted-foreground">{spec.key}</dt>
               <dd className="text-right text-sm font-medium text-foreground">
                 {spec.key.trim().toLowerCase() === 'price'
-                  ? <PriceAmount amount={product.price} currency={product.priceCurrency || 'USD'} />
+                  ? displayPrice
                   : spec.value}
                 {spec.key === "Weight" && " g"}
                 {["Height", "Length", "Width"].includes(spec.key) && " cm"}

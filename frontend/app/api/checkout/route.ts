@@ -8,8 +8,8 @@ export async function POST(request: Request) {
   try {
     const user = await checkoutUser(request);
     if (isDemoUserId(user.id)) return NextResponse.json({ error: 'USE_DEMO_CHECKOUT' }, { status: 403 });
-    const parsed = z.object({ requestKey: z.string().uuid() }).strict().safeParse(await request.json());
+    const parsed = z.object({ requestKey: z.string().uuid(), expectedQuote: z.string().max(4096).optional() }).strict().safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'INVALID_REQUEST' }, { status: 400 });
-    return NextResponse.json(await beginShowcaseCheckout(user.id!, parsed.data.requestKey));
+    return NextResponse.json(await beginShowcaseCheckout(user.id!, parsed.data.requestKey, parsed.data.expectedQuote));
   } catch (error) { return checkoutErrorResponse(error); }
 }

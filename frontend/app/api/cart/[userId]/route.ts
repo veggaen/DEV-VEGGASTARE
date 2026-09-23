@@ -5,6 +5,8 @@ import { MyLibUserAuth } from "@/lib/user-auth";
 import { parseJsonOrError } from "@/lib/api-validate";
 import { z } from "zod";
 import { CartItemResponseSchema, CartMessageResponseSchema, CartResponseSchema } from "@/lib/types/carts";
+import { CartCreditError, cartCreditAmountSchema, creditCartData, cartItemDto } from '@/lib/cart-credit-policy';
+import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -21,6 +23,7 @@ function toCartDto(cart: {
   CartItem: Array<{
     id: string;
     quantity: number;
+    creditAmount?: number | null;
     Product: {
       id: string;
       title: string;
@@ -37,29 +40,14 @@ function toCartDto(cart: {
   return {
     id: cart.id,
     userId: cart.userId,
-    items: cart.CartItem.map((item) => ({
-      id: item.id,
-      quantity: item.quantity,
-      product: {
-        id: item.Product.id,
-        title: item.Product.title,
-        price: item.Product.price,
-        // Original currency the price is stored in, so the UI can convert to
-        // the user's selected currency instead of assuming USD.
-        priceCurrency: item.Product.priceCurrency ?? "USD",
-        image: item.Product.image ?? [],
-        productType: item.Product.productType,
-        shipFromPostalId: item.Product.shipFromPostalId ?? undefined,
-        freeShippingEnabled: item.Product.freeShippingEnabled,
-        freeShippingThreshold: item.Product.freeShippingThreshold ?? null,
-      },
-    })),
+    items: cart.CartItem.map(cartItemDto),
   };
 }
 
 const addItemSchema = z.object({
   productId: z.string().trim().min(1).max(200),
   quantity: z.coerce.number().int().min(1).max(1000).optional().default(1),
+  creditAmount: cartCreditAmountSchema,
 });
 
 const updateItemSchema = z.object({
@@ -67,6 +55,7 @@ const updateItemSchema = z.object({
   type: z.enum(["increment", "decrement"]).optional(),
   changeType: z.enum(["increment", "decrement"]).optional(),
   quantity: z.coerce.number().int().min(1).max(1000).optional(),
+  creditAmount: cartCreditAmountSchema,
 });
 
 const removeItemSchema = z.object({
@@ -146,6 +135,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const quantity = bodyResult.data.quantity ?? 1;
 
   try {
+    const selection = creditCartData(productId, quantity, bodyResult.data.creditAmount);
     let cart = await dbPrisma.cart.findUnique({ where: { userId } });
     if (!cart) {
       cart = await dbPrisma.cart.create({ data: { userId } });
@@ -155,7 +145,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       where: { cartId: cart.id, productId },
     });
 
-    if (existingItem) {
+    if (productId === SHOWCASE_PRODUCTS.credits.id) {
+      await dbPrisma.cartItem.upsert({ where: { productId_cartId: { productId, cartId: cart.id } },
+        create: { cartId: cart.id, productId, ...selection }, update: selection });
+    } else if (existingItem) {
       await dbPrisma.cartItem.update({
         where: { id: existingItem.id },
         data: { quantity: { increment: quantity } },
@@ -188,6 +181,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     broadcastCartUpdate(userId);
     return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
+    if (error instanceof CartCreditError) return NextResponse.json({ error: error.message }, { status: 400 });
     console.error("Error adding item to cart:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
@@ -209,9 +203,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const bodyResult = await parseJsonOrError(request, updateItemSchema);
   if (!bodyResult.ok) return bodyResult.response;
 
-  const { itemId, quantity } = bodyResult.data;
+  const { itemId, quantity, creditAmount } = bodyResult.data;
   const type = bodyResult.data.type ?? bodyResult.data.changeType;
-  if (!type && typeof quantity !== "number") {
+  if (!type && typeof quantity !== "number" && creditAmount === undefined) {
     return NextResponse.json({ error: "type, changeType, or quantity is required" }, { status: 400 });
   }
 
@@ -231,29 +225,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ? quantity
         : type === "increment"
           ? item.quantity + 1
-          : Math.max(1, item.quantity - 1);
+          : type === 'decrement' ? Math.max(1, item.quantity - 1) : item.quantity;
 
     const updatedCartItem = await dbPrisma.cartItem.update({
       where: { id: itemId },
-      data: { quantity: newQuantity },
+      data: creditCartData(item.productId, creditAmount === undefined ? newQuantity : 1, creditAmount ?? item.creditAmount ?? undefined),
       include: { Product: true },
     });
 
-    const dto = {
-      id: updatedCartItem.id,
-      quantity: updatedCartItem.quantity,
-      product: {
-        id: updatedCartItem.Product.id,
-        title: updatedCartItem.Product.title,
-        price: updatedCartItem.Product.price,
-        priceCurrency: updatedCartItem.Product.priceCurrency ?? "USD",
-        image: updatedCartItem.Product.image ?? [],
-        productType: updatedCartItem.Product.productType,
-        shipFromPostalId: updatedCartItem.Product.shipFromPostalId ?? undefined,
-        freeShippingEnabled: updatedCartItem.Product.freeShippingEnabled,
-        freeShippingThreshold: updatedCartItem.Product.freeShippingThreshold ?? null,
-      },
-    };
+    const dto = cartItemDto(updatedCartItem);
 
     const parsed = CartItemResponseSchema.safeParse(dto);
     if (!parsed.success) {
@@ -267,6 +247,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     broadcastCartUpdate(userId);
     return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
+    if (error instanceof CartCreditError) return NextResponse.json({ error: error.message }, { status: 400 });
     console.error("Error updating cart item quantity:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

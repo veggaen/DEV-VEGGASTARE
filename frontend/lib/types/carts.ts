@@ -18,6 +18,8 @@ export const CartItemDtoSchema = z
   .object({
     id: z.string().min(1),
     quantity: z.number().int().min(1),
+    creditAmount: z.number().int().min(100).max(1000).optional(),
+    creditDiscountOre: z.number().int().nonnegative().optional(),
     product: CartItemProductDtoSchema,
   })
   .strict();

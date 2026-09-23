@@ -2,6 +2,35 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Custom credit quantities — local candidate, 23 September 2026
+
+- Integer credit selection (100–1,000) is shared by the PDP, header basket,
+  full cart and checkout. Marginal 5%/10% discounts have no price cliffs.
+  Server-owned integer-ore quotes freeze the exact quantity and price version;
+  clients cannot submit prices. Existing 100-credit carts remain compatible.
+- Unsaved/invalid drafts block every checkout entry point, including edits in
+  the header basket. Cross-surface stale quotes require review. The existing
+  two-attempt cap remains; a serialized 500 NOK daily exposure cap and conservative
+  contribution guard were added. No caps or balances were reset.
+- Additive `CartItem.creditAmount` migration applied only to the isolated Neon
+  Preview branch. Real Chrome caught the old 68 NOK database checkout constraint;
+  a second migration updates its bounded ceiling to 391.70 NOK (the maximum
+  supported mixed cart), without changing past purchases. The local Sandbox launcher requires that isolated database,
+  even for a production-style build; it refuses production endpoint fallback.
+- Local custom-credit Playwright flow **2/2** and currency/history regression
+  **3/3** pass including setup. The custom path tests 122/555, rejects invalid
+  amounts, checks 360/390/1280/2560 overflow, rejects a stale checkout and creates
+  a free demo receipt with the exact 122-credit line. It does not grant paid
+  credits or contact PayPal. Focused unit tests **168/168** and touched lint pass.
+- Real Chrome confirms typed 555, persistence and NOK (ETH) after changing from
+  USD (ETH), and now completes its free 555-credit order. Its receipt accurately
+  shows zero charged and no purchased credit grant; phone receipt/footer scrolling
+  is verified. A new opt-in PostgreSQL regression prepares 122, 555 and maximum
+  mixed carts using the actual constraints; all synthetic writes roll back.
+  That integration test, final strict webpack build and touched lint pass.
+  Custom amounts are not yet deployed.
+  Actual custom Sandbox capture/webhook replay/refund and production remain pending.
+
 ## Global currency presentation — verified locally and on Preview, 23 September 2026
 
 - Shared `PriceAmount` renders selected fiat followed only by selected crypto in
@@ -40,8 +69,9 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 - Release `4fde28d`, Preview `dpl_4hXg2wb5WsRj7XndJhhA4y4YKTGX`, is READY on
   the stable showcase alias. A free demo checkout created its receipt through the normal app path;
   no PayPal request or real payment. Production remains `88729d0`.
-- Arbitrary credit quantities/volume discounts and verified Web3 checkout are
-  separate unfinished work; selecting a crypto display does not enable payment.
+- Custom credit quantities/volume discounts are tracked in the candidate section
+  above. Verified Web3 checkout is separate unfinished work; selecting a crypto
+  display does not enable payment.
 
 ## Current PayPal/credit follow-up — Preview candidate, not in production
 

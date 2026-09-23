@@ -4,6 +4,7 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { z } from 'zod';
 import { CartItemResponseSchema, CartMessageResponseSchema } from '@/lib/types/carts';
+import { CartCreditError, cartCreditAmountSchema, creditCartData, cartItemDto } from '@/lib/cart-credit-policy';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -11,8 +12,9 @@ const patchBodySchema = z
   .object({
     changeType: z.enum(['increment', 'decrement']).optional(),
     quantity: z.coerce.number().int().min(1).max(1000).optional(),
+    creditAmount: cartCreditAmountSchema,
   })
-  .refine((value) => Boolean(value.changeType) || typeof value.quantity === 'number', {
+  .refine((value) => Boolean(value.changeType) || typeof value.quantity === 'number' || value.creditAmount !== undefined, {
     message: 'changeType or quantity is required',
   });
 
@@ -34,7 +36,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   const bodyResult = await parseJsonOrError(request, patchBodySchema);
   if (!bodyResult.ok) return bodyResult.response;
-  const { changeType, quantity } = bodyResult.data;
+  const { changeType, quantity, creditAmount } = bodyResult.data;
 
   try {
     const cart = await dbPrisma.cart.findUnique({ where: { userId } });
@@ -52,29 +54,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ? quantity
         : changeType === 'increment'
           ? item.quantity + 1
-          : Math.max(1, item.quantity - 1);
+          : changeType === 'decrement' ? Math.max(1, item.quantity - 1) : item.quantity;
 
     const updatedCartItem = await dbPrisma.cartItem.update({
       where: { id: item.id },
-      data: { quantity: newQuantity },
+      data: creditCartData(item.productId, creditAmount === undefined ? newQuantity : 1, creditAmount ?? item.creditAmount ?? undefined),
       include: { Product: true },
     });
 
-    const dto = {
-      id: updatedCartItem.id,
-      quantity: updatedCartItem.quantity,
-      product: {
-        id: updatedCartItem.Product.id,
-        title: updatedCartItem.Product.title,
-        price: updatedCartItem.Product.price,
-        priceCurrency: updatedCartItem.Product.priceCurrency ?? 'USD',
-        image: updatedCartItem.Product.image ?? [],
-        productType: updatedCartItem.Product.productType,
-        shipFromPostalId: updatedCartItem.Product.shipFromPostalId ?? undefined,
-        freeShippingEnabled: updatedCartItem.Product.freeShippingEnabled,
-        freeShippingThreshold: updatedCartItem.Product.freeShippingThreshold ?? null,
-      },
-    };
+    const dto = cartItemDto(updatedCartItem);
 
     const parsed = CartItemResponseSchema.safeParse(dto);
     if (!parsed.success) {
@@ -87,6 +75,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json(parsed.data, { status: 200 });
   } catch (error) {
+    if (error instanceof CartCreditError) return NextResponse.json({ error: error.message }, { status: 400 });
     console.error('Error updating cart item quantity:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

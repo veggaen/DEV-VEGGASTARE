@@ -43,16 +43,35 @@ source. This document does not promise zero provider leakage or guaranteed profi
 - Building agency wallets, automatic refill or new tool/agent features before the
   basic paid journey is verified. No automatic card charges are introduced.
 
-## Pricing and volume-pack release rule
+## Custom credit pricing and release guard
 
-The current public SKU remains **100 credits for 39 NOK**. Volume packs are not
-implemented or advertised as purchasable yet. Proposed bounded choices are
-100 / 300 / 1,000 credits; server prices and discounts must be authoritative,
-and only one credit pack may coexist with the digital product in an order.
+Production currently remains on the old **100 credits for 39 NOK** SKU. The new
+custom-credit slice supports every whole amount from **100 through 1,000**;
+it is under local/Preview acceptance, not yet promoted to production. The cart
+stores `creditAmount` separately from quantity (always one credit line). Null
+retains the meaning of an existing 100-credit cart. Only one credit line may
+coexist with the separate digital-file product in an order.
 
-Each pack must survive a conservative scenario using the largest reviewed
-provider reservation per paid credit, payment fees, FX, applicable tax,
-failed-request allowance and a contribution margin. This is a release guard,
+Prices are calculated in integer ore on the server, never supplied by the
+browser. Progressive marginal discounts avoid price cliffs: first 100 credits
+at 39 ore each, next 400 at 5% off, remaining credits at 10% off; round the final
+sum up once to an ore. Examples: 122 = 47.16 NOK; 555 = 206.51 NOK; 1,000 =
+362.70 NOK. Selected fiat (crypto) remains a display preference, not settlement
+or fulfillment proof. Checkout freezes the exact credits, price and pricing
+version; refunds and retries use that original snapshot.
+
+In addition to the existing two-attempt daily limit, a serialized 500 NOK
+per-user/environment UTC-day exposure cap counts pending and failed attempts.
+No caps were reset. Cart edits, unsaved credit drafts and quote refreshes block
+payment. A changed cart in another tab requires review instead of silently
+charging an unseen quote. Fulfillment does not delete a later changed cart line.
+
+Each custom amount must survive a conservative scenario using the largest reviewed
+provider reservation per paid credit: FX allowance 15 NOK/USD, 6% + 2.80 NOK
+payment allowance, 20% of gross reserved for potentially applicable tax,
+25% extra provider-cost allowance for failures, and 15% minimum contribution
+of gross. New sales stop when the model-price review expires or this guard
+fails. This is a release guard,
 not accounting advice or a guarantee against chargebacks/fraud/provider errors.
 
 [PayPal's Norway fee table](https://www.paypal.com/no/business/paypal-business-fees?locale.x=en_NO)
@@ -70,9 +89,15 @@ cache writes. Anthropic stays disabled without a configured platform key.
 1. Verified Sandbox and Live purchase/delivery, including real webhook replay and
    refund reconciliation; local server capture alone does not prove delivery of
    a remote webhook.
-2. Fixed pack selector, server quote, migration/seed, bounded daily NOK exposure,
-   visible discount arithmetic and tests preventing combinations/quantity abuse.
-3. Buyer history is implemented locally at `/ai/credits`, linked from the chat
+2. Custom whole-credit input, server quote, additive isolated-DB migration,
+   bounded daily NOK exposure and visible marginal discounts are implemented.
+   Production-style local acceptance passes, including a real Chrome 555-credit
+   free receipt. It exposed an older 68 NOK database check, now migrated to the
+   exact maximum mixed cart of 391.70 NOK on isolated Preview only. Real PostgreSQL
+   tests cover 122, 555 and maximum mixed carts and roll back every fixture/order.
+   Complete deployed Preview browser acceptance, then verify the exact custom
+   grant with real Sandbox capture and webhook replay/refund.
+3. Buyer history is implemented locally and deployed to Preview at `/ai/credits`, linked from the chat
    balance. It reads only the signed-in user's deployment-specific account and
    latest 50 ledger entries, without source/payment identifiers or provider keys.
    Available, reserved and refund adjustment amounts are distinct; an unclaimed
@@ -81,7 +106,7 @@ cache writes. Anthropic stays disabled without a configured platform key.
    including sign-in boundaries, balance navigation and 360–2560px layouts.
    Keep provider names transparent and the exact flat price visible before sending.
 4. Owner-only ledger and provider-cost overview is implemented and locally
-   verified (2026-09-23), not yet deployed. It separates environments, available
+   verified (2026-09-23), and deployed to Preview, not production. It separates environments, available
    credits, outstanding reservations, refund adjustments, verified captured cash
    and conservative provider ceilings. It is not an actual invoice or profit
    statement. The daily fuse is explicitly per database, across environments.

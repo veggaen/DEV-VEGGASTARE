@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { FiShoppingCart, FiTrash2, FiPlus, FiMinus, FiArrowRight, FiPackage, FiShoppingBag } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import CreditAmountEditor from '@/components/checkout/credit-amount-editor';
+import { useCart } from '@/contexts/cart-context';
 import { toast } from "sonner";
 import PriceAmount, { PriceTotal } from "@/components/crypto-related/PriceAmount";
 
@@ -24,6 +25,7 @@ interface CartItem {
     image: string[];
   };
   quantity: number;
+  creditAmount?: number;
 }
 
 interface MiniCartDropdownProps {
@@ -36,11 +38,15 @@ interface MiniCartDropdownProps {
 
 export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDropdownProps) {
   const router = useRouter();
+  const { checkoutBlocked } = useCart();
   const reducedMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [dirtyCredits, setDirtyCredits] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const actionLock = useRef(false);
   const [mounted, setMounted] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -148,6 +154,21 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
     }
   };
 
+  const saveCredits = async (itemId: string, creditAmount: number) => {
+    if (!userId || actionLock.current) return false;
+    actionLock.current = true; setActionLoading(itemId); setSaveError('');
+    try {
+      const response = await fetch(`/api/cart/${userId}/items/${itemId}`, { method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ creditAmount }), signal: AbortSignal.timeout(15_000) });
+      if (!response.ok) throw new Error();
+      const updated = await response.json();
+      setItems(previous => previous.map(item => item.id === itemId ? updated : item));
+      onCartUpdate?.();
+      return true;
+    } catch { setSaveError('Could not confirm the change. Open your full cart to refresh before paying.'); return false; }
+    finally { actionLock.current = false; setActionLoading(null); }
+  };
+
   // ─── Render ──────────────────────────────────────────────────────────────
 
   const dropdownContent = (
@@ -155,6 +176,8 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
       {open && (
         <motion.div
           ref={dropdownRef}
+          role="dialog"
+          aria-label="Shopping basket"
           initial={reducedMotion ? false : { opacity: 0, y: -8, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -8, scale: 0.96 }}
@@ -183,7 +206,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
               <button
                 aria-label="Close basket"
                 onClick={() => { setOpen(false); triggerRef.current?.focus(); }}
-                className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                className="min-h-11 min-w-11 rounded-md text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors focus-visible:ring-2 focus-visible:ring-ring"
               >
                 ESC
               </button>
@@ -221,7 +244,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
             ) : (
               <>
                 {/* Items list */}
-                <ScrollArea className="max-h-[280px]">
+                <div className="max-h-[min(420px,50dvh)] overflow-y-auto overscroll-contain">
                   <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                     <AnimatePresence mode="popLayout">
                       {items.map((item) => (
@@ -232,7 +255,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: reducedMotion ? 0 : 20 }}
                           transition={{ duration: reducedMotion ? 0 : 0.2 }}
-                          className="flex gap-3 px-4 py-3"
+                          className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-3 px-4 py-3"
                         >
                           {/* Product image */}
                           <Link
@@ -285,7 +308,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
 
                           {/* Quantity controls */}
                           <div className="flex flex-col items-end gap-1">
-                            <div className="flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                            {item.creditAmount === undefined && <div className="flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700">
                               <button
                                 aria-label={`Decrease quantity for ${item.product.title}`}
                                 onClick={() => handleQuantityChange(item.id, "decrement")}
@@ -324,24 +347,28 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                               >
                                 <FiPlus className="h-3 w-3" />
                               </button>
-                            </div>
+                            </div>}
                             <button
                               aria-label={`Remove ${item.product.title} from basket`}
                               onClick={() => handleRemoveItem(item.id)}
-                              disabled={actionLoading === item.id}
-                              className="text-xs text-zinc-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400 transition-colors"
+                              disabled={Boolean(actionLoading)}
+                              className="flex size-11 items-center justify-center rounded-md text-xs text-zinc-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400 transition-colors focus-visible:ring-2 focus-visible:ring-ring"
                             >
                               <FiTrash2 className="h-3 w-3" />
                             </button>
                           </div>
+                          {item.creditAmount !== undefined && <div className="col-span-3"><CreditAmountEditor value={item.creditAmount}
+                            disabled={Boolean(actionLoading) || Boolean(saveError)} onDirtyChange={setDirtyCredits}
+                            onSave={credits => saveCredits(item.id, credits)} /></div>}
                         </motion.div>
                       ))}
                     </AnimatePresence>
                   </div>
-                </ScrollArea>
+                </div>
 
                 {/* Footer with totals & actions */}
                 <div className="border-t border-zinc-100 px-4 py-3 dark:border-zinc-800 space-y-3">
+                  {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
                   {/* Total */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm text-zinc-500 dark:text-zinc-400">Subtotal</span>
@@ -364,6 +391,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                     <Button
                       size="sm"
                       className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
+                      disabled={Boolean(actionLoading) || dirtyCredits || checkoutBlocked || Boolean(saveError)}
                       onClick={() => { setOpen(false); router.push("/checkout"); }}
                     >
                       Checkout

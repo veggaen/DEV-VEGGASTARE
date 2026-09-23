@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const target = process.argv[2];
 const dryRun = process.argv.includes('--dry-run');
+const refreshCreditCopy = process.argv.includes('--refresh-credit-copy');
 if (!['development', 'preview', 'production'].includes(target)) throw new Error('Usage: node --env-file=<scoped-env-file> scripts/seed-showcase.mjs development|preview|production');
 const configured = target === 'production' ? process.env.DATABASE_URL_MAINLIVE : target === 'preview' ? process.env.DATABASE_URL_MAINPREVIEW : process.env.DATABASE_URL_MAINDEV;
 if (!configured) throw new Error(`Missing database configuration for ${target}`);
@@ -23,10 +24,10 @@ const products = [
   },
   {
     id: 'cveggatinterviewcredits01', title: 'Interviewer AI Credits', price: 39, category: 'AI credits',
-    description: '100 prepaid Veggat AI credits for trying supported premium chat models. A reviewer test pack, not a subscription or an unlimited plan. Model availability and the credit cost are shown before sending; your balance limits usage. Credit fulfillment is being validated before paid checkout opens. The demo will include a small free allowance, so an interview never requires payment.',
+    description: 'Choose 100–1,000 prepaid Veggat AI credits for supported premium chat models, with progressive volume discounts. Enter your exact amount on this page or in your cart. No subscription, automatic top-up or unlimited plan. Model availability and per-message credit costs are shown before sending. Credits are added only after verified payment; Sandbox credits stay separate from Live credits. The free demo includes a small allowance, so an interview never requires payment.',
     images: ['/showcase/credits-cover.jpg'],
-    features: [{ text: '100 prepaid credits' }, { text: 'No subscription or automatic top-ups' }, { text: 'Usage is bounded by your available balance' }],
-    specifications: [{ key: 'Included', value: '100 credits' }, { key: 'Billing', value: 'One-time, no auto-renewal' }, { key: 'Price', value: '39 NOK' }],
+    features: [{ text: 'Choose 100–1,000 prepaid credits' }, { text: 'No subscription or automatic top-ups' }, { text: 'Usage is bounded by your available balance' }],
+    specifications: [{ key: 'Included', value: 'Your selected credit amount' }, { key: 'Billing', value: 'One-time, no auto-renewal' }, { key: 'Price', value: '39 NOK' }],
   },
 ];
 
@@ -50,6 +51,10 @@ try {
         ON CONFLICT (id) DO NOTHING`, [product.id,product.title,product.description,product.category,product.price,product.images,JSON.stringify(product.features),JSON.stringify(product.specifications),owner,companyId]);
       const saved = (await client.query('SELECT "companyId", "userId" FROM "Product" WHERE id=$1', [product.id])).rows[0];
       if (saved?.companyId !== companyId || saved?.userId !== owner) throw new Error('Showcase SKU collision; no changes applied.');
+      if (refreshCreditCopy && product.id === 'cveggatinterviewcredits01') {
+        await client.query('UPDATE "Product" SET description=$2, features=$3::jsonb, specifications=$4::jsonb, "updatedAt"=now() WHERE id=$1',
+          [product.id, product.description, JSON.stringify(product.features), JSON.stringify(product.specifications)]);
+      }
     }
     await client.query(dryRun ? 'ROLLBACK' : 'COMMIT');
     console.log(`${dryRun ? 'Validated and rolled back' : 'Saved'} showcase catalog in ${target}: one company, two fixed reviewer SKUs. Existing listings preserved. Checkout remains paused until verified fulfillment ships.`);

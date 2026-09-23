@@ -4490,3 +4490,89 @@ test.describe("Layer 5 — API Data Shapes", () => {
     expect([200, 400, 401, 404, 500, 502]).toContain(res.status());
   });
 });
+test('S4 — custom credits persist across product, basket, cart, checkout and receipt', async ({ browser, baseURL }, testInfo) => {
+  test.setTimeout(240_000);
+  test.skip(process.env.E2E_CUSTOM_CREDITS !== '1', 'Opt-in isolated demo cart/order; never a real payment');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+    viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    if (!process.env.E2E_DEMO_STORAGE_STATE) {
+      await page.getByRole('button', { name: 'Try the demo — no payment', exact: true }).click();
+      await page.waitForURL('**/products', { waitUntil: 'domcontentloaded' });
+    }
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.isDemo).toBe(true);
+    const cartPath = `/api/cart/${session.user.id}`;
+    // This is an app-issued disposable demo identity, never the owner's cart.
+    expect((await context.request.delete(cartPath)).ok()).toBe(true);
+    if (process.env.E2E_SAVE_DEMO_STATE) await context.storageState({ path: process.env.E2E_SAVE_DEMO_STATE });
+    await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true, level: 1 })).toBeVisible({ timeout: 60_000 });
+    const input = page.getByRole('textbox', { name: 'Number of credits', exact: true });
+    await input.fill('122');
+    await expect(page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true })).toBeDisabled();
+    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
+    await page.setViewportSize({ width: 1280, height: 844 });
+    await expect(page.getByRole('button', { name: '1 item in basket', exact: true })).toBeVisible();
+    await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+    await expect(input).toHaveValue('122');
+    const cart = await (await context.request.get(cartPath)).json();
+    const rowId = cart.items[0].id;
+    expect(cart.items[0]).toMatchObject({ quantity: 1, creditAmount: 122, product: { price: 47.16, priceCurrency: 'NOK' } });
+    for (const invalid of [99, 1001, 122.5, '555', -1]) {
+      expect((await context.request.patch(`${cartPath}/items/${rowId}`, { data: { creditAmount: invalid } })).status()).toBe(400);
+    }
+    for (const width of [360, 390, 1280, 2560]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await page.locator('[data-site-scroll]').evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await input.fill('122.5');
+    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await expect(page.locator('[data-credit-editor]').getByRole('alert')).toContainText('whole number');
+    await expect(page.getByRole('button', { name: 'Proceed to checkout', exact: true })).toBeDisabled();
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.screenshot({ path: testInfo.outputPath('custom-credit-cart-390.png') });
+    await page.getByRole('link', { name: 'Proceed to checkout', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Secure checkout', exact: true })).toBeVisible();
+    const pay = page.getByRole('button', { name: 'Complete free demo order', exact: true });
+    await input.fill('555');
+    await expect(pay).toBeDisabled();
+    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits · 555 credits', exact: true })).toBeVisible();
+    await expect(pay).toBeEnabled();
+    await page.screenshot({ path: testInfo.outputPath('custom-credit-checkout-390.png') });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(input).toHaveValue('555');
+    expect((await (await context.request.get(cartPath)).json()).items[0].product.price).toBe(206.51);
+    await page.setViewportSize({ width: 1280, height: 844 });
+    await page.getByRole('button', { name: '1 item in basket', exact: true }).click();
+    const basketEditor = page.getByRole('dialog', { name: 'Shopping basket', exact: true }).locator('[data-credit-editor]');
+    await expect(basketEditor.getByRole('textbox', { name: 'Number of credits', exact: true })).toHaveValue('555');
+    await basketEditor.getByRole('textbox', { name: 'Number of credits', exact: true }).fill('122');
+    await expect(page.getByRole('button', { name: 'Checkout', exact: true })).toBeDisabled();
+    await expect(pay).toBeDisabled();
+    await basketEditor.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await expect.poll(async () => (await (await context.request.get(cartPath)).json()).items[0].creditAmount).toBe(122);
+    await expect(basketEditor.getByRole('button', { name: 'Update credits', exact: true })).toBeDisabled();
+    await page.getByRole('button', { name: 'Close basket', exact: true }).click();
+    // Another surface changed the cart: the old checkout must not charge a stale quote.
+    await pay.click();
+    await expect(page.getByRole('alert').filter({ hasText: 'cart changed' })).toBeVisible();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(input).toHaveValue('122');
+    await pay.click();
+    await page.waitForURL('**/checkout/receipt/**', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('list', { name: 'Receipt items', exact: true })).toContainText('Interviewer AI Credits · 122 credits');
+    await page.screenshot({ path: testInfo.outputPath('custom-credit-receipt.png') });
+    // Leave this disposable demo ready for read-only currency regressions.
+    expect((await context.request.post(cartPath, { data: { productId: 'cveggatinterviewcredits01', quantity: 1 } })).ok()).toBe(true);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});

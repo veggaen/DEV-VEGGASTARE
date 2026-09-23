@@ -12,6 +12,12 @@ export async function checkoutUser(request: Request) {
   return session.user;
 }
 export function checkoutErrorResponse(error: unknown) {
+  // Keep operational failures diagnosable without logging request data, provider
+  // responses, SQL arguments, credentials, or a potentially sensitive message.
+  const diagnostic = error instanceof CheckoutError ? error.code :
+    typeof error === 'object' && error !== null && 'code' in error &&
+    typeof error.code === 'string' && /^P\d{4}$/.test(error.code) ? error.code : 'UNEXPECTED';
+  console.warn('[checkout] Request denied or unavailable:', diagnostic);
   return NextResponse.json({ error: error instanceof CheckoutError ? error.code : 'CHECKOUT_TEMPORARILY_UNAVAILABLE' },
     { status: error instanceof CheckoutError ? error.status : 503 });
 }

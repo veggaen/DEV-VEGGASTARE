@@ -18,6 +18,8 @@ interface CartItem {
     freeShippingThreshold?: number | null;
   };
   quantity: number;
+  creditAmount?: number;
+  creditDiscountOre?: number;
 }
 
 interface CartContextType {
@@ -26,12 +28,15 @@ interface CartContextType {
   totalPrice: number;
   isLoading: boolean;
   error: string | null;
-  addItem: (productId: string, quantity?: number) => Promise<boolean>;
+  addItem: (productId: string, quantity?: number, creditAmount?: number) => Promise<boolean>;
+  updateCredits: (itemId: string, creditAmount: number) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;
   updateQuantity: (itemId: string, changeType: "increment" | "decrement") => Promise<boolean>;
   clearCart: () => Promise<boolean>;
   refreshCart: () => Promise<void>;
   syncCart: (items: CartItem[]) => void;
+  checkoutBlocked: boolean;
+  setCartEditing: (editorId: string, busy: boolean) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -42,6 +47,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeEditors, setActiveEditors] = useState<Set<string>>(new Set());
+  const setCartEditing = useCallback((editorId: string, busy: boolean) => {
+    setActiveEditors(previous => {
+      if (previous.has(editorId) === busy) return previous;
+      const next = new Set(previous);
+      if (busy) next.add(editorId); else next.delete(editorId);
+      return next;
+    });
+  }, []);
 
   const userId = session?.user?.id;
 
@@ -90,7 +104,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     refreshCart();
   }, [refreshCart]);
 
-  const addItem = useCallback(async (productId: string, quantity = 1): Promise<boolean> => {
+  const addItem = useCallback(async (productId: string, quantity = 1, creditAmount?: number): Promise<boolean> => {
     if (!userId) return false;
 
     setIsLoading(true);
@@ -98,7 +112,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch(`/api/cart/${userId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, quantity }),
+        body: JSON.stringify({ productId, quantity, creditAmount }),
       });
       if (!response.ok) throw new Error("Failed to add item");
       await refreshCart();
@@ -177,6 +191,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [userId]);
 
+  const updateCredits = useCallback(async (itemId: string, creditAmount: number) => {
+    if (!userId) return false;
+    try {
+      const response = await fetch(`/api/cart/${userId}/items/${itemId}`, { method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ creditAmount }), signal: AbortSignal.timeout(15_000) });
+      if (!response.ok) return false;
+      const item = await response.json();
+      setItems(previous => previous.map(row => row.id === itemId ? item : row));
+      return true;
+    } catch { return false; }
+  }, [userId]);
+
   return (
     <CartContext.Provider
       value={{
@@ -188,9 +214,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         addItem,
         removeItem,
         updateQuantity,
+        updateCredits,
         clearCart,
         refreshCart,
         syncCart: setItems,
+        checkoutBlocked: activeEditors.size > 0,
+        setCartEditing,
       }}
     >
       {children}

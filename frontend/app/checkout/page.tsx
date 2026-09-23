@@ -7,7 +7,7 @@ import { dbPrisma } from '@/lib/db';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { quoteShowcaseCart, paypalEnvironment } from '@/lib/payments/showcase-policy';
 import PreferredMoney from '@/components/checkout/preferred-money';
-import { CheckoutEditProvider, RemoveCheckoutItem } from '@/components/checkout/checkout-edit-context';
+import { CheckoutEditProvider, RemoveCheckoutItem, CheckoutCreditAmount } from '@/components/checkout/checkout-edit-context';
 import { paypalConfigured } from '@/lib/payments/showcase-paypal';
 import ReviewerCheckoutButton from '@/components/checkout/reviewer-checkout-button';
 import CreditRefundNotice from '@/components/checkout/credit-refund-notice';
@@ -21,7 +21,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
     CartItem: { include: { Product: { select: { image: true } } } },
   } });
   let quote;
-  try { quote = quoteShowcaseCart(cart?.CartItem.map(item => ({ productId: item.productId, quantity: item.quantity })) ?? []); }
+  try { quote = quoteShowcaseCart(cart?.CartItem.map(item => ({ productId: item.productId, quantity: item.quantity, creditAmount: item.creditAmount })) ?? []); }
   catch {
     return <section className="mx-auto w-full max-w-xl px-4 py-12 sm:px-6">
       <h1 className="text-2xl font-semibold">Review your cart</h1>
@@ -50,8 +50,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="break-words font-medium">{line.title}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{line.kind === 'DIGITAL_FILES' ? 'Original JPG + interview notes TXT · private downloads' : '100 AI usage credits · no subscription'}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{line.kind === 'DIGITAL_FILES' ? 'Original JPG + interview notes TXT · private downloads' : `${line.credits} AI usage credits · no subscription`}</p>
               <div className="mt-2 text-sm font-semibold"><PreferredMoney amount={line.amountOre / 100} /> <span>· Qty 1</span></div>
+              {line.credits > 0 && <CheckoutCreditAmount itemId={cart!.CartItem.find(item => item.productId === line.productId)!.id} value={line.credits} />}
               <RemoveCheckoutItem itemId={cart!.CartItem.find(item => item.productId === line.productId)!.id} title={line.title} />
             </div>
           </div>)}
@@ -64,7 +65,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
         <p className="mb-6 text-sm text-muted-foreground">{demo ? 'No card, no charge. Preview fulfillment with an isolated demo order.' : 'PayPal handles your payment details. We never receive your card number. Maximum two checkout attempts per day.'}</p>
         {!available && <p role="status" className="mb-4 text-sm text-muted-foreground">PayPal setup is in progress. No payment can be taken yet. The free demo remains available.</p>}
         {(creditAccount?.refundAdjustment ?? 0) > 0 && <div className="mb-4"><CreditRefundNotice adjustment={creditAccount!.refundAdjustment} purchasedCredits={purchasedCredits} /></div>}
-        <ReviewerCheckoutButton key={JSON.stringify(quote)} demo={demo} disabled={!available} />
+        <ReviewerCheckoutButton key={JSON.stringify(quote)} expectedQuote={JSON.stringify(quote)} demo={demo} disabled={!available} />
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{quote.lines.some(line => line.kind === 'DIGITAL_FILES') ? 'Download links expire after 24 hours and require this account. ' : ''}{quote.lines.some(line => line.kind === 'AI_CREDITS') ? 'Credits are prepaid usage, not a subscription. ' : ''}</p>
         <div className="mt-2 flex gap-4 text-sm text-muted-foreground"><Link href="/terms" className="inline-flex min-h-11 items-center underline">Terms</Link><Link href="/privacy" className="inline-flex min-h-11 items-center underline">Privacy</Link></div>
       </aside>

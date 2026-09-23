@@ -1,6 +1,7 @@
 /** @fileOverview Authoritative NOK quotes and strict PayPal capture validation. @stability experimental */
 import { z } from 'zod';
 import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
+import { DEFAULT_PURCHASE_CREDITS, MIN_PURCHASE_CREDITS, MAX_PURCHASE_CREDITS, quoteCreditPurchase } from '@/lib/ai-credit-purchase';
 
 export class CheckoutError extends Error {
   constructor(public code: string, public status = 400) { super(code); }
@@ -16,7 +17,8 @@ export function paypalEnvironment(env: Record<string, string | undefined> = proc
   };
 }
 
-const CartInput = z.array(z.object({ productId: z.string(), quantity: z.number().int().min(1).max(1) })).min(1).max(2);
+const CartInput = z.array(z.object({ productId: z.string(), quantity: z.number().int().min(1).max(1),
+  creditAmount: z.number().int().min(MIN_PURCHASE_CREDITS).max(MAX_PURCHASE_CREDITS).nullish() })).min(1).max(2);
 export function quoteShowcaseCart(input: unknown) {
   const parsed = CartInput.safeParse(input);
   if (!parsed.success) throw new CheckoutError('ONE_OF_EACH_REVIEWER_ITEM_PER_ORDER');
@@ -25,6 +27,11 @@ export function quoteShowcaseCart(input: unknown) {
     const sku = Object.values(SHOWCASE_PRODUCTS).find(sku => sku.id === item.productId);
     if (!sku || seen.has(sku.id)) throw new CheckoutError('UNSUPPORTED_CART_ITEM');
     seen.add(sku.id);
+    if (sku.kind !== 'AI_CREDITS' && item.creditAmount != null) throw new CheckoutError('UNSUPPORTED_CREDIT_AMOUNT');
+    const creditQuote = sku.kind === 'AI_CREDITS' ? quoteCreditPurchase(item.creditAmount ?? DEFAULT_PURCHASE_CREDITS) : null;
+    if (creditQuote) return { productId: sku.id, title: `${sku.title} · ${creditQuote.credits} credits`, quantity: 1,
+      amountOre: creditQuote.amountOre, kind: sku.kind, credits: creditQuote.credits,
+      discountOre: creditQuote.discountOre, pricingVersion: creditQuote.pricingVersion };
     return { productId: sku.id, title: sku.title, quantity: 1, amountOre: sku.amountOre, kind: sku.kind,
       credits: 'credits' in sku ? sku.credits : 0 };
   }).sort((a, b) => a.productId.localeCompare(b.productId));

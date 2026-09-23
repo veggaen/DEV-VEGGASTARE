@@ -140,6 +140,8 @@ model CartItem {
   cartId    String
   productId String
   quantity  Int
+  // Null preserves legacy 100-credit carts; credit purchases always have quantity 1.
+  creditAmount Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   Cart      Cart     @relation(fields: [cartId], references: [id])

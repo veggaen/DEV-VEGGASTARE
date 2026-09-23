@@ -6,6 +6,8 @@ import { isDemoUserId } from '@/lib/demo-policy';
 import { CheckoutError, paypalEnvironment, quoteShowcaseCart, verifyCapturedOrder, type ShowcaseQuote } from './showcase-policy';
 import { capturePayPalOrder, createPayPalOrder, paypalConfigured, readPayPalOrder } from './showcase-paypal';
 import { applyAiCreditDelta } from '@/lib/ai-credit-adjustment';
+import { creditSaleEconomics, DAILY_PURCHASE_CAP_ORE } from '@/lib/ai-credit-purchase';
+import { FUNDED_AI_MODELS, pricingIsReviewed } from '@/lib/ai-chat/credit-policy';
 
 const includeOrder = { Order: { include: { OrderItem: true } } } as const;
 function filesReady(files: { DigitalAsset: { isActive: boolean; mimeType: string } }[]) {
@@ -14,7 +16,7 @@ function filesReady(files: { DigitalAsset: { isActive: boolean; mimeType: string
     files.some(file => file.DigitalAsset.mimeType === 'text/plain');
 }
 
-export async function prepareShowcaseCheckout(userId: string, requestKey: string) {
+export async function prepareShowcaseCheckout(userId: string, requestKey: string, expectedQuote?: string) {
   const environment = isDemoUserId(userId) ? 'DEMO' : paypalEnvironment().mode;
   if (environment !== 'DEMO' && !paypalConfigured()) throw new CheckoutError('PAYPAL_NOT_CONFIGURED', 503);
   return dbPrisma.$transaction(async tx => {
@@ -30,7 +32,17 @@ export async function prepareShowcaseCheckout(userId: string, requestKey: string
     // Includes pending/failed-network attempts: repeated checkout cannot drain a card.
     if (attempts >= 2) throw new CheckoutError('DAILY_PURCHASE_LIMIT', 429);
     const cart = await tx.cart.findUnique({ where: { userId }, include: { CartItem: { include: { Product: { include: { Files: { include: { DigitalAsset: true } } } } } } } });
-    const quote = quoteShowcaseCart(cart?.CartItem.map(item => ({ productId: item.productId, quantity: item.quantity })) ?? []);
+    const quote = quoteShowcaseCart(cart?.CartItem.map(item => ({ productId: item.productId, quantity: item.quantity, creditAmount: item.creditAmount })) ?? []);
+    // The browser may assert what it saw, never set a price. A cross-tab cart
+    // edit requires another review instead of silently charging a changed total.
+    if (expectedQuote !== undefined && expectedQuote !== JSON.stringify(quote)) throw new CheckoutError('CART_CHANGED', 409);
+    for (const line of quote.lines) {
+      if (line.credits && (!pricingIsReviewed() || !creditSaleEconomics(line.credits, FUNDED_AI_MODELS).eligible)) {
+        throw new CheckoutError('CREDIT_SALES_PAUSED', 503);
+      }
+    }
+    const exposure = await tx.checkoutAttempt.aggregate({ where: { userId, environment, createdAt: { gte: start } }, _sum: { totalOre: true } });
+    if ((exposure._sum.totalOre ?? 0) + quote.totalOre > DAILY_PURCHASE_CAP_ORE) throw new CheckoutError('DAILY_PURCHASE_AMOUNT_LIMIT', 429);
     for (const item of cart!.CartItem) {
       if (item.Product.visibility !== 'PUBLIC' || item.Product.productType !== 'DIGITAL') throw new CheckoutError('ITEM_UNAVAILABLE', 409);
       if (quote.lines.find(line => line.productId === item.productId)?.kind === 'DIGITAL_FILES' &&
@@ -48,8 +60,8 @@ export async function prepareShowcaseCheckout(userId: string, requestKey: string
   }, { timeout: 15_000 });
 }
 
-export async function beginShowcaseCheckout(userId: string, requestKey: string) {
-  const attempt = await prepareShowcaseCheckout(userId, requestKey);
+export async function beginShowcaseCheckout(userId: string, requestKey: string, expectedQuote?: string) {
+  const attempt = await prepareShowcaseCheckout(userId, requestKey, expectedQuote);
   if (attempt.state === 'COMPLETED') return { orderId: attempt.orderId, completed: true };
   if (['REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'].includes(attempt.state)) throw new CheckoutError('ORDER_PAYMENT_ADJUSTED', 409);
   if (attempt.environment === 'DEMO') return { orderId: attempt.orderId, demo: true };
@@ -114,7 +126,12 @@ export async function completeShowcaseCheckout(orderId: string, userId: string, 
         tokenSymbol: 'NOK', nativeAmount: (fresh.totalOre / 100).toFixed(2), receiverAddress: fresh.merchantId,
         commentPay: `${fresh.environment}: verified server capture` } } } : {}) } });
     const cart = await tx.cart.findUnique({ where: { userId }, select: { id: true } });
-    if (cart) await tx.cartItem.deleteMany({ where: { cartId: cart.id, productId: { in: fresh.Order.OrderItem.map(item => item.productId) } } });
+    // A buyer may edit their next cart while PayPal is open. Remove only lines
+    // matching this immutable purchase, never a newly selected credit amount.
+    if (cart) for (const line of quote.lines) await tx.cartItem.deleteMany({ where: {
+      cartId: cart.id, productId: line.productId, quantity: line.quantity,
+      ...(line.credits ? { OR: [{ creditAmount: line.credits }, ...(line.credits === 100 ? [{ creditAmount: null }] : [])] } : {}),
+    } });
     return { orderId, alreadyCompleted: false };
   }, { timeout: 15_000 });
 }

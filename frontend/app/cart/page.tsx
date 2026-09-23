@@ -1,7 +1,7 @@
 "use client";
 
 /** @fileOverview Responsive cart with row-isolated updates and globally selected display totals. @stability stable */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -15,17 +15,19 @@ import PreferredMoney from '@/components/checkout/preferred-money';
 import { PriceTotal } from '@/components/crypto-related/PriceAmount';
 import { isShowcaseProduct } from "@/lib/showcase-catalog";
 import CartSkeleton, { CartHeader, cartCanvas, cartColumns } from "@/components/checkout/cart-skeleton";
+import CreditAmountEditor from '@/components/checkout/credit-amount-editor';
 
 export default function CartPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { syncCart } = useCart();
+  const { syncCart, checkoutBlocked } = useCart();
   const { items, loading, error, needsRefresh, refreshing, pending, reload, mutate } = useCartPage(session?.user?.id, syncCart);
   const busy = pending.size > 0 || refreshing;
+  const [dirtyCredits, setDirtyCredits] = useState(false);
   const totals = cartCurrencyTotals(items);
   const supported = items.every(item => isShowcaseProduct(item.product.id));
   const validQuantities = items.every(item => item.quantity === 1);
-  const canCheckout = !busy && !needsRefresh && !!totals && supported && validQuantities;
+  const canCheckout = !busy && !dirtyCredits && !checkoutBlocked && !needsRefresh && !!totals && supported && validQuantities;
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/auth/login?callbackUrl=%2Fcart");
@@ -63,11 +65,12 @@ export default function CartPage() {
                 <div className="mt-2 text-sm tabular-nums text-muted-foreground"><PreferredMoney amount={item.product.price} currency={item.product.priceCurrency ?? 'USD'} /> <span className="text-xs">each</span></div>
               </div>
               <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 sm:col-span-1 sm:col-start-2">
-                <div role="group" aria-label={`Quantity for ${item.product.title}`} className="flex shrink-0 items-center rounded-lg border border-border">
+                {item.creditAmount !== undefined ? <CreditAmountEditor value={item.creditAmount} onDirtyChange={setDirtyCredits}
+                  disabled={disabled} onSave={credits => mutate(item.id, credits)} /> : <div role="group" aria-label={`Quantity for ${item.product.title}`} className="flex shrink-0 items-center rounded-lg border border-border">
                   <Button size="icon" variant="ghost" className="size-11 rounded-r-none" onClick={() => void mutate(item.id, "decrement")} disabled={disabled || item.quantity <= 1} aria-label="Decrease quantity"><Minus aria-hidden="true" className="size-4" /></Button>
                   <span className="min-w-10 px-1 text-center text-sm font-medium tabular-nums" aria-live="polite">{item.quantity}</span>
                   <Button size="icon" variant="ghost" className="size-11 rounded-l-none" onClick={() => void mutate(item.id, "increment")} disabled={disabled || item.quantity >= 1000} aria-label="Increase quantity"><Plus aria-hidden="true" className="size-4" /></Button>
-                </div>
+                </div>}
                 <Button variant="ghost" className="min-h-11 gap-2 px-3 text-sm text-muted-foreground hover:text-destructive" disabled={disabled} onClick={() => void mutate(item.id, "remove")}>
                   {isPending ? <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" /> : <Trash2 aria-hidden="true" className="size-4" />}Remove
                 </Button>

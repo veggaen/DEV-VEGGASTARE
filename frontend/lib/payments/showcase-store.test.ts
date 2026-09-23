@@ -45,6 +45,16 @@ describe('transactional checkout fulfillment', () => {
     await expect(completeShowcaseCheckout('order1', 'buyer1')).rejects.toThrow('PAYMENT_BINDING_MISMATCH');
     expect(m.transaction).not.toHaveBeenCalled();
   });
+  it('grants the immutable custom amount after exact capture, not the current catalog pack', async () => {
+    const customQuote = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, creditAmount: 122 }]);
+    const custom = { ...attempt(), totalOre: 4716, quote: customQuote };
+    m.find.mockResolvedValue(custom); m.fresh.mockResolvedValue(custom);
+    const p = proof(); p.purchase_units[0].amount.value = '47.16'; p.purchase_units[0].payments.captures[0].amount.value = '47.16';
+    m.capture.mockResolvedValue(p); m.cart.mockResolvedValue({ id: 'cart1' });
+    await completeShowcaseCheckout('order1', 'buyer1');
+    expect(m.adjust).toHaveBeenCalledWith(expect.anything(), 'SANDBOX:buyer1', 122);
+    expect(m.remove).toHaveBeenCalledWith({ where: { cartId: 'cart1', productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, OR: [{ creditAmount: 122 }] } });
+  });
   it('does not fulfill or capture another user’s order', async () => {
     await expect(completeShowcaseCheckout('order1', 'other')).rejects.toThrow('ORDER_NOT_FOUND');
     expect(m.capture).not.toHaveBeenCalled();
