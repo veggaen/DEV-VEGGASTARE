@@ -1,5 +1,279 @@
 import { test, expect } from "@playwright/test";
 
+test('S7 — product detail layout, gallery and real scrolling at eight sizes in both themes', async ({ browser, baseURL }) => {
+  test.setTimeout(120_000);
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+    await expect(page.locator('[data-product-price]')).toHaveText(/29,00 NOK/);
+    const next = page.getByRole('button', { name: 'Next product image', exact: true });
+    await next.click();
+    const previous = page.getByRole('button', { name: 'Previous product image', exact: true });
+    await expect(previous).toBeEnabled();
+    await previous.click();
+    await expect(previous).toBeDisabled();
+    const scroll = page.locator('[data-app-scroll-container]:visible');
+    for (const theme of ['light', 'dark']) {
+      // next-themes persists this exact setting; exercise a real reload as well.
+      await page.evaluate(value => localStorage.setItem('veggat:theme', value), theme);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+      await expect(page.locator('html')).toHaveClass(new RegExp(theme));
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        await scroll.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('main, [data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+        const title = await page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true }).boundingBox();
+        const image = await page.getByRole('img', { name: 'Veggat Interview Pack', exact: true }).first().boundingBox();
+        if (size.width < 1024) expect(title!.y).toBeGreaterThan(image!.y + image!.height);
+        else expect(title!.x).toBeGreaterThan(image!.x + image!.width);
+        const actions = page.getByRole('region', { name: 'Product purchase', exact: true });
+        if (size.width < 1024) {
+          await expect(actions).toBeInViewport();
+          expect((await actions.getByRole('button').boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        } else await expect(actions).toBeHidden();
+        await page.mouse.move(size.width - 24, Math.min(size.height - 120, 600));
+        await page.mouse.wheel(0, 15000);
+        await expect.poll(() => scroll.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+        await expect(page.locator('footer')).toBeInViewport();
+        if (size.width < 1024) {
+          const lastLink = await page.locator('footer').getByRole('link').last().boundingBox();
+          expect(lastLink!.y + lastLink!.height).toBeLessThanOrEqual((await actions.boundingBox())!.y);
+        }
+        const position = await scroll.evaluate(e => e.scrollTop);
+        await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+        const menu = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
+        await expect(menu).toBeVisible();
+        await menu.evaluate(async element => { await Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {}))); });
+        const drawerScroll = page.locator('[data-navigation-scroll]');
+        const drawerBox = await drawerScroll.boundingBox();
+        await page.mouse.move(drawerBox!.x + drawerBox!.width / 2, drawerBox!.y + drawerBox!.height / 2);
+        await page.mouse.wheel(0, 4000);
+        await expect.poll(() => drawerScroll.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+        expect(await scroll.evaluate(e => e.scrollTop)).toBe(position);
+        await page.keyboard.press('Escape');
+        await expect(menu).toBeHidden();
+        expect(await scroll.evaluate(e => e.scrollTop)).toBe(position);
+        expect(await page.evaluate(() => scrollY)).toBe(0);
+        await page.mouse.move(size.width - 24, Math.min(size.height - 120, 600));
+        await page.mouse.wheel(0, -15000);
+        await expect.poll(() => scroll.evaluate(e => e.scrollTop)).toBe(0);
+      }
+    }
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', level: 1, exact: true })).toBeVisible();
+    await expect(page.locator('[data-product-price]')).toHaveText(/39,00 NOK/);
+    await expect(page.getByText('Credits appear in your AI balance after verified payment.', { exact: true })).toBeVisible();
+    await expect(page.locator('main')).not.toContainText('My downloads');
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+for (const width of [390, 1280]) {
+test(`S3 — product purchase locks repeated clicks and reuses a digital cart line (${width}px)`, async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: 844 } });
+  const page = await context.newPage();
+  const product = await (await context.request.get('/api/products/cveggatinterviewpack000001')).json();
+  let posts = 0, saved = false;
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  await page.route(url => /^\/api\/cart\/[^/]+$/.test(url.pathname), async route => {
+    if (route.request().method() === 'POST') { posts++; await pending; saved = true; }
+    await route.fulfill({ json: { id: 'pdp-fixture', items: saved ? [{ id: 'pdp-line', quantity: 1, product }] : [] } });
+  });
+  try {
+    await page.goto(`/products/${product.id}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: product.title, level: 1, exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+    const add = page.getByRole('button', { name: 'Add to basket', exact: true });
+    await expect(add).toBeEnabled();
+    await add.dblclick();
+    await expect.poll(() => posts).toBe(1);
+    for (const button of await page.getByRole('button', { name: 'Adding…', exact: true }).all()) await expect(button).toBeDisabled();
+    release();
+    await expect(add).toBeEnabled();
+    await add.click();
+    await expect(page.getByText('Already in your basket', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Buy now', exact: true }).click();
+    await expect(page).toHaveURL(/\/checkout$/);
+    expect(posts).toBe(1);
+  } finally { release(); await context.close(); }
+});
+
+test(`S3 — product load retries without reloading the shell and uncertain cart writes stop (${width}px)`, async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const product = await (await context.request.get('/api/products/cveggatinterviewpack000001')).json();
+  let reads = 0, documents = 0, posts = 0;
+  page.on('request', request => { if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documents++; });
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  await page.route(`**/api/products/${product.id}`, async route => {
+    reads++;
+    if (reads === 1) return route.fulfill({ status: 503, json: { error: 'Fixture unavailable' } });
+    await pending; return route.fulfill({ json: product });
+  });
+  await page.route(url => /^\/api\/cart\/[^/]+$/.test(url.pathname), async route => {
+    if (route.request().method() === 'POST') { posts++; return route.fulfill({ status: 503, json: { error: 'Fixture uncertain write' } }); }
+    return route.fulfill({ json: { id: 'pdp-fixture', items: [] } });
+  });
+  try {
+    await page.goto(`/products/${product.id}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Something went wrong', exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    const loading = page.getByRole('status', { name: 'Loading product', exact: true });
+    await expect(loading).toBeVisible();
+    expect(await loading.evaluate(e => [...e.querySelectorAll('*')].every(n => getComputedStyle(n).animationName === 'none'))).toBe(true);
+    const galleryBefore = await loading.locator('section').first().locator(':scope > div').first().boundingBox();
+    release();
+    await expect(page.getByRole('heading', { name: product.title, level: 1, exact: true })).toBeVisible();
+    const gallery = page.locator('[data-embla-carousel]').locator('..').locator('..');
+    const galleryAfter = await gallery.boundingBox();
+    expect(Math.abs(galleryAfter!.y - galleryBefore!.y)).toBeLessThanOrEqual(2);
+    expect(Math.abs(galleryAfter!.width - galleryBefore!.width)).toBeLessThanOrEqual(2);
+    expect(documents).toBe(1);
+    await page.getByRole('button', { name: 'Add to basket', exact: true }).click();
+    await expect(page.locator('main').getByRole('alert')).toContainText('Review your basket');
+    await expect(page.getByRole('button', { name: 'Buy now', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Add to basket', exact: true })).toBeDisabled();
+    await page.getByRole('link', { name: 'Review basket', exact: true }).click();
+    await expect(page).toHaveURL(/\/cart$/);
+    expect(posts).toBe(1);
+  } finally { release(); await context.close(); }
+});
+}
+
+test('S7 — checkout aligns separate order lines and payment summary at eight sizes', async ({ browser, baseURL }) => {
+  test.setTimeout(90_000);
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.isDemo).toBe(true);
+    expect((await context.request.delete(`/api/cart/${session.user.id}`)).ok()).toBe(true);
+    for (const productId of ['cveggatinterviewpack000001', 'cveggatinterviewcredits01']) expect((await context.request.post(`/api/cart/${session.user.id}`, { data: { productId, quantity: 1 } })).ok()).toBe(true);
+    await page.goto('/checkout', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Secure checkout', exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+    const items = page.getByRole('region', { name: 'Order items', exact: true });
+    const summary = page.getByRole('complementary', { name: 'Payment summary', exact: true });
+    await expect(items.getByRole('heading', { level: 3 })).toHaveCount(2);
+    await expect(items).toContainText('29.00 NOK');
+    await expect(items).toContainText('39.00 NOK');
+    await expect(summary).toContainText('0.00 NOK');
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size);
+      const scroll = page.locator('[data-site-scroll]:visible');
+      await scroll.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('[data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+      const orderBox = await items.boundingBox(), summaryBox = await summary.boundingBox();
+      if (size.width < 1024) expect(summaryBox!.y).toBeGreaterThan(orderBox!.y + orderBox!.height);
+      else expect(summaryBox!.x).toBeGreaterThan(orderBox!.x + orderBox!.width);
+      expect((await page.locator('[data-checkout]').boundingBox())!.width).toBeLessThanOrEqual(1280);
+      await page.mouse.move(size.width - 24, Math.min(size.height - 100, 600)); await page.mouse.wheel(0, 15000);
+      await expect.poll(() => scroll.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+      await expect(page.locator('footer')).toBeInViewport();
+      expect(await page.evaluate(() => scrollY)).toBe(0);
+    }
+    // Layout-only: no checkout submission, no new free credits or orders.
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S3 — failed saved-cart reads block product purchases without blind retries', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  let writes = 0;
+  await page.route(url => /^\/api\/cart\/[^/]+$/.test(url.pathname), async route => {
+    if (route.request().method() !== 'GET') writes++;
+    await route.fulfill({ status: 503, json: { error: 'Fixture unavailable' } });
+  });
+  try {
+    await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('main').getByRole('alert')).toContainText('could not verify your saved basket');
+    await expect(page.getByRole('button', { name: 'Buy now', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Add to basket', exact: true })).toBeDisabled();
+    expect(writes).toBe(0);
+  } finally { await context.close(); }
+});
+
+test('S3 — guest product purchase preserves a safe login return path', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  let writes = 0;
+  page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).pathname.startsWith('/api/cart/')) writes++; });
+  try {
+    const productPath = '/products/cveggatinterviewpack000001';
+    await page.goto(productPath, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true, level: 1 })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+    await page.getByRole('button', { name: 'Add to basket', exact: true }).click();
+    await expect(page).toHaveURL(/\/auth\/login\?/);
+    expect(new URL(page.url()).searchParams.get('callbackUrl')).toBe(productPath);
+    expect(writes).toBe(0);
+  } finally { await context.close(); }
+});
+
+test('S3 — product report stays within phone landscape and share failures have feedback', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  let reports = 0;
+  page.on('request', request => { if (request.method() === 'POST' && request.headers()['next-action']) reports++; });
+  // Browser capability fixture, not the owner's OS clipboard.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: async () => { throw new DOMException('Fixture denied', 'NotAllowedError'); } }, configurable: true });
+  });
+  try {
+    await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true, level: 1 })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+    await page.getByRole('button', { name: 'Share', exact: true }).click();
+    await expect(page.getByText('Could not share the link. You can copy it from your address bar.', { exact: true })).toBeVisible();
+    for (const size of [{ width: 360, height: 800 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+      await page.setViewportSize(size);
+      await page.getByRole('button', { name: 'Report', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Rapporter dette produktet', exact: true });
+      await expect(dialog).toBeVisible();
+      await dialog.evaluate(async e => { await Promise.all(e.getAnimations().map(a => a.finished.catch(() => {}))); });
+      const box = await dialog.boundingBox();
+      expect(box!.y).toBeGreaterThanOrEqual(15);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(size.height - 15);
+      expect(box!.x).toBeGreaterThanOrEqual(15);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(size.width - 15);
+      expect((await dialog.getByRole('button', { name: 'Close', exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      const reasons = dialog.getByRole('group', { name: 'Grunn *', exact: true });
+      await reasons.getByRole('button', { name: 'Annet', exact: true }).click();
+      await expect(reasons.getByRole('button', { name: 'Annet', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await dialog.getByLabel('Beskrivelse (valgfritt)', { exact: true }).fill('Layout check only — not submitted.');
+      await dialog.getByRole('button', { name: 'Avbryt', exact: true }).click();
+      await expect(dialog).toBeHidden();
+    }
+    expect(reports).toBe(0);
+  } finally { await context.close(); }
+});
+
 for (const width of [390, 1280]) {
 test(`S7 — server session prevents late-auth layout and scroll jumps (${width}px)`, async ({ browser, baseURL }) => {
   test.setTimeout(60_000);

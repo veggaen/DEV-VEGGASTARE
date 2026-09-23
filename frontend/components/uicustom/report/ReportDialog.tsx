@@ -84,8 +84,8 @@ export function ReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto overscroll-contain rounded-xl motion-reduce:animate-none sm:max-w-md [&>button]:right-2 [&>button]:top-2 [&>button]:grid [&>button]:size-11 [&>button]:place-items-center">
+        <DialogHeader className="pr-8">
           <DialogTitle>Rapporter {contentLabel}</DialogTitle>
           <DialogDescription>
             Velg grunn for rapportering. Vi behandler rapporter innen 48 timer.
@@ -94,14 +94,15 @@ export function ReportDialog({
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Grunn *</Label>
-            <div className="grid gap-1.5 max-h-48 overflow-y-auto pr-1">
+            <p id="report-reasons-label" className="text-sm font-medium">Grunn *</p>
+            <div role="group" aria-labelledby="report-reasons-label" className="grid max-h-48 gap-1.5 overflow-y-auto overscroll-contain pr-1">
               {REPORT_REASONS.map((reason) => (
                 <button
                   key={reason.value}
                   type="button"
+                  aria-pressed={selectedReason === reason.value}
                   onClick={() => setSelectedReason(reason.value)}
-                  className={`text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                  className={`min-h-11 rounded-md px-3 py-2 text-left text-sm transition-colors duration-200 motion-reduce:transition-none ${
                     selectedReason === reason.value
                       ? "bg-primary text-primary-foreground"
                       : "hover:bg-muted"
@@ -123,20 +124,23 @@ export function ReportDialog({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
+              className="text-base sm:text-sm"
               maxLength={1000}
             />
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="sticky -bottom-6 gap-2 border-t border-border bg-background pt-3 pb-6 sm:gap-0">
           <Button
             variant="outline"
+            className="min-h-11"
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
             Avbryt
           </Button>
           <Button
+            className="min-h-11"
             onClick={handleSubmit}
             disabled={isPending || !selectedReason}
           >

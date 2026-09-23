@@ -26,25 +26,25 @@ export default function SiteFooter() {
         <div className="flex flex-wrap items-center gap-1">
           <Link
             href="/info"
-            className="rounded-xl px-3 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-all duration-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="inline-flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-colors duration-200 motion-reduce:transition-none hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
           >
             Kontakt
           </Link>
           <Link
             href="/terms"
-            className="rounded-xl px-3 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-all duration-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="inline-flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-colors duration-200 motion-reduce:transition-none hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
           >
             Salgsvilkår
           </Link>
           <Link
             href="/privacy"
-            className="rounded-xl px-3 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-all duration-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="inline-flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-colors duration-200 motion-reduce:transition-none hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
           >
             Personvern
           </Link>
           <Link
             href="/products"
-            className="rounded-xl px-3 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-all duration-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="inline-flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-colors duration-200 motion-reduce:transition-none hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
           >
             Markedsplass
           </Link>

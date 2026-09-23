@@ -882,6 +882,34 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   physical phone keyboard/Chrome zoom and cold-start speed are not claimed.
   Corrected auth-layout local repetitions **3/3** pass (32.4s including setup).
 
+## Product detail / checkout follow-up
+
+- Verified real images, primary NOK prices, credit-vs-file delivery copy,
+  gallery controls, repeat purchase clicks, retry and uncertain-write UI.
+  Browser fixtures intercept only fault/concurrency paths; the separate demo
+  marketplace flow uses actual authenticated cart endpoints. No order or
+  credit grant is required for layout testing.
+- PDP/checkout canvas uses existing 1280px tokens and 16/24/32px gutters.
+  Light/dark PDP checked at 360, 390, 844x390, 768, 1024, 1280x800, 1920 and
+  2560. Real mouse wheels reach the product footer; drawer scrolling leaves the
+  background unchanged. Footer links remain above the mobile purchase bar.
+- Essential description/specification text no longer waits for scroll reveal;
+  obsolete title/price typing helpers removed. Gallery image `sizes` is capped
+  for ultrawide. This is a source/UX improvement, not a measured CWV speed claim.
+- Landscape Report dialog was genuinely outside the viewport after its enter
+  animation settled (844x390: x=198, y=-74, 448x538). Fix is scoped to ReportDialog;
+  no false report submitted. Other dialogs still require the same audit.
+- Initial local test 7/8, corrected footer/scroller/theme case then 11/11.
+  Final candidate adds fail-closed saved-cart reads and report/share-error checks.
+  Final local browser **13/13** (1.2m) and guest return-path **2/2** pass.
+  Report dialog is now y=16..374 in the 390px-high viewport; selected reasons,
+  text entry and cancellation pass without a report submission. Product load
+  retry keeps one main document and stable gallery x/y geometry. Lint,
+  webpack/TypeScript and payment units **39/39** pass. Live verification pending.
+- Real Chrome inventory rechecked with computer-use: apps=[], browsers=[].
+  Playwright remains the active test browser. Physical phone keyboard and real
+  Chrome 125% zoom have not been substituted with CSS zoom or claimed tested.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)

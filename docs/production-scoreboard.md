@@ -390,6 +390,36 @@ member-to-member delivery remains separate from the mocked error test.
   Local/live frontend health and anonymous local backend health are 200.
   Corrected auth-layout local repetitions **3/3** pass (32.4s including setup).
 
+## S7 — Product details and checkout polish (candidate verification)
+
+- Product pages now use semantic light/dark surfaces and the listing currency as
+  the primary price. Credit-pack delivery explicitly targets the AI balance, not
+  My downloads. Checkout preserves separate 29/39 NOK lines and a 0 NOK demo total.
+- Shared Add/Buy pending lock covers desktop and mobile actions. Buy reuses an
+  existing cart line; digital Add does not duplicate it. Failed/uncertain cart
+  reads or writes require reviewing the cart, not a blind retry. Server pricing,
+  verified capture, limits and fulfillment are unchanged.
+- Removed unused text-reveal helpers and delayed essential sections. Gallery
+  image sizes respect the 1280px canvas. Product fetches abort after 15 seconds;
+  Retry refreshes only product data. Skeleton gallery geometry is retained and
+  reduced-motion skeletons do not pulse. No measured speed gain is claimed yet.
+- PDP owns a bottom-only footer inside its actual product scroller, clear of the
+  mobile purchase bar. Footer links now have 44px targets and short transitions.
+- Real landscape Report click exposed an off-screen dialog (y=-74, bottom=464
+  in a 390px-high viewport). Candidate constrains it to dvh with internal scroll,
+  sticky actions, 44px close/reason targets and visible selection semantics.
+- First focused local pass 7/8: the new test incorrectly expected a global footer
+  on a product route and initially targeted the outer shell scroller. Corrected
+  to the actual product scroller, added the missing PDP footer, and tested the
+  real `veggat:theme` setting. Revised local **11/11** passes, including real wheel
+  and independent drawer scrolling at eight sizes, two themes and Pulse recovery.
+  Payment-safety units **39/39**, touched lint and candidate webpack/TypeScript
+  pass. Final webpack/TypeScript and lint pass; final local browser **13/13**
+  (1.2m), plus guest safe-login return path **2/2** (including setup), pass.
+  Report dialog now sits at y=16..374 in a 390px-high landscape viewport;
+  selection, typing and cancellation work without submitting any report.
+  Production deployment/verification follows.
+
 | Area | Feature | Status / evidence |
 | --- | --- | --- |
 | Auth | Email login, session | DONE — current local/live browser round trips, revoked sessions rejected |
