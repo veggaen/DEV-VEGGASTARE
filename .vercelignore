@@ -5,6 +5,8 @@
 **/.next/**
 **/.next-*/**
 **/node_modules/**
+backend/dist/**
+backend/src/generated/**
 **/playwright-report/**
 **/test-results/**
 **/%SystemDrive%/**

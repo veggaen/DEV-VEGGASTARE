@@ -138,7 +138,9 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   the background 112px on that run; a manual attempt reproduced it, while later
   attempts did not. Kept the failure recorded; removed the Settings entrance
   translation/fade and made opening focus explicit, with a pre-scroll assertion.
-  Correction deployment/repeated live checks pending. Actual owner-wallet signatures, on-chain operations and normal-account
+  Correction `d2c9bdf` / `dpl_F1Lj57Lhr1hHiyzPSTs9kYdcxwjp` is READY. Three
+  consecutive fresh-context Settings checks passed locally **4/4** (40.7s) and
+  live **4/4** (37.2s), including setup. Actual owner-wallet signatures, on-chain operations and normal-account
   payout saves are not claimed verified by the test-wallet flow.
 
 ## Feature scoreboard
@@ -157,7 +159,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 | Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — seeded at 29/39 NOK; paid fulfillment pending |
 | AI | Chat, selector, streaming | DONE for current OpenAI Luna/Groq demo path, selector and persisted streaming replies local/live; current Astra/Grok paid generation still unverified |
 | AI | Credit debit, zero balance, no overcharge | DONE for demo debit/402 local/live plus ledger concurrency/fuse tests; paid-credit purchase remains blocked on PayPal |
-| Wallets | Connect UI, no crash | PARTIAL — local injected-wallet cancel/connect/disconnect and configured WalletConnect open/escape pass; configuration units pass; live and owner-wallet verification pending |
+| Wallets | Connect UI, no crash | PARTIAL — injected-wallet cancel/connect/disconnect passes local/live; configured WalletConnect open/escape and configuration units pass; owner-wallet verification pending |
 | Platform | Public homepage | DONE — S1 verified locally and live |
 | Platform | Consent controls Analytics/Speed Insights | DONE — no scripts before consent/Essential Only; both 200 after opt-in; real visitor metrics pending |
 | Platform | Health | PARTIAL — local Hapi `/v1/health` 200 and mock shipping returns two NOK options; Railway auth expired and live backend unverified |

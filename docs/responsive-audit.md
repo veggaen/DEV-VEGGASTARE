@@ -160,7 +160,15 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   its provider-owned wallet buttons and owner consent are not fully audited.
 - Payout ownership/demo guards and project-ID configuration: **30/30** focused
   unit tests including demo policy. Local screenshots visually compared portrait
-  and short landscape. Final release/live validation pending.
+  and short landscape. Initial release `050a407` passed five live checks but
+  failed one: opening Settings moved the background 112px. A manual attempt
+  reproduced the intermittent jump. Removed Settings' entrance transform/fade
+  and explicitly focused the drawer close button without scrolling; regression
+  now checks the background immediately on opening as well as after scrolling.
+  Corrected release `d2c9bdf` passed three consecutive fresh-context Settings runs
+  locally **4/4** (40.7s) and live **4/4** (37.2s), including setup. The earlier
+  live run also passed injected-wallet cancellation/connect/disconnect, AI reflow,
+  Pulse/footer and the marketplace flow. Native owner-wallet actions remain open.
 
 - Products: continue full keyboard traversal and seller-row target-size review.
   Drawer focus/scroll, category selection, search/empty state and gallery arrows
