@@ -36,11 +36,13 @@ export default async function CompanyPublicPage({
         select: { userId: true },
       },
       Product: {
+        where: { visibility: 'PUBLIC' },
         orderBy: { createdAt: "desc" },
         select: {
           id: true,
           title: true,
           price: true,
+          priceCurrency: true,
           image: true,
           category: true,
           viewCount: true,
@@ -75,9 +77,6 @@ export default async function CompanyPublicPage({
     ? allRatings.reduce((sum, r) => sum + r, 0) / allRatings.length
     : 0;
 
-  // Unique visitors estimate (70% of total views)
-  const uniqueVisitors = Math.floor(totalProductViews * 0.7);
-
   return (
     <BannerThemeWrapper bannerUrl={banner} className="w-full">
       {/* Full-bleed hero */}
@@ -85,7 +84,7 @@ export default async function CompanyPublicPage({
         <div className="absolute inset-0">
           {banner ? (
             <>
-              <Image src={banner} alt={`${company.name} banner`} fill className="object-cover" priority />
+              <Image src={banner} alt={`${company.name} banner`} fill sizes="100vw" className="object-cover" priority />
               <div
                 className="absolute inset-0"
                 style={{
@@ -107,13 +106,14 @@ export default async function CompanyPublicPage({
           )}
         </div>
 
-        <div className="relative mx-auto w-full max-w-screen-2xl px-4 pb-10 pt-10 md:pb-14 md:pt-14">
+        <div className="relative mx-auto w-full max-w-7xl px-4 pb-8 pt-6 sm:px-6 lg:px-8 md:pb-12 md:pt-10">
+          <Link href="/companies" className="mb-4 inline-flex min-h-11 items-center text-sm text-white underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">Back to companies</Link>
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div className="flex items-end gap-4">
-                <div className="relative h-16 w-16 md:h-20 md:w-20 overflow-hidden border border-white/20 bg-black/20 shadow-sm rounded-lg">
-                  {logo ? <Image src={logo} alt={`${company.name} logo`} fill className="object-cover" /> : null}
-                </div>
+              <div className="flex min-w-0 items-end gap-4">
+                {logo && <div className="relative h-16 w-16 shrink-0 md:h-20 md:w-20 overflow-hidden border border-white/20 bg-black/20 shadow-sm rounded-lg">
+                  <Image src={logo} alt={`${company.name} logo`} fill sizes="80px" className="object-cover" />
+                </div>}
 
                 <div className="min-w-0">
                   <h1 className="text-balance text-3xl md:text-4xl font-semibold tracking-tight text-white">
@@ -122,7 +122,7 @@ export default async function CompanyPublicPage({
                   <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-white/80">
                     {company.websiteUrl ? (
                       <a
-                        className="truncate underline underline-offset-4 hover:text-white"
+                        className="max-w-full break-all underline underline-offset-4 hover:text-white"
                         href={company.websiteUrl}
                         target="_blank"
                         rel="noreferrer"
@@ -130,9 +130,7 @@ export default async function CompanyPublicPage({
                         {company.websiteUrl}
                       </a>
                     ) : null}
-                    <span className="opacity-70">•</span>
                     <span>{company.Product.length} products</span>
-                    <span className="opacity-70">•</span>
                     {company.orgVerification?.status === 'VERIFIED' && company.orgNumber ? (
                       <span
                         className="inline-flex items-center gap-1 rounded-full border border-emerald-300/40 bg-emerald-500/15 px-2 py-0.5 text-emerald-200"
@@ -182,7 +180,7 @@ export default async function CompanyPublicPage({
       </div>
 
       {/* Content */}
-      <div className="mx-auto w-full max-w-screen-2xl px-4 pb-12">
+      <div className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
         <div className="pt-8">
           <div className="flex items-end justify-between gap-4">
             <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-700 dark:text-zinc-200">
@@ -199,12 +197,12 @@ export default async function CompanyPublicPage({
                 <Link
                   key={p.id}
                   href={`/products/${p.id}`}
-                  className="group border border-black/10 bg-white/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-lg dark:border-white/10 dark:bg-white/3 dark:hover:bg-white/5 rounded-lg hover:rounded-2xl"
+                  className="group min-w-0 rounded-xl border border-border bg-card text-card-foreground hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <div className="flex gap-4 p-4">
-                    <div className="relative h-20 w-20 flex-none overflow-hidden bg-black/5 dark:bg-white/3 rounded-md transition-[border-radius] duration-200 group-hover:rounded-xl">
+                    <div className="relative h-20 w-20 flex-none overflow-hidden bg-muted rounded-md">
                       {p.image?.[0] ? (
-                        <Image src={p.image[0]} alt={p.title} fill className="object-cover" />
+                        <Image src={p.image[0]} alt={p.title} fill sizes="80px" className="object-cover" />
                       ) : null}
                     </div>
                     <div className="min-w-0">
@@ -215,7 +213,7 @@ export default async function CompanyPublicPage({
                         {p.title}
                       </div>
                       <div className="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                        ${p.price.toFixed(2)}
+                        {new Intl.NumberFormat('en', { style: 'currency', currency: p.priceCurrency, currencyDisplay: 'code' }).format(p.price)}
                       </div>
                     </div>
                   </div>
@@ -231,9 +229,9 @@ export default async function CompanyPublicPage({
             companyName={company.name}
             stats={{
               totalProductViews,
-              uniqueVisitors,
               productCount: company.Product.length,
               averageRating,
+              reviewCount: allRatings.length,
             }}
           />
         </div>

@@ -7,6 +7,7 @@ import { companyCreationSchema } from '@/schemas';
 import { EmployeeRole, Prisma, Product } from '@/generated/prisma/client';
 import { lookupNorwegianOrganization, normalizeNorwegianOrgNumber } from '@/lib/norway-org';
 import { sendCompanyOrgVerificationEmail } from '@/lib/mail';
+import { isDemoUserId } from '@/lib/demo-policy';
 
 type GetCompanyResult = Product[];
 type CreateCompanyResult = { error: string } | { success: string; companyId: string };
@@ -23,14 +24,11 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
     return { error: 'Unauthorized — you must be logged in to create a company.' };
   }
   const sessionUserId = session.user.id;
-
-  console.log('MyCreateCompanyAction() Creating company with values:', values);
+  if (isDemoUserId(sessionUserId)) return { error: 'Company creation is unavailable in the demo.' };
   
   const validateFields = companyCreationSchema.safeParse(values);
-  console.log('Validating fields:', validateFields);
 
   if (!validateFields.success) {
-    console.error('Validation failed', validateFields.error.format());
     const errorMessage = validateFields.error.issues.map(issue => `${issue.path.join('.')} - ${issue.message}`).join('; ');
     return { error: `Validation error: ${errorMessage}` };
   }
@@ -58,7 +56,7 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
   // Override client-supplied IDs with verified session user
   // (prevents IDOR — callers cannot create companies owned by another user)
   if (creatorId !== sessionUserId || ownerId !== sessionUserId) {
-    console.warn(`[create-company] ID mismatch: client sent creator=${creatorId}, owner=${ownerId}, session is ${sessionUserId}. Overriding.`);
+    console.warn('[create-company] Ignored client ownership override.');
   }
   const safeCreatorId = sessionUserId;
   const safeOwnerId = sessionUserId;
@@ -152,7 +150,6 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
         });
       }
 
-      console.log('Created company:', company.name);
       return company;
     });
 
@@ -170,8 +167,8 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
             token: pending.token,
             expiresHours: 48,
           });
-        } catch (mailErr) {
-          console.error('[create-company] failed to send org verification email', mailErr);
+        } catch {
+          console.error('[create-company] Failed to send organization verification email.');
         }
       }
     }
@@ -184,7 +181,7 @@ const MyCreateCompanyAction = async (values: z.infer<typeof companyCreationSchem
       companyId: createdCompany.id,
     };
   } catch (error) {
-    console.error('Error creating company:', error);
+    console.error('[create-company] Creation failed.');
     let message = 'Failed to create the company. Please try again.';
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       message += ` Error Code: ${error.code}`;

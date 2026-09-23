@@ -4,7 +4,7 @@
  */
 'use client';
 
-import React, { startTransition, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -28,6 +28,7 @@ import { companyCreationSchema } from '@/schemas';
 import { EmployeeRole, User } from '@/generated/prisma/browser';
 import { useRouter } from 'next/navigation';
 import { formatNorwegianOrgNumber, normalizeNorwegianOrgNumber, type NorwayOrgLookupResult, type NorwayOrgSuggestion } from '@/lib/norway-org';
+import { AdminUsersListResponseSchema } from '@/lib/types/users';
 
 type UIEmployee = {
   userId: string;
@@ -87,7 +88,7 @@ export const MyCompanyCreateForm = () => {
   const [bannerFile, setBannerFile] = useState<File[]>([]);
   const [logoPreview, setLogoPreview] = useState<string[]>([]);
   const [bannerPreview, setBannerPreview] = useState<string[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<Pick<User, 'id' | 'name' | 'email' | 'image'>[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [employeeList, setEmployeeList] = useState<UIEmployee[]>(
     user?.id ? [INITIAL_OWNER_EMPLOYEE({ id: user.id, email: user.email, image: user.image })] : []
@@ -146,14 +147,21 @@ export const MyCompanyCreateForm = () => {
   }, [UID, isDirty, watchedOwnerId, reset]);
 
   useEffect(() => {
+    if (user?.role !== 'ADMIN') return;
+    const controller = new AbortController();
     const fetchUsers = async () => {
-      const response = await fetch('/api/users');
-      const data = await response.json();
-      setUsers(data);
+      try {
+        const response = await fetch('/api/users', { signal: controller.signal });
+        if (!response.ok) throw new Error('User directory unavailable');
+        const data = AdminUsersListResponseSchema.parse(await response.json());
+        if (!controller.signal.aborted) setUsers(data);
+      } catch {
+        if (!controller.signal.aborted) setError2('Team members could not be loaded. You can still create your company.');
+      }
     };
-
-    fetchUsers();
-  }, [user]);
+    void fetchUsers();
+    return () => controller.abort();
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     const normalized = normalizeNorwegianOrgNumber(watchedOrgNumber);
@@ -351,46 +359,41 @@ export const MyCompanyCreateForm = () => {
     setError('');
     setError2('');
     setSuccess('');
-    const newValues = await imageHandler(values, logoFile, bannerFile, edgestore);
+    try {
+      const newValues = await imageHandler({ ...values }, logoFile, bannerFile, edgestore);
 
-    if (values.warehouseLocations) {
-      values.warehouseLocations.forEach(location => {
-        if (location.latitude !== undefined) {
-          location.latitude = parseFloat(location.latitude.toString());
-        }
-        if (location.longitude !== undefined) {
-          location.longitude = parseFloat(location.longitude.toString());
-        }
-      });
-    }
-
-    const updatedEmployeeList = user?.id ? [
-      INITIAL_OWNER_EMPLOYEE({ id: user.id, email: user.email, image: user.image }),
-      ...employeeList.filter(employee => employee.userId !== user?.id),
-    ] : employeeList;
-
-    const updatedFormData = {
-      ...newValues,
-      employees: updatedEmployeeList,
-    };
-
-    console.log('Submitting with FINAL updated data / VALUES:', updatedFormData);
-
-    startTransition(() => {
-      MyCreateCompanyAction(updatedFormData)
-        .then((data) => {
-          if ('error' in data) {
-            setError(data.error);
+      if (values.warehouseLocations) {
+        values.warehouseLocations.forEach(location => {
+          if (location.latitude !== undefined) {
+            location.latitude = parseFloat(location.latitude.toString());
           }
-          if ('success' in data) {
-            setSuccess(data.success);
-            router.push(`/companies/${data.companyId}`);
+          if (location.longitude !== undefined) {
+            location.longitude = parseFloat(location.longitude.toString());
           }
         });
-    });
+      }
 
-    setError('');
-    setSuccess('');
+      const updatedEmployeeList = user?.id ? [
+        INITIAL_OWNER_EMPLOYEE({ id: user.id, email: user.email, image: user.image }),
+        ...employeeList.filter(employee => employee.userId !== user?.id),
+      ] : employeeList;
+
+      const updatedFormData = {
+        ...newValues,
+        employees: updatedEmployeeList,
+      };
+
+      // Await the action so the submit lock covers the entire request. A failed
+      // upload/action retains the draft and never dumps employee details to logs.
+      const data = await MyCreateCompanyAction(updatedFormData);
+      if ('error' in data) setError(data.error);
+      if ('success' in data) {
+        setSuccess(data.success);
+        router.push(`/companies/${data.companyId}`);
+      }
+    } catch {
+      setError('We couldn’t create your company. Your details are still here; please try again.');
+    }
   };
 
   const handleReset = () => {
@@ -424,7 +427,7 @@ export const MyCompanyCreateForm = () => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-8 [&_input:not([type=hidden])]:min-h-12 [&_input]:text-base [&_textarea]:text-base [&_[role=combobox]]:min-h-12 [&_[role=combobox]]:text-base">
 
         {/* ── Section 1: Company Details ── */}
         <Card>
@@ -1033,7 +1036,7 @@ export const MyCompanyCreateForm = () => {
         </Card>
 
         {/* ── Submit Footer ── */}
-        <div className="space-y-3">
+        <div className="sticky bottom-0 z-10 space-y-3 border-t border-border bg-background/95 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <MyFormError message={error} />
           <MyFormSuccess message={success} />
           <Button

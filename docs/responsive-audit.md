@@ -258,6 +258,33 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Old-live settled LCP was 14,700ms. Remaining server/network delay and roughly
   1.66MB resource transfer mean this is improvement, not a performance pass.
 
+### Companies follow-up (local verified; live pending)
+
+- Directory: preserved heading and cached public results across auth resolution;
+  independent account-company reads, explicit retry, matching card skeletons,
+  responsive one/two/three/four-column grid and a centered 1280px canvas. Demo
+  onboarding is compact and links to a non-writing setup preview.
+- Storefront: corrected hardcoded dollar prices to the stored currency, filtered
+  the database relation to PUBLIC products, removed a misleading 70%-of-views
+  “unique visitor” estimate and unmeasured sales chart. Recorded views/reviews
+  now render as an accessible server-side summary without a chart bundle.
+  Added image sizes, a back link, theme tokens and consistent mobile gutters.
+- Setup: demo/anonymous sessions do not mount the uploading form. Added a
+  server-action demo denial as defense in depth. Normal form waits for its action,
+  retains drafts on errors, uses 16px/48px controls and a safe-area submit footer.
+  Only ADMIN requests the admin-only user directory; payload logging removed.
+- Local production build/TypeScript/touched lint pass; **25/25** focused units.
+  Company browser checks **4/4** (11.4s), plus expanded form reflow **2/2** (5.5s).
+  Actual wheel scrolling at 360/390/short landscape/768/1024/1280/1920/2560,
+  storefront-to-PDP links, NOK prices, demo guard, error retry and heading retention
+  verified. Phone top/bottom visuals show the footer after content, not over it.
+- First build caught an optional-description type mismatch, corrected. Initial
+  retry test omitted auth and correctly redirected to login; supplied the existing
+  demo session without changing route protection. Normal submit error test changes
+  only client fixture identity and intercepts the entire write: no real company,
+  employee invitation or upload is performed. Owner company creation remains a
+  separate feature test, not proven by this mocked failure. Live release pending.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)

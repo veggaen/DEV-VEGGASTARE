@@ -683,6 +683,148 @@ test.describe("Layer 3 — Content", () => {
     } finally { await context.close(); }
   });
 
+  test('S8 — company directory and storefront scroll, preserve currency and respect demo limits', async ({ browser, baseURL }) => {
+    test.setTimeout(90_000);
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses an existing isolated demo session');
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    const writes: string[] = [];
+    let directoryReads = 0;
+    let peopleReads = 0;
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('request', request => {
+      const path = new URL(request.url()).pathname;
+      if (path === '/api/companies/public') directoryReads++;
+      if (path === '/api/users') peopleReads++;
+      if (request.method() === 'POST' && /companies|edgestore/.test(path) && !path.endsWith('/init')) writes.push(path);
+    });
+    try {
+      await page.goto('/companies', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Companies', exact: true })).toBeVisible();
+      const studio = page.locator('a[href="/companies/cveggatshowcasestudio00001"]');
+      await expect(studio).toBeVisible();
+      await expect(page.getByText('Demo preview:', { exact: false })).toBeVisible();
+      expect(directoryReads).toBe(1);
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 },
+        { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 },
+        { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        const scroller = page.locator('[data-site-scroll]');
+        expect(await scroller.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        expect((await page.locator('[data-company-directory]').boundingBox())!.width).toBeLessThanOrEqual(1280);
+        await page.mouse.move(Math.min(size.width / 2, 900), size.height - 90);
+        await page.mouse.wheel(0, 3000);
+        await expect.poll(() => scroller.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThan(2);
+        await page.mouse.wheel(0, -3000);
+        await expect(page.getByRole('heading', { name: 'Companies', exact: true })).toBeInViewport();
+      }
+      await studio.click();
+      await expect(page.getByRole('heading', { name: 'Veggat Studio', exact: true })).toBeVisible();
+      await expect(page.getByText(/NOK\s*29\.00/, { exact: false })).toBeVisible();
+      await expect(page.getByText(/NOK\s*39\.00/, { exact: false })).toBeVisible();
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.mouse.move(Math.min(size.width / 2, 900), size.height - 90);
+        await page.mouse.wheel(0, 3000);
+        await expect(page.getByText('Views may include repeat visits.', { exact: false })).toBeInViewport();
+        await page.mouse.wheel(0, -3000);
+        await expect(page.getByRole('link', { name: 'Back to companies' })).toBeInViewport();
+      }
+      await page.getByRole('link', { name: /Veggat Interview Pack/ }).click();
+      await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+      await page.goto('/companies/create', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('region', { name: 'Company setup preview' })).toBeVisible();
+      await expect(page.locator('form')).toHaveCount(0);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.getByRole('link', { name: 'Explore companies' }).click();
+      await expect(studio).toBeVisible();
+      expect(peopleReads).toBe(0);
+      expect(writes).toEqual([]);
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
+  test('S8 — company form keeps its draft and submit lock on a mocked failure', async ({ browser, baseURL }) => {
+    test.setTimeout(60_000);
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses retained demo auth; no actual company is created');
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    let posts = 0;
+    let directoryReads = 0;
+    let release: () => void = () => {};
+    const responseGate = new Promise<void>(resolve => { release = resolve; });
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('request', request => { if (new URL(request.url()).pathname === '/api/users') directoryReads++; });
+    // Only the rendered UI sees this fixture. Server auth remains the real demo,
+    // and the entire creation request is intercepted before reaching the server.
+    await page.route('**/api/auth/session', async route => {
+      const response = await route.fetch();
+      const session = await response.json();
+      await route.fulfill({ response, json: { ...session, user: { ...session.user, id: 'ui_company_fixture', role: 'USER' } } });
+    });
+    await page.route('**/companies/create', async route => {
+      if (route.request().method() !== 'POST') return route.continue();
+      posts++;
+      await responseGate;
+      await route.fulfill({ status: 503, contentType: 'text/plain', body: 'Fixture unavailable' });
+    });
+    try {
+      await page.goto('/companies/create', { waitUntil: 'domcontentloaded' });
+      await page.getByLabel('Company Name', { exact: true }).fill('Private unsent QA fixture');
+      await page.getByLabel('Description', { exact: true }).fill('This form submission is intercepted and never published.');
+      await page.getByLabel('Website', { exact: true }).fill('https://example.com');
+      const submit = page.getByRole('button', { name: 'Create Company', exact: true });
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 },
+        { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        const fields = await page.locator('form input:not([type=hidden]):visible, form textarea:visible').evaluateAll(elements => elements.map(element => ({
+          font: Number.parseFloat(getComputedStyle(element).fontSize), height: element.getBoundingClientRect().height,
+        })));
+        expect(fields.every(field => field.font >= 16 && field.height >= 44)).toBe(true);
+        await page.mouse.move(Math.min(size.width / 2, 900), size.height - 90);
+        await page.mouse.wheel(0, 6000);
+        await expect(submit).toBeInViewport({ ratio: 1 });
+        await page.mouse.wheel(0, -6000);
+        await expect(page.getByRole('heading', { name: 'Create Your Company', exact: true })).toBeInViewport();
+      }
+      await submit.click();
+      await expect.poll(() => posts).toBe(1);
+      await expect(page.getByRole('button', { name: 'Creating…', exact: true })).toBeDisabled();
+      release();
+      await expect(page.locator('form').getByRole('alert')).toContainText('Your details are still here');
+      await expect(page.getByLabel('Company Name', { exact: true })).toHaveValue('Private unsent QA fixture');
+      await expect(submit).toBeEnabled();
+      expect(directoryReads).toBe(0);
+      expect(errors).toEqual([]);
+    } finally { release(); await context.close(); }
+  });
+
+  test('S8 — company directory failure keeps its heading and can retry', async ({ browser, baseURL }) => {
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Directory route requires an app session');
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    let fail = true;
+    await page.route('**/api/companies/public', route => fail
+      ? route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Fixture outage"}' }) : route.continue());
+    try {
+      await page.goto('/companies', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Companies', exact: true })).toBeVisible();
+      await expect(page.getByText('We couldn’t load the company directory. Please try again.')).toBeVisible();
+      await page.evaluate(() => { (window as Window & { __qaCompanyHeading?: Element | null }).__qaCompanyHeading = document.querySelector('main h1'); });
+      fail = false;
+      await page.getByRole('button', { name: 'Retry directory' }).click();
+      await expect(page.locator('a[href="/companies/cveggatshowcasestudio00001"]')).toBeVisible();
+      expect(await page.evaluate(() => (window as Window & { __qaCompanyHeading?: Element | null }).__qaCompanyHeading === document.querySelector('main h1'))).toBe(true);
+    } finally { await context.close(); }
+  });
+
   test("S8 — warehouse detail is readable without inventory privileges", async ({ browser, baseURL }) => {
     test.setTimeout(60_000);
     test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained app-issued demo session');

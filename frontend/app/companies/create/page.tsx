@@ -7,16 +7,20 @@
 import { MyCompanyCreateForm } from "@/components/uicustom/company/company-create-form";
 import { Building2, ArrowLeft, Lightbulb, Shield, Globe, ExternalLink } from "lucide-react";
 import Link from "next/link";
+import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
+import { isDemoUserId } from '@/lib/demo-policy';
 
 const CompanyCreatePage = () => {
+  const { user, isLoading } = useCurrentUserWithStatus();
+  const isDemo = isDemoUserId(user?.id);
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950/95">
+    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950/95">
       {/* ── Breadcrumb bar (sticky) ── */}
       <div className="border-b border-zinc-200/70 dark:border-zinc-800/40 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 h-14 flex items-center">
           <Link
             href="/companies"
-            className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
+            className="inline-flex min-h-11 items-center gap-2 text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ArrowLeft className="size-4" />
             Companies
@@ -44,8 +48,15 @@ const CompanyCreatePage = () => {
         {/* Two-column: form + sidebar on lg */}
         <div className="lg:grid lg:grid-cols-[1fr_280px] lg:gap-10">
           {/* Form */}
-          <div className="min-w-0">
-            <MyCompanyCreateForm />
+          <div className="min-w-0 max-w-xl">
+            {isLoading ? <p role="status">Loading your workspace…</p> : isDemo ? (
+              <section aria-label="Company setup preview" className="rounded-xl border border-border bg-card p-5 text-card-foreground sm:p-6">
+                <h2 className="text-lg font-semibold">Company setup preview</h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Your demo can browse storefronts, products and checkout. Publishing a company, uploading files and inviting team members require your own account.</p>
+                <ol className="mt-5 list-inside list-decimal space-y-3 text-sm"><li>Add your company profile and branding.</li><li>Verify your registered organization, if applicable.</li><li>Invite your team and publish your first product.</li></ol>
+                <Link href="/companies" className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Explore companies</Link>
+              </section>
+            ) : user ? <MyCompanyCreateForm /> : <p className="rounded-xl border border-border p-5">Sign in to create your company. <Link className="inline-flex min-h-11 items-center underline" href="/auth/login?callbackUrl=%2Fcompanies%2Fcreate">Sign in</Link></p>}
           </div>
 
           {/* Sidebar – desktop only */}

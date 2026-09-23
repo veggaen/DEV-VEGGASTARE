@@ -111,6 +111,18 @@ member-to-member delivery remains separate from the mocked error test.
   CLS **0**. Paint no longer waits for wallet hydration, but server/network latency
   and JavaScript weight still need work; this is not a Core Web Vitals pass.
 
+## S8 — Companies follow-up (local verified; live pending)
+
+- Compact responsive directory, persistent heading/results and retry, role-aware
+  demo setup preview, currency-correct storefront and honest server-rendered
+  activity summary. Non-public products are excluded from the storefront query.
+- Normal creation form keeps its submit lock/draft on error; server demo denial,
+  admin-only user-directory fetching and payload-log removal added.
+- Production build/TypeScript/touched lint pass; focused units **25/25**. Browser
+  directory/detail/navigation/scroll/error coverage **4/4** (11.4s); expanded form
+  reflow/failure **2/2** (5.5s). UI-only creation requests are fully intercepted,
+  so actual company creation/team invitation is not claimed. Live pending.
+
 ## S5 — Metered AI integration (demo debit/denial verified local/live; paid purchase blocked)
 
 - Added reservation/refund state machine, one-time isolated demo grant, environment
