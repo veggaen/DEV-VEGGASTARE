@@ -716,6 +716,51 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   feature work elsewhere remain tracked separately; no live payment or new
   AI credit grant was made during this catalog slice.
 
+## Cart follow-up — readable rows and uncertain update recovery
+
+- Reconfirmed Pulse with actual wheel input: the first 60px gesture remains at
+  60px, footer hidden while pagination remains. At 844×390 the navigation drawer
+  reaches its 752px scroll boundary while the background remains at 60px. Escape
+  restores Menu focus. An initial manual wheel used pre-animation coordinates;
+  observing the settled drawer and retrying reached the expected boundary.
+- `frontend/app/cart/page.tsx`: the old 390px layout squeezed both titles to
+  roughly 120px beside quantity controls. Rows now wrap titles, put 44px quantity
+  and removal controls on a separate line, provide native product links, and
+  use correctly sized 80/96px thumbnails. The 1280px canvas centers at x=640 on
+  2560px displays; summary follows items on mobile and sits beside them at lg.
+- Route and data skeletons now share the same header/row/summary structure.
+  Removed delayed Framer Motion entrances and layout animations from essential
+  cart content. Reduced-motion users do not get a spinning pending indicator.
+- Cart estimates show each listing's actual currency, not a shifting converted
+  USD total. Reviewer products total 68 NOK. Mixed currencies have separate
+  subtotals; invalid/overflowing prices disable checkout. Checkout still reads
+  its own server price list. Demo copy makes the zero-cost option explicit.
+- `frontend/hooks/use-cart-page.ts`: locks repeated clicks per row, applies only
+  the returned authoritative row, and avoids the additional GET after success.
+  Failed edits cannot overwrite another row's success. A lost response triggers
+  a bounded read, never an automatic repeat of a possibly committed increment.
+  Rows stay present during removal/failure; refresh failure blocks edits and
+  checkout until explicit recovery. Requests abort on unmount/identity changes.
+- Focused units **11/11** and touched-file lint pass. First production build
+  caught an optional-session type error; the corrected build and TypeScript pass.
+  First browser batch **6/8**: one new test collided with Next's route announcer;
+  the other exposed a genuine separate 53px auth-chrome shift. Corrected cart
+  selectors/readiness yield **3/3** including setup for the eight-size scroll/
+  geometry and concurrent-edit/failed-read/recovery checks. Final combined local
+  batch **8/8** passes (40.2s), including real demo cart persistence/quantity/
+  removal/badge and catalog Buy-now to checkout, plus Pulse/drawer regressions.
+  Expanded cart/scroll units **20/20** pass.
+- Remaining shared-shell finding: `DemoSessionNotice` inserts 53px after the
+  client session resolves on hard load. Cart geometry is stable after that
+  chrome resolves, but this is **not** a zero-CLS claim. A shared SSR/session
+  solution needs its own auth/cache regression pass; do not hide this finding
+  by merely loosening the cart assertion.
+- Remaining PDP/checkout audit: pending duplicate Add/Buy lock; generic digital
+  delivery copy incorrectly implies files for AI credits; forced dark PDP error
+  colors; delayed below-fold sections; checkout's unqualified download-expiry
+  copy and inconsistent canvas/border tokens. No owner controls, payments or
+  extra AI credit grants were invoked during this cart audit.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)

@@ -1,5 +1,129 @@
 import { test, expect } from "@playwright/test";
 
+test('S7 — cart layout, exact currency and scrolling work at eight sizes', async ({ browser, baseURL }) => {
+  test.setTimeout(90_000);
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const products = await (await context.request.get('/api/products?perPage=2')).json();
+  const lines = products.map((p: { id: string; title: string; price: number; priceCurrency: string; image: string[] }, i: number) => ({ id: `cart-layout-${i}`, quantity: 1, product: { id: p.id, title: p.title, price: p.price, priceCurrency: p.priceCurrency, image: p.image } }));
+  let release!: () => void;
+  const initial = new Promise<void>(resolve => { release = resolve; });
+  await page.route(url => /^\/api\/cart\/[^/]+$/.test(url.pathname), async route => {
+    await initial;
+    await route.fulfill({ json: { id: 'cart-layout', userId: 'demo-layout', items: lines } });
+  });
+  try {
+    await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('status', { name: 'Loading cart', exact: true })).toBeVisible();
+    // Measure the cart transition after auth chrome resolves; the separate
+    // late demo-notice shift is recorded in the shared-shell audit backlog.
+    await expect(page.getByRole('button', { name: 'Exit demo', exact: true })).toBeVisible();
+    const before = await page.getByRole('heading', { name: 'Your cart', exact: true }).boundingBox();
+    release();
+    const rows = page.getByRole('region', { name: 'Cart items', exact: true }).getByRole('listitem');
+    await expect(rows).toHaveCount(2);
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+    expect((await page.getByRole('heading', { name: 'Your cart', exact: true }).boundingBox())!.y).toBe(before!.y);
+    await expect(page.getByRole('region', { name: 'Cart summary' })).toContainText(/NOK\s*68\.00/);
+    const scroll = page.locator('[data-site-scroll]');
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size);
+      await scroll.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('main, [data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+      for (const row of await rows.all()) {
+        const heading = row.getByRole('heading');
+        expect(await heading.evaluate(e => e.scrollWidth <= e.clientWidth && e.scrollHeight <= e.clientHeight)).toBe(true);
+        for (const button of await row.getByRole('button').all()) expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
+      const summary = await page.getByRole('region', { name: 'Cart summary' }).boundingBox();
+      const lastRow = await rows.last().boundingBox();
+      if (size.width < 1024) expect(summary!.y).toBeGreaterThan(lastRow!.y + lastRow!.height);
+      else expect(summary!.x).toBeGreaterThan(lastRow!.x + lastRow!.width);
+      await page.mouse.move(size.width - 24, size.height - 30); await page.mouse.wheel(0, 10000);
+      await expect.poll(() => scroll.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+      await expect(page.locator('footer')).toBeInViewport();
+      await page.mouse.wheel(0, -10000); await expect.poll(() => scroll.evaluate(e => e.scrollTop)).toBe(0);
+      expect(await page.evaluate(() => scrollY)).toBe(0);
+      test.info().annotations.push({ type: 'cart-viewport', description: `${size.width}x${size.height}` });
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });
+    await rows.first().getByRole('heading').getByRole('link').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('heading', { name: lines[0].product.title, exact: true, level: 1 })).toBeVisible();
+    expect(errors).toEqual([]);
+  } finally { release(); await context.close(); }
+});
+
+test('S7 — cart concurrent edits and failure recovery retain rows without a skeleton', async ({ browser, baseURL }) => {
+  test.setTimeout(60_000);
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const products = await (await context.request.get('/api/products?perPage=2')).json();
+  const cartAlert = page.locator('main').getByRole('alert');
+  let lines = products.map((p: { id: string; title: string; price: number; priceCurrency: string; image: string[] }, i: number) => ({ id: `cart-concurrency-${i}`, quantity: 1, product: { id: p.id, title: p.title, price: p.price, priceCurrency: p.priceCurrency, image: p.image } }));
+  let failRead = true;
+  let failFirst = true;
+  let releaseFirst!: () => void;
+  let releaseSecond!: () => void;
+  const first = new Promise<void>(resolve => { releaseFirst = resolve; });
+  const second = new Promise<void>(resolve => { releaseSecond = resolve; });
+  let mutations = 0;
+  let reads = 0;
+  await page.route(url => url.pathname.startsWith('/api/cart/'), async route => {
+    if (route.request().method() === 'GET') {
+      reads++;
+      return route.fulfill(failRead ? { status: 503, json: { error: 'Fixture unavailable' } } : { json: { id: 'cart-concurrency', userId: 'demo-layout', items: lines } });
+    }
+    mutations++;
+    const id = new URL(route.request().url()).pathname.split('/').at(-1);
+    if (id === lines[0]?.id && failFirst) { await first; return route.fulfill({ status: 503, json: { error: 'Fixture failure' } }); }
+    if (mutations === 2) await second;
+    if (route.request().method() === 'DELETE') { lines = lines.filter((i: { id: string }) => i.id !== id); return route.fulfill({ json: { message: 'Removed' } }); }
+    const change = route.request().postDataJSON().changeType === 'increment' ? 1 : -1;
+    lines = lines.map((i: { id: string; quantity: number }) => i.id === id ? { ...i, quantity: i.quantity + change } : i);
+    return route.fulfill({ json: lines.find((i: { id: string }) => i.id === id) });
+  });
+  try {
+    await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+    const rows = page.getByRole('region', { name: 'Cart items' }).getByRole('listitem');
+    await expect(cartAlert).toContainText('refresh before making another change');
+    await expect(page.getByRole('heading', { name: 'Your cart is empty', exact: true })).toHaveCount(0);
+    failRead = false;
+    await page.getByRole('button', { name: 'Refresh saved cart', exact: true }).click();
+    await expect(rows).toHaveCount(2);
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+    await rows.first().getByRole('button', { name: 'Increase quantity', exact: true }).click();
+    await rows.last().getByRole('button', { name: 'Increase quantity', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Updating cart…', exact: true })).toBeDisabled();
+    await expect(page.getByRole('status', { name: 'Loading cart', exact: true })).toHaveCount(0);
+    expect(mutations).toBe(2);
+    releaseSecond(); await expect(rows.last()).toHaveAttribute('aria-busy', 'false');
+    failRead = true; releaseFirst();
+    await expect(cartAlert).toContainText('refresh before making another change');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.last().getByRole('group')).toContainText('2');
+    await expect(rows.first().getByRole('group')).toContainText('1');
+    await expect(page.getByRole('button', { name: 'Proceed to checkout', exact: true })).toBeDisabled();
+    failRead = false; failFirst = false;
+    await page.getByRole('button', { name: 'Refresh saved cart', exact: true }).click();
+    await expect(cartAlert).toHaveCount(0);
+    const readsBefore = reads;
+    await rows.last().getByRole('button', { name: 'Decrease quantity', exact: true }).click();
+    await expect(page.getByRole('link', { name: 'Proceed to checkout', exact: true })).toBeVisible();
+    expect(reads).toBe(readsBefore);
+    await rows.first().getByRole('button', { name: 'Remove', exact: true }).click();
+    await expect(rows).toHaveCount(1); expect(reads).toBe(readsBefore);
+    await expect(page.getByRole('status', { name: 'Loading cart', exact: true })).toHaveCount(0);
+  } finally { releaseFirst(); releaseSecond(); await context.close(); }
+});
+
 test('S7 — catalog canvas, first wheel and controls remain stable at eight sizes', async ({ browser, baseURL }) => {
   test.setTimeout(120_000);
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, colorScheme: 'dark' });

@@ -39,6 +39,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## S3 — Marketplace (catalog/cart DONE; paid completion continues in S4)
 
+- Cart responsive/reliability follow-up: full mobile titles, independent 44px
+  controls, original-currency subtotals, native product links, shared route/data
+  skeleton, and centered 1280px canvas. Row-scoped locks/rollback, bounded reads,
+  inline errors and checkout blocking handle uncertain updates without clearing
+  content. Successful edits no longer require another GET. Focused units 11/11,
+  touched-file lint and corrected production build/TypeScript pass. Initial
+  browser batch 6/8, corrected new tests 3/3; combined local regression **8/8**
+  (40.2s), expanded cart/scroll units **20/20**. Live release check pending.
+  Separate 53px late-demo-banner shift remains explicitly tracked in
+  the responsive audit. No payment or credit grant performed.
+
 - Seeded only two new, fixed-ID reviewer products and Veggat Studio; existing listings were preserved. Interview Pack: 29 NOK; AI credits: 39 NOK. Seed supports transactional `--dry-run`.
 - Original AI-generated fjord artwork is disclosed as such. Optimized public gallery previews are deployed; full-resolution JPG/PNG and the actual TXT remain private and are not yet provisioned for paid delivery. See `showcase-artwork.md` for generation provenance.
 - Local production build: home → normal demo sign-in → both product pages → add each → two separate cart lines → reload cart at 390/1280 passed (2/2 including setup). Images decoded successfully; no browser exceptions or horizontal overflow.
