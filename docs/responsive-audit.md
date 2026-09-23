@@ -802,6 +802,49 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   copy and inconsistent canvas/border tokens. No owner controls, payments or
   extra AI credit grants were invoked during this cart audit.
 
+## Shared session first-paint follow-up (local verified; live pending)
+
+- The server now passes its verified Auth.js session into the existing provider
+  tree. Demo chrome and the Pulse composer no longer depend on a client session
+  GET. Page minimum height follows the actual shell space instead of post-mount
+  header/banner measurements. Server API/action authorization is unchanged.
+- Tradeoff: all personalized page HTML is request-rendered and private, including
+  public routes (which remain accessible anonymously). Never shared-cache this
+  HTML. Public asset and explicitly cached data paths remain separate.
+- The new regression first failed on both widths against the old static release.
+  First candidate local batch was **9/14**: geometry/cache/cart/auth checks passed,
+  but all five signed-in Pulse cases exposed React hydration error 418. Readable
+  development diagnostics identified `useDictation` checking browser capabilities
+  in its initial state. It now uses the existing hydration-safe readiness hook;
+  three new voice capability/hydration units pass without recording audio or
+  contacting a provider. Combined auth/scroll/voice units **33/33**; touched lint
+  passes. Corrected production build/TypeScript and local browser **20/20**
+  (1.5m) pass: delayed scripts at 390/1280, private/invalid-session responses,
+  eight-size cart/catalog/Pulse scrolling, auth layout, Settings, AI, Messages,
+  profile and the real marketplace cart flow. Real register/verify/reset/replay/
+  revocation/login/logout/2FA plus OAuth-origin checks also pass **3/3** (14s).
+  Live verification remains pending.
+- Before-change warm local full-HTML round trips (three sequential samples,
+  not TTFB/field CWV): guest Products 7/7/9ms, Pulse 5/6/5ms; demo Products
+  10/9/9ms, Pulse 8/6/7ms, cart 6/7/6ms. These previously shared-cached bodies
+  did not contain the demo notice. Session correctness has a rendering cost;
+  compare it explicitly rather than claiming that every request became faster.
+- After-change warm local full-HTML samples: guest Products 18/18/17ms, Pulse
+  15/14/14ms; demo Products 61/60/62ms, Pulse 60/60/59ms, cart 56/56/57ms.
+  All responses are private/no-store; only the authenticated response contains
+  demo chrome. Home remained roughly unchanged (guest 21/19/19ms, warmed demo
+  65/64ms). This is a small local sample, not a production latency/CWV claim.
+- Visual check of the real 25-post mobile feed: no browser exceptions, no
+  premature footer, document scrollY=0. Feed wheel reached 2000px; settled
+  navigation drawer reached its 298px end while the feed stayed at 2000px.
+  The first manual wheel missed because its pointer coordinates were sampled
+  during the drawer entrance (x=391, outside the viewport); after transition
+  completion the actual drawer x=33 was used. No application defect inferred
+  from that missed input. Automated drawer tests already wait for completion.
+- Fresh computer-use inventory still reports no apps/browsers. Actual owner
+  Chrome/physical-phone behavior remains unverified; Playwright is not reported
+  as the owner's browser.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
@@ -823,4 +866,5 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - [Next.js persistent function caching](https://nextjs.org/docs/app/api-reference/functions/unstable_cache)
 - [CSS overflow and programmatic scrolling](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overflow)
 - [Next.js request-time rendering](https://nextjs.org/docs/app/api-reference/functions/connection)
+- [Auth.js server/client session initialization](https://authjs.dev/getting-started/session-management/get-session)
 - [CSS subgrid](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Grid_layout/Subgrid)

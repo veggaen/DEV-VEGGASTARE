@@ -355,6 +355,23 @@ member-to-member delivery remains separate from the mocked error test.
   owner OAuth consent are not claimed. Remaining auth-page layout and AI Keys
   management findings are recorded in the responsive audit.
 
+## S7 — Shared session first paint (local verified; live pending)
+
+- Root SSR initializes the existing SessionProvider from verified Auth.js state.
+  Demo banner/Pulse composer no longer appear after scrolling begins. The page
+  minimum height uses actual remaining shell space; footer placement no longer
+  depends on post-mount banner measurements. Personalized HTML is private/no-store;
+  public routes stay public and API/action authorization remains unchanged.
+- First local candidate **9/14** exposed a signed-in voice-control hydration
+  mismatch. Fixed capability detection through the existing readiness hook.
+  New hydration regressions plus auth/scroll units **33/33**, touched lint,
+  production build/TypeScript pass. Corrected browser regression **20/20** (1.5m)
+  and real recovery/2FA/OAuth-origin regression **3/3** (14s) pass locally.
+- Explicit tradeoff: warmed local demo HTML now 56–62ms on Products/Pulse/cart,
+  versus old guest-only cached 6–10ms; the initial client session fetch and late
+  identity reflow are removed. Not a field-speed or zero-CLS claim. Full audit,
+  live verification and owner-only prerequisites remain incomplete.
+
 | Area | Feature | Status / evidence |
 | --- | --- | --- |
 | Auth | Email login, session | DONE — current local/live browser round trips, revoked sessions rejected |

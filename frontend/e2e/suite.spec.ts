@@ -1,5 +1,93 @@
 import { test, expect } from "@playwright/test";
 
+for (const width of [390, 1280]) {
+test(`S7 — server session prevents late-auth layout and scroll jumps (${width}px)`, async ({ browser, baseURL }) => {
+  test.setTimeout(60_000);
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+    viewport: { width, height: 844 }, colorScheme: 'dark' });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => {
+    if (message.type() === 'error' && /hydration|hydrating|#418|#423|#425/i.test(message.text())) errors.push(message.text());
+  });
+  let releaseScripts!: () => void;
+  const scripts = new Promise<void>(resolve => { releaseScripts = resolve; });
+  let sessionRequests = 0;
+  await page.route('**/_next/static/**', async route => {
+    if (new URL(route.request().url()).pathname.endsWith('.js')) await scripts;
+    await route.continue();
+  });
+  // A blocked client session endpoint must not change the identity or layout
+  // of the server-rendered page. No real authentication response is modified.
+  await page.route('**/api/auth/session', route => { sessionRequests++; return route.abort(); });
+  await page.route('**/api/conversations?**', route => route.fulfill({ json: {
+    conversations: Array.from({ length: 12 }, (_, index) => ({
+      id: `session-layout-${index}`, title: `Session layout post ${index}`,
+      description: 'A repeatable post for checking the scroll position after session initialization.',
+      type: 'PUBLIC_THREAD', tags: ['layout'], userId: 'layout-fixture-user',
+      user: { id: 'layout-fixture-user', name: 'Layout reviewer', email: '' },
+      createdAt: '2026-01-01T12:00:00.000Z', messageCount: 1, hasPoll: false,
+    })), nextCursor: null,
+  } }));
+  try {
+    const response = await page.goto('/pulse', { waitUntil: 'commit' });
+    expect(response!.headers()['cache-control']).toContain('private');
+    expect(response!.headers()['cache-control']).not.toContain('s-maxage');
+    const notice = page.getByRole('complementary', { name: 'Demo mode', exact: true });
+    await expect(notice).toBeVisible();
+    const composer = page.getByRole('textbox', { name: 'Write a Pulse', exact: true });
+    await expect(composer).toBeVisible();
+    const beforeComposer = await composer.boundingBox();
+    const before = await notice.boundingBox();
+    const scroll = page.locator('[data-site-scroll]');
+    const beforeScroll = await scroll.boundingBox();
+    releaseScripts();
+    await expect(page.getByRole('feed', { name: 'Pulse feed' }).getByRole('article')).toHaveCount(12);
+    expect(await notice.boundingBox()).toEqual(before);
+    expect(await scroll.boundingBox()).toEqual(beforeScroll);
+    expect(await composer.boundingBox()).toEqual(beforeComposer);
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+    await page.mouse.move(width / 2, 700);
+    await page.mouse.wheel(0, 1500);
+    await expect.poll(() => scroll.evaluate(e => e.scrollTop)).toBeGreaterThan(1000);
+    const position = await scroll.evaluate(e => e.scrollTop);
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Navigation Menu', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Navigation Menu', exact: true })).toBeHidden();
+    expect(await scroll.evaluate(e => e.scrollTop)).toBe(position);
+    expect(sessionRequests).toBe(0);
+    expect(await page.evaluate(() => scrollY)).toBe(0);
+    expect(errors).toEqual([]);
+  } finally { releaseScripts(); await context.close(); }
+});
+}
+
+test('S2 — personalized HTML stays private and invalid sessions fail closed', async ({ playwright, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const guest = await playwright.request.newContext({ baseURL });
+  const demo = await playwright.request.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  const invalid = await playwright.request.newContext({ baseURL, extraHTTPHeaders: {
+    Cookie: `${baseURL?.startsWith('https:') ? '__Secure-' : ''}authjs.session-token=invalid-test-session`,
+  } });
+  try {
+    for (const path of ['/', '/products', '/pulse']) {
+      for (const [client, isDemo] of [[guest, false], [demo, true], [guest, false], [invalid, false]] as const) {
+        const response = await client.get(path);
+        expect(response.status()).toBe(200);
+        expect(response.headers()['cache-control']).toContain('private');
+        expect(response.headers()['cache-control']).not.toContain('s-maxage');
+        expect((await response.text()).includes('aria-label="Demo mode"')).toBe(isDemo);
+      }
+    }
+    expect((await (await invalid.get('/api/auth/session')).json())?.user).toBeUndefined();
+    expect((await invalid.get('/api/wallets')).status()).toBe(401);
+  } finally { await Promise.all([guest.dispose(), demo.dispose(), invalid.dispose()]); }
+});
+
 test('S7 — cart layout, exact currency and scrolling work at eight sizes', async ({ browser, baseURL }) => {
   test.setTimeout(90_000);
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
@@ -18,8 +106,8 @@ test('S7 — cart layout, exact currency and scrolling work at eight sizes', asy
   try {
     await page.goto('/cart', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('status', { name: 'Loading cart', exact: true })).toBeVisible();
-    // Measure the cart transition after auth chrome resolves; the separate
-    // late demo-notice shift is recorded in the shared-shell audit backlog.
+    // This case measures the cart transition; the separate slow-script shell
+    // case verifies that demo chrome is already correct before hydration.
     await expect(page.getByRole('button', { name: 'Exit demo', exact: true })).toBeVisible();
     const before = await page.getByRole('heading', { name: 'Your cart', exact: true }).boundingBox();
     const skeletonRow = await page.getByRole('status', { name: 'Loading cart', exact: true }).locator('[aria-hidden="true"]').first().locator(':scope > div').first().boundingBox();
@@ -2140,8 +2228,8 @@ test.describe("Layer 3 — Content", () => {
       await page.goto('/pulse', { waitUntil: 'domcontentloaded' });
       const feed = page.getByRole('feed', { name: 'Pulse feed' });
       await expect(feed).toHaveAttribute('aria-busy', 'false');
-      // This case isolates pagination from the separately recorded late-auth
-      // composer/banner shift (63px/53px). Establish the retained session first.
+      // Establish the retained identity explicitly; the separate slow-script
+      // shell regression also verifies its server-rendered first paint.
       if (process.env.E2E_DEMO_STORAGE_STATE) await expect(page.getByRole('button', { name: 'Exit demo', exact: true })).toBeVisible();
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
       if (await consent.isVisible()) await consent.click();

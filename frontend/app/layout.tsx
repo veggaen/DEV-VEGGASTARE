@@ -2,6 +2,7 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
 import AppProviders from "@/components/providers/app-providers";
+import { auth } from "@/auth";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -32,14 +33,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children, modal }: { children: React.ReactNode; modal: React.ReactNode }) {
+export default async function RootLayout({ children, modal }: { children: React.ReactNode; modal: React.ReactNode }) {
+  // Initialize both SSR and hydration with the same verified identity. Otherwise
+  // the demo banner and signed-in composer arrive after users start scrolling.
+  // auth() reads request headers: personalized HTML must never be shared-cached.
+  // Route handlers/actions still perform their own authorization checks.
+  const session = await auth();
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${inter.className} myanimation min-h-dvh flex flex-col bg-background text-foreground`}
         suppressHydrationWarning={true}
       >
-      <AppProviders>
+      <AppProviders session={session}>
         {children}
         {modal}
       </AppProviders>

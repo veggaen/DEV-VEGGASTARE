@@ -108,7 +108,9 @@ export default function AppShell({
                     <ImpersonationBanner />
                     <DemoSessionNotice />
                     <PageScroller scrollKey={scrollKey} contained={Boolean(isProductsRoute || isImmersiveChat)}>
-                      <main id="main-content" tabIndex={-1} className={`min-w-0 outline-none ${isProductsRoute || isImmersiveChat ? 'flex flex-1 flex-col min-h-0' : 'shrink-0 min-h-[calc(100dvh-var(--app-header-offset,0px)-var(--demo-notice-height,0px))]'} ${isImmersiveChat ? '' : 'pb-[var(--cookie-banner-offset,0px)]'}`}>
+                      {/* Use the actual remaining shell height, not header/demo
+                          measurements which only become available in effects. */}
+                      <main id="main-content" tabIndex={-1} className={`min-w-0 outline-none ${isProductsRoute || isImmersiveChat ? 'flex flex-1 flex-col min-h-0' : 'shrink-0 min-h-full'} ${isImmersiveChat ? '' : 'pb-[var(--cookie-banner-offset,0px)]'}`}>
                         {children}
                       </main>
                       {!isProductsRoute && !isImmersiveChat && pathname !== '/' && <SiteFooter />}

@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useClientReady } from "@/hooks/use-client-ready";
 import { describeCurrentMediaError, openMicrophoneStream } from "./media-devices";
 import { readVoicePrefs } from "./voice-prefs";
 
@@ -92,7 +93,10 @@ export function useDictation(opts: {
   lang?: string;
 }) {
   const { onResult, onInterim, polish = true, lang = "en-US" } = opts;
-  const [supported] = useState(() => getSRClass() !== null || typeof MediaRecorder !== "undefined");
+  // Browser capabilities must not change the first client render from SSR.
+  // In particular, a signed-in Pulse composer is now rendered on the server.
+  const clientReady = useClientReady();
+  const supported = clientReady && (getSRClass() !== null || typeof MediaRecorder !== "undefined");
   const [listening, setListening] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [interim, setInterim] = useState("");
