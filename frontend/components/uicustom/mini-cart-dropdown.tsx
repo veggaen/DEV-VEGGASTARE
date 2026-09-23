@@ -5,13 +5,12 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { FiShoppingCart, FiTrash2, FiPlus, FiMinus, FiArrowRight, FiPackage, FiShoppingBag } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import PriceAmount from "@/components/crypto-related/PriceAmount";
-import { useCurrencyRates } from "@/hooks/useCurrencyRates";
+import PriceAmount, { PriceTotal } from "@/components/crypto-related/PriceAmount";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -37,6 +36,7 @@ interface MiniCartDropdownProps {
 
 export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDropdownProps) {
   const router = useRouter();
+  const reducedMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,14 +46,6 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const { convertToUSD } = useCurrencyRates();
-  // Subtotal in USD (items may be priced in different currencies). PriceAmount
-  // then renders it in the user's selected currency.
-  const totalPriceUsd = items.reduce(
-    (sum, item) =>
-      sum + item.quantity * convertToUSD(item.product.price, item.product.priceCurrency ?? "USD"),
-    0
-  );
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   // Handle client-side mounting for portal
@@ -101,7 +93,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") { setOpen(false); triggerRef.current?.focus(); }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
@@ -163,10 +155,10 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
       {open && (
         <motion.div
           ref={dropdownRef}
-          initial={{ opacity: 0, y: -8, scale: 0.96 }}
+          initial={reducedMotion ? false : { opacity: 0, y: -8, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -8, scale: 0.96 }}
-          transition={{ duration: 0.18, ease: "easeOut" }}
+          transition={{ duration: reducedMotion ? 0 : 0.18, ease: "easeOut" }}
           style={{
             position: 'fixed',
             top: dropdownPosition.top,
@@ -189,7 +181,8 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                 )}
               </div>
               <button
-                onClick={() => setOpen(false)}
+                aria-label="Close basket"
+                onClick={() => { setOpen(false); triggerRef.current?.focus(); }}
                 className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
               >
                 ESC
@@ -234,11 +227,11 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                       {items.map((item) => (
                         <motion.div
                           key={item.id}
-                          layout
-                          initial={{ opacity: 0, x: -10 }}
+                          layout={!reducedMotion}
+                          initial={reducedMotion ? false : { opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 20, height: 0 }}
-                          transition={{ duration: 0.2 }}
+                          exit={{ opacity: 0, x: reducedMotion ? 0 : 20 }}
+                          transition={{ duration: reducedMotion ? 0 : 0.2 }}
                           className="flex gap-3 px-4 py-3"
                         >
                           {/* Product image */}
@@ -271,7 +264,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                             >
                               {item.product.title}
                             </Link>
-                            <div className="mt-1 flex items-center gap-2">
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
                               <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                                 <PriceAmount
                                   amount={item.product.price * item.quantity}
@@ -294,6 +287,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                           <div className="flex flex-col items-end gap-1">
                             <div className="flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700">
                               <button
+                                aria-label={`Decrease quantity for ${item.product.title}`}
                                 onClick={() => handleQuantityChange(item.id, "decrement")}
                                 disabled={actionLoading === item.id || item.quantity <= 1}
                                 className="flex h-6 w-6 items-center justify-center rounded-l-md text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors"
@@ -323,6 +317,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                                 className="h-6 w-8 border-x border-zinc-200 bg-transparent text-center text-xs font-medium tabular-nums text-zinc-700 outline-none focus:bg-emerald-500/10 dark:border-zinc-700 dark:text-zinc-300 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                               />
                               <button
+                                aria-label={`Increase quantity for ${item.product.title}`}
                                 onClick={() => handleQuantityChange(item.id, "increment")}
                                 disabled={actionLoading === item.id}
                                 className="flex h-6 w-6 items-center justify-center rounded-r-md text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors"
@@ -331,6 +326,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                               </button>
                             </div>
                             <button
+                              aria-label={`Remove ${item.product.title} from basket`}
                               onClick={() => handleRemoveItem(item.id)}
                               disabled={actionLoading === item.id}
                               className="text-xs text-zinc-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400 transition-colors"
@@ -347,10 +343,10 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                 {/* Footer with totals & actions */}
                 <div className="border-t border-zinc-100 px-4 py-3 dark:border-zinc-800 space-y-3">
                   {/* Total */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm text-zinc-500 dark:text-zinc-400">Subtotal</span>
-                    <span className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-                      <PriceAmount usd={totalPriceUsd} />
+                    <span className="min-w-0 text-right text-base font-bold text-zinc-900 dark:text-zinc-100">
+                      <PriceTotal entries={items.map(item => ({ amount: item.product.price * item.quantity, currency: item.product.priceCurrency ?? 'USD' }))} />
                     </span>
                   </div>
 
@@ -395,13 +391,15 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
         onClick={() => setOpen(prev => !prev)}
         className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
         aria-label={cartCount > 0 ? `${cartCount} item${cartCount !== 1 ? "s" : ""} in basket` : "Basket"}
+        aria-expanded={open}
       >
         <FiShoppingCart className="h-[18px] w-[18px]" />
         {cartCount > 0 && (
           <motion.span
             key={cartCount}
-            initial={{ scale: 0.5, opacity: 0 }}
+            initial={reducedMotion ? false : { scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: reducedMotion ? 0 : 0.18 }}
             className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white"
           >
             {cartCount > 99 ? "99+" : cartCount}

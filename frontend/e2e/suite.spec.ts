@@ -1,5 +1,261 @@
 import { test, expect } from "@playwright/test";
 
+test('S7 isolated Preview prepares a free demo receipt for currency QA', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_PREVIEW_SEED_DEMO !== '1', 'Explicit isolated Preview demo creation only');
+  test.setTimeout(120_000);
+  expect(baseURL).toBe('https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app');
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  try {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    await page.getByRole('button', { name: 'Try the demo — no payment', exact: true }).click();
+    await expect(page).toHaveURL(/\/products$/);
+    expect((await (await context.request.get('/api/auth/session')).json()).user.isDemo).toBe(true);
+    await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('region', { name: 'Product purchase', exact: true }).getByRole('button', { name: 'Add to basket', exact: true }).click();
+    await expect(page.getByText('Added to basket', { exact: true })).toBeVisible();
+    await page.goto('/checkout', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Complete free demo order', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Your demo order is ready', exact: true })).toBeVisible();
+    await expect(page.locator('main')).toContainText('Demo · no payment collected');
+    // Repopulate only this new demo's cart for cross-route display checks.
+    await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('region', { name: 'Product purchase', exact: true }).getByRole('button', { name: 'Add to basket', exact: true }).click();
+    await expect(page.getByText('Added to basket', { exact: true })).toBeVisible();
+    await context.storageState({ path: '.private-showcase/preview-currency-demo-state.json' });
+  } finally { await context.close(); }
+});
+
+test('S7 global fiat and crypto selection persists across shopping, receipt and orders', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained demo session without purchasing');
+  test.setTimeout(180_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await context.addInitScript(() => {
+      if (!localStorage.getItem('currency-qa-initialized')) {
+        localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency: 'USD', preferredCryptoCurrency: 'ETH' }));
+        localStorage.setItem('currency-qa-initialized', '1');
+      }
+      localStorage.removeItem('veggastare_currency_rates');
+    });
+    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1 }, fresh: true }, crypto: { prices: { ETH: 2000, BTC: 100000 }, fresh: true } } }));
+    await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-product-price]')).toContainText(/USD\s*3\.90\s*\(0\.00195 ETH\)/);
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    const trigger = page.getByRole('button', { name: /^Display currency:/ });
+    await trigger.click();
+    const menu = page.getByRole('menu');
+    await expect(menu.getByRole('menuitemradio', { name: 'US Dollar', exact: true })).toBeChecked();
+    await menu.getByRole('menuitemradio', { name: 'Bitcoin', exact: true }).click();
+    await expect(menu).toBeVisible();
+    await menu.getByRole('menuitemradio', { name: 'Norwegian Krone', exact: true }).click();
+    await expect(menu.getByRole('menuitemradio', { name: 'Bitcoin', exact: true })).toBeChecked();
+    await expect(menu).toHaveAccessibleName('Display currency: NOK (BTC)');
+    await menu.getByRole('menuitemradio', { name: 'Ethereum', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await expect(trigger).toBeFocused();
+    await expect(page.locator('[data-product-price]')).toContainText(/NOK\s*39\.00\s*\(0\.00195 ETH\)/);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(trigger).toHaveAccessibleName('Display currency: NOK (ETH)');
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.isDemo).toBe(true);
+    const orders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
+    const receipt = orders.find((order: { checkout?: { state: string } }) => order.checkout?.state === 'COMPLETED');
+    expect(receipt, 'A retained demo receipt is required; this test never makes a purchase').toBeTruthy();
+    for (const path of ['/products', '/cart', '/checkout', `/checkout/receipt/${receipt.id}`, '/my-orders', '/pricing']) {
+      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      await expect(trigger).toHaveAccessibleName('Display currency: NOK (ETH)');
+      const prices = page.locator('main [data-price-display]');
+      await expect(prices.first()).toContainText('ETH)');
+      for (const price of await prices.all()) {
+        await expect(price).toContainText('NOK');
+        await expect(price).toContainText('ETH)');
+        await expect(price).not.toContainText('(NOK');
+      }
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('main, [data-site-scroll]')].every(element => element.scrollWidth <= element.clientWidth)), `${path} at ${size.width}`).toBe(true);
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+    await trigger.click();
+    await menu.getByRole('menuitemradio', { name: 'US Dollar', exact: true }).click();
+    await menu.getByRole('menuitemradio', { name: 'No Crypto', exact: true }).click();
+    await menu.getByRole('menuitem', { name: 'Done', exact: true }).click();
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAccessibleName('Display currency: USD');
+    for (const price of await page.locator('main [data-price-display]').all()) {
+      await expect(price).toContainText('USD'); await expect(price).not.toContainText('(');
+    }
+    await trigger.focus(); await page.keyboard.press('ArrowDown');
+    await expect(menu).toBeVisible();
+    await page.keyboard.press('End');
+    await expect(menu.getByRole('menuitem', { name: 'Done', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(menu).toBeHidden(); await expect(trigger).toBeFocused();
+    await page.setViewportSize({ width: 844, height: 390 });
+    await trigger.click();
+    await page.keyboard.press('End');
+    await expect(menu.getByRole('menuitem', { name: 'Done', exact: true })).toBeFocused();
+    await expect(menu.getByRole('menuitem', { name: 'Done', exact: true })).toBeInViewport();
+    await page.keyboard.press('Enter');
+    await expect(menu).toBeHidden();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await trigger.click();
+    await menu.getByRole('menuitemradio', { name: 'Ethereum', exact: true }).click();
+    await page.screenshot({ path: 'test-results/currency-menu-390.png' });
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await page.screenshot({ path: 'test-results/currency-cart-390.png' });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const basket = page.getByRole('button', { name: /items? in basket/ });
+    await basket.click();
+    await expect(page.getByText('Your Basket', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'View Full Cart', exact: true })).toBeVisible();
+    const miniCart = page.getByText('Your Basket', { exact: true }).locator('..').locator('..').locator('..');
+    await expect(miniCart).toHaveCSS('opacity', '1');
+    await expect(miniCart.getByRole('link', { name: 'Interviewer AI Credits', exact: true }).filter({ hasText: 'Interviewer AI Credits' }).locator('..').locator('..')).toHaveCSS('opacity', '1');
+    for (const price of await miniCart.locator('[data-price-display]').all()) {
+      await expect(price).toContainText('USD'); await expect(price).toContainText('ETH)');
+    }
+    await page.screenshot({ path: 'test-results/currency-mini-cart-1280.png' });
+    await page.keyboard.press('Escape');
+    await expect(basket).toBeFocused();
+    await expect(basket).toHaveAttribute('aria-expanded', 'false');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/checkout/receipt/${receipt.id}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Your demo order is ready', exact: true })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Receipt items', exact: true }).locator('[data-price-display]').first()).toContainText('ETH)');
+    await page.screenshot({ path: 'test-results/currency-receipt-390.png' });
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S4 checkout uses one selected currency and locks payment while removing an item', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE || baseURL !== 'http://localhost:3000', 'Local retained demo only; no payment requests');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  let releaseRemoval = () => {};
+  let restore: { userId: string; productId: string; quantity: number } | undefined;
+  try {
+    await context.addInitScript(() => {
+      localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency: 'USD', preferredCryptoCurrency: 'ETH' }));
+      localStorage.removeItem('veggastare_currency_rates');
+    });
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.isDemo).toBe(true);
+    const cart = await (await context.request.get(`/api/cart/${session.user.id}`)).json();
+    expect(cart.items.length).toBeGreaterThan(0);
+    const item = cart.items[0];
+    restore = { userId: session.user.id, productId: item.product.id, quantity: item.quantity };
+    const page = await context.newPage();
+    let paymentCalls = 0;
+    await page.route('**/api/demo/checkout', route => { paymentCalls++; return route.abort(); });
+    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1 }, fresh: true }, crypto: { prices: { ETH: 2000 }, fresh: true } } }));
+    await page.goto('/checkout', { waitUntil: 'domcontentloaded' });
+    const order = page.getByRole('region', { name: 'Order items', exact: true });
+    await expect(order).toContainText('USD'); await expect(order).not.toContainText('NOK');
+    await expect(order).toContainText('ETH)');
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    await page.screenshot({ path: 'test-results/checkout-selected-usd-390.png' });
+    const gate = new Promise<void>(resolve => { releaseRemoval = resolve; });
+    await page.route(`**/api/cart/${session.user.id}/items/${item.id}`, async route => { await gate; await route.continue(); });
+    await page.getByRole('button', { name: `Remove ${item.product.title} from order`, exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Complete free demo order', exact: true })).toBeDisabled();
+    releaseRemoval();
+    await expect(page.getByRole('button', { name: `Remove ${item.product.title} from order`, exact: true })).toHaveCount(0);
+    const saved = await (await context.request.get(`/api/cart/${session.user.id}`)).json();
+    expect(saved.items.some((entry: { id: string }) => entry.id === item.id)).toBe(false);
+    expect(paymentCalls).toBe(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  } finally {
+    releaseRemoval();
+    if (restore) {
+      const saved = await (await context.request.get(`/api/cart/${restore.userId}`)).json();
+      if (!saved.items.some((entry: { product: { id: string } }) => entry.product.id === restore!.productId)) {
+        expect((await context.request.post(`/api/cart/${restore.userId}`, { data: { productId: restore.productId, quantity: restore.quantity } })).ok()).toBe(true);
+      }
+    }
+    await context.close();
+  }
+});
+
+test('S4 isolated Preview password buyer signs in and opens the real product cart', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_PREVIEW_BUYER !== '1', 'Explicit isolated Preview credentials required');
+  test.setTimeout(120_000);
+  expect(baseURL).toBe('https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app');
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  try {
+    const page = await context.newPage();
+    await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
+    await page.getByPlaceholder('you@example.com').fill(process.env.E2E_TEST_EMAIL!);
+    await page.locator('input[type="password"]').fill(process.env.E2E_TEST_PASSWORD!);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.waitForURL(/\/(nexus|products|dashboard|pulse)(?:[/?#]|$)/, { timeout: 30_000 });
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.id).toBe('cveggatpreviewbuyer000001');
+    expect(session.user.role).toBe('USER');
+    await context.storageState({ path: '.private-showcase/preview-buyer-state.json' });
+    await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    await page.getByRole('button', { name: 'Add to basket', exact: true }).last().click();
+    await expect(page.getByText(/^(Added to basket|Already in your basket)$/)).toBeVisible();
+    await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByText('Veggat Interview Pack', { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: 'test-results/preview-buyer-cart-390.png' });
+  } finally { await context.close(); }
+});
+
+test('S5 buyer credit history requires sign-in and remains readable across screen sizes', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required; read-only history');
+  test.setTimeout(120_000);
+  const anonymous = await browser.newContext({ baseURL });
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  try {
+    const guestPage = await anonymous.newPage();
+    await guestPage.goto('/ai/credits', { waitUntil: 'domcontentloaded' });
+    await expect(guestPage).toHaveURL(/\/auth\/login/);
+    const page = await context.newPage();
+    await page.goto('/ai/credits?environment=LIVE&userId=someone-else', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Your AI credits', exact: true })).toBeVisible();
+    // Streaming can briefly retain a hidden server segment outside the app's main.
+    // Assert the user-facing region and wait until there is only one rendered copy.
+    const demoLedgerLabel = page.locator('main').getByText('Demo credits · no payment needed', { exact: true });
+    await expect(demoLedgerLabel).toHaveCount(1);
+    await expect(demoLedgerLabel).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Buy credits', exact: true })).toHaveCount(0);
+    await expect(page.getByText('Reserved credits are already deducted from Available.', { exact: false })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size);
+      await page.getByRole('heading', { name: 'Recent activity', exact: true }).scrollIntoViewIfNeeded();
+      await expect(page.getByRole('heading', { name: 'Recent activity', exact: true })).toBeInViewport();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      if ([390, 2560].includes(size.width)) await page.screenshot({ path: `test-results/buyer-credits-${size.width}.png` });
+      await page.getByRole('heading', { name: 'Your AI credits', exact: true }).scrollIntoViewIfNeeded();
+    }
+    await page.getByRole('link', { name: 'Back to AI chat', exact: true }).click();
+    await expect(page).toHaveURL(/\/ai$/);
+    const sessions = await (await context.request.get('/api/ai-chat/sessions?limit=20')).json();
+    await page.goto(sessions.sessions.length ? `/ai/${sessions.sessions[0].id}` : '/', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('link', { name: /^Credit history:/ }).click();
+    await expect(page).toHaveURL(/\/ai\/credits$/);
+    await expect(page.getByRole('heading', { name: 'Your AI credits', exact: true })).toBeVisible();
+  } finally { await context.close(); await anonymous.close(); }
+});
+
 test('S5 owner credit report retries, filters and scrolls without changing server permissions', async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo required; owner UI uses browser-only fixtures');
   test.setTimeout(120_000);

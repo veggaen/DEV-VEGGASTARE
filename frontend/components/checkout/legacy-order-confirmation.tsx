@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import type { OrderDto } from '@/lib/types/orders';
-import { orderMoney, orderStatusLabel } from '@/lib/order-presentation';
+import { orderStatusLabel } from '@/lib/order-presentation';
+import PreferredMoney from '@/components/checkout/preferred-money';
 
 type PaymentNotice = 'failed' | 'cancelled' | null;
 
@@ -176,7 +177,7 @@ const OrderConfirmationPage = () => {
             {orderDetails.status}
           </span>
           <span className="text-muted-foreground">Total amount:</span>
-          <span className="font-medium text-foreground">{orderMoney(orderDetails.totalAmount, orderDetails.currency)}</span>
+          <span className="font-medium text-foreground"><PreferredMoney amount={orderDetails.totalAmount} currency={orderDetails.currency ?? null} /></span>
           {orderDetails.payment && (
             <>
               <span className="text-muted-foreground">Payment method:</span>
@@ -272,7 +273,7 @@ const OrderConfirmationPage = () => {
             {orderDetails.shippingCost != null && orderDetails.shippingCost > 0 && (
               <>
                 <span className="text-muted-foreground">Shipping cost:</span>
-                <span className="text-foreground">${orderDetails.shippingCost.toFixed(2)}</span>
+                <span className="text-foreground"><PreferredMoney amount={orderDetails.shippingCost} currency={orderDetails.currency ?? null} /></span>
               </>
             )}
             {orderDetails.estimatedDelivery && (

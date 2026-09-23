@@ -11,7 +11,7 @@ export function AiCreditStatus({ config, error = false }: { config: AiCreditConf
   if (!config) return <span className="inline-flex min-h-11 items-center text-xs text-muted-foreground" role="status">Loading AI balance…</span>;
   if (!config.authenticated) return <p className="text-xs text-muted-foreground">Guest preview · limited requests. Sign in for more models.</p>;
   return <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-    <span aria-live="polite">{config.balance} {config.demo ? 'demo ' : ''}credits</span>
+    <Link href="/ai/credits" className="inline-flex min-h-11 items-center underline underline-offset-4" aria-label={`Credit history: ${config.balance} ${config.demo ? 'demo ' : ''}credits`}><span aria-live="polite">{config.balance} {config.demo ? 'demo ' : ''}credits</span></Link>
     <span className="[@media(max-height:500px)]:hidden">{Math.max(0, config.dailyLimit - config.dailyUsed)} sends left today</span>
     {!config.demo && <Link href="/products/cveggatinterviewcredits01" className="inline-flex min-h-11 items-center underline underline-offset-4">Buy credits</Link>}
     {(config.refundAdjustment ?? 0) > 0 && <Link href="/my-orders" className="inline-flex min-h-11 items-center text-amber-700 underline underline-offset-4 dark:text-amber-400">Refund adjustment: {config.refundAdjustment} credits</Link>}

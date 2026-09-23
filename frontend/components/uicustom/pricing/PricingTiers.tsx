@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { PLANS } from "./plans-config";
+import PriceAmount from '@/components/crypto-related/PriceAmount';
+import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
 
 export default function PricingTiers() {
   return <div>
@@ -9,7 +11,7 @@ export default function PricingTiers() {
       {PLANS.map(plan => <article key={plan.id} className={`relative flex min-w-0 flex-col rounded-2xl border bg-card/60 p-5 sm:p-6 md:row-span-6 md:grid md:grid-rows-subgrid md:gap-0 ${plan.featured ? "border-brand-accent/50" : "border-border"}`}>
         <h2 className="text-xl font-semibold">{plan.name}</h2>
         <p className="mt-2 text-sm text-muted-foreground">{plan.tagline}</p>
-        <p className="mt-6 text-2xl font-semibold tracking-tight">{plan.price}</p>
+        <p className="mt-6 text-2xl font-semibold tracking-tight">{plan.id === 'byok' ? plan.price : <PriceAmount amount={plan.id === 'demo' ? 0 : SHOWCASE_PRODUCTS.credits.amountOre / 100} currency="NOK" />}</p>
         <p className="mt-1 text-xs text-muted-foreground">{plan.note}</p>
         <ul className="my-6 space-y-3">
           {plan.features.map(feature => <li key={feature} className="flex gap-2 text-sm text-muted-foreground"><Check aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-accent" /><span>{feature}</span></li>)}

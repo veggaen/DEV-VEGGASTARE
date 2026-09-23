@@ -7,6 +7,12 @@ vi.mock('@/auth', () => ({ auth: m.auth }));
 vi.mock('@/lib/db', () => ({ dbPrisma: { checkoutAttempt: { findUnique: m.receipt }, aiCreditAccount: { findUnique: m.account }, cart: { findUnique: m.cart } } }));
 vi.mock('@/lib/payments/showcase-paypal', () => ({ paypalConfigured: () => true }));
 vi.mock('@/components/checkout/reviewer-checkout-button', () => ({ default: () => React.createElement('button', null, 'Continue to PayPal') }));
+// These server-page tests provide the client shell dependencies that Next wraps
+// around the page in production. Keep the real money formatter and edit provider.
+vi.mock('@/components/providers/ui-preferences', () => ({ useUiPreferences: () => ({ prefs: { preferredFiatCurrency: 'USD', preferredCryptoCurrency: 'ETH' } }) }));
+vi.mock('@/hooks/useCurrencyRates', () => ({ useCurrencyRates: () => ({ fiatRates: { USD: 1, NOK: 0.1 }, cryptoPrices: { ETH: 2000 }, isLoading: false, lastUpdated: 1 }) }));
+vi.mock('@/contexts/cart-context', () => ({ useCart: () => ({ removeItem: vi.fn() }) }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }), redirect: vi.fn() }));
 vi.mock('next/image', () => ({ default: ({ alt }: { alt: string }) => React.createElement('img', { alt }) }));
 import ReceiptPage from '@/app/checkout/receipt/[id]/page';
 import CheckoutPage from '@/app/checkout/page';
@@ -32,7 +38,10 @@ it.each([
   const fixture = await m.receipt(); m.receipt.mockResolvedValue({ ...fixture, state });
   const html = renderToStaticMarkup(await ReceiptPage({ params: Promise.resolve({ id: 'order' }) }));
   expect(html).toContain(heading);
-  expect(html).toContain('Verified refund amount'); expect(html).toContain('39.00 NOK');
+  expect(html).toContain('Verified refund amount');
+  expect(html).toMatch(/USD\s*3\.90/); expect(html).toContain('(0.00195 ETH)');
+  expect(html).not.toContain('(NOK');
+  expect(html).toContain('Original payment details'); expect(html).toContain('39.00 NOK');
   expect(html).toContain('REFUND1'); expect(html).toContain('Credit refund adjustment: 7 credits');
   expect(html).not.toContain('must-not-be-shown'); expect(html).not.toContain('Your order is confirmed');
 });

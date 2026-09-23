@@ -76,6 +76,7 @@ export const AUTH_PAGES = [
 
 /** Protected page routes — must redirect unauthenticated users. */
 export const PROTECTED_PAGES = [
+  "/ai/credits",
   "/dashboard",
   "/dashboard/trading",
   "/dashboard/paper-trading",

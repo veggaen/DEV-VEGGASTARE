@@ -9,6 +9,7 @@ backend/dist/**
 backend/src/generated/**
 **/playwright-report/**
 **/test-results/**
+**/test-results-*/**
 **/%SystemDrive%/**
 **/database-backups/**
 **/.private-showcase/**

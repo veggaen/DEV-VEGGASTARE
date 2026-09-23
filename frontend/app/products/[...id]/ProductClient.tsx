@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Image from "next/image";
+import PriceAmount from '@/components/crypto-related/PriceAmount';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
@@ -449,7 +450,7 @@ function ProductDetails({ product }: { product: Product }) {
   const handleAddToCart = () => purchase('add');
   const handleBuyNow = () => purchase('buy');
   const purchaseDisabled = !canPurchase || cartLoading || purchasePending !== null || Boolean(purchaseError);
-  const displayPrice = `${new Intl.NumberFormat('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.price)} ${product.priceCurrency || 'USD'}`;
+  const displayPrice = <PriceAmount amount={product.price} currency={product.priceCurrency || 'USD'} />;
   const productKindLabel = isCreditPack ? "AI usage credits" : isDigitalProduct ? "Digital download" : product.productType === "HYBRID" ? "Hybrid product" : "Physical product";
   const updatedAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.updatedAt));
   const createdAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.createdAt));

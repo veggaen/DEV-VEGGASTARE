@@ -72,8 +72,14 @@ cache writes. Anthropic stays disabled without a configured platform key.
    a remote webhook.
 2. Fixed pack selector, server quote, migration/seed, bounded daily NOK exposure,
    visible discount arithmetic and tests preventing combinations/quantity abuse.
-3. Buyer usage history and clear available/reserved/adjustment amounts. Keep
-   provider names transparent and the exact flat price visible before sending.
+3. Buyer history is implemented locally at `/ai/credits`, linked from the chat
+   balance. It reads only the signed-in user's deployment-specific account and
+   latest 50 ledger entries, without source/payment identifiers or provider keys.
+   Available, reserved and refund adjustment amounts are distinct; an unclaimed
+   demo allowance is explained without issuing credits on a page view. Nine query
+   and accounting tests pass. Strict build and local browser acceptance pass,
+   including sign-in boundaries, balance navigation and 360–2560px layouts.
+   Keep provider names transparent and the exact flat price visible before sending.
 4. Owner-only ledger and provider-cost overview is implemented and locally
    verified (2026-09-23), not yet deployed. It separates environments, available
    credits, outstanding reservations, refund adjustments, verified captured cash

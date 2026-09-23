@@ -2,7 +2,41 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-## Current PayPal/credit follow-up — local candidate, not deployed
+## Global currency presentation — 23 September 2026 candidate
+
+- Shared `PriceAmount` renders selected fiat followed only by selected crypto in
+  parentheses. `NONE` removes the secondary amount. Product listings/PDP, cart,
+  mini-cart, checkout, receipts, orders, company storefronts, pricing and shipping
+  estimates use it. Seller/company APIs expose stored order currency, rather
+  than assuming historical orders were NOK. Unknown currencies/rates are not
+  silently valued at 1 USD. Original captured amounts remain unchanged and are
+  available under receipt payment details; display conversions are not quotes.
+- Preference patches now merge with existing settings. Previously, selecting
+  fiat could reset crypto and unrelated appearance preferences to defaults.
+  Radio semantics, 44px targets, keyboard/Escape focus return, persistent
+  two-part selection, bounded scrolling and an explicit Done action replace the
+  old closing-on-every-selection menu. Mobile now has the header selector too.
+- Formatter tests **18/18**, expanded currency/history/order/payment tests
+  **76/76**, touched lint and strict local/Preview builds pass. Real Chrome
+  confirms USD (ETH) / NOK (ETH), checkout, actual Sandbox order details and the
+  existing paid receipt without another payment. Browser regression found and
+  fixed the hidden mobile selector and an early click before hydration. Final
+  local focused checks **4/4** and isolated Preview checks **3/3** pass (including
+  setup): preferences/reload, products/cart/checkout/receipt/orders/pricing,
+  keyboard focus, No Crypto and 360–2560 widths; checkout removal locking is
+  local-only. Buyer history also verifies sign-in and the zero-session demo.
+  A hidden streaming segment is excluded by scoping its label to the main UI.
+- The mini-cart subtotal now shares the same fail-closed conversion helper;
+  reduced motion, labelled quantity/removal controls and Escape focus return
+  are included. The final local focused rerun is **4/4**, including short-landscape
+  menu scrolling and basket focus/motion checks; screenshots were reviewed.
+- Preview `dpl_CUwr8H3akXfXpCRqyRkSujvHQZJV` is READY on the stable showcase
+  alias. A free demo checkout created its receipt through the normal app path;
+  no PayPal request or real payment. Production remains `88729d0`.
+- Arbitrary credit quantities/volume discounts and verified Web3 checkout are
+  separate unfinished work; selecting a crypto display does not enable payment.
+
+## Current PayPal/credit follow-up — Preview candidate, not in production
 
 - DONE: real Chrome connected. Existing PayPal Live `veggastare` and Sandbox
   `Default Application` reused. Approved Live webhook saved with completed,
@@ -42,10 +76,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   Final deployment `dpl_9raz9RMLCkv8zzqaztb8xt3qKTc1` is READY on the existing
   showcase branch alias, with a branch-scoped `AUTH_URL`. Focused payment and
   isolation units **80/80**, a refreshed local strict type-check and lint pass.
-- PARTIAL: Vercel team-login protection returns 401 before public Preview health
-  and webhook requests reach the app. A domain-only exception is prepared, not
-  applied, pending owner approval. No project-wide protection or billing changes.
-- DONE locally, not deployed: owner-only credit reporting now reads the ledger,
+- DONE: owner-approved domain-only Preview protection exception saved. Public
+  Preview health returns 200 and the configured listener rejects unsigned events
+  with 401 `INVALID_SIGNATURE`. Project-wide protection and billing are unchanged.
+- PARTIAL: Sandbox webhook `4D346436GJ973660K` registered and read back with
+  exactly completed/refunded/reversed capture events. Its ID is saved as a Secret
+  for Preview branch `showcase/ai-revival` only. The first CLI redeploy remained
+  503 (missing runtime variable). A fresh candidate deployment explicitly binds
+  that Sandbox webhook ID and canonical AUTH_URL at build and runtime. Its
+  unsigned-event rejection is verified; actual PayPal delivery, refund and replay
+  acceptance remain unverified.
+- DONE locally and on Preview: owner-only credit reporting now reads the ledger,
   not legacy entitlement environment flags. LIVE/SANDBOX/DEMO filtering, available
   and reserved balances, refund adjustments, verified cash and provider ceilings
   are distinct. Fresh database OWNER authorization, rate limiting and private
@@ -56,8 +97,12 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   remain 403. Real Chrome owner UI independently shows Sandbox balance 30,
   70 credits charged for three replies and NOK 68 across two verified captures.
   Scrolling the report and sidebar preserves content. No new payment or grant.
-- OPEN: Preview browser/auth acceptance and actual Sandbox webhook/refund delivery;
-  production deploy/Live micro-purchases, volume packs, buyer usage history,
+- DONE: isolated Preview password buyer login, PDP and saved cart passed the
+  focused browser test (2/2 including setup), with no payment or credit grant.
+- DONE locally and on Preview: private buyer credit-history route, nine isolation/accounting
+  units, strict build and browser sign-in/navigation/scroll acceptance pass.
+- OPEN: actual Sandbox webhook/refund delivery;
+  production deploy/Live micro-purchases, volume packs,
   actual provider billing reconciliation and commercially verified margins.
   [Reviewed commercial policy](credit-commercial-policy.md) records which Grok
   recommendations are adopted, qualified or deferred. This is not an all-green

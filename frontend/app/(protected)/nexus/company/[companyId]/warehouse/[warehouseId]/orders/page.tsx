@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import PriceAmount from '@/components/crypto-related/PriceAmount';
 import {
   FiPackage,
   FiTruck,
@@ -48,6 +49,7 @@ interface FulfilmentOrder {
   id: string;
   createdAt: string;
   totalAmount: number;
+  currency: string | null;
   status: string;
   fulfilmentStatus: string;
   claimedByUserId: string | null;
@@ -269,12 +271,6 @@ export default function WarehouseOrdersPage() {
       minute: "2-digit",
     });
 
-  const formatPrice = (v: number) =>
-    new Intl.NumberFormat("nb-NO", {
-      style: "currency",
-      currency: "NOK",
-    }).format(v);
-
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
       {/* Header */}
@@ -443,7 +439,7 @@ export default function WarehouseOrdersPage() {
                       )}
 
                       <span className="text-sm font-medium text-zinc-300">
-                        {formatPrice(order.totalAmount)}
+                        <PriceAmount amount={order.totalAmount} currency={order.currency ?? null} />
                       </span>
 
                       {isExpanded ? (
@@ -490,7 +486,7 @@ export default function WarehouseOrdersPage() {
                                   </div>
                                   <div className="text-xs text-zinc-500">
                                     {item.quantity}x{" "}
-                                    {formatPrice(item.priceAtTime)}
+                                    <PriceAmount amount={item.priceAtTime} currency={order.currency ?? null} />
                                   </div>
                                 </div>
                               </div>

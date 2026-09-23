@@ -10,6 +10,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import PriceAmount from '@/components/crypto-related/PriceAmount';
 
 /* ═══════════════════════════ Types ═══════════════════════════ */
 
@@ -408,7 +409,6 @@ export function ShippingMethodSelector({
         <div className="space-y-2">
           {options.map((opt) => {
             const isSelected = opt.serviceCode === selectedCode;
-            const priceUsd = nokToUsd(opt.priceWithVat, nokPerUsd);
             return (
               <motion.button
                 key={opt.serviceCode}
@@ -459,10 +459,7 @@ export function ShippingMethodSelector({
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-foreground text-sm">
-                      kr {opt.priceWithVat.toFixed(0)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      ~${priceUsd.toFixed(2)}
+                      <PriceAmount amount={opt.priceWithVat} currency="NOK" />
                     </p>
                   </div>
                 </div>
