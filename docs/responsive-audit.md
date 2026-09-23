@@ -305,7 +305,59 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Cold-context 20s sample: LCP 2,708ms, FCP 1,896ms, CLS 0, transfer 1,985,129 bytes.
   That is roughly unchanged versus earlier local paint samples, not a claimed
   major speed gain. Remaining live trace shows CSS/font and shared-script download
-  competition; the wallet core is still global. Live release pending.
+  competition; the wallet core is still global. Release `cc9e5db` /
+  `dpl_DybY1nKVmdXPn3BP4TBP1fXubhtY` is READY, but live verification returned
+  **7 pass / 1 fail**: reduced-motion hydration failed, reproduced **3/3**.
+  Navigation is not marked fully verified until that regression is resolved.
+
+### Reduced-motion hydration regression (fix under verification)
+
+- A fresh live browser reproduced React #418 with reduced motion even without
+  stored wallet preferences; normal motion did not reproduce it. Webpack dev's
+  detailed error identifies `KineticHeadline`: the server rendered letter spans,
+  while the initial browser render returned plain text. The topbar also had
+  preference-dependent initial style differences. Turbopack-only verification
+  had missed this bundler-sensitive initialization order.
+- Keep hero title/headline/description markup and geometry identical in both
+  preferences. Disable hover/orb effects instead of replacing text elements.
+  A `useSyncExternalStore` motion hook uses the same snapshot on server and first
+  browser render, then subscribes to real OS changes. No hydration-warning
+  suppression, accessibility opt-out or client-only shell workaround.
+- Focused hook/provider units **5/5** and touched-file lint pass. Added browser
+  checks for heading retention/geometry across live motion-preference changes.
+  The first local production candidate still failed both viewport checks because
+  `BelowFoldSections` repeated the plain-text/letter-span branch. Applied the same
+  stable structure there; the release was not deployed after the failed check.
+  Final Webpack build/TypeScript passes; repeated local browser checks **10/10**
+  (19.2s): pre-bundle paint plus 390/1280px hydration/geometry/shell retention,
+  each repeated three times. Live verification remains pending.
+
+### Next audit findings (not yet fixed)
+
+- Real `/pulse` feed scrolling (390px, retained demo, no response fixture) exposed
+  a gap missed by the finite-feed regression: after the first 30 posts, fetching
+  the next page expands scroll height from about 8,920 to 17,345px. At the next
+  boundary the global footer is visible alongside the pagination spinner, then
+  moves down as more posts arrive. Suppress that provisional footer until the
+  feed reaches its real end; add a delayed-pagination regression, not only a
+  finite fixture. Cards/toolbar stayed within the 390px canvas. Existing system
+  posts also display raw Markdown `**` around their deployment titles.
+- `/analytics`: actual phone navigation exposes raw Markdown asterisks, large
+  center-aligned introductory filler and undersized category links. Product
+  analytics reaches the intended API, which correctly returns 403 for the demo
+  USER, but UI labels it a generic load failure with no recovery/role guidance.
+  Do not weaken the ADMIN-only endpoint to fix this presentation defect.
+- Analytics chart loading/error states vertically recenter the whole page rather
+  than keeping header and chart geometry stable. Crypto adds a second footer and
+  an inconsistent width system. Continue actual interval/date/scroll checks after
+  role-aware presentation is corrected; static-route smoke was not sufficient.
+- Root AppProviders receives no initial server session. On hard navigation,
+  signed-in demo notice arrives after client auth resolves. The initial analytics
+  screenshot preceded that state; settled screenshot was inspected separately.
+  A subsequent signed-in cold-context 20s diagnostic on `/analytics` (390px,
+  4× CPU, 1.6Mbps/150ms) recorded CLS 0, so no measurable shift is established by
+  that run. Continue verifying readiness and session initialization rather than
+  treating the initial screenshot or a single metric as proof of stable loading.
 
 ## Research references
 
@@ -318,3 +370,4 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - [Next.js lazy loading / prerendering](https://nextjs.org/docs/app/guides/lazy-loading)
 - [Wagmi v2 SSR](https://2.x.wagmi.sh/react/guides/ssr)
 - [React hydration consistency](https://react.dev/reference/react-dom/client/hydrateRoot)
+- [React external-store server snapshots](https://react.dev/reference/react/useSyncExternalStore)

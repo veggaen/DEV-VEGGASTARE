@@ -3,7 +3,8 @@
 import { type OrbPosRef, type CollisionRectsRef } from "@/components/uicustom/home/HeroOrbit";
 import Link from "next/link";
 import * as React from "react";
-import { motion, useReducedMotion, useMotionValue, useSpring, MotionValue } from "framer-motion";
+import { motion, useMotionValue, useSpring, MotionValue } from "framer-motion";
+import { useHydratedReducedMotion as useReducedMotion } from "@/hooks/use-hydrated-reduced-motion";
 import { Button } from "@/components/ui/button";
 import { MyLoginButton } from "@/components/uicustom/auth/buttons/login-button";
 import { FaLock, FaUnlockAlt } from "react-icons/fa";
@@ -93,7 +94,7 @@ const HeroTitleText = React.forwardRef<HTMLSpanElement, {
   const [hoveredIdx, setHoveredIdx] = React.useState<number | null>(null);
 
   // Mouse takes priority; orb is secondary source
-  const effectiveIdx = hoveredIdx ?? orbHoveredIdx ?? null;
+  const effectiveIdx = reduceMotion ? null : hoveredIdx ?? orbHoveredIdx ?? null;
   // True when only the orb is driving the effect (no mouse hover active)
   const orbOnly = hoveredIdx === null && orbHoveredIdx !== null;
 
@@ -113,8 +114,6 @@ const HeroTitleText = React.forwardRef<HTMLSpanElement, {
       onHoverChange?.(false);
     }
   }, [orbHoveredIdx, hoveredIdx, onHoverChange]);
-
-  if (reduceMotion) return <span ref={ref}>{text}</span>;
 
   return (
     <span ref={ref} className="cursor-default" onPointerLeave={handleLeave}>
@@ -171,6 +170,7 @@ const HeroTitleText = React.forwardRef<HTMLSpanElement, {
                 "color 0.12s ease-out, text-shadow 0.12s ease-out, transform 0.12s ease-out",
             }}
             onPointerEnter={() => {
+              if (reduceMotion || !window.matchMedia("(hover: hover)").matches) return;
               setHoveredIdx(i);
               onHoverChange?.(true);
             }}
@@ -393,10 +393,6 @@ const KineticDescription = React.forwardRef<HTMLParagraphElement, {
     }, []);
   }, [words]);
 
-  if (reduceMotion) {
-    return <p className={className}>{text}</p>;
-  }
-
   return (
     <motion.p
       ref={ref}
@@ -418,7 +414,7 @@ const KineticDescription = React.forwardRef<HTMLParagraphElement, {
                 {Array.from(word).map((ch, cIdx) => {
                   const charGlobalIdx = startIdx + cIdx;
                   // Orb proximity glow — smooth falloff over ±5 chars
-                  const orbDist = orbGlowIdx != null ? Math.abs(charGlobalIdx - orbGlowIdx) : Infinity;
+                  const orbDist = !reduceMotion && orbGlowIdx != null ? Math.abs(charGlobalIdx - orbGlowIdx) : Infinity;
                   const orbIntensity = orbDist <= 5 ? 1 - orbDist / 6 : 0;
                   return (
                     <motion.span
@@ -527,7 +523,7 @@ const KineticHeadline = React.forwardRef<HTMLSpanElement, {
     const effectMultiplier = hoveredPosition ? 1 : orbHoveredPosition ? 0.85 : fadeOutProgress;
     
     // Allow hover as soon as character is revealed, don't wait for introDone
-    if (!isRevealed || !activePos) return { scale: 1, glow: false, intensity: 0, wordGlow: false };
+    if (reduceMotion || !isRevealed || !activePos) return { scale: 1, glow: false, intensity: 0, wordGlow: false };
 
     const isInSameWord = wordIdx === activePos.wordIdx;
     const isHoveredChar = isInSameWord && charIdx === activePos.charIdx;
@@ -564,11 +560,7 @@ const KineticHeadline = React.forwardRef<HTMLSpanElement, {
     }
 
     return { scale: 1, glow: false, intensity: 0, wordGlow: false };
-  }, [hoveredPosition, orbHoveredPosition, lastHoverPosition, fadeOutProgress]);
-
-  if (reduceMotion) {
-    return <span ref={ref} className={className}>{text}</span>;
-  }
+  }, [reduceMotion, hoveredPosition, orbHoveredPosition, lastHoverPosition, fadeOutProgress]);
 
   const currentStage = { revealed: words.map((w) => w.length), activeWordIdx: -1, activeCharIdx: -1 };
   const { revealed, activeWordIdx, activeCharIdx } = currentStage;
@@ -633,7 +625,7 @@ const KineticHeadline = React.forwardRef<HTMLSpanElement, {
                         transition: "transform 0.15s ease-out, color 0.15s ease-out, text-shadow 0.15s ease-out",
                       }}
                       animate={
-                        showFancyHover && introDone && !showGlow
+                        !reduceMotion && showFancyHover && introDone && !showGlow
                           ? {
                               textShadow: [
                                 `0 0 0px ${glowColor}`,
@@ -644,7 +636,7 @@ const KineticHeadline = React.forwardRef<HTMLSpanElement, {
                           : undefined
                       }
                       transition={
-                        showFancyHover && introDone && !showGlow
+                        !reduceMotion && showFancyHover && introDone && !showGlow
                           ? {
                               duration: 3,
                               repeat: Infinity,
@@ -654,6 +646,7 @@ const KineticHeadline = React.forwardRef<HTMLSpanElement, {
                           : undefined
                       }
                       onPointerEnter={() => {
+                        if (reduceMotion || !window.matchMedia("(hover: hover)").matches) return;
                         // Allow hover as soon as character is revealed
                         if (isRevealed) {
                           // Clear any fade-out timer when new hover starts

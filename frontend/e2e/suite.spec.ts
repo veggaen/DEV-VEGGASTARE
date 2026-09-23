@@ -557,9 +557,10 @@ test.describe("Layer 3 — Content", () => {
     } finally { await context.close(); }
   });
 
-  test('S7 — stored wallet preferences and reduced motion hydrate without replacing the shell', async ({ browser, baseURL }) => {
+  for (const width of [390, 1280]) {
+  test(`S7 — stored wallet preferences and reduced motion hydrate without replacing the shell (${width}px)`, async ({ browser, baseURL }) => {
     test.setTimeout(60_000);
-    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, colorScheme: 'dark', reducedMotion: 'reduce' });
+    const context = await browser.newContext({ baseURL, viewport: { width, height: 844 }, colorScheme: 'dark', reducedMotion: 'reduce' });
     await context.addInitScript(() => {
       localStorage.setItem('fs.activeNetwork', JSON.stringify({ kind: 'evm', chainId: 11155111 }));
       localStorage.setItem('veggat:tradeMode', 'paper');
@@ -581,6 +582,15 @@ test.describe("Layer 3 — Content", () => {
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
       await consent.click();
       await expect(consent).toBeHidden();
+      // OS preference changes must not replace the heading's letter structure
+      // or reflow the essential hero text after the initial paint.
+      const title = page.getByRole('heading', { name: /Veggat/i, level: 1 });
+      const titleElement = await title.elementHandle();
+      const before = await title.boundingBox();
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      expect(await titleElement!.evaluate(element => element.isConnected)).toBe(true);
+      expect(await title.boundingBox()).toEqual(before);
       await page.evaluate(() => { (window as Window & { __qaMain?: Element | null }).__qaMain = document.querySelector('main'); });
       await link.click();
       await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
@@ -589,6 +599,7 @@ test.describe("Layer 3 — Content", () => {
       expect(errors).toEqual([]);
     } finally { await context.close(); }
   });
+  }
 
   test('S7 — messages preview reflows and scrolls without contacting members', async ({ browser, baseURL }) => {
     test.setTimeout(60_000);

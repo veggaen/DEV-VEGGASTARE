@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { motion, useReducedMotion, useMotionValue, useSpring, type MotionValue } from "framer-motion";
+import { motion, useMotionValue, useSpring, type MotionValue } from "framer-motion";
+import { useHydratedReducedMotion as useReducedMotion } from "@/hooks/use-hydrated-reduced-motion";
 import Link from "next/link";
 
 /** Returns true when the page is in dark mode (watches Tailwind's dark class). */
@@ -46,13 +47,12 @@ function HoverableHeading({
     [text]
   );
   const effectiveIdx = React.useMemo(() => {
+    if (reduceMotion) return null;
     if (externalFraction == null) return hoveredIdx;
     if (letterIndices.length === 0) return null;
     const pos = Math.round(externalFraction * (letterIndices.length - 1));
     return letterIndices[Math.max(0, Math.min(letterIndices.length - 1, pos))];
-  }, [externalFraction, hoveredIdx, letterIndices]);
-
-  if (reduceMotion) return <span className={className}>{text}</span>;
+  }, [reduceMotion, externalFraction, hoveredIdx, letterIndices]);
 
   return (
     <span
@@ -85,7 +85,9 @@ function HoverableHeading({
               transition:
                 "color 0.12s ease-out, text-shadow 0.12s ease-out, transform 0.12s ease-out",
             }}
-            onPointerEnter={() => setHoveredIdx(i)}
+            onPointerEnter={() => {
+              if (!reduceMotion && window.matchMedia("(hover: hover)").matches) setHoveredIdx(i);
+            }}
           >
             {char}
           </span>
