@@ -258,7 +258,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Old-live settled LCP was 14,700ms. Remaining server/network delay and roughly
   1.66MB resource transfer mean this is improvement, not a performance pass.
 
-### Companies follow-up (local verified; live pending)
+### Companies follow-up (local/live verified)
 
 - Directory: preserved heading and cached public results across auth resolution;
   independent account-company reads, explicit retry, matching card skeletons,
@@ -283,7 +283,11 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   demo session without changing route protection. Normal submit error test changes
   only client fixture identity and intercepts the entire write: no real company,
   employee invitation or upload is performed. Owner company creation remains a
-  separate feature test, not proven by this mocked failure. Live release pending.
+  separate feature test, not proven by this mocked failure. Release `e6dcb6f` /
+  `dpl_6a76C651Gpg4NWBXmZjB2xBh6wPb` is READY. Live company regressions plus
+  Pulse/footer/drawer test **5/5** (37.5s), followed by live phone visual review.
+  Local company-page navigation drawer was additionally wheel-scrolled to its
+  boundary at 844×390: background stayed at 0 and Escape restored trigger focus.
 
 ## Research references
 
