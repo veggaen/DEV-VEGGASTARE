@@ -450,7 +450,7 @@ member-to-member delivery remains separate from the mocked error test.
 | Layout | Core path at 360 and 2560, other requested sizes, 125% zoom | PARTIAL — core route/drawer/scroll tests include 360/390/landscape/768/1024/1280/1920/2560; all-route interaction, real phone keyboard and actual Chrome 125% zoom remain unverified |
 | Interview | Root README | PARTIAL — public demo, optional 29/39 NOK SKUs, architecture, four decisions and S5 evidence documented; payment and walkthrough still pending |
 
-## S7 — Shared navigation alignment (verification in progress)
+## S7 — Shared navigation alignment (local/live verified)
 
 - One bounded header canvas, unchanged by scrolling; persistent independently
   scrolling desktop rail and existing mobile drawer share route definitions.
@@ -479,7 +479,13 @@ member-to-member delivery remains separate from the mocked error test.
   providers now use stable static boundaries; optional wallet UI stays lazy.
   Tradeoff: the gate no longer has a separate lightweight JS dependency graph.
   Follow-up build/TypeScript, lint and local browser **27/27** pass (2.3m).
-  Its live deployment/results are recorded after verification.
+  Release `503c059` / `dpl_AHQhfw58y7yziP19fgfhhsv4LkDM` is READY at
+  www.veggat.com. Expanded live browser **30/30** passes (3.3m); supplementary
+  local pre-JS auth/early-scroll/anonymous AI selector **4/4** passes. Fresh live
+  Dashboard startup/resize and actual mobile Pulse scrolling were visually
+  checked. Local/live frontend health are 200. Remaining work includes
+  Notifications, profile loading and demo order amount labeling; all-route
+  feature completion, physical mobile/Chrome zoom and field CWV remain open.
 
 ## Environment and safety
 

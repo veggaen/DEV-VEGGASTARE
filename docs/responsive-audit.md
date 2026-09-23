@@ -976,7 +976,22 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   require a usable menu and retain the exact original heading DOM node.
   Final local webpack/TypeScript and touched-file lint pass; expanded browser
   regression **27/27** passes (2.3m), including both partial-loading widths.
-  Live follow-up deployment/results are recorded below when complete.
+  Follow-up `503c059` / `dpl_AHQhfw58y7yziP19fgfhhsv4LkDM` is READY at
+  www.veggat.com. Expanded live regression **30/30** passes (3.3m), including
+  deferred-chunk tests, ordinary product/cart navigation, both theme/viewport
+  matrices, Pulse footer/pagination and drawer scroll isolation. Additional
+  local auth-first-text/early-scroll/anonymous-model-selector checks **4/4** pass.
+  Fresh live Dashboard startup/resize and actual mobile Pulse were reviewed
+  visually: Pulse scrollTop=700, document scrollY=0, no horizontal overflow and
+  footer hidden while batches remain. Local/live frontend health are 200.
+  Normal initial server-route skeletons still exist; the provider-induced
+  content-to-boot-skeleton transition is the scoped repair, not a CWV claim.
+- Next audit findings: Notifications overflow, unnamed/dead controls, failed
+  requests and wrong message destination; profile loading-shell/readiness;
+  order/download layout and demo labels. The demo order list shows a nominal
+  68 NOK total as completed/paid while the demo notice says no payment; confirm
+  charged-vs-list-price presentation against the verified receipt before changing
+  monetary storage. No payment/grant was made by this navigation audit.
 
 ## Research references
 
