@@ -1,12 +1,12 @@
 'use client';
 /** @fileOverview Private download library with real transfer feedback and stable refreshes. @stability stable */
-import { useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
 import Link from '@/components/ui/navigation-link';
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { FiDownload, FiFile, FiRefreshCw } from 'react-icons/fi';
+import { usePrivateDownload } from '@/hooks/use-private-download';
 
 interface DownloadToken {
   id: string; token: string; maxUses: number; usedCount: number; expiresAt: string | null; isRevoked: boolean;
@@ -25,11 +25,6 @@ function fileSize(bytes: number) {
 }
 export default function MyDownloadsPage() {
   const user = useCurrentUser();
-  const [transfer, setTransfer] = useState<{ id: string; message: string; failed?: boolean } | null>(null);
-  const [pending, setPending] = useState<string | null>(null);
-  const transferLock = useRef(false);
-  const controller = useRef<AbortController | null>(null);
-  useEffect(() => () => controller.current?.abort(), []);
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ downloads: DownloadToken[] }>(
     user?.id ? ['/api/my-downloads', user.id] : null,
     async ([url]: [string, string]) => {
@@ -40,29 +35,7 @@ export default function MyDownloadsPage() {
       return result;
     }, { revalidateOnFocus: true, shouldRetryOnError: false },
   );
-  const download = async (file: DownloadToken) => {
-    if (transferLock.current || statusLabel(file) !== 'Available') return;
-    transferLock.current = true; setPending(file.id); setTransfer(null);
-    const abort = new AbortController(); controller.current = abort;
-    try {
-      const response = await fetch('/api/download/' + encodeURIComponent(file.token), { cache: 'no-store', signal: AbortSignal.any([abort.signal, AbortSignal.timeout(60_000)]) });
-      if (!response.ok) {
-        const message = response.status === 401 ? 'Please sign in again before downloading.' : response.status === 410 ? 'This download has expired or is no longer available.' : response.status === 403 ? 'This account cannot download this file.' : response.status === 429 ? 'Download limit reached. Check your remaining uses or try again later.' : 'The file could not be downloaded. Please try again.';
-        throw new Error(message);
-      }
-      const blob = await response.blob();
-      if (abort.signal.aborted) return;
-      const url = URL.createObjectURL(blob), link = document.createElement('a');
-      link.href = url; link.download = file.digitalAsset.fileName; document.body.appendChild(link); link.click(); link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      setTransfer({ id: file.id, message: 'File sent to your browser. Check your downloads.' });
-    } catch (failure) {
-      if (!abort.signal.aborted) setTransfer({ id: file.id, failed: true, message: failure instanceof Error && failure.name !== 'TimeoutError' ? failure.message : 'The download timed out. Check your downloads before trying again.' });
-    } finally {
-      transferLock.current = false; controller.current = null;
-      if (!abort.signal.aborted) { setPending(null); void mutate(); }
-    }
-  };
+  const { pending, transfer, download } = usePrivateDownload(() => { void mutate(); });
   const loading = !user || isLoading;
   return <section aria-labelledby="downloads-title" className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
     <div className="mx-auto max-w-4xl">
@@ -81,7 +54,7 @@ export default function MyDownloadsPage() {
             </div>
             <p className="mt-4 break-words text-sm font-medium [overflow-wrap:anywhere]">{file.digitalAsset.fileName}<span className="ml-2 font-normal text-muted-foreground">({fileSize(file.digitalAsset.fileSize)})</span></p>
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-muted-foreground">Downloads remaining</dt><dd className="mt-1 tabular-nums">{file.maxUses >= 2_147_483_647 ? 'Unlimited' : Math.max(0, file.maxUses - file.usedCount)}</dd></div><div><dt className="text-muted-foreground">{file.expiresAt ? 'Link expires' : 'Access'}</dt><dd className="mt-1">{file.expiresAt ? new Date(file.expiresAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'No expiry'}</dd></div></dl>
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row"><Button className="h-11 gap-2" disabled={!available || !!pending} onClick={() => void download(file)}><FiDownload aria-hidden />{pending === file.id ? 'Downloading…' : 'Download file'}</Button><Button className="h-11" variant="outline" asChild><Link href={'/order-confirmation/' + encodeURIComponent(file.order.id)}>View receipt</Link></Button></div>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row"><Button className="h-11 gap-2" disabled={!available || !!pending} onClick={() => void download({ id: file.id, token: file.token, fileName: file.digitalAsset.fileName })}><FiDownload aria-hidden />{pending === file.id ? 'Downloading…' : 'Download file'}</Button><Button className="h-11" variant="outline" asChild><Link href={'/order-confirmation/' + encodeURIComponent(file.order.id)}>View receipt</Link></Button></div>
             {!available && <p className="mt-3 text-sm text-muted-foreground">{status === 'Expired' ? 'This time-limited link has expired. Contact the seller with your receipt for help.' : 'This link is not available. Open your receipt and contact the seller for help.'}</p>}
             {transfer?.id === file.id && <p role={transfer.failed ? 'alert' : 'status'} className={'mt-3 text-sm ' + (transfer.failed ? 'text-destructive' : 'text-muted-foreground')}>{transfer.message}</p>}
           </li>;

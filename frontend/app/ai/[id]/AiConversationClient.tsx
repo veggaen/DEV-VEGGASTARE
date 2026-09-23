@@ -119,6 +119,10 @@ export default function AiConversationClient({
   const { config: creditConfig, error: creditError } = useAiCreditConfig();
   const [provider, setProvider] = useState<AiProvider>('GOOGLE');
   const [model, setModel] = useState('gemini-2.5-flash-lite');
+  const selectedModel = creditConfig?.models.find(item => item.provider === provider && item.model === model);
+  const usingOwnKey = creditConfig?.savedProviders.includes(provider) ?? false;
+  const messageCredits = usingOwnKey ? 0 : selectedModel?.credits;
+  const insufficientCredits = !!creditConfig && messageCredits !== undefined && creditConfig.balance < messageCredits;
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -200,6 +204,9 @@ export default function AiConversationClient({
       setSendError("Please sign in to send messages.");
       return;
     }
+    // UX preflight only. The server still atomically authorizes every request
+    // against the latest balance; a stale tab cannot bypass that reservation.
+    if (insufficientCredits) return;
 
     followTranscriptRef.current = true;
     setSendError(null);
@@ -239,6 +246,15 @@ export default function AiConversationClient({
 
     let fullContent = "";
     let responseSensitive: string[] = [];
+    const restoreFailedDraft = () => {
+      setInput(current => current || trimmed);
+      if (fullContent) {
+        setStreamingMsgs(prev => prev.map(item => item.id === aiStreamId ? { ...item, done: true } : item));
+      } else {
+        setConv(prev => prev ? { ...prev, messages: prev.messages.filter(message => message.id !== tempUserMsg.id) } : prev);
+        setStreamingMsgs([]);
+      }
+    };
 
     try {
       const history = conv?.messages ?? [];
@@ -263,8 +279,7 @@ export default function AiConversationClient({
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         setSendError(errData.message ?? "Failed to get response.");
-        setIsStreaming(false);
-        setStreamingMsgs([]);
+        restoreFailedDraft();
         return;
       }
 
@@ -285,8 +300,8 @@ export default function AiConversationClient({
           try {
             const parsed = JSON.parse(raw);
             if (parsed.error) {
-              setSendError(parsed.message ?? 'The response was interrupted.');
-              setStreamingMsgs([]);
+              setSendError((parsed.message ?? 'The response was interrupted.') + (fullContent ? ' Your partial reply is kept here but is not saved. Copy it before leaving.' : ''));
+              restoreFailedDraft();
               return;
             }
             if (parsed.text) {
@@ -345,13 +360,13 @@ export default function AiConversationClient({
       }
       setStreamingMsgs([]);
     } catch (err: any) {
-      if (err?.name === "AbortError") return;
-      setSendError("Connection error. Please try again.");
+      restoreFailedDraft();
+      setSendError((err?.name === 'AbortError' ? 'The response was stopped.' : 'Connection error. Please try again.') + (fullContent ? ' Your partial reply is kept here but is not saved. Copy it before leaving.' : ' Your draft is preserved.'));
     } finally {
       setIsStreaming(false);
       window.dispatchEvent(new Event('ai-credit:refresh'));
     }
-  }, [input, isStreaming, isLoggedIn, conv, sessionId, userName, provider, model]);
+  }, [input, isStreaming, isLoggedIn, conv, sessionId, userName, provider, model, insufficientCredits]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -670,9 +685,7 @@ export default function AiConversationClient({
                   <div>
                     <h2 className="text-xl font-semibold tracking-tight">Start the conversation</h2>
                     <p className="text-sm text-muted-foreground mt-1.5 max-w-xs mx-auto">
-                      {aiParticipants.length > 0
-                        ? `${aiParticipants.map((p) => p.displayName ?? "AI").join(", ")} ${aiParticipants.length === 1 ? "is" : "are"} ready to help. Ask anything below.`
-                        : "Type a message below to get going."}
+                      {selectedModel?.label ? `${selectedModel.label} is selected. Ask anything below.` : 'Choose a model and type a message below to get going.'}
                     </p>
                   </div>
                 </div>
@@ -707,9 +720,9 @@ export default function AiConversationClient({
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden max-w-3xl w-full mx-auto px-4"
               >
-                <div className="flex items-center gap-2 py-2 text-xs text-red-400 border-t border-red-500/20">
-                  <span className="flex-1">{sendError}</span>
-                  <button onClick={() => setSendError(null)}>✕</button>
+                <div role="alert" className="flex items-center gap-2 py-2 text-xs text-red-400 border-t border-red-500/20">
+                  <span className="min-w-0 flex-1">{sendError}</span>
+                  <button aria-label="Dismiss AI error" className="h-11 w-11 shrink-0" onClick={() => setSendError(null)}>✕</button>
                 </div>
               </motion.div>
             )}
@@ -721,9 +734,13 @@ export default function AiConversationClient({
               <div className="max-w-3xl w-full mx-auto">
                 <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2">
                   <CreditModelPicker provider={provider} model={model} config={creditConfig} error={creditError} disabled={isStreaming}
-                    onSelect={(nextProvider, nextModel) => { setProvider(nextProvider); setModel(nextModel); }} />
+                    onSelect={(nextProvider, nextModel) => { setProvider(nextProvider); setModel(nextModel); setSendError(null); }} />
                   <AiCreditStatus config={creditConfig} error={creditError} />
                 </div>
+                <p id="ai-credit-guidance" role={insufficientCredits ? 'status' : undefined} className={'mb-2 text-xs leading-relaxed ' + (insufficientCredits ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground')}>
+                  {insufficientCredits ? <>This model needs {messageCredits} credits; you have {creditConfig!.balance}. Choose a cheaper model{!demo && <> or <Link href="/products/cveggatinterviewcredits01" className="underline underline-offset-4">buy credits</Link></>}. Your draft stays here.</>
+                    : usingOwnKey ? 'Your key · billed directly by your provider.' : messageCredits === undefined ? 'Choose a configured model to see its message price.' : messageCredits === 0 ? 'Free within your daily allowance.' : `${messageCredits} credits per message · reserved before sending.`}
+                </p>
                 <div className="ai-input-ring flex items-end gap-2 rounded-2xl bg-black/[0.03] dark:bg-white/5 px-3 py-2.5 border border-black/8 dark:border-white/10 backdrop-blur-sm shadow-sm chat-input-wrapper transition-colors">
                   <textarea
                     ref={inputRef}
@@ -732,6 +749,7 @@ export default function AiConversationClient({
                     onKeyDown={handleKeyDown}
                     placeholder={isLoggedIn ? "Message…" : "Sign in to send messages"}
                     aria-label="AI message"
+                    aria-describedby="ai-credit-guidance"
                     rows={1}
                     disabled={isStreaming || !isLoggedIn}
                     className="min-w-0 flex-1 resize-none bg-transparent px-1.5 py-1 text-base leading-relaxed text-foreground placeholder:text-muted-foreground/50 outline-none max-h-40 disabled:opacity-50"
@@ -739,7 +757,7 @@ export default function AiConversationClient({
                   />
                   <motion.button
                     onClick={handleSend}
-                    disabled={!input.trim() || isStreaming || !isLoggedIn}
+                    disabled={!input.trim() || isStreaming || !isLoggedIn || insufficientCredits}
                     animate={{ scale: input.trim() && !isStreaming ? 1 : 0.92 }}
                     whileTap={input.trim() && !isStreaming ? { scale: 0.85 } : undefined}
                     transition={{ type: "spring", stiffness: 600, damping: 22 }}

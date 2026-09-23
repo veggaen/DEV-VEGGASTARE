@@ -30,8 +30,8 @@ describe('download entitlement', () => {
     m.find.mockResolvedValue({ ...fixture(), Order: { status, CheckoutAttempt: null } });
     expect((await download()).status).toBe(403); expect(m.storage).not.toHaveBeenCalled();
   });
-  it('denies a refunded checkout even if a stale order still says completed', async () => {
-    m.find.mockResolvedValue({ ...fixture(), Order: { status: 'COMPLETED', CheckoutAttempt: { state: 'REFUNDED' } } });
+  it.each(['REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'])('denies %s even if a stale order still says completed', async state => {
+    m.find.mockResolvedValue({ ...fixture(), Order: { status: 'COMPLETED', CheckoutAttempt: { state } } });
     expect((await download()).status).toBe(403);
   });
   it('denies revoked and expired tokens', async () => {

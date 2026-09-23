@@ -2,7 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 const m = vi.hoisted(() => ({ find: vi.fn(), fresh: vi.fn(), update: vi.fn(), lock: vi.fn(), account: vi.fn(), entry: vi.fn(),
-  files: vi.fn(), token: vi.fn(), order: vi.fn(), cart: vi.fn(), remove: vi.fn(), capture: vi.fn(), read: vi.fn(), transaction: vi.fn() }));
+  files: vi.fn(), token: vi.fn(), order: vi.fn(), cart: vi.fn(), remove: vi.fn(), capture: vi.fn(), read: vi.fn(), transaction: vi.fn(), adjust: vi.fn() }));
+vi.mock('@/lib/ai-credit-adjustment', () => ({ applyAiCreditDelta: m.adjust }));
 vi.mock('@/lib/db', () => ({ dbPrisma: {
   checkoutAttempt: { findUnique: m.find }, $transaction: m.transaction,
 } }));
@@ -35,7 +36,8 @@ describe('transactional checkout fulfillment', () => {
   it('grants sandbox credits only to a sandbox account in the completion transaction', async () => {
     await completeShowcaseCheckout('order1', 'buyer1');
     expect(m.transaction).toHaveBeenCalledOnce();
-    expect(m.account).toHaveBeenCalledWith({ where: { id: 'SANDBOX:buyer1' }, create: { id: 'SANDBOX:buyer1', userId: 'buyer1', environment: 'SANDBOX', balance: 100 }, update: { balance: { increment: 100 } } });
+    expect(m.account).toHaveBeenCalledWith({ where: { id: 'SANDBOX:buyer1' }, create: { id: 'SANDBOX:buyer1', userId: 'buyer1', environment: 'SANDBOX', balance: 0 }, update: {} });
+    expect(m.adjust).toHaveBeenCalledWith(expect.anything(), 'SANDBOX:buyer1', 100);
     expect(m.entry).toHaveBeenCalledWith({ data: { accountId: 'SANDBOX:buyer1', delta: 100, kind: 'PURCHASE', sourceKey: 'checkout:order1' } });
   });
   it('does not fulfill an underpaid capture', async () => {
@@ -67,5 +69,10 @@ describe('transactional checkout fulfillment', () => {
     m.find.mockResolvedValue(demo); m.fresh.mockResolvedValue(demo);
     await completeShowcaseCheckout('order1', 'demo_visitor');
     expect(m.capture).not.toHaveBeenCalled(); expect(m.account).not.toHaveBeenCalled();
+  });
+  it.each(['REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'])('does not regrant an order in %s', async state => {
+    m.fresh.mockResolvedValue({ ...attempt(), state });
+    await expect(completeShowcaseCheckout('order1', 'buyer1')).rejects.toThrow('ORDER_PAYMENT_ADJUSTED');
+    expect(m.account).not.toHaveBeenCalled(); expect(m.token).not.toHaveBeenCalled();
   });
 });

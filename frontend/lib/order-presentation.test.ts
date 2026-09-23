@@ -24,4 +24,9 @@ describe('truthful order presentation', () => {
   it('does not label a refunded capture as paid', () => {
     expect(orderStatusLabel({ status: 'COMPLETED', checkout: { environment: 'LIVE', state: 'REFUNDED', captureId: 'refunded-capture' } })).toBe('Refunded');
   });
+  it.each([['REVERSED', 'Payment reversed'], ['PAYMENT_REVIEW', 'Payment under review']])('shows %s ahead of environment labels', (state, label) => {
+    for (const environment of ['LIVE', 'SANDBOX'] as const) {
+      expect(orderStatusLabel({ status: 'COMPLETED', checkout: { environment, state, captureId: 'capture' } })).toBe(label);
+    }
+  });
 });

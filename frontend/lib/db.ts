@@ -7,6 +7,7 @@ import 'server-only'
 
 import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { previewDatabaseUrl } from '@/lib/preview-database'
 
 function isTruthy(value: string | undefined): boolean {
     if (!value) return false
@@ -27,7 +28,7 @@ const selectedDatabaseUrl =
     vercelEnv === 'production'
         ? process.env.DATABASE_URL_MAINLIVE
         : vercelEnv === 'preview'
-            ? process.env.DATABASE_URL_MAINPREVIEW ?? process.env.DATABASE_URL_MAINDEV
+            ? previewDatabaseUrl(process.env)
             : process.env.NODE_ENV === 'production'
                 ? process.env.DATABASE_URL_MAINLIVE                    // standalone prod build (non-Vercel)
                 : process.env.DATABASE_URL_MAINDEV ?? process.env.DATABASE_URL_MAINLIVE

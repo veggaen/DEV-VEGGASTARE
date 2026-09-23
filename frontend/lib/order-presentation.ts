@@ -8,6 +8,8 @@ export function orderReceiptHref(order: Pick<OrderDto, 'id' | 'checkout'>) {
 export function orderStatusLabel(order: Pick<OrderDto, 'status' | 'checkout' | 'payment'>) {
   const checkout = order.checkout;
   if (checkout?.state === 'REFUNDED') return 'Refunded';
+  if (checkout?.state === 'REVERSED') return 'Payment reversed';
+  if (checkout?.state === 'PAYMENT_REVIEW') return 'Payment under review';
   if (checkout?.environment === 'DEMO') return checkout.state === 'COMPLETED' ? 'Demo ready' : 'Demo pending';
   if (checkout?.environment === 'SANDBOX') return checkout.state === 'COMPLETED' && checkout.captureId ? 'Sandbox verified' : 'Sandbox pending';
   if (checkout) return checkout.state === 'COMPLETED' && checkout.captureId ? 'Payment verified' : 'Awaiting payment';

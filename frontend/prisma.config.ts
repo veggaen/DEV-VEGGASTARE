@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { defineConfig } from 'prisma/config'
+import { previewDatabaseUrl } from './lib/preview-database'
 
 const vercelEnv = process.env.VERCEL_ENV // 'production' | 'preview' | 'development'
 const isProduction = vercelEnv === 'production' || (!vercelEnv && process.env.NODE_ENV === 'production')
@@ -8,7 +9,7 @@ const isPreview = vercelEnv === 'preview'
 const resolvedDatasourceUrl = isProduction
   ? process.env.DATABASE_URL_MAINLIVE ?? process.env.DATABASE_URL ?? process.env.DATABASE_URL_MAINDEV
   : isPreview
-    ? process.env.DATABASE_URL_MAINPREVIEW ?? process.env.DATABASE_URL_MAINDEV ?? process.env.DATABASE_URL ?? process.env.DATABASE_URL_MAINLIVE
+    ? previewDatabaseUrl(process.env)
     : process.env.DATABASE_URL_MAINDEV ?? process.env.DATABASE_URL ?? process.env.DATABASE_URL_MAINLIVE
 
 if (!resolvedDatasourceUrl) {

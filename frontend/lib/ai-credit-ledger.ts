@@ -6,9 +6,11 @@ import { dbPrisma } from '@/lib/db';
 import type { PrismaClient } from '@/generated/prisma/client';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { paypalEnvironment } from '@/lib/payments/showcase-policy';
+import { applyAiCreditDelta } from '@/lib/ai-credit-adjustment';
 
 export const DEMO_AI_CREDITS = 5;
 export const AI_DAILY_REQUEST_LIMIT = 20;
+export const AI_CONCURRENT_REQUEST_LIMIT = 2;
 export const AI_RESERVATION_LEASE_MS = 120_000;
 export class AiCreditError extends Error {
   constructor(public code: string, public status: number) { super(code); }
@@ -60,7 +62,7 @@ export function createAiCreditLedger(db: PrismaClient) {
         state: succeeded ? 'COMPLETED' : 'REFUNDED', settledAt: new Date(),
       } });
       if (!succeeded && reservation.accountId && reservation.credits > 0) {
-        await tx.aiCreditAccount.update({ where: { id: reservation.accountId }, data: { balance: { increment: reservation.credits } } });
+        await applyAiCreditDelta(tx, reservation.accountId, reservation.credits);
         await tx.aiCreditEntry.create({ data: { accountId: reservation.accountId, delta: reservation.credits,
           kind: 'REFUND', sourceKey: `ai-refund:${id}` } });
       }
@@ -78,11 +80,12 @@ export function createAiCreditLedger(db: PrismaClient) {
     for (const item of expired) await settle(item.id, false);
   }
 
-  async function balance(userId: string) {
+  async function position(userId: string) {
     await recoverExpired(userId);
     return (await db.aiCreditAccount.findUnique({ where: { id: `${aiCreditEnvironment(userId)}:${userId}` },
-      select: { balance: true } }))?.balance ?? 0;
+      select: { balance: true, refundAdjustment: true } })) ?? { balance: 0, refundAdjustment: 0 };
   }
+  async function balance(userId: string) { return (await position(userId)).balance; }
 
   async function grantDemo(userId: string) {
     if (!isDemoUserId(userId)) throw new AiCreditError('DEMO_SESSION_REQUIRED', 403);
@@ -114,6 +117,12 @@ export function createAiCreditLedger(db: PrismaClient) {
         throw new AiCreditError('AI_REQUEST_ALREADY_USED', 409);
       }
       if (input.userId) {
+        // Same global lock covers the check and insertion across tabs/replicas,
+        // including free models and BYOK. Expired leases were recovered above.
+        const active = await tx.aiGenerationReservation.count({ where: {
+          accountId: `${environment}:${input.userId}`, state: 'RESERVED',
+        } });
+        if (active >= AI_CONCURRENT_REQUEST_LIMIT) throw new AiCreditError('AI_CONCURRENT_LIMIT', 429);
         const usage = await tx.dailyAiUsage.findUnique({ where: { userId_date: { userId: input.userId, date: day } } });
         const limit = isDemoUserId(input.userId) ? DEMO_AI_CREDITS : AI_DAILY_REQUEST_LIMIT;
         if ((usage?.count ?? 0) >= limit) throw new AiCreditError('AI_DAILY_LIMIT', 429);
@@ -149,7 +158,7 @@ export function createAiCreditLedger(db: PrismaClient) {
       return { id: reservation.id, credits: reservation.credits };
     }, { maxWait: 10_000, timeout: 15_000 });
   }
-  return { reserve, settle, balance, grantDemo, recoverExpired };
+  return { reserve, settle, balance, position, grantDemo, recoverExpired };
 }
 
 export const aiCreditLedger = createAiCreditLedger(dbPrisma as PrismaClient);

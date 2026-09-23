@@ -34,6 +34,9 @@ model CheckoutAttempt {
   captureRequestId String   @unique @default(uuid())
   createdAt        DateTime @default(now())
   completedAt      DateTime?
+  refundedOre      Int      @default(0)
+  refundReference  String?
+  paymentAdjustedAt DateTime?
   Order            Order    @relation(fields: [orderId], references: [id])
 
   @@unique([userId, requestKey])
@@ -56,6 +59,8 @@ model AiCreditAccount {
   userId    String
   environment String
   balance   Int      @default(0)
+  // Used credits later refunded by the payment provider. Never a card charge.
+  refundAdjustment Int @default(0)
   updatedAt DateTime @updatedAt
   User      User     @relation(fields: [userId], references: [id])
   Entries   AiCreditEntry[]

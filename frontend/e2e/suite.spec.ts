@@ -1,5 +1,99 @@
 import { test, expect } from "@playwright/test";
 
+test('S5 — low-credit preflight preserves drafts and failed streams keep partial replies', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo; all credit and generation responses are browser-only fixtures');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  let calls = 0;
+  try {
+    const list = await (await context.request.get('/api/ai-chat/sessions?limit=20')).json();
+    const conversation = list.sessions.find((item: { _count: { messages: number } }) => item._count.messages > 0);
+    expect(conversation).toBeTruthy();
+    const config = await (await context.request.get('/api/ai-chat/config')).json();
+    await page.route('**/api/ai-chat/config', route => route.fulfill({ json: { ...config, balance: 1, refundAdjustment: 0, savedProviders: [], demo: false,
+      models: config.models.map((item: { provider: string; credits: number }) => ({ ...item, credits: item.provider === 'GROQ' ? 0 : item.credits })) } }));
+    await page.route(url => url.pathname === '/api/ai-chat', route => {
+      calls++;
+      return calls === 1 ? route.fulfill({ status: 429, json: { error: 'AI_CONCURRENT_LIMIT', message: 'Two replies are already in progress. Your message has not been charged.' } })
+        : route.fulfill({ contentType: 'text/event-stream', body: 'data: {"text":"Preserved partial QA response."}\n\ndata: {"error":true,"message":"The model connection stopped."}\n\ndata: [DONE]\n\n' });
+    });
+    await page.goto(`/ai/${conversation.id}`, { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    const composer = page.getByRole('textbox', { name: 'AI message', exact: true });
+    const send = page.getByRole('button', { name: 'Send message', exact: true });
+    const choose = async (model: string) => {
+      await page.getByRole('button', { name: /^Choose AI model:/ }).click();
+      const picker = page.getByRole('dialog', { name: 'Choose AI model', exact: true });
+      await picker.getByRole('textbox', { name: 'Search models', exact: true }).fill(model);
+      await picker.getByRole('button', { name: new RegExp(model.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).click();
+      await expect(picker).toBeHidden();
+    };
+    await choose('GPT-5.6 Luna');
+    const draft = 'Keep this draft when the selected model is unaffordable.';
+    await composer.fill(draft);
+    await expect(send).toBeDisabled();
+    await expect(page.locator('#ai-credit-guidance')).toContainText('This model needs 2 credits; you have 1.');
+    await composer.press('Enter'); await expect(composer).toHaveValue(draft); expect(calls).toBe(0);
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size); await expect(composer).toBeInViewport({ ratio: 0.95 });
+      await expect(page.locator('#ai-credit-guidance')).toBeInViewport();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await choose('GPT-OSS 20B'); await expect(composer).toHaveValue(draft); await expect(send).toBeEnabled();
+    await send.click(); await expect(page.locator('main').getByRole('alert')).toContainText('Your message has not been charged.');
+    await expect(composer).toHaveValue(draft); await expect(send).toBeEnabled();
+    await expect(page.locator('[data-ai-transcript]')).not.toContainText(draft);
+    await send.click(); await expect(page.locator('main').getByRole('alert')).toContainText('Your partial reply is kept here but is not saved.');
+    await expect(page.locator('[data-ai-transcript]')).toContainText('Preserved partial QA response.');
+    await expect(composer).toHaveValue(draft); expect(calls).toBe(2);
+  } finally { await page.unrouteAll({ behavior: 'ignoreErrors' }); await context.close(); }
+});
+
+test('S4 — refund adjustment reflows in AI composer and model sheet without a charge', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required; browser-only balance fixture');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+    viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  let sends = 0;
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    const list = await (await context.request.get('/api/ai-chat/sessions?limit=20')).json();
+    const conversation = list.sessions.find((item: { _count: { messages: number } }) => item._count.messages > 0);
+    expect(conversation).toBeTruthy();
+    await page.route('**/api/ai-chat/config', async route => {
+      const response = await route.fetch();
+      await route.fulfill({ response, json: { ...await response.json(), balance: 0, refundAdjustment: 7, demo: false } });
+    });
+    await page.route(url => url.pathname === '/api/ai-chat', route => { sends++; return route.abort(); });
+    await page.goto(`/ai/${conversation.id}`, { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    const composer = page.getByRole('textbox', { name: 'AI message', exact: true });
+    const notice = page.getByRole('link', { name: 'Refund adjustment: 7 credits', exact: true });
+    await expect(notice).toHaveAttribute('href', '/my-orders');
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size);
+      await expect(composer).toBeInViewport({ ratio: 0.95 }); await expect(notice).toBeInViewport();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const picker = page.getByRole('button', { name: /^Choose AI model:/ }); await picker.click();
+      const sheet = page.getByRole('dialog', { name: 'Choose AI model', exact: true });
+      await expect(sheet).toBeVisible();
+      await sheet.evaluate(async element => { await Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {}))); });
+      await expect(sheet.getByRole('link', { name: 'Refund adjustment: 7 credits', exact: true })).toBeInViewport();
+      await expect(sheet.getByRole('textbox', { name: 'Search models', exact: true })).toBeInViewport();
+      expect(await sheet.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+      const scroll = sheet.locator('[data-ai-model-scroll]'); const box = await scroll.boundingBox();
+      expect(box!.height).toBeGreaterThan(20);
+      await page.mouse.move(box!.x + 20, box!.y + box!.height / 2); await page.mouse.wheel(0, 5000);
+      await expect.poll(() => scroll.evaluate(element => Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop))).toBeLessThan(2);
+      await page.screenshot({ path: `.private-showcase/refund-sheet-${new URL(baseURL!).hostname}-${size.width}.png` });
+      await page.keyboard.press('Escape'); await expect(sheet).toBeHidden(); await expect(picker).toBeFocused();
+    }
+    expect(sends).toBe(0); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S6 — wallet chooser does not accept clicks before hydration', async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
@@ -615,6 +709,12 @@ test('S4 — retained demo receipts, private downloads and responsive order hist
     await page.unroute('**' + endpoint); await section.getByRole('button', { name: 'Try again', exact: true }).click(); await expect(section.getByRole('alert')).toHaveCount(0);
     await row.getByRole('link', { name: 'View receipt', exact: true }).click(); await expect(page).toHaveURL(/\/checkout\/receipt\//);
     await expect(page.getByRole('heading', { name: 'Your demo order is ready' })).toBeVisible(); await expect(page.locator('main')).toContainText('0.00 NOK'); await expect(page.getByRole('list', { name: 'Receipt items' }).locator('li')).toHaveCount(2);
+    // File failures stay on the receipt, with a usable retry instead of a raw API/error navigation.
+    const receiptNotes = page.getByRole('button', { name: /^Download .*\.txt$/ });
+    await page.route('**/api/download/**', route => route.fulfill({ status: 502, json: { error: 'Controlled QA storage failure' } }));
+    await receiptNotes.click(); await expect(page.locator('main').getByRole('alert')).toHaveText('The file could not be downloaded. Please try again.');
+    await expect(page).toHaveURL('/checkout/receipt/' + order.id); await expect(receiptNotes).toBeEnabled();
+    await page.unroute('**/api/download/**');
     // Old bookmarks must resolve to the same truthful receipt, not a dollar receipt.
     await page.goto('/order-confirmation/' + order.id, { waitUntil: 'domcontentloaded' }); await expect(page).toHaveURL('/checkout/receipt/' + order.id);
     await page.getByRole('link', { name: 'My downloads', exact: true }).click();
@@ -2992,10 +3092,16 @@ test.describe("Layer 3 — Content", () => {
       await sheet.getByRole('textbox', { name: 'Search models', exact: true }).fill('GPT-5.6 Luna');
       await sheet.getByRole('button', { name: /GPT-5.6 Luna/ }).click();
       await page.getByRole('textbox', { name: 'AI message', exact: true }).fill('This must be blocked before any provider charge.');
-      const denied = page.waitForResponse(r => new URL(r.url()).pathname === '/api/ai-chat' && r.request().method() === 'POST');
-      await page.getByRole('button', { name: 'Send message', exact: true }).click();
-      expect((await denied).status()).toBe(402);
-      await expect(page.getByText('Not enough credits for this model.', { exact: false })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Send message', exact: true })).toBeDisabled();
+      await expect(page.getByText('This model needs 2 credits; you have 0.', { exact: false })).toBeVisible();
+      await expect(page.getByRole('textbox', { name: 'AI message', exact: true })).toHaveValue('This must be blocked before any provider charge.');
+      // The disabled button is UX only. Exercise the server independently so
+      // client-side gating is never mistaken for the actual spending boundary.
+      const denied = await context.request.post('/api/ai-chat', { headers: { Origin: baseURL! }, data: {
+        sessionId: conversationPath.split('/').at(-1), provider: 'OPENAI', model: 'gpt-5.6-luna', requestId: crypto.randomUUID(),
+        messages: [{ role: 'user', content: 'This must be blocked before any provider charge.' }],
+      } });
+      expect(denied.status()).toBe(402);
       expect((await (await context.request.get('/api/ai-chat/config')).json()).balance).toBe(0);
       for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
         await page.setViewportSize(size);

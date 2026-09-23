@@ -2,6 +2,49 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Current PayPal/credit follow-up — local candidate, not deployed
+
+- DONE: real Chrome connected. Existing PayPal Live `veggastare` and Sandbox
+  `Default Application` reused. Approved Live webhook saved with completed,
+  refunded and reversed events. Production-only Live credentials/webhook and
+  Development-only Sandbox credentials saved as Vercel secrets.
+- DONE: real Sandbox checkout for 39 NOK/100 credits and 29 NOK/JPG+TXT.
+  Both server-verified captures are COMPLETED. Credit return replay left exactly
+  one purchase grant; downloaded files match the stored SHA-256/size and anonymous
+  requests return 401. No Live money spent or artificial credit grant/cap reset.
+- DONE: real credit-funded replies through the Chrome model picker: OpenAI Luna
+  debited 2 credits (100 → 98), Grok 4.7 debited 8 (98 → 90), and GPT-6 Astra
+  debited 60 (90 → 30). A further Astra request was denied at 30 without an extra
+  reservation. UI preflight now preserves the draft and disables unaffordable sends.
+- PARTIAL: refund/reversal reconciliation and credit adjustments implemented;
+  two active generations/account enforced atomically. Isolated Postgres and
+  generation/receipt tests **52/52** pass. The first concurrency run caught an
+  older test that created six simultaneous holds; it now races the permitted two
+  alongside purchase/refund updates. No public balances were edited by tests.
+- PARTIAL: receipt file links exposed a real Chrome blocked-navigation state;
+  library blob transfers worked and delivered both files. Receipt transfers now
+  reuse that same bounded, auth-checked in-page flow with visible retry feedback.
+  Credit-only receipts link directly to AI, and cancellation preserves the cart
+  without asserting payment state from the query string.
+- DONE: strict candidate webpack/TypeScript build and 187 generated pages passed
+  with an 8 GB process heap (the initial 4 GB TypeScript worker exhausted memory).
+  Focused Playwright checks **5/5** pass, including credit/draft recovery, receipt
+  retry, refund notices and landscape AI drawers. Screenshots were inspected.
+  Updated real-Chrome receipt transfer delivered the TXT without leaving the page;
+  its downloaded SHA-256 matches the private original.
+- DONE: isolated schema-only Neon `veggat-paypal-sandbox` created on the existing
+  Free plan. All 115 application tables were empty; 45 schema-verified migrations
+  were baselined and Prisma reports no pending migrations. Synthetic QA identities,
+  company, products and private originals are provisioned without copied user data.
+  Preview-only database and Sandbox PayPal secrets saved in Vercel. Production
+  settings unchanged. Preview isolation guard tests **7/7** and touched lint pass.
+- OPEN: Preview deployment/auth origin and actual Sandbox webhook/refund delivery;
+  production deploy/Live micro-purchases,
+  real Sandbox webhook/refund delivery, volume packs and owner usage/margin UI.
+  [Reviewed commercial policy](credit-commercial-policy.md) records which Grok
+  recommendations are adopted, qualified or deferred. This is not an all-green
+  payment or profitability claim.
+
 Latest wallet/PayPal follow-up: release `88729d0`, deployment
 `dpl_CfYkdh23aWaFe5CMQuM8kQ6M96tw`, is READY at www.veggat.com, veggat.com and
 dev-veggastare.vercel.app. Live browser **14/14 (1.8m)** passes; live mobile
@@ -31,12 +74,10 @@ disabled in the repository. Actual owner-extension prompts remain unverified.
 PayPal postback verification now preserves the raw event JSON, rejects missing
 signature fields before provider calls, and remains mandatory in Sandbox.
 Example settings and [setup/acceptance guidance](paypal-setup.md) use the correct
-`/api/webhooks/paypal` path and event. Vercel Production variable names were
-rechecked: `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` remain
-absent. Refund reconciliation and real Sandbox/Live transactions remain open.
-The owner screenshot shows a signed-in PayPal Live dashboard with no REST apps;
-the control tool still reports no attached browsers. No credentials or charges
-were created, no owner wallet was accessed, and no billing setting changed.
+`/api/webhooks/paypal` path and event. That deployed wallet release was verified
+before PayPal credentials were configured. The current follow-up above supersedes
+its earlier missing-credentials/browser-connection status; it does not change
+that release's recorded tests into proof of Live checkout acceptance.
 
 Latest verified follow-up: reproduced and fixed cold-load Pulse disappearance while a
 closed poll module loads, plus the resulting early-scroll/footer jump. Optional

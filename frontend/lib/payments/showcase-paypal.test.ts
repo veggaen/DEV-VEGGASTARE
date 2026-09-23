@@ -1,7 +1,7 @@
 /** @fileOverview PayPal transport tests use mocked network only, never real charges. @stability stable */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
-import { createPayPalOrder, capturePayPalOrder } from './showcase-paypal';
+import { createPayPalOrder, capturePayPalOrder, readPayPalCapture, readPayPalRefund, paypalConfigured } from './showcase-paypal';
 import { quoteShowcaseCart } from './showcase-policy';
 import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
 
@@ -12,6 +12,17 @@ function setup() {
   const network = vi.fn(); vi.stubGlobal('fetch', network); return network;
 }
 describe('PayPal transport', () => {
+  it('keeps Live checkout closed until its webhook ID is present', async () => {
+    const network = setup(); vi.stubEnv('VERCEL', '1'); vi.stubEnv('VERCEL_ENV', 'production'); vi.stubEnv('PAYPAL_WEBHOOK_ID', '');
+    expect(paypalConfigured()).toBe(false);
+    await expect(capturePayPalOrder('ORDER1', 'stable')).rejects.toThrow('PAYPAL_NOT_CONFIGURED');
+    expect(network).not.toHaveBeenCalled();
+    vi.stubEnv('PAYPAL_WEBHOOK_ID', 'live-webhook'); expect(paypalConfigured()).toBe(true);
+  });
+  it('allows local Sandbox capture with only Sandbox credentials', () => {
+    setup(); vi.stubEnv('NODE_ENV', 'production'); vi.stubEnv('PAYPAL_WEBHOOK_ID', '');
+    expect(paypalConfigured()).toBe(true);
+  });
   it('sends authoritative separate items, stable idempotency and trusted return URL', async () => {
     const network = setup();
     network.mockResolvedValueOnce(Response.json({ access_token: 'unit-token' })).mockResolvedValueOnce(Response.json({
@@ -36,5 +47,12 @@ describe('PayPal transport', () => {
     const network = setup(); vi.stubEnv('PAYPAL_CLIENT_SECRET', '');
     await expect(capturePayPalOrder('ORDER1', 'stable')).rejects.toThrow('PAYPAL_NOT_CONFIGURED');
     expect(network).not.toHaveBeenCalled();
+  });
+  it.each([[readPayPalCapture, 'captures'], [readPayPalRefund, 'refunds']] as const)('uses a locked GET endpoint for adjustment proof %#', async (read, resource) => {
+    const network = setup(); network.mockResolvedValueOnce(Response.json({ access_token: 'unit-token' })).mockResolvedValueOnce(Response.json({ id: 'ID1' }));
+    await read('ID1');
+    expect(network.mock.calls[1][0]).toBe(`https://api-m.sandbox.paypal.com/v2/payments/${resource}/ID1`);
+    expect(network.mock.calls[1][1].method).toBe('GET');
+    await expect(read('../wrong')).rejects.toThrow(); expect(network).toHaveBeenCalledTimes(2);
   });
 });

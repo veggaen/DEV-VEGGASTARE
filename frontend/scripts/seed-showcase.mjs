@@ -5,10 +5,11 @@ import { fileURLToPath } from 'node:url';
 
 const target = process.argv[2];
 const dryRun = process.argv.includes('--dry-run');
-if (!['development', 'production'].includes(target)) throw new Error('Usage: node --env-file=.env.local scripts/seed-showcase.mjs development|production');
-const configured = target === 'production' ? process.env.DATABASE_URL_MAINLIVE : process.env.DATABASE_URL_MAINDEV;
+if (!['development', 'preview', 'production'].includes(target)) throw new Error('Usage: node --env-file=<scoped-env-file> scripts/seed-showcase.mjs development|preview|production');
+const configured = target === 'production' ? process.env.DATABASE_URL_MAINLIVE : target === 'preview' ? process.env.DATABASE_URL_MAINPREVIEW : process.env.DATABASE_URL_MAINDEV;
 if (!configured) throw new Error(`Missing database configuration for ${target}`);
 const url = new URL(configured);
+if (target === 'preview' && process.env.DATABASE_URL_MAINLIVE && url.hostname.replace('-pooler.', '.') === new URL(process.env.DATABASE_URL_MAINLIVE).hostname.replace('-pooler.', '.')) throw new Error('Preview cannot seed the production endpoint.');
 url.searchParams.set('uselibpqcompat', 'true');
 const pool = new Pool({ connectionString: url.toString(), max: 1 });
 const companyId = 'cveggatshowcasestudio00001';

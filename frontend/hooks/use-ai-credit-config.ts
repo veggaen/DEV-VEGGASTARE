@@ -2,7 +2,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import type { AiProvider } from '@/lib/ai-models';
-export type AiCreditConfig = { balance: number; authenticated: boolean; demo: boolean; environment: string; dailyUsed: number; dailyLimit: number;
+export type AiCreditConfig = { balance: number; refundAdjustment?: number; authenticated: boolean; demo: boolean; environment: string; dailyUsed: number; dailyLimit: number;
   savedProviders: AiProvider[]; models: { provider: AiProvider; model: string; label: string; credits: number; available: boolean }[] };
 export function useAiCreditConfig(enabled = true) {
   const [config, setConfig] = useState<AiCreditConfig | null>(null);

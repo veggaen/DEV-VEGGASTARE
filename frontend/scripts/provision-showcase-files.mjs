@@ -5,9 +5,12 @@ import { initEdgeStore } from '@edgestore/server';
 import { initEdgeStoreClient, initEdgeStoreSdk } from '@edgestore/server/core';
 import pg from 'pg';
 
-if (!process.argv.includes('--database=production')) throw new Error('Explicit --database=production required.');
+const database = process.argv.find(arg => arg.startsWith('--database='))?.slice(11);
+if (!['production', 'preview'].includes(database)) throw new Error('Explicit --database=production|preview required.');
 if (!process.env.EDGE_STORE_ACCESS_KEY || !process.env.EDGE_STORE_SECRET_KEY) throw new Error('Private storage credentials missing');
-const dbUrl = new URL(process.env.DATABASE_URL_MAINLIVE); dbUrl.searchParams.set('uselibpqcompat', 'true');
+const dbUrl = new URL(database === 'preview' ? process.env.DATABASE_URL_MAINPREVIEW : process.env.DATABASE_URL_MAINLIVE);
+if (database === 'preview' && process.env.DATABASE_URL_MAINLIVE && dbUrl.hostname.replace('-pooler.', '.') === new URL(process.env.DATABASE_URL_MAINLIVE).hostname.replace('-pooler.', '.')) throw new Error('Preview cannot provision into the production endpoint.');
+dbUrl.searchParams.set('uselibpqcompat', 'true');
 const client = new pg.Client({ connectionString: dbUrl.toString() });
 const companyId = 'cveggatshowcasestudio00001', productId = 'cveggatinterviewpack000001';
 const files = [

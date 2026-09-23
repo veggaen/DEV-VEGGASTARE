@@ -96,6 +96,7 @@ export function aiErrorResponse(error: unknown) {
     LAST_MESSAGE_MUST_BE_USER: 'Write a message before sending.',
     CONVERSATION_UNAVAILABLE: 'This conversation is not available to your account.',
     AI_RATE_LIMIT: 'Too many requests. Please wait a few minutes and try again.',
+    AI_CONCURRENT_LIMIT: 'Two replies are already in progress. Wait for one to finish before sending again. Your message has not been charged.',
     AI_CREDITS_REQUIRED: 'Not enough credits for this model. Buy credits or choose a free model.',
     AI_DAILY_LIMIT: 'Your daily AI limit has been reached. It resets at midnight UTC.',
     AI_PLATFORM_DAILY_LIMIT: 'Platform AI has reached its daily safety limit. Try tomorrow or use your own key.',

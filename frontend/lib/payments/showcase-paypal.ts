@@ -7,7 +7,12 @@ import { CheckoutError, moneyString, paypalEnvironment, validateApprovalUrl, typ
 const Id = z.string().regex(/^[A-Z0-9]{1,36}$/);
 const Token = z.object({ access_token: z.string().min(1) });
 
-export function paypalConfigured() { return Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET); }
+export function paypalConfigured() {
+  // Do not open Live checkout before refund/reversal notifications can be
+  // verified. Local Sandbox can exercise server capture before HTTPS setup.
+  return Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET &&
+    (paypalEnvironment().mode === 'SANDBOX' || process.env.PAYPAL_WEBHOOK_ID));
+}
 
 async function request(path: string, options: { method?: 'GET' | 'POST'; body?: unknown; requestId?: string } = {}) {
   if (!paypalConfigured()) throw new CheckoutError('PAYPAL_NOT_CONFIGURED', 503);
@@ -54,6 +59,8 @@ export async function createPayPalOrder(orderId: string, quote: ShowcaseQuote, r
 }
 
 export async function readPayPalOrder(id: string) { return request(`/v2/checkout/orders/${Id.parse(id)}`); }
+export async function readPayPalCapture(id: string) { return request(`/v2/payments/captures/${Id.parse(id)}`); }
+export async function readPayPalRefund(id: string) { return request(`/v2/payments/refunds/${Id.parse(id)}`); }
 export async function capturePayPalOrder(id: string, requestId: string) {
   // If a previous response was lost, GET lets the caller reconcile COMPLETED.
   const existing = await readPayPalOrder(id);

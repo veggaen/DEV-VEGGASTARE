@@ -5,6 +5,7 @@ import { dbPrisma } from '@/lib/db';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { CheckoutError, paypalEnvironment, quoteShowcaseCart, verifyCapturedOrder, type ShowcaseQuote } from './showcase-policy';
 import { capturePayPalOrder, createPayPalOrder, paypalConfigured, readPayPalOrder } from './showcase-paypal';
+import { applyAiCreditDelta } from '@/lib/ai-credit-adjustment';
 
 const includeOrder = { Order: { include: { OrderItem: true } } } as const;
 function filesReady(files: { DigitalAsset: { isActive: boolean; mimeType: string } }[]) {
@@ -50,7 +51,7 @@ export async function prepareShowcaseCheckout(userId: string, requestKey: string
 export async function beginShowcaseCheckout(userId: string, requestKey: string) {
   const attempt = await prepareShowcaseCheckout(userId, requestKey);
   if (attempt.state === 'COMPLETED') return { orderId: attempt.orderId, completed: true };
-  if (attempt.state === 'REFUNDED') throw new CheckoutError('ORDER_REFUNDED', 409);
+  if (['REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'].includes(attempt.state)) throw new CheckoutError('ORDER_PAYMENT_ADJUSTED', 409);
   if (attempt.environment === 'DEMO') return { orderId: attempt.orderId, demo: true };
   // Never retry creation outside PayPal's shortest idempotency retention window.
   if (Date.now() - attempt.createdAt.getTime() > 3_600_000) throw new CheckoutError('CHECKOUT_EXPIRED', 409);
@@ -65,7 +66,7 @@ export async function beginShowcaseCheckout(userId: string, requestKey: string) 
 export async function completeShowcaseCheckout(orderId: string, userId: string, capture = true) {
   const attempt = await dbPrisma.checkoutAttempt.findUnique({ where: { orderId }, include: includeOrder });
   if (!attempt || attempt.userId !== userId) throw new CheckoutError('ORDER_NOT_FOUND', 404);
-  if (attempt.state === 'REFUNDED') throw new CheckoutError('ORDER_REFUNDED', 409);
+  if (['REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'].includes(attempt.state)) throw new CheckoutError('ORDER_PAYMENT_ADJUSTED', 409);
   const demo = attempt.environment === 'DEMO';
   if (demo !== isDemoUserId(userId) || (!demo && attempt.environment !== paypalEnvironment().mode)) throw new CheckoutError('WRONG_PAYMENT_ENVIRONMENT', 409);
   if (attempt.state === 'COMPLETED') return { orderId, alreadyCompleted: true };
@@ -84,7 +85,7 @@ export async function completeShowcaseCheckout(orderId: string, userId: string, 
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`fulfill:${orderId}`}, 0))`;
     const fresh = await tx.checkoutAttempt.findUniqueOrThrow({ where: { orderId }, include: includeOrder });
     if (fresh.state === 'COMPLETED') return { orderId, alreadyCompleted: true };
-    if (fresh.state === 'REFUNDED') throw new CheckoutError('ORDER_REFUNDED', 409);
+    if (['REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'].includes(fresh.state)) throw new CheckoutError('ORDER_PAYMENT_ADJUSTED', 409);
     // Unique captureId also prevents reuse across different internal orders.
     await tx.checkoutAttempt.update({ where: { orderId }, data: { state: 'COMPLETED', captureId: proof?.captureId, completedAt: new Date() } });
     const quote = fresh.quote as unknown as ShowcaseQuote;
@@ -93,7 +94,8 @@ export async function completeShowcaseCheckout(orderId: string, userId: string, 
     // Demo's one-time free allowance is granted separately in S5.
     if (grant && !demo) {
       const accountId = `${fresh.environment}:${userId}`;
-      await tx.aiCreditAccount.upsert({ where: { id: accountId }, create: { id: accountId, userId, environment: fresh.environment, balance: grant }, update: { balance: { increment: grant } } });
+      await tx.aiCreditAccount.upsert({ where: { id: accountId }, create: { id: accountId, userId, environment: fresh.environment, balance: 0 }, update: {} });
+      await applyAiCreditDelta(tx, accountId, grant);
       await tx.aiCreditEntry.create({ data: { accountId, delta: grant, kind: 'PURCHASE', sourceKey: `checkout:${orderId}` } });
     }
     for (const item of fresh.Order.OrderItem) {

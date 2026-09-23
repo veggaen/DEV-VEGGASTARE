@@ -14,6 +14,7 @@ export function AiCreditStatus({ config, error = false }: { config: AiCreditConf
     <span aria-live="polite">{config.balance} {config.demo ? 'demo ' : ''}credits</span>
     <span className="[@media(max-height:500px)]:hidden">{Math.max(0, config.dailyLimit - config.dailyUsed)} sends left today</span>
     {!config.demo && <Link href="/products/cveggatinterviewcredits01" className="inline-flex min-h-11 items-center underline underline-offset-4">Buy credits</Link>}
+    {(config.refundAdjustment ?? 0) > 0 && <Link href="/my-orders" className="inline-flex min-h-11 items-center text-amber-700 underline underline-offset-4 dark:text-amber-400">Refund adjustment: {config.refundAdjustment} credits</Link>}
     {config.demo && <span className="[@media(max-height:500px)]:hidden">No payment needed</span>}
   </div>;
 }
@@ -32,7 +33,7 @@ export function CreditModelPicker({ provider, model, onSelect, config, byokProvi
       </button>
     </SheetTrigger>
     <SheetContent side="bottom" accessibleTitle="Choose AI model" accessibleDescription="Choose a model and review its credit cost before sending."
-      className="z-[150] mx-auto flex max-h-[85dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl border p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
+      className="z-[150] mx-auto flex max-h-[85dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl border p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 [@media(max-height:500px)]:max-h-[96dvh] [@media(max-height:500px)]:gap-2 [@media(max-height:500px)]:p-3">
       <div className="shrink-0 space-y-2 pr-10"><h2 className="text-lg font-semibold">Choose AI model</h2><AiCreditStatus config={config} error={error} /></div>
       <label className="block shrink-0 text-sm">Search models
         <input value={search} onChange={event => setSearch(event.target.value)} className="mt-2 h-11 w-full rounded-lg border bg-background px-3 text-base" placeholder="Model or provider" />

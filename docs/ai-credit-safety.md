@@ -1,6 +1,10 @@
 # AI credit safety
 
-Status: **deployed; demo debit, persistence and zero-credit denial verified locally and live**.
+Status: **base ledger deployed; demo debit, persistence and zero-credit denial verified locally and live**.
+The current unshipped follow-up adds two-generation concurrency control and
+payment refund/reversal reconciliation. See [commercial decisions](credit-commercial-policy.md)
+for the reviewed Grok recommendations and the distinction between bounded costs
+and guaranteed profit.
 The additive reservation migration is applied. Release `cd99962`, deployment
 `dpl_DMGSUQQ1DPgCfG1FUfvp955WHQtJ`, is READY at https://www.veggat.com.
 
@@ -15,6 +19,9 @@ The additive reservation migration is applied. Release `cd99962`, deployment
 - The global budget lock serializes spend reservations across replicas. Existing
   `DailyAiUsage` is checked/incremented atomically: 20 attempts/account/day; five
   for demos. BYOK consumes the daily quota too. No owner exemption.
+- The follow-up limits each authenticated credit account to two active
+  reservations, including free and BYOK calls. Rejection consumes no credits,
+  attempt counter or provider budget. Settlement/lease recovery frees a slot.
 - The independent global provider-cost allowance defaults to USD 5/day.
   `AI_PLATFORM_DAILY_BUDGET_USD=0` stops platform calls; malformed configuration
   fails closed. Database/application ceilings are USD 10/day and 500 attempts/day,
@@ -114,9 +121,12 @@ Normal CI does not make these paid provider calls.
 
 ## Release gates
 
-Paid credit purchase remains separately blocked by missing PayPal credentials;
-demo generation is not proof of paid capture. Verify the paid models after a
-verified purchase, without manually changing balances or bypassing quotas.
+PayPal credentials are now scoped in Vercel: Live in Production, Sandbox in
+Development. A real Sandbox 39 NOK capture granted exactly 100 test credits;
+return replay left exactly one purchase grant. No Live purchase has been made.
+Preview/Sandbox webhook delivery and production acceptance remain open.
+Verify paid models after a verified purchase, without manually changing balances
+or bypassing quotas. A demo generation is not proof of paid capture.
 
 ## Official references
 
