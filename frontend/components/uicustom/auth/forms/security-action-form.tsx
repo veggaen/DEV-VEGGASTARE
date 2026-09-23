@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MyConfirmSecurityAction } from "@/actions/security-action";
 
-const LOG_PREFIX = "[[USE CLIENT] security-action-form.tsx]";
 
 export const MySecurityActionForm = () => {
 	const [error, setError] = useState<string | undefined>();
@@ -57,7 +56,6 @@ export const MySecurityActionForm = () => {
 				.finally(() => {
 					if (!isMounted) return;
 					setIsSubmitting(false);
-					console.log(`${LOG_PREFIX} complete`);
 				});
 
 			return () => {
@@ -90,7 +88,11 @@ export const MySecurityActionForm = () => {
 						<div className="text-sm text-zinc-600 dark:text-zinc-300">
 							Two-factor is enabled. Enter the code we emailed you.
 						</div>
+						<label htmlFor="security-code" className="block text-sm font-medium">Two-factor code</label>
 						<Input
+							id="security-code"
+							autoComplete="one-time-code"
+							className="h-12 text-base"
 							value={code}
 							onChange={(e) => setCode(e.target.value)}
 							disabled={isSubmitting}
@@ -99,7 +101,7 @@ export const MySecurityActionForm = () => {
 						/>
 						<Button
 							disabled={isSubmitting || !code}
-							className="w-full"
+							className="min-h-12 w-full"
 							onClick={() => confirm(code)}
 						>
 							Confirm

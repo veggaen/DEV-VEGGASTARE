@@ -4,11 +4,14 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 
+import { useClientReady } from '@/hooks/use-client-ready';
+
 export default function DemoLoginButton() {
+  const ready = useClientReady();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   return <div className="flex flex-col items-center gap-2">
-    <Button type="button" variant="outline" className="min-h-11 px-6" disabled={pending}
+    <Button type="button" variant="outline" className="min-h-11 px-6" disabled={!ready || pending}
       onClick={async () => {
         setPending(true); setError("");
         try {

@@ -1,5 +1,162 @@
 import { test, expect } from "@playwright/test";
 
+test('S2 — auth layouts, fields, theme and scrolling stay usable from phone to ultrawide', async ({ browser, baseURL }) => {
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    for (const [route, title] of [['login', 'Sign in to Veggat'], ['register', 'Create your account'], ['reset', 'Forgot your password?'], ['new-password', 'Enter a new password'], ['new-verification', 'Confirm your email'], ['error', 'Oops! Something went wrong']] as const) {
+      await page.goto(`/auth/${route}`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Toggle theme', exact: true })).toBeEnabled();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+      const site = page.locator('[data-site-scroll]');
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        await site.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+        await expect(page.locator('main h1')).toBeInViewport();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('main, [data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+        const measurements = await page.locator('main input:not([type=hidden])').evaluateAll(xs => xs.map(x => ({ labels: (x as HTMLInputElement).labels?.length ?? 0, height: x.getBoundingClientRect().height, font: parseFloat(getComputedStyle(x).fontSize) })));
+        for (const field of measurements) { expect(field.labels).toBeGreaterThan(0); expect(field.height).toBeGreaterThanOrEqual(48); expect(field.font).toBeGreaterThanOrEqual(16); }
+        const card = page.locator('[data-auth-card]');
+        if (await card.count()) {
+          const box = await card.boundingBox();
+          expect(Math.abs(box!.x + box!.width / 2 - size.width / 2)).toBeLessThan(2);
+          expect(box!.width).toBeLessThanOrEqual(448);
+        }
+        const canvas = page.locator('[data-auth-canvas]');
+        if (await canvas.count()) expect((await canvas.boundingBox())!.width).toBeLessThanOrEqual(1280);
+        await expect(page.locator('footer')).not.toBeInViewport();
+        await page.mouse.move(size.width / 2, size.height - 30);
+        await page.mouse.wheel(0, 7000);
+        await expect(page.locator('footer')).toBeInViewport();
+        await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+        await page.mouse.wheel(0, -7000);
+        await expect.poll(() => site.evaluate(e => e.scrollTop)).toBe(0);
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      if (route === 'login' || route === 'register') for (const provider of ['Google', 'GitHub', 'Discord']) {
+        const button = page.getByRole('button', { name: `Continue with ${provider}`, exact: true });
+        await expect(button.getByText(provider, { exact: true })).toBeVisible();
+        expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
+    }
+    await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
+    const darkColor = await page.locator('main h1').evaluate(e => getComputedStyle(e).color);
+    await page.getByRole('button', { name: 'Toggle theme', exact: true }).click();
+    await expect.poll(() => page.locator('main h1').evaluate(e => getComputedStyle(e).color)).not.toBe(darkColor);
+    await page.getByRole('button', { name: 'Toggle theme', exact: true }).click();
+    await expect.poll(() => page.locator('main h1').evaluate(e => getComputedStyle(e).color)).toBe(darkColor);
+    await page.getByRole('link', { name: 'Create an account', exact: true }).click();
+    await expect(page).toHaveURL(/\/auth\/register$/);
+    await page.getByRole('link', { name: 'Sign in', exact: true }).click();
+    await expect(page).toHaveURL(/\/auth\/login$/);
+    await page.getByRole('link', { name: 'Forgot password?', exact: true }).click();
+    await expect(page).toHaveURL(/\/auth\/reset$/);
+    await page.getByRole('link', { name: 'Back to Login', exact: true }).click();
+    await expect(page).toHaveURL(/\/auth\/login$/);
+    // A shortened viewport is a reflow check, not a claim of physical keyboard QA.
+    await page.setViewportSize({ width: 390, height: 360 });
+    await page.getByLabel('Password', { exact: true }).focus();
+    await page.getByRole('button', { name: 'Sign in', exact: true }).scrollIntoViewIfNeeded();
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeInViewport();
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await page.goto('/auth', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(url => url.pathname === '/auth/login' && url.searchParams.get('callbackUrl') === '/auth');
+    await page.goto('/auth/security-action', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(url => url.pathname === '/auth/login' && url.searchParams.get('callbackUrl') === '/auth/security-action');
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S2 — auth essential text is readable before JavaScript in both motion preferences', async ({ browser, baseURL }) => {
+  for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion });
+    try {
+      const page = await context.newPage();
+      let blocked = 0;
+      await page.route('**/_next/static/**', route => {
+        if (new URL(route.request().url()).pathname.endsWith('.js')) { blocked++; return route.abort(); }
+        return route.continue();
+      });
+      for (const route of ['login', 'register', 'reset']) {
+        await page.goto(`/auth/${route}`, { waitUntil: 'domcontentloaded' });
+        const heading = page.locator('main h1');
+        await expect(heading).toBeInViewport();
+        expect(await heading.evaluate(e => {
+          for (let node: Element | null = e; node; node = node.parentElement) if (Number(getComputedStyle(node).opacity) === 0) return false;
+          return true;
+        })).toBe(true);
+        await expect(page.locator('main input[type=email]')).toBeVisible();
+        await expect(page.locator('main input[type=email]')).toBeDisabled();
+      }
+      expect(blocked).toBeGreaterThan(0);
+    } finally { await context.close(); }
+  }
+});
+
+test('S2 — slow scripts cannot discard early recovery-form input', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  try {
+    const page = await context.newPage();
+    await page.route('**/_next/static/**', async route => {
+      if (new URL(route.request().url()).pathname.endsWith('.js')) await held;
+      await route.continue();
+    });
+    await page.goto('/auth/reset', { waitUntil: 'commit' });
+    const email = page.getByLabel('Email', { exact: true });
+    await expect(page.getByRole('heading', { name: 'Forgot your password?', exact: true })).toBeVisible();
+    await expect(email).toBeDisabled();
+    release();
+    await expect(email).toBeEditable();
+    await email.fill('no-send@example.invalid');
+    await page.getByRole('button', { name: 'Toggle theme', exact: true }).click();
+    await expect(email).toHaveValue('no-send@example.invalid');
+  } finally { release(); await context.close(); }
+});
+
+for (const [path, submit, pending] of [['login', 'Sign in', 'Signing in…'], ['register', 'Register', 'Creating account…'], ['reset', 'Send reset email', 'Sending…'], ['new-password', 'Reset Password', 'Updating…']] as const) {
+  test(`S2 — ${path} prevents duplicate submits and recovers from a transport failure`, async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    let submissions = 0;
+    try {
+      await page.route('**/auth/**', async route => {
+        if (route.request().method() === 'POST' && route.request().headers()['next-action']) {
+          submissions++; await held; return route.abort('failed');
+        }
+        return route.continue();
+      });
+      await page.goto(`/auth/${path}`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('button', { name: 'Toggle theme', exact: true })).toBeEnabled();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+      if (path === 'register') await page.getByLabel('Name', { exact: true }).fill('QA transport test');
+      if (path !== 'new-password') await page.getByLabel('Email', { exact: true }).fill('no-send@example.invalid');
+      if (path !== 'reset') await page.getByLabel('Password', { exact: true }).fill('Browser-fixture-only-123!');
+      await page.getByRole('button', { name: submit, exact: true }).click();
+      await expect.poll(() => submissions).toBe(1);
+      const waiting = page.getByRole('button', { name: pending, exact: true });
+      await expect(waiting).toBeDisabled();
+      await expect(page.locator('form')).toHaveAttribute('aria-busy', 'true');
+      // Native enter while the action is pending must not send another request.
+      await page.keyboard.press('Enter');
+      expect(submissions).toBe(1);
+      release();
+      await expect(page.locator('form').getByRole('alert')).toContainText('temporarily unavailable');
+      await expect(page.getByRole('button', { name: submit, exact: true })).toBeEnabled();
+      expect(submissions).toBe(1);
+    } finally { release(); await page.unrouteAll({ behavior: 'wait' }); await context.close(); }
+  });
+}
+
 for (const width of [390, 1280]) {
   test(`S8 — pricing and info links, layout and scrolling (${width}px)`, async ({ browser, baseURL }) => {
     test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo; does not create credits or change keys');
@@ -60,6 +217,12 @@ for (const width of [390, 1280]) {
           await page.setViewportSize(size);
           await site.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
           await expect(page.locator('main h1')).toBeInViewport();
+          if (route === '/pricing' && size.width >= 768) {
+            const rows = await page.locator('main article').evaluateAll(cards => cards.map(card => ({ price: card.children[2].getBoundingClientRect().top, cta: card.lastElementChild!.getBoundingClientRect().top })));
+            expect(rows).toHaveLength(3);
+            expect(Math.max(...rows.map(r => r.price)) - Math.min(...rows.map(r => r.price))).toBeLessThan(2);
+            expect(Math.max(...rows.map(r => r.cta)) - Math.min(...rows.map(r => r.cta))).toBeLessThan(2);
+          }
           await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('[data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
           await page.mouse.move(size.width / 2, size.height - 30);
           await page.mouse.wheel(0, 350);
@@ -1819,7 +1982,7 @@ test.describe("Layer 3 — Content", () => {
     test.setTimeout(PAGE_TIMEOUT);
     await visitPage(page, "/auth/register");
     await expect(
-      page.getByRole("heading", { name: /join the vibe/i }),
+      page.getByRole("heading", { name: 'Create your account', exact: true }),
     ).toBeVisible({ timeout: PAGE_TIMEOUT });
   });
 

@@ -602,6 +602,54 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   because descriptions wrap differently. A browser-only subgrid experiment
   aligned all three prices; that refinement is not yet in source or deployed.
 
+## Auth first paint, forms and alignment follow-up
+
+- Reproduced: login's FormControl wrapped a div rather than the input. Both
+  email/password inputs had zero associated labels and 14px text. Register had
+  no visible mobile H1, slow opacity entrances and a fixed theme control near
+  the title. Recovery cards could shrink/align left inside a nested scroller.
+- Login/register now share a bounded 1280px canvas, 448px form column, normal-flow
+  44px theme/navigation controls, marketplace-first copy and one visible H1.
+  Provider names remain visible on phones. Fields are 48px with 16px text,
+  proper labels and autocomplete; 2FA accepts the emailed one-time code.
+- Removed signup's pre-auth avatar uploader: EdgeStore correctly denies anonymous
+  uploads. Existing authenticated Settings handles avatars. Removed the obsolete
+  cross-tab verification redirect/listener and its inaccurate auto-redirect copy.
+- Async transitions now await login/reset/new-password actions. Pending controls
+  stay disabled; transport failures show recoverable errors without logging form
+  data. Server validation, throttling, callback filtering and token/2FA checks
+  were not relaxed.
+- Browser testing found an additional hydration race: an early reset-email fill
+  could be replaced by the controlled form's empty initial value. A shared
+  readiness hook keeps JS-dependent inputs/buttons disabled until handlers attach.
+  Labels and fields still render immediately; tests hold scripts, then release
+  them and verify input retention. This also protects demo/provider buttons.
+- Auth search params previously caused a root client-rendering fallback, leaving
+  only "Loading page" without app bundles. Auth's request-rendered layout now
+  delivers the actual form HTML. Blocked-bundle tests cover login/register/reset
+  with normal and reduced motion. No field can accept an early, discarded edit.
+- Auth hides the main topbar, but its default 72px offset still shortened main.
+  The auth shell now sets the inherited offset to zero before hydration. Footer
+  starts below the viewport; real wheel scrolling reaches it without moving the
+  document. Phone dark/light recovery and ultrawide account layouts were inspected.
+- Pricing cards now share subgrid rows at tablet/desktop widths. Consistent CTA
+  borders remove the remaining 2px baseline mismatch. Tests compare price and
+  action positions at 768/1024/1280/1920/2560, not only page overflow.
+- Test corrections: Next's route announcer is also an alert, so transport-error
+  assertions are scoped to the form. `/auth` preserves its callback query, and
+  `/auth/security-action` is protected, not an anonymous recovery screen. The
+  latter's signed-in missing-token state was checked with the retained local
+  demo at 390/1280; no security action was performed.
+- Final local batch: **18/18** (1.5m, including setup), covering the eight-size
+  auth audit, first paint, delayed hydration, four transport failures, actual
+  register/verify/reset/replay/session revocation/login/logout/2FA, Pricing/Info,
+  Pulse pagination/drawer/footer regressions and the catalogue/cart flow.
+  **30/30** focused unit tests, touched-file lint and Webpack production build
+  pass. Local first-attempt failures and their fixes are documented above rather
+  than treated as passes. Production verification is the next step. Owner Chrome's
+  connector still reports `apps: [], browsers: []`; this is Playwright evidence.
+  Physical phone keyboard behavior and real browser 125% zoom remain unverified.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
@@ -619,3 +667,5 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - [CoinGecko Demo header authentication](https://docs.coingecko.com/demo/reference/authentication)
 - [Next.js persistent function caching](https://nextjs.org/docs/app/api-reference/functions/unstable_cache)
 - [CSS overflow and programmatic scrolling](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overflow)
+- [Next.js request-time rendering](https://nextjs.org/docs/app/api-reference/functions/connection)
+- [CSS subgrid](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Grid_layout/Subgrid)

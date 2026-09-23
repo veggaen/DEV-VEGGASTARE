@@ -19,7 +19,10 @@ const PROVIDERS: { id: Provider; label: string; Icon: React.ComponentType<{ clas
  * users guess), with a busy state on the one that was clicked so the redirect
  * gap never feels dead.
  */
+import { useClientReady } from '@/hooks/use-client-ready';
+
 export const MySocialAuth = () => {
+  const ready = useClientReady();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
   const [pending, setPending] = useState<Provider | null>(null);
@@ -46,18 +49,18 @@ export const MySocialAuth = () => {
         <button
           key={id}
           type="button"
-          disabled={pending !== null}
+          disabled={!ready || pending !== null}
           aria-busy={pending === id}
           onClick={() => onClick(id)}
           aria-label={`Continue with ${label}`}
-          className="group flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border/70 bg-surface-1/60 text-sm font-medium text-foreground/80 transition-all duration-200 ease-out hover:border-brand-accent/40 hover:bg-accent hover:text-foreground motion-safe:hover:-translate-y-px hover:shadow-e1 motion-safe:active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60"
+          className="flex min-h-11 w-full min-w-0 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-1 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-60 sm:gap-2 sm:text-sm"
         >
           {pending === id ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />
           ) : (
             <Icon className={id === 'discord' ? 'h-4.5 w-4.5 text-[#5865F2]' : 'h-4.5 w-4.5'} />
           )}
-          <span className="hidden sm:inline">{label}</span>
+          <span>{label}</span>
         </button>
       ))}
     </div>

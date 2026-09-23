@@ -68,6 +68,7 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const isAuthRoute = pathname?.startsWith('/auth/');
 	// The persistent shell owns this scroller, so Next's window scroll reset is
 	// insufficient. Keep Pulse's intercepted detail modal at the feed position.
 	const scrollKey = pathname?.startsWith('/pulse/') ? '/pulse' : pathname;
@@ -100,7 +101,7 @@ export default function AppShell({
                     <ConfirmDialogProvider>
                     {/* Only the page/drawer scroll. A document-level hash or
                         focus jump must never move the header or demo notice. */}
-                    <div data-app-shell className="fixed inset-x-0 top-0 flex h-dvh min-h-0 min-w-0 flex-col overflow-clip">
+                    <div data-app-shell style={isAuthRoute ? { '--app-header-offset': '0px' } as React.CSSProperties : undefined} className="fixed inset-x-0 top-0 flex h-dvh min-h-0 min-w-0 flex-col overflow-clip">
                     <SkipToContent />
                     <UpdateBanner />
                     <MyTopBar />

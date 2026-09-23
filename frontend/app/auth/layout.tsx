@@ -1,10 +1,14 @@
 
 
-const LOG_PREFIX = '[fronten/app/auth/layout.tsx]'
-export default function DashboardLayout({ children } : { children: React.ReactNode }) {
+import { connection } from 'next/server';
+
+export default async function AuthLayout({ children } : { children: React.ReactNode }) {
+    // Auth needs request-specific callback/token search params. Render their
+    // initial UI on the server instead of bailing out to the root JS skeleton.
+    await connection();
     
     return (
-      <section className="flex flex-1 w-full overflow-auto">
+      <section className="w-full min-w-0">
         {children}
       </section>
     )
