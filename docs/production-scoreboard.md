@@ -2,7 +2,16 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-Current wallet/PayPal candidate (not yet deployed): optional AppKit startup and
+Latest wallet/PayPal follow-up: release `88729d0`, deployment
+`dpl_CfYkdh23aWaFe5CMQuM8kQ6M96tw`, is READY at www.veggat.com, veggat.com and
+dev-veggastare.vercel.app. Live browser **14/14 (1.8m)** passes; live mobile
+wallet screenshots were reviewed. Both local/live health are 200/healthy and
+unsigned anonymous webhooks return 503 `WEBHOOK_NOT_CONFIGURED`, not fulfillment.
+Additional local AI/product-cart checks **3/3 (25.3s)** and three repeated
+hydration/cancellation checks **7/7 (28.5s)** pass. No payment/provider AI call,
+credit grant or owner-account mutation was made by this verification batch.
+
+Optional AppKit startup and
 automatic wallet reconnection no longer run for ordinary marketplace visitors.
 Stable providers remain mounted. Local browser **12/12 (1.0m)** and focused
 units **65/65** pass, with strict webpack/TypeScript. The batch includes

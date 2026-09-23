@@ -4,6 +4,39 @@ Status: restarted after the reported Pulse footer/scroll defect. Earlier width-o
 checks are not proof of mobile quality. Payment/auth security checks remain valid
 within their documented scope; this audit does not reset or replace those checks.
 
+## Wallet startup and explicit activation — 23 September follow-up
+
+- Release `88729d0` / `dpl_CfYkdh23aWaFe5CMQuM8kQ6M96tw` is live on all main
+  aliases. Strict webpack/TypeScript and 65 focused unit tests pass. Local
+  focused browser 12/12, additional AI/cart 3/3, repeated hydration/cancellation
+  7/7, and live focused browser 14/14 pass. The existing sidebar's full lint
+  stalls on both baseline and candidate; no repository rules were disabled.
+- Before this change, ordinary Products visits initialized wallet SDK services
+  (including external requests and same-page HEAD probes). The new
+  anonymous/demo Products → Pulse test observes zero wallet-service requests
+  through hydration, navigation, wheel scrolling and a 1.5s observation window.
+  This is request reduction on the tested path, not a field-CWV or whole-site
+  page-speed percentage. The stable app/provider shell stays mounted.
+- A cold Settings wallet button intermittently ignored the first click. With
+  app chunks held, the old trigger was visibly enabled before hydration. It now
+  remains disabled until handlers attach. Slow wallet picker loading is
+  cancellable; closing either guest navigation or the Settings chooser prevents
+  a late modal. Retry works without reloading the app.
+- A browser-only two-provider EIP-6963 fixture exercises actual wagmi connect
+  and switch behavior: lock a cached inactive wallet, reject activation, retain
+  the previous active wallet, retry/unlock, and switch between already authorized
+  accounts without repeated prompts. App sign-in is unchanged. Fixture providers
+  forbid signing/payment, and no account verification/payment POST is emitted.
+- Set active has a 44px touch target and shared pending/error feedback. Wallet
+  title/status badges and address/actions wrap rather than clip. Sidebar checks
+  cover 360, 390, 1280 and 2560 widths; local/live 390px screenshots reviewed.
+  AI reflow checks cover eight sizes; existing independent sidebar/Pulse wheel
+  and pagination/footer failure/retry tests pass with the new provider startup.
+- Evidence: ignored `.private-showcase/wallet-activation-{localhost,www.veggat.com}.png`
+  and `wallet-picker-{guest,demo}-{localhost,www.veggat.com}.png`. Actual owner
+  extension popups, signatures, physical phone keyboards and native Chrome zoom
+  remain unverified. PayPal and the remaining full-route audit remain open.
+
 ## Acceptance criteria
 
 - Reflow without horizontal **page** scrolling at 360 and 390 CSS px; also inspect
