@@ -20,11 +20,12 @@ import { CurrencyRatesProvider } from "@/hooks/useCurrencyRates";
 import { CartProvider } from "@/contexts/cart-context";
 import { AppBootSkeleton } from "@/components/ui/route-skeleton";
 
-// Lazy-load Web3 providers — heavy bundle (Wagmi, Solana, AppKit) only needed
-// on pages that use crypto features, not for initial paint.
+// Keep the provider tree stable, but render its children on the server. A
+// client-only wrapper here hid every route behind the wallet download waterfall.
+// Wallet connections/modal initialization still happen in client effects.
 const Web3Providers = dynamic(
   () => import("@/components/crypto-related/Web3Providers"),
-  { ssr: false, loading: () => <AppBootSkeleton /> }
+  { loading: () => <AppBootSkeleton /> }
 );
 
 import MyTopBar from "@/components/uicustom/topbar";

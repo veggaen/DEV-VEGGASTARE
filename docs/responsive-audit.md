@@ -222,6 +222,36 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Profile/refactor this boundary without remounting the shell, breaking wallet
   state, or replacing content with a fresh skeleton on navigation.
 
+### First-render correction (local verified; live pending)
+
+- Keep the provider tree mounted but allow server rendering; network preferences
+  no longer return a blank subtree. Restore browser preferences after the matching
+  first render. Wallet/network synchronization waits for preference hydration,
+  so an initial default must not request the wrong chain. Reconnect/permissions
+  and signing behavior remain unchanged.
+- Added a semantic homepage heading and removed delayed title/chat-panel entrance
+  animation. Hover effects and user-triggered open/close transitions remain.
+- Early candidate monitoring initially looked fast, but a full observation caught
+  the still-transparent chat panel becoming the largest paint at 15,588ms. Fixed
+  its initial animation rather than reporting the misleading early measurement.
+- Corrected local sample at 390×844, 4× CPU, 1.6 Mbps/150ms, cold context and 20s
+  observation: LCP **2,564ms**, FCP **1,852ms**, CLS **0**; second cold-context
+  sample LCP **2,624ms**, FCP **1,884ms**, CLS **0**. Before deployment, the
+  same 20s observation on live `8a410a5` returned LCP **14,700ms**, FCP **4,524ms**,
+  CLS **0**. These are lab diagnostics, not field percentiles, and local/live
+  network/bundlers differ. JavaScript transfer/interactive readiness remain work.
+- Verification blocks external app scripts but permits Next's inline streaming
+  reveal. Hero and chat intro must actually be visible, including nonzero ancestor
+  opacity. This is not a claim of full no-JavaScript support. An earlier test with
+  all JavaScript disabled correctly left streamed HTML hidden; refined the test
+  to the intended pre-hydration-paint contract. Shell retention is checked after
+  a successful client interaction, not an early native-link page navigation.
+- Provider/config/event units **8/8**, production build/TypeScript/touched lint
+  pass. Initial provider candidate core route regression **8/8** (1.1m): Settings,
+  AI, Messages, warehouses, product filters, Pulse/footer, cart. Final paint
+  candidate focused **5/5** (23.4s): pre-bundle paint, stored preference hydration,
+  injected-wallet lifecycle and AI. Live deployment/measurement pending.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
@@ -230,3 +260,6 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - [Target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)
 - [Layout shift diagnosis](https://web.dev/articles/optimize-cls)
 - [Playwright emulation and its limits](https://playwright.dev/docs/emulation)
+- [Next.js lazy loading / prerendering](https://nextjs.org/docs/app/guides/lazy-loading)
+- [Wagmi v2 SSR](https://2.x.wagmi.sh/react/guides/ssr)
+- [React hydration consistency](https://react.dev/reference/react-dom/client/hydrateRoot)

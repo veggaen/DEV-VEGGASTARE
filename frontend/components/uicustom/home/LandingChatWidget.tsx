@@ -639,7 +639,7 @@ export default function LandingChatWidget({
               Ask AI
             </span>
           </div>
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             {desktopOpen ? (
               <motion.div
                 key="desktop-panel"
@@ -647,7 +647,7 @@ export default function LandingChatWidget({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.98 }}
                 transition={{
-                  duration: reduceMotion ? 0 : 0.25,
+                  duration: reduceMotion ? 0 : 0.2,
                   ease: [0.25, 0.46, 0.45, 0.94],
                 }}
                 className="w-full max-w-2xl flex flex-col glass-panel rounded-2xl shadow-2xl shadow-black/20 chat-desktop-panel"

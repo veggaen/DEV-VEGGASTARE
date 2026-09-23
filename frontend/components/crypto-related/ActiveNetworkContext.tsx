@@ -16,6 +16,7 @@ export type ActiveNetwork = EvmActive | SolActive;
 
 type Ctx = {
   active: ActiveNetwork;
+  isHydrated: boolean;
   setActive: (n: ActiveNetwork) => void;
 };
 
@@ -69,9 +70,10 @@ export function ActiveNetworkProvider({ children }: { children: React.ReactNode 
     });
   }, []);
 
-  const value = useMemo(() => ({ active, setActive }), [active, setActive]);
+  const value = useMemo(() => ({ active, setActive, isHydrated: loaded }), [active, setActive, loaded]);
 
-  if (!loaded) return null;
+  // Default state is identical for SSR/first hydration. Restoring a preference
+  // must never hide the marketplace, reset its shell, or flash a blank page.
   return <ActiveCtx.Provider value={value}>{children}</ActiveCtx.Provider>;
 }
 

@@ -77,14 +77,16 @@ const MODE_META: Record<TradeMode, {
 const TradeModeContext = createContext<TradeModeState | null>(null);
 
 export function TradeModeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeRaw] = useState<TradeMode>(() => {
-    if (typeof window === 'undefined') return 'p2p';
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored && MODE_ORDER.includes(stored as TradeMode)) return stored as TradeMode;
-    } catch { /* SSR or storage unavailable */ }
-    return 'p2p';
-  });
+  const [mode, setModeRaw] = useState<TradeMode>('p2p');
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored && MODE_ORDER.includes(stored as TradeMode)) setModeRaw(stored as TradeMode);
+      } catch { /* Storage unavailable; match the server's initial state. */ }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Cross-tab sync
   useEffect(() => {

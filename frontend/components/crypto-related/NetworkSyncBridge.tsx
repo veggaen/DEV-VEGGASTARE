@@ -6,7 +6,7 @@ import { useActiveNetwork } from "./ActiveNetworkContext";
 
 /** Keeps EVM chain & ActiveNetwork in sync (two-way). */
 export default function NetworkSyncBridge() {
-  const { active, setActive } = useActiveNetwork();
+  const { active, setActive, isHydrated } = useActiveNetwork();
   const walletChainId = useChainId();
   const { isConnected } = useAccount();
   const { switchChainAsync } = useSwitchChain();
@@ -15,18 +15,18 @@ export default function NetworkSyncBridge() {
 
   // If wallet chain changes (user switched in MetaMask/Coinbase), update ActiveNetwork.
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isHydrated || !isConnected) return;
     if (active.kind === "evm") {
       if (walletChainId && walletChainId !== active.chainId) {
         setActive({ kind: "evm", chainId: walletChainId });
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletChainId, isConnected]);
+  }, [walletChainId, isConnected, isHydrated]);
 
   // If app requests a different EVM chain, ask wallet to switch.
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isHydrated || !isConnected) return;
     if (active.kind !== "evm") return;
 
     const target = active.chainId;
@@ -45,7 +45,7 @@ export default function NetworkSyncBridge() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, isConnected]);
+  }, [active, isConnected, isHydrated]);
 
   return null;
 }

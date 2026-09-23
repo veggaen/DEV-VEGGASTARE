@@ -526,6 +526,70 @@ test.describe("Layer 3 — Content", () => {
     } finally { await context.close(); }
   });
 
+  test('S7 — homepage content renders before app bundles', async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+    try {
+      const page = await context.newPage();
+      let blockedScripts = 0;
+      // Keep Next's inline streaming reveal, but deny all external app chunks.
+      // The hero must not depend on downloading wallet/React hydration bundles.
+      await page.route('**/_next/static/**', route => {
+        if (new URL(route.request().url()).pathname.endsWith('.js')) {
+          blockedScripts++;
+          return route.abort();
+        }
+        return route.continue();
+      });
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('link', { name: 'Browse products', exact: true }).first()).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Veggat', exact: true })).toBeVisible();
+      await expect(page.getByText('Veggat is a trust-first marketplace for digital products.', { exact: false }).first()).toBeVisible();
+      const chatIntro = page.getByText('Try a limited free preview. Sign in for more models with clear per-message credit costs.', { exact: true });
+      await expect(chatIntro).toBeVisible();
+      expect(await chatIntro.evaluate(element => {
+        for (let current: Element | null = element; current; current = current.parentElement) {
+          if (Number.parseFloat(getComputedStyle(current).opacity) === 0) return false;
+        }
+        return true;
+      })).toBe(true);
+      await expect(page.getByText('Loading page…', { exact: true })).toHaveCount(0);
+      expect(blockedScripts).toBeGreaterThan(0);
+    } finally { await context.close(); }
+  });
+
+  test('S7 — stored wallet preferences and reduced motion hydrate without replacing the shell', async ({ browser, baseURL }) => {
+    test.setTimeout(60_000);
+    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, colorScheme: 'dark', reducedMotion: 'reduce' });
+    await context.addInitScript(() => {
+      localStorage.setItem('fs.activeNetwork', JSON.stringify({ kind: 'evm', chainId: 11155111 }));
+      localStorage.setItem('veggat:tradeMode', 'paper');
+      localStorage.setItem('evm.brand', 'MetaMask');
+      localStorage.setItem('sol.brand', 'Phantom');
+    });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => {
+      if (message.type() === 'error' && /hydration|hydrating|#418|#423|#425/i.test(message.text())) errors.push(message.text());
+    });
+    try {
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      const link = page.getByRole('link', { name: 'Browse products', exact: true }).first();
+      await expect(link).toBeVisible();
+      // Content is intentionally visible before hydration. Exercise a real
+      // client action before asserting subsequent client-side shell retention.
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      await consent.click();
+      await expect(consent).toBeHidden();
+      await page.evaluate(() => { (window as Window & { __qaMain?: Element | null }).__qaMain = document.querySelector('main'); });
+      await link.click();
+      await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+      expect(await page.evaluate(() => (window as Window & { __qaMain?: Element | null }).__qaMain === document.querySelector('main'))).toBe(true);
+      expect(await page.evaluate(() => localStorage.getItem('veggat:tradeMode'))).toBe('paper');
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
   test('S7 — messages preview reflows and scrolls without contacting members', async ({ browser, baseURL }) => {
     test.setTimeout(60_000);
     test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained app-issued demo session');

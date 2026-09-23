@@ -1335,7 +1335,8 @@ export default function HomeHero({
             />
           </motion.div>
 
-          <motion.div
+          <motion.h1
+            aria-label="Veggat"
             className="relative mt-1 text-4xl font-semibold tracking-tight text-gray-950 dark:text-white drop-shadow-sm sm:text-6xl lg:text-7xl 2xl:text-8xl"
             style={!isDark ? { textShadow: "0 2px 24px rgba(14,165,233,0.12), 0 1px 4px rgba(0,0,0,0.06)" } : undefined}
             onPointerEnter={() => {
@@ -1354,14 +1355,11 @@ export default function HomeHero({
           >
             <motion.span
               className="relative inline-flex items-baseline"
-              // LCP fix: the title ("Freedom Store") is the Largest Contentful
-              // Paint element. Starting it at opacity:0 made the browser measure
-              // LCP only AFTER the fade finished (≈7.8s on prod). We now paint it
-              // fully opaque from the first frame and animate ONLY a subtle
-              // upward slide — LCP fires immediately, the entrance still reads.
-              initial={showAnimations ? { opacity: 1, y: 10 } : false}
+              // Essential copy is visible in streamed HTML. Hover effects stay,
+              // but hydration must not introduce a delayed title entrance.
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: titleStart, ease: "easeOut" }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
             >
               <HeroTitleText
                 ref={titleTextRef}
@@ -1485,7 +1483,7 @@ export default function HomeHero({
                 </motion.span>
               </motion.span>
             </motion.span>
-          </motion.div>
+          </motion.h1>
         </div>
 
         {/* Description — quick reveal so it reads as one confident line, not a

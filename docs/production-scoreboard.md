@@ -92,6 +92,20 @@ also pass locally **4/4** (42.5s): Settings, AI and Pulse/footer. Release `8a410
 regressions **6/6** (58.8s including setup) and phone visual review pass. Actual
 member-to-member delivery remains separate from the mocked error test.
 
+## S7 — First-render speed (local verified; live pending)
+
+- Removed the global client-only wallet render barrier while preserving the
+  provider tree; browser preferences restore after matching server/client markup.
+  Network synchronization waits for restored preferences. Homepage heading and
+  chat intro no longer wait for delayed entrance animation.
+- Provider/config/event units **8/8**, production build/TypeScript/touched lint
+  pass. Initial core regression **8/8**, final paint/wallet/AI regression **5/5**,
+  and explicit reduced-motion/pre-bundle regression **3/3** pass locally.
+- Two cold-context 20s lab observations (390px, 4× CPU, 1.6 Mbps/150ms) report
+  LCP **2,564 / 2,624ms**, CLS **0**. Same-condition old live sample: **14,700ms**.
+  Local/live bundlers and network differ; these are not field percentiles.
+  Live deployment and same-host measurements are still pending.
+
 ## S5 — Metered AI integration (demo debit/denial verified local/live; paid purchase blocked)
 
 - Added reservation/refund state machine, one-time isolated demo grant, environment
