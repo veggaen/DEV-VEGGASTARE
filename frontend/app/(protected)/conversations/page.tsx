@@ -387,15 +387,15 @@ export default function ConversationsPage() {
         />
       </div>
 
-      <div className="relative mx-auto w-full max-w-3xl px-6 py-10 lg:py-12">
+      <div className="relative mx-auto w-full min-w-0 max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
         <motion.div
-          initial={reduceMotion ? undefined : { opacity: 0, y: 14 }}
+          initial={false}
           animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
         >
           {/* Header */}
           <header className="mb-8">
-            <div className="flex items-start justify-between mb-4">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-semibold text-foreground sm:text-4xl mb-2">
                   Messages
@@ -404,28 +404,29 @@ export default function ConversationsPage() {
                   Your private conversations and group chats
                 </p>
               </div>
-              <Link href="/conversations/new">
-                <Button className="gap-2 bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover">
+                <Button asChild className="min-h-11 gap-2 bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover">
+                  <Link href="/conversations/new">
                   <FiPlus className="h-4 w-4" />
                   New Chat
+                  </Link>
                 </Button>
-              </Link>
             </div>
 
             {/* Search and Sort */}
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative min-w-0 flex-1">
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   type="text"
+                  aria-label="Search conversations"
                   placeholder="Search conversations..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-border bg-background/50 pl-10 pr-4 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors hover:bg-background/70 focus:border-primary/50 focus:bg-background/70"
+                  className="h-12 w-full rounded-xl border border-border bg-background/50 pl-10 pr-4 text-base text-foreground placeholder-muted-foreground outline-none transition-colors hover:bg-background/70 focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
               <Select value={sort} onValueChange={(v) => setSort(v as SortType)}>
-                <SelectTrigger className="w-40 h-10 border-border bg-background/50 text-foreground">
+                <SelectTrigger aria-label="Sort conversations" className="h-12 w-full border-border bg-background/50 text-base text-foreground sm:w-44">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
@@ -454,18 +455,18 @@ export default function ConversationsPage() {
               </Button>
             </div>
           ) : filteredConversations.length === 0 ? (
-            <div className="rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/30 p-12 text-center">
+            <div className="rounded-2xl border border-border/60 bg-zinc-100/80 p-6 text-center dark:bg-card/30 sm:p-12">
               <FiInbox className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-foreground mb-2">No conversations yet</h3>
               <p className="text-muted-foreground text-sm mb-6">
                 Start a new conversation to connect with others
               </p>
-              <Link href="/conversations/new">
-                <Button className="gap-2 bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover">
+                <Button asChild className="min-h-11 gap-2 bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover">
+                  <Link href="/conversations/new">
                   <FiPlus className="h-4 w-4" />
                   Start a Conversation
+                  </Link>
                 </Button>
-              </Link>
             </div>
           ) : (
             <HoverFollowGrid className="space-y-0.5" radiusClass="rounded-xl">

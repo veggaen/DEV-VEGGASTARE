@@ -185,7 +185,41 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - Actual Chrome, physical keyboard/safe-area behavior and 125% browser zoom remain
   unverified after the PC crash. No connected Chrome surface is available yet.
 
-## References
+## Messages follow-up (local verified; live pending)
+
+- Phone/landscape inspection found unassociated labels, 14px form text, nested
+  link/button markup, and errors visible only in the console. Candidate uses
+  16px labelled controls, a constrained form, wrapping toolbar, draft-preserving
+  errors, abortable search, and explicit non-sending demo preview.
+- First focused browser run caught a real scroll failure: `/conversations/new`
+  matched the shell's immersive transcript rule, leaving no usable page scroller.
+  Excluded the creation form from that rule. One additional failure was an overly
+  broad test alert locator matching Next's route announcer; narrowed to the form.
+  Corrected production build/TypeScript and touched lint pass. Local focused
+  browser **3/3** (9.2s including setup): eight viewport sizes with actual wheel
+  scrolling, demo write prevention, labelled 16px/48px fields, keyboard recipient
+  selection and draft retention after a mocked failure. Portrait and short-
+  landscape lower scroll boundaries were visually reviewed. Live check pending.
+- Normal-account error tests intercept user search and conversation creation;
+  they are UI resilience tests, not real delivery to another user. No real-member
+  messages are sent by this audit.
+
+### Homepage speed baseline (not a performance pass)
+
+- Read-only cold-context samples, 390×844, CDP 4× CPU slowdown and 1.6 Mbps /
+  150ms network. Hero readiness is the first visible Browse products link; this
+  is not a Lighthouse score or field Core Web Vitals measurement.
+- Local production: interim LCP 10,488ms, FCP 1,876ms, CLS 0; about 1.52MB resource
+  transfer by readiness. Live release `4c85955`: interim LCP 11,644ms, FCP 5,248ms,
+  CLS 0; about 1.33MB resource transfer by readiness. One unthrottled local sample
+  had LCP 1,088ms. These are single diagnostic samples, not reliable percentiles.
+- Code inspection confirms the whole app waits behind a client-only dynamic
+  wallet provider, and ActiveNetworkProvider renders null until local storage is
+  loaded. The comment saying wallets do not block initial paint is inaccurate.
+  Profile/refactor this boundary without remounting the shell, breaking wallet
+  state, or replacing content with a fresh skeleton on navigation.
+
+## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
 - [WCAG 2.2 Reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html)

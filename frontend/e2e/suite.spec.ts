@@ -526,6 +526,99 @@ test.describe("Layer 3 — Content", () => {
     } finally { await context.close(); }
   });
 
+  test('S7 — messages preview reflows and scrolls without contacting members', async ({ browser, baseURL }) => {
+    test.setTimeout(60_000);
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained app-issued demo session');
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    const writes: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('request', request => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/conversations') writes.push(request.url());
+    });
+    try {
+      await page.goto('/conversations', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible();
+      await expect(page.getByRole('textbox', { name: 'Search conversations', exact: true })).toBeVisible();
+      await page.getByRole('combobox', { name: 'Sort conversations' }).click();
+      await page.keyboard.press('Escape');
+      await page.getByRole('link', { name: 'New Chat', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'New Conversation', exact: true })).toBeVisible();
+      await expect(page.getByRole('complementary', { name: 'Demo messaging preview' })).toBeVisible();
+      await expect(page.getByLabel('Find someone', { exact: true })).toBeDisabled();
+      await page.getByRole('button', { name: 'Group Chat', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Group Chat', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByLabel('Group name', { exact: true })).toBeDisabled();
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 },
+        { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 },
+        { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        const fields = await page.locator('form input,form textarea').evaluateAll(elements => elements.map(element => ({
+          font: Number.parseFloat(getComputedStyle(element).fontSize), height: element.getBoundingClientRect().height,
+        })));
+        expect(fields.every(field => field.font >= 16 && field.height >= 44)).toBe(true);
+        await page.mouse.move(Math.min(size.width / 2, 600), size.height - 90);
+        await page.mouse.wheel(0, 1800);
+        await expect(page.getByRole('button', { name: 'Sending unavailable in demo', exact: true })).toBeInViewport({ ratio: 1 });
+        await page.mouse.wheel(0, -2200);
+        await expect(page.getByRole('link', { name: 'Back to Messages', exact: true })).toBeInViewport();
+      }
+      await page.getByRole('link', { name: 'Back to Messages', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible();
+      expect(writes).toEqual([]);
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
+  test('S7 — message composer handles search and send failures with mocked transport', async ({ browser, baseURL }) => {
+    test.setTimeout(60_000);
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained demo session for the page shell');
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    let posts = 0;
+    page.on('pageerror', error => errors.push(error.message));
+    // UI-only normal-account preview. The server session stays a demo; ALL
+    // searches and message writes below are intercepted, never sent to members.
+    await page.route('**/api/auth/session', async route => {
+      const response = await route.fetch();
+      const session = await response.json();
+      await route.fulfill({ response, json: { ...session, user: { ...session.user, id: 'ui_fixture_only' } } });
+    });
+    await page.route('**/api/users/search?*', route => new URL(route.request().url()).searchParams.get('q') === 'fail'
+      ? route.fulfill({ status: 503, json: { error: 'Fixture error' } })
+      : route.fulfill({ json: { users: [{ id: 'ui_recipient_only', name: 'QA Fixture Member', email: null, image: '',
+        role: null, bio: null, followerCount: 0, isFollowing: false }], count: 1 } }));
+    await page.route('**/api/conversations', async route => {
+      if (route.request().method() !== 'POST') return route.continue();
+      posts++;
+      expect(route.request().postDataJSON().participants).toEqual(['ui_recipient_only']);
+      await route.fulfill({ status: 503, json: { message: 'Fixture failure' } });
+    });
+    try {
+      await page.goto('/conversations/new', { waitUntil: 'domcontentloaded' });
+      await page.getByLabel('Find someone', { exact: true }).fill('fail');
+      await expect(page.getByRole('form', { name: 'New conversation' }).getByRole('alert')).toHaveText('People search is unavailable. Please try again in a moment.');
+      await page.getByLabel('Find someone', { exact: true }).fill('QA');
+      const recipient = page.getByRole('button', { name: 'QA Fixture Member', exact: true });
+      await recipient.focus();
+      await page.keyboard.press('Enter');
+      await page.getByLabel('Message (optional)', { exact: true }).fill('Private unsent fixture draft');
+      await page.getByRole('button', { name: 'Start Conversation', exact: true }).click();
+      await expect(page.getByRole('form', { name: 'New conversation' }).getByRole('alert')).toContainText('Your draft is still here');
+      await expect(page.getByLabel('Message (optional)', { exact: true })).toHaveValue('Private unsent fixture draft');
+      await expect(page.getByRole('button', { name: 'Start Conversation', exact: true })).toBeEnabled();
+      await page.getByRole('button', { name: 'Remove QA Fixture Member', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Start Conversation', exact: true })).toBeDisabled();
+      expect(posts).toBe(1);
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
   test("S8 — warehouse detail is readable without inventory privileges", async ({ browser, baseURL }) => {
     test.setTimeout(60_000);
     test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained app-issued demo session');

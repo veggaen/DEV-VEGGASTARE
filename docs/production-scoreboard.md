@@ -80,6 +80,14 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   including setup in 1.0m, release `6b8adc1` / `dpl_ABEFDCXREp97puGonJb9PzvkFFqp`.
   Live warehouse phone screenshot confirmed a 44px refresh target and no overflow.
 
+## S7 — Messages follow-up (local verified; live pending)
+
+S7 Messages follow-up: improved mobile list/composer, accessible fields, read-only
+demo state and caught search/send failures with draft retention. A browser scroll
+test exposed the creation form incorrectly using the immersive transcript shell;
+corrected. Production build/TypeScript/lint pass; local focused browser **3/3**
+(9.2s) including eight viewport sizes and mocked transport failure. Live pending.
+
 ## S5 — Metered AI integration (demo debit/denial verified local/live; paid purchase blocked)
 
 - Added reservation/refund state machine, one-time isolated demo grant, environment
@@ -184,8 +192,10 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   No new public inventory subscription is opened for demo/ordinary users. Focused
   warehouse tests **7/7**, touched-file lint and production build/TypeScript pass.
   Local warehouse read/refresh/back-navigation at 360/390/1280/2560 **2/2** (6.4s,
-  including setup). Live release check pending; privileged mutation itself is
-  still not claimed tested by the demo session.
+  including setup). Release `4c85955` / `dpl_DdBBcvSXMvPD7Eb4VJUn7EAXFt2p`
+  is READY at www.veggat.com; live warehouse regression **2/2** (9.5s including setup).
+  Selected payment tests **15/15** also pass. Privileged inventory mutation itself
+  is still not claimed tested by the demo session.
 
 - Work is isolated in the `showcase/ai-revival` worktree; original dirty workspace preserved.
 - Local OAuth origin is `http://localhost:3000`.
