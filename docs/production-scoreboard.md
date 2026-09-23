@@ -33,7 +33,11 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   are included. The final local focused rerun is **4/4**, including short-landscape
   menu scrolling and basket focus/motion checks; screenshots were reviewed.
   Final deployed rerun is **3/3**; real Chrome also validates its product selector.
-- Release `5f47cb3`, Preview `dpl_EDV8wVd8FwvjMbLnxCyjqRPCpPUC`, is READY on
+  Its scrolled specifications revealed a seeded fixed-NOK price string; the
+  specification now uses the canonical product amount/currency and shared
+  formatter. Local **4/4** and Preview **3/3** reruns include this regression.
+  Real Chrome confirms USD (ETH) in the purchase area and scrolled specifications.
+- Release `4fde28d`, Preview `dpl_4hXg2wb5WsRj7XndJhhA4y4YKTGX`, is READY on
   the stable showcase alias. A free demo checkout created its receipt through the normal app path;
   no PayPal request or real payment. Production remains `88729d0`.
 - Arbitrary credit quantities/volume discounts and verified Web3 checkout are
