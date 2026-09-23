@@ -45,9 +45,20 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 - PARTIAL: Vercel team-login protection returns 401 before public Preview health
   and webhook requests reach the app. A domain-only exception is prepared, not
   applied, pending owner approval. No project-wide protection or billing changes.
+- DONE locally, not deployed: owner-only credit reporting now reads the ledger,
+  not legacy entitlement environment flags. LIVE/SANDBOX/DEMO filtering, available
+  and reserved balances, refund adjustments, verified cash and provider ceilings
+  are distinct. Fresh database OWNER authorization, rate limiting and private
+  no-store responses apply. Reporting tests **13/13**, strict build/TypeScript,
+  touched implementation lint and browser retry/filter/refresh/scroll checks pass.
+  Layout checks cover 360/390/844/1280/2560; 390/2560 screenshots reviewed.
+  Browser owner fixtures do not confer server access: actual demo API requests
+  remain 403. Real Chrome owner UI independently shows Sandbox balance 30,
+  70 credits charged for three replies and NOK 68 across two verified captures.
+  Scrolling the report and sidebar preserves content. No new payment or grant.
 - OPEN: Preview browser/auth acceptance and actual Sandbox webhook/refund delivery;
-  production deploy/Live micro-purchases,
-  real Sandbox webhook/refund delivery, volume packs and owner usage/margin UI.
+  production deploy/Live micro-purchases, volume packs, buyer usage history,
+  actual provider billing reconciliation and commercially verified margins.
   [Reviewed commercial policy](credit-commercial-policy.md) records which Grok
   recommendations are adopted, qualified or deferred. This is not an all-green
   payment or profitability claim.

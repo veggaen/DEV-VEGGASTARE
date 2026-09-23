@@ -11,6 +11,7 @@ import { applyAiCreditDelta } from '@/lib/ai-credit-adjustment';
 export const DEMO_AI_CREDITS = 5;
 export const AI_DAILY_REQUEST_LIMIT = 20;
 export const AI_CONCURRENT_REQUEST_LIMIT = 2;
+export const AI_PLATFORM_DAILY_REQUEST_LIMIT = 500;
 export const AI_RESERVATION_LEASE_MS = 120_000;
 export class AiCreditError extends Error {
   constructor(public code: string, public status: number) { super(code); }
@@ -129,7 +130,7 @@ export function createAiCreditLedger(db: PrismaClient) {
       }
       if (input.funding === 'PLATFORM') {
         const budget = await tx.aiPlatformSpendDay.findUnique({ where: { date: day } });
-        if ((budget?.reservedMicroUsd ?? 0) + input.reservedMicroUsd > platformDailyMicroUsd() || (budget?.requests ?? 0) >= 500) {
+        if ((budget?.reservedMicroUsd ?? 0) + input.reservedMicroUsd > platformDailyMicroUsd() || (budget?.requests ?? 0) >= AI_PLATFORM_DAILY_REQUEST_LIMIT) {
           throw new AiCreditError('AI_PLATFORM_DAILY_LIMIT', 503);
         }
       }

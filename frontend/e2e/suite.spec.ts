@@ -1,5 +1,70 @@
 import { test, expect } from "@playwright/test";
 
+test('S5 owner credit report retries, filters and scrolls without changing server permissions', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo required; owner UI uses browser-only fixtures');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.role).not.toBe('OWNER');
+    let denied = await context.request.get('/api/admin/ai-credits');
+    if (denied.status() === 401 && process.env.GATE_PASSWORD) {
+      // Demo sessions deliberately cannot POST; authenticate the gate before adding the demo session.
+      const gateContext = await browser.newContext({ baseURL });
+      try {
+        expect((await gateContext.request.post('/api/access-gate', { data: { password: process.env.GATE_PASSWORD } })).ok()).toBe(true);
+        await context.addCookies(await gateContext.cookies());
+      } finally { await gateContext.close(); }
+      denied = await context.request.get('/api/admin/ai-credits');
+    }
+    expect(denied.status()).toBe(403);
+    await page.route('**/api/auth/session', route => route.fulfill({ json: { ...session, user: { ...session.user, role: 'OWNER' } } }));
+    let requests = 0;
+    await page.route(url => url.pathname === '/api/admin/ai-credits', async route => {
+      requests++;
+      if (requests === 1) return route.fulfill({ status: 503, json: { error: 'Credit reporting is unavailable. Retry shortly.' } });
+      const environment = new URL(route.request().url()).searchParams.get('environment') ?? 'SANDBOX';
+      return route.fulfill({ json: {
+        environment, generatedAt: '2026-09-23T12:00:00Z',
+        accounts: { total: 1, available: 30, refundAdjustment: 0, recent: [{ userId: 'qa-long-account-id-for-layout-verification', name: 'Synthetic reviewer with a deliberately long display name', available: 30, refundAdjustment: 0, updatedAt: '2026-09-23T12:00:00Z' }] },
+        usage: { completed: 3, chargedCredits: 70, pending: 1, reservedCredits: 2, refundedRequests: 1, costCeilingMicroUsd: 790000 },
+        payments: { captures: 2, grossOre: 6800, refundedOre: 2900 },
+        platformToday: { day: '2026-09-23', reservedMicroUsd: 790000, limitMicroUsd: 5000000, requests: 5, requestLimit: 500 },
+      } });
+    });
+    await page.goto('/admin/ai-credits', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Owner access required', exact: true })).toBeVisible();
+    // Refresh the server-provided initial session through the browser-only fixture.
+    await expect.poll(async () => {
+      if (!requests) await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+      return requests;
+    }).toBeGreaterThan(0);
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    await expect(page.getByRole('alert').filter({ hasText: 'Credit report unavailable' })).toBeVisible();
+    await page.getByRole('button', { name: 'Retry report', exact: true }).click();
+    await expect(page.getByText('Sandbox ledger', { exact: false })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Available credits', exact: true }).locator('..')).toContainText('30');
+    await page.getByLabel('Environment', { exact: true }).selectOption('DEMO');
+    await expect(page).toHaveURL(/environment=DEMO/);
+    await expect(page.getByText('Demo ledger', { exact: false })).toBeVisible();
+    await page.getByRole('button', { name: 'Refresh report', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Refresh report', exact: true })).toBeEnabled();
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size);
+      await page.getByRole('heading', { name: 'Recent credit accounts', exact: true }).scrollIntoViewIfNeeded();
+      await expect(page.getByText('Synthetic reviewer with a deliberately long display name', { exact: true })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.getByRole('heading', { name: 'AI credits & usage', exact: true }).scrollIntoViewIfNeeded();
+      if ([390, 2560].includes(size.width)) await page.screenshot({ path: `test-results/credit-report-${size.width}.png`, fullPage: true });
+    }
+    expect(requests).toBeGreaterThanOrEqual(4);
+    // Browser fixture cannot confer an owner role on the real API.
+    expect((await context.request.get('/api/admin/ai-credits')).status()).toBe(403);
+  } finally { await page.unrouteAll({ behavior: 'ignoreErrors' }); await context.close(); }
+});
+
 test('S5 — low-credit preflight preserves drafts and failed streams keep partial replies', async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo; all credit and generation responses are browser-only fixtures');
   test.setTimeout(120_000);

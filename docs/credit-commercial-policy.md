@@ -74,7 +74,20 @@ cache writes. Anthropic stays disabled without a configured platform key.
    visible discount arithmetic and tests preventing combinations/quantity abuse.
 3. Buyer usage history and clear available/reserved/adjustment amounts. Keep
    provider names transparent and the exact flat price visible before sending.
-4. Owner-only ledger and provider-cost overview, labelled reserved vs actual.
-   Add usage metadata without logging prompts, secrets or raw IP addresses.
+4. Owner-only ledger and provider-cost overview is implemented and locally
+   verified (2026-09-23), not yet deployed. It separates environments, available
+   credits, outstanding reservations, refund adjustments, verified captured cash
+   and conservative provider ceilings. It is not an actual invoice or profit
+   statement. The daily fuse is explicitly per database, across environments.
+   Fresh OWNER authorization, rate limiting and private/no-store responses apply.
+   Reporting tests pass 13/13; focused browser testing covers retry, filtering,
+   refresh and scrolling at 360/390/844/1280/2560 with no page overflow. The UI
+   uses synthetic browser-only owner/report fixtures; independent real requests
+   from the ordinary demo session remain denied (403). Strict build and touched
+   implementation lint pass. The real Chrome owner session confirms Sandbox
+   balance 30, 70 charged credits across three completed requests, no outstanding
+   reservations, and NOK 68 across two verified captures. Page and sidebar were
+   scrolled without losing report content. No account mutations were performed.
+   Actual provider usage metadata remains future work; never log prompts or keys.
 5. Independently verify provider-project spend caps and alerts. Do not enable
    auto-reload, raise budgets or change billing plans without owner approval.
