@@ -29,7 +29,8 @@ export async function GET(request: Request) {
       select: {
         createdAt: true,
       },
-      take: 10000, // Safety limit to prevent unbounded queries
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 10000, // Bounded, deterministic earliest-record cohort, disclosed in the UI.
     });
 
     if (users.length === 0) {
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
 
     // Prepare daily data from firstUserDate to today
     const userGrowthData: Record<string, number> = {};
-    for (let d = new Date(firstUserDate); d <= today; d.setDate(d.getDate() + 1)) {
+    for (const d = new Date(firstUserDate.toISOString().slice(0, 10) + 'T00:00:00Z'); d <= today; d.setUTCDate(d.getUTCDate() + 1)) {
       const dateKey = d.toISOString().split('T')[0]; // YYYY-MM-DD format
       userGrowthData[dateKey] = 0; // Initialize all days with 0
     }

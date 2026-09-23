@@ -1,86 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+/** @fileOverview User-scoped analytics cache with explicit retry and validated responses. @stability stable */
+import useSWR from 'swr';
+import { analyticsMetrics, type AnalyticsMetricKey } from '@/lib/analytics/metricsRegistry';
+import { parseGrowth } from '@/lib/analytics/growth';
 
-type DataType = { date: Date; users?: number; companies?: number }; // Both are optional
-
-interface UseFetchAnalyticsResult {
-  data: { label: string; data: DataType[] }[];
-  firstDate: Date | null;
-  lastDate: Date | null;
-  today: Date;
-  loading: boolean;
-  error: string | null;
-}
-
-function firstDefinedDate(...values: Array<unknown>): Date | null {
-  for (const v of values) {
-    if (!v) continue;
-    const d = new Date(v as any);
-    if (!isNaN(d.getTime())) return d;
-  }
-  return null;
-}
-
-export const useFetchAnalytics = (endpoint: string): UseFetchAnalyticsResult => {
-  const [data, setData] = useState<{ label: string; data: DataType[] }[]>([]);
-  const [firstDate, setFirstDate] = useState<Date | null>(null);
-  const [lastDate, setLastDate] = useState<Date | null>(null);
-  const [today, setToday] = useState<Date>(new Date());
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        const response = await fetch(endpoint);
-        if (!response.ok) {
-          throw new Error('Failed to fetch data');
-        }
-        const result = await response.json();
-
-        // Sanitize the data
-        const sanitizedData = (result.data ?? []).map((item: any) => ({
-          ...item,
-          data: (item.data ?? []).map((datum: any) => ({
-            ...datum,
-            date: datum.date ? new Date(datum.date) : new Date(),
-            users: typeof datum.users === 'number' && !isNaN(datum.users) ? datum.users : 0,
-            companies: typeof datum.companies === 'number' && !isNaN(datum.companies) ? datum.companies : 0,
-          })),
-        }));
-
-        setData(sanitizedData);
-        setFirstDate(
-          firstDefinedDate(
-            result.firstCompanyDate,
-            result.firstUserDate,
-            result.firstProductDate,
-            result.firstDate,
-            result.first
-          )
-        );
-        setLastDate(
-          firstDefinedDate(
-            result.lastCompanyDate,
-            result.lastUserDate,
-            result.lastProductDate,
-            result.lastDate,
-            result.last
-          )
-        );
-        setToday(new Date(result.today));
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setError('Failed to load analytics data. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
+export const useFetchAnalytics = (metric: AnalyticsMetricKey, userId: string) => {
+  const result = useSWR([analyticsMetrics[metric].endpoint, userId], async ([endpoint]) => {
+    const response = await fetch(endpoint, { cache: 'no-store' });
+    if (!response.ok) {
+      const message = response.status === 401 ? 'Your session has expired. Sign in again to view platform analytics.'
+        : response.status === 403 ? 'Platform analytics are available to administrators only.'
+        : response.status === 429 ? 'Too many requests. Wait a minute before trying again.'
+        : 'Analytics are temporarily unavailable. Try again in a moment.';
+      throw new Error(message);
     }
-
-    fetchData();
-  }, [endpoint]);
-
-  return { data, firstDate, lastDate, today, loading, error };
+    try { return parseGrowth(metric, await response.json()); }
+    catch { throw new Error('Analytics returned an unreadable response. Please try again.'); }
+  }, { revalidateOnFocus: false, shouldRetryOnError: false, dedupingInterval: 60_000 });
+  return { data: result.data, loading: result.isLoading, refreshing: result.isValidating,
+    error: result.error instanceof Error ? result.error.message : null,
+    retry: () => { void result.mutate(); } };
 };

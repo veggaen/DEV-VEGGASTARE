@@ -150,8 +150,26 @@ member-to-member delivery remains separate from the mocked error test.
   overflow/console exceptions; Polls resets a deep scroll to 0, and checking
   the next empty-filter batch successfully reveals real poll cards.
 - Extra live hydration regression **7/7** (16.2s, setup plus three repeats at
-  each of 390/1280px), with no hydration errors. Analytics role-aware/error/mobile
-  layout remains the next route slice; this is not a full-app completion claim.
+  each of 390/1280px), with no hydration errors. The Analytics follow-up is below;
+  this is not a full-app completion claim.
+
+## S8 — Analytics growth (local verified; live deployment pending)
+
+- Hub and three growth reports now use the existing bounded layout and tokens,
+  mobile-sized controls, explicit fictional previews for non-admin visitors,
+  accessible daily data tables and truthful range/creation-count labels.
+- Admin-only APIs still deny demo users; browser previews send no private metric
+  requests. Admin reports validate responses, cache per user, retry explicitly
+  and identify stale data on refresh failure. Chart code loads separately.
+- Fixed UTC-midnight daily iteration (today could previously be omitted) and
+  deterministic capped query ordering; the 10,000-record cap is disclosed.
+- Final production build/TypeScript and touched lint pass. Units **16/16**;
+  localhost browser **5/5** (16.5s including setup), real page/table/sidebar
+  wheel scrolling at 390/1280, date controls and all eight viewport sizes through
+  2560px without horizontal overflow. Admin UI is a browser fixture, not real
+  elevated access; real demo requests still return 403.
+- Next: live verification, then crypto's duplicated footer and price controls.
+  Real Chrome/OS zoom/phone keyboard and the remaining route audit are pending.
 
 ## S5 — Metered AI integration (demo debit/denial verified local/live; paid purchase blocked)
 

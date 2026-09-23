@@ -1,215 +1,64 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { format } from 'date-fns';
-import { Line } from 'react-chartjs-2';
-import { defaultChartOptions } from '@/components/uicustom/charts/chartjs';
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useSession } from 'next-auth/react';
+import { Button } from '@/components/ui/button';
 import { useFetchAnalytics } from '@/hooks/useFetchAnalytics';
-import { analyticsMetrics, type AnalyticsMetricKey, type TimeSeriesDatum } from '@/lib/analytics/metricsRegistry';
+import { analyticsMetrics, type AnalyticsMetricKey } from '@/lib/analytics/metricsRegistry';
+import { displayDay, sampleGrowth, selectGrowth, type GrowthPoint, type GrowthRange } from '@/lib/analytics/growth';
+import AnalyticsShell from './AnalyticsShell';
 
-type Interval = 'daily' | 'monthly' | 'yearly' | 'custom';
+const GrowthLine = dynamic(() => import('./GrowthLine'), { ssr: false, loading: () => <div className="h-full rounded-lg bg-muted motion-safe:animate-pulse" role="status" aria-label="Loading chart" /> });
+const fieldClass = 'min-h-12 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring';
 
-function isFullyValidDate(dateString: string | null) {
-  if (!dateString) return false;
-  const date = new Date(dateString);
-  return !isNaN(date.getTime()) && /^\d{4}-\d{2}-\d{2}$/.test(dateString);
+function ReportSkeleton() {
+  return <div role="status" aria-label="Loading analytics" className="space-y-5 rounded-2xl border border-border bg-card p-4 sm:p-6"><div className="h-32 rounded-xl bg-muted motion-safe:animate-pulse sm:h-20" /><div className="h-20 rounded-lg bg-muted motion-safe:animate-pulse sm:w-1/3" /><div className="grid grid-cols-2 gap-3"><div className="h-24 rounded-xl bg-muted motion-safe:animate-pulse" /><div className="h-24 rounded-xl bg-muted motion-safe:animate-pulse" /></div><div className="h-5 rounded bg-muted motion-safe:animate-pulse" /><div className="h-80 rounded-lg bg-muted motion-safe:animate-pulse sm:h-96" /><div className="h-12 rounded-xl bg-muted motion-safe:animate-pulse" /></div>;
+}
+
+function GrowthReport({ points, metric, preview }: { points: GrowthPoint[]; metric: AnalyticsMetricKey; preview: boolean }) {
+  const [range, setRange] = useState<GrowthRange>('30');
+  const [from, setFrom] = useState(points[0]?.date ?? '');
+  const [to, setTo] = useState(points.at(-1)?.date ?? '');
+  const selected = selectGrowth(points, range, from, to);
+  const last = selected.points.at(-1);
+  const first = selected.points[0];
+  const previous = first ? points.filter(point => point.date < first.date).at(-1)?.value ?? 0 : 0;
+  const def = analyticsMetrics[metric];
+  return <section aria-label={def.datasetLabel + ' growth report'} className="space-y-5 rounded-2xl border border-border bg-card p-4 sm:p-6">
+    <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm leading-relaxed">
+      <p className="font-semibold">{preview ? 'Illustrative sample · not live platform data' : 'Live platform data · administrator access'}</p>
+      <p className="mt-1 text-muted-foreground">{preview ? 'Explore this report with fictional counts from January–March 2026. No private user or business data is loaded.' : 'Cumulative creation counts, by UTC day. Queries include up to the earliest 10,000 records; these are not sales or revenue figures.'}</p>
+    </div>
+    <div className="grid items-start gap-4 sm:grid-cols-3">
+      <label className="min-w-0 space-y-2 text-sm font-medium" htmlFor="growth-range"><span className="block">Date range</span><select id="growth-range" className={fieldClass} value={range} onChange={event => setRange(event.target.value as GrowthRange)}><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="all">All available dates</option><option value="custom">Custom dates</option></select></label>
+      {range === 'custom' && <><label className="min-w-0 space-y-2 text-sm font-medium" htmlFor="growth-from"><span className="block">Start date (UTC)</span><input id="growth-from" type="date" className={fieldClass} value={from} onChange={event => setFrom(event.target.value)} aria-invalid={!!selected.error} aria-describedby={selected.error ? 'growth-date-error' : undefined} /></label><label className="min-w-0 space-y-2 text-sm font-medium" htmlFor="growth-to"><span className="block">End date (UTC)</span><input id="growth-to" type="date" className={fieldClass} value={to} onChange={event => setTo(event.target.value)} aria-invalid={!!selected.error} aria-describedby={selected.error ? 'growth-date-error' : undefined} /></label></>}
+    </div>
+    {selected.error && <p id="growth-date-error" role="alert" className="text-sm text-destructive">{selected.error}</p>}
+    <dl className="grid grid-cols-2 gap-3">
+      <div className="min-w-0 rounded-xl border border-border p-4"><dt className="text-sm text-muted-foreground">Total at range end</dt><dd className="mt-2 text-2xl font-semibold tabular-nums">{last ? last.value.toLocaleString('en-GB') : '—'}</dd></div>
+      <div className="min-w-0 rounded-xl border border-border p-4"><dt className="text-sm text-muted-foreground">Added in range</dt><dd className="mt-2 text-2xl font-semibold tabular-nums">{last ? (last.value - previous).toLocaleString('en-GB') : '—'}</dd></div>
+    </dl>
+    <p role="status" className="text-sm text-muted-foreground">{first && last ? displayDay(first.date) + ' – ' + displayDay(last.date) + ' · ' + selected.points.length + (selected.points.length === 1 ? ' daily value' : ' daily values') : selected.error ? 'Correct the date range to view this report.' : 'No data available for the selected date range.'}</p>
+    <div className="h-80 min-w-0 sm:h-96">{selected.points.length > 0 ? <GrowthLine metric={metric} points={selected.points} /> : <div className="flex h-full items-center justify-center rounded-xl bg-muted/40 p-6 text-center text-sm text-muted-foreground">{selected.error ? 'The chart will appear when the dates are valid.' : 'Choose another range to explore available data.'}</div>}</div>
+    {selected.points.length > 0 && <details className="rounded-xl border border-border"><summary className="cursor-pointer rounded-xl px-4 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">View data table</summary><div className="max-h-72 overflow-auto overscroll-contain rounded-b-xl px-4 pb-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring" tabIndex={0} role="region" aria-label="Scrollable daily counts"><table className="w-full text-left text-sm tabular-nums"><caption className="pb-3 text-left text-muted-foreground">{preview ? 'Illustrative' : 'Platform'} cumulative {def.datasetLabel.toLowerCase()} · UTC dates</caption><thead className="sticky top-0 bg-card"><tr><th scope="col" className="py-3">Date</th><th scope="col" className="py-3 text-right">Count</th></tr></thead><tbody>{selected.points.map(point => <tr key={point.date} className="border-t border-border"><th scope="row" className="py-3 font-normal">{displayDay(point.date)}</th><td className="py-3 text-right">{point.value.toLocaleString('en-GB')}</td></tr>)}</tbody></table></div></details>}
+  </section>;
+}
+
+function LiveReport({ metric, userId }: { metric: AnalyticsMetricKey; userId: string }) {
+  const { data, loading, refreshing, error, retry } = useFetchAnalytics(metric, userId);
+  if (loading) return <ReportSkeleton />;
+  return <div className="space-y-4">
+    {error && <div role="alert" className="rounded-xl border border-destructive/40 bg-card p-4"><p className="text-sm">{error}</p><p className="mt-1 text-sm text-muted-foreground">{data ? 'Showing the last successfully loaded report below.' : 'No platform data has been loaded.'}</p></div>}
+    <Button variant="outline" size="touch" disabled={refreshing} onClick={retry}>{refreshing ? 'Refreshing…' : error ? 'Retry analytics' : 'Refresh data'}</Button>
+    {data && <GrowthReport points={data} metric={metric} preview={false} />}
+  </div>;
 }
 
 export default function MetricTimeSeriesChart({ metric }: { metric: AnalyticsMetricKey }) {
+  const { data: session, status } = useSession();
   const def = analyticsMetrics[metric];
-
-  const { data, firstDate, lastDate, today, loading, error } = useFetchAnalytics(def.endpoint);
-
-  const [interval, setInterval] = useState<Interval>('daily');
-  const [customStartDate, setCustomStartDate] = useState<string>('');
-  const [customEndDate, setCustomEndDate] = useState<string>('');
-
-  const availableIntervals = useMemo(() => {
-    const intervals: Interval[] = ['daily'];
-    if (firstDate && lastDate) {
-      const totalDays = (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (totalDays >= 30) intervals.push('monthly');
-      if (totalDays >= 365) intervals.push('yearly');
-    }
-    intervals.push('custom');
-    return intervals;
-  }, [firstDate, lastDate]);
-
-  useEffect(() => {
-    if (interval === 'custom' && firstDate && lastDate) {
-      const timeoutId = window.setTimeout(() => {
-        setCustomStartDate(firstDate.toISOString().split('T')[0]);
-        setCustomEndDate(lastDate.toISOString().split('T')[0]);
-      }, 0);
-      return () => window.clearTimeout(timeoutId);
-    }
-  }, [interval, firstDate, lastDate]);
-
-  const filteredSeries = useMemo(() => {
-    let startDate: Date;
-    let endDate: Date = today;
-
-    if (interval === 'custom') {
-      const isStartValid = isFullyValidDate(customStartDate);
-      const isEndValid = isFullyValidDate(customEndDate);
-
-      if (!isStartValid && !isEndValid) {
-        startDate = firstDate ? new Date(firstDate) : new Date(0);
-        endDate = lastDate ? new Date(lastDate) : new Date();
-      } else {
-        startDate = isStartValid ? new Date(customStartDate) : new Date(firstDate ?? 0);
-        endDate = isEndValid ? new Date(customEndDate) : today;
-
-        if (startDate > endDate) {
-          startDate = firstDate ? new Date(firstDate) : new Date(0);
-          endDate = lastDate ? new Date(lastDate) : new Date();
-        }
-      }
-    } else if (interval === 'yearly') {
-      const earliest = firstDate ? new Date(firstDate) : new Date(0);
-      startDate = earliest;
-      endDate = new Date(earliest);
-      endDate.setFullYear(endDate.getFullYear() + 1);
-      endDate = endDate > today ? today : endDate;
-    } else if (interval === 'monthly') {
-      const earliest = firstDate ? new Date(firstDate) : new Date(0);
-      startDate = earliest;
-      endDate = new Date(earliest);
-      endDate.setMonth(endDate.getMonth() + 1);
-      endDate = endDate > today ? today : endDate;
-    } else {
-      startDate = firstDate ? new Date(firstDate) : new Date(0);
-    }
-
-    return data.map((series) => ({
-      ...series,
-      data: (series.data as TimeSeriesDatum[]).filter((d) => d.date >= startDate && d.date <= endDate),
-    }));
-  }, [data, interval, customStartDate, customEndDate, firstDate, lastDate, today]);
-
-  const chartData = useMemo(() => {
-    const dateSet = new Set<number>();
-    for (const series of filteredSeries) {
-      for (const d of series.data) dateSet.add(new Date(d.date).getTime());
-    }
-
-    const dates = Array.from(dateSet)
-      .sort((a, b) => a - b)
-      .map((t) => new Date(t));
-
-    const labels = dates.map((d) => format(d, 'MMM d'));
-
-    const palette = [
-      def.colors,
-      { stroke: 'rgba(59,130,246,0.95)', fill: 'rgba(59,130,246,0.20)' },
-      { stroke: 'rgba(168,85,247,0.95)', fill: 'rgba(168,85,247,0.20)' },
-      { stroke: 'rgba(251,146,60,0.95)', fill: 'rgba(251,146,60,0.20)' },
-    ];
-
-    const datasets = filteredSeries.map((series, index) => {
-      const byTime = new Map<number, number>(
-        (series.data as TimeSeriesDatum[]).map((d) => [new Date(d.date).getTime(), def.value(d)])
-      );
-
-      const colors = palette[index % palette.length];
-      const label = series.label || (filteredSeries.length === 1 ? def.datasetLabel : `${def.datasetLabel} ${index + 1}`);
-
-      return {
-        label,
-        data: dates.map((d) => byTime.get(d.getTime()) ?? 0),
-        borderColor: colors.stroke,
-        backgroundColor: colors.fill,
-        fill: true,
-        tension: 0.35,
-        pointRadius: 0,
-        pointHitRadius: 8,
-      };
-    });
-
-    return { labels, datasets };
-  }, [filteredSeries, def]);
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-102px)] bg-gray-100 dark:bg-gray-900 p-6">
-      <div className="max-w-4xl w-full text-center">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">{def.title}</h1>
-        <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-300 mb-8">{def.description}</p>
-
-        {loading ? (
-          <div className="flex flex-col items-center">
-            <div className="loader"></div>
-            <p className="text-gray-600 dark:text-gray-300 mt-4">Loading data...</p>
-          </div>
-        ) : error ? (
-          <div className="text-red-600 dark:text-red-400">
-            <p>{`${error}`}</p>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center">
-            <div className="mb-4 w-full max-w-sm sm:max-w-md md:max-w-lg">
-              <label htmlFor="interval" className="mr-2 block text-sm md:text-base text-gray-900 dark:text-gray-300">
-                Select Interval:
-              </label>
-              <select
-                id="interval"
-                className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm md:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                value={interval}
-                onChange={(e) => setInterval(e.target.value as Interval)}
-              >
-                {availableIntervals.includes('yearly') && <option value="yearly">Yearly</option>}
-                {availableIntervals.includes('monthly') && <option value="monthly">Monthly</option>}
-                {availableIntervals.includes('daily') && <option value="daily">Daily</option>}
-                <option value="custom">Custom Range</option>
-              </select>
-            </div>
-
-            {interval === 'custom' && (
-              <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mb-4 w-full max-w-sm sm:max-w-md md:max-w-lg">
-                <div className="flex-1">
-                  <label htmlFor="start-date" className="block mb-1 text-sm md:text-base text-gray-900 dark:text-gray-300">
-                    From Date:
-                  </label>
-                  <input
-                    type="date"
-                    id="start-date"
-                    className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm md:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    value={customStartDate || ''}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    min={firstDate ? firstDate.toISOString().split('T')[0] : ''}
-                    max={lastDate ? lastDate.toISOString().split('T')[0] : ''}
-                    title={firstDate ? `Value must be ${firstDate.toLocaleDateString()} or later` : ''}
-                  />
-                </div>
-                <div className="flex-1">
-                  <label htmlFor="end-date" className="block mb-1 text-sm md:text-base text-gray-900 dark:text-gray-300">
-                    To Date (Optional):
-                  </label>
-                  <input
-                    type="date"
-                    id="end-date"
-                    className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm md:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    value={customEndDate || ''}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    min={customStartDate || (firstDate ? firstDate.toISOString().split('T')[0] : '')}
-                    max={today.toISOString().split('T')[0]}
-                    title={customStartDate ? `Value must be ${new Date(customStartDate).toLocaleDateString()} or later` : ''}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 w-full h-full">
-              {filteredSeries.length > 0 && filteredSeries[0].data.length > 0 ? (
-                <div className="w-full h-96 md:h-128 lg:h-[48rem]">
-                  <Line data={chartData} options={defaultChartOptions} />
-                </div>
-              ) : (
-                <p className="text-gray-600 dark:text-gray-300">No data available for the selected date range.</p>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  return <AnalyticsShell title={def.title} description={'Cumulative ' + def.datasetLabel.toLowerCase() + ' created over time. Compare date ranges and inspect the daily counts without relying on chart hover.'}>
+    {status === 'loading' ? <ReportSkeleton /> : session?.user?.role === 'ADMIN' && session.user.id ? <LiveReport key={session.user.id} metric={metric} userId={session.user.id} /> : <GrowthReport key={metric} points={sampleGrowth(metric)} metric={metric} preview />}
+  </AnalyticsShell>;
 }

@@ -404,6 +404,34 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   or browsers. These tests use the explicitly authorized Playwright browser, not
   the owner's real Chrome session.
 
+### Analytics growth follow-up (local verification; deployment pending)
+
+- Replaced the centered filler/error pages with the existing token-based, bounded
+  page shell: 16/24/32px gutters, 1280px maximum canvas, labelled report cards,
+  consistent back navigation and 48px / 16px date controls. Growth previews are
+  explicitly fictional January–March 2026 data, not fabricated platform KPIs.
+  Non-admin visitors no longer send doomed private analytics requests. The APIs
+  still enforce authentication, ADMIN role and rate limits before querying data.
+- Lazy chart renderer, geometry-matched loading placeholders, fixed UTC date
+  ranges, inline invalid-range errors, text totals and a keyboard-accessible
+  bounded data table. Table overscroll does not move the page behind it.
+  Admin data is user-keyed/cached, schema-validated and manually refreshable;
+  failures retain the header and explicitly identify any stale displayed report.
+- Fixed a real backend date bug: starting daily iteration at the first record's
+  time-of-day could omit today. UTC-midnight iteration now includes today even
+  across DST, and the 10,000-record cohort has deterministic creation/id ordering.
+  The cap and the distinction between creation counts and revenue are disclosed.
+- Focused units **16/16**, touched-file lint and final Webpack/TypeScript pass.
+  Final local browser **5/5** (16.5s, including setup): each growth report,
+  filtering, invalid/empty/single-day ranges, actual nested table/page/footer and
+  drawer scrolling, keyboard return focus, admin fixture retry/stale report,
+  and real demo API 403. All eight specified viewport sizes have no horizontal
+  page overflow. Admin UI tests intercept browser responses only: they do not
+  promote the real demo user or claim a real administrator database session.
+- Remaining: live rerun, crypto's second footer and price
+  controls, real Chrome/OS zoom and real-phone keyboard checks. The whole app
+  audit is still PARTIAL; these results cover the hub and three growth pages.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)

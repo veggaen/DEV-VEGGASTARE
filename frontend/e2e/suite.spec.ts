@@ -1,5 +1,122 @@
 import { test, expect } from "@playwright/test";
 
+for (const width of [390, 1280]) {
+  test(`S8 — analytics previews, date controls and real scrolling (${width}px)`, async ({ browser, baseURL }) => {
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained non-admin demo session');
+    test.setTimeout(120_000);
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: 844 }, colorScheme: 'dark' });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    const privateReads: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('request', request => { if (/\/api\/analytics\/(users|products|companies)(?:\?|$)/.test(request.url())) privateReads.push(request.url()); });
+    try {
+      await page.goto('/analytics', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Analytics Dashboard', exact: true })).toBeVisible();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      for (const metric of ['Products', 'Users', 'Companies']) {
+        await page.locator('main').getByRole('link', { name: new RegExp('^' + metric + ' ') }).click();
+        await expect(page.getByText('Illustrative sample · not live platform data', { exact: true })).toBeVisible();
+        await expect(page.getByRole('img', { name: new RegExp('^' + metric + ': cumulative count') })).toBeVisible();
+        await expect(page.getByRole('status').filter({ hasText: '30 daily values' })).toBeVisible();
+        const range = page.getByRole('combobox', { name: 'Date range', exact: true });
+        expect((await range.boundingBox())!.height).toBeGreaterThanOrEqual(48);
+        await range.selectOption('7');
+        await expect(page.getByRole('status').filter({ hasText: '7 daily values' })).toBeVisible();
+        await range.selectOption('custom');
+        await page.getByLabel('Start date (UTC)').fill('2026-03-31');
+        await page.getByLabel('End date (UTC)').fill('2026-01-01');
+        await expect(page.locator('main').getByRole('alert')).toHaveText('End date must be on or after start date.');
+        await page.getByLabel('End date (UTC)').fill('2026-03-31');
+        await expect(page.getByRole('status').filter({ hasText: '1 daily value' })).toBeVisible();
+        await page.getByLabel('Start date (UTC)').fill('2027-01-01');
+        await page.getByLabel('End date (UTC)').fill('2027-02-01');
+        await expect(page.getByText('No data available for the selected date range.', { exact: true })).toBeVisible();
+        await range.selectOption('all');
+        await page.getByText('View data table', { exact: true }).click();
+        const table = page.getByRole('region', { name: 'Scrollable daily counts' });
+        await table.scrollIntoViewIfNeeded();
+        const site = page.locator('[data-site-scroll]');
+        const beforeTableScroll = await site.evaluate(element => element.scrollTop);
+        const tableBox = await table.boundingBox();
+        await page.mouse.move(tableBox!.x + tableBox!.width / 2, tableBox!.y + tableBox!.height / 2);
+        await page.mouse.wheel(0, 7000);
+        await expect.poll(() => table.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+        await page.mouse.wheel(0, 2000);
+        expect(await site.evaluate(element => element.scrollTop)).toBe(beforeTableScroll);
+        await expect(table.getByRole('rowheader', { name: '31 Mar 2026' })).toBeInViewport();
+        await page.getByText('View data table', { exact: true }).click();
+        await page.mouse.move(width - 24, 500);
+        await page.mouse.wheel(0, 6000);
+        await expect(page.locator('footer')).toBeInViewport();
+        await page.getByRole('link', { name: 'All analytics', exact: true }).click();
+        await expect(page.getByRole('heading', { name: 'Analytics Dashboard', exact: true })).toBeVisible();
+        if (width === 390) expect((await context.request.get('/api/analytics/' + metric.toLowerCase())).status()).toBe(403);
+      }
+      // Resize the actual report, not an empty route shell. This is not OS/browser zoom emulation.
+      await page.locator('main').getByRole('link', { name: /^Products / }).click();
+      await expect(page.getByText('Illustrative sample · not live platform data', { exact: true })).toBeVisible();
+      const site = page.locator('[data-site-scroll]');
+      const backgroundTop = await site.evaluate(e => e.scrollTop);
+      await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+      const drawer = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
+      await expect(drawer).toBeVisible();
+      await drawer.evaluate(async element => { await Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {}))); });
+      await expect(drawer.getByText('Loading wallet controls…', { exact: true })).toBeHidden();
+      const rail = page.locator('[data-navigation-scroll]');
+      const box = await rail.boundingBox();
+      await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+      await page.mouse.wheel(0, 5000);
+      await expect.poll(() => rail.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+      await page.mouse.wheel(0, 2000);
+      expect(await site.evaluate(e => e.scrollTop)).toBe(backgroundTop);
+      await page.keyboard.press('Escape');
+      await expect(drawer).toBeHidden();
+      await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeFocused();
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('[data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+      }
+      expect(privateReads).toEqual([]);
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
+  test(`S8 — analytics admin UI retries without replacing the page heading (${width}px)`, async ({ browser, baseURL }) => {
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Browser-only role fixture; does not grant a real admin session');
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: 844 } });
+    const page = await context.newPage();
+    let fail = true;
+    // Only the browser session response is a fixture. Every private analytics request
+    // is intercepted; the actual signed-in USER remains unable to query the API.
+    const realSession = await (await context.request.get('/api/auth/session')).json();
+    expect(realSession.user.role).not.toBe('ADMIN');
+    await page.route('**/api/auth/session', route => route.fulfill({ json: { ...realSession, user: { ...realSession.user, role: 'ADMIN' } } }));
+    await page.route(/\/api\/analytics\/(products|users|companies)(?:\?|$)/, route => fail ? route.fulfill({ status: 503, json: { error: 'Fixture outage' } }) : route.fulfill({ json: { data: [{ label: 'Product Growth', data: [{ date: '2026-03-01T00:00:00Z', users: 2 }, { date: '2026-03-02T00:00:00Z', users: 4 }] }], firstProductDate: '2026-03-01', lastProductDate: '2026-03-02', today: '2026-03-02' } }));
+    try {
+      await page.goto('/analytics/products', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Product Growth Analytics', exact: true })).toBeVisible();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); });
+      await expect(page.locator('main').getByRole('alert')).toContainText('Analytics are temporarily unavailable.');
+      await page.evaluate(() => { (window as Window & { __analyticsHeading?: Element | null }).__analyticsHeading = document.querySelector('main h1'); });
+      fail = false;
+      await page.getByRole('button', { name: 'Retry analytics', exact: true }).click();
+      await expect(page.getByText('Live platform data · administrator access', { exact: true })).toBeVisible();
+      await expect(page.getByRole('status').filter({ hasText: '2 daily values' })).toBeVisible();
+      await expect(page.locator('main').getByRole('alert')).toBeHidden();
+      expect(await page.evaluate(() => (window as Window & { __analyticsHeading?: Element | null }).__analyticsHeading === document.querySelector('main h1'))).toBe(true);
+      fail = true;
+      await page.getByRole('button', { name: 'Refresh data', exact: true }).click();
+      await expect(page.locator('main').getByRole('alert')).toContainText('Showing the last successfully loaded report below.');
+      await expect(page.getByRole('status').filter({ hasText: '2 daily values' })).toBeVisible();
+      expect((await context.request.get('/api/analytics/products')).status()).toBe(403);
+    } finally { await page.unrouteAll({ behavior: 'wait' }); await context.close(); }
+  });
+}
+
 test.describe('S2 — account recovery', () => {
   test('register, verify, reset, reject replay, revoke session, login and logout', async ({ browser, baseURL }) => {
     // Opt-in only: sends two safe Resend test emails and provisions one isolated
