@@ -7,6 +7,7 @@ import { MdAdd } from 'react-icons/md';
 import { useSidebar, type SidebarDock } from '@/components/providers/product-layoutProvider';
 import { useCategories, type CategoryWithCount } from '@/components/providers/categoriesContext';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PriceSlider } from '@/components/ui/price-slider';
@@ -69,7 +70,7 @@ const FilterSection = ({
       <button
         type="button"
         onClick={onToggle}
-        className="flex items-center gap-2 flex-1 min-w-0 text-left transition-colors hover:opacity-80"
+        className="flex min-h-11 items-center gap-2 flex-1 min-w-0 text-left transition-colors hover:opacity-80 focus-visible:outline focus-visible:outline-2"
         aria-expanded={isOpen}
       >
         {icon && <span className="text-zinc-500 dark:text-zinc-400 shrink-0">{icon}</span>}
@@ -89,7 +90,7 @@ const FilterSection = ({
           <button
             type="button"
             onClick={onReset}
-            className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded transition-colors"
+            className="flex size-11 items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded transition-colors focus-visible:outline focus-visible:outline-2"
             aria-label={`Reset ${title.toLowerCase()}`}
           >
             <FiRotateCcw className="h-3.5 w-3.5" />
@@ -98,7 +99,7 @@ const FilterSection = ({
         <button
           type="button"
           onClick={onToggle}
-          className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded transition-colors"
+          className="flex size-11 items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded transition-colors focus-visible:outline focus-visible:outline-2"
           aria-label={isOpen ? `Collapse ${title.toLowerCase()}` : `Expand ${title.toLowerCase()}`}
         >
           {isOpen ? (
@@ -110,6 +111,8 @@ const FilterSection = ({
       </div>
     </div>
     <div
+      inert={!isOpen}
+      aria-hidden={!isOpen}
       className={cn(
         "transition-[flex] duration-200 ease-out overflow-hidden min-h-0",
         isOpen ? (canGrow ? "flex-1 flex flex-col" : "") : "flex-[0_0_0px]"
@@ -134,7 +137,7 @@ interface CategoryItemProps {
 const CategoryItem = ({ category, isSelected, onToggle, disabled }: CategoryItemProps) => (
   <label
     className={cn(
-      "flex items-center gap-2.5 py-1.5 px-4 -mx-1 rounded-md cursor-pointer transition-colors",
+      "flex min-h-11 items-center gap-2.5 py-1.5 px-3 rounded-md cursor-pointer transition-colors",
       disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-black/[0.02] dark:hover:bg-white/[0.02]",
       isSelected && "bg-sky-500/5 dark:bg-sky-500/10"
     )}
@@ -161,7 +164,7 @@ const CategoryItem = ({ category, isSelected, onToggle, disabled }: CategoryItem
 );
 
 export const MySidebarProductsMenu = () => {
-  const { isSidebarOpen, toggleSidebar, closeSidebar, sidebarSwipePx, isSidebarSwiping, cancelSidebarSwipe, isContentScrolled, sidebarDock, setSidebarDock, productsFrameBounds, perPage, setPerPage } = useSidebar();
+  const { isSidebarOpen, toggleSidebar, closeSidebar, cancelSidebarSwipe, isContentScrolled, sidebarDock, setSidebarDock, productsFrameBounds, perPage, setPerPage } = useSidebar();
   const isDocked = isContentScrolled;
 	const isRightDock = sidebarDock === 'edge-right' || sidebarDock === 'frame-right';
   const isEdgeDock = sidebarDock === 'edge-left' || sidebarDock === 'edge-right';
@@ -180,7 +183,7 @@ export const MySidebarProductsMenu = () => {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-	const isMobile = viewportW > 0 && viewportW < 768;
+	const isMobile = viewportW > 0 && viewportW < 1024;
 	// Force left-side slide-over on mobile to match gesture expectations (left->right opens filters).
 	const isRight = !isMobile && isRightDock;
 
@@ -452,7 +455,7 @@ export const MySidebarProductsMenu = () => {
   // (e.g. <SidebarPanel />) would cause re-mount on every parent render, losing
   // input focus. Instead, call it as {renderSidebarPanel('desktop')}.
   const renderSidebarPanel = (variant: 'mobile' | 'desktop') => {
-    const showClose = variant === 'mobile' || isSidebarOpen;
+    const showClose = variant === 'desktop' && isSidebarOpen;
     const enableDrag = variant === 'desktop';
 
     const onHeaderPointerDown: React.PointerEventHandler<HTMLDivElement> = (e) => {
@@ -511,11 +514,11 @@ export const MySidebarProductsMenu = () => {
     const hasPriceChanges = minPrice !== null || maxPrice !== null;
 
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex h-full min-h-0 flex-col">
         {/* ─── Sticky Header ─── */}
         <div
           className={cn(
-            "flex items-center justify-between gap-2 px-4 border-b border-black/5 dark:border-white/10",
+            "flex shrink-0 items-center justify-between gap-2 px-4 border-b border-black/5 dark:border-white/10",
             enableDrag && "cursor-grab active:cursor-grabbing select-none touch-none"
           )}
           style={{
@@ -534,7 +537,7 @@ export const MySidebarProductsMenu = () => {
           aria-label={enableDrag ? "Filters (drag to reposition)" : "Filters"}
         >
         {variant === 'mobile' ? (
-          <div className="grid w-full grid-cols-[1fr,auto,1fr] items-center">
+          <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center">
             <div />
             <div className="flex items-center justify-center gap-2">
               <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Filters</span>
@@ -584,7 +587,7 @@ export const MySidebarProductsMenu = () => {
       </div>
 
         {/* ─── Scrollable Body ─── */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3 flex flex-col gap-1">
+        <div data-product-filter-scroll className={cn("flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3", variant === 'mobile' ? 'space-y-2' : 'flex flex-col gap-1')}>
 
           {/* Price Filter */}
           <FilterSection
@@ -801,11 +804,11 @@ export const MySidebarProductsMenu = () => {
         </div>
 
         {/* ─── Footer with Reset All ─── */}
-        <div className="p-4 border-t border-black/5 dark:border-white/10">
+        <div className="shrink-0 p-4 border-t border-black/5 dark:border-white/10">
           <Button
             variant="outline"
             onClick={resetAllFilters}
-            className="w-full gap-2"
+            className="min-h-11 w-full gap-2"
             disabled={activeFilterCount === 0}
           >
             <FiRotateCcw className="h-4 w-4" />
@@ -822,7 +825,7 @@ export const MySidebarProductsMenu = () => {
 				// Align flush under the TopBar when scrolled. On /products the TopBar morphs between
 				// a floating (taller) state and a docked state (exactly --app-header). If we always
 				// use --app-header-offset we can get a small lingering gap during/after the morph.
-				const headerTopVar = isDocked ? 'var(--app-header)' : 'var(--app-header-offset)';
+				const headerTopVar = 'calc(var(--app-header-offset) + var(--demo-notice-height, 0px))';
 				// When the products controls bar becomes sticky, it occupies the very top of the
 				// /products scroll container. For frame-left/frame-right we want the sidebar below it.
 				const desktopTop = isDocked && isFrameDock
@@ -846,13 +849,16 @@ export const MySidebarProductsMenu = () => {
       {/* Desktop sidebar (fixed overlay; does NOT push layout) */}
       <aside
         data-sidebar-filters="true"
+        aria-label="Product filters"
+        aria-hidden={!isSidebarOpen}
+        inert={!isSidebarOpen}
         className={cn(
-          "hidden md:block fixed z-60",
+          "hidden lg:block fixed z-60",
           "will-change-transform",
           // Smooth transitions when not dragging, instant when dragging for 1:1 tracking
           isDragging 
             ? "transition-[opacity,transform,top] duration-0" 
-            : "transition-[opacity,transform,top,left] duration-300 ease-out",
+            : "transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
           isSidebarOpen ? "opacity-100 translate-y-0" : "opacity-0 pointer-events-none -translate-y-1"
         )}
         style={{
@@ -895,48 +901,24 @@ export const MySidebarProductsMenu = () => {
 					</div>
 				</aside>
 
-      {/* Overlay for small screens - z-95 below sidebar (z-100) but above everything else */}
-      {(isSidebarOpen || (isSidebarSwiping && sidebarSwipePx > 0)) && (
-        <div
-          onClick={() => {
-            cancelSidebarSwipe();
-            closeSidebar();
+      <Sheet open={isSidebarOpen && isMobile} onOpenChange={open => {
+        if (!open) { cancelSidebarSwipe(); closeSidebar(); }
+      }}>
+        <SheetContent side="left" accessibleTitle="Product filters"
+          accessibleDescription="Filter products by price, category and seller."
+          data-sidebar-filters="true"
+          className="z-100 h-dvh w-[calc(100%-2rem)] max-w-[420px] overflow-hidden overscroll-contain bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:max-w-[420px]"
+          onTouchStart={onMobileSidebarTouchStart}
+          onTouchEnd={onMobileSidebarTouchEnd}
+          onCloseAutoFocus={event => {
+            event.preventDefault();
+            const triggers = document.querySelectorAll<HTMLButtonElement>('[data-product-filter-trigger]');
+            [...triggers].find(button => button.getBoundingClientRect().width > 0)?.focus();
           }}
-          className="fixed inset-0 bg-black/50 z-95 md:hidden"
-          style={{
-            opacity: isSidebarOpen ? 1 : Math.min(1, Math.max(0.08, sidebarSwipePx / 280)) * 0.9,
-            transition: isSidebarSwiping ? "none" : "opacity 200ms ease-out",
-          }}
-        />
-      )}
-
-      {/* Mobile sidebar (slide-over) - solid bg, highest z-layer */}
-      <aside
-        data-sidebar-filters="true"
-        className={cn(
-        "fixed w-[92vw] max-w-[420px] bg-white dark:bg-surface-1 shadow-2xl z-100 transform will-change-transform md:hidden",
-        		isSidebarSwiping ? "transition-none" : "transition-transform duration-300 ease-out",
-          isRight ? "right-0 border-l border-zinc-200 dark:border-zinc-800" : "left-0 border-r border-zinc-200 dark:border-zinc-800",
-        // During active swipe, we drive transform inline for smooth follow.
-        !(isSidebarSwiping && sidebarSwipePx > 0 && !isSidebarOpen)
-          ? (isSidebarOpen ? "translate-x-0" : isRight ? "translate-x-full" : "-translate-x-full")
-          : ""
-        )}
-    onTouchStart={onMobileSidebarTouchStart}
-    onTouchEnd={onMobileSidebarTouchEnd}
-    style={{
-			top: 0,
-			height: '100dvh',
-      transform:
-        isSidebarSwiping && sidebarSwipePx > 0 && !isSidebarOpen
-          ? (isRight
-            ? `translateX(calc(100% - ${sidebarSwipePx}px))`
-            : `translateX(calc(-100% + ${sidebarSwipePx}px))`)
-          : undefined,
-    }}
-      >
-        {renderSidebarPanel('mobile')}
-      </aside>
+        >
+          {renderSidebarPanel('mobile')}
+        </SheetContent>
+      </Sheet>
     </>
   );
 };

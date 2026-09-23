@@ -269,6 +269,94 @@ test.describe("Layer 2 — Routing", () => {
 /*  Now we know routes work, verify they render something meaningful.  */
 /* ================================================================== */
 test.describe("Layer 3 — Content", () => {
+  test("S8 — warehouse detail is readable without inventory privileges", async ({ browser, baseURL }) => {
+    test.setTimeout(60_000);
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained app-issued demo session');
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    try {
+      const list = await context.request.get('/api/warehouses');
+      expect(list.status()).toBe(200);
+      const warehouses = await list.json() as { id: string }[];
+      expect(warehouses.length).toBeGreaterThan(0);
+      const id = warehouses[0].id;
+      const details = await context.request.get(`/api/warehouses/${id}?id=${id}`);
+      expect(details.status()).toBe(200);
+      expect((await details.json()).warehouse.inventory).toEqual([]);
+      await page.goto(`/warehouses/${id}`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Warehouse Details', exact: true })).toBeVisible();
+      await expect(page.getByText('Inventory is visible to authorized warehouse administrators.', { exact: false })).toBeVisible();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      for (const width of [360, 390, 1280, 2560]) {
+        await page.setViewportSize({ width, height: 844 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        const refresh = page.getByRole('button', { name: 'Refresh Now', exact: true });
+        const response = page.waitForResponse(r => r.url().includes(`/api/warehouses/${id}`) && r.request().method() === 'GET');
+        await refresh.click();
+        expect((await response).status()).toBe(200);
+        await expect(refresh).toBeEnabled();
+        await expect(page.getByRole('button', { name: /Increase stock|Decrease stock/ })).toHaveCount(0);
+        await expect(page.getByText('An unexpected response was received from the server.', { exact: false })).toHaveCount(0);
+      }
+      await page.getByRole('link', { name: 'Back to warehouses', exact: true }).click();
+      await expect(page).toHaveURL(/\/warehouses$/);
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
+  test("S7 — product filters reflow, contain scroll and restore focus", async ({ browser, baseURL }) => {
+    test.setTimeout(90_000);
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    try {
+      await page.goto('/products', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
+        await page.setViewportSize(size);
+        const trigger = page.getByRole('button', { name: 'Product filters', exact: true });
+        const triggerBox = await trigger.boundingBox();
+        expect(triggerBox!.height).toBeGreaterThanOrEqual(44);
+        expect(await page.getByRole('checkbox', { name: /^Digital art /i }).count()).toBe(0);
+        const background = await page.locator('[data-app-scroll-container]').evaluate(e => e.scrollTop);
+        await trigger.click();
+        const panel = page.getByRole('dialog', { name: 'Product filters', exact: true });
+        await expect(panel).toBeVisible();
+        await panel.evaluate(async e => { await Promise.all(e.getAnimations().map(a => a.finished.catch(() => {}))); });
+        const scroller = panel.locator('[data-product-filter-scroll]');
+        const box = await scroller.boundingBox();
+        await page.mouse.move(box!.x + 20, box!.y + box!.height / 2);
+        await page.mouse.wheel(0, 5000);
+        await expect.poll(() => scroller.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+        await page.mouse.wheel(0, 5000);
+        expect(await page.locator('[data-app-scroll-container]').evaluate(e => e.scrollTop)).toBe(background);
+        await expect(panel.getByRole('button', { name: 'Reset all filters', exact: true })).toBeInViewport();
+        await page.keyboard.press('Escape');
+        await expect(panel).toBeHidden();
+        await expect(trigger).toBeFocused();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.getByRole('button', { name: 'Product filters', exact: true }).click();
+      await page.getByRole('checkbox', { name: /^Digital art /i }).check();
+      await page.keyboard.press('Escape');
+      await expect(page.locator('article h2')).toHaveText(['Veggat Interview Pack']);
+      await page.getByRole('button', { name: 'Product filters', exact: true }).click();
+      await page.getByRole('button', { name: /Reset all filters/ }).click();
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true })).toBeVisible();
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
   test("S7 — mobile product native scrolling and profile tabs", async ({ browser, baseURL }) => {
     test.setTimeout(90_000);
     test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained app-issued demo session');

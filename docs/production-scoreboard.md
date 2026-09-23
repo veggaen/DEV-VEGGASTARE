@@ -72,8 +72,11 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   keeps footer at y=844 in an 844px viewport. Full feature audit is incomplete.
 - Warehouse detail API now requires auth and omits inventory for USER/demo;
   local/live 401 anonymous and 200 with zero inventory for demo confirmed.
-  Three new role-isolation unit tests pass. The **detail page UI** still uses a
-  separate blocked Server Action and shows an unhelpful demo error; fix next.
+  Three new role-isolation unit tests pass. Detail UI now also uses the secured
+  GET: local read/refresh/back navigation passed at 360/390/1280/2560; S8 regression
+  2/2 including setup. Product filter Sheet/focus/scroll and category selection
+  passed at 360/390/short landscape; focused local S3/S7 5/5 in 42.9s. Production
+  build/TypeScript and touched-file lint passed. Latest fixes await live checks.
 
 ## Feature scoreboard
 

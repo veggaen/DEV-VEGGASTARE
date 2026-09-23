@@ -105,7 +105,17 @@ geometry scans are triage, not a substitute for viewing the screenshots.
   Actual live Pulse scroll/filter reproduction also passed (700→0; footer y=844).
 - Warehouse detail **API**: anonymous 401; demo 200 with empty inventory/products,
   locally and live. Three role-isolation unit tests added. This is distinct from
-  its detail page, whose old Server Action still produces a demo error (next fix).
+  its detail page, which now also uses the secured GET DTO. Local demo detail,
+  refresh and return-to-list passed at 360/390/1280/2560, with role-aware inventory
+  guidance and no privileged stock controls. Legacy read action now requires an
+  ADMIN/OWNER session. The new S8 regression passed (2/2 including setup).
+- Product filters now use the existing focus-managed Sheet below 1024px. Closed
+  content is absent from the accessibility tree; header/footer remain reachable
+  in short landscape; boundary scrolling stays within the drawer; Escape restores
+  trigger focus. Toolbar targets are named and 44px, and the responsive breakpoint
+  matches the shell. Actual Digital Art selection/reset and visual review passed.
+  Focused local S3/S7 run: **5/5 including setup in 42.9s**. Build/TypeScript and
+  touched-file lint passed. These latest filter/detail changes await live checks.
 - Ignored evidence directory: `frontend/.private-showcase/responsive-audit/`
   (`core-local`, `all-local`). Never commit storageState, private URLs or tokens.
 - Lab timings are diagnostic only, not field Speed Insights or a claimed Core
@@ -113,12 +123,9 @@ geometry scans are triage, not a substitute for viewing the screenshots.
 
 ## Remaining audit queue (not passes)
 
-- Products: two mobile toolbar icons lack accessible names and measure 36px high.
-  The closed custom filter sidebar remains in the accessibility tree. Align its
-  responsive breakpoint and focus management with the global drawer. Real
-  category selection, search/empty state, gallery arrows and portrait filter
-  scroll containment were exercised successfully; short-landscape filter panel
-  and full keyboard traversal still need work.
+- Products: continue full keyboard traversal and seller-row target-size review.
+  Drawer focus/scroll, category selection, search/empty state and gallery arrows
+  have focused coverage; this does not verify every filtering combination.
 - Pulse action controls, notifications and experimental polls: inspect accessible
   names in the actual accessibility tree. The raw button scanner over-counts
   controls named by associated labels (for example filter checkboxes).
@@ -126,10 +133,8 @@ geometry scans are triage, not a substitute for viewing the screenshots.
   denials. Replace raw/unhelpful error states where needed without allowing writes.
 - Dynamic company/warehouse/order/download pages need seeded-record flows, not
   placeholder IDs. Paid seller view still needs owner/payment evidence.
-- Confirmed dynamic defect: `/warehouses/[id]` still calls `fetchWarehouseById`
-  as a Server Action; demo gets "An unexpected response was received from the
-  server." Replace with the secured GET DTO, show role-aware inventory guidance,
-  and secure/deprecate the legacy read action. Width-only checks missed this.
+- Warehouse owner/admin inventory mutation still needs a privileged session and
+  safe test inventory. USER/demo read success does not verify stock updates.
 - Actual Chrome, physical keyboard/safe-area behavior and 125% browser zoom remain
   unverified after the PC crash. No connected Chrome surface is available yet.
 

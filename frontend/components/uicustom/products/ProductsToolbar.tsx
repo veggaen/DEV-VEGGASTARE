@@ -360,7 +360,7 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
     )}>
       <div className="mx-auto max-w-screen-2xl px-3 sm:px-4 md:px-6">
         {/* Desktop Layout */}
-        <div className="hidden md:flex items-center gap-1 py-2">
+        <div className="hidden lg:flex items-center gap-1 py-2">
           {/* Divider - shows on LEFT of Filters when sidebar is on right */}
           {isRight && <div className="h-4 w-px bg-black/10 dark:bg-white/10 mx-1 order-[99]" />}
           
@@ -368,8 +368,12 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
           <div className={cn("flex items-center gap-1", isRight && "order-last")}>
             <button
               onClick={toggleSidebar}
+              type="button"
+              data-product-filter-trigger
+              aria-label="Product filters"
+              aria-expanded={isSidebarOpen}
               className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150",
+                "flex min-h-11 items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors duration-150 focus-visible:outline focus-visible:outline-2",
                 "text-zinc-600 dark:text-zinc-400",
                 "hover:text-foreground",
                 "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
@@ -549,13 +553,16 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
         </div>
 
         {/* Mobile Layout */}
-        <div className="md:hidden py-2.5 space-y-2">
+        <div className="lg:hidden py-2.5 space-y-2">
           {/* Top row: Menu + Search */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              type="button"
+              aria-label="Browse categories"
+              aria-expanded={mobileMenuOpen}
               className={cn(
-                "flex items-center justify-center h-9 w-9 rounded-lg transition-colors",
+                "flex shrink-0 items-center justify-center size-11 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2",
                 "bg-black/[0.04] dark:bg-white/[0.06]",
                 "text-zinc-600 dark:text-zinc-400",
                 mobileMenuOpen && "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
@@ -568,11 +575,12 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
+                aria-label="Search products"
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={cn(
-                  "w-full h-9 pl-9 pr-3 rounded-lg text-[14px] outline-none transition-all duration-150",
+                  "w-full h-11 pl-9 pr-3 rounded-lg text-base outline-none transition-colors duration-150",
                   "bg-black/[0.04] dark:bg-white/[0.06]",
                   "text-zinc-800 dark:text-zinc-200",
                   "placeholder:text-muted-foreground",
@@ -585,13 +593,13 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
           {/* Create listing (mobile): only show when header is collapsed */}
           {isScrolled && (
             isLoggedIn ? (
-              <Button asChild size="icon" variant="vegaNormalBtn" className="h-9 w-9 rounded-lg">
+              <Button asChild size="icon" variant="vegaNormalBtn" className="size-11 shrink-0 rounded-lg">
                 <Link href="/products/create" aria-label="Create a new product listing">
                   <MdAdd className="h-4 w-4" />
                 </Link>
               </Button>
             ) : (
-              <Button asChild size="icon" variant="outline" className="h-9 w-9 rounded-lg">
+              <Button asChild size="icon" variant="outline" className="size-11 shrink-0 rounded-lg">
                 <Link
                   href={`/auth/login?callbackUrl=${encodeURIComponent('/products/create')}`}
                   aria-label="Sign in to create a listing"
@@ -604,8 +612,13 @@ export function ProductsToolbar({ isScrolled = false }: ProductsToolbarProps) {
 
             <button
               onClick={toggleSidebar}
+              type="button"
+              data-product-filter-trigger
+              aria-label="Product filters"
+              aria-expanded={isSidebarOpen}
+              aria-haspopup="dialog"
               className={cn(
-                "flex items-center justify-center h-9 px-3 rounded-lg transition-colors gap-1.5",
+                "flex shrink-0 min-h-11 min-w-11 items-center justify-center px-3 rounded-lg transition-colors gap-1.5 focus-visible:outline focus-visible:outline-2",
                 "bg-black/[0.04] dark:bg-white/[0.06]",
                 "text-zinc-600 dark:text-zinc-400",
                 isSidebarOpen && "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"

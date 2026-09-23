@@ -186,7 +186,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		let startCarouselCanScrollPrev = false;
 		let startCarouselCanScrollNext = false;
 		let isSwipingSidebar = false;
-		const isMobile = () => (window.matchMedia ? !window.matchMedia("(min-width: 768px)").matches : true);
+		const isMobile = () => (window.matchMedia ? !window.matchMedia("(min-width: 1024px)").matches : true);
 		const setChrome = (nextControls: boolean, nextTopbar: boolean) => {
 			if (productsControlsVisibleRef.current !== nextControls) setProductsControlsVisible(nextControls);
 			if (topBarVisibleRef.current !== nextTopbar) setTopBarVisible(nextTopbar);
@@ -207,7 +207,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 		// If the user switches between mobile emulation and desktop, force chrome visible on desktop.
 		// Otherwise the topbar can remain hidden until the next scroll event.
-		const mq = window.matchMedia?.("(min-width: 768px)");
+		const mq = window.matchMedia?.("(min-width: 1024px)");
 		const onMq = () => {
 			if (mq?.matches) setChrome(true, true);
 		};
@@ -530,7 +530,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 	// When the sidebar is open on edge-left or edge-right, we use a flex layout
 	// with a spacer that takes up the sidebar width. This forces the content to
 	// shrink (grid reflows to fewer columns, inputs shrink) instead of just shifting.
-	const isDesktop = viewportWidth >= 768; // md breakpoint
+	const isDesktop = viewportWidth >= 1024; // lg breakpoint
 	const isEdgeDock = sidebarDock === 'edge-left' || sidebarDock === 'edge-right';
 	const effectiveSidebarOpen = hideSidebarOnThisRoute ? false : isSidebarOpen;
 	const showLeftSpacer = effectiveSidebarOpen && isDesktop && sidebarDock === 'edge-left';
