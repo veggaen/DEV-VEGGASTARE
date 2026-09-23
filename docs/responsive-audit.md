@@ -1053,6 +1053,46 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Chrome tab creation returned `Browser is not available: chrome`. Playwright
   remains the authorized test path; no claim of a real-Chrome pass.
 
+## Orders, receipts and downloads follow-up
+
+- Live reconnaissance reproduced a completed demo order labelled “Betalt” at
+  68 NOK, despite collecting no money. The legacy receipt also assumed dollars.
+  Order APIs now expose a minimal, server-owned checkout summary, stored currency
+  and separate purchased lines. Demo display is 0 NOK, with catalog value clearly
+  separated; sandbox and verified captures have distinct labels. No financial
+  records, entitlements, credit balances or checkout-grant rules were changed.
+- Existing receipt bookmarks authenticate on the server and redirect their owner
+  to the verified checkout receipt. Legacy receipts use the recorded currency and
+  do not call an unpaid pending order confirmed. Refunded checkout receipts no
+  longer say awaiting confirmation, and exhausted download links are omitted.
+- My orders and My downloads share the existing shell/tokens, bounded canvas,
+  16/24/32px gutters, 44px actions, light/dark styles and wrapped content. The
+  order expansion is keyboard-accessible and URL-backed. Identity-scoped SWR
+  caches retain content on refresh/failure, with explicit retry and skeletons.
+- The download library resolves multi-file product metadata through the buyer's
+  purchased line (the TXT previously lost its title/image), concurrent with the
+  legacy lookup. Private reads are rate-limited, bounded and no-store. A download
+  now reports actual transfer success/failure instead of opening a new tab and
+  clearing a fake two-second spinner. Expired/revoked/exhausted links are disabled.
+- Focused units **24/24** cover provenance, API ownership/cache/rate limits,
+  multi-file association and existing grant/download safety. Touched-file lint
+  and the initial production build/TypeScript pass. Local browser regression
+  **6/6** covers this slice plus shared navigation/Pulse scrolling; edge-state
+  browser test **2/2** covers empty, delayed, expired, revoked, exhausted and long
+  content. The first run transferred real private JPG/TXT bytes and verified
+  exactly one use increment each, then stopped on a test-only content-wrapper
+  locator; the corrected run did not repeat transfers.
+- Eight-size local matrix: 360, 390, 844×390, 768, 1024, 1280×800, 1920, 2560.
+  Real wheel scrolling reaches the footer after the content without overlap;
+  independent sidebar/Pulse scroll regressions pass. Screenshots reviewed at
+  mobile and desktop in both themes. No horizontal overflow or page exceptions.
+  Files: `.private-showcase/responsive-audit/orders-local/` (not public assets).
+- Final-candidate webpack/TypeScript and local browser **7/7 (56.6s)** pass,
+  including the edge-state and shared navigation/Pulse regressions. No new demo
+  checkout, free-credit grant, cap reset or real-money transaction.
+  Live verification is pending. This is not an all-routes,
+  native-Chrome, physical-keyboard, 125%-browser-zoom or field-CWV completion claim.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)

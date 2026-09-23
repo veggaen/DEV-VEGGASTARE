@@ -47,6 +47,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
         },
         include: {
           Payment: true,
+          CheckoutAttempt: { select: { environment: true, state: true, captureId: true } },
+          OrderItem: { select: { id: true, title: true, quantity: true, priceAtTime: true } },
         },
         take: 100, // Pagination limit for safety
         orderBy: {
@@ -76,6 +78,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
           id: o.id,
           userId: o.userId,
           totalAmount: o.totalAmount,
+          currency: o.currency ?? null,
+          fulfilmentStatus: o.fulfilmentStatus,
+          checkout: o.CheckoutAttempt ?? null,
+          items: o.OrderItem,
           status: o.status,
           transactionId: o.transactionId ?? null,
           commentOrder: o.commentOrder ?? null,
@@ -95,7 +101,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         );
       }
 
-      return NextResponse.json(parsed.data);
+      return NextResponse.json(parsed.data, { headers: { 'Cache-Control': 'private, no-store' } });
     } catch (error) {
       console.error('Error fetching order:', error);
       return NextResponse.json({ error: 'Error fetching order' }, { status: 500 });

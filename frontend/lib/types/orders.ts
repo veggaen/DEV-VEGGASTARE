@@ -37,7 +37,18 @@ export const OrderDtoSchema = z
     id: z.string().min(1),
     userId: z.string().min(1),
     totalAmount: z.number().finite(),
+    currency: z.string().nullable().optional(),
     status: z.nativeEnum(OrderStatus),
+    fulfilmentStatus: z.string().optional(),
+    // Read-only payment provenance. Never expose provider credentials or approval URLs.
+    checkout: z.object({
+      environment: z.enum(['DEMO', 'SANDBOX', 'LIVE']),
+      state: z.string(),
+      captureId: z.string().nullable(),
+    }).nullable().optional(),
+    items: z.array(z.object({
+      id: z.string(), title: z.string(), quantity: z.number().int(), priceAtTime: z.number().finite(),
+    })).optional(),
     transactionId: z.string().nullable(),
     commentOrder: z.string().nullable().optional(),
     createdAt: IsoDateStringSchema,

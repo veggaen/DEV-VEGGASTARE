@@ -1,5 +1,135 @@
 import { test, expect } from "@playwright/test";
 
+test('S4 — private library loading, empty, expired and long-content states', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 360, height: 800 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  try {
+    let release: (() => void) | undefined;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    await page.route('**/api/my-downloads', async route => { await pending; await route.fulfill({ json: { downloads: [] } }); });
+    await page.goto('/my-downloads', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('status', { name: 'Loading downloads' })).toBeVisible();
+    const before = await page.getByRole('heading', { name: 'My downloads', exact: true }).boundingBox();
+    release!(); await expect(page.getByRole('heading', { name: 'No downloads yet' })).toBeVisible();
+    const after = await page.getByRole('heading', { name: 'My downloads', exact: true }).boundingBox(); expect(after!.y).toBe(before!.y);
+    await expect(page.locator('main').getByRole('link', { name: 'Browse products', exact: true })).toHaveAttribute('href', '/products');
+    await page.unroute('**/api/my-downloads');
+    const baseFile = { token: 'never-used-test-token', maxUses: 10, usedCount: 0, isRevoked: false, expiresAt: null, digitalAsset: { id: 'qa-file', fileName: 'a-long-filename-without-spaces-'.repeat(8) + '.txt', fileSize: 20, mimeType: 'text/plain' }, order: { id: 'qa-order', createdAt: '2026-01-01T00:00:00Z' }, product: { id: 'qa-product', title: 'Long-product-title-without-spaces-'.repeat(8), image: [] } };
+    await page.route('**/api/my-downloads', route => route.fulfill({ json: { downloads: [{ ...baseFile, id: 'expired', expiresAt: '2020-01-01T00:00:00Z' }, { ...baseFile, id: 'revoked', isRevoked: true }, { ...baseFile, id: 'exhausted', usedCount: 10 }] } }));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const list = page.getByRole('list', { name: 'Your downloads', exact: true }); await expect(list.locator(':scope > li')).toHaveCount(3);
+    await expect(list).toContainText('Expired'); await expect(list).toContainText('Revoked'); await expect(list).toContainText('Limit reached');
+    const actions = list.getByRole('button', { name: 'Download file' }); await expect(actions).toHaveCount(3);
+    for (let i = 0; i < 3; i++) await expect(actions.nth(i)).toBeDisabled();
+    for (const width of [360, 390, 1280, 2560]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await page.locator('[data-app-scroll-container]:visible').evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+      for (let i = 0; i < 3; i++) { const bounds = await actions.nth(i).boundingBox(); expect(bounds!.height).toBeGreaterThanOrEqual(44); expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width - 15); }
+    }
+    await page.route('**/api/orders/user/**', route => route.fulfill({ json: [] })); await page.goto('/my-orders', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'No orders yet' })).toBeVisible(); await expect(page.locator('main').getByRole('link', { name: 'Browse products', exact: true })).toHaveAttribute('href', '/products');
+  } finally { await context.close(); }
+});
+
+test('S4 — retained demo receipts, private downloads and responsive order history', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Reuse an isolated demo; never create purchases or reset caps');
+  test.setTimeout(180_000);
+  const { mkdir } = await import('node:fs/promises');
+  const screenshots = '.private-showcase/responsive-audit/orders-' + (new URL(baseURL!).hostname === 'localhost' ? 'local' : 'live');
+  await mkdir(screenshots, { recursive: true });
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const anonymous = await browser.newContext({ baseURL });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', failure => errors.push(failure.message));
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user?.id?.startsWith('demo_')).toBe(true);
+    const endpoint = '/api/orders/user/' + session.user.id;
+    const response = await context.request.get(endpoint);
+    expect(response.status()).toBe(200); expect(response.headers()['cache-control']).toContain('no-store');
+    const orders = await response.json();
+    const order = orders.find((row: { checkout?: { environment: string; state: string } }) => row.checkout?.environment === 'DEMO' && row.checkout.state === 'COMPLETED');
+    expect(!!order).toBe(true); expect(order.currency).toBe('NOK'); expect(order.items.length).toBe(2); expect(order.totalAmount).toBe(68);
+    expect((await anonymous.request.get(endpoint)).status()).toBe(401);
+    expect((await context.request.get('/api/orders/user/nonexistent-foreign-buyer')).status()).toBe(403);
+    await page.goto('/my-orders', { waitUntil: 'domcontentloaded' });
+    const section = page.locator('section[aria-labelledby="orders-title"]');
+    const list = page.getByRole('list', { name: 'Your orders', exact: true });
+    await expect(list).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    const row = list.locator(':scope > li').filter({ hasText: order.id.slice(-8).toUpperCase() });
+    await expect(row).toContainText('Demo ready'); await expect(row).toContainText('NOK 0.00'); await expect(row).toContainText('No payment collected');
+    await row.getByRole('button').click(); await expect(row.getByRole('button')).toHaveAttribute('aria-expanded', 'true'); await expect(page).toHaveURL(/\?order=/);
+    await expect(row.getByRole('list', { name: 'Order items' }).locator('li')).toHaveCount(2);
+    await row.getByRole('button').focus(); await page.keyboard.press('Enter'); await expect(row.getByRole('button')).toHaveAttribute('aria-expanded', 'false');
+    await page.goBack({ waitUntil: 'domcontentloaded' }); await expect(row.getByRole('button')).toHaveAttribute('aria-expanded', 'true');
+    await page.route('**' + endpoint, route => route.fulfill({ status: 503, json: { error: 'Controlled QA failure' } }));
+    await section.getByRole('button', { name: 'Refresh', exact: true }).click(); await expect(section.getByRole('alert')).toBeVisible(); await expect(row).toBeVisible(); await expect(page.getByRole('status', { name: 'Loading orders' })).toHaveCount(0);
+    await page.unroute('**' + endpoint); await section.getByRole('button', { name: 'Try again', exact: true }).click(); await expect(section.getByRole('alert')).toHaveCount(0);
+    await row.getByRole('link', { name: 'View receipt', exact: true }).click(); await expect(page).toHaveURL(/\/checkout\/receipt\//);
+    await expect(page.getByRole('heading', { name: 'Your demo order is ready' })).toBeVisible(); await expect(page.locator('main')).toContainText('0.00 NOK'); await expect(page.getByRole('list', { name: 'Receipt items' }).locator('li')).toHaveCount(2);
+    // Old bookmarks must resolve to the same truthful receipt, not a dollar receipt.
+    await page.goto('/order-confirmation/' + order.id, { waitUntil: 'domcontentloaded' }); await expect(page).toHaveURL('/checkout/receipt/' + order.id);
+    await page.getByRole('link', { name: 'My downloads', exact: true }).click();
+    const downloads = page.getByRole('list', { name: 'Your downloads', exact: true }); await expect(downloads.locator(':scope > li')).toHaveCount(2);
+    const filesResponse = await context.request.get('/api/my-downloads'), files = (await filesResponse.json()).downloads;
+    expect(filesResponse.headers()['cache-control']).toContain('no-store'); expect(files.every((file: { product?: { title: string } }) => file.product?.title === 'Veggat Interview Pack')).toBe(true);
+    expect((await anonymous.request.get('/api/my-downloads')).status()).toBe(401);
+    const file = files.find((file: { digitalAsset: { mimeType: string } }) => file.digitalAsset.mimeType === 'text/plain');
+    expect((await anonymous.request.get('/api/download/' + file.token)).status()).toBe(401);
+    const notes = downloads.locator(':scope > li').filter({ hasText: file.digitalAsset.fileName });
+    await page.route('**/api/download/**', route => route.fulfill({ status: 502, json: { error: 'Controlled QA storage failure' } }));
+    await notes.getByRole('button', { name: 'Download file' }).click(); await expect(notes.getByRole('alert')).toHaveText('The file could not be downloaded. Please try again.');
+    await expect(notes.getByRole('button', { name: 'Download file' })).toBeEnabled(); await page.unroute('**/api/download/**');
+    // Explicit opt-in consumes one remaining use of each existing file, never a new grant.
+    if (process.env.E2E_DOWNLOADS === 'download') {
+      for (const record of files) {
+        const card = downloads.locator(':scope > li').filter({ hasText: record.digitalAsset.fileName });
+        const done = page.waitForEvent('download'); await card.getByRole('button', { name: 'Download file' }).click(); const result = await done;
+        expect(result.suggestedFilename()).toBe(record.digitalAsset.fileName); expect(await result.failure()).toBeNull();
+        const stream = await result.createReadStream(); const chunks: Buffer[] = []; for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+        const bytes = Buffer.concat(chunks); expect(bytes.length).toBe(record.digitalAsset.fileSize);
+        if (record.digitalAsset.mimeType === 'image/jpeg') expect([...bytes.subarray(0, 3)]).toEqual([255, 216, 255]); else expect(bytes.toString('utf8')).toContain('Veggat');
+        await expect(card.getByRole('status')).toContainText('File sent to your browser');
+      }
+      const updated = (await (await context.request.get('/api/my-downloads')).json()).downloads;
+      for (const before of files) expect(updated.find((after: { id: string }) => after.id === before.id).usedCount).toBe(before.usedCount + 1);
+    }
+    const downloadSection = page.locator('section[aria-labelledby="downloads-title"]');
+    await page.route('**/api/my-downloads', route => route.fulfill({ status: 503, json: { error: 'Controlled QA read failure' } }));
+    await downloadSection.getByRole('button', { name: 'Refresh', exact: true }).click(); await expect(downloadSection.getByRole('alert').first()).toBeVisible(); await expect(downloads).toBeVisible(); await expect(page.getByRole('status', { name: 'Loading downloads' })).toHaveCount(0);
+    await page.unroute('**/api/my-downloads'); await downloadSection.getByRole('button', { name: 'Try again' }).click(); await expect(downloadSection.getByRole('button', { name: 'Try again' })).toHaveCount(0);
+    const matrix = [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }];
+    for (const path of ['/my-orders?order=' + order.id, '/my-downloads', '/checkout/receipt/' + order.id]) {
+      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      const heading = page.getByRole('heading', { name: path.startsWith('/my-orders') ? 'My orders' : path === '/my-downloads' ? 'My downloads' : 'Your demo order is ready', exact: true });
+      await expect(heading).toBeVisible();
+      if (path.startsWith('/my-orders')) await expect(page.getByRole('link', { name: 'View receipt' }).first()).toBeVisible();
+      if (path === '/my-downloads') { await expect(downloads).toBeVisible(); await expect.poll(() => downloads.locator('img').evaluateAll(images => images.every(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0))).toBe(true); }
+      const scroller = page.locator('[data-app-scroll-container]:visible');
+      const label = path.startsWith('/my-orders') ? 'orders' : path === '/my-downloads' ? 'downloads' : 'receipt';
+      for (const size of matrix) {
+        await page.setViewportSize(size); await scroller.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+        const bounds = await heading.boundingBox(); expect(bounds!.x).toBeGreaterThanOrEqual(16); expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(size.width - 15);
+        expect(await scroller.evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && scrollY === 0)).toBe(true);
+        if ([360, 390, 1280, 2560].includes(size.width)) await page.screenshot({ path: `${screenshots}/${label}-${size.width}-top.png` });
+        await page.mouse.move(size.width / 2, Math.min(size.height / 2, 400)); await page.mouse.wheel(0, 500);
+        if (await scroller.evaluate(e => e.scrollHeight > e.clientHeight + 5)) await expect.poll(() => scroller.evaluate(e => e.scrollTop)).toBeGreaterThan(0);
+        await page.mouse.wheel(0, 40000); await expect(page.locator('footer')).toBeInViewport();
+        const content = await heading.locator('xpath=ancestor::section[1]').boundingBox(), footer = await page.locator('footer').boundingBox();
+        expect(content).not.toBeNull(); expect(footer!.y).toBeGreaterThanOrEqual(content!.y + content!.height - 1);
+        if ([390, 1280].includes(size.width)) await page.screenshot({ path: `${screenshots}/${label}-${size.width}-bottom.png` });
+      }
+      await page.emulateMedia({ colorScheme: 'dark' });
+      for (const width of [390, 1280]) { await page.setViewportSize({ width, height: 844 }); await scroller.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' })); await page.screenshot({ path: `${screenshots}/${label}-${width}-dark.png` }); }
+      await page.emulateMedia({ colorScheme: 'light' });
+    }
+    expect(errors).toEqual([]);
+  } finally { await context.close(); await anonymous.close(); }
+});
+
 test('S8 — notifications real private inbox, pagination, read/archive, recovery and responsive scrolling', async ({ browser, baseURL }) => {
   test.skip(process.env.E2E_NOTIFICATIONS !== 'live-db', 'Explicit isolated fixture opt-in only');
   test.setTimeout(180_000);
