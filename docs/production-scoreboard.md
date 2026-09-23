@@ -2,7 +2,7 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-## Global currency presentation — 23 September 2026 candidate
+## Global currency presentation — verified locally and on Preview, 23 September 2026
 
 - Shared `PriceAmount` renders selected fiat followed only by selected crypto in
   parentheses. `NONE` removes the secondary amount. Product listings/PDP, cart,
@@ -24,15 +24,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   fixed the hidden mobile selector and an early click before hydration. Final
   local focused checks **4/4** and isolated Preview checks **3/3** pass (including
   setup): preferences/reload, products/cart/checkout/receipt/orders/pricing,
-  keyboard focus, No Crypto and 360–2560 widths; checkout removal locking is
+  mixed NOK/EUR totals, job-budget fixtures, keyboard focus, No Crypto and
+  360/390/768/1024/1280/1920/2560 widths plus 844×390 landscape; checkout removal locking is
   local-only. Buyer history also verifies sign-in and the zero-session demo.
   A hidden streaming segment is excluded by scoping its label to the main UI.
 - The mini-cart subtotal now shares the same fail-closed conversion helper;
   reduced motion, labelled quantity/removal controls and Escape focus return
   are included. The final local focused rerun is **4/4**, including short-landscape
   menu scrolling and basket focus/motion checks; screenshots were reviewed.
-- Preview `dpl_CUwr8H3akXfXpCRqyRkSujvHQZJV` is READY on the stable showcase
-  alias. A free demo checkout created its receipt through the normal app path;
+  Final deployed rerun is **3/3**; real Chrome also validates its product selector.
+- Release `5f47cb3`, Preview `dpl_EDV8wVd8FwvjMbLnxCyjqRPCpPUC`, is READY on
+  the stable showcase alias. A free demo checkout created its receipt through the normal app path;
   no PayPal request or real payment. Production remains `88729d0`.
 - Arbitrary credit quantities/volume discounts and verified Web3 checkout are
   separate unfinished work; selecting a crypto display does not enable payment.
