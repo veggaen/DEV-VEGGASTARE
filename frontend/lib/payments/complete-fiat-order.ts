@@ -76,6 +76,7 @@ export async function completePaidOrder(
     where: { id: orderId },
     include: {
       Payment: true,
+      CheckoutAttempt: true,
       OrderItem: true,
       User: { select: { id: true, email: true, name: true } },
     },
@@ -83,6 +84,10 @@ export async function completePaidOrder(
 
   if (!order) {
     return { success: false, orderId, error: 'Order not found' };
+  }
+
+  if (order.CheckoutAttempt) {
+    return { success: false, orderId, error: 'This order requires verified checkout fulfillment' };
   }
 
   if (order.status === 'COMPLETED') {

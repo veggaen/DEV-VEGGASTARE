@@ -3,7 +3,8 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
-import { initEdgeStoreSdk } from '@edgestore/server/core';
+import { createHash } from 'node:crypto';
+import { fetchPrivateDownload } from '@/lib/private-download-storage';
 
 // Sanitize filename for Content-Disposition header
 function sanitizeFilename(filename: string): string {
@@ -15,46 +16,6 @@ function sanitizeFilename(filename: string): string {
     .replace(/[\x00-\x1f]/g, '') // Remove control characters
     .trim()
     .slice(0, 200); // Limit length
-}
-
-function buildStorageCandidates(storageKey: string) {
-  const candidates = new Set<string>();
-  const trimmed = storageKey.trim();
-  if (!trimmed) return [];
-  candidates.add(trimmed);
-  try {
-    const decoded = decodeURI(trimmed);
-    if (decoded) candidates.add(decoded);
-  } catch {
-    // Keep the original candidate if decoding fails.
-  }
-  return [...candidates].filter((candidate) => /^https?:\/\//i.test(candidate));
-}
-
-async function fetchStoredFile(storageKey: string) {
-  const candidates = buildStorageCandidates(storageKey);
-  let lastResponse: Response | null = null;
-
-  for (const candidate of candidates) {
-    const directResponse = await fetch(candidate);
-    if (directResponse.ok) return directResponse;
-    lastResponse = directResponse;
-
-    try {
-      const edgeStoreSdk = initEdgeStoreSdk({});
-      const fileInfo = await edgeStoreSdk.getFile({ url: candidate });
-      if (fileInfo?.url && fileInfo.url !== candidate) {
-        const signedResponse = await fetch(fileInfo.url);
-        if (signedResponse.ok) return signedResponse;
-        lastResponse = signedResponse;
-        console.error(`[download] Signed EdgeStore fetch failed: ${signedResponse.status}`);
-      }
-    } catch (error) {
-      console.error('[download] EdgeStore signed URL lookup failed:', error);
-    }
-  }
-
-  return lastResponse ?? new Response(null, { status: 404 });
 }
 
 /**
@@ -89,7 +50,7 @@ export async function GET(
       where: { token },
       include: {
         DigitalAsset: true,
-        Order: true,
+        Order: { include: { CheckoutAttempt: true } },
         User: {
           select: { id: true, email: true },
         },
@@ -149,9 +110,14 @@ export async function GET(
       );
     }
 
+    if (downloadToken.Order.status !== 'COMPLETED' ||
+        (downloadToken.Order.CheckoutAttempt && downloadToken.Order.CheckoutAttempt.state !== 'COMPLETED')) {
+      return NextResponse.json({ error: 'This order is not eligible for downloads' }, { status: 403 });
+    }
+
     // Fetch the file from EdgeStore and proxy it to the user
     const fileUrl = downloadToken.DigitalAsset.storageKey;
-    const fileResponse = await fetchStoredFile(fileUrl);
+    const fileResponse = await fetchPrivateDownload(fileUrl, downloadToken.DigitalAsset.uploadedById);
 
     if (!fileResponse.ok) {
       console.error(`[download] Failed to fetch file from storage: ${fileResponse.status}`);
@@ -166,12 +132,19 @@ export async function GET(
 
     // Get file content
     const fileBuffer = await fileResponse.arrayBuffer();
+    if (fileBuffer.byteLength !== downloadToken.DigitalAsset.fileSize ||
+        createHash('sha256').update(Buffer.from(fileBuffer)).digest('hex') !== downloadToken.DigitalAsset.checksum) {
+      return NextResponse.json({ error: 'File integrity check failed; please contact support' }, { status: 502 });
+    }
 
     // Atomically increment usage counter only after storage returned the file.
     const updatedToken = await dbPrisma.downloadToken.update({
       where: { 
         id: downloadToken.id,
-        usedCount: { lt: downloadToken.maxUses }
+        usedCount: { lt: downloadToken.maxUses },
+        isRevoked: false,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        Order: { status: 'COMPLETED' }
       },
       data: {
         usedCount: { increment: 1 },
@@ -202,8 +175,8 @@ export async function GET(
       },
     });
 
-  } catch (error) {
-    console.error('[api/download] Error processing download:', error);
+  } catch {
+    console.error('[api/download] Download processing failed');
     return NextResponse.json(
       { error: 'Failed to process download' },
       { status: 500 }

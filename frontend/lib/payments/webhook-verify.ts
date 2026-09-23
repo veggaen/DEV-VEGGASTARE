@@ -7,10 +7,11 @@
  * - Klarna: HMAC-SHA256 of body verified against X-Klarna-Hmac-Sha256 header
  * - PayPal: Full certificate-based verification via PayPal API
  *
- * In development, verification is skipped with a warning log.
+ * Verification is mandatory in every environment, including local Sandbox.
  */
 
 import crypto from 'crypto';
+import { paypalEnvironment } from './showcase-policy';
 
 const LOG = '[webhook-verify]';
 
@@ -99,7 +100,7 @@ export async function verifyPayPalWebhook(
   const webhookId = process.env.PAYPAL_WEBHOOK_ID;
   const clientId = process.env.PAYPAL_CLIENT_ID;
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
-  const baseUrl = process.env.PAYPAL_API_URL ?? 'https://api-m.sandbox.paypal.com';
+  const baseUrl = paypalEnvironment().apiOrigin;
 
   if (!webhookId || !clientId || !clientSecret) {
     console.error(LOG, 'PayPal webhook env vars not configured (PAYPAL_WEBHOOK_ID, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET)');
@@ -109,6 +110,7 @@ export async function verifyPayPalWebhook(
   // Get access token
   const tokenRes = await fetch(`${baseUrl}/v1/oauth2/token`, {
     method: 'POST',
+    redirect: 'error', signal: AbortSignal.timeout(15_000),
     headers: {
       'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -136,6 +138,7 @@ export async function verifyPayPalWebhook(
 
   const verifyRes = await fetch(`${baseUrl}/v1/notifications/verify-webhook-signature`, {
     method: 'POST',
+    redirect: 'error', signal: AbortSignal.timeout(15_000),
     headers: {
       'Authorization': `Bearer ${access_token}`,
       'Content-Type': 'application/json',
@@ -157,21 +160,13 @@ export async function verifyPayPalWebhook(
 /**
  * Verify a webhook signature for the given payment provider.
  * Returns true if verified, false if rejected.
- * In development, logs a warning and returns true to allow testing.
+ * Never bypass verification for development or test environments.
  */
 export async function verifyWebhookSignature(
   provider: string,
   rawBody: string,
   headers: Headers,
 ): Promise<boolean> {
-  const isDev = process.env.NODE_ENV !== 'production';
-
-  // In development, skip verification but warn
-  if (isDev) {
-    console.warn(LOG, `[DEV] Skipping ${provider} webhook signature verification`);
-    return true;
-  }
-
   switch (provider) {
     case 'vipps':
       return verifyVippsWebhook(rawBody, headers);

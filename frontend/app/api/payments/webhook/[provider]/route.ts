@@ -4,6 +4,7 @@ import { getPaymentProvider, type PaymentProviderType } from '@/lib/payments/pro
 import { verifyWebhookSignature } from '@/lib/payments/webhook-verify';
 import { getProviderGate } from '@/lib/payments/provider-gating';
 import { getRuntimeConfig } from '@/lib/runtime-config';
+import { legacyCheckoutPaused } from '@/lib/checkout-release';
 
 function selectWebhookHeaders(headers: Headers): Record<string, string> {
   const keep = [
@@ -11,8 +12,6 @@ function selectWebhookHeaders(headers: Headers): Record<string, string> {
     'paypal-transmission-time',
     'paypal-cert-url',
     'paypal-auth-algo',
-    'x-klarna-hmac-sha256',
-    'authorization',
     'x-forwarded-for',
     'user-agent',
   ];
@@ -105,12 +104,13 @@ async function resolveOrderIdForProvider(providerType: string, sessionId: string
  * - Vipps: Authorization header matched against VIPPS_WEBHOOK_SECRET
  * - Klarna: HMAC-SHA256 via X-Klarna-Hmac-Sha256 header
  * - PayPal: Certificate-based verification via PayPal API (PAYPAL-TRANSMISSION-SIG)
- * In development, verification is skipped with a warning.
+ * Verification is required in every environment.
  */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ provider: string }> }
 ) {
+  if (legacyCheckoutPaused()) return NextResponse.json({ error: 'CHECKOUT_UPGRADING' }, { status: 503 });
   const { provider: providerType } = await params;
 
   if (providerType !== 'vipps' && providerType !== 'klarna' && providerType !== 'paypal') {

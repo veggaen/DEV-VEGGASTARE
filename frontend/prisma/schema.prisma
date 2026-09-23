@@ -16,6 +16,65 @@ model AuthRateBucket {
   @@index([expiresAt])
 }
 
+// A server-owned quote and unique capture identity; never populated from a return URL.
+model CheckoutAttempt {
+  orderId          String   @id
+  userId           String
+  requestKey       String
+  environment      String
+  totalOre         Int
+  currency         String   @default("NOK")
+  quote            Json
+  state            String   @default("PREPARED")
+  paypalOrderId    String?  @unique
+  merchantId       String?
+  approvalUrl      String?
+  captureId        String?  @unique
+  createRequestId  String   @unique @default(uuid())
+  captureRequestId String   @unique @default(uuid())
+  createdAt        DateTime @default(now())
+  completedAt      DateTime?
+  Order            Order    @relation(fields: [orderId], references: [id])
+
+  @@unique([userId, requestKey])
+  @@index([userId, createdAt])
+}
+
+// A product can deliver several private files without exposing storage URLs.
+model DigitalProductFile {
+  productId      String
+  digitalAssetId String
+  Product        Product      @relation(fields: [productId], references: [id])
+  DigitalAsset   DigitalAsset @relation(fields: [digitalAssetId], references: [id])
+
+  @@id([productId, digitalAssetId])
+  @@index([digitalAssetId])
+}
+
+model AiCreditAccount {
+  id        String   @id
+  userId    String
+  environment String
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+  User      User     @relation(fields: [userId], references: [id])
+  Entries   AiCreditEntry[]
+
+  @@unique([userId, environment])
+}
+
+model AiCreditEntry {
+  id        String   @id @default(uuid())
+  accountId String
+  delta     Int
+  kind      String
+  sourceKey String   @unique
+  createdAt DateTime @default(now())
+  Account   AiCreditAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, createdAt])
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -487,6 +546,7 @@ model Order {
   id            String      @id @default(cuid())
   userId        String
   totalAmount   Float
+  currency      String?
   status        OrderStatus @default(PENDING)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -525,6 +585,7 @@ model Order {
   OrderItem     OrderItem[]
   DownloadToken DownloadToken[]
   ReturnRequest ReturnRequest[]
+  CheckoutAttempt CheckoutAttempt?
 
   @@index([userId])
   @@index([status])
@@ -792,6 +853,7 @@ model Product {
   ShippingDetails      ShippingDetails[]
   OrderItem            OrderItem[]
   DigitalAsset         DigitalAsset?          @relation(fields: [digitalAssetId], references: [id])
+  Files                DigitalProductFile[]
   PulseProductLinks    PulseProductLink[]
   
   // New many-to-many categories/tags
@@ -838,6 +900,7 @@ model DigitalAsset {
   Company         Company?         @relation(fields: [companyId], references: [id])
   Product         Product?
   DownloadToken   DownloadToken[]
+  ProductFiles    DigitalProductFile[]
 
   @@index([uploadedById])
   @@index([companyId])
@@ -1141,6 +1204,7 @@ model User {
   TradesInitiated                                                 Trade[]                       @relation("TradesInitiated")
   TradesReceived                                                  Trade[]                       @relation("TradesReceived")
   AiApiKeys                                                       UserAiApiKey[]
+  AiCreditAccounts                                                AiCreditAccount[]
   // AI Poll System
   DailyAiUsage                                                    DailyAiUsage[]
   ScheduledPolls                                                  ScheduledPoll[]
