@@ -1205,7 +1205,16 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Profile/header, independent drawer/rail scrolling and Pulse footer pagination/
   error recovery. Retry feedback screenshot was visually reviewed at 390px;
   actual mobile Pulse and drawer wheel scrolling was checked independently.
-  Production deployment/verification remains pending.
+  Production release `9d088f4` / `dpl_8XHLyTALxFrBkxtuc95eUeYQJKwN` is READY at
+  www.veggat.com, veggat.com and dev-veggastare.vercel.app. The live focused batch
+  **9/9 (1.6m)** passes, including real storage operations and scoped cleanup.
+- Independent live cold-load/early-scroll inspection subsequently showed the
+  feed disappear briefly, its scroll offset clamp to 190px and the footer become
+  visible; content returned at scrollTop=0 without a page exception. Settled-page
+  fixtures did not catch this. Investigation is OPEN: the regular poll-taker
+  lazy component is mounted even when no poll is selected, under a whole-feed
+  Suspense boundary with a short spinner fallback. A controlled delayed-chunk
+  regression is needed before attributing the transient conclusively.
 - Remaining storage UX: abandoned successful uploads can still leave an unused
   object after Cancel/navigation; product temporary-image confirmation needs its
   own audit. No client deletion capability or broad cleanup job was enabled.

@@ -2,14 +2,16 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-Current candidate: actual Profile avatar/banner uploads, same-file retry after
-failed save, storage-session readiness and guarded storage SDK/proxy operations.
-Strict webpack/TypeScript, touched-file lint, **68/68** units and final local
-browser **9/9 (1.1m)** pass. Includes real private multipart upload/download,
-stale-session/anonymous/foreign-user denial and Profile/navigation/Pulse scroll
-regressions. Only disposable QA accounts/files were created and removed; no
-owner profile, paid entitlement or credit cap changed. Deployment/live checks
-pending. See `docs/responsive-audit.md` for failures and scoped cleanup evidence.
+Latest verified follow-up: Profile uploads/storage boundary release `9d088f4`,
+deployment `dpl_8XHLyTALxFrBkxtuc95eUeYQJKwN`, READY at all three main aliases.
+Strict webpack/TypeScript, touched-file lint, **68/68** units, local browser
+**9/9 (1.1m)** and live **9/9 (1.6m)** pass. Includes actual avatar/banner retry,
+private multipart upload/download, stale-session/anonymous/foreign-user denial
+and focused Profile/navigation/Pulse scrolling. Only disposable QA accounts and
+files were created/removed; no owner profile, paid entitlement or cap changed.
+An independent live cold-load Pulse scroll then exposed a transient blank feed/
+footer flash, absent from the settled-page fixtures. This remains OPEN and is
+the immediate next investigation; the passing batch is not a no-flicker claim.
 
 Previous verified follow-up: Profile loading, real Connections, follow counts,
 mobile alignment and controls shipped as `d2c3da0` /
