@@ -8,6 +8,7 @@ import SiteTelemetry from "@/components/providers/site-telemetry";
 import { usePathname } from "next/navigation";
 
 import { EdgeStoreProvider } from "@/lib/edgestore";
+import StorageSessionSync from '@/components/providers/storage-session-sync';
 import { ThemeProvider } from "@/components/providers/themeprovider";
 import { ConfirmDialogProvider } from "@/components/providers/confirm-dialog";
 import SkipToContent from "@/components/uicustom/skip-to-content";
@@ -78,6 +79,7 @@ export default function AppShell({
   return (
     <SessionProvider session={session} refetchOnWindowFocus>
       <EdgeStoreProvider>
+        <StorageSessionSync />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

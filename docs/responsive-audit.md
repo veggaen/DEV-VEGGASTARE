@@ -1168,6 +1168,48 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   or all-feature completion. The UI-review/animation skills informed the bounded
   layout, visible touch details and reduced-motion changes.
 
+## Profile uploads and storage boundary follow-up
+
+- An actual isolated-account avatar/banner upload exposed a retry bug: storage
+  succeeded, the profile PATCH failed, and retry created a third object instead
+  of reusing the second. Candidate retains the successful URL before saving,
+  locks concurrent saves, preserves previews and shows actionable inline retry
+  feedback plus upload/save progress. No owner profile was changed.
+- Installed EdgeStore adapter inspection found its generic proxy accepted an
+  unchecked URL and forwarded browser cookies. Candidate intercepts that route:
+  fresh app authentication, exact HTTPS storage-host allowlist, scoped USER token,
+  no redirect following, no browser-cookie forwarding, no-store/nosniff and
+  sandbox/attachment handling for active content. No external/internal target
+  was probed. Unit tests use mocked destinations.
+- Upload mutations require current authentication, quotas and strict schemas;
+  demo writes, cross-origin writes, manual overwrites and implicit replacements
+  fail closed. New public images get immutable owner paths/metadata. Confirmation
+  and multipart continuation check provider metadata ownership; direct client
+  deletion remains disabled. Existing private download entitlement checks are
+  unchanged. Raw SDK errors/signed URLs are not logged.
+- Browser verification caught early upload clicks using an old anonymous storage
+  context. Candidate waits for initialization at the Save control, not a
+  whole-page skeleton, and serializes account-context refresh after initialization.
+  A delayed-init browser regression now exercises this timing explicitly.
+- Corrected candidate: **68/68** focused units, touched-file lint and strict
+  webpack/TypeScript pass. Actual local upload regression **2/2** including
+  setup: delayed initialization, avatar bytes/session/reload, failed banner PATCH
+  with same-URL retry, stale storage cookies without app auth, unsafe proxy target
+  denial, actual private 10MB+1 multipart upload/part refresh/completion, owner
+  download byte equality, anonymous raw/proxy denial and foreign-account denial.
+  The provider returned owner in the immutable path with empty metadata; cleanup
+  now uses the same owner fallback as the server. Two tiny QA images left by the
+  too-strict initial cleanup were individually verified and permanently removed;
+  the passing test also deleted only its three new disposable files and account.
+  Final combined local browser batch **9/9 (1.1m)** passes, including eight-size
+  Profile/header, independent drawer/rail scrolling and Pulse footer pagination/
+  error recovery. Retry feedback screenshot was visually reviewed at 390px;
+  actual mobile Pulse and drawer wheel scrolling was checked independently.
+  Production deployment/verification remains pending.
+- Remaining storage UX: abandoned successful uploads can still leave an unused
+  object after Cancel/navigation; product temporary-image confirmation needs its
+  own audit. No client deletion capability or broad cleanup job was enabled.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
@@ -1192,3 +1234,5 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - [Next.js request-time rendering](https://nextjs.org/docs/app/api-reference/functions/connection)
 - [Auth.js server/client session initialization](https://authjs.dev/getting-started/session-management/get-session)
 - [CSS subgrid](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Grid_layout/Subgrid)
+- [EdgeStore context reset and lifecycle hooks](https://edgestore.dev/docs/configuration)
+- [EdgeStore backend file operations](https://edgestore.dev/docs/backend-client)

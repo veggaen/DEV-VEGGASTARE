@@ -2,7 +2,16 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-Latest verified follow-up: Profile loading, real Connections, follow counts,
+Current candidate: actual Profile avatar/banner uploads, same-file retry after
+failed save, storage-session readiness and guarded storage SDK/proxy operations.
+Strict webpack/TypeScript, touched-file lint, **68/68** units and final local
+browser **9/9 (1.1m)** pass. Includes real private multipart upload/download,
+stale-session/anonymous/foreign-user denial and Profile/navigation/Pulse scroll
+regressions. Only disposable QA accounts/files were created and removed; no
+owner profile, paid entitlement or credit cap changed. Deployment/live checks
+pending. See `docs/responsive-audit.md` for failures and scoped cleanup evidence.
+
+Previous verified follow-up: Profile loading, real Connections, follow counts,
 mobile alignment and controls shipped as `d2c3da0` /
 `dpl_Au9r5r2W5FsCbxjgKQkxCs3gdn83`, READY at www.veggat.com. Final local browser
 **9/9 (51.4s)** and live **9/9 (1.4m)** include shared header/sidebar, touch

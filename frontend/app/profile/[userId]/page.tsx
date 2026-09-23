@@ -17,6 +17,7 @@ import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { profileRequest } from '@/lib/profile-request';
+import { saveProfileImage } from '@/lib/profile-image-save';
 import ProfileLoading from '../loading';
 import { useEdgeStore } from '@/lib/edgestore';
 import { useBannerColors, generateColorStyles } from '@/lib/color-extraction';
@@ -214,7 +215,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const currentUser = useCurrentUser();
   const { update: refreshSession, status: sessionStatus } = useSession();
-  const { edgestore } = useEdgeStore();
+  const { edgestore, state: storageState, reset: resetStorage } = useEdgeStore();
   const { isConnected: walletConnected } = useAccount();
   const chainId = useChainId();
   const userId = params.userId as string;
@@ -249,12 +250,16 @@ export default function ProfilePage() {
   // Upload states
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const bannerSaveLock = useRef(false), avatarSaveLock = useRef(false);
+  const [bannerUploadError, setBannerUploadError] = useState<string | null>(null);
+  const [avatarUploadError, setAvatarUploadError] = useState<string | null>(null);
+  const [bannerProgress, setBannerProgress] = useState(0), [avatarProgress, setAvatarProgress] = useState(0);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Preview states for save/confirm workflow
-  const [bannerPreview, setBannerPreview] = useState<{ file: File; url: string } | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<{ file: File; url: string } | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<{ file: File; url: string; uploadedUrl?: string } | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<{ file: File; url: string; uploadedUrl?: string } | null>(null);
 
   // Follow states
   const [isFollowLoading, setIsFollowLoading] = useState(false);
@@ -268,15 +273,18 @@ export default function ProfilePage() {
   const canEditProfile = isOwnProfile && !readOnly;
   const followQuery = useSWR<{ isFollowing: boolean; followerCount: number; followingCount: number }>(currentUser?.id && !isOwnProfile ? ['/api/users/' + encodeURIComponent(userId) + '/follow', currentUser.id] : null, ([url]: [string, string]) => profileRequest(url), { revalidateOnFocus: false, shouldRetryOnError: false });
   const isFollowing = followQuery.data?.isFollowing ?? false, followerCount = followQuery.data?.followerCount ?? profile?._count?.followers ?? 0, followingCount = followQuery.data?.followingCount ?? profile?._count?.following ?? 0;
-  useEffect(() => () => { if (bannerPreview) URL.revokeObjectURL(bannerPreview.url); }, [bannerPreview]);
-  useEffect(() => () => { if (avatarPreview) URL.revokeObjectURL(avatarPreview.url); }, [avatarPreview]);
-  useEffect(() => { setBannerPreview(null); setAvatarPreview(null); }, [userId]);
+  const bannerPreviewUrl = bannerPreview?.url, avatarPreviewUrl = avatarPreview?.url;
+  useEffect(() => () => { if (bannerPreviewUrl) URL.revokeObjectURL(bannerPreviewUrl); }, [bannerPreviewUrl]);
+  useEffect(() => () => { if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl); }, [avatarPreviewUrl]);
+  useEffect(() => { setBannerPreview(null); setAvatarPreview(null); setBannerUploadError(null); setAvatarUploadError(null); }, [userId]);
 
   // Handle banner file selection - show preview, don't upload yet
   const handleBannerSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canEditProfile) return;
+    if (!canEditProfile || bannerSaveLock.current) return;
     const file = e.target.files?.[0];
     if (!file) return;
+    if (bannerInputRef.current) bannerInputRef.current.value = '';
+    setBannerUploadError(null);
 
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -299,39 +307,45 @@ export default function ProfilePage() {
 
   // Confirm and upload banner
   const confirmBannerUpload = async () => {
-    if (!canEditProfile || !bannerPreview || isUploadingBanner) return;
+    if (!canEditProfile || !bannerPreview || bannerSaveLock.current || storageState.loading) return;
 
+    bannerSaveLock.current = true;
     setIsUploadingBanner(true);
+    setBannerUploadError(null);
+    setBannerProgress(bannerPreview.uploadedUrl ? 100 : 0);
+    let uploadedUrl = bannerPreview.uploadedUrl;
     try {
-      // Upload to EdgeStore
-      const res = await edgestore.myPublicImages.upload({ file: bannerPreview.file });
-
-      // Update user profile with new banner URL
-      const updateRes = await fetch(`/api/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ banner: res.url }),
+      if (!uploadedUrl && !storageState.initialized) await resetStorage();
+      const url = await saveProfileImage({
+        uploadedUrl,
+        upload: () => edgestore.myPublicImages.upload({ file: bannerPreview.file, onProgressChange: progress => setBannerProgress(Math.floor(progress / 10) * 10) }),
+        remember: url => { uploadedUrl = url; setBannerPreview(current => current?.url === bannerPreview.url ? { ...current, uploadedUrl: url } : current); },
+        persist: async url => {
+          const response = await fetch(`/api/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ banner: url }), signal: AbortSignal.timeout(15_000) });
+          if (!response.ok) throw new Error('Profile save failed');
+        },
       });
 
-      if (!updateRes.ok) throw new Error('Failed to update profile');
-
       // Update local state
-      setProfile(prev => prev ? { ...prev, banner: res.url } : null);
+      setProfile(prev => prev ? { ...prev, banner: url } : null);
       toast.success('Banner updated successfully!');
 
       // Cleanup preview
       URL.revokeObjectURL(bannerPreview.url);
       setBannerPreview(null);
-    } catch (err) {
-      console.error('Error uploading banner:', err);
+    } catch {
+      setBannerUploadError(uploadedUrl ? 'The banner uploaded, but your profile could not save. Try Save Banner again; the uploaded file will be reused.' : 'The banner could not upload. Check your connection and try Save Banner again.');
       toast.error('Failed to upload banner');
     } finally {
+      bannerSaveLock.current = false;
       setIsUploadingBanner(false);
     }
   };
 
   // Cancel banner preview
   const cancelBannerPreview = () => {
+    if (bannerSaveLock.current) return;
+    setBannerUploadError(null);
     if (bannerPreview) {
       URL.revokeObjectURL(bannerPreview.url);
       setBannerPreview(null);
@@ -340,9 +354,11 @@ export default function ProfilePage() {
 
   // Handle avatar file selection - show preview, don't upload yet
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canEditProfile) return;
+    if (!canEditProfile || avatarSaveLock.current) return;
     const file = e.target.files?.[0];
     if (!file) return;
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
+    setAvatarUploadError(null);
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
@@ -363,37 +379,44 @@ export default function ProfilePage() {
 
   // Confirm and upload avatar
   const confirmAvatarUpload = async () => {
-    if (!canEditProfile || !avatarPreview || isUploadingAvatar) return;
+    if (!canEditProfile || !avatarPreview || avatarSaveLock.current || storageState.loading) return;
 
+    avatarSaveLock.current = true;
     setIsUploadingAvatar(true);
+    setAvatarUploadError(null);
+    setAvatarProgress(avatarPreview.uploadedUrl ? 100 : 0);
+    let uploadedUrl = avatarPreview.uploadedUrl;
     try {
-      const res = await edgestore.myPublicImages.upload({ file: avatarPreview.file });
-
-      const updateRes = await fetch(`/api/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: res.url }),
+      if (!uploadedUrl && !storageState.initialized) await resetStorage();
+      const url = await saveProfileImage({
+        uploadedUrl,
+        upload: () => edgestore.myPublicImages.upload({ file: avatarPreview.file, onProgressChange: progress => setAvatarProgress(Math.floor(progress / 10) * 10) }),
+        remember: url => { uploadedUrl = url; setAvatarPreview(current => current?.url === avatarPreview.url ? { ...current, uploadedUrl: url } : current); },
+        persist: async url => {
+          const response = await fetch(`/api/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: url }), signal: AbortSignal.timeout(15_000) });
+          if (!response.ok) throw new Error('Profile save failed');
+        },
       });
-
-      if (!updateRes.ok) throw new Error('Failed to update profile');
-
-      setProfile(prev => prev ? { ...prev, image: res.url } : null);
+      setProfile(prev => prev ? { ...prev, image: url } : null);
       void refreshSession();
       toast.success('Profile picture updated successfully!');
 
       // Cleanup preview
       URL.revokeObjectURL(avatarPreview.url);
       setAvatarPreview(null);
-    } catch (err) {
-      console.error('Error uploading avatar:', err);
+    } catch {
+      setAvatarUploadError(uploadedUrl ? 'The picture uploaded, but your profile could not save. Try Save profile picture again; the uploaded file will be reused.' : 'The picture could not upload. Check your connection and try Save profile picture again.');
       toast.error('Failed to upload profile picture');
     } finally {
+      avatarSaveLock.current = false;
       setIsUploadingAvatar(false);
     }
   };
 
   // Cancel avatar preview
   const cancelAvatarPreview = () => {
+    if (avatarSaveLock.current) return;
+    setAvatarUploadError(null);
     if (avatarPreview) {
       URL.revokeObjectURL(avatarPreview.url);
       setAvatarPreview(null);
@@ -621,7 +644,7 @@ export default function ProfilePage() {
                   variant="outline"
                   size="sm"
                   onClick={confirmBannerUpload}
-                  disabled={isUploadingBanner}
+                  disabled={isUploadingBanner || storageState.loading}
                   className="h-11 border-emerald-400/30 bg-emerald-700 text-white hover:bg-emerald-600 rounded-lg"
                 >
                   {isUploadingBanner ? (
@@ -702,7 +725,7 @@ export default function ProfilePage() {
             {canEditProfile && avatarPreview && (
               <button
                 onClick={confirmAvatarUpload}
-                disabled={isUploadingAvatar}
+                disabled={isUploadingAvatar || storageState.loading}
                 title="Save new profile picture"
                 aria-label="Save profile picture"
                 className="absolute -bottom-2 right-0 flex h-11 w-11 items-center justify-center rounded-full border-2 border-background bg-emerald-700 text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [@media(hover:hover)]:hover:bg-emerald-600"
@@ -867,6 +890,13 @@ export default function ProfilePage() {
         {/* Bio and meta info */}
         <div className="mt-5 space-y-4">
           {error && <SectionError retry={() => void profileQuery.mutate()} />}
+          {canEditProfile && (isUploadingBanner || isUploadingAvatar || bannerUploadError || avatarUploadError || ((bannerPreview || avatarPreview) && storageState.loading)) && <div className="space-y-2 text-sm">
+            {(bannerPreview || avatarPreview) && storageState.loading && <p role="status" className="text-muted-foreground">Preparing secure upload…</p>}
+            {isUploadingBanner && <p role="status" className="text-muted-foreground">{bannerProgress >= 100 ? 'Saving banner…' : `Uploading banner… ${bannerProgress}%`}</p>}
+            {isUploadingAvatar && <p role="status" className="text-muted-foreground">{avatarProgress >= 100 ? 'Saving profile picture…' : `Uploading profile picture… ${avatarProgress}%`}</p>}
+            {bannerUploadError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-destructive">{bannerUploadError}</p>}
+            {avatarUploadError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-destructive">{avatarUploadError}</p>}
+          </div>}
           {readOnly && <p className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">Demo profiles are read-only. Explore posts and connections; sign in to your own account to edit, follow or send messages.</p>}
           {followQuery.error && <SectionError retry={() => void followQuery.mutate()} />}
           {profile.bio && (

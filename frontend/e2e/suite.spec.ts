@@ -1,5 +1,143 @@
 import { test, expect } from "@playwright/test";
 
+test('S7 — profile image uploads persist and retry without duplicate files', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_PROFILE_UPLOAD !== 'live-db', 'Explicit tiny QA upload and isolated-account opt-in');
+  test.setTimeout(240_000);
+  const { Pool } = await import('pg'), { randomBytes } = await import('node:crypto'), { default: bcrypt } = await import('bcryptjs'), { default: sharp } = await import('sharp');
+  const { initEdgeStoreSdk } = await import('@edgestore/server/core');
+  const storage = initEdgeStoreSdk({});
+  const database = new URL(process.env.DATABASE_URL_MAINLIVE!); database.searchParams.set('uselibpqcompat', 'true');
+  const pool = new Pool({ connectionString: database.toString(), max: 1 });
+  const id = 'qa_upload_' + randomBytes(12).toString('hex'), email = id + '@example.invalid', password = randomBytes(24).toString('base64url');
+  const bytes = await sharp({ create: { width: 128, height: 128, channels: 3, background: '#0f766e' } }).png().toBuffer();
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const anonymous = await browser.newContext({ baseURL });
+  const page = await context.newPage(), createdUrls = new Set<string>(), errors: string[] = [];
+  const privateBytes = Buffer.alloc(10 * 1024 * 1024 + 1, 65);
+  let privateUrl: string | undefined;
+  let releaseInit!: () => void;
+  const pendingInit = new Promise<void>(resolve => { releaseInit = resolve; });
+  const startedAt = Date.now(); let leaked = false;
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.text().includes(password) || /X-Amz-(Signature|Credential)=/i.test(message.text())) leaked = true; });
+  page.on('request', request => {
+    if (new URL(request.url()).pathname === '/api/users/' + id && request.method() === 'PATCH') {
+      const data = request.postDataJSON();
+      for (const url of [data?.image, data?.banner]) if (typeof url === 'string') createdUrls.add(url);
+    }
+  });
+  try {
+    await page.route('**/api/edgestore/init', async route => {
+      if (new URL(route.request().headers().referer ?? baseURL!).pathname.startsWith('/profile')) await pendingInit;
+      await route.continue();
+    });
+    expect((await pool.query('SELECT id FROM "User" WHERE id=$1', [id])).rowCount).toBe(0);
+    await pool.query('INSERT INTO "User" (id,name,email,password,"emailVerified","updatedAt","web3ModeEnabled","emailDisplayMode") VALUES ($1,\'QA upload fixture\',$2,$3,NOW(),NOW(),false,\'HIDE\')', [id, email, await bcrypt.hash(password, 12)]);
+    await page.goto('/auth/login?callbackUrl=%2Fprofile', { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await page.getByPlaceholder('you@example.com').fill(email); await page.locator('input[name=password]').fill(password); await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page.locator('#profile-name')).toHaveText('QA upload fixture'); if (await consent.isVisible()) await consent.click();
+    const avatarInput = page.getByLabel('Choose profile picture', { exact: true });
+    await avatarInput.setInputFiles({ name: 'not-an-image.txt', mimeType: 'text/plain', buffer: Buffer.from('QA rejected input') });
+    await expect(page.getByText('Please upload a valid image file (JPG, PNG, GIF, or WebP)', { exact: true })).toBeVisible(); expect(createdUrls.size).toBe(0);
+    await avatarInput.setInputFiles({ name: 'qa-avatar.png', mimeType: 'image/png', buffer: bytes });
+    await expect(page.getByRole('button', { name: 'Save profile picture', exact: true })).toBeDisabled();
+    await expect(page.getByRole('status').filter({ hasText: 'Preparing secure upload' })).toBeVisible();
+    releaseInit();
+    const avatarRequest = page.waitForResponse(response => new URL(response.url()).pathname === '/api/edgestore/request-upload');
+    await page.getByRole('button', { name: 'Save profile picture', exact: true }).click();
+    const avatarResponse = await avatarRequest;
+    if (!avatarResponse.ok()) {
+      const failure = await avatarResponse.json();
+      // Only wrapper messages or an SDK error code, never signed upload URLs.
+      const diagnosis = typeof failure.code === 'string' ? failure.code.replace(/[^A-Z_]/g, '') : 'SDK_ERROR';
+      throw new Error('Avatar upload denied: ' + avatarResponse.status() + ' ' + diagnosis + (typeof failure.error === 'string' ? ' ' + failure.error : ''));
+    }
+    await expect(page.getByText('Profile picture updated successfully!', { exact: true })).toBeVisible({ timeout: 45_000 });
+    const imageUrl = (await pool.query('SELECT image FROM "User" WHERE id=$1', [id])).rows[0].image;
+    expect(createdUrls.has(imageUrl)).toBe(true); expect(createdUrls.size).toBe(1);
+    const image = page.getByRole('img', { name: 'QA upload fixture profile picture', exact: true });
+    await expect(image).toHaveAttribute('src', imageUrl); await expect.poll(() => image.evaluate(e => (e as HTMLImageElement).naturalWidth)).toBe(128);
+    expect((await (await context.request.get('/api/auth/session')).json()).user.image).toBe(imageUrl);
+    await page.reload({ waitUntil: 'domcontentloaded' }); await expect(image).toHaveAttribute('src', imageUrl);
+    const raw = await context.request.get(imageUrl); expect(raw.status()).toBe(200); expect(Buffer.compare(await raw.body(), bytes)).toBe(0);
+    // An old storage context must never substitute for a current app session.
+    const storageCookies = (await context.cookies()).filter(cookie => cookie.name.startsWith('edgestore-'));
+    expect(storageCookies.length).toBeGreaterThan(0); await anonymous.addCookies(storageCookies);
+    expect((await anonymous.request.post('/api/edgestore/request-upload', { data: { bucketName: 'myPublicImages', fileInfo: { extension: 'png', type: 'image/png', size: bytes.length } } })).status()).toBe(401);
+    expect((await anonymous.request.get('/api/edgestore/proxy-file?url=' + encodeURIComponent(imageUrl))).status()).toBe(401);
+    expect((await context.request.get('/api/edgestore/proxy-file?url=' + encodeURIComponent('https://invalid.example/never-fetch'))).status()).toBe(400);
+    const proxied = await context.request.get('/api/edgestore/proxy-file?url=' + encodeURIComponent(imageUrl));
+    expect(proxied.status()).toBe(200); expect(proxied.headers()['x-content-type-options']).toBe('nosniff'); expect(Buffer.compare(await proxied.body(), bytes)).toBe(0);
+
+    // Storage succeeds, then the application save fails. Retry must reuse the
+    // uploaded URL, not create another permanent object for the same image.
+    let failSave = true;
+    await page.route('**/api/users/' + id, route => route.request().method() === 'PATCH' && failSave ? route.fulfill({ status: 503, json: { error: 'Controlled QA save failure' } }) : route.continue());
+    await page.getByLabel('Choose banner image', { exact: true }).setInputFiles({ name: 'qa-banner.png', mimeType: 'image/png', buffer: bytes });
+    await page.getByRole('button', { name: 'Save Banner', exact: true }).click();
+    await expect(page.getByText('Failed to upload banner', { exact: true })).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByRole('alert').filter({ hasText: 'uploaded' })).toBeVisible();
+    await page.screenshot({ path: '.private-showcase/profile-upload-retry-' + (new URL(baseURL!).hostname === 'localhost' ? 'local' : 'live') + '.png' });
+    expect((await pool.query('SELECT banner FROM "User" WHERE id=$1', [id])).rows[0].banner).toBeNull(); expect(createdUrls.size).toBe(2);
+    const uploadedBanner = [...createdUrls].find(url => url !== imageUrl)!;
+    failSave = false; await page.getByRole('button', { name: 'Save Banner', exact: true }).click();
+    await expect(page.getByText('Banner updated successfully!', { exact: true })).toBeVisible({ timeout: 45_000 });
+    expect(createdUrls.size).toBe(2); expect((await pool.query('SELECT banner FROM "User" WHERE id=$1', [id])).rows[0].banner).toBe(uploadedBanner);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const banner = page.getByRole('img', { name: 'Profile banner', exact: true }); await expect(banner).toBeVisible();
+    await expect.poll(() => banner.evaluate(e => (e as HTMLImageElement).naturalWidth > 0)).toBe(true);
+    expect(await page.locator('[data-app-scroll-container]:visible').evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+
+    // Exercise the real SDK multipart protocol against this account's disposable
+    // private fixture, including metadata-based ownership before completion.
+    const requested = await context.request.post('/api/edgestore/request-upload', { data: { bucketName: 'digitalAssets', fileInfo: { extension: 'txt', type: 'text/plain', size: privateBytes.length } } });
+    expect(requested.status()).toBe(200);
+    const upload = await requested.json(); privateUrl = upload.accessUrl;
+    expect(typeof privateUrl).toBe('string'); expect(Boolean(upload.multipart)).toBe(true);
+    const metadata = await storage.getFile({ url: privateUrl! }); expect(metadata.metadata.owner ?? metadata.path.owner).toBe(id);
+    const refreshed = await context.request.post('/api/edgestore/request-upload-parts', { data: { path: upload.multipart.key, multipart: { uploadId: upload.multipart.uploadId, parts: [1] } } });
+    expect(refreshed.status()).toBe(200);
+    const replacements = await refreshed.json();
+    const uploadedParts: { partNumber: number; eTag: string }[] = [];
+    for (const part of upload.multipart.parts) {
+      const start = (part.partNumber - 1) * upload.multipart.partSize;
+      const target = part.partNumber === 1 ? replacements.multipart.parts[0].uploadUrl : part.uploadUrl;
+      const response = await anonymous.request.put(target, { data: privateBytes.subarray(start, start + upload.multipart.partSize), headers: { 'Content-Type': 'text/plain' } });
+      expect(response.status()).toBe(200); const eTag = response.headers().etag; expect(typeof eTag).toBe('string'); uploadedParts.push({ partNumber: part.partNumber, eTag });
+    }
+    expect((await context.request.post('/api/edgestore/complete-multipart-upload', { data: { bucketName: 'digitalAssets', uploadId: upload.multipart.uploadId, key: upload.multipart.key, parts: uploadedParts } })).status()).toBe(200);
+    const privateProxy = '/api/edgestore/proxy-file?url=' + encodeURIComponent(privateUrl!);
+    const download = await context.request.get(privateProxy); expect(download.status()).toBe(200); expect(download.headers()['content-disposition']).toBe('attachment'); expect(Buffer.compare(await download.body(), privateBytes)).toBe(0);
+    await anonymous.clearCookies(); expect([401, 403]).toContain((await anonymous.request.get(privateUrl!)).status()); expect((await anonymous.request.get(privateProxy)).status()).toBe(401);
+    if (process.env.E2E_DEMO_STORAGE_STATE) {
+      const foreign = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+      try { expect((await foreign.request.get(privateProxy)).status()).toBe(403); } finally { await foreign.close(); }
+    }
+    expect(leaked).toBe(false); expect(errors).toEqual([]);
+  } finally {
+    releaseInit();
+    await page.unrouteAll({ behavior: 'wait' }); await context.close(); await anonymous.close();
+    if (!/^qa_upload_[a-f0-9]{24}$/.test(id)) throw new Error('Unsafe upload fixture cleanup');
+    try {
+      // Only URLs emitted by this account's new upload/save requests are eligible.
+      // No existing product, owner profile or private digital asset is targeted.
+      for (const url of [...createdUrls, ...(privateUrl ? [privateUrl] : [])]) {
+        const parsed = new URL(url);
+        const privateFixture = url === privateUrl;
+        if (parsed.protocol !== 'https:' || parsed.hostname !== 'files.edgestore.dev' || !parsed.pathname.includes(privateFixture ? '/digitalAssets/' : '/myPublicImages/') || parsed.search || parsed.hash) throw new Error('Unsafe QA image target');
+        const file = await storage.getFile({ url });
+        if ((file.metadata.owner ?? file.path.owner) !== id || file.size !== (privateFixture ? privateBytes.length : bytes.length) || new Date(file.uploadedAt).getTime() < startedAt - 10_000) throw new Error('QA image provenance mismatch');
+        if (!(await storage.deleteFile({ url })).success) throw new Error('QA image cleanup incomplete');
+      }
+    } catch { throw new Error('Disposable QA image cleanup needs review; no broader deletion attempted'); }
+    finally {
+      await pool.query('DELETE FROM "Notification" WHERE "userId"=$1', [id]); await pool.query('DELETE FROM "UserPresence" WHERE "userId"=$1', [id]);
+      await pool.query('DELETE FROM "User" WHERE id=$1 AND email=$2 AND role=\'USER\'', [id, email]); await pool.end();
+    }
+  }
+});
+
 test('S7 — profile section loading, pagination and recovery retain the header', async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 360, height: 800 }, reducedMotion: 'reduce' });

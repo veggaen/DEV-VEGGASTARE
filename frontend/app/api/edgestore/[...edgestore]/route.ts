@@ -2,6 +2,9 @@ import { initEdgeStore } from '@edgestore/server';
 import { createEdgeStoreNextHandler } from '@edgestore/server/adapters/next/app';
 import { auth } from '@/auth';
 import { isDemoUserId } from '@/lib/demo-policy';
+import { initEdgeStoreSdk } from '@edgestore/server/core';
+import { fetchPrivateDownload } from '@/lib/private-download-storage';
+import { createStorageRequestHandler, storageContextMatchesSession } from '@/lib/storage-request-policy';
 
 type Context = {
   userId: string;
@@ -54,7 +57,10 @@ const edgeStoreRouter = es.router({
   myPublicImages: es.fileBucket({
     maxSize: 1024 * 1024 * 10, // 10MB max
     accept: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'],
-  }).beforeUpload(({ ctx }) => Boolean(ctx.userId && ctx.userId !== 'anonymous' && !isDemoUserId(ctx.userId))),
+  })
+    .path(({ ctx }) => [{ owner: ctx.userId }])
+    .metadata(({ ctx }) => ({ owner: ctx.userId }))
+    .beforeUpload(async ({ ctx }) => storageContextMatchesSession(ctx.userId, (await auth())?.user?.id)),
   
   // Protected digital assets (downloadable products)
   // Only authenticated users can upload to this bucket
@@ -75,17 +81,20 @@ const edgeStoreRouter = es.router({
         { role: { eq: 'ADMIN' } },
       ],
     })
-    .beforeUpload(({ ctx }) => {
+    .metadata(({ ctx }) => ({ owner: ctx.userId }))
+    .beforeUpload(async ({ ctx }) => {
       // Only allow authenticated users to upload digital assets
       if (!ctx.userId || ctx.userId === 'anonymous' || isDemoUserId(ctx.userId)) {
         return false;
       }
-      return true;
+      return storageContextMatchesSession(ctx.userId, (await auth())?.user?.id);
     }),
 });
  
 const handler = createEdgeStoreNextHandler({
   router: edgeStoreRouter,
+  // Log only operation/status in our wrapper, not raw SDK errors/signed URLs.
+  logLevel: 'none',
   createContext: async () => {
     const session = await auth();
     return {
@@ -96,7 +105,13 @@ const handler = createEdgeStoreNextHandler({
   },
 });
  
-export { handler as GET, handler as POST };
+const guardedHandler = createStorageRequestHandler({
+  authenticate: auth,
+  handler,
+  fetchOwnedFile: fetchPrivateDownload,
+  getFile: url => initEdgeStoreSdk({}).getFile({ url }),
+});
+export { guardedHandler as GET, guardedHandler as POST };
  
 /**
  * This type is used to create the type-safe client for the frontend.
