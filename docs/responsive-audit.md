@@ -987,13 +987,14 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Normal initial server-route skeletons still exist; the provider-induced
   content-to-boot-skeleton transition is the scoped repair, not a CWV claim.
 - Next audit findings: Notifications overflow, unnamed/dead controls, failed
-  requests and wrong message destination; profile loading-shell/readiness;
+  requests and wrong message destination are repaired in the follow-up below;
+  remaining work includes profile loading-shell/readiness;
   order/download layout and demo labels. The demo order list shows a nominal
   68 NOK total as completed/paid while the demo notice says no payment; confirm
   charged-vs-list-price presentation against the verified receipt before changing
   monetary storage. No payment/grant was made by this navigation audit.
 
-## Notifications: interaction and responsive repair (in verification)
+## Notifications: interaction and responsive repair (verified locally and live)
 
 - Baseline mobile inbox clipped its header controls; back/refresh were unnamed,
   Filter/Load more were inactive, unread used the wrong query parameter, and
@@ -1034,11 +1035,20 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Local production build/TypeScript passed with an 8GB process heap after the
   default 4GB heap ran out during checking of accumulated local build types.
   No checks were skipped and no Vercel billing/resource setting changed.
-  Live deployment/pass remain pending; this is not yet a live release pass.
+  Release `c7611bc` / `dpl_AUTqoAT7yKb3tW4xL8AfDnyWNc3e` is READY at
+  www.veggat.com. Full live regression **12/12 (1.5m)** passes: real password-user
+  inbox/API actions, demo isolation, header/rail/drawer, partial-script readiness,
+  AI layout (no provider calls), Pulse footer/pagination. Fresh live mobile empty
+  demo, 360px populated top/bottom, desktop dark and short-landscape popover were
+  visually reviewed and match the local repair. No horizontal overflow in the
+  tested eight-size matrix. This scoped pass is not a full-app completion claim.
 - Fixtures use new, explicitly named QA-only USER identities. Only their synthetic
   notifications are deleted afterward, and their password/session access is
   disabled. No public messages, real-recipient alerts, credits or purchases.
-  Screenshots: `.private-showcase/responsive-audit/notifications-local/`.
+  Screenshots: `.private-showcase/responsive-audit/notifications-local/` and
+  `notifications-live/`. Post-run read-only checks verify zero remaining fixture
+  alerts and zero active fixture passwords; disabled QA identities remain as
+  audit records, not working credentials. Frontend health remains available.
 - Real Chrome recheck: the computer-use inventory returned no browsers; explicit
   Chrome tab creation returned `Browser is not available: chrome`. Playwright
   remains the authorized test path; no claim of a real-Chrome pass.

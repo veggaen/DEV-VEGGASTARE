@@ -2,13 +2,15 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-Current follow-up: Notifications API safety, responsive inbox and real controls
-passed local verification: 12/12 browser regressions and final styling recheck
-3/3, plus strict build/TypeScript and touched-file lint. Fifty focused unit tests
-pass. Real-account
-checks found and repaired stale archive/restore caching and a tooltip/popover
-Escape conflict; deployment/live checks are still pending. See the
-responsive audit for scope and fixture cleanup. This does not change S4's
+Latest verified follow-up: Notifications API safety, responsive inbox and real
+controls shipped as `c7611bc` / `dpl_AUTqoAT7yKb3tW4xL8AfDnyWNc3e`, READY at
+www.veggat.com. Local browser regressions **12/12**, final styling recheck **3/3**,
+live browser regressions **12/12 (1.5m)**, strict build/TypeScript, touched-file
+lint and **50/50** focused units pass. Real-account checks found and repaired
+stale archive/restore caching and a tooltip/popover Escape conflict. Eight sizes,
+real wheel scrolling, dark/light screenshots, demo read-only and API ownership
+are covered. See the responsive audit for scope and fixture cleanup. Profile
+loading and order/download presentation are next. This does not change S4's
 missing PayPal secrets or imply that all routes/features are complete.
 
 ## S1 — First impression (DONE)
