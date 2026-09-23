@@ -47,7 +47,7 @@ source. This document does not promise zero provider leakage or guaranteed profi
 
 Production currently remains on the old **100 credits for 39 NOK** SKU. The new
 custom-credit slice supports every whole amount from **100 through 1,000**;
-it is under local/Preview acceptance, not yet promoted to production. The cart
+local/Preview demo acceptance passes, but it is not promoted to production. The cart
 stores `creditAmount` separately from quantity (always one credit line). Null
 retains the meaning of an existing 100-credit cart. Only one credit line may
 coexist with the separate digital-file product in an order.
@@ -95,8 +95,8 @@ cache writes. Anthropic stays disabled without a configured platform key.
    free receipt. It exposed an older 68 NOK database check, now migrated to the
    exact maximum mixed cart of 391.70 NOK on isolated Preview only. Real PostgreSQL
    tests cover 122, 555 and maximum mixed carts and roll back every fixture/order.
-   Complete deployed Preview browser acceptance, then verify the exact custom
-   grant with real Sandbox capture and webhook replay/refund.
+   Deployed Preview browser acceptance also passes (`d640b2b`); verify the exact
+   custom grant with real Sandbox capture and webhook replay/refund next.
 3. Buyer history is implemented locally and deployed to Preview at `/ai/credits`, linked from the chat
    balance. It reads only the signed-in user's deployment-specific account and
    latest 50 ledger entries, without source/payment identifiers or provider keys.

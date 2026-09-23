@@ -4514,6 +4514,7 @@ test('S4 — custom credits persist across product, basket, cart, checkout and r
     await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true, level: 1 })).toBeVisible({ timeout: 60_000 });
     const input = page.getByRole('textbox', { name: 'Number of credits', exact: true });
+    if (await consent.isVisible()) await consent.click();
     await input.fill('122');
     await expect(page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true })).toBeDisabled();
     await page.getByRole('button', { name: 'Update credits', exact: true }).click();

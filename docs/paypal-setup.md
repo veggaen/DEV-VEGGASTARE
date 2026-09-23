@@ -10,6 +10,13 @@ Live credentials and the approved Live webhook were saved, but the new release
 is only deployed to isolated Preview and Live acceptance is not yet verified. Do not describe the
 whole payment integration as production-ready until the remaining checks pass.
 
+The custom-credit candidate `d640b2b` is READY on the stable Preview alias as
+`dpl_Ax3eErQ96wEndT5Khk6PLCx3ohQk`. Local and deployed browser checks pass for
+typed quantities, stale-quote rejection and unpaid demo receipts. A real Chrome
+555-credit demo receipt is verified locally. This does not replace actual
+custom-amount Sandbox capture/webhook/refund acceptance; the Developer dashboard
+requires the owner's fresh sign-in/passkey check before retrieving its test buyer.
+
 ## Credentials and environments
 
 Existing REST apps in the owner's PayPal Developer dashboard are reused:

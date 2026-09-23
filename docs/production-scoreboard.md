@@ -2,7 +2,7 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-## Custom credit quantities — local candidate, 23 September 2026
+## Custom credit quantities — verified local/Preview candidate, 23 September 2026
 
 - Integer credit selection (100–1,000) is shared by the PDP, header basket,
   full cart and checkout. Marginal 5%/10% discounts have no price cliffs.
@@ -27,9 +27,20 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   shows zero charged and no purchased credit grant; phone receipt/footer scrolling
   is verified. A new opt-in PostgreSQL regression prepares 122, 555 and maximum
   mixed carts using the actual constraints; all synthetic writes roll back.
-  That integration test, final strict webpack build and touched lint pass.
-  Custom amounts are not yet deployed.
-  Actual custom Sandbox capture/webhook replay/refund and production remain pending.
+  That integration test, final strict webpack build, strict type-check (8 GB heap)
+  and touched lint pass. The first standalone type-check exhausted the default
+  4 GB heap; the bounded 8 GB rerun passed, without suppressing diagnostics.
+- Release `d640b2b`, deployment `dpl_Ax3eErQ96wEndT5Khk6PLCx3ohQk`, is READY on
+  the stable showcase Preview alias. Its webpack/TypeScript/migration build passes.
+  Deployed custom-credit Playwright **2/2** and currency/history **3/3** pass,
+  including setup. Real Chrome confirms the deployed 555-credit USD (ETH) →
+  NOK (ETH) switch also updates savings, access count and scrolled specifications.
+  Health is 200; an unsigned capture notification is rejected with 401
+  `INVALID_SIGNATURE`. No grant is inferred from that rejection probe.
+- Actual custom Sandbox capture/webhook replay/refund and production remain
+  pending. The PayPal Developer session expired when opening Sandbox Accounts;
+  the account sign-in/passkey page is left open for the owner. The existing
+  Sandbox app/key is reused; this is not a provider free-tier limit.
 
 ## Global currency presentation — verified locally and on Preview, 23 September 2026
 
