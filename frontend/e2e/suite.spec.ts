@@ -78,7 +78,7 @@ test('S7 global fiat and crypto selection persists across shopping, receipt and 
         await expect(price).toContainText('ETH)');
         await expect(price).not.toContainText('(NOK');
       }
-      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
         await page.setViewportSize(size);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('main, [data-site-scroll]')].every(element => element.scrollWidth <= element.clientWidth)), `${path} at ${size.width}`).toBe(true);
       }
