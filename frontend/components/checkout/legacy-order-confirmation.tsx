@@ -273,7 +273,7 @@ const OrderConfirmationPage = () => {
             {orderDetails.shippingCost != null && orderDetails.shippingCost > 0 && (
               <>
                 <span className="text-muted-foreground">Shipping cost:</span>
-                <span className="text-foreground">${orderDetails.shippingCost.toFixed(2)}</span>
+                <span className="text-foreground"><PreferredMoney amount={orderDetails.shippingCost} currency={orderDetails.currency ?? null} /></span>
               </>
             )}
             {orderDetails.estimatedDelivery && (

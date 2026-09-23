@@ -35,7 +35,8 @@ used for verification.
 
 - Changed-file ESLint: passed.
 - Production-source Next.js webpack build and TypeScript: passed.
-- 71 conversion, mixed-currency cart and PayPal regression unit tests: passed.
+- 73 conversion, mixed-currency cart and PayPal regression unit tests: passed,
+  including legacy shipping amounts and missing historical currency.
 - Playwright global currency journey: passed locally on :3000. Checks persistence,
   No Crypto, keyboard/focus return, short-screen menu, reduced-motion basket,
   mixed-currency totals, demo receipt and request budget fixtures. Products, cart,
@@ -46,7 +47,14 @@ used for verification.
   Read-only fixtures do not claim API authorization or fulfillment acceptance.
 - Real Chrome: 390px cart and selector visually checked; fiat changed without
   resetting ETH. Scroll and desktop basket checked. Demo cart only, no payment.
-- Live deployment/verification: pending when this source commit was prepared.
+- Release `d17567c`, deployment `dpl_FB8c21bmGoLDPsjMZZAJ5sCjEJ1g`: READY and
+  verified at all three production aliases. Live Playwright **3/3 (42.4s)**,
+  including gate setup and both currency journeys above. Real Chrome confirms
+  current-rate USD (ETH) catalogue prices in the existing signed-in session.
+- A final source scan found one legacy shipping label hardcoded to dollars. It
+  now uses the recorded currency through PreferredMoney, with added rendering
+  regressions. Touched lint and standalone TypeScript pass; follow-up deploy
+  verification is pending when this source commit was prepared.
 
 ## Outstanding work outside this release
 
