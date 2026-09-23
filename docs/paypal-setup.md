@@ -80,10 +80,21 @@ credit grant, real user, real order or production session was copied. The QA
 password and test connection are in ignored local setup files, never this guide.
 The one-use loopback setup receiver has stopped.
 
-Remaining Preview gates: deploy this candidate, set its own auth origin, register
-the Sandbox webhook against that verified reachable deployment, then exercise
-actual event delivery/refund/replay. The provisioned database alone is not proof
-that the complete Preview checkout works.
+Preview release `91f1fbe` is built and READY as
+`dpl_9raz9RMLCkv8zzqaztb8xt3qKTc1`, using the isolated Neon endpoint. Its stable
+alias is `dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app`.
+An `AUTH_URL` override is saved for Preview branch `showcase/ai-revival` only;
+the second deployment includes that configuration change. Both Vercel builds
+passed webpack, TypeScript, migrations and 187 static pages.
+
+Remaining Preview gates: Vercel's team-login protection currently returns 401
+before the app handles public health/webhook requests. A domain-only exception
+is prepared but **not applied**, pending the owner's action-time approval.
+No project-wide protection or billing setting was changed. After approval,
+verify the app's auth origin/password login, register the Sandbox webhook against
+that reachable alias, and exercise actual delivery/refund/replay. No Sandbox
+webhook has been registered yet. The provisioned database and successful build
+are not proof that the complete Preview checkout works.
 
 The current browser flow follows PayPal-hosted approval after a server-created
 Orders v2 order. A JS v6 button is a separate frontend integration, not required

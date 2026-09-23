@@ -38,7 +38,14 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   company, products and private originals are provisioned without copied user data.
   Preview-only database and Sandbox PayPal secrets saved in Vercel. Production
   settings unchanged. Preview isolation guard tests **7/7** and touched lint pass.
-- OPEN: Preview deployment/auth origin and actual Sandbox webhook/refund delivery;
+- DONE: release `91f1fbe` deployed to Preview, with both strict builds passing.
+  Final deployment `dpl_9raz9RMLCkv8zzqaztb8xt3qKTc1` is READY on the existing
+  showcase branch alias, with a branch-scoped `AUTH_URL`. Focused payment and
+  isolation units **80/80**, a refreshed local strict type-check and lint pass.
+- PARTIAL: Vercel team-login protection returns 401 before public Preview health
+  and webhook requests reach the app. A domain-only exception is prepared, not
+  applied, pending owner approval. No project-wide protection or billing changes.
+- OPEN: Preview browser/auth acceptance and actual Sandbox webhook/refund delivery;
   production deploy/Live micro-purchases,
   real Sandbox webhook/refund delivery, volume packs and owner usage/margin UI.
   [Reviewed commercial policy](credit-commercial-policy.md) records which Grok
