@@ -294,6 +294,7 @@ test.describe("Layer 3 — Content", () => {
           await trigger.click();
           const dialog = page.getByRole('dialog', { name: 'Settings sections', exact: true });
           await expect(dialog).toBeVisible();
+          expect(await page.locator('[data-site-scroll]').evaluate(el => el.scrollTop), 'Opening focus must not move the background page').toBe(0);
           nav = dialog.getByRole('navigation', { name: 'Settings sections', exact: true });
           await dialog.evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
         }

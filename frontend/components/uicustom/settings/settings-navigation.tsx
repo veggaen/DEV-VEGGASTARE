@@ -15,6 +15,7 @@ export function SettingsNavigation<T extends string>({ sections, active, onSelec
 }) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
+  const drawer = useRef<HTMLDivElement>(null);
   const selected = sections.find(section => section.id === active) ?? sections[0];
   useEffect(() => {
     const desktop = matchMedia('(min-width: 1024px)');
@@ -56,8 +57,14 @@ export function SettingsNavigation<T extends string>({ sections, active, onSelec
             <FiMenu aria-hidden="true" className="size-5 shrink-0" />
           </button>
         </SheetTrigger>
-        <SheetContent side="left" accessibleTitle="Settings sections"
+        <SheetContent ref={drawer} side="left" accessibleTitle="Settings sections"
           accessibleDescription="Choose a settings section. Escape closes this menu."
+          onOpenAutoFocus={event => {
+            // Keep modal focus explicit and preserve the background position;
+            // the phone regression checks this before and after drawer scrolling.
+            event.preventDefault();
+            drawer.current?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
+          }}
           onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus({ preventScroll: true }); }}
           className="flex h-dvh w-[min(24rem,100%)] flex-col gap-0 bg-background pt-[env(safe-area-inset-top)]">
           <p aria-hidden="true" className="shrink-0 border-b px-5 py-5 pr-14 font-semibold">Settings</p>

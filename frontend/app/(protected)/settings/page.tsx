@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
-import { motion, useReducedMotion } from 'framer-motion';
 import Image from 'next/image';
 import { toast } from 'sonner';
 
@@ -68,7 +67,6 @@ const SECTION_IDS = ['profile', 'account', 'security', 'wallet', 'payments', 'no
 type SectionId = typeof SECTION_IDS[number];
 
 export default function SettingsPage() {
-  const reduceMotion = useReducedMotion();
   const user = useCurrentUser();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -505,11 +503,7 @@ export default function SettingsPage() {
       />
 
       <div className="relative mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <motion.div
-          initial={reduceMotion || prefs.pageAnimations === "none" ? undefined : { opacity: 0, y: 14 }}
-          animate={reduceMotion || prefs.pageAnimations === "none" ? undefined : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.18, ease: "easeOut" }}
-        >
+        <div>
           {/* Header */}
           <header className="mb-6">
             <h1 className="text-3xl font-semibold text-foreground dark:text-white sm:text-4xl mb-2">Settings</h1>
@@ -1240,7 +1234,7 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

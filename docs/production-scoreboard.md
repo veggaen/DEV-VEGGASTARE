@@ -133,7 +133,12 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 - **30/30** focused payout ownership/configuration/demo-policy unit tests; final
   build, TypeScript and touched-file lint pass. Final local regression **6/6**
   (51.7s including setup): S6 plus AI reflow, Pulse/footer and marketplace cart.
-  Production rollout/live checks pending. Actual owner-wallet signatures, on-chain operations and normal-account
+  Release `050a407` / `dpl_5zHbhLJE3h2y8bRv2vJmd9E91aSr` is READY. First live
+  regression run: **5 passed, 1 failed**. Opening the phone Settings drawer moved
+  the background 112px on that run; a manual attempt reproduced it, while later
+  attempts did not. Kept the failure recorded; removed the Settings entrance
+  translation/fade and made opening focus explicit, with a pre-scroll assertion.
+  Correction deployment/repeated live checks pending. Actual owner-wallet signatures, on-chain operations and normal-account
   payout saves are not claimed verified by the test-wallet flow.
 
 ## Feature scoreboard
@@ -155,7 +160,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 | Wallets | Connect UI, no crash | PARTIAL — local injected-wallet cancel/connect/disconnect and configured WalletConnect open/escape pass; configuration units pass; live and owner-wallet verification pending |
 | Platform | Public homepage | DONE — S1 verified locally and live |
 | Platform | Consent controls Analytics/Speed Insights | DONE — no scripts before consent/Essential Only; both 200 after opt-in; real visitor metrics pending |
-| Platform | Health | PARTIAL — frontend checked previously; Hapi `/v1/health` pending |
+| Platform | Health | PARTIAL — local Hapi `/v1/health` 200 and mock shipping returns two NOK options; Railway auth expired and live backend unverified |
 | Quality | Touched-file lint | PARTIAL — run after each slice |
 | Quality | Home → demo → product → cart E2E | DONE — local and live pass; payment coverage remains a separate S4 task |
 | Quality | Payment mocked in CI | PARTIAL — S4 pending |
