@@ -3,6 +3,8 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { UserFollowListResponseSchema } from '@/lib/types/users';
 import { resolveVisibleEmail } from '@/lib/email-visibility';
+import { z } from 'zod';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -22,16 +24,21 @@ export async function GET(
   const session = await MyLibUserAuth();
   const { userId } = await context.params;
   const { searchParams } = new URL(request.url);
-  const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
-  const cursor = searchParams.get('cursor') || undefined;
+  const parsed = z.object({ limit: z.coerce.number().int().min(1).max(100).default(20), cursor: z.string().min(1).max(200).optional() }).safeParse(Object.fromEntries(searchParams));
+  if (!parsed.success) return NextResponse.json({ error: 'Invalid pagination' }, { status: 400 });
+  const { limit, cursor } = parsed.data;
 
   if (!userId) {
     return NextResponse.json({ error: 'User ID required' }, { status: 400 });
   }
+  const rate = await checkRateLimit(getClientIdentifier(request, session?.id), 'read');
+  if (!rate.success) return rateLimitedResponse(rate);
 
   try {
+    const anchor = cursor ? await dbPrisma.follow.findFirst({ where: { id: cursor, followerId: userId }, select: { id: true, createdAt: true } }) : null;
+    if (cursor && !anchor) return NextResponse.json({ error: 'Invalid cursor' }, { status: 400 });
     const following = await dbPrisma.follow.findMany({
-      where: { followerId: userId },
+      where: { followerId: userId, ...(anchor ? { OR: [{ createdAt: { lt: anchor.createdAt } }, { createdAt: anchor.createdAt, id: { lt: anchor.id } }] } : {}) },
       include: {
         following: {
           select: {
@@ -50,10 +57,11 @@ export async function GET(
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
     });
+    const hasMore = following.length > limit;
+    if (hasMore) following.pop();
 
     // Check if current user follows each of these users
     let followingSet = new Set<string>();
@@ -80,13 +88,14 @@ export async function GET(
       }),
       image: f.following.image,
       bio: f.following.bio,
-      followerCount: f.following._count.followers,
-      followingCount: f.following._count.following,
+      // Legacy User relation names describe the FK side, not the displayed count.
+      followerCount: f.following._count.following,
+      followingCount: f.following._count.followers,
       isFollowing: followingSet.has(f.following.id),
       followedAt: toIsoString(f.createdAt),
     }));
 
-    const nextCursor = following.length === limit ? following[following.length - 1]?.id : null;
+    const nextCursor = hasMore ? following[following.length - 1]?.id : null;
 
     const payload = {
       users,
@@ -103,7 +112,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(validated.data);
+    return NextResponse.json(validated.data, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('[api/users/[userId]/following] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch following' }, { status: 500 });

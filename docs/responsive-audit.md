@@ -1100,6 +1100,57 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Local/live health returns 200. This is not an all-routes,
   native-Chrome, physical-keyboard, 125%-browser-zoom or field-CWV completion claim.
 
+## Profile follow-up
+
+- Reproduced serial loading: profile, follow, posts, activity and Reach all held
+  the page spinner. `/profile` now authenticates/redirects server-side. Bounded,
+  identity-scoped reads render the profile independently, then fetch only the
+  selected tab. Section failures retain the header and provide retry. The heavy
+  chart engine is split out of initial Profile loading. Small achievement cards
+  do not require another late chunk before appearing.
+- Replaced the Connections placeholder with real followers/following, stable
+  keyset pagination, lookahead, privacy-preserving DTOs and URL-backed filters.
+  Public-post and activity links now point to `/pulse/:id`, not private chat.
+  The Message button no longer calls the unsupported `filter=dm` query; server
+  POST resolves an existing two-person conversation before creating one.
+- SQL counts/aggregates replace transferring every follow and public post.
+  GET no longer attempts to recreate a missing account. Read quotas, private
+  no-store responses, strict pagination and direct demo-write guards were added.
+  Malformed profile PATCH JSON returns 400, not 500; own-account checks remain.
+- Real-account tests exposed **inverted follow counts**: Prisma's legacy
+  `User.followers` relation is the outgoing `followerId` side. The Profile and
+  connection DTOs now map incoming/outgoing counts correctly, without schema
+  changes. Tests cover differing counts rather than two empty lists.
+- Bounded layout, explicit image sizing, wrapped names/bios, accessible 44px
+  actions and matching loading geometry. Avatar controls now anchor to the
+  avatar, not the full mobile row. Banner controls moved above the overlap after
+  a real click test found the profile row intercepting Cancel/Save. Demo profiles
+  expose readable exploration rather than controls the server will deny.
+- Resize testing caught Reach achievement grids retaining intrinsic desktop
+  widths on mobile. Explicit minmax-zero columns and shrinkable cards fix it.
+  Descriptions are readable on touch; animations are short/reduced-motion-aware
+  and progress changes use transforms. Follow uses theme tokens for contrast.
+- Final candidate: strict webpack build/TypeScript, touched-file lint and
+  **35/35** focused units. Local browser **9/9 (51.4s)** includes demo safety,
+  delayed/error/retry states, Posts/Activity pagination fixtures, URL/back/keyboard
+  tabs, real profile PATCH, image preview/cancel, actual 22-user pagination with
+  equal timestamps, follow/unfollow, private DM creation and sequential reuse.
+  No real owner contacted, public post published, credit granted or purchase made.
+  Each account run permanently removes only its random QA identities/relations,
+  private DM, notifications and presence. External image-storage upload itself
+  is not yet verified; preview/cancel does not prove upload-provider success.
+- Demo tabs inspected at 360, 390, 844×390, 768, 1024, 1280×800, 1920 and 2560.
+  Wheel input reaches middle/bottom, footer follows the entire profile, and
+  shared sidebar/Pulse scroll regressions pass. No page overflow or uncaught
+  exceptions in the passing batch. Light/dark screenshots, avatar controls,
+  long connections and peer actions visually reviewed:
+  `.private-showcase/responsive-audit/profile-local/`.
+- Live verification pending. Real Chrome inventory remains empty; explicit tab
+  creation still returns `Browser is not available: chrome`. This is Playwright
+  evidence, not native-Chrome, physical keyboard, 125% zoom, field CWV, all-route
+  or all-feature completion. The UI-review/animation skills informed the bounded
+  layout, visible touch details and reduced-motion changes.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)

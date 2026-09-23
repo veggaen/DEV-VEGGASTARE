@@ -1,5 +1,178 @@
 import { test, expect } from "@playwright/test";
 
+test('S7 — profile section loading, pagination and recovery retain the header', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 360, height: 800 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  let release: (() => void) | undefined;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  let activityRequests = 0, reachRequests = 0, failPosts = false;
+  try {
+    await page.route('**/api/users/*/reach', route => { reachRequests++; return route.continue(); });
+    await page.route('**/api/conversations?**', async route => {
+      const params = new URL(route.request().url()).searchParams;
+      if (!params.has('creatorId')) return route.continue();
+      const activity = params.get('filter') === 'participated';
+      if (activity) activityRequests++; else await pending;
+      if (!activity && failPosts) return route.fulfill({ status: 503, json: { error: 'Controlled QA failure' } });
+      const offset = params.has('cursor') ? 20 : 0;
+      // Layout fixtures only: never publish synthetic posts into the public feed.
+      const conversations = Array.from({ length: offset ? 2 : 20 }, (_, index) => ({ id: `qa_layout_${offset + index}`, title: `Layout post ${offset + index} ` + 'A-long-title-without-spaces-'.repeat(5), description: 'Controlled layout fixture.', tags: ['layout'], type: 'PUBLIC_THREAD', createdAt: '2026-01-01T00:00:00Z', messageCount: 1, viewCount: 4 }));
+      return route.fulfill({ json: { conversations, nextCursor: offset ? null : 'layout-page-two' } });
+    });
+    await page.goto('/profile', { waitUntil: 'domcontentloaded' });
+    const heading = page.locator('#profile-name'); await expect(heading).toHaveText('Demo visitor');
+    await expect(page.getByRole('status', { name: 'Loading profile posts' })).toBeVisible();
+    const before = await heading.boundingBox(); expect(activityRequests).toBe(0); expect(reachRequests).toBe(0);
+    release!();
+    const panel = page.getByRole('tabpanel', { name: 'Posts', exact: true }); await expect(panel.locator('article')).toHaveCount(20);
+    expect(await heading.boundingBox()).toEqual(before);
+    await expect(panel.locator('article a').first()).toHaveAttribute('href', '/pulse/qa_layout_0');
+    await panel.getByRole('button', { name: 'Load more posts', exact: true }).click(); await expect(panel.locator('article')).toHaveCount(22);
+    expect(await page.locator('[data-app-scroll-container]:visible').evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+    await page.getByRole('tab', { name: 'Activity', exact: true }).click();
+    const activity = page.getByRole('tabpanel', { name: 'Activity', exact: true }); await expect(activity.locator('article')).toHaveCount(20);
+    await activity.getByRole('button', { name: 'Load more activity', exact: true }).click(); await expect(activity.locator('article')).toHaveCount(22); expect(reachRequests).toBe(0);
+    failPosts = true; await page.goto('/profile', { waitUntil: 'domcontentloaded' });
+    await expect(heading).toHaveText('Demo visitor'); await expect(panel.getByRole('alert')).toBeVisible();
+    await expect(page.getByRole('status', { name: 'Loading profile posts' })).toHaveCount(0);
+    failPosts = false; await panel.getByRole('button', { name: 'Try again', exact: true }).click(); await expect(panel.locator('article')).toHaveCount(20); await expect(panel.getByRole('alert')).toHaveCount(0);
+  } finally { release?.(); await page.unrouteAll({ behavior: 'wait' }); await context.close(); }
+});
+
+test('S7 — retained demo profile tabs, responsive page and footer scrolling', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Reuse isolated demo without new grants');
+  test.setTimeout(180_000);
+  const { mkdir } = await import('node:fs/promises');
+  const screenshots = '.private-showcase/responsive-audit/profile-' + (new URL(baseURL!).hostname === 'localhost' ? 'local' : 'live'); await mkdir(screenshots, { recursive: true });
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const guest = await browser.newContext({ baseURL });
+  const page = await context.newPage(), errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json(); expect(session.user?.id?.startsWith('demo_')).toBe(true);
+    const endpoint = '/api/users/' + session.user.id;
+    expect((await guest.request.get(endpoint)).status()).toBe(401);
+    expect((await context.request.patch(endpoint, { data: { name: 'Must not change' } })).status()).toBe(403);
+    expect((await context.request.post(endpoint + '/follow')).status()).toBe(403);
+    expect((await context.request.get(endpoint)).headers()['cache-control']).toContain('no-store');
+    await page.goto('/profile', { waitUntil: 'domcontentloaded' }); await expect(page).toHaveURL('/profile/' + session.user.id);
+    await expect(page.locator('#profile-name')).toHaveText('Demo visitor'); await expect(page.getByText('No pulses yet', { exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await expect(page.getByText(/Demo profiles are read-only/)).toBeVisible(); await expect(page.getByRole('button', { name: 'Change profile picture', exact: true })).toHaveCount(0);
+    await expect(page.locator('main').getByRole('link', { name: 'View settings', exact: true })).toHaveAttribute('href', '/settings');
+    await page.getByRole('tab', { name: 'Activity', exact: true }).click(); await expect(page.getByText('No activity yet', { exact: true })).toBeVisible(); await expect(page).toHaveURL(/tab=activity/);
+    await page.goBack({ waitUntil: 'domcontentloaded' }); await expect(page.getByRole('tab', { name: 'Posts', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('tab', { name: 'Posts', exact: true }).focus(); await page.keyboard.press('ArrowRight'); await expect(page.getByRole('tab', { name: 'Activity', exact: true })).toHaveAttribute('aria-selected', 'true');
+    const matrix = [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }];
+    const section = page.locator('section[aria-labelledby="profile-name"]'), scroller = page.locator('[data-app-scroll-container]:visible');
+    for (const tab of ['Posts', 'Reach', 'Connections']) {
+      await page.getByRole('tab', { name: tab, exact: true }).click();
+      if (tab === 'Reach') { await expect(page.getByRole('img', { name: 'Reach pillar distribution' })).toBeVisible(); await expect(page.getByText('First Pulse', { exact: true })).toBeVisible(); await expect(page.getByText('Loading reach details…', { exact: true })).toHaveCount(0); }
+      if (tab === 'Connections') {
+        await expect(page.getByText('No followers yet', { exact: true })).toBeVisible();
+        await page.route('**' + endpoint + '/following?**', route => route.fulfill({ status: 503, json: { error: 'Controlled QA failure' } }));
+        await page.getByRole('group', { name: 'Connection filters' }).getByRole('button', { name: 'Following', exact: true }).click();
+        const connections = page.getByRole('region', { name: 'Profile connections', exact: true });
+        await expect(connections.getByRole('alert')).toBeVisible(); await expect(page.locator('#profile-name')).toHaveText('Demo visitor');
+        await page.unroute('**' + endpoint + '/following?**'); await connections.getByRole('button', { name: 'Try again', exact: true }).click();
+        await expect(page.getByText('Not following anyone yet', { exact: true })).toBeVisible(); await expect(page).toHaveURL(/connections=following/);
+      }
+      for (const size of matrix) {
+        await page.setViewportSize(size); await scroller.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+        const heading = await page.locator('#profile-name').boundingBox(); expect(heading!.x).toBeGreaterThanOrEqual(16); expect(heading!.x + heading!.width).toBeLessThanOrEqual(size.width - 15);
+        expect(await scroller.evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && scrollY === 0)).toBe(true);
+        const tabs = page.getByRole('tab'); for (let index = 0; index < 4; index++) expect((await tabs.nth(index).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        if (tab === 'Posts' && [360, 390, 1280, 2560].includes(size.width)) await page.screenshot({ path: `${screenshots}/demo-${size.width}-top.png` });
+        await page.mouse.move(size.width / 2, Math.min(size.height / 2, 400)); await page.mouse.wheel(0, 500);
+        if (await scroller.evaluate(e => e.scrollHeight > e.clientHeight + 5)) await expect.poll(() => scroller.evaluate(e => e.scrollTop)).toBeGreaterThan(0);
+        if ([390, 1280].includes(size.width)) await page.screenshot({ path: `${screenshots}/${tab}-${size.width}-middle.png` });
+        await page.mouse.wheel(0, 40000); await expect(page.locator('footer')).toBeInViewport();
+        const body = await section.boundingBox(), footer = await page.locator('footer').boundingBox(); expect(footer!.y).toBeGreaterThanOrEqual(body!.y + body!.height - 1);
+        if ([390, 1280].includes(size.width)) await page.screenshot({ path: `${screenshots}/${tab}-${size.width}-bottom.png` });
+      }
+    }
+    await page.emulateMedia({ colorScheme: 'dark' }); await expect(page.locator('html')).toHaveClass(/dark/); await page.getByRole('tab', { name: 'Reach', exact: true }).click();
+    for (const width of [390, 1280]) { await page.setViewportSize({ width, height: 844 }); await scroller.evaluate(e => e.scrollTo({ top: 620, behavior: 'instant' })); await page.screenshot({ path: `${screenshots}/reach-${width}-dark.png` }); }
+    const visitor = await guest.newPage(); await visitor.goto('/profile', { waitUntil: 'domcontentloaded' }); await expect(visitor).toHaveURL(/\/auth\/login\?callbackUrl=%2Fprofile/);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); await guest.close(); }
+});
+
+test('S7 — private profile fixtures exercise edits, followers, pagination and direct messaging', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_PROFILE !== 'live-db', 'Explicit isolated fixture opt-in only');
+  test.setTimeout(180_000);
+  const { Pool } = await import('pg'), { randomBytes } = await import('node:crypto'), { default: bcrypt } = await import('bcryptjs'), { mkdir } = await import('node:fs/promises');
+  const database = new URL(process.env.DATABASE_URL_MAINLIVE!); database.searchParams.set('uselibpqcompat', 'true'); const pool = new Pool({ connectionString: database.toString(), max: 2 });
+  const id = 'qa_profile_' + randomBytes(12).toString('hex'), peer = id + '_peer', ids = [id, peer, ...Array.from({ length: 22 }, (_, index) => id + '_f' + index)];
+  const email = id + '@example.invalid', password = randomBytes(24).toString('base64url');
+  const screenshots = '.private-showcase/responsive-audit/profile-' + (new URL(baseURL!).hostname === 'localhost' ? 'local' : 'live'); await mkdir(screenshots, { recursive: true });
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = []; let leaked = false;
+  page.on('pageerror', error => errors.push(error.message)); page.on('console', message => { if (message.text().includes(password)) leaked = true; });
+  try {
+    expect((await pool.query('SELECT id FROM "User" WHERE id = ANY($1::text[])', [ids])).rowCount).toBe(0);
+    const hash = await bcrypt.hash(password, 12), fixtureTime = Date.now();
+    for (const [index, userId] of ids.entries()) await pool.query('INSERT INTO "User" (id,name,email,password,"emailVerified","updatedAt","web3ModeEnabled","emailDisplayMode",bio) VALUES ($1,$2,$3,$4,NOW(),NOW(),false,\'HIDE\',$5)', [userId, index === 0 ? 'QA profile fixture' : index === 1 ? 'QA profile peer' : 'Long-connection-name-'.repeat(6), userId + '@example.invalid', index === 0 ? hash : null, index < 2 ? 'Isolated temporary QA profile.' : 'Long-connection-bio-'.repeat(12)]);
+    for (let index = 0; index < 22; index++) await pool.query('INSERT INTO "Follow" (id,"followerId","followingId","createdAt","updatedAt") VALUES ($1,$2,$3,$4,NOW())', [id + '_link' + index, ids[index + 2], id, new Date(fixtureTime - Math.floor(index / 2) * 1000)]);
+    await page.goto('/auth/login?callbackUrl=%2Fprofile', { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await page.getByPlaceholder('you@example.com').fill(email); await page.locator('input[name=password]').fill(password); await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page).toHaveURL('/profile/' + id); await expect(page.locator('#profile-name')).toHaveText('QA profile fixture'); if (await consent.isVisible()) await consent.click();
+    expect((await (await context.request.get('/api/auth/session')).json()).user.id === id).toBe(true);
+    expect((await context.request.patch('/api/users/' + peer, { data: { bio: 'Must not change' } })).status()).toBe(403);
+    expect((await context.request.patch('/api/users/' + id, { data: '{', headers: { 'Content-Type': 'application/json' } })).status()).toBe(400);
+    expect((await context.request.patch('/api/users/' + id, { data: { bio: 'Updated isolated QA bio.' } })).status()).toBe(200);
+    await page.reload({ waitUntil: 'domcontentloaded' }); await expect(page.getByText('Updated isolated QA bio.', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Edit profile', exact: true })).toHaveAttribute('href', '/settings');
+    const avatar = page.getByRole('button', { name: 'Change profile picture', exact: true }); await expect(avatar).toBeVisible();
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a8WQAAAAASUVORK5CYII=', 'base64');
+    await page.getByLabel('Choose profile picture', { exact: true }).setInputFiles({ name: 'qa-preview.png', mimeType: 'image/png', buffer: png });
+    const cancel = page.getByRole('button', { name: 'Cancel profile picture', exact: true }); await expect(cancel).toBeVisible();
+    for (const control of [cancel, page.getByRole('button', { name: 'Save profile picture', exact: true })]) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await page.screenshot({ path: `${screenshots}/avatar-preview-390.png` }); await cancel.click(); await expect(avatar).toBeVisible();
+    await page.getByLabel('Choose banner image', { exact: true }).setInputFiles({ name: 'qa-preview.png', mimeType: 'image/png', buffer: png });
+    await expect(page.getByRole('button', { name: 'Save Banner', exact: true })).toBeVisible(); await page.getByRole('button', { name: 'Cancel', exact: true }).click(); await expect(page.getByRole('button', { name: 'Edit Banner', exact: true })).toBeVisible();
+    const endpoint = '/api/users/' + id + '/followers';
+    expect((await context.request.get(endpoint + '?limit=-1')).status()).toBe(400); expect((await context.request.get(endpoint + '?cursor=' + id + '_foreign')).status()).toBe(400);
+    const seen: string[] = []; let cursor: string | null = null;
+    do { const result = await (await context.request.get(endpoint + '?limit=7' + (cursor ? '&cursor=' + cursor : ''))).json(); expect(result.total).toBe(22); expect(result.users.every((user: { email: unknown }) => !user.email)).toBe(true); seen.push(...result.users.map((user: { id: string }) => user.id)); cursor = result.nextCursor; } while (cursor && seen.length < 30);
+    expect(seen.length).toBe(22); expect(new Set(seen).size).toBe(22);
+    await page.getByRole('button', { name: /^22\s*Followers$/ }).click();
+    const followers = page.getByRole('list', { name: 'Followers', exact: true }); await expect(followers.locator(':scope > li')).toHaveCount(20);
+    await page.getByRole('button', { name: 'Load more connections', exact: true }).click(); await expect(followers.locator(':scope > li')).toHaveCount(22);
+    expect(await page.locator('[data-app-scroll-container]:visible').evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+    await page.getByRole('tab', { name: 'Connections', exact: true }).scrollIntoViewIfNeeded(); await page.screenshot({ path: `${screenshots}/followers-390.png` });
+    await followers.getByRole('link', { name: /^View profile/ }).first().click(); await expect(page.locator('#profile-name')).toHaveText('Long-connection-name-'.repeat(6));
+    expect(await page.locator('[data-app-scroll-container]:visible').evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+    await page.goto('/profile/' + peer, { waitUntil: 'domcontentloaded' }); await expect(page.locator('#profile-name')).toHaveText('QA profile peer');
+    const section = page.locator('section[aria-labelledby="profile-name"]');
+    await expect(section.getByRole('button', { name: 'Follow', exact: true })).toBeEnabled(); await section.getByRole('button', { name: 'Follow', exact: true }).click(); await expect(section.getByRole('button', { name: 'Following', exact: true })).toBeEnabled();
+    expect((await (await context.request.get('/api/users/' + peer + '/follow')).json()).isFollowing).toBe(true);
+    await page.goto('/profile/' + id + '?tab=connections&connections=following', { waitUntil: 'domcontentloaded' });
+    const following = page.getByRole('list', { name: 'Following', exact: true }); await expect(following.locator(':scope > li')).toHaveCount(1);
+    await following.getByRole('link', { name: 'View profile of QA profile peer', exact: true }).click(); await expect(page.locator('#profile-name')).toHaveText('QA profile peer');
+    await section.getByRole('button', { name: 'Following', exact: true }).click(); await expect(section.getByRole('button', { name: 'Follow', exact: true })).toBeEnabled();
+    expect((await (await context.request.get('/api/users/' + peer + '/follow')).json()).isFollowing).toBe(false);
+    await page.emulateMedia({ colorScheme: 'dark' }); await page.screenshot({ path: `${screenshots}/peer-dark-390.png` });
+    await page.getByRole('button', { name: 'Experimental trade with QA profile peer', exact: true }).click(); await expect(page.getByText('Connect your wallet to start a trade', { exact: true })).toBeVisible();
+    const dmResponse = page.waitForResponse(response => response.url().endsWith('/api/conversations') && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Message QA profile peer', exact: true }).click(); const dm = await (await dmResponse).json(); expect(typeof dm.id).toBe('string'); await expect(page).toHaveURL('/conversations/' + dm.id);
+    const record = (await pool.query('SELECT "userId",participants,visibility,type FROM "Conversation" WHERE id=$1', [dm.id])).rows[0]; expect(record.userId).toBe(id); expect(record.participants.sort()).toEqual([id, peer].sort()); expect(record.visibility).toBe('PARTICIPANTS'); expect(record.type).toBe('PRIVATE_DM');
+    await page.goto('/profile/' + peer, { waitUntil: 'domcontentloaded' }); await expect(page.locator('#profile-name')).toHaveText('QA profile peer'); await page.getByRole('button', { name: 'Message QA profile peer', exact: true }).click(); await expect(page).toHaveURL('/conversations/' + dm.id);
+    expect((await pool.query('SELECT id FROM "Conversation" WHERE "userId"=$1', [id])).rowCount).toBe(1);
+    expect(leaked).toBe(false); expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+    if (!/^qa_profile_[a-f0-9]{24}$/.test(id) || ids.some(value => value !== id && !value.startsWith(id + '_'))) throw new Error('Unsafe fixture cleanup');
+    // Delete only identities created by this test and their private test conversations.
+    await pool.query('DELETE FROM "Conversation" WHERE "userId"=$1 AND type=\'PRIVATE_DM\' AND visibility=\'PARTICIPANTS\' AND participants <@ $2::text[]', [id, [id, peer]]);
+    await pool.query('DELETE FROM "Notification" WHERE "userId" = ANY($1::text[])', [ids]);
+    await pool.query('DELETE FROM "UserPresence" WHERE "userId" = ANY($1::text[])', [ids]);
+    await pool.query('DELETE FROM "User" WHERE id = ANY($1::text[]) AND role=\'USER\' AND email LIKE $2', [ids, id + '%@example.invalid']);
+    await pool.end();
+  }
+});
+
 test('S4 — private library loading, empty, expired and long-content states', async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 360, height: 800 }, reducedMotion: 'reduce' });

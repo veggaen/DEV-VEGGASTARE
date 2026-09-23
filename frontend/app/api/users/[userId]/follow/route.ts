@@ -6,6 +6,7 @@ import {
   UserFollowStatusResponseSchema,
 } from '@/lib/types/users';
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
+import { isDemoUserId } from '@/lib/demo-policy';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -22,6 +23,8 @@ export async function GET(
   if (!userId) {
     return NextResponse.json({ error: 'User ID required' }, { status: 400 });
   }
+  const limit = await checkRateLimit(getClientIdentifier(request, session?.id), 'read');
+  if (!limit.success) return rateLimitedResponse(limit);
 
   try {
     // Get follower and following counts
@@ -59,7 +62,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(validated.data);
+    return NextResponse.json(validated.data, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('[api/users/[userId]/follow] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch follow status' }, { status: 500 });
@@ -77,6 +80,7 @@ export async function POST(
   }
 
   // Rate limit
+  if (isDemoUserId(session.id)) return NextResponse.json({ error: 'Demo profiles are read-only' }, { status: 403 });
   const rl = await checkRateLimit(getClientIdentifier(request, session.id), 'social');
   if (!rl.success) return rateLimitedResponse(rl);
 
@@ -153,6 +157,7 @@ export async function DELETE(
   }
 
   // Rate limit
+  if (isDemoUserId(session.id)) return NextResponse.json({ error: 'Demo profiles are read-only' }, { status: 403 });
   const rl = await checkRateLimit(getClientIdentifier(request, session.id), 'social');
   if (!rl.success) return rateLimitedResponse(rl);
 

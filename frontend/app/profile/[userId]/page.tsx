@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import useSWR from 'swr';
+import useSWRInfinite from 'swr/infinite';
+import { useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -12,6 +15,9 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { isDemoUserId } from '@/lib/demo-policy';
+import { profileRequest } from '@/lib/profile-request';
+import ProfileLoading from '../loading';
 import { useEdgeStore } from '@/lib/edgestore';
 import { useBannerColors, generateColorStyles } from '@/lib/color-extraction';
 import { useProfileThemeFromBanner } from '@/components/providers/profile-theme-provider';
@@ -22,26 +28,15 @@ import {
 } from 'react-icons/fi';
 import { Pin, Shield, ArrowLeftRight } from 'lucide-react';
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
+import ReachBadgesComponent from '@/components/uicustom/reach/ReachBadges';
 import { formatDistanceToNow } from 'date-fns';
 import { VEGGA_SYSTEM } from '@/lib/vegga-system-constants';
 import { toast } from 'sonner';
 import { useAccount, useChainId } from 'wagmi';
-import {
-  Chart as ChartJS,
-  RadialLinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Radar } from 'react-chartjs-2';
-
-ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
-
 import dynamic from 'next/dynamic';
+const Radar = dynamic(() => import('@/components/profile/profile-radar'), { ssr: false, loading: () => <div role="status" aria-label="Loading reach chart" className="aspect-square rounded-xl bg-muted motion-safe:animate-pulse" /> });
+const ProfileConnections = dynamic(() => import('@/components/profile/profile-connections'), { loading: () => <PostsLoading /> });
 const MomentumTimeline = dynamic(() => import('@/components/uicustom/reach/MomentumTimeline'), { ssr: false });
-const ReachBadgesComponent = dynamic(() => import('@/components/uicustom/reach/ReachBadges'), { ssr: false });
 const TrueReachCard = dynamic(() => import('@/components/uicustom/reach/TrueReachCard'), { ssr: false });
 
 interface UserProfile {
@@ -197,6 +192,20 @@ interface FeedItem {
   };
 }
 
+function useProfileFeed(userId: string, viewerId: string | undefined, enabled: boolean, filter: 'created' | 'participated') {
+  return useSWRInfinite<{ conversations: FeedItem[]; nextCursor: string | null }>(
+    (index, previous) => !viewerId || !enabled || (index > 0 && !previous?.nextCursor) ? null : [`/api/conversations?filter=${filter}&creatorId=${encodeURIComponent(userId)}&sort=recent&limit=20${index ? '&cursor=' + encodeURIComponent(previous!.nextCursor!) : ''}`, viewerId],
+    async ([url]: [string, string]) => { const data = await profileRequest(url); if (!Array.isArray(data.conversations)) throw new Error('Could not load posts. Please try again.'); return data; },
+    { revalidateOnFocus: false, shouldRetryOnError: false },
+  );
+}
+function SectionError({ retry }: { retry: () => void }) {
+  return <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"><p>This section could not load. Your profile is still available.</p><Button variant="outline" className="mt-3 h-11" onClick={retry}>Try again</Button></div>;
+}
+function PostsLoading() {
+  return <div role="status" aria-label="Loading profile posts" className="space-y-3">{[0, 1, 2].map(i => <div key={i} className="h-36 rounded-xl border border-border bg-muted/30 motion-safe:animate-pulse" />)}</div>;
+}
+
 export default function ProfilePage() {
   const reduceMotion = useReducedMotion();
   const { resolvedTheme } = useTheme();
@@ -204,17 +213,31 @@ export default function ProfilePage() {
   const params = useParams();
   const router = useRouter();
   const currentUser = useCurrentUser();
+  const { update: refreshSession, status: sessionStatus } = useSession();
   const { edgestore } = useEdgeStore();
   const { isConnected: walletConnected } = useAccount();
   const chainId = useChainId();
   const userId = params.userId as string;
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [posts, setPosts] = useState<FeedItem[]>([]);
-  const [activityPosts, setActivityPosts] = useState<FeedItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'posts' | 'activity' | 'reach' | 'connections'>('posts');
+  const query = useSearchParams();
+  type ProfileTab = 'posts' | 'activity' | 'reach' | 'connections';
+  const selectedTab = query.get('tab');
+  const activeTab: ProfileTab = selectedTab === 'activity' || selectedTab === 'reach' || selectedTab === 'connections' ? selectedTab : 'posts';
+  const setActiveTab = (tab: ProfileTab, connection?: 'followers' | 'following') => {
+    const params = new URLSearchParams(query);
+    if (tab === 'posts') params.delete('tab'); else params.set('tab', tab);
+    if (connection) params.set('connections', connection);
+    window.history.pushState(null, '', '/profile/' + encodeURIComponent(userId) + (params.size ? '?' + params : ''));
+  };
+  const profileQuery = useSWR<UserProfile>(currentUser?.id ? ['/api/users/' + encodeURIComponent(userId), currentUser.id] : null, async ([url]: [string, string]) => (await profileRequest(url)).user, { revalidateOnFocus: false, shouldRetryOnError: false });
+  const profile = profileQuery.data ?? null;
+  const setProfile = (update: (current: UserProfile | null) => UserProfile | null) => { void profileQuery.mutate(current => update(current ?? null) ?? undefined, { revalidate: false }); };
+  const loading = sessionStatus === 'loading' || profileQuery.isLoading;
+  const error = profileQuery.error;
+  const postsQuery = useProfileFeed(userId, currentUser?.id, activeTab === 'posts', 'created');
+  const activityQuery = useProfileFeed(userId, currentUser?.id, activeTab === 'activity', 'participated');
+  const posts = postsQuery.data?.flatMap(page => page.conversations) ?? [];
+  const activityPosts = activityQuery.data?.flatMap(page => page.conversations) ?? [];
 
   // Extract colors from banner for dynamic theming
   const { colors: bannerColors } = useBannerColors(profile?.banner);
@@ -234,20 +257,24 @@ export default function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState<{ file: File; url: string } | null>(null);
 
   // Follow states
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [followerCount, setFollowerCount] = useState(0);
-  const [followingCount, setFollowingCount] = useState(0);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
 
   // Reach analytics states
-  const [momentumTrend, setMomentumTrend] = useState<{ date: string; momentum: number; views?: number }[]>([]);
-  const [userBadges, setUserBadges] = useState<{ id: string; label: string; icon: string; tier: 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond'; description: string; earned: boolean; progress: number }[]>([]);
-  const [trueReach, setTrueReach] = useState<import('@/components/uicustom/reach/TrueReachCard').TrueReachData | null>(null);
+  const reachQuery = useSWR<{ momentumTrend: { date: string; momentum: number; views?: number }[]; badges: { id: string; label: string; icon: string; tier: 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond'; description: string; earned: boolean; progress: number }[]; trueReach: import('@/components/uicustom/reach/TrueReachCard').TrueReachData | null }>(currentUser?.id && activeTab === 'reach' ? ['/api/users/' + encodeURIComponent(userId) + '/reach', currentUser.id] : null, ([url]: [string, string]) => profileRequest(url), { revalidateOnFocus: false, shouldRetryOnError: false });
+  const momentumTrend = reachQuery.data?.momentumTrend ?? [], userBadges = reachQuery.data?.badges ?? [], trueReach = reachQuery.data?.trueReach ?? null;
 
   const isOwnProfile = currentUser?.id === userId;
+  const readOnly = isDemoUserId(currentUser?.id);
+  const canEditProfile = isOwnProfile && !readOnly;
+  const followQuery = useSWR<{ isFollowing: boolean; followerCount: number; followingCount: number }>(currentUser?.id && !isOwnProfile ? ['/api/users/' + encodeURIComponent(userId) + '/follow', currentUser.id] : null, ([url]: [string, string]) => profileRequest(url), { revalidateOnFocus: false, shouldRetryOnError: false });
+  const isFollowing = followQuery.data?.isFollowing ?? false, followerCount = followQuery.data?.followerCount ?? profile?._count?.followers ?? 0, followingCount = followQuery.data?.followingCount ?? profile?._count?.following ?? 0;
+  useEffect(() => () => { if (bannerPreview) URL.revokeObjectURL(bannerPreview.url); }, [bannerPreview]);
+  useEffect(() => () => { if (avatarPreview) URL.revokeObjectURL(avatarPreview.url); }, [avatarPreview]);
+  useEffect(() => { setBannerPreview(null); setAvatarPreview(null); }, [userId]);
 
   // Handle banner file selection - show preview, don't upload yet
   const handleBannerSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canEditProfile) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -272,7 +299,7 @@ export default function ProfilePage() {
 
   // Confirm and upload banner
   const confirmBannerUpload = async () => {
-    if (!bannerPreview) return;
+    if (!canEditProfile || !bannerPreview || isUploadingBanner) return;
 
     setIsUploadingBanner(true);
     try {
@@ -313,6 +340,7 @@ export default function ProfilePage() {
 
   // Handle avatar file selection - show preview, don't upload yet
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canEditProfile) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -335,7 +363,7 @@ export default function ProfilePage() {
 
   // Confirm and upload avatar
   const confirmAvatarUpload = async () => {
-    if (!avatarPreview) return;
+    if (!canEditProfile || !avatarPreview || isUploadingAvatar) return;
 
     setIsUploadingAvatar(true);
     try {
@@ -350,6 +378,7 @@ export default function ProfilePage() {
       if (!updateRes.ok) throw new Error('Failed to update profile');
 
       setProfile(prev => prev ? { ...prev, image: res.url } : null);
+      void refreshSession();
       toast.success('Profile picture updated successfully!');
 
       // Cleanup preview
@@ -373,7 +402,7 @@ export default function ProfilePage() {
 
   // Handle paste for avatar (Ctrl+V)
   const handleAvatarPaste = (e: React.ClipboardEvent) => {
-    if (!isOwnProfile) return;
+    if (!canEditProfile) return;
     const file = e.clipboardData?.files?.[0];
     if (file && file.type.startsWith('image/')) {
       // Create a fake event to reuse handleAvatarSelect logic
@@ -386,7 +415,7 @@ export default function ProfilePage() {
 
   // Handle drag and drop for avatar
   const handleAvatarDrop = (e: React.DragEvent) => {
-    if (!isOwnProfile) return;
+    if (!canEditProfile) return;
     e.preventDefault();
     const file = e.dataTransfer?.files?.[0];
     if (file && file.type.startsWith('image/')) {
@@ -400,6 +429,7 @@ export default function ProfilePage() {
   // Handle message - find or create DM conversation with this user
   const [isStartingChat, setIsStartingChat] = useState(false);
   const handleMessage = async () => {
+    if (readOnly || isStartingChat) return;
     if (!currentUser) {
       toast.error('Please sign in to send messages');
       return;
@@ -413,25 +443,14 @@ export default function ProfilePage() {
 
     setIsStartingChat(true);
     try {
-      // Try to find existing DM conversation first
-      const existingRes = await fetch(`/api/conversations?filter=dm&participantId=${encodeURIComponent(userId)}`);
-      if (existingRes.ok) {
-        const existingData = await existingRes.json();
-        const existingDm = (existingData.conversations || []).find(
-          (c: { type: string }) => c.type === 'PRIVATE_DM'
-        );
-        if (existingDm) {
-          router.push(`/conversations/${existingDm.id}`);
-          return;
-        }
-      }
-
-      // No existing DM — create a new one
+      // The server resolves an existing two-person DM before creating one.
+      // `filter=dm` was not a supported list query and always returned 400.
       const res = await fetch('/api/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'PRIVATE_DM',
+          visibility: 'PARTICIPANTS',
           participants: [userId],
           title: `Chat with ${profile?.name || 'User'}`,
         }),
@@ -454,6 +473,7 @@ export default function ProfilePage() {
 
   // Handle follow/unfollow
   const handleFollowToggle = async () => {
+    if (readOnly || isFollowLoading || !followQuery.data) return;
     if (!currentUser) {
       toast.error('Please sign in to follow users');
       return;
@@ -466,9 +486,7 @@ export default function ProfilePage() {
       const data = await res.json();
 
       if (res.ok) {
-        setIsFollowing(data.isFollowing);
-        setFollowerCount(data.followerCount);
-        setFollowingCount(data.followingCount);
+        await followQuery.mutate(data, { revalidate: false });
         toast.success(isFollowing ? 'Unfollowed' : 'Following!');
       } else {
         toast.error(data.error || 'Failed to update follow status');
@@ -477,98 +495,36 @@ export default function ProfilePage() {
       toast.error('Failed to update follow status');
     } finally {
       setIsFollowLoading(false);
+      void followQuery.mutate();
     }
   };
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch profile and follow status in parallel
-        const [profileRes, followRes] = await Promise.all([
-          fetch(`/api/users/${userId}`),
-          fetch(`/api/users/${userId}/follow`),
-        ]);
-
-        if (!profileRes.ok) {
-          throw new Error('User not found');
-        }
-
-        const profileData = await profileRes.json();
-        setProfile(profileData.user || profileData);
-
-        // Set follow status
-        if (followRes.ok) {
-          const followData = await followRes.json();
-          setIsFollowing(followData.isFollowing);
-          setFollowerCount(followData.followerCount);
-          setFollowingCount(followData.followingCount);
-        }
-
-        // Fetch user's created posts (only posts they authored)
-        const postsRes = await fetch(`/api/conversations?filter=created&creatorId=${userId}&sort=recent`);
-        const postsData = await postsRes.json();
-        setPosts(postsData.conversations || []);
-
-        // Fetch user's activity (posts they commented on / interacted with)
-        const activityRes = await fetch(`/api/conversations?filter=participated&creatorId=${userId}&sort=recent`);
-        const activityData = await activityRes.json();
-        setActivityPosts(activityData.conversations || []);
-
-        // Fetch reach analytics (momentum trend + badges)
-        try {
-          const reachRes = await fetch(`/api/users/${userId}/reach`);
-          if (reachRes.ok) {
-            const reachData = await reachRes.json();
-            setMomentumTrend(reachData.momentumTrend || []);
-            setUserBadges(reachData.badges || []);
-            setTrueReach(reachData.trueReach || null);
-          }
-        } catch {
-          // Non-critical — reach data is supplementary
-        }
-      } catch (err) {
-        console.error('Error fetching profile:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load profile');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (userId) {
-      fetchProfile();
-    }
-  }, [userId]);
-
+  if (sessionStatus === 'unauthenticated') return <section className="mx-auto max-w-lg px-4 py-12 text-center"><h1 className="text-2xl font-semibold">Sign in to view profiles</h1><Button asChild className="mt-5 h-11"><Link href={'/auth/login?callbackUrl=' + encodeURIComponent('/profile/' + userId)}>Sign in</Link></Button></section>;
   if (loading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Spinner />
-      </div>
-    );
+    return <ProfileLoading />;
   }
 
-  if (error || !profile) {
+  if (!profile) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
+      <div className="mx-auto flex min-h-[50vh] w-full max-w-xl flex-col items-center justify-center gap-4 px-4 text-center" role="alert">
         <FiUser className="h-16 w-16 text-muted-foreground/40" />
-        <h2 className="text-xl font-semibold text-foreground">User not found</h2>
-        <p className="text-muted-foreground">{error || 'This profile doesn\'t exist or has been removed'}</p>
-        <Button onClick={() => router.back()} variant="outline">
-          Go Back
-        </Button>
+        <h1 className="text-xl font-semibold text-foreground">{error?.status === 404 ? 'Profile not found' : 'Could not load this profile'}</h1>
+        <p className="text-muted-foreground">{error instanceof Error && error.name !== 'TimeoutError' ? error.message : 'Please try again or return to your profile.'}</p>
+        <Button className="h-11" onClick={() => void profileQuery.mutate()} variant="outline">Try again</Button>
+        <Button asChild className="h-11" variant="outline"><Link href="/profile">Your profile</Link></Button>
       </div>
     );
   }
 
   return (
-    <div
-      className="relative w-full"
+    <section
+      aria-labelledby="profile-name"
+      className="relative mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:px-8"
       style={{
         ...themeStyles,
       }}
     >
+      <div className="relative mx-auto w-full min-w-0 max-w-4xl">
       {/* Subtle gradient glow from banner colors - more subtle */}
       {bannerColors && (
         <div
@@ -581,6 +537,7 @@ export default function ProfilePage() {
       {/* Hidden file inputs */}
       <input
         ref={bannerInputRef}
+        aria-label="Choose banner image"
         type="file"
         accept="image/jpeg,image/png,image/gif,image/webp"
         className="hidden"
@@ -588,6 +545,7 @@ export default function ProfilePage() {
       />
       <input
         ref={avatarInputRef}
+        aria-label="Choose profile picture"
         type="file"
         accept="image/jpeg,image/png,image/gif,image/webp"
         className="hidden"
@@ -596,10 +554,10 @@ export default function ProfilePage() {
 
       {/* Banner */}
       <div 
-        className="relative h-44 sm:h-56 lg:h-72 w-full overflow-hidden"
-        onDragOver={(e) => { if (isOwnProfile) e.preventDefault(); }}
+        className="relative h-44 sm:h-56 lg:h-64 w-full overflow-hidden rounded-2xl"
+        onDragOver={(e) => { if (canEditProfile) e.preventDefault(); }}
         onDrop={(e) => {
-          if (!isOwnProfile) return;
+          if (!canEditProfile) return;
           e.preventDefault();
           const file = e.dataTransfer?.files?.[0];
           if (file && file.type.startsWith('image/')) {
@@ -616,6 +574,7 @@ export default function ProfilePage() {
             src={bannerPreview.url}
             alt="Banner preview"
             fill
+            sizes="(min-width: 1024px) 896px, calc(100vw - 32px)"
             className="object-cover"
             priority
           />
@@ -624,6 +583,7 @@ export default function ProfilePage() {
             src={profile.banner}
             alt="Profile banner"
             fill
+            sizes="(min-width: 1024px) 896px, calc(100vw - 32px)"
             className="object-cover"
             priority
           />
@@ -641,8 +601,8 @@ export default function ProfilePage() {
         <div className="absolute inset-0 bg-linear-to-t from-background via-background/40 to-transparent" />
 
         {/* Banner edit/confirm buttons (own profile only) */}
-        {isOwnProfile && (
-          <div className="absolute bottom-4 right-4 flex items-center gap-2">
+        {canEditProfile && (
+          <div className="absolute top-4 right-4 flex items-center gap-2">
             {bannerPreview ? (
               <>
                 {/* Cancel preview */}
@@ -650,7 +610,8 @@ export default function ProfilePage() {
                   variant="outline"
                   size="sm"
                   onClick={cancelBannerPreview}
-                  className="border-white/20 bg-black/40 text-white/90 hover:bg-red-600/80 hover:text-white backdrop-blur-md rounded-lg transition-all"
+                  disabled={isUploadingBanner}
+                  className="h-11 border-white/20 bg-black/70 text-white hover:bg-black/80 rounded-lg"
                 >
                   <FiX className="h-4 w-4 mr-2" />
                   Cancel
@@ -661,12 +622,12 @@ export default function ProfilePage() {
                   size="sm"
                   onClick={confirmBannerUpload}
                   disabled={isUploadingBanner}
-                  className="border-emerald-400/30 bg-emerald-600/80 text-white hover:bg-emerald-500 backdrop-blur-md rounded-lg transition-all"
+                  className="h-11 border-emerald-400/30 bg-emerald-700 text-white hover:bg-emerald-600 rounded-lg"
                 >
                   {isUploadingBanner ? (
                     <>
                       <Spinner className="h-4 w-4 mr-2" />
-                      Saving...
+                      Saving…
                     </>
                   ) : (
                     <>
@@ -682,7 +643,7 @@ export default function ProfilePage() {
                 size="sm"
                 onClick={() => bannerInputRef.current?.click()}
                 disabled={isUploadingBanner}
-                className="border-white/20 bg-black/40 text-white/90 hover:bg-black/60 hover:text-white backdrop-blur-md rounded-lg transition-all"
+                className="h-11 border-white/20 bg-black/70 text-white hover:bg-black/80 rounded-lg"
               >
                 <FiCamera className="h-4 w-4 mr-2" />
                 Edit Banner
@@ -693,20 +654,21 @@ export default function ProfilePage() {
       </div>
 
       {/* Profile Content */}
-      <div className="relative mx-auto w-full max-w-4xl px-4 sm:px-6 pb-8">
+      <div className="relative mx-auto w-full min-w-0 px-0 pb-2 sm:px-4">
         {/* Avatar and basic info */}
         <div className="relative -mt-16 sm:-mt-20 flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
           {/* Avatar with paste/drag support */}
           <div 
-            className="relative"
+            className="relative w-fit shrink-0 self-start"
             onPaste={handleAvatarPaste}
-            onDragOver={(e) => { if (isOwnProfile) e.preventDefault(); }}
+            onDragOver={(e) => { if (canEditProfile) e.preventDefault(); }}
             onDrop={handleAvatarDrop}
-            tabIndex={isOwnProfile ? 0 : undefined}
+            tabIndex={canEditProfile ? 0 : undefined}
+            aria-label={canEditProfile ? 'Profile picture: paste or drop an image, or use Change profile picture' : undefined}
           >
             <Avatar className="h-28 w-28 sm:h-36 sm:w-36 ring-4 ring-background shadow-2xl">
               {/* Show preview if available, otherwise current image */}
-              <AvatarImage src={avatarPreview?.url || profile.image || undefined} className="object-cover" />
+              <AvatarImage src={avatarPreview?.url || profile.image || undefined} alt={`${profile.name || 'User'} profile picture`} className="object-cover" />
               <AvatarFallback
                 className="text-3xl sm:text-4xl text-white font-medium"
                 style={{
@@ -720,12 +682,13 @@ export default function ProfilePage() {
             </Avatar>
             
             {/* Camera button (always visible for own profile) */}
-            {isOwnProfile && (
+            {canEditProfile && !avatarPreview && (
               <button
                 onClick={() => avatarInputRef.current?.click()}
                 disabled={isUploadingAvatar}
                 title="Click to change avatar, or drag & drop / paste an image"
-                className="absolute bottom-1 right-1 h-9 w-9 rounded-full bg-background border-2 border-background shadow-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-50"
+                aria-label="Change profile picture"
+                className="absolute bottom-0 right-0 flex h-11 w-11 items-center justify-center rounded-full border-2 border-background bg-background text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [@media(hover:hover)]:hover:bg-muted"
               >
                 {isUploadingAvatar ? (
                   <Spinner className="h-4 w-4" />
@@ -736,12 +699,13 @@ export default function ProfilePage() {
             )}
 
             {/* Green checkmark confirm button (appears when preview is set) */}
-            {isOwnProfile && avatarPreview && (
+            {canEditProfile && avatarPreview && (
               <button
                 onClick={confirmAvatarUpload}
                 disabled={isUploadingAvatar}
                 title="Save new profile picture"
-                className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-8 w-8 rounded-full bg-emerald-500 border-2 border-background shadow-lg flex items-center justify-center text-white hover:bg-emerald-400 transition-all disabled:opacity-50 animate-in fade-in zoom-in duration-200"
+                aria-label="Save profile picture"
+                className="absolute -bottom-2 right-0 flex h-11 w-11 items-center justify-center rounded-full border-2 border-background bg-emerald-700 text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [@media(hover:hover)]:hover:bg-emerald-600"
               >
                 {isUploadingAvatar ? (
                   <Spinner className="h-4 w-4" />
@@ -754,11 +718,13 @@ export default function ProfilePage() {
             )}
 
             {/* Cancel button (appears when preview is set) */}
-            {isOwnProfile && avatarPreview && (
+            {canEditProfile && avatarPreview && (
               <button
                 onClick={cancelAvatarPreview}
                 title="Cancel"
-                className="absolute -bottom-2 left-0 h-7 w-7 rounded-full bg-zinc-600 border-2 border-background shadow-lg flex items-center justify-center text-white hover:bg-red-500 transition-all animate-in fade-in zoom-in duration-200"
+                aria-label="Cancel profile picture"
+                disabled={isUploadingAvatar}
+                className="absolute -bottom-2 left-0 flex h-11 w-11 items-center justify-center rounded-full border-2 border-background bg-background text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [@media(hover:hover)]:hover:bg-muted"
               >
                 <FiX className="h-3.5 w-3.5" />
               </button>
@@ -768,40 +734,35 @@ export default function ProfilePage() {
           <div className="flex-1 min-w-0 pb-2">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
               <div className="min-w-0">
-                <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">
+                <h1 id="profile-name" className="break-words text-xl font-semibold tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-2xl">
                   {profile.name || 'Anonymous User'}
                 </h1>
-                <p className="text-muted-foreground text-sm">
+                <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
                   @{profile.username || profile.email?.split('@')[0] || profile.name?.toLowerCase().replace(/\s+/g, '') || profile.id.slice(0, 8)}
                 </p>
               </div>
 
-              <div className="flex gap-2 shrink-0">
+              <div className="flex flex-wrap gap-2 sm:max-w-[50%]">
                 {isOwnProfile ? (
-                  <Link href="/settings">
                     <Button
+                      asChild
                       variant="outline"
                       size="sm"
-                      className="rounded-lg border-border/50 bg-background/50 backdrop-blur-sm hover:bg-muted"
+                      className="h-11 rounded-lg"
                     >
+                    <Link href="/settings">
                       <FiSettings className="h-4 w-4 mr-2" />
-                      Edit Profile
+                      {readOnly ? 'View settings' : 'Edit profile'}
+                    </Link>
                     </Button>
-                  </Link>
                 ) : (
                   <>
                     <Button
                       size="sm"
+                      variant={isFollowing ? 'secondary' : 'default'}
                       onClick={handleFollowToggle}
-                      disabled={isFollowLoading}
-                      className={`rounded-lg transition-all ${isFollowing
-                          ? "bg-muted hover:bg-destructive/80 text-foreground border border-border hover:text-white hover:border-destructive"
-                          : "hover:opacity-90 text-white shadow-lg"
-                        }`}
-                      style={!isFollowing && bannerColors ? {
-                        backgroundColor: bannerColors.primary,
-                        boxShadow: `0 4px 14px ${bannerColors.primary}40`,
-                      } : undefined}
+                      disabled={readOnly || isFollowLoading || !followQuery.data}
+                      className="h-11 rounded-lg"
                     >
                       {isFollowLoading ? (
                         <Spinner className="h-4 w-4" />
@@ -816,8 +777,9 @@ export default function ProfilePage() {
                       variant="outline"
                       size="sm"
                       onClick={handleMessage}
-                      disabled={isStartingChat}
-                      className="rounded-lg border-border/50 bg-background/50 backdrop-blur-sm hover:bg-muted"
+                      disabled={readOnly || isStartingChat}
+                      aria-label={`Message ${profile.name || 'this user'}`}
+                      className="h-11 w-11 rounded-lg p-0"
                       title={`Message ${profile.name || 'this user'}`}
                     >
                       {isStartingChat ? (
@@ -831,6 +793,8 @@ export default function ProfilePage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      disabled={readOnly}
+                      aria-label={`Experimental trade with ${profile.name || 'this user'}`}
                       onClick={async () => {
                         if (!walletConnected) {
                           toast.info('Connect your wallet to start a trade', {
@@ -858,7 +822,7 @@ export default function ProfilePage() {
                           toast.error(err instanceof Error ? err.message : 'Trade request failed');
                         }
                       }}
-                      className="rounded-lg border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                      className="h-11 w-11 rounded-lg border-emerald-500/30 bg-emerald-500/5 p-0 text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-400"
                       title={`Trade with ${profile.name || 'this user'}`}
                     >
                       <ArrowLeftRight className="h-4 w-4" />
@@ -902,8 +866,11 @@ export default function ProfilePage() {
 
         {/* Bio and meta info */}
         <div className="mt-5 space-y-4">
+          {error && <SectionError retry={() => void profileQuery.mutate()} />}
+          {readOnly && <p className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">Demo profiles are read-only. Explore posts and connections; sign in to your own account to edit, follow or send messages.</p>}
+          {followQuery.error && <SectionError retry={() => void followQuery.mutate()} />}
           {profile.bio && (
-            <p className="text-foreground/80 text-sm sm:text-base max-w-2xl leading-relaxed">{profile.bio}</p>
+            <p className="max-w-2xl whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/80 [overflow-wrap:anywhere] sm:text-base">{profile.bio}</p>
           )}
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
@@ -939,7 +906,7 @@ export default function ProfilePage() {
           >
             {/* Posts */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors cursor-default">
-              <span className="text-base font-semibold text-foreground tabular-nums">{posts.length}</span>
+              <span className="text-base font-semibold text-foreground tabular-nums">{profile._count?.posts ?? 0}</span>
               <span className="text-sm text-muted-foreground">Pulses</span>
             </div>
 
@@ -947,22 +914,22 @@ export default function ProfilePage() {
 
             {/* Synced (Followers) */}
             <button
-              onClick={() => setActiveTab('connections')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors"
+              onClick={() => setActiveTab('connections', 'followers')}
+              className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)]:hover:bg-muted/50"
             >
               <span className="text-base font-semibold text-foreground tabular-nums">{followerCount}</span>
-              <span className="text-sm text-muted-foreground">Synced</span>
+              <span className="text-sm text-muted-foreground">Followers</span>
             </button>
 
             <span className="text-muted-foreground/30">·</span>
 
             {/* Syncs (Following) */}
             <button
-              onClick={() => setActiveTab('connections')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors"
+              onClick={() => setActiveTab('connections', 'following')}
+              className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)]:hover:bg-muted/50"
             >
               <span className="text-base font-semibold text-foreground tabular-nums">{followingCount}</span>
-              <span className="text-sm text-muted-foreground">Syncs</span>
+              <span className="text-sm text-muted-foreground">Following</span>
             </button>
 
             {/* Reach Badge - Prominent when available */}
@@ -971,7 +938,8 @@ export default function ProfilePage() {
                 <span className="text-muted-foreground/30">·</span>
                 <button
                   onClick={() => setActiveTab('reach')}
-                  className="group relative flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all"
+                  className="group relative flex min-h-11 items-center gap-2 rounded-lg px-3 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={`Open reach analytics: ${profile.reach.totalViews} views`}
                   style={{
                     backgroundColor: `${bannerColors?.primaryContrast || '#10b981'}10`,
                   }}
@@ -996,7 +964,7 @@ export default function ProfilePage() {
                   >
                     <span className="relative flex h-1.5 w-1.5">
                       <span
-                        className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                        className="absolute inline-flex h-full w-full rounded-full opacity-75"
                         style={{ backgroundColor: bannerColors?.primaryContrast || '#10b981' }}
                       />
                       <span
@@ -1009,7 +977,8 @@ export default function ProfilePage() {
 
                   {/* Tooltip */}
                   <div
-                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-xl text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl border backdrop-blur-md"
+                    aria-hidden
+                    className="sr-only"
                     style={{
                       backgroundColor: 'rgba(0,0,0,0.85)',
                       borderColor: `${bannerColors?.primaryContrast || '#10b981'}30`,
@@ -1084,7 +1053,8 @@ export default function ProfilePage() {
             </TabsList>
 
             <TabsContent value="posts" className="mt-6">
-              {posts.length === 0 ? (
+              {postsQuery.error && <SectionError retry={() => void postsQuery.mutate()} />}
+              {postsQuery.isLoading ? <PostsLoading /> : postsQuery.error && !posts.length ? null : posts.length === 0 ? (
                 <div
                   className="rounded-2xl border p-12 text-center"
                   style={{
@@ -1095,19 +1065,18 @@ export default function ProfilePage() {
                   <FiGrid className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-foreground mb-2">No pulses yet</h3>
                   <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-                    {isOwnProfile ? 'Send your first pulse — let the world feel the beat!' : 'This user hasn\'t pulsed anything yet'}
+                    {readOnly ? 'This demo does not publish posts. You can explore the public feed.' : isOwnProfile ? 'Share your first update with the community.' : 'This user has not shared a public post yet.'}
                   </p>
                   {isOwnProfile && (
-                    <Link href="/pulse">
                       <Button
-                        className="mt-4"
+                        asChild
+                        className="mt-4 h-11"
                         style={{
                           backgroundColor: bannerColors?.primary || '#3b82f6',
                         }}
                       >
-                        Start pulsing
+                        <Link href="/pulse">{readOnly ? 'Explore Pulse' : 'Create a post'}</Link>
                       </Button>
-                    </Link>
                   )}
                 </div>
               ) : (
@@ -1121,17 +1090,17 @@ export default function ProfilePage() {
                       // Then by date
                       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
                     })
-                    .map((post, index) => (
+                    .map(post => (
                     <motion.article
                       key={post.id}
                       initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
                       animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: index * 0.03 }}
+                      transition={{ duration: 0.18 }}
                       className="relative"
                     >
                       <Link
-                        href={`/conversations/${post.id}`}
-                        className="group block rounded-2xl border p-4 sm:p-5 transition-all duration-200 hover:shadow-md"
+                        href={`/pulse/${post.id}`}
+                        className="group block min-w-0 rounded-2xl border p-4 [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
                         style={{
                           borderColor: post.pinnedToProfile 
                             ? (bannerColors ? `${bannerColors.primary}50` : 'hsl(var(--primary) / 0.3)')
@@ -1141,6 +1110,7 @@ export default function ProfilePage() {
                             : 'hsl(var(--muted) / 0.2)',
                         }}
                         onMouseEnter={(e) => {
+                          if (!window.matchMedia('(hover: hover)').matches) return;
                           e.currentTarget.style.borderColor = bannerColors ? `${bannerColors.primary}50` : 'hsl(var(--border))';
                           e.currentTarget.style.backgroundColor = bannerColors ? `${bannerColors.primary}12` : 'hsl(var(--muted) / 0.4)';
                         }}
@@ -1246,10 +1216,12 @@ export default function ProfilePage() {
                   ))}
                 </div>
               )}
+              {postsQuery.data?.at(-1)?.nextCursor && <Button className="mt-4 h-11" variant="outline" disabled={postsQuery.isValidating} onClick={() => void postsQuery.setSize(size => size + 1)}>{postsQuery.isValidating ? 'Loading…' : 'Load more posts'}</Button>}
             </TabsContent>
 
             <TabsContent value="activity" className="mt-6">
-              {activityPosts.length === 0 ? (
+              {activityQuery.error && <SectionError retry={() => void activityQuery.mutate()} />}
+              {activityQuery.isLoading ? <PostsLoading /> : activityQuery.error && !activityPosts.length ? null : activityPosts.length === 0 ? (
                 <div
                   className="rounded-2xl border p-12 text-center"
                   style={{
@@ -1265,21 +1237,22 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {activityPosts.map((post, index) => (
+                  {activityPosts.map(post => (
                     <motion.article
                       key={post.id}
                       initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
                       animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: index * 0.03 }}
+                      transition={{ duration: 0.18 }}
                     >
                       <Link
-                        href={`/conversations/${post.id}`}
-                        className="group block rounded-2xl border p-4 sm:p-5 transition-all duration-200 hover:shadow-md"
+                        href={`/pulse/${post.id}`}
+                        className="group block min-w-0 rounded-2xl border p-4 [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
                         style={{
                           borderColor: 'hsl(var(--border) / 0.5)',
                           backgroundColor: 'hsl(var(--muted) / 0.2)',
                         }}
                         onMouseEnter={(e) => {
+                          if (!window.matchMedia('(hover: hover)').matches) return;
                           e.currentTarget.style.borderColor = bannerColors ? `${bannerColors.primary}50` : 'hsl(var(--border))';
                           e.currentTarget.style.backgroundColor = bannerColors ? `${bannerColors.primary}12` : 'hsl(var(--muted) / 0.4)';
                         }}
@@ -1345,9 +1318,13 @@ export default function ProfilePage() {
                   ))}
                 </div>
               )}
+              {activityQuery.data?.at(-1)?.nextCursor && <Button className="mt-4 h-11" variant="outline" disabled={activityQuery.isValidating} onClick={() => void activityQuery.setSize(size => size + 1)}>{activityQuery.isValidating ? 'Loading…' : 'Load more activity'}</Button>}
             </TabsContent>
 
             <TabsContent value="reach" className="mt-6">
+              <p className="mb-4 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">Experimental analytics · engagement estimates, not a measure of personal worth or verified financial results.</p>
+              {reachQuery.error && <SectionError retry={() => void reachQuery.mutate()} />}
+              {reachQuery.isLoading && <p role="status" className="mb-4 text-sm text-muted-foreground">Loading reach details…</p>}
               {/* True Reach Analytics - 7 Pillar System */}
               <div className="space-y-6">
                 {/* Empty state for users with no engagement data yet */}
@@ -1376,15 +1353,13 @@ export default function ProfilePage() {
                         ? 'Start posting pulses and engaging with others — your 7-pillar reach score will build up here.'
                         : 'This user hasn\'t built any reach data yet.'}
                     </p>
-                    {isOwnProfile && (
-                      <Link href="/pulse">
-                        <button
-                          className="mt-4 px-4 py-2 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90"
+                    {canEditProfile && (
+                        <Button asChild
+                          className="mt-4 inline-flex min-h-11 items-center rounded-xl px-4 py-2 text-sm font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           style={{ backgroundColor: bannerColors?.primaryContrast || '#10b981' }}
                         >
-                          Create a pulse
-                        </button>
-                      </Link>
+                          <Link href="/pulse">Create a pulse</Link>
+                        </Button>
                     )}
                   </div>
                 )}
@@ -1505,6 +1480,7 @@ export default function ProfilePage() {
                           }],
                         }}
                         options={{
+                          animation: reduceMotion ? false : { duration: 180 },
                           scales: {
                             r: {
                               angleLines: {
@@ -1591,7 +1567,7 @@ export default function ProfilePage() {
 
                   {/* Pillar Cards - 3 columns */}
                   <div className="lg:col-span-3 grid gap-3 sm:grid-cols-2">
-                    {REACH_PILLARS.map((pillar, index) => {
+                    {REACH_PILLARS.map(pillar => {
                       const value = profile?.reach?.[pillar.key as keyof typeof profile.reach];
                       const score = typeof value === 'number' ? value : 0;
                       const isGood = score >= 70;
@@ -1602,8 +1578,8 @@ export default function ProfilePage() {
                           key={pillar.key}
                           initial={reduceMotion ? undefined : { opacity: 0, y: 12 }}
                           animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: index * 0.05 }}
-                          className="group relative rounded-xl border-2 p-4 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-md"
+                          transition={{ duration: 0.18 }}
+                          className="relative min-w-0 rounded-xl border-2 p-4 shadow-sm"
                           style={{
                             borderColor: isDark ? `${pillar.color}35` : `${pillar.color}50`,
                             background: isDark
@@ -1649,21 +1625,21 @@ export default function ProfilePage() {
                           <div className="mt-3 h-1.5 rounded-full bg-muted/30 dark:bg-white/5 overflow-hidden">
                             <motion.div
                               className="h-full rounded-full"
-                              style={{ backgroundColor: pillar.color }}
-                              initial={{ width: 0 }}
-                              animate={{ width: `${score}%` }}
-                              transition={{ duration: 0.8, delay: index * 0.1, ease: 'easeOut' }}
+                              style={{ backgroundColor: pillar.color, transformOrigin: 'left' }}
+                              initial={reduceMotion ? false : { scaleX: 0 }}
+                              animate={{ scaleX: Math.max(0, Math.min(1, score / 100)) }}
+                              transition={{ duration: reduceMotion ? 0 : 0.18, ease: 'easeOut' }}
                             />
                           </div>
 
                           {/* Description on hover */}
-                          <div className="mt-2 text-[11px] text-muted-foreground leading-relaxed line-clamp-2 group-hover:line-clamp-none transition-all">
+                          <div className="mt-2 text-xs leading-relaxed text-muted-foreground">
                             {pillar.description}
                           </div>
 
                           {/* Tip badge */}
                           <div
-                            className="mt-2 text-[10px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="mt-2 rounded-md px-2 py-1 text-xs"
                             style={{
                               backgroundColor: `${pillar.color}10`,
                               color: pillar.color,
@@ -1680,7 +1656,7 @@ export default function ProfilePage() {
                 {/* Summary Stats Row */}
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div
-                    className="rounded-xl border-2 p-5 transition-all duration-200 hover:scale-[1.01] bg-surface-1/30 shadow-sm hover:shadow-md"
+                    className="min-w-0 rounded-xl border-2 bg-surface-1/30 p-5 shadow-sm"
                     style={{
                       borderColor: isDark
                         ? `${bannerColors?.primaryContrast || '#10b981'}35`
@@ -1713,7 +1689,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div
-                    className="rounded-xl border-2 p-5 transition-all duration-200 hover:scale-[1.01] bg-surface-1/30 shadow-sm hover:shadow-md"
+                    className="min-w-0 rounded-xl border-2 bg-surface-1/30 p-5 shadow-sm"
                     style={{
                       borderColor: isDark
                         ? `${bannerColors?.primary || '#3b82f6'}35`
@@ -1743,7 +1719,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div
-                    className="rounded-xl border-2 p-5 transition-all duration-200 hover:scale-[1.01] bg-surface-1/30 shadow-sm hover:shadow-md"
+                    className="min-w-0 rounded-xl border-2 bg-surface-1/30 p-5 shadow-sm"
                     style={{
                       borderColor: isDark
                         ? `${bannerColors?.secondary || '#8b5cf6'}35`
@@ -1766,7 +1742,7 @@ export default function ProfilePage() {
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">Engagement Rate</div>
                         <p className="text-[11px] text-muted-foreground/70 mt-2">
-                          Views ÷ Synced ratio
+                          Replies ÷ unique viewers (capped at 100%)
                         </p>
                       </div>
                       <div
@@ -1914,26 +1890,12 @@ export default function ProfilePage() {
             </TabsContent>
 
             <TabsContent value="connections" className="mt-6">
-              <div
-                className="rounded-2xl border p-12 text-center"
-                style={{
-                  borderColor: 'hsl(var(--border) / 0.5)',
-                  backgroundColor: 'hsl(var(--muted) / 0.3)',
-                }}
-              >
-                <FiUsers className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">Synced Rhythms</h3>
-                <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-                  {isOwnProfile ? 'People synced to your rhythm and rhythms you follow' : 'This user\'s synced community'}
-                </p>
-                <p className="text-muted-foreground/70 text-xs mt-4">
-                  Full sync list coming soon
-                </p>
-              </div>
+              <ProfileConnections userId={userId} viewerId={currentUser?.id} kind={query.get('connections') === 'following' ? 'following' : 'followers'} onKindChange={kind => setActiveTab('connections', kind)} />
             </TabsContent>
           </Tabs>
         </div>
       </div>
-    </div>
+      </div>
+    </section>
   );
 }

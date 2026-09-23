@@ -2,6 +2,12 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+Current candidate: Profile loading, real Connections, follow counts, mobile
+alignment and controls. Final local browser **9/9 (51.4s)**, including shared
+header/sidebar, touch settings and Pulse/footer regressions. Strict webpack build
+and TypeScript, touched-file lint and **35/35** focused units pass. Live deployment
+and verification pending. No payment, credit grant, cap reset or owner mutation.
+
 Latest verified follow-up: Orders, receipts and downloads shipped as `e73a27b` /
 `dpl_5ZmwRus2KfRMexm5MytTCVG2Sz1e`, READY at www.veggat.com. Final local browser
 **7/7 (56.6s)** and live **7/7 (1.2m)** pass, including shared header/sidebar and

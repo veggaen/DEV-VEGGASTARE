@@ -1,6 +1,5 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
-import { ensureUser } from '@/lib/ensure-user';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   UserProfileGetResponseSchema,
@@ -8,6 +7,8 @@ import {
 } from '@/lib/types/users';
 import { resolveVisibleEmail } from '@/lib/email-visibility';
 import { z } from 'zod';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
+import { isDemoUserId } from '@/lib/demo-policy';
 
 const UserProfilePatchInputSchema = z.object({
   name: z.string().min(1).max(200).optional(),
@@ -41,26 +42,19 @@ export async function GET(
 
   const { userId } = await context.params;
 
-  if (!userId) {
+  if (!z.string().min(1).max(200).safeParse(userId).success) {
     return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
   }
+  const limit = await checkRateLimit(getClientIdentifier(request, session.id), 'read');
+  if (!limit.success) return rateLimitedResponse(limit);
 
   // Users can view their own profile, admins can view any profile
-  const isOwnProfile = session.id === userId;
   const isAdmin = session.role === 'ADMIN';
 
   try {
-    // If viewing own profile, ensure user exists in DB first
-    if (isOwnProfile) {
-      const ensureResult = await ensureUser(session);
-      if (!ensureResult.success) {
-        console.error(`${LOG_PREFIX} Failed to ensure user:`, ensureResult.error);
-        return NextResponse.json({ error: 'Failed to initialize user profile' }, { status: 500 });
-      }
-    }
-
-    // Fetch user with reach statistics (view counts across all their posts)
-    const user = await dbPrisma.user.findUnique({
+    // Counts and aggregate statistics stay in SQL instead of transferring every
+    // follow and public conversation. GET must not recreate a deleted account.
+    const [user, totals] = await Promise.all([dbPrisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -75,54 +69,34 @@ export async function GET(
         reachLifetime: true,
         reachMomentum: true,
         // Get follower/following counts
-        followers: { select: { id: true } },
-        following: { select: { id: true } },
-        // Get reach stats from conversations
-        Conversation: {
-          where: { visibility: 'PUBLIC' },
-          select: {
-            viewCount: true,
-            uniqueViewCount: true,
-            replyCount: true,
-            pillarVisibility: true,
-            pillarEngagement: true,
-            pillarConversion: true,
-            pillarLoyalty: true,
-            pillarGrowth: true,
-            pillarRecall: true,
-            pillarVelocity: true,
-          },
-        },
+        _count: { select: { followers: true, following: true, Conversation: { where: { visibility: 'PUBLIC' } } } },
       },
-    });
+    }), dbPrisma.conversation.aggregate({
+      where: { userId, visibility: 'PUBLIC' },
+      _sum: { viewCount: true, uniqueViewCount: true, replyCount: true },
+      _avg: { pillarVisibility: true, pillarEngagement: true, pillarConversion: true, pillarLoyalty: true, pillarGrowth: true, pillarRecall: true, pillarVelocity: true },
+    })]);
 
     if (!user) {
-      // Differentiate: own profile missing vs other user not found
-      if (isOwnProfile) {
-        // This shouldn't happen after ensureUser, but handle gracefully
-        console.error(`${LOG_PREFIX} Own profile not found after ensureUser - session id mismatch?`);
-        return NextResponse.json({ error: 'Profile initialization failed' }, { status: 500 });
-      }
-      // Other user not found - normal 404
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     // Calculate reach metrics
-    const totalViews = user.Conversation.reduce((sum, c) => sum + c.viewCount, 0);
-    const uniqueViewers = user.Conversation.reduce((sum, c) => sum + c.uniqueViewCount, 0);
-    const totalReplies = user.Conversation.reduce((sum, c) => sum + c.replyCount, 0);
-    const followerCount = user.followers.length;
-    const followingCount = user.following.length;
+    const totalViews = totals._sum.viewCount ?? 0;
+    const uniqueViewers = totals._sum.uniqueViewCount ?? 0;
+    const totalReplies = totals._sum.replyCount ?? 0;
+    // Legacy Prisma relation names are inverted: User.followers is the
+    // followerId side (outgoing), User.following is the followingId side (incoming).
+    const followerCount = user._count.following;
+    const followingCount = user._count.followers;
     // Engagement rate: reply interactions per unique viewer (0-100%)
     const engagementRate = uniqueViewers > 0
       ? Math.min((totalReplies / uniqueViewers) * 100, 100)
       : 0;
 
     // Calculate aggregate pillar breakdown from user's public pulses
-    const convos = user.Conversation;
-    const pulseCount = convos.length || 1;
     const pillarAvg = (field: 'pillarVisibility' | 'pillarEngagement' | 'pillarConversion' | 'pillarLoyalty' | 'pillarGrowth' | 'pillarRecall' | 'pillarVelocity') =>
-      Math.min(100, Math.round(convos.reduce((s, c) => s + c[field], 0) / pulseCount));
+      Math.max(0, Math.min(100, Math.round(totals._avg[field] ?? 0)));
 
     const visibility = pillarAvg('pillarVisibility');
     const engagementDepth = pillarAvg('pillarEngagement');
@@ -171,7 +145,7 @@ export async function GET(
       _count: {
         followers: followerCount,
         following: followingCount,
-        posts: user.Conversation.length,
+        posts: user._count.Conversation,
       },
       // Reach metrics - actual engagement vs vanity followers
       reach: {
@@ -202,7 +176,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(validated.data, { status: 200 });
+    return NextResponse.json(validated.data, { status: 200, headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error(`${LOG_PREFIX} Error fetching user:`, error);
     return NextResponse.json(
@@ -228,9 +202,12 @@ export async function PATCH(
   if (session.id !== userId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+  if (isDemoUserId(session.id)) return NextResponse.json({ error: 'Demo profiles are read-only' }, { status: 403 });
+  const limit = await checkRateLimit(getClientIdentifier(request, session.id), 'social');
+  if (!limit.success) return rateLimitedResponse(limit);
 
   try {
-    const json = await request.json();
+    const json = await request.json().catch(() => null);
     const parsed = UserProfilePatchInputSchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json(
@@ -280,7 +257,7 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json(validated.data, { status: 200 });
+    return NextResponse.json(validated.data, { status: 200, headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error(LOG_PREFIX, 'Error updating user:', error);
     return NextResponse.json(
