@@ -273,6 +273,25 @@ member-to-member delivery remains separate from the mocked error test.
   Whole-app audit, real Chrome access, physical keyboard and 125% browser zoom
   remain incomplete. Next: verified Pricing/Info link defects and remaining routes.
 
+## S7/S8 — Pricing, Info and shell scrolling (local verified; deployment pending)
+
+- Server-rendered Info now presents the marketplace story, free demo flow,
+  architecture and a real Contact section. Pricing links to the correct AI Keys
+  settings section; both pages share bounded gutters/canvas and readable text
+  without delayed opacity/glow loops. The design/animation audit retained only
+  lightweight reduced-motion-aware hover feedback.
+- Fixed delayed contact fragments, hard-load restoration and whole-document
+  anchor jumps that hid the demo notice. Only page/drawer scrollers move; early
+  scrolling before hydration is preserved instead of resetting to the top.
+- Production build/TypeScript/touched lint pass; helper units **9/9**. Local
+  browser **16/16** (1.6m, including setup): all eight target sizes, real scrolling,
+  links/auth callback, delayed scripts, Pulse/footer, Products, Settings, AI,
+  Messages and hydration. Live deployment/verification is the next step.
+- Owner Chrome remains unavailable after a fresh inventory and open-tab attempt.
+  Full-app completion, physical keyboard/125% Chrome zoom, paid checkout and
+  owner OAuth consent are not claimed. Remaining auth-page layout and AI Keys
+  management findings are recorded in the responsive audit.
+
 | Area | Feature | Status / evidence |
 | --- | --- | --- |
 | Auth | Email login, session | DONE — current local/live browser round trips, revoked sessions rejected |

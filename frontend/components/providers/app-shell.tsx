@@ -36,6 +36,29 @@ import { TradeModeProvider } from "@/contexts/trade-mode-context";
 import ImpersonationBanner from "@/components/uicustom/ImpersonationBanner";
 import { UpdateBanner } from "@/components/uicustom/UpdateBanner";
 import DemoSessionNotice from "@/components/uicustom/auth/demo-session-notice";
+import { restoreRouteScroll } from "@/lib/route-scroll";
+
+function PageScroller({ children, scrollKey, contained }: {
+  children: React.ReactNode;
+  scrollKey: string | null;
+  contained: boolean;
+}) {
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const previousRoute = React.useRef(scrollKey);
+  // Mount below the lazy providers, alongside the actual DOM node. An effect
+  // on AppShell can run before that node exists on a hard load.
+  React.useLayoutEffect(() => {
+    const routeChanged = previousRoute.current !== scrollKey;
+    previousRoute.current = scrollKey;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    // SSR content is already scrollable before hydration. Do not undo a user's
+    // early scroll/click just because the lazy providers finished downloading.
+    if (!routeChanged && !window.location.hash) return;
+    return restoreRouteScroll(scroller, window.location.hash);
+  }, [scrollKey]);
+  return <div ref={scrollRef} data-site-scroll="true" data-app-scroll-container={contained ? undefined : 'true'} className={`flex flex-1 flex-col min-h-0 min-w-0 overscroll-contain-y ${contained ? 'overflow-hidden' : 'overflow-auto'}`}>{children}</div>;
+}
 
 export default function AppShell({
   session,
@@ -45,13 +68,9 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-	const scrollRef = React.useRef<HTMLDivElement>(null);
 	// The persistent shell owns this scroller, so Next's window scroll reset is
 	// insufficient. Keep Pulse's intercepted detail modal at the feed position.
 	const scrollKey = pathname?.startsWith('/pulse/') ? '/pulse' : pathname;
-	React.useLayoutEffect(() => {
-		scrollRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-	}, [scrollKey]);
 	const isProductsRoute = pathname?.startsWith('/products');
   // Immersive chat surfaces own the full viewport — no site footer or dev banner
   // (which read as a fake "footer line" under the composer), and no reserved
@@ -79,19 +98,23 @@ export default function AppShell({
                     <TradeModeProvider>
                     <CartProvider>
                     <ConfirmDialogProvider>
+                    {/* Only the page/drawer scroll. A document-level hash or
+                        focus jump must never move the header or demo notice. */}
+                    <div data-app-shell className="fixed inset-x-0 top-0 flex h-dvh min-h-0 min-w-0 flex-col overflow-clip">
                     <SkipToContent />
                     <UpdateBanner />
                     <MyTopBar />
                     <ImpersonationBanner />
                     <DemoSessionNotice />
-                    <div ref={scrollRef} data-site-scroll="true" data-app-scroll-container={isProductsRoute || isImmersiveChat ? undefined : 'true'} className={`flex flex-1 flex-col min-h-0 min-w-0 overscroll-contain-y ${isProductsRoute || isImmersiveChat ? 'overflow-hidden' : 'overflow-auto'}`}>
+                    <PageScroller scrollKey={scrollKey} contained={Boolean(isProductsRoute || isImmersiveChat)}>
                       <main id="main-content" tabIndex={-1} className={`min-w-0 outline-none ${isProductsRoute || isImmersiveChat ? 'flex flex-1 flex-col min-h-0' : 'shrink-0 min-h-[calc(100dvh-var(--app-header-offset,0px)-var(--demo-notice-height,0px))]'} ${isImmersiveChat ? '' : 'pb-[var(--cookie-banner-offset,0px)]'}`}>
                         {children}
                       </main>
                       {!isProductsRoute && !isImmersiveChat && pathname !== '/' && <SiteFooter />}
-                    </div>
+                    </PageScroller>
                     <CookieBanner />
                     <Toaster />
+                    </div>
                     </ConfirmDialogProvider>
                     </CartProvider>
                     </TradeModeProvider>

@@ -12,5 +12,5 @@ export const PLANS = [
   { id: "byok", name: "Your API key", price: "Your provider's rates", note: "No platform credit debit", featured: false,
     tagline: "Use a personal provider key from your own signed-in account.",
     features: ["Keys encrypted at rest", "Your provider bills usage directly", "Daily rate limits still apply", "Provider availability and terms apply"],
-    href: "/settings#ai-keys", ctaLabel: "Manage API keys" },
+    href: "/settings?section=ai", ctaLabel: "Manage API keys" },
 ] as const;

@@ -1,9 +1,6 @@
 /**
- * @fileOverview Public SaaS storefront — /pricing.
- *   Server Component shell: SEO metadata + a story-driven header and the
- *   interactive PricingTiers grid (client). Tiers come from the single source
- *   of truth in components/uicustom/pricing/plans-config.ts. Reachable
- *   unauthenticated (added to publicRoutes); no schema or payment dependency.
+ * @fileOverview Public, server-rendered showcase offers and usage limits.
+ *   Plans use the authoritative reviewer SKU; no subscription is implied.
  * @stability active
  */
 
@@ -12,7 +9,7 @@ import Link from "next/link";
 import PricingTiers from "@/components/uicustom/pricing/PricingTiers";
 
 export const metadata: Metadata = {
-  title: "Pricing — Veggat",
+  title: "Pricing",
   description:
     "Explore Veggat for free. Available premium AI uses prepaid credits; personal API keys bill your own provider. Daily safety limits apply.",
   openGraph: {
@@ -25,7 +22,7 @@ export const metadata: Metadata = {
 const FAQ: { q: string; a: string }[] = [
   {
     q: "What does “bring your own key” mean?",
-    a: "Add your own API key from any of six AI providers (OpenAI, Anthropic, Google, Groq, Grok, OpenRouter). Your provider bills usage directly. We do not debit platform credits; daily account and rate limits still apply. Keys are encrypted at rest and decrypted only on the server.",
+    a: "Save a supported provider key in Settings → AI Keys. Your provider bills usage directly. We do not debit platform credits; daily account and rate limits still apply. Keys are encrypted at rest and decrypted only on the server. Personal keys require your own signed-in account, not a demo workspace.",
   },
   {
     q: "Do I need a subscription to sell or buy in the shop?",
@@ -43,15 +40,15 @@ const FAQ: { q: string; a: string }[] = [
 
 export default function PricingPage() {
   return (
-    <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
-      <div className="relative mx-auto w-full max-w-6xl px-6 py-14 lg:py-20">
+    <div className="min-w-0">
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <header className="mx-auto max-w-2xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground">
             <span aria-hidden className="h-2 w-2 rounded-full bg-brand-accent" />
             <span>Pricing</span>
           </div>
-          <h1 className="mt-4 text-balance text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+          <h1 className="mt-4 text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
             Pay for value, never for keys.
           </h1>
           <p className="mt-4 text-pretty text-base text-muted-foreground">
@@ -75,7 +72,7 @@ export default function PricingPage() {
             {FAQ.map(({ q, a }) => (
               <div
                 key={q}
-                className="rounded-2xl border border-border bg-card/50 p-5 backdrop-blur-xl"
+                className="rounded-2xl border border-border bg-card p-5"
               >
                 <dt className="text-sm font-semibold text-foreground">{q}</dt>
                 <dd className="mt-2 text-sm leading-relaxed text-muted-foreground">{a}</dd>
@@ -90,7 +87,7 @@ export default function PricingPage() {
             Building something bigger?{" "}
             <Link
               href="/info#contact"
-              className="font-semibold text-brand-accent underline-offset-4 hover:underline"
+              className="inline-flex min-h-11 items-center rounded px-1 font-semibold text-brand-accent underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               Talk to THORSEN SOFTWARE
             </Link>

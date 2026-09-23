@@ -1,6 +1,179 @@
 import { test, expect } from "@playwright/test";
 
 for (const width of [390, 1280]) {
+  test(`S8 — pricing and info links, layout and scrolling (${width}px)`, async ({ browser, baseURL }) => {
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo; does not create credits or change keys');
+    test.setTimeout(120_000);
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: 844 }, colorScheme: 'dark' });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    try {
+      await page.goto('/pricing', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('complementary', { name: 'Demo mode', exact: true })).toBeVisible();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      await page.getByRole('link', { name: 'Manage API keys', exact: true }).click();
+      await expect(page).toHaveURL(/\/settings\?section=ai$/);
+      await expect(page.getByRole('heading', { name: 'AI Keys', exact: true })).toBeVisible();
+      await page.goto('/pricing', { waitUntil: 'domcontentloaded' });
+      await page.getByRole('link', { name: 'View the credit pack', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true })).toBeVisible();
+      await page.goto('/pricing', { waitUntil: 'domcontentloaded' });
+      await page.getByRole('link', { name: 'Open the free demo', exact: true }).click();
+      await expect(page).toHaveURL(new URL('/', baseURL!).href);
+      await expect(page.getByRole('heading', { name: 'Veggat', exact: true })).toBeVisible();
+      await page.goto('/pricing', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('complementary', { name: 'Demo mode', exact: true })).toBeVisible();
+      await page.evaluate(() => { (window as Window & { __marketingHeader?: Element | null }).__marketingHeader = document.querySelector('header'); });
+      await page.getByRole('link', { name: 'Talk to THORSEN SOFTWARE', exact: true }).click();
+      await expect(page).toHaveURL(/\/info#contact$/);
+      const contact = page.getByRole('region', { name: 'Contact', exact: true });
+      await expect(contact.getByRole('heading', { name: 'Contact', exact: true })).toBeInViewport();
+      const expectStationaryShell = async () => {
+        await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+        await expect(page.getByRole('complementary', { name: 'Demo mode', exact: true })).toBeInViewport();
+        expect(await page.locator('[data-site-scroll]').evaluate(e => Math.abs(e.getBoundingClientRect().bottom - innerHeight))).toBeLessThan(2);
+      };
+      await expectStationaryShell();
+      await expect(contact.getByRole('link', { name: /Contact via GitHub/ })).toHaveAttribute('href', 'https://github.com/veggaen');
+      const popupPromise = page.waitForEvent('popup');
+      await contact.getByRole('link', { name: /Contact via GitHub/ }).click();
+      const popup = await popupPromise;
+      await expect(popup).toHaveURL(/^https:\/\/github\.com\/veggaen(?:[/?#]|$)/);
+      await popup.close();
+      expect(await page.evaluate(() => (window as Window & { __marketingHeader?: Element | null }).__marketingHeader === document.querySelector('header'))).toBe(true);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('complementary', { name: 'Demo mode', exact: true })).toBeVisible();
+      await expect(contact.getByRole('heading', { name: 'Contact', exact: true })).toBeInViewport();
+      await expectStationaryShell();
+      await contact.getByRole('link', { name: 'Explore marketplace', exact: true }).click();
+      await expect(page).toHaveURL(/\/products$/);
+      await expect(page.getByRole('button', { name: 'Product filters', exact: true })).toBeVisible();
+      for (const route of ['/pricing', '/info']) {
+        await page.goto(route, { waitUntil: 'domcontentloaded' });
+        await expect(page.getByRole('complementary', { name: 'Demo mode', exact: true })).toBeVisible();
+        await expect(page.locator('main h1')).toHaveCount(1);
+        await expect(page.locator('footer')).toHaveCount(1);
+        const site = page.locator('[data-site-scroll]');
+        for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+          await page.setViewportSize(size);
+          await site.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+          await expect(page.locator('main h1')).toBeInViewport();
+          await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('[data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+          await page.mouse.move(size.width / 2, size.height - 30);
+          await page.mouse.wheel(0, 350);
+          await expect.poll(() => site.evaluate(e => e.scrollTop)).toBeGreaterThan(0);
+          await page.mouse.wheel(0, 6000);
+          await expect(page.locator('footer')).toBeInViewport();
+          await expectStationaryShell();
+        }
+        await page.setViewportSize({ width, height: 844 });
+        const before = await site.evaluate(e => e.scrollTop);
+        await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+        const drawer = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
+        await expect(drawer).toBeVisible();
+        await drawer.evaluate(async e => { await Promise.all(e.getAnimations().map(a => a.finished.catch(() => {}))); });
+        await expect(drawer.getByText('Loading wallet controls…', { exact: true })).toBeHidden();
+        const rail = page.locator('[data-navigation-scroll]');
+        const box = await rail.boundingBox();
+        await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+        await page.mouse.wheel(0, 7000);
+        await expect.poll(() => rail.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+        await page.mouse.wheel(0, 1000);
+        expect(await site.evaluate(e => e.scrollTop)).toBe(before);
+        await page.keyboard.press('Escape');
+        await expect(drawer).toBeHidden();
+        await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeFocused();
+      }
+      await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
+      await page.goto('/info', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('complementary', { name: 'Demo mode', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Digital products. Clear ownership.', exact: true })).toBeVisible();
+      const avatar = page.getByRole('complementary', { name: 'About the builder', exact: true }).locator('img');
+      await avatar.scrollIntoViewIfNeeded();
+      await expect.poll(() => avatar.evaluate(e => (e as HTMLImageElement).complete && (e as HTMLImageElement).naturalWidth > 0)).toBe(true);
+      await page.getByRole('link', { name: 'Contact the builder', exact: true }).click();
+      await expect(contact.getByRole('heading', { name: 'Contact', exact: true })).toBeInViewport();
+      await expectStationaryShell();
+      await contact.getByRole('link', { name: 'Back home', exact: true }).click();
+      await expect(page).toHaveURL(new URL('/', baseURL!).href);
+      for (const [label, destination] of [['Browse products', '/products'], ['Explore Pulse', '/pulse'], ['View analytics previews', '/analytics'], ['See pricing & limits', '/pricing']] as const) {
+        await page.goto('/info', { waitUntil: 'domcontentloaded' });
+        await page.getByRole('link', { name: label, exact: true }).click();
+        await expect(page).toHaveURL(new URL(destination, baseURL!).href);
+        if (destination === '/products') await expect(page.getByRole('button', { name: 'Product filters', exact: true })).toBeVisible();
+        else if (destination === '/pulse') await expect(page.getByRole('feed', { name: 'Pulse feed', exact: true })).toBeVisible();
+        else await expect(page.locator('main h1').first()).toBeVisible();
+      }
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+}
+
+test('S8 — info text paints before app bundles and remains readable with reduced motion', async ({ browser, baseURL }) => {
+  for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion });
+    try {
+      const page = await context.newPage();
+      let blocked = 0;
+      await page.route('**/_next/static/**', route => {
+        if (new URL(route.request().url()).pathname.endsWith('.js')) { blocked++; return route.abort(); }
+        return route.continue();
+      });
+      await page.goto('/info', { waitUntil: 'domcontentloaded' });
+      const heading = page.locator('main h1');
+      await expect(heading).toBeVisible();
+      for (const target of [heading, page.getByRole('heading', { name: 'Contact', exact: true })]) {
+        await target.scrollIntoViewIfNeeded();
+        await expect(target).toBeInViewport();
+        expect(await target.evaluate(e => {
+          for (let node: Element | null = e; node; node = node.parentElement) if (Number(getComputedStyle(node).opacity) === 0) return false;
+          return true;
+        })).toBe(true);
+      }
+      expect(blocked).toBeGreaterThan(0);
+      await expect(page.getByText('Loading page…', { exact: true })).toHaveCount(0);
+    } finally { await context.close(); }
+  }
+});
+
+test('S8 — pricing preserves the AI settings destination for signed-out visitors', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.goto('/pricing', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    await page.getByRole('link', { name: 'Manage API keys', exact: true }).click();
+    await expect(page).toHaveURL(url => url.pathname === '/auth/login' && url.searchParams.get('callbackUrl') === '/settings?section=ai');
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+  } finally { await context.close(); }
+});
+
+test('S8 — pricing preserves an early scroll while app scripts hydrate', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+  let release!: () => void;
+  const scripts = new Promise<void>(resolve => { release = resolve; });
+  try {
+    const page = await context.newPage();
+    await page.route('**/_next/static/**', async route => {
+      if (new URL(route.request().url()).pathname.endsWith('.js')) await scripts;
+      await route.continue();
+    });
+    await page.goto('/pricing', { waitUntil: 'commit' });
+    const link = page.getByRole('link', { name: 'Manage API keys', exact: true });
+    await link.scrollIntoViewIfNeeded();
+    expect(await page.locator('[data-site-scroll]').evaluate(e => e.scrollTop)).toBeGreaterThan(500);
+    release();
+    await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    await expect(link).toBeInViewport();
+    expect(await page.evaluate(() => scrollY)).toBe(0);
+    await link.click();
+    await expect(page).toHaveURL(url => url.pathname === '/auth/login' && url.searchParams.get('callbackUrl') === '/settings?section=ai');
+  } finally { release(); await context.close(); }
+});
+
+for (const width of [390, 1280]) {
   test(`S8 — crypto filters, errors, table and scroll geometry (${width}px)`, async ({ browser, baseURL }) => {
     test.setTimeout(120_000);
     const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: 844 }, colorScheme: 'dark' });

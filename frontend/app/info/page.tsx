@@ -1,303 +1,108 @@
-"use client";
+/** @fileOverview Public product story and contact route; readable before hydration. @stability stable */
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import Image from 'next/image';
+import { ArrowUpRight, ShieldCheck, PackageOpen, MessageSquare } from 'lucide-react';
 
-import Link from "next/link";
-import Image from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
+export const metadata: Metadata = {
+  title: 'About & Contact',
+  description: 'Veggat is a trust-first marketplace for digital products. Explore the free demo, private downloads and credit-gated AI, or contact the builder.',
+};
 
-const AVATAR_URL = "https://avatars.githubusercontent.com/veggaen";
+const linkStyle = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-center text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+const steps = [
+  { icon: PackageOpen, title: 'Explore the marketplace', text: 'Browse the reviewer products and add a digital file pack or AI credits to your basket.' },
+  { icon: ShieldCheck, title: 'Try a free demo order', text: 'Use an isolated demo workspace. Checkout shows a 0 NOK receipt and gives you real sample JPG and TXT downloads, without opening a payment provider.' },
+  { icon: MessageSquare, title: 'See the safeguards', text: 'The demo starts with five one-time AI credits. Message costs are shown before sending, and premium requests stop when the balance runs out.' },
+];
+const architecture = [
+  { name: 'Next.js', purpose: 'The reference client: storefront, account screens and server-side application routes.' },
+  { name: 'Hapi', purpose: 'A separate integration core for shipping, warehouse services and realtime connections.' },
+  { name: 'PostgreSQL & Prisma', purpose: 'Products, orders, entitlements and an atomic AI-credit ledger.' },
+  { name: 'NextAuth', purpose: 'Account sessions and protected routes, with provider sign-in and email/password flows.' },
+];
 
 export default function InfoPage() {
-  const reduceMotion = useReducedMotion();
-
-  return (
-    <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
-      {/* Clean background - no gradient orbs for better display compatibility */}
-
-      <div className="relative mx-auto w-full max-w-7xl px-6 py-10 lg:py-12">
-        <motion.div
-          initial={reduceMotion ? undefined : { opacity: 0, y: 14 }}
-          animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
-        >
-          <div className="grid grid-cols-1 gap-10 2xl:grid-cols-[320px_minmax(0,1fr)_260px]">
-            <header className="space-y-3 2xl:col-start-2 2xl:col-span-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground">
-                <motion.span
-                  className="h-2 w-2 rounded-full bg-emerald-400"
-                  aria-hidden
-                  animate={reduceMotion ? undefined : { opacity: [0.55, 1, 0.55] }}
-                  transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-                />
-                <span>Info / Contact</span>
-              </div>
-              <h1 className="text-balance text-4xl font-semibold text-foreground sm:text-5xl">
-                Building a marketplace that feels alive.
-              </h1>
-              <p className="max-w-3xl text-pretty text-sm text-muted-foreground sm:text-base">
-                VeggaStare is my playground for fast UI motion, realtime signals, and practical marketplace workflows. Pulse your
-                thoughts, sync with your community, and watch the ripple effect. I&apos;m iterating in public: shipping small, learning
-                quickly, and turning rough edges into a system that feels effortless.
-              </p>
-            </header>
-
-            <motion.aside
-              initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
-              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, ease: "easeOut", delay: 0.05 }}
-              className="2xl:row-start-1 2xl:row-span-2 2xl:col-start-1"
-            >
-              <div className="flex items-center gap-5 sm:gap-6 2xl:flex-col 2xl:items-start">
-                <motion.div
-                  className="relative shrink-0"
-                  initial={"rest"}
-                  animate={"rest"}
-                  whileHover={reduceMotion ? undefined : "hover"}
-                  variants={
-                    reduceMotion
-                      ? undefined
-                      : {
-                          rest: { scale: 1, rotate: 0 },
-                          hover: { scale: 1.06, rotate: -1.5 },
-                        }
-                  }
-                  transition={{ type: "spring", stiffness: 420, damping: 22 }}
-                >
-                  {/* Soft aura glow */}
-                  <motion.div
-                    aria-hidden
-                    className="absolute -inset-3 rounded-full blur-xl"
-                    style={{
-                      background:
-                        "conic-gradient(from 180deg, rgba(34,197,94,0.22), rgba(56,189,248,0.18), rgba(236,72,153,0.14), rgba(34,197,94,0.22))",
-                    }}
-                    animate={
-                      reduceMotion
-                        ? undefined
-                        : {
-                            rotate: 360,
-                            opacity: [0.55, 0.85, 0.55],
-                            filter: [
-                              "blur(18px) saturate(1.05)",
-                              "blur(24px) saturate(1.25)",
-                              "blur(18px) saturate(1.05)",
-                            ],
-                          }
-                    }
-                    transition={{ duration: 16, repeat: Infinity, ease: "linear" }}
-                    variants={
-                      reduceMotion
-                        ? undefined
-                        : {
-                            rest: { scale: 1, opacity: 0.55 },
-                            hover: { scale: 1.18, opacity: 1 },
-                          }
-                    }
-                  />
-
-                  {/* Dense edge ring glow (masked so it hugs the border) */}
-                  <motion.div
-                    aria-hidden
-                    className="absolute -inset-2 rounded-full pointer-events-none"
-                    style={{
-                      background:
-                        "conic-gradient(from 90deg, rgba(34,197,94,0.65), rgba(56,189,248,0.65), rgba(236,72,153,0.48), rgba(34,197,94,0.65))",
-                      WebkitMaskImage:
-                        "radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 8px), #000 100%)",
-                      maskImage:
-                        "radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 8px), #000 100%)",
-                    }}
-                    variants={
-                      reduceMotion
-                        ? undefined
-                        : {
-                            rest: { opacity: 0, filter: "blur(0px) saturate(1)" },
-                            hover: { opacity: 1, filter: "blur(0.7px) saturate(1.5)" },
-                          }
-                    }
-                    transition={{ duration: 0.22, ease: "easeOut" }}
-                  />
-
-                  {/* Tight border glow */}
-                  <motion.div
-                    aria-hidden
-                    className="absolute -inset-1 rounded-full"
-                    variants={
-                      reduceMotion
-                        ? undefined
-                        : {
-                            rest: { opacity: 0, boxShadow: "0 0 0 rgba(0,0,0,0)" },
-                            hover: {
-                              opacity: 1,
-                              boxShadow:
-                                "inset 0 0 0 1.5px rgba(255,255,255,0.14), 0 0 0 1px rgba(56,189,248,0.26), 0 0 28px rgba(56,189,248,0.55), 0 0 48px rgba(34,197,94,0.38), 0 0 36px rgba(236,72,153,0.26)",
-                            },
-                          }
-                    }
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                  />
-                  <Image
-                    src={AVATAR_URL}
-                    alt="Veggaen profile image"
-                    width={180}
-                    height={180}
-                    className="relative h-[96px] w-[96px] rounded-full border border-border object-cover sm:h-[120px] sm:w-[120px] 2xl:h-[160px] 2xl:w-[160px]"
-                    priority
-                  />
-                </motion.div>
-
-                <div className="min-w-0">
-                  <div className="text-lg font-semibold text-foreground">Veggaen</div>
-                  <div className="mt-0.5 text-sm text-muted-foreground">
-                    Builder · motion-first UI · backend systems · crypto tooling
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <Link
-                      href="https://github.com/veggaen"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground/40"
-                    >
-                      GitHub
-                    </Link>
-                    <span className="text-sm text-muted-foreground/60">Email (add later)</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-7 hidden 2xl:block border-t border-border pt-5">
-                <div className="text-xs font-semibold tracking-wide text-muted-foreground">Now</div>
-                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                  <li className="flex gap-2">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-foreground/25" />
-                    <span>Polishing marketplace UX, search, and filtering.</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-foreground/25" />
-                    <span>Realtime “Pulse” as signal, not noise.</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-foreground/25" />
-                    <span>Wallet UX + network-aware pricing.</span>
-                  </li>
-                </ul>
-              </div>
-            </motion.aside>
-
-            <div className="space-y-8 2xl:col-start-2">
-              <motion.section
-                initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
-                animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut", delay: 0.08 }}
-                className="border-t border-border pt-5"
-              >
-                <h2 className="text-sm font-semibold tracking-wide text-foreground/90">What this is</h2>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  A modern marketplace where the boring parts are solid (search, inventory, checkout), and the interface feels
-                  responsive, expressive, and calm — even when the data is moving.
-                </p>
-                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-                  I’m building it with a systems mindset: permissions and roles that make sense, realtime updates that scale,
-                  and UI motion that helps you understand state instead of distracting you.
-                </p>
-              </motion.section>
-
-              <motion.section
-                initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
-                animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut", delay: 0.12 }}
-                className="border-t border-border pt-5"
-              >
-                <h2 className="text-sm font-semibold tracking-wide text-foreground/90">What&apos;s next</h2>
-                <ul className="mt-3 grid grid-cols-1 gap-x-10 gap-y-2 text-sm text-muted-foreground sm:grid-cols-2">
-                  {[
-                    "Production hardening: stability, performance, and fewer sharp edges.",
-                    "Pulse: a high-signal realtime stream where your rhythm ripples out.",
-                    "Sync & discover: find your vibe, align with communities that resonate.",
-                    "Warehouse tooling: inventory ops, config, and an admin experience that stays fast.",
-                    "Design system polish: spacing, motion, and touch-friendly patterns.",
-                    "More user control: heartbeat what moves you, vibe it wider.",
-                  ].map((item) => (
-                    <li key={item} className="flex gap-2">
-                      <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 flex-none rounded-full bg-foreground/25" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.section>
-
-              <motion.section
-                initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
-                animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut", delay: 0.16 }}
-                className="border-t border-border pt-5"
-              >
-                <h2 className="text-sm font-semibold tracking-wide text-foreground/90">How I build</h2>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Ship small changes, validate with real usage, then refine. I care about performance, accessibility, and
-                  consistent interaction patterns so the product stays coherent as it grows.
-                </p>
-              </motion.section>
-
-              <motion.section
-                initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
-                animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut", delay: 0.2 }}
-                className="border-t border-border pt-5"
-              >
-                <h2 className="text-sm font-semibold tracking-wide text-foreground/90">Contact</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Want to collaborate, report a bug, or suggest a feature? The fastest path right now is GitHub.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Link
-                    href="/products"
-                    className="rounded-xl bg-muted/50 dark:bg-white/5 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted dark:hover:bg-white/10 hover:text-foreground"
-                  >
-                    Explore marketplace
-                  </Link>
-                  <Link
-                    href="/"
-                    className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground/60 transition-colors hover:bg-muted/50 dark:hover:bg-white/5 hover:text-foreground"
-                  >
-                    Back home
-                  </Link>
-                </div>
-              </motion.section>
-            </div>
-
-            <motion.aside
-              initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
-              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, ease: "easeOut", delay: 0.1 }}
-              className="hidden space-y-8 2xl:block 2xl:col-start-3"
-            >
-              <div className="border-t border-border pt-5">
-                <div className="text-xs font-semibold tracking-wide text-muted-foreground">Focus</div>
-                <div className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Motion as feedback, not decoration. Realtime where it matters. Clear roles and data that stays correct.
-                </div>
-              </div>
-              <div className="border-t border-border pt-5">
-                <div className="text-xs font-semibold tracking-wide text-muted-foreground">Stack</div>
-                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                  <li className="flex gap-2">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-foreground/25" />
-                    <span>Next.js App Router + Tailwind</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-foreground/25" />
-                    <span>Prisma + realtime primitives</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 rounded-full bg-foreground/25" />
-                    <span>wagmi + wallet UX polish</span>
-                  </li>
-                </ul>
-              </div>
-            </motion.aside>
-          </div>
-        </motion.div>
+  return <div className="mx-auto w-full min-w-0 max-w-7xl space-y-8 px-4 py-8 sm:space-y-10 sm:px-6 sm:py-12 lg:px-8">
+    <header className="max-w-3xl space-y-4">
+      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">About Veggat</p>
+      <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl">Digital products. Clear ownership.</h1>
+      <p className="text-pretty text-base leading-relaxed text-muted-foreground">Veggat is a trust-first marketplace for digital products. Explore a complete buying journey, receive private downloads and try AI with clear usage costs.</p>
+      <div className="flex flex-wrap gap-3">
+        <Link href="/products" className={linkStyle + ' border-brand-accent bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover'}>Browse products</Link>
+        <Link href="/" className={linkStyle}>Open the free demo</Link>
+        <Link href="#contact" className={linkStyle}>Contact the builder</Link>
       </div>
+    </header>
+
+    <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8">
+      <div className="min-w-0 space-y-6">
+        <section aria-labelledby="demo-walkthrough-title" className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+          <h2 id="demo-walkthrough-title" className="text-xl font-semibold">A demo you can actually use</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">No shared password and no card required. Each visitor gets a separate temporary workspace.</p>
+          <ol className="mt-6 space-y-6">
+            {steps.map(({ icon: Icon, title, text }, index) => <li key={title} className="flex min-w-0 gap-3 sm:gap-4">
+              <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-muted"><Icon className="size-5 text-brand-accent" /></span>
+              <div className="min-w-0 space-y-1">
+                <h3 className="text-base font-medium">{index + 1}. {title}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{text}</p>
+              </div>
+            </li>)}
+          </ol>
+          <p className="mt-6 border-t border-border pt-4 text-sm leading-relaxed text-muted-foreground">Real purchases are separate from the demo and use PayPal only when checkout is configured. Products and credits are never granted from a return URL alone.</p>
+        </section>
+
+        <section aria-labelledby="architecture-title" className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+          <h2 id="architecture-title" className="text-xl font-semibold">How it fits together</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">One product, with clear boundaries between the interface, integrations and durable data.</p>
+          <dl className="mt-5 grid gap-5 sm:grid-cols-2">
+            {architecture.map(item => <div key={item.name} className="min-w-0">
+              <dt className="text-sm font-semibold">{item.name}</dt>
+              <dd className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.purpose}</dd>
+            </div>)}
+          </dl>
+        </section>
+
+        <section aria-labelledby="experiments-title" className="rounded-2xl border border-border p-5 sm:p-6">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Experimental modules</p>
+          <h2 id="experiments-title" className="text-xl font-semibold">More to explore</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Pulse, polls, trading and warehouse tools explore the same underlying platform. They are not required for the digital-product demo, and some controls are intentionally read-only in demo mode.</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link href="/pulse" className={linkStyle}>Explore Pulse</Link>
+            <Link href="/analytics" className={linkStyle}>View analytics previews</Link>
+          </div>
+        </section>
+      </div>
+
+      <aside aria-label="About the builder" className="min-w-0 space-y-6">
+        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+          <a href="https://github.com/veggaen" target="_blank" rel="noopener noreferrer" className="group flex min-w-0 items-center gap-4 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
+            <Image src="https://avatars.githubusercontent.com/veggaen" alt="" width={96} height={96} sizes="96px" className="size-20 shrink-0 rounded-full border border-border object-cover motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105" />
+            <div className="min-w-0"><p className="font-semibold">Veggaen</p><p className="mt-1 text-sm text-muted-foreground">Builder of Veggat</p><span className="mt-2 inline-flex items-center gap-1 text-sm underline underline-offset-4">GitHub <ArrowUpRight aria-hidden="true" className="size-4" /><span className="sr-only"> (opens in a new tab)</span></span></div>
+          </a>
+          <p className="mt-5 text-sm leading-relaxed text-muted-foreground">A full-stack project focused on useful workflows, explicit permissions and responsive interfaces.</p>
+        </div>
+        <div className="rounded-2xl border border-border p-5 sm:p-6">
+          <h2 className="text-lg font-semibold">What matters here</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-muted-foreground">
+            <li>Server-owned prices and verified fulfillment.</li>
+            <li>Private, time-limited downloads checked against your order.</li>
+            <li>Prepaid AI limits with failure refunds and a platform spending cap.</li>
+            <li>Keyboard access, readable loading states and mobile-first reflow.</li>
+          </ul>
+          <Link href="/pricing" className={linkStyle + ' mt-5 w-full'}>See pricing & limits</Link>
+        </div>
+      </aside>
     </div>
-  );
+
+    <section id="contact" tabIndex={-1} aria-labelledby="contact-title" className="scroll-mt-6 rounded-2xl border border-border bg-card p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring sm:p-8">
+      <h2 id="contact-title" className="text-2xl font-semibold">Contact</h2>
+      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Want to discuss the project, collaborate or report a bug? Find Veggaen on GitHub. Do not include passwords, API keys or private account details in public messages.</p>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <a href="https://github.com/veggaen" target="_blank" rel="noopener noreferrer" className={linkStyle}>Contact via GitHub <ArrowUpRight aria-hidden="true" className="size-4" /><span className="sr-only">(opens in a new tab)</span></a>
+        <Link href="/products" className={linkStyle}>Explore marketplace</Link>
+        <Link href="/" className={linkStyle}>Back home</Link>
+      </div>
+    </section>
+  </div>;
 }

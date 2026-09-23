@@ -511,6 +511,79 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   bottom scrolling finds a Contact section but no nearby contact action; the only
   GitHub link is above it. These are queued defects, not verified fixes.
 
+### Pricing and Info/contact (local verified; live verification pending)
+
+- Reproduced Pricing's API-key CTA opening Profile instead of AI Keys, and its
+  contact CTA targeting a nonexistent fragment. Added focused regressions before
+  the fix: the link test failed on the wrong URL and a separate pre-bundle test
+  proved Info's heading stayed transparent when external app chunks were blocked.
+- Info is now server-rendered, with a short marketplace story, a concrete free
+  demo walkthrough, architecture boundaries and clearly experimental modules.
+  Removed the placeholder email and linked GitHub directly from a named Contact
+  section. Existing tokens and 16/24/32px gutters / 1280px canvas retained; cards
+  stack on phones. Removed delayed text entrances, perpetual blur/glow loops and
+  route-specific Framer Motion hydration. Avatar feedback is a 200ms transform
+  only on hover-capable pointers, disabled under reduced motion.
+- Pricing now uses the same gutters/canvas, a smaller phone heading, a 44px
+  contact link and explicit focus styles. Its key link uses `?section=ai` and the
+  existing auth redirect preserves that destination. FAQ no longer promises six
+  selectable key providers: the legacy Settings panel currently exposes three,
+  despite six server-supported providers. Completing that management UI remains
+  a separate follow-up, not a finished feature.
+- Initial candidate build/TypeScript/lint passed. New pre-bundle/reduced-motion
+  and signed-out callback tests pass. The complete links test fails at both
+  390/1280: the shared nested scroller resets a valid contact destination to 0.
+  Actual browser reproduction confirms Contact remains below the viewport.
+  An immediate anchor lookup still failed: instrumented browser calls showed
+  that both Next's scroll and the shell reset run before Contact mounts. The
+  correction now uses bounded observation for a delayed fragment, disconnects
+  when found, and cancels on user wheel/touch/pointer/keyboard input or navigation.
+  Missing/malformed fragments cannot crash or retain a permanent observer.
+  **9/9** focused unit tests and touched-file lint pass. Pulse regressions passed
+  on the intermediate candidate; contact/reload and the final shared-scroll
+  correction still require the final local/live browser run.
+- The delayed target test exposed a second, visible defect: `scrollIntoView`
+  moved the document by 253px, hiding the demo notice and leaving a blank strip
+  below the footer. An isolated browser experiment confirmed root `overflow:
+  clip` alone did not prevent this viewport jump. The application shell is now
+  explicitly viewport-bound (`h-dvh`), with only the existing page and drawer
+  scrollers moving. The gate is outside that shell and keeps its normal layout.
+  New assertions check document scroll stays zero, the demo notice stays visible
+  and the page scroller ends at the viewport after links, reload and footer scroll.
+- Expanded intermediate browser run: **13/15** passed, including Products,
+  Settings, AI, Messages, hydration and all three Pulse checks. The two failures
+  were direct Contact reloads, not the corrected client navigation. On initial
+  load the parent's layout effect ran before lazy providers mounted its scroller.
+  Restoration now lives in a small child component next to the actual DOM node;
+  this preserves the existing shell and Pulse modal scroll key. Direct phone
+  reload now reaches Contact with document scroll 0; full final verification
+  remains pending.
+- A dedicated delayed-script test reproduced an initial-load race: scroll to
+  Pricing's lower key-management link before app bundles arrive, then hydrate;
+  the initial route reset pulled it out of view. This is distinct from a route
+  change and could lose an early click. The scroller now resets ordinary pages
+  only when the pathname changes, preserving pre-hydration user scroll; explicit
+  fragments still restore on initial load. The regression failed on the prior
+  production candidate and is included in final verification.
+- This slice does not claim payment availability, completed OAuth consent, real
+  Chrome access, physical keyboard behavior or a field Core Web Vitals pass.
+- Final production build/TypeScript/touched-file lint pass; scroll-helper units
+  **9/9**. Final local browser batch **16/16** (1.6m, including setup) passes:
+  Pricing/Info links, preserved auth callback, cross-route/in-page/reloaded
+  Contact, delayed-script scroll preservation, readable pre-bundle text, all
+  eight viewport sizes, real wheel/footer/drawer scrolling and shared Products,
+  Settings, AI, Messages, hydration and Pulse regressions. No provider generation,
+  key mutation, new demo grants or purchases were made in this slice.
+  Phone dark/light, short landscape and centered 2560px visuals were inspected.
+  Additional manual checks: Register's submit remains reachable at 390x360 and
+  the keyboard skip link focuses main without moving the document. This is a
+  shortened-viewport check, not a physical phone-keyboard verification.
+- Follow-up source findings to verify visually: login/register still use 500ms
+  opacity entrances, fixed theme buttons and the older Pulse-first product copy.
+  Register's only H1 is hidden below `lg`; the form title is an H2. Products also
+  lacks a semantic page H1. These are queued separately from Pricing/Info, not
+  counted as fixed by this slice.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
@@ -527,3 +600,4 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - [CoinGecko historical market-chart intervals](https://docs.coingecko.com/demo/reference/coins-id-market-chart)
 - [CoinGecko Demo header authentication](https://docs.coingecko.com/demo/reference/authentication)
 - [Next.js persistent function caching](https://nextjs.org/docs/app/api-reference/functions/unstable_cache)
+- [CSS overflow and programmatic scrolling](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overflow)
