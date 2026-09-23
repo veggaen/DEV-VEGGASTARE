@@ -2,7 +2,18 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-Latest verified follow-up: Notifications API safety, responsive inbox and real
+Latest verified follow-up: Orders, receipts and downloads shipped as `e73a27b` /
+`dpl_5ZmwRus2KfRMexm5MytTCVG2Sz1e`, READY at www.veggat.com. Final local browser
+**7/7 (56.6s)** and live **7/7 (1.2m)** pass, including shared header/sidebar and
+Pulse/footer scrolling regressions (counts include gate setup). Eight viewport
+sizes, light/dark screenshots, refresh/error recovery, empty/expired/long-content
+states and real private JPG/TXT downloads are covered. Demo orders now clearly
+show 0 NOK charged and separate catalog value, not a paid 68 NOK order. No new
+purchases, cap resets or credit grants. Strict build/TypeScript, touched-file lint
+and **24/24** focused units pass. Full-app completion, Profile, owner OAuth
+consents and missing PayPal credentials remain open.
+
+Previous verified follow-up: Notifications API safety, responsive inbox and real
 controls shipped as `c7611bc` / `dpl_AUTqoAT7yKb3tW4xL8AfDnyWNc3e`, READY at
 www.veggat.com. Local browser regressions **12/12**, final styling recheck **3/3**,
 live browser regressions **12/12 (1.5m)**, strict build/TypeScript, touched-file
@@ -10,7 +21,7 @@ lint and **50/50** focused units pass. Real-account checks found and repaired
 stale archive/restore caching and a tooltip/popover Escape conflict. Eight sizes,
 real wheel scrolling, dark/light screenshots, demo read-only and API ownership
 are covered. See the responsive audit for scope and fixture cleanup. Profile
-loading and order/download presentation are next. This does not change S4's
+loading and remaining-route interactions still need review. This does not change S4's
 missing PayPal secrets or imply that all routes/features are complete.
 
 ## S1 — First impression (DONE)
@@ -90,13 +101,14 @@ missing PayPal secrets or imply that all routes/features are complete.
   revocation and usage cap before returning verified file bytes.
 - Local and live browsers: free demo checkout completed with both items, 0.00 NOK receipt,
   real JPG/TXT downloads, signed-out download 401, replay returns the same order.
-  Demo purchase intentionally grants no paid balance; S5 free grant is pending.
+  Demo purchase intentionally grants no paid balance; S5 separately grants the
+  isolated demo account a bounded one-time free allowance.
 - Payment/storage/entitlement unit tests **60/60**; database constraint checks
   **4/4** in a rolled-back transaction. No real or sandbox PayPal charge yet.
 - `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` remain missing.
   Normal payment CTA fails closed. Production values belong only in Vercel
   Production; local/preview use Sandbox. Refund workflow remains unfinished.
-- S4 and responsive corrections deployed; current production commit `c965d86`,
+- S4 and its initial responsive corrections shipped as commit `c965d86`,
   deployment `dpl_B1DDWufH2bBHurwbhyBTF8bomUy6`, READY at https://www.veggat.com.
   Actual Live PayPal is still unavailable; production environment-name listing
   reconfirmed all three required PayPal variables absent. No charge was made.

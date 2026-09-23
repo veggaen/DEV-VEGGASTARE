@@ -1090,7 +1090,14 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - Final-candidate webpack/TypeScript and local browser **7/7 (56.6s)** pass,
   including the edge-state and shared navigation/Pulse regressions. No new demo
   checkout, free-credit grant, cap reset or real-money transaction.
-  Live verification is pending. This is not an all-routes,
+  Live deployment `e73a27b` / `dpl_5ZmwRus2KfRMexm5MytTCVG2Sz1e` is READY at
+  www.veggat.com. Live focused browser **7/7 (1.2m)** passes, including one
+  successful transfer of each existing JPG/TXT, byte-length/JPEG-signature/text
+  checks, exactly one usage increment each and anonymous download denial. No
+  transfer was repeated after the live pass. Order/download/receipt screenshots
+  at mobile and desktop were visually reviewed in both themes; live results
+  match local. Screenshots: `.private-showcase/responsive-audit/orders-live/`.
+  Local/live health returns 200. This is not an all-routes,
   native-Chrome, physical-keyboard, 125%-browser-zoom or field-CWV completion claim.
 
 ## Research references
