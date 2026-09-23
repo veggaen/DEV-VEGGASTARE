@@ -905,7 +905,15 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Report dialog is now y=16..374 in the 390px-high viewport; selected reasons,
   text entry and cancellation pass without a report submission. Product load
   retry keeps one main document and stable gallery x/y geometry. Lint,
-  webpack/TypeScript and payment units **39/39** pass. Live verification pending.
+  webpack/TypeScript and payment units **39/39** pass.
+- Release `c9ecf99` / `dpl_7iSv45jaVvxzcxEV8PWgcj6UQw52` READY at www.veggat.com;
+  live browser **14/14** (1.7m) passes. Actual credit PDP and product/footer scroll
+  inspected visually; 2560px checkout canvas measures x=640, width=1280.
+  One long-lived headless context painted the fixed price text partly clipped
+  after wheel input despite DOM x=16 and document/inner scrollLeft=0. A fresh
+  live context repeating the same navigation and wheel showed the price correctly.
+  Recorded as an unreproduced paint observation, not claimed a fixed device bug.
+  Frontend health remains 200 locally/live. No paid order or report submitted.
 - Real Chrome inventory rechecked with computer-use: apps=[], browsers=[].
   Playwright remains the active test browser. Physical phone keyboard and real
   Chrome 125% zoom have not been substituted with CSS zoom or claimed tested.

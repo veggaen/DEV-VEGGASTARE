@@ -390,7 +390,7 @@ member-to-member delivery remains separate from the mocked error test.
   Local/live frontend health and anonymous local backend health are 200.
   Corrected auth-layout local repetitions **3/3** pass (32.4s including setup).
 
-## S7 — Product details and checkout polish (candidate verification)
+## S7 — Product details and checkout polish (local/live verified)
 
 - Product pages now use semantic light/dark surfaces and the listing currency as
   the primary price. Credit-pack delivery explicitly targets the AI balance, not
@@ -418,7 +418,13 @@ member-to-member delivery remains separate from the mocked error test.
   (1.2m), plus guest safe-login return path **2/2** (including setup), pass.
   Report dialog now sits at y=16..374 in a 390px-high landscape viewport;
   selection, typing and cancellation work without submitting any report.
-  Production deployment/verification follows.
+  Release `c9ecf99` / `dpl_7iSv45jaVvxzcxEV8PWgcj6UQw52` is READY at
+  www.veggat.com. Live focused browser **14/14** (1.7m) passes, including the
+  guest return path, landscape report/cancel, error/concurrency fixtures,
+  actual demo marketplace/cart, both themes, eight sizes and Pulse pagination.
+  Local/live health are 200. No payment, report or additional credit grant was
+  submitted. Other dialogs, shared-header alignment, cold starts and physical
+  keyboard/125% browser zoom remain unfinished; no full-app completion claim.
 
 | Area | Feature | Status / evidence |
 | --- | --- | --- |
