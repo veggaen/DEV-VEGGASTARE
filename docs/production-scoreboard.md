@@ -2,6 +2,27 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## CI and release audit — 23 September 2026
+
+- `883ab64` adds the isolated interview workflow: empty loopback PostgreSQL,
+  synthetic catalog, strict production-style build and focused demo/retry/replay
+  browser path. No production DB or payment/AI secrets are supplied. Local
+  browser **2/2**, CI target guards **12/12**, touched lint and strict type-check
+  pass. README now reflects configured keys, verified Sandbox transactions and
+  still-unverified Live acceptance rather than the obsolete missing-key claim.
+- GitHub run `35925329121` was rejected before any step: account locked due to
+  a billing issue. Hosted CI is **BLOCKED on owner billing resolution**. No
+  billing settings were changed and the workflow is not claimed remotely green.
+- The initial production-dependency audit found 4 critical/8 high/26 moderate
+  entries. The security candidate updates Next.js 16.3.6, NextAuth beta.32 and
+  Prisma adapter 2.11.3 (deduplicated Auth core 0.41.3); the audit now reports
+  **0 critical/5 high/26 moderate**. Remaining findings still need review.
+  Strict local build, five installed-token-parser checks, 93 focused unit
+  checks, 30 isolated PostgreSQL ledger checks and two browser runs **5/5 each**
+  pass. Auth recovery fixtures now refuse the live DB. Real Chrome retains its
+  demo session and switches receipt USD (ETH) correctly. Preview rollout is
+  pending; production is unchanged. See [security release evidence](security-release-2026-09.md).
+
 ## Custom credit quantities — verified local/Preview candidate, 23 September 2026
 
 - Integer credit selection (100–1,000) is shared by the PDP, header basket,
@@ -693,7 +714,7 @@ member-to-member delivery remains separate from the mocked error test.
 | Platform | Health | PARTIAL — local Hapi `/v1/health` 200 and mock shipping returns two NOK options; Railway auth expired and live backend unverified |
 | Quality | Touched-file lint | PARTIAL — run after each slice |
 | Quality | Home → demo → product → cart E2E | DONE — local and live pass; payment coverage remains a separate S4 task |
-| Quality | Payment mocked in CI | PARTIAL — isolated happy-path workflow implemented; local demo/retry/replay passes, hosted run pending. Provider transport mocked in unit tests |
+| Quality | Payment mocked in CI | BLOCKED — workflow implemented and local demo/retry/replay passes; GitHub rejects execution due to account billing lock. Provider transport mocked in unit tests |
 | Layout | Core path at 360 and 2560, other requested sizes, 125% zoom | PARTIAL — core route/drawer/scroll tests include 360/390/landscape/768/1024/1280/1920/2560; all-route interaction, real phone keyboard and actual Chrome 125% zoom remain unverified |
 | Interview | Root README | PARTIAL — human product story, demo, architecture, decisions, current payment status and CI scope documented; recording and Live payment evidence remain pending |
 

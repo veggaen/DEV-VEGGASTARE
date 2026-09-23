@@ -56,6 +56,9 @@ const nextConfig = {
         return config;
     },
     typescript: {
+        // Optional isolated type-check config for local audit builds. Keep the
+        // developer's tsconfig/generated build history untouched; checks remain strict.
+        ...(process.env.NEXT_TSCONFIG_PATH ? { tsconfigPath: process.env.NEXT_TSCONFIG_PATH } : {}),
         // SECURITY: Enable TypeScript checking in production builds
         // If you have TS errors, fix them before deploying
         ignoreBuildErrors: false,

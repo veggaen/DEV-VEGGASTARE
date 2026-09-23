@@ -54,4 +54,9 @@ command at an owner's signed-in storage state.
 
 Local production-style app: focused journey **2/2** including setup passes on
 23 September 2026. CI database guard tests **12/12** and touched lint pass.
-The hosted workflow is not yet marked green; its run must be inspected after push.
+Strict local type-check also passes. Hosted run
+[35925329121](https://github.com/veggaen/DEV-VEGGASTARE/actions/runs/35925329121)
+on `883ab64` was rejected before any step started: GitHub reports the account is
+locked by a billing issue. **Hosted CI is BLOCKED on owner billing resolution**,
+not a green run or evidence that the new PostgreSQL job executed. No billing or
+spending setting was changed. Re-run only after the owner resolves the lock.

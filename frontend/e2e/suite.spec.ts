@@ -1,5 +1,79 @@
 import { test, expect } from "@playwright/test";
 
+test('S2 security patch rejects malformed sessions and preserves OAuth host and cookie checks', async ({ playwright, baseURL }) => {
+  test.skip(process.env.E2E_SECURITY_REGRESSION !== '1', 'Explicit auth protocol regression only');
+  const origin = new URL(baseURL!).origin;
+  const secure = origin.startsWith('https:');
+  const guest = await playwright.request.newContext({ baseURL });
+  try {
+    for (const bearer of ['%', '%E0%A4%A', '%GG', 'not-a-jwt']) {
+      const session = await guest.get('/api/auth/session', { headers: { Authorization: `Bearer ${bearer}` } });
+      expect(session.status()).toBe(200);
+      expect(Boolean((await session.json())?.user?.id)).toBe(false);
+      expect((await guest.get('/api/wallets', { headers: { Authorization: `Bearer ${bearer}` } })).status()).toBe(401);
+    }
+    const providers = await (await guest.get('/api/auth/providers')).json();
+    for (const provider of ['google', 'github', 'discord']) {
+      if (!providers[provider]) continue; // Unconfigured providers must not masquerade as successful OAuth.
+      const client = await playwright.request.newContext({ baseURL });
+      try {
+        const csrfToken = (await (await client.get('/api/auth/csrf')).json()).csrfToken;
+        const result = await client.post(`/api/auth/signin/${provider}`, {
+          form: { csrfToken, callbackUrl: `${origin}/products` },
+          headers: { 'X-Auth-Return-Redirect': '1', Origin: origin }, maxRedirects: 0,
+        });
+        expect(result.status()).toBe(200);
+        const redirect = new URL((await result.json()).url);
+        expect(redirect.hostname).toBe({ google: 'accounts.google.com', github: 'github.com', discord: 'discord.com' }[provider]);
+        expect(redirect.searchParams.get('redirect_uri')).toBe(`${origin}/api/auth/callback/${provider}`);
+        expect(redirect.searchParams.get('code_challenge_method')).toBe('S256');
+        const checkCookies = (await client.storageState()).cookies.filter(cookie => /authjs\.(pkce|state|nonce)/.test(cookie.name));
+        expect(checkCookies.length).toBeGreaterThan(0);
+        expect(checkCookies.every(cookie => cookie.httpOnly && cookie.secure === secure && cookie.sameSite === 'Lax')).toBe(true);
+        // An unsolicited callback never authenticates, even with a real sign-in check cookie.
+        const callback = await client.get(`/api/auth/callback/${provider}?error=access_denied`, { maxRedirects: 0 });
+        expect(callback.status()).toBeLessThan(500);
+        expect(Boolean((await (await client.get('/api/auth/session')).json())?.user?.id)).toBe(false);
+      } finally { await client.dispose(); }
+    }
+  } finally { await guest.dispose(); }
+});
+
+test('S2 security patch password login, protected routes and logout at phone and desktop sizes', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_SECURITY_REGRESSION !== '1', 'Explicit isolated password-user regression only');
+  expect(['http://localhost:3000', 'https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app']).toContain(baseURL);
+  expect(Boolean(process.env.E2E_TEST_EMAIL && process.env.E2E_TEST_PASSWORD)).toBe(true);
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto('/profile', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/auth\/login\?callbackUrl=%2Fprofile/);
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    await page.getByPlaceholder('you@example.com').fill(process.env.E2E_TEST_EMAIL!);
+    await page.locator('input[type=password]').fill(process.env.E2E_TEST_PASSWORD!);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page).toHaveURL(/\/profile(?:[/?#]|$)/);
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user).toMatchObject({ id: 'cveggatpreviewbuyer000001', role: 'USER', isDemo: false });
+    expect((await context.request.get('/api/wallets')).status()).toBe(200);
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Your cart', exact: true })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await page.screenshot({ path: testInfo.outputPath('password-buyer-cart-1280.png') });
+    await page.goto('/api/auth/signout', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await expect.poll(async () => Boolean((await (await context.request.get('/api/auth/session')).json())?.user?.id)).toBe(false);
+    expect((await context.request.get('/api/wallets')).status()).toBe(401);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('CI showcase happy path — real demo, custom cart, payment error recovery and unpaid receipt', async ({ browser, baseURL }, testInfo) => {
   test.skip(process.env.E2E_CI_SHOWCASE !== '1', 'Explicit disposable demo flow only');
   test.setTimeout(180_000);
@@ -2977,13 +3051,17 @@ for (const width of [390, 1280]) {
 
 test.describe('S2 — account recovery', () => {
   test('register, verify, reset, reject replay, revoke session, login and logout', async ({ browser, baseURL }) => {
-    // Opt-in only: sends two safe Resend test emails and provisions one isolated
-    // USER in the explicitly selected live database (also used by local next start).
-    test.skip(process.env.E2E_AUTH_RECOVERY !== 'live-db', 'Requires explicit recovery-fixture opt-in');
+    // Opt-in only: safe Resend test recipients and a synthetic USER in the
+    // isolated Preview database. Never fall back to the owner's production DB.
+    test.skip(process.env.E2E_AUTH_RECOVERY !== 'isolated-preview', 'Requires explicit isolated recovery-fixture opt-in');
     test.setTimeout(120_000);
     const { Pool } = await import('pg');
     const { randomBytes } = await import('node:crypto');
-    const database = new URL(process.env.DATABASE_URL_MAINLIVE!);
+    const { isolatedPreviewEnv } = await import('../scripts/with-preview-database.mjs');
+    const isolated = isolatedPreviewEnv();
+    expect(['http://localhost:3000', 'https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app']).toContain(baseURL);
+    expect(process.env.VERCEL_ENV === 'preview' && process.env.DATABASE_URL_MAINPREVIEW === isolated.DATABASE_URL_MAINPREVIEW).toBe(true);
+    const database = new URL(isolated.DATABASE_URL_MAINPREVIEW);
     database.searchParams.set('uselibpqcompat', 'true');
     const pool = new Pool({ connectionString: database.toString(), max: 2 });
     const origin = new URL(baseURL!).origin;
