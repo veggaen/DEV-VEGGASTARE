@@ -21,6 +21,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import ProductsSkeleton from '@/components/uicustom/skeletons/products-skeleton';
 import { ProductsToolbar } from '@/components/uicustom/products/ProductsToolbar';
 import { CatalogHeader, catalogFrame, catalogGrid } from '@/components/uicustom/products/CatalogHeader';
+import PriceAmount from '@/components/crypto-related/PriceAmount';
 
 const typeMeta = {
   DIGITAL: { label: 'Digital', icon: Zap },
@@ -46,10 +47,9 @@ const ProductCard = React.memo(function ProductCard({ product, priority, authSta
   const href = `/products/${product.id}`;
   const sellerName = product.company?.name ?? product.user?.name ?? 'Independent seller';
   const sellerHref = product.company ? `/companies/${product.company.id}` : product.user ? `/profile/${product.user.id}` : null;
-  let price = 'Price unavailable';
   let validCurrency = false;
   try {
-    price = new Intl.NumberFormat('en-GB', { style: 'currency', currency: product.priceCurrency || 'USD' }).format(product.price);
+    new Intl.NumberFormat('en-GB', { style: 'currency', currency: product.priceCurrency || 'USD' }).format(product.price);
     validCurrency = true;
   } catch { /* A malformed legacy listing must not crash the catalog or offer an ambiguous purchase. */ }
 
@@ -108,7 +108,7 @@ const ProductCard = React.memo(function ProductCard({ product, priority, authSta
         <h2 className="min-h-12 text-base font-semibold leading-6"><Link href={href} className="line-clamp-2 rounded focus-visible:outline-2 focus-visible:outline-ring">{product.title}</Link></h2>
         <p className="line-clamp-2 min-h-10 text-sm leading-5 text-muted-foreground">{product.description}</p>
         <div className="mt-auto flex min-h-11 flex-wrap items-center justify-between gap-2">
-          <span className="text-lg font-semibold tabular-nums">{price}</span>
+          <span className="text-lg font-semibold tabular-nums"><PriceAmount amount={product.price} currency={product.priceCurrency || 'USD'} /></span>
           <span className="text-xs text-muted-foreground">{outOfStock ? 'Out of stock' : product.category}</span>
         </div>
         <div className="flex gap-2">

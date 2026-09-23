@@ -5,7 +5,8 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { dbPrisma } from '@/lib/db';
 import { isDemoUserId } from '@/lib/demo-policy';
-import { quoteShowcaseCart, moneyString, paypalEnvironment } from '@/lib/payments/showcase-policy';
+import { quoteShowcaseCart, paypalEnvironment } from '@/lib/payments/showcase-policy';
+import PreferredMoney from '@/components/checkout/preferred-money';
 import { paypalConfigured } from '@/lib/payments/showcase-paypal';
 import ReviewerCheckoutButton from '@/components/checkout/reviewer-checkout-button';
 
@@ -42,15 +43,16 @@ export default async function CheckoutPage() {
             <div className="min-w-0 flex-1">
               <h3 className="break-words font-medium">{line.title}</h3>
               <p className="mt-1 text-sm text-muted-foreground">{line.kind === 'DIGITAL_FILES' ? 'Original JPG + interview notes TXT · private downloads' : '100 AI usage credits · no subscription'}</p>
-              <p className="mt-2 text-sm font-semibold">{moneyString(line.amountOre)} NOK · Qty 1</p>
+              <p className="mt-2 text-sm font-semibold"><PreferredMoney amount={line.amountOre / 100} /> · Qty 1</p>
             </div>
           </div>)}
         </div>
       </section>
       <aside className="min-w-0 self-start rounded-xl border border-border bg-card p-4 sm:p-6 lg:sticky lg:top-6" aria-label="Payment summary">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{mode === 'DEMO' ? 'Free demonstration' : mode === 'SANDBOX' ? 'PayPal Sandbox — test money only' : 'PayPal Live — real payment'}</p>
-        <div className="my-6 flex items-baseline justify-between gap-3"><h2 className="font-medium">{demo ? 'Due today' : 'Total'}</h2><strong className="text-2xl tabular-nums">{demo ? '0.00' : moneyString(quote.totalOre)} NOK</strong></div>
+        <div className="my-6 flex flex-wrap items-baseline justify-between gap-3"><h2 className="font-medium">{demo ? 'Due today' : 'Total'}</h2><strong className="max-w-full text-2xl tabular-nums"><PreferredMoney amount={demo ? 0 : quote.totalOre / 100} /></strong></div>
         <p className="mb-6 text-sm text-muted-foreground">{demo ? 'No card, no charge. Preview fulfillment with an isolated demo order.' : 'PayPal handles your payment details. We never receive your card number. Maximum two checkout attempts per day.'}</p>
+        {!demo && <p className="mb-4 text-sm text-muted-foreground">PayPal charges in NOK. Your selected currency is a display estimate; review the exact charge on PayPal before approval.</p>}
         {!available && <p role="status" className="mb-4 text-sm text-muted-foreground">PayPal setup is in progress. No payment can be taken yet. The free demo remains available.</p>}
         <ReviewerCheckoutButton demo={demo} disabled={!available} />
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{quote.lines.some(line => line.kind === 'DIGITAL_FILES') ? 'Download links expire after 24 hours and require this account. ' : ''}{quote.lines.some(line => line.kind === 'AI_CREDITS') ? 'Credits are prepaid usage, not a subscription. ' : ''}</p>

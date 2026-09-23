@@ -431,6 +431,7 @@ const MyTopBar = () => {
 						</div>
 
 						<div className="flex shrink-0 items-center gap-2">
+							<div className="md:hidden"><CurrencySelector variant="ghost" size="sm" /></div>
 							{/* Desktop quick actions */}
 							<TooltipProvider delayDuration={200}>
 							<div className="hidden md:flex items-center gap-1">

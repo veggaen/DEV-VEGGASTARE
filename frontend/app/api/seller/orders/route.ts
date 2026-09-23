@@ -140,6 +140,7 @@ export async function GET(request: NextRequest) {
       id: o.id,
       createdAt: toIsoString(o.createdAt),
       totalAmount: o.totalAmount,
+      currency: o.currency,
       status: o.status,
       fulfilmentStatus: o.fulfilmentStatus,
       shippedAt: o.shippedAt ? toIsoString(o.shippedAt) : null,

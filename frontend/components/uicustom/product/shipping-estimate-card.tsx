@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import PriceAmount from '@/components/crypto-related/PriceAmount';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -213,14 +214,7 @@ export function ShippingEstimateCard({
   }, [localFreeShippingEnabled, onFreeShippingChange]);
 
   // Format price
-  const formatPrice = (price: number, curr: string) => {
-    return new Intl.NumberFormat('nb-NO', {
-      style: 'currency',
-      currency: curr,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
+  const formatPrice = (price: number, curr: string) => <PriceAmount amount={price} currency={curr} />;
 
   // Get cheapest shipping option
   const cheapestOption = result?.products[0];

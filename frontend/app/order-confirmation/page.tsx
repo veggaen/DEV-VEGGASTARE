@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import type { OrderDto } from '@/lib/types/orders';
+import PreferredMoney from '@/components/checkout/preferred-money';
 
 const statusKeys = ['paymentFailed', 'paymentCancelled'];
 
@@ -122,7 +123,7 @@ const OrderConfirmationPage = () => {
                 </p>
               </div>
               <div className="text-left sm:text-right">
-                <p className="text-lg font-semibold text-foreground">${order.totalAmount.toFixed(2)}</p>
+                <p className="text-lg font-semibold text-foreground"><PreferredMoney amount={order.checkout?.environment === 'DEMO' ? 0 : order.totalAmount} currency={order.currency ?? null} /></p>
                 <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{order.status}</p>
               </div>
             </div>

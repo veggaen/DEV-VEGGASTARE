@@ -180,7 +180,7 @@ export function UiPreferencesProvider({ children }: { children: React.ReactNode 
 
   const setPrefs = useCallback(
     (next: Partial<UiPreferences> | ((prev: UiPreferences) => Partial<UiPreferences>)) => {
-      setPrefsState((prev) => normalize(typeof next === "function" ? next(prev) : next));
+      setPrefsState((prev) => normalize({ ...prev, ...(typeof next === "function" ? next(prev) : next) }));
     },
     []
   );

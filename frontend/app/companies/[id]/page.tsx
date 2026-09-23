@@ -1,4 +1,5 @@
 import Image from "next/image";
+import PriceAmount from '@/components/crypto-related/PriceAmount';
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -213,7 +214,7 @@ export default async function CompanyPublicPage({
                         {p.title}
                       </div>
                       <div className="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                        {new Intl.NumberFormat('en', { style: 'currency', currency: p.priceCurrency, currencyDisplay: 'code' }).format(p.price)}
+                        <PriceAmount amount={p.price} currency={p.priceCurrency} />
                       </div>
                     </div>
                   </div>

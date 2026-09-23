@@ -1,5 +1,176 @@
 import { test, expect } from "@playwright/test";
 
+test('S7 seller and warehouse prices use selected fiat and crypto without changing order amounts', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo session; read-only order fixtures');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 1280, height: 800 } });
+  try {
+    await context.addInitScript(() => {
+      localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency: 'USD', preferredCryptoCurrency: 'ETH' }));
+      localStorage.removeItem('veggastare_currency_rates');
+    });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1, EUR: 1.1 }, fresh: true }, crypto: { prices: { ETH: 2000 }, fresh: true } } }));
+    const orders = [{ id: 'qa-00000001', currency: 'NOK', amount: 39 }, { id: 'qa-00000002', currency: 'EUR', amount: 2 }].map(({ id, currency, amount }) => ({
+      id, currency, totalAmount: amount, createdAt: '2026-09-23T12:00:00Z', status: 'COMPLETED', fulfilmentStatus: 'UNFULFILLED', claimedByUserId: null, claimedAt: null,
+      shippedAt: null, deliveredAt: null, trackingNumber: null, trackingUrl: null, labelUrl: null, shippingServiceName: null, estimatedDelivery: null,
+      customer: { id: 'qa-buyer', name: 'Display fixture', email: null }, shipping: { name: null, address: null, city: null, postalCode: null, country: null, phone: null, email: null, method: null, cost: null }, payment: null,
+      items: [{ id: `${id}-item`, quantity: 1, priceAtTime: amount, title: 'Display-only item', product: { id: 'qa-product', title: 'Display-only item', image: [], productType: 'DIGITAL', companyId: 'qa-company' } }],
+    }));
+    // Fulfill GETs only. These fixtures exercise presentation, not API authorization or fulfillment.
+    for (const pattern of ['**/api/seller/orders?*', '**/api/companies/qa-company/orders?*']) {
+      await page.route(pattern, route => route.request().method() !== 'GET' ? route.abort() : route.fulfill({ json: { orders, pagination: { page: 1, totalPages: 1, total: 2 } } }));
+    }
+    for (const path of ['/my-sales', '/nexus/company/qa-company/warehouse/qa-warehouse/orders']) {
+      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      const firstOrder = page.getByRole('button', { name: /#00000001/ });
+      await expect(firstOrder).toContainText(/USD\s*3\.90\s*\(0\.00195 ETH\)/);
+      await expect(page.getByRole('button', { name: /#00000002/ })).toContainText(/USD\s*2\.20\s*\(0\.0011 ETH\)/);
+      if (path === '/my-sales') await expect(page.getByText('Omsetning (viste)', { exact: true }).locator('..').locator('..')).toContainText(/USD\s*6\.10\s*\(0\.00305 ETH\)/);
+      await firstOrder.click();
+      const prices = page.locator('main [data-price-display]');
+      expect(await prices.count()).toBeGreaterThanOrEqual(3);
+      for (const price of await prices.all()) {
+        await expect(price).toContainText('USD'); await expect(price).toContainText('ETH)');
+        await expect(price).not.toContainText('NOK'); await expect(price).not.toContainText('EUR');
+      }
+    }
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S7 global fiat and crypto selection persists across shopping, receipt and orders', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained demo session without purchasing');
+  test.setTimeout(180_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await context.addInitScript(() => {
+      if (!localStorage.getItem('currency-qa-initialized')) {
+        localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency: 'USD', preferredCryptoCurrency: 'ETH' }));
+        localStorage.setItem('currency-qa-initialized', '1');
+      }
+      localStorage.removeItem('veggastare_currency_rates');
+    });
+    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1, EUR: 1.1 }, fresh: true }, crypto: { prices: { ETH: 2000, BTC: 100000 }, fresh: true } } }));
+    await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-product-price]')).toContainText(/USD\s*3\.90\s*\(0\.00195 ETH\)/);
+    const specificationPrice = page.locator('dt').filter({ hasText: /^Price$/ }).locator('..');
+    await expect(specificationPrice).toContainText(/USD\s*3\.90\s*\(0\.00195 ETH\)/);
+    await expect(specificationPrice).not.toContainText('NOK');
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    const trigger = page.getByRole('button', { name: /^Display currency:/ });
+    await trigger.click();
+    const menu = page.getByRole('menu');
+    await expect(menu.getByRole('menuitemradio', { name: 'US Dollar', exact: true })).toBeChecked();
+    await menu.getByRole('menuitemradio', { name: 'Bitcoin', exact: true }).click();
+    await expect(menu).toBeVisible();
+    await menu.getByRole('menuitemradio', { name: 'Norwegian Krone', exact: true }).click();
+    await expect(menu.getByRole('menuitemradio', { name: 'Bitcoin', exact: true })).toBeChecked();
+    await expect(menu).toHaveAccessibleName('Display currency: NOK (BTC)');
+    await menu.getByRole('menuitemradio', { name: 'Ethereum', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await expect(trigger).toBeFocused();
+    await expect(page.locator('[data-product-price]')).toContainText(/NOK\s*39\.00\s*\(0\.00195 ETH\)/);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(trigger).toHaveAccessibleName('Display currency: NOK (ETH)');
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.isDemo).toBe(true);
+    const orders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
+    const receipt = orders.find((order: { checkout?: { state: string } }) => order.checkout?.state === 'COMPLETED');
+    expect(receipt, 'A retained demo receipt is required; this test never makes a purchase').toBeTruthy();
+    for (const path of ['/products', '/cart', '/checkout', `/checkout/receipt/${receipt.id}`, '/my-orders', '/pricing']) {
+      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      await expect(trigger).toHaveAccessibleName('Display currency: NOK (ETH)');
+      const prices = page.locator('main [data-price-display]');
+      await expect(prices.first()).toContainText('ETH)');
+      for (const price of await prices.all()) {
+        await expect(price).toContainText('NOK');
+        await expect(price).toContainText('ETH)');
+        await expect(price).not.toContainText('(NOK');
+      }
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('main, [data-site-scroll]')].every(element => element.scrollWidth <= element.clientWidth)), `${path} at ${size.width}`).toBe(true);
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+    await trigger.click();
+    await menu.getByRole('menuitemradio', { name: 'US Dollar', exact: true }).click();
+    await menu.getByRole('menuitemradio', { name: 'No Crypto', exact: true }).click();
+    await menu.getByRole('menuitem', { name: 'Done', exact: true }).click();
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAccessibleName('Display currency: USD');
+    for (const price of await page.locator('main [data-price-display]').all()) {
+      await expect(price).toContainText('USD'); await expect(price).not.toContainText('(');
+    }
+    await trigger.focus(); await page.keyboard.press('ArrowDown');
+    await expect(menu).toBeVisible();
+    await page.keyboard.press('End');
+    await expect(menu.getByRole('menuitem', { name: 'Done', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(menu).toBeHidden(); await expect(trigger).toBeFocused();
+    await page.setViewportSize({ width: 844, height: 390 });
+    await trigger.click();
+    await page.keyboard.press('End');
+    await expect(menu.getByRole('menuitem', { name: 'Done', exact: true })).toBeFocused();
+    await expect(menu.getByRole('menuitem', { name: 'Done', exact: true })).toBeInViewport();
+    await page.keyboard.press('Enter');
+    await expect(menu).toBeHidden();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await trigger.click();
+    await menu.getByRole('menuitemradio', { name: 'Ethereum', exact: true }).click();
+    await page.screenshot({ path: 'test-results/currency-menu-390.png' });
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await page.screenshot({ path: 'test-results/currency-cart-390.png' });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const basket = page.getByRole('button', { name: /items? in basket/ });
+    await basket.click();
+    await expect(page.getByText('Your Basket', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'View Full Cart', exact: true })).toBeVisible();
+    const miniCart = page.getByText('Your Basket', { exact: true }).locator('..').locator('..').locator('..');
+    await expect(miniCart).toHaveCSS('opacity', '1');
+    await expect(miniCart.getByRole('link', { name: 'Interviewer AI Credits', exact: true }).filter({ hasText: 'Interviewer AI Credits' }).locator('..').locator('..')).toHaveCSS('opacity', '1');
+    for (const price of await miniCart.locator('[data-price-display]').all()) {
+      await expect(price).toContainText('USD'); await expect(price).toContainText('ETH)');
+    }
+    await page.screenshot({ path: 'test-results/currency-mini-cart-1280.png' });
+    await page.keyboard.press('Escape');
+    await expect(basket).toBeFocused();
+    await expect(basket).toHaveAttribute('aria-expanded', 'false');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/checkout/receipt/${receipt.id}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Your demo order is ready', exact: true })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Receipt items', exact: true }).locator('[data-price-display]').first()).toContainText('ETH)');
+    await page.screenshot({ path: 'test-results/currency-receipt-390.png' });
+    // Read-only browser fixtures cover unlike listing currencies; never edit a real cart.
+    const savedCart = await (await context.request.get(`/api/cart/${session.user.id}`)).json();
+    const fixtureItem = savedCart.items[0];
+    await page.route(`**/api/cart/${session.user.id}`, route => route.request().method() !== 'GET' ? route.abort() : route.fulfill({ json: { ...savedCart, items: [
+      { ...fixtureItem, quantity: 1, product: { ...fixtureItem.product, price: 39, priceCurrency: 'NOK' } },
+      { ...fixtureItem, id: 'qa-eur-row', quantity: 1, product: { ...fixtureItem.product, id: 'qa-eur-product', title: 'Euro display fixture', price: 2, priceCurrency: 'EUR' } },
+    ] } }));
+    await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+    const mixedSummary = page.getByRole('region', { name: 'Cart summary', exact: true });
+    await expect(mixedSummary.locator('[data-price-display]')).toHaveCount(1);
+    await expect(mixedSummary).toContainText(/USD\s*6\.10\s*\(0\.00305 ETH\)/);
+    await expect(mixedSummary).not.toContainText('NOK'); await expect(mixedSummary).not.toContainText('EUR');
+    await expect(page.getByRole('button', { name: 'Proceed to checkout', exact: true })).toBeDisabled();
+    await page.route('**/api/job-requests/currency-qa', route => route.fulfill({ json: { id: 'currency-qa', title: 'Currency display QA', descriptions: ['Read-only budget fixture'], images: [], links: [], docs: [], price: 24, negotiable: false, paymentMethod: null, delivery: null, additionalNotes: null, createdAt: '2026-09-23T12:00:00Z', user: { id: session.user.id, name: 'Demo reviewer', image: null } } }));
+    await page.goto('/jobs/currency-qa', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Currency display QA', exact: true })).toBeVisible();
+    await expect(page.locator('main [data-price-display]')).toHaveCount(2);
+    for (const budget of await page.locator('main [data-price-display]').all()) await expect(budget).toContainText(/USD\s*24\.00\s*\(0\.012 ETH\)/);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S6 — wallet chooser does not accept clicks before hydration', async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo required');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });

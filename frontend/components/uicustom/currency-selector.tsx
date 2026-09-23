@@ -6,13 +6,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Globe, Bitcoin, Check } from 'lucide-react';
+import { Globe, Bitcoin, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useClientReady } from '@/hooks/use-client-ready';
 
 export const FIAT_CURRENCIES: { code: FiatCurrency; name: string; symbol: string }[] = [
   { code: 'USD', name: 'US Dollar', symbol: '$' },
@@ -62,98 +65,108 @@ export function CurrencySelector({
   className 
 }: CurrencySelectorProps) {
   const { prefs, setPrefs } = useUiPreferences();
+  const [open, setOpen] = React.useState(false);
+  const clientReady = useClientReady();
   
   const currentFiat = FIAT_OPTIONS.find(f => f.value === prefs.preferredFiatCurrency) ?? FIAT_OPTIONS[0];
   const currentCrypto = CRYPTO_OPTIONS.find(c => c.value === prefs.preferredCryptoCurrency) ?? CRYPTO_OPTIONS[0];
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button 
           variant={variant} 
           size={size} 
+          disabled={!clientReady}
+          aria-label={`Display currency: ${currentFiat.value}${showCrypto && currentCrypto.value !== 'NONE' ? ` (${currentCrypto.value})` : ''}`}
           className={cn(
-            "h-8 gap-1.5 text-xs font-medium transition-colors",
+            "min-h-11 min-w-11 gap-1.5 touch-manipulation text-xs font-medium",
             "hover:bg-accent/50 focus-visible:ring-1 focus-visible:ring-ring",
             className
           )}
         >
-          <Globe className="h-3.5 w-3.5 opacity-70" />
+          <Globe className="h-3.5 w-3.5 opacity-70" aria-hidden />
           <span>{currentFiat.value}</span>
           {showCrypto && prefs.preferredCryptoCurrency !== 'NONE' && (
             <>
-              <span className="text-muted-foreground/60">/</span>
-              <span className="text-muted-foreground">{currentCrypto.value}</span>
+              <span className="text-muted-foreground">({currentCrypto.value})</span>
             </>
           )}
+          <ChevronDown className="size-3 opacity-70" aria-hidden />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
         className={cn(
-          "w-52 p-1.5",
+          "w-64 scroll-pb-28 p-1.5 motion-reduce:animate-none",
           "border-border/50 bg-popover/95 backdrop-blur-xl",
           "shadow-lg shadow-black/5 dark:shadow-black/20",
-          "animate-in fade-in-0 zoom-in-95"
+          "duration-150"
         )}
       >
         <DropdownMenuLabel className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
           Display Currency
         </DropdownMenuLabel>
-        <div className="space-y-0.5">
+        <DropdownMenuRadioGroup aria-label="Fiat currency" value={prefs.preferredFiatCurrency} onValueChange={value => setPrefs({ preferredFiatCurrency: value as FiatCurrency })} className="space-y-0.5">
           {FIAT_OPTIONS.map((opt) => {
             const isSelected = prefs.preferredFiatCurrency === opt.value;
             return (
-              <DropdownMenuItem
+              <DropdownMenuRadioItem
                 key={opt.value}
-                onClick={() => setPrefs({ preferredFiatCurrency: opt.value })}
+                value={opt.value}
+                onSelect={event => event.preventDefault()}
+                textValue={opt.label}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm cursor-pointer",
-                  "transition-colors duration-150",
+                  "flex min-h-11 touch-manipulation items-center gap-2 rounded-md pl-8 pr-2 text-sm cursor-pointer",
                   isSelected 
                     ? "bg-accent/60 text-accent-foreground" 
                     : "hover:bg-accent/40"
                 )}
               >
-                <span className="w-5 text-center text-muted-foreground">{opt.symbol}</span>
+                <span className="w-5 text-center text-muted-foreground" aria-hidden>{opt.symbol}</span>
                 <span className="flex-1 font-medium">{opt.label}</span>
-                {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
-              </DropdownMenuItem>
+                <span className="text-xs text-muted-foreground" aria-hidden>{opt.value}</span>
+              </DropdownMenuRadioItem>
             );
           })}
-        </div>
+        </DropdownMenuRadioGroup>
         
         {showCrypto && (
           <>
             <DropdownMenuSeparator className="my-1.5 bg-border/50" />
             <DropdownMenuLabel className="flex items-center gap-1.5 px-2 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
-              <Bitcoin className="h-3 w-3" />
+              <Bitcoin className="h-3 w-3" aria-hidden />
               Crypto Display
             </DropdownMenuLabel>
-            <div className="space-y-0.5">
+            <DropdownMenuRadioGroup aria-label="Crypto display" value={prefs.preferredCryptoCurrency} onValueChange={value => setPrefs({ preferredCryptoCurrency: value as CryptoCurrency })} className="space-y-0.5">
               {CRYPTO_OPTIONS.map((opt) => {
                 const isSelected = prefs.preferredCryptoCurrency === opt.value;
                 return (
-                  <DropdownMenuItem
+                  <DropdownMenuRadioItem
                     key={opt.value}
-                    onClick={() => setPrefs({ preferredCryptoCurrency: opt.value })}
+                    value={opt.value}
+                    textValue={opt.label}
+                    onSelect={event => event.preventDefault()}
                     className={cn(
-                      "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm cursor-pointer",
-                      "transition-colors duration-150",
+                      "flex min-h-11 touch-manipulation items-center gap-2 rounded-md pl-8 pr-2 text-sm cursor-pointer",
                       isSelected 
                         ? "bg-accent/60 text-accent-foreground" 
                         : "hover:bg-accent/40"
                     )}
                   >
-                    <span className="w-5 text-center text-muted-foreground">{opt.symbol}</span>
+                    <span className="w-5 text-center text-muted-foreground" aria-hidden>{opt.symbol}</span>
                     <span className="flex-1 font-medium">{opt.label}</span>
-                    {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
-                  </DropdownMenuItem>
+                    {opt.value !== 'NONE' && <span className="text-xs text-muted-foreground" aria-hidden>{opt.value}</span>}
+                  </DropdownMenuRadioItem>
                 );
               })}
-            </div>
+            </DropdownMenuRadioGroup>
           </>
         )}
+        <div className="sticky bottom-0 -mx-1.5 -mb-1.5 mt-2 border-t border-border bg-popover p-2">
+          <p className="px-2 pb-2 text-xs leading-relaxed text-muted-foreground">{showCrypto ? 'Fiat (crypto)' : 'Fiat'} display estimates. Payment methods are chosen at checkout.</p>
+          <DropdownMenuItem className="min-h-11 cursor-pointer justify-center rounded-md bg-accent font-medium" onSelect={() => setOpen(false)}>Done</DropdownMenuItem>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -166,7 +179,7 @@ export function CurrencyToggle({ className }: { className?: string }) {
   const { prefs, setPrefs } = useUiPreferences();
   
   const toggleCrypto = () => {
-    const cryptos: CryptoCurrency[] = ['ETH', 'PLS', 'SOL', 'BTC', 'NONE'];
+    const cryptos: CryptoCurrency[] = CRYPTO_CURRENCIES.map(option => option.code);
     const currentIdx = cryptos.indexOf(prefs.preferredCryptoCurrency);
     const nextIdx = (currentIdx + 1) % cryptos.length;
     setPrefs({ preferredCryptoCurrency: cryptos[nextIdx] });
@@ -176,11 +189,12 @@ export function CurrencyToggle({ className }: { className?: string }) {
     <Button 
       variant="ghost" 
       size="icon" 
-      className={className}
+      className={cn('min-h-11 min-w-11 touch-manipulation', className)}
       onClick={toggleCrypto}
       title={`Crypto: ${prefs.preferredCryptoCurrency}`}
+      aria-label={`Change crypto display, currently ${prefs.preferredCryptoCurrency}`}
     >
-      <Bitcoin className="h-4 w-4" />
+      <Bitcoin className="h-4 w-4" aria-hidden />
     </Button>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-/** @fileOverview Accessible, responsive cart with row-isolated updates and original-currency totals. @stability stable */
+/** @fileOverview Accessible cart with row-isolated updates and selected fiat (crypto) presentation. @stability stable */
 import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -10,7 +10,8 @@ import { Minus, Plus, ShoppingBag, Trash2, Loader2, ArrowLeft } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/cart-context";
 import { useCartPage } from "@/hooks/use-cart-page";
-import { cartCurrencyTotals, formatCartMoney } from "@/lib/cart-display";
+import { cartCurrencyTotals } from "@/lib/cart-display";
+import PriceAmount, { PriceTotal } from '@/components/crypto-related/PriceAmount';
 import { isShowcaseProduct } from "@/lib/showcase-catalog";
 import CartSkeleton, { CartHeader, cartCanvas, cartColumns } from "@/components/checkout/cart-skeleton";
 
@@ -58,7 +59,7 @@ export default function CartPage() {
               </Link>
               <div className="min-w-0 py-1">
                 <h2 className="text-base font-semibold leading-6 [overflow-wrap:anywhere]"><Link href={href} className="rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{item.product.title}</Link></h2>
-                <p className="mt-2 text-sm tabular-nums text-muted-foreground">{formatCartMoney(item.product.price, item.product.priceCurrency) ?? "Price unavailable"} <span className="text-xs">each</span></p>
+                <p className="mt-2 text-sm tabular-nums text-muted-foreground"><PriceAmount amount={item.product.price} currency={item.product.priceCurrency} /> <span className="text-xs">each</span></p>
               </div>
               <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 sm:col-span-1 sm:col-start-2">
                 <div role="group" aria-label={`Quantity for ${item.product.title}`} className="flex shrink-0 items-center rounded-lg border border-border">
@@ -79,9 +80,9 @@ export default function CartPage() {
         <h2 className="text-lg font-semibold">Summary</h2>
         <dl className="mt-5 space-y-4 text-sm">
           <div className="flex items-baseline justify-between gap-3"><dt className="text-muted-foreground">Items</dt><dd className="tabular-nums">{items.reduce((sum, item) => sum + item.quantity, 0)}</dd></div>
-          {totals ? totals.map(total => <div key={total.currency} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-4">
-            <dt className="font-medium">{totals.length > 1 ? `${total.currency} subtotal` : "Subtotal"}</dt><dd className="text-xl font-semibold tabular-nums">{total.formatted}</dd>
-          </div>) : <div><dt>Subtotal</dt><dd>Price unavailable. Refresh your saved cart.</dd></div>}
+          {totals ? <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-4">
+            <dt className="font-medium">Subtotal</dt><dd className="max-w-full text-xl font-semibold tabular-nums"><PriceTotal entries={items.map(item => ({ amount: item.product.price * item.quantity, currency: item.product.priceCurrency }))} /></dd>
+          </div> : <div><dt>Subtotal</dt><dd>Price unavailable. Refresh your saved cart.</dd></div>}
         </dl>
         {!supported ? <p className="mt-4 text-sm leading-6 text-muted-foreground">Checkout is currently available for the Interview Pack and Interviewer AI Credits. Remove other listings to continue.</p>
           : !validQuantities && <p className="mt-4 text-sm leading-6 text-muted-foreground">Reviewer checkout supports one of each product. Set each quantity to 1 to continue.</p>}
@@ -89,7 +90,7 @@ export default function CartPage() {
           : <Button disabled className="mt-5 min-h-12 w-full">{busy ? "Updating cart…" : "Proceed to checkout"}</Button>}
         <p className="mt-4 text-sm leading-6 text-muted-foreground">{session.user.isDemo
           ? "Demo checkout is free. No payment or card details are needed."
-          : "Prices are shown in the listing currency. Your final total is confirmed securely at checkout."}</p>
+          : "Prices follow your display preferences. Converted amounts are estimates; payment currency and the final total are confirmed at checkout."}</p>
       </section>
     </div>}
   </div>;

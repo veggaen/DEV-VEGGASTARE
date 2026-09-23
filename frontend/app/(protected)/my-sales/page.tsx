@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import PriceAmount, { PriceTotal } from '@/components/crypto-related/PriceAmount';
 import {
   FiPackage,
   FiTruck,
@@ -45,6 +46,7 @@ interface SellerOrder {
   id: string;
   createdAt: string;
   totalAmount: number;
+  currency: string | null;
   status: string;
   fulfilmentStatus: string;
   shippedAt: string | null;
@@ -98,13 +100,6 @@ function formatDate(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nb-NO", {
-    style: "currency",
-    currency: "NOK",
-  }).format(amount);
 }
 
 // ─── Component ────────────────────────────────────────────────
@@ -164,10 +159,7 @@ export default function MySalesPage() {
   }, [fetchOrders]);
 
   // ── Metrics ──
-  const totalRevenue = orders.reduce((sum, o) => {
-    const itemsTotal = o.items.reduce((s, i) => s + i.priceAtTime * i.quantity, 0);
-    return sum + itemsTotal;
-  }, 0);
+  const revenueEntries = orders.map(order => ({ amount: order.items.reduce((sum, item) => sum + item.priceAtTime * item.quantity, 0), currency: order.currency ?? null }));
   const unfulfilledCount = tabCounts["UNFULFILLED"] ?? 0;
 
   return (
@@ -203,7 +195,7 @@ export default function MySalesPage() {
               <FiDollarSign size={14} />
               Omsetning (viste)
             </div>
-            <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
+            <p className="text-2xl font-bold"><PriceTotal entries={revenueEntries} /></p>
           </div>
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
             <div className="flex items-center gap-2 text-yellow-400 text-sm mb-1">
@@ -294,12 +286,7 @@ export default function MySalesPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <p className="font-medium">
-                        {formatCurrency(
-                          order.items.reduce(
-                            (s, i) => s + i.priceAtTime * i.quantity,
-                            0
-                          )
-                        )}
+                        <PriceAmount amount={order.items.reduce((sum, item) => sum + item.priceAtTime * item.quantity, 0)} currency={order.currency ?? null} />
                       </p>
                       {isExpanded ? (
                         <FiChevronUp className="text-zinc-400" />
@@ -338,7 +325,7 @@ export default function MySalesPage() {
                             <div className="flex-1 min-w-0">
                               <p className="text-sm truncate">{item.title}</p>
                               <p className="text-xs text-zinc-500">
-                                {item.quantity}x {formatCurrency(item.priceAtTime)}
+                                {item.quantity}x <PriceAmount amount={item.priceAtTime} currency={order.currency ?? null} />
                                 {" · "}
                                 <span className="uppercase text-zinc-600">
                                   {item.product.productType}
