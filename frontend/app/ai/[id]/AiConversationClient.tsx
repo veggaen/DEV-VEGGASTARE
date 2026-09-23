@@ -18,6 +18,12 @@ import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
 import { NeonCursorTrail } from "@/components/uicustom/home/NeonCursorTrail";
 import { ChatSidebar } from "@/components/uicustom/chats/ChatSidebar";
 import { cn } from "@/lib/utils";
+import { CreditModelPicker, AiCreditStatus } from '@/components/uicustom/ai/CreditModelPicker';
+import { useAiCreditConfig } from '@/hooks/use-ai-credit-config';
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { isDemoUserId } from "@/lib/demo-policy";
+import { useUiPreferences } from "@/components/providers/ui-preferences";
+import type { AiProvider } from '@/lib/ai-models';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,6 +84,15 @@ interface Props {
   userRole: string | null;
 }
 
+// ── Client-side sensitive detection ──
+const SENSITIVE_RE = [
+  { type: "email", re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/ },
+  { type: "phone", re: /(\+\d{1,3}[\s-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/ },
+];
+const detectSensitive = (text: string) =>
+  SENSITIVE_RE.filter((p) => p.re.test(text)).map((p) => p.type);
+
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AiConversationClient({
@@ -91,6 +106,7 @@ export default function AiConversationClient({
   const reduceMotion = useReducedMotion();
   const searchParams = useSearchParams();
   const confirm = useConfirm();
+  const { prefs } = useUiPreferences();
 
   const [conv, setConv] = useState<ConvSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,6 +116,9 @@ export default function AiConversationClient({
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMsgs, setStreamingMsgs] = useState<StreamingMsg[]>([]);
   const [sendError, setSendError] = useState<string | null>(null);
+  const { config: creditConfig, error: creditError } = useAiCreditConfig();
+  const [provider, setProvider] = useState<AiProvider>('GOOGLE');
+  const [model, setModel] = useState('gemini-2.5-flash-lite');
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -110,6 +129,10 @@ export default function AiConversationClient({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const demo = isDemoUserId(userId);
+  const participantButtonRef = useRef<HTMLButtonElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const followTranscriptRef = useRef(true);
   const isCreator = conv?.creatorId === userId;
   const isAdmin = userRole === "ADMIN" || userRole === "OWNER";
 
@@ -157,7 +180,8 @@ export default function AiConversationClient({
 
   // ── Scroll to bottom ──
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
+    const scroller = messagesContainerRef.current;
+    if (scroller && followTranscriptRef.current) scroller.scrollTo({ top: scroller.scrollHeight, behavior: "instant" });
   }, [conv?.messages, streamingMsgs, reduceMotion]);
 
   // ── Auto-resize textarea (enables Shift+Enter multi-line) ──
@@ -168,14 +192,6 @@ export default function AiConversationClient({
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [input]);
 
-  // ── Client-side sensitive detection ──
-  const SENSITIVE_RE = [
-    { type: "email", re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/ },
-    { type: "phone", re: /(\+\d{1,3}[\s-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/ },
-  ];
-  const detectSensitive = (text: string) =>
-    SENSITIVE_RE.filter((p) => p.re.test(text)).map((p) => p.type);
-
   // ── Send message ──
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
@@ -185,6 +201,7 @@ export default function AiConversationClient({
       return;
     }
 
+    followTranscriptRef.current = true;
     setSendError(null);
     const sensitive = detectSensitive(trimmed);
     if (sensitive.length > 0) setSensitiveBanner(sensitive);
@@ -233,7 +250,7 @@ export default function AiConversationClient({
       const res = await fetch("/api/ai-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages, sessionId }),
+        body: JSON.stringify({ messages: apiMessages, sessionId, provider, model, requestId: crypto.randomUUID() }),
         signal: abort.signal,
       });
 
@@ -267,6 +284,11 @@ export default function AiConversationClient({
           if (raw === "[DONE]") continue;
           try {
             const parsed = JSON.parse(raw);
+            if (parsed.error) {
+              setSendError(parsed.message ?? 'The response was interrupted.');
+              setStreamingMsgs([]);
+              return;
+            }
             if (parsed.text) {
               fullContent += parsed.text;
               setStreamingMsgs((prev) =>
@@ -281,15 +303,21 @@ export default function AiConversationClient({
 
       // Persist and reload messages
       if (fullContent) {
-        await fetch(`/api/ai-chat/sessions/${sessionId}/messages`, {
+        const saved = await fetch(`/api/ai-chat/sessions/${sessionId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userContent: trimmed,
-            aiContent: fullContent,
-            sensitiveTypes: [...sensitive, ...responseSensitive],
+            userMessage: trimmed,
+            assistantMessage: fullContent,
+            providerUsed: res.headers.get('X-Ai-Provider') ?? provider,
+            modelUsed: res.headers.get('X-Ai-Model') ?? model,
           }),
         });
+
+        if (!saved.ok) {
+          setSendError('The reply arrived, but could not be saved. Copy it before leaving this page.');
+          return;
+        }
 
         // Auto-name the conversation from the first message (ChatGPT/t3.chat
         // style). Runs only now that the user message is persisted, and only
@@ -313,7 +341,7 @@ export default function AiConversationClient({
       const refreshed = await fetch(`/api/ai-chat/sessions/${sessionId}`);
       if (refreshed.ok) {
         const data = await refreshed.json();
-        setConv(data.conversation);
+        setConv(data.conversation ?? data);
       }
       setStreamingMsgs([]);
     } catch (err: any) {
@@ -321,8 +349,9 @@ export default function AiConversationClient({
       setSendError("Connection error. Please try again.");
     } finally {
       setIsStreaming(false);
+      window.dispatchEvent(new Event('ai-credit:refresh'));
     }
-  }, [input, isStreaming, isLoggedIn, conv, sessionId, userName]);
+  }, [input, isStreaming, isLoggedIn, conv, sessionId, userName, provider, model]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -353,13 +382,13 @@ export default function AiConversationClient({
       const res = await fetch(`/api/ai-chat/sessions/${sessionId}/trigger-ai`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ participantId }),
+        body: JSON.stringify({ participantId, requestId: crypto.randomUUID() }),
         signal: abort.signal,
       });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setSendError(err.error ?? "Failed to trigger AI.");
+        setSendError(err.message ?? err.error ?? "Failed to trigger AI.");
         setStreamingMsgs([]);
         setIsStreaming(false);
         return;
@@ -381,6 +410,11 @@ export default function AiConversationClient({
           if (raw === "[DONE]") continue;
           try {
             const parsed = JSON.parse(raw);
+            if (parsed.error) {
+              setSendError(parsed.message ?? "AI response interrupted. Please retry.");
+              setStreamingMsgs([]);
+              return;
+            }
             if (parsed.text) {
               fullContent += parsed.text;
               setStreamingMsgs((prev) =>
@@ -402,6 +436,7 @@ export default function AiConversationClient({
       if (err?.name !== "AbortError") setSendError("Stream error.");
     } finally {
       setIsStreaming(false);
+      window.dispatchEvent(new Event("ai-credit:refresh"));
     }
   }, [conv, sessionId]);
 
@@ -498,7 +533,7 @@ export default function AiConversationClient({
   ];
 
   return (
-    <div className="relative flex flex-col h-[calc(100dvh-var(--app-header-offset,64px))] bg-background overflow-hidden">
+    <div className="relative flex h-full min-h-0 flex-col bg-background overflow-hidden">
       {/* Landing aesthetic: edge-stars + the green cursor trail (the "bugs"). */}
       <HeroParticleField className="z-0" density={0.55} centerFade={0.05} />
       <NeonCursorTrail />
@@ -508,16 +543,20 @@ export default function AiConversationClient({
       <div className="relative z-10 bg-linear-to-b from-background via-background/80 to-transparent px-3 py-2.5 shrink-0">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
+            <button type="button" aria-label="Open conversations" onClick={() => window.dispatchEvent(new Event('ai-chat:open-conversations'))}
+              className={cn('grid size-11 shrink-0 place-items-center rounded-full hover:bg-muted', prefs.aiChatLayout !== 'overlay' && 'lg:hidden')}>
+              <span aria-hidden="true">☰</span>
+            </button>
             <Link
               href="/ai"
               aria-label="Back to AI chats"
-              className="grid place-items-center h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
+              className="hidden place-items-center h-11 w-11 rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0 lg:grid"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </Link>
-            <span className="grid place-items-center h-9 w-9 shrink-0 rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">✦</span>
+            <span className="hidden place-items-center h-9 w-9 shrink-0 rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 sm:grid">✦</span>
             <div className="min-w-0 leading-tight">
               <h1 className="text-[15px] font-semibold truncate">{conv.title}</h1>
               <p className="text-[11px] text-muted-foreground">
@@ -534,10 +573,10 @@ export default function AiConversationClient({
           </div>
 
           <div className="flex items-center gap-0.5 shrink-0">
-            {isLoggedIn && (
+            {isLoggedIn && !demo && (
               <button
                 onClick={handleShare}
-                className="grid place-items-center h-9 w-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+                className="grid place-items-center h-11 w-11 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
                 title={conv.isPublic ? "Copy share link" : "Make public & copy link"}
                 aria-label="Share"
               >
@@ -548,9 +587,10 @@ export default function AiConversationClient({
             )}
 
             <button
+              ref={settingsButtonRef}
               onClick={() => setShowSettings((v) => !v)}
               className={cn(
-                "grid place-items-center h-9 w-9 rounded-full transition-colors",
+                "grid place-items-center h-11 w-11 rounded-full transition-colors",
                 showSettings
                   ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10"
                   : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10",
@@ -565,9 +605,10 @@ export default function AiConversationClient({
             </button>
 
             <button
+              ref={participantButtonRef}
               onClick={() => setSidebarOpen((v) => !v)}
               className={cn(
-                "grid place-items-center h-9 w-9 rounded-full transition-colors",
+                "grid place-items-center h-11 w-11 rounded-full transition-colors",
                 sidebarOpen
                   ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10"
                   : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10",
@@ -618,10 +659,11 @@ export default function AiConversationClient({
           {/* Messages — the SCROLLER is full-width so its scrollbar sits at the
               pane edge (not stranded mid-screen); message content is centered
               within via an inner max-w-3xl column. */}
-          <div ref={messagesContainerRef} className="relative flex-1 overflow-y-auto min-h-0">
+          <div ref={messagesContainerRef} className="relative flex-1 overflow-y-auto overscroll-contain min-h-0" data-ai-transcript
+            onScroll={event => { const el = event.currentTarget; followTranscriptRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}>
             <div className="mx-auto w-full max-w-3xl px-4 py-4 space-y-4">
               {conv.messages.length === 0 && streamingMsgs.length === 0 && (
-                <div className="flex flex-col items-center justify-center min-h-[55vh] gap-5 text-center">
+                <div className="flex flex-col items-center justify-center min-h-[min(45dvh,320px)] gap-5 text-center">
                   <div className="grid place-items-center h-16 w-16 rounded-2xl bg-emerald-500/10 text-3xl text-emerald-500 dark:text-emerald-400">
                     ✦
                   </div>
@@ -675,8 +717,13 @@ export default function AiConversationClient({
 
           {/* Input — centered composer dock (matches the DM composer language) */}
           {!conv.isSuspended && (
-            <div className="bg-linear-to-t from-background via-background/90 to-transparent px-4 pb-4 pt-6 shrink-0">
+            <div className="bg-linear-to-t from-background via-background/90 to-transparent px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shrink-0">
               <div className="max-w-3xl w-full mx-auto">
+                <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2">
+                  <CreditModelPicker provider={provider} model={model} config={creditConfig} error={creditError} disabled={isStreaming}
+                    onSelect={(nextProvider, nextModel) => { setProvider(nextProvider); setModel(nextModel); }} />
+                  <AiCreditStatus config={creditConfig} error={creditError} />
+                </div>
                 <div className="ai-input-ring flex items-end gap-2 rounded-2xl bg-black/[0.03] dark:bg-white/5 px-3 py-2.5 border border-black/8 dark:border-white/10 backdrop-blur-sm shadow-sm chat-input-wrapper transition-colors">
                   <textarea
                     ref={inputRef}
@@ -684,9 +731,10 @@ export default function AiConversationClient({
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={isLoggedIn ? "Message…" : "Sign in to send messages"}
+                    aria-label="AI message"
                     rows={1}
                     disabled={isStreaming || !isLoggedIn}
-                    className="flex-1 resize-none bg-transparent px-1.5 py-1 text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/50 outline-none max-h-40 disabled:opacity-50"
+                    className="min-w-0 flex-1 resize-none bg-transparent px-1.5 py-1 text-base leading-relaxed text-foreground placeholder:text-muted-foreground/50 outline-none max-h-40 disabled:opacity-50"
                     style={{ scrollbarWidth: "none" }}
                   />
                   <motion.button
@@ -695,7 +743,7 @@ export default function AiConversationClient({
                     animate={{ scale: input.trim() && !isStreaming ? 1 : 0.92 }}
                     whileTap={input.trim() && !isStreaming ? { scale: 0.85 } : undefined}
                     transition={{ type: "spring", stiffness: 600, damping: 22 }}
-                    className="shrink-0 flex items-center justify-center h-9 w-9 rounded-xl bg-emerald-500 text-black hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors chat-send-btn"
+                    className="shrink-0 flex items-center justify-center h-11 w-11 rounded-xl bg-emerald-500 text-black hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors chat-send-btn"
                     aria-label="Send message"
                   >
                     {isStreaming ? (
@@ -722,17 +770,11 @@ export default function AiConversationClient({
           )}
         </div>
 
-        {/* ── Sidebar — shared ChatSidebar (members + Discord-like voice) ── */}
-        <AnimatePresence>
-          {sidebarOpen && (
-            <motion.aside
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 300, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeInOut" }}
-              className="relative z-10 border-r border-black/5 dark:border-white/8 overflow-hidden shrink-0 bg-background/80 backdrop-blur-xl"
-            >
-              <div className="w-[300px] h-full">
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetContent side="right" accessibleTitle="Participants" accessibleDescription="Conversation members and experimental voice tools."
+            onCloseAutoFocus={event => { event.preventDefault(); participantButtonRef.current?.focus(); }}
+            className="flex w-[min(22rem,calc(100%-2rem))] max-w-full flex-col p-0 pt-14 pb-[env(safe-area-inset-bottom)]">
+            <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pb-20">
                 <ChatSidebar
                   roomId={sessionId}
                   self={{ id: userId ?? "me", name: userName ?? "You", image: null }}
@@ -754,8 +796,8 @@ export default function AiConversationClient({
                   }))}
                 />
                 {/* Admin actions footer */}
-                {(isCreator || isAdmin) && (
-                  <div className="absolute bottom-0 inset-x-0 px-3 py-3 border-t border-black/5 dark:border-white/8 space-y-1 bg-background/80 backdrop-blur-xl">
+                {!demo && (isCreator || isAdmin) && (
+                  <div className="sticky bottom-0 inset-x-0 px-3 py-3 border-t border-black/5 dark:border-white/8 space-y-1 bg-background/80 backdrop-blur-xl">
                     {isCreator && (
                       <button
                         onClick={handleDelete}
@@ -797,33 +839,20 @@ export default function AiConversationClient({
                     )}
                   </div>
                 )}
-              </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
 
-      {/* ── Settings panel ── */}
-      <AnimatePresence>
-        {showSettings && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            className="fixed inset-x-4 bottom-20 md:inset-auto md:bottom-20 md:right-6 md:w-80 z-50 glass-panel rounded-2xl border border-white/10 shadow-xl p-4"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-medium">Conversation Settings</span>
-              <button onClick={() => setShowSettings(false)} className="text-muted-foreground hover:text-foreground">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <ConvSettings conv={conv} sessionId={sessionId} onUpdate={setConv} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Sheet open={showSettings} onOpenChange={setShowSettings}>
+        <SheetContent side="right" accessibleTitle="Conversation settings" accessibleDescription="Edit this conversation."
+          onCloseAutoFocus={event => { event.preventDefault(); settingsButtonRef.current?.focus(); }}
+          className="w-[min(26rem,calc(100%-2rem))] max-w-full overflow-y-auto overscroll-contain px-4 pt-16 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <h2 className="mb-4 text-lg font-semibold">Conversation settings</h2>
+          {demo ? <p className="text-sm text-muted-foreground">Demo conversations stay private. Use your own account to rename, share, or manage participants.</p> :
+            <ConvSettings conv={conv} sessionId={sessionId} onUpdate={setConv} />}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -993,7 +1022,7 @@ function ConvMessageBubble({
 }) {
   const isUser = msg.role === "user";
   const isMe = msg.participant.type === "HUMAN";
-  const name = msg.participant.displayName ?? (isUser ? "You" : "AI");
+  const name = !isUser && msg.modelUsed ? msg.modelUsed : msg.participant.displayName ?? (isUser ? "You" : "AI");
 
   return (
     <motion.div

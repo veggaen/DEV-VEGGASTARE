@@ -80,7 +80,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   including setup in 1.0m, release `6b8adc1` / `dpl_ABEFDCXREp97puGonJb9PzvkFFqp`.
   Live warehouse phone screenshot confirmed a 44px refresh target and no overflow.
 
-## S5 — Atomic credit foundation (PARTIAL, not connected to live chat)
+## S5 — Metered AI integration (PARTIAL; local verified, deployment pending)
 
 - Added reservation/refund state machine, one-time isolated demo grant, environment
   separation, daily quota and an independent bounded platform budget. No owner bypass.
@@ -89,9 +89,22 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   grants, exhausted budget, BYOK and database constraints. **19/19 tests passed**;
   touched-file lint and TypeScript passed. Temporary schema was removed; no real
   balance/order/provider call was touched.
-- Migration tested only in the isolated schema. Runtime integration, cost/model
-  allowlist, all provider-call paths, streaming settlement and the UI are still
-  pending. Existing public chat is unchanged; do not claim the fuse protects it yet.
+- Additive migration applied. Main/participant chat, polls, answer verification
+  and dictation cleanup now share guarded generation; titles are local and audio
+  transcription is BYOK-only. Exact model allowance, byte/token/time bounds,
+  failure settlement, one-time demo credits and disabled unavailable models added.
+- Local real OpenAI debit and persistence revealed a client response-shape bug;
+  fixed. Final local production browser run **5/5** in 49.2s, including setup:
+  Groq debit to zero, subsequent premium 402, saved replies after reload, anonymous
+  selector, Pulse/footer and AI drawers/transcript/composer reflow at eight sizes.
+  No credits or request caps were reset to make tests pass.
+- Focused AI/request/demo units **63/63**, with selected payment regression files
+  **107/107**, plus real PostgreSQL ledger **19/19**. Build/TypeScript/touched lint
+  pass. Runtime production rollout/live verification still pending.
+- Corrected cramped phone chat header, competing viewport heights, outer-page
+  auto-scroll and inaccessible custom drawers. Reused Radix Sheets with contained
+  scrolling and focus restoration. Pricing no longer promises nonexistent
+  subscriptions, alternate payment providers or unlimited AI.
 - See [AI credit safety](ai-credit-safety.md) for invariants and remaining gates.
 
 ## Feature scoreboard
@@ -109,7 +122,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 | Shop | Confirmation, signed download | PARTIAL — local/live demo receipt and actual JPG/TXT downloads pass; anonymous 401 and idempotent replay pass; paid verification blocked on PayPal keys |
 | Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — seeded at 29/39 NOK; paid fulfillment pending |
 | AI | Chat, selector, streaming | DONE (previous deployment) — local/live Gemini, Groq, OpenAI/Grok one-time-key UI tests |
-| AI | Credit debit, zero balance, no overcharge | PARTIAL — atomic ledger/fuse foundation passes 19 tests; not yet wired into provider paths/UI or deployed |
+| AI | Credit debit, zero balance, no overcharge | PARTIAL — local UI debit/402 and ledger/fuse tests pass; live verification pending |
 | Wallets | Connect UI, no crash | PARTIAL — actual connect/disconnect/missing-config tests pending |
 | Platform | Public homepage | DONE — S1 verified locally and live |
 | Platform | Consent controls Analytics/Speed Insights | DONE — no scripts before consent/Essential Only; both 200 after opt-in; real visitor metrics pending |
@@ -118,7 +131,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 | Quality | Home → demo → product → cart E2E | DONE — local and live pass; payment coverage remains a separate S4 task |
 | Quality | Payment mocked in CI | PARTIAL — S4 pending |
 | Layout | Core path at 360 and 2560, other requested sizes, 125% zoom | PARTIAL — earlier 390/1440 smoke checks only |
-| Interview | Root README | PARTIAL — human README exists; demo and live SKU details pending |
+| Interview | Root README | PARTIAL — public demo, optional 29/39 NOK SKUs, architecture and four decisions documented; payment/live S5 evidence still pending |
 
 ## Environment and safety
 
@@ -126,7 +139,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 - Local OAuth origin is `http://localhost:3000`.
 - Current local production-mode test process uses the live database. Test identities are isolated and non-admin; no Live PayPal keys are added to localhost.
 - After the PC crash, Chrome inventory is empty and the native helper pipe is unavailable. Playwright is the active browser test mechanism, not the owner's Chrome. Do not spoof Google's browser checks or telemetry automation exclusions.
-- Demo creates a separate temporary USER per visitor, bounded to five per daily IP fingerprint and 200 globally/day in a serialized database transaction; no shared password/account. Demo mutations are restricted to its cart, unpaid demo checkout and logout (storage session initialization is read-only), and sessions expire after a day. Demo AI stays blocked until atomic grants and the platform fuse ship in S5.
+- Demo creates a separate temporary USER per visitor, bounded to five per daily IP fingerprint and 200 globally/day in a serialized transaction; sessions expire after a day. The S5 candidate permits guarded private chat creation/messages and five one-time credits. Cart/demo-checkout remain isolated; real payments, public posting and provider-key changes remain denied.
 - New paid entitlements must never be granted from client prices or a return URL. S4/S5 remain release blockers.
 - PayPal credentials are absent locally and in Vercel Production. Owner asked to create Sandbox credentials (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`) locally; Live credentials must stay in Vercel Production. `PAYPAL_WEBHOOK_ID` also remains absent. Dashboard inspection redirected to owner sign-in. No test or real charge has been made.
 - Payment implementation references: [PayPal environment separation](https://developer.paypal.com/api/make-api-requests), [Orders v2](https://developer.paypal.com/api/orders/v2), [idempotency](https://developer.paypal.com/api/rest/reference/idempotency/). Unsafe legacy capture/grant handlers now fail closed; webhook development bypass removed. Production webhook target is `/api/webhooks/paypal`.

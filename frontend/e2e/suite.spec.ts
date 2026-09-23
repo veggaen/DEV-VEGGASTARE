@@ -269,6 +269,132 @@ test.describe("Layer 2 — Routing", () => {
 /*  Now we know routes work, verify they render something meaningful.  */
 /* ================================================================== */
 test.describe("Layer 3 — Content", () => {
+  test("S5 — AI drawers, transcript scroll and composer reflow without provider calls", async ({ browser, baseURL }) => {
+    test.setTimeout(120_000);
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained app-issued demo with a saved conversation');
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+    const page = await context.newPage(), errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    try {
+      const list = await (await context.request.get('/api/ai-chat/sessions?limit=20')).json();
+      const session = list.sessions.find((s: { _count: { messages: number } }) => s._count.messages > 0);
+      expect(session).toBeTruthy();
+      await page.goto(`/ai/${session.id}`, { waitUntil: 'domcontentloaded' });
+      const composer = page.getByRole('textbox', { name: 'AI message', exact: true });
+      await expect(composer).toBeVisible();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await expect(composer).toBeInViewport({ ratio: 0.95 });
+        await expect(page.getByRole('heading', { name: session.title, exact: true })).toBeInViewport();
+        await expect(page.getByRole('contentinfo')).toHaveCount(0);
+        const picker = page.getByRole('button', { name: /^Choose AI model:/ });
+        await picker.click();
+        const sheet = page.getByRole('dialog', { name: 'Choose AI model', exact: true });
+        await expect(sheet).toBeVisible();
+        await sheet.getByRole('textbox', { name: 'Search models', exact: true }).fill('');
+        await sheet.evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
+        const scroller = sheet.locator('[data-ai-model-scroll]');
+        const box = await scroller.boundingBox();
+        expect(box!.height).toBeGreaterThan(20);
+        await page.mouse.move(box!.x + 20, box!.y + box!.height / 2);
+        await page.mouse.wheel(0, 5000);
+        await expect.poll(() => scroller.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThan(2);
+        expect(await page.locator('[data-site-scroll]').evaluate(el => el.scrollTop)).toBe(0);
+        await page.keyboard.press('Escape'); await expect(sheet).toBeHidden(); await expect(picker).toBeFocused();
+        const transcript = page.locator('[data-ai-transcript]');
+        const rect = await transcript.boundingBox();
+        if (rect && rect.height > 20) {
+          await page.mouse.move(rect.x + 30, rect.y + rect.height / 2);
+          await page.mouse.wheel(0, -5000);
+          await expect.poll(() => transcript.evaluate(el => el.scrollTop)).toBe(0);
+          await page.mouse.wheel(0, 5000);
+          await expect.poll(() => transcript.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThan(2);
+          await expect(composer).toBeInViewport({ ratio: 0.95 });
+        }
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      for (const [buttonName, dialogName] of [['Open conversations', 'Conversations'], ['Settings', 'Conversation settings'], ['Participants', 'Participants']]) {
+        const button = page.getByRole('button', { name: buttonName, exact: true });
+        await button.click();
+        const dialog = page.getByRole('dialog', { name: dialogName, exact: true });
+        await expect(dialog).toBeVisible();
+        await page.keyboard.press('Escape'); await expect(dialog).toBeHidden(); await expect(button).toBeFocused();
+        await expect(composer).toBeInViewport({ ratio: 0.95 });
+      }
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
+  test("S5 — real credit debit, saved conversation and zero-balance block", async ({ browser, baseURL }) => {
+    test.setTimeout(180_000);
+    test.skip(process.env.E2E_AI_REAL !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Opt-in bounded provider calls using a retained app-issued demo session');
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+    const page = await context.newPage(), errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    try {
+      const config = await context.request.get('/api/ai-chat/config');
+      expect(config.status()).toBe(200);
+      const initial = await config.json();
+      expect(initial.demo).toBe(true);
+      expect([1, 3, 5]).toContain(initial.balance);
+      await page.goto('/ai', { waitUntil: 'domcontentloaded' });
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      await page.getByRole('button', { name: 'Start a blank chat', exact: true }).click();
+      await expect(page).toHaveURL(/\/ai\/c[a-z0-9]+$/);
+      const conversationPath = new URL(page.url()).pathname;
+      await expect(page.getByText(`${initial.balance} demo credits`, { exact: true })).toBeVisible();
+      let remaining = initial.balance as number;
+      const turns = [...Array.from({ length: Math.floor(remaining / 2) }, () => ({ model: 'GPT-5.6 Luna', cost: 2 })), { model: 'GPT-OSS 20B · Groq', cost: 1 }];
+      for (const [index, { model, cost }] of turns.entries()) {
+        await page.getByRole('button', { name: /^Choose AI model:/ }).click();
+        const sheet = page.getByRole('dialog', { name: 'Choose AI model', exact: true });
+        await sheet.getByRole('textbox', { name: 'Search models', exact: true }).fill(model);
+        await sheet.getByRole('button', { name: new RegExp(model.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).click();
+        await expect(sheet).toBeHidden();
+        await page.getByRole('textbox', { name: 'AI message', exact: true }).fill(`Reply with one short sentence about digital downloads. This is bounded QA check ${index + 1}.`);
+        const generated = page.waitForResponse(r => new URL(r.url()).pathname === '/api/ai-chat' && r.request().method() === 'POST');
+        const saved = page.waitForResponse(r => new URL(r.url()).pathname === `/api/ai-chat/sessions/${conversationPath.split('/').at(-1)}/messages` && r.request().method() === 'POST').catch(() => null);
+        await page.getByRole('button', { name: 'Send message', exact: true }).click();
+        const response = await generated;
+        expect(response.status()).toBe(200);
+        // Browser SSE bodies may be evicted from the CDP response cache. The
+        // app saves only completed replies; assert that observable result.
+        expect((await saved)?.status()).toBe(200);
+        remaining -= cost;
+        await expect(page.getByText(`${remaining} demo credits`, { exact: true })).toBeVisible();
+      }
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.getByText('0 demo credits', { exact: true })).toBeVisible();
+      const record = await context.request.get(`/api/ai-chat/sessions/${conversationPath.split('/').at(-1)}`);
+      const data = await record.json();
+      const replies = (data.conversation ?? data).messages.filter((m: { role: string }) => m.role === 'assistant');
+      expect(replies).toHaveLength(turns.length);
+      for (const reply of replies) expect(reply.content.trim().length).toBeGreaterThan(0);
+      await page.getByRole('button', { name: /^Choose AI model:/ }).click();
+      const sheet = page.getByRole('dialog', { name: 'Choose AI model', exact: true });
+      await sheet.getByRole('textbox', { name: 'Search models', exact: true }).fill('GPT-5.6 Luna');
+      await sheet.getByRole('button', { name: /GPT-5.6 Luna/ }).click();
+      await page.getByRole('textbox', { name: 'AI message', exact: true }).fill('This must be blocked before any provider charge.');
+      const denied = page.waitForResponse(r => new URL(r.url()).pathname === '/api/ai-chat' && r.request().method() === 'POST');
+      await page.getByRole('button', { name: 'Send message', exact: true }).click();
+      expect((await denied).status()).toBe(402);
+      await expect(page.getByText('Not enough credits for this model.', { exact: false })).toBeVisible();
+      expect((await (await context.request.get('/api/ai-chat/config')).json()).balance).toBe(0);
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await expect(page.getByRole('textbox', { name: 'AI message', exact: true })).toBeInViewport();
+      }
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
   test("S8 — warehouse detail is readable without inventory privileges", async ({ browser, baseURL }) => {
     test.setTimeout(60_000);
     test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained app-issued demo session');
@@ -605,14 +731,14 @@ test.describe("Layer 3 — Content", () => {
     test.setTimeout(PAGE_TIMEOUT);
     await visitPage(page, "/");
 
-    const selector = page.getByTitle("Browse AI models");
+    const selector = page.getByRole('button', { name: /^Choose AI model:/ });
     await expect(selector).toBeVisible({ timeout: EXPECT_TIMEOUT });
     await selector.click();
 
     await expect(
-      page.getByText("Gemini 2.5 Flash-Lite is available as a free preview.", { exact: false }),
+      page.getByText('Guest preview · limited requests. Sign in for more models.', { exact: true }),
     ).toBeVisible({ timeout: EXPECT_TIMEOUT });
-    await expect(page.getByPlaceholder(/Search models/)).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Search models', exact: true })).toBeVisible();
   });
 
   test("products page renders content", async ({ page }) => {

@@ -3,12 +3,14 @@ import { z } from "zod";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { dbPrisma } from "@/lib/db";
 import { detectSensitiveData } from "@/lib/ai-chat/safety";
+import { allowAuthAttempt } from '@/lib/auth-rate-limit';
+import { readAiJson } from '@/lib/ai-chat/request';
 
 export const dynamic = "force-dynamic";
 
 const saveSchema = z.object({
   userMessage: z.string().min(1).max(4000),
-  assistantMessage: z.string().min(1).max(8000),
+  assistantMessage: z.string().min(1).max(16384),
   modelUsed: z.string().max(100).optional().default("gemini-3.8-flash"),
   providerUsed: z.string().max(50).optional().default("GOOGLE"),
   tokenCount: z.number().int().min(0).optional(),
@@ -81,10 +83,12 @@ export async function POST(
   if (conv.isDeleted) return NextResponse.json({ error: "DELETED" }, { status: 410 });
   if (conv.isSuspended) return NextResponse.json({ error: "SUSPENDED" }, { status: 403 });
   if (conv.creatorId !== session.id) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  if (req.headers.get('origin') !== req.nextUrl.origin) return NextResponse.json({ error: 'INVALID_ORIGIN' }, { status: 403 });
+  if (!await allowAuthAttempt('ai-message-save', session.id, req)) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   let body: z.infer<typeof saveSchema>;
   try {
-    body = saveSchema.parse(await req.json());
+    body = saveSchema.parse(await readAiJson(req));
   } catch {
     return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
   }

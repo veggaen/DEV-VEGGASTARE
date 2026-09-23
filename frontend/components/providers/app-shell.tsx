@@ -56,7 +56,7 @@ export default function AppShell({
   // (which read as a fake "footer line" under the composer), and no reserved
   // bottom padding. Matches /ai/[id] and a DM conversation (but NOT the /ai list).
   const isImmersiveChat =
-    /^\/ai\/[^/]+$/.test(pathname ?? '') || /^\/conversations\/[^/]+$/.test(pathname ?? '');
+    pathname === '/ai' || /^\/ai\/[^/]+$/.test(pathname ?? '') || /^\/conversations\/[^/]+$/.test(pathname ?? '');
   
   return (
     <SessionProvider session={session} refetchOnWindowFocus>

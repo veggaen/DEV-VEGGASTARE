@@ -1,61 +1,84 @@
 # Veggat
 
-A full-stack marketplace for digital products, with seller tools, community discussions, and multi-provider AI chat.
+Veggat is a trust-first marketplace for digital products: discover a file, checkout, and receive an authenticated, time-limited download. Multi-provider AI adds a second example of server-authoritative access and billing.
 
-[Live app](https://www.veggat.com) · [Architecture](architecture.md) · [Frontend setup](frontend/README.md)
+[Live app](https://www.veggat.com) · [Architecture](architecture.md) · [Verified feature scoreboard](docs/production-scoreboard.md) · [Frontend setup](frontend/README.md)
 
-The live deployment currently has a private-testing access gate. The showcase is being validated; payment, delivery, and paid AI-credit flows are not yet presented as production-certified. Automated QA credentials are private and are never published here.
+## Try it in 90 seconds
+
+Open the public homepage and choose **Try the demo — no payment**. No password or card is needed: each visitor gets an isolated, temporary account, not shared credentials.
+
+1. Open **Veggat Interview Pack**, inspect its gallery, and add it to the cart.
+2. Complete the clearly labelled **free demo checkout** and download the real JPG and TXT.
+3. Open **AI Chat**, select an available model, and review its credit cost.
+
+The real reviewer SKUs are **29 NOK** for the Interview Pack and **39 NOK** for 100 AI credits. These are optional, real-money purchases only when production PayPal is configured. **PayPal credentials are currently missing; no Live or Sandbox purchase has been verified.** Demo purchases cost 0 NOK and never simulate a paid credit grant.
+
+The S5 credit integration is undergoing local/live acceptance testing. Read the scoreboard for the current deployed evidence rather than treating feature code as proof of completion.
 
 ## Architecture
 
 ```text
 Browser → Next.js / Auth.js (Vercel) → PostgreSQL (Prisma)
-                      ├→ AI providers / payment integrations
+                      ├→ Verified PayPal capture → entitlement / credit ledger
+                      ├→ Bounded AI reservation → provider → settle / refund
+                      ├→ Authenticated private digital delivery
                       ├→ Pusher realtime events
-                      └→ Hapi integration API (Railway)
+                      └→ Hapi integration core (Railway)
 ```
 
 | Area | Technology |
 | --- | --- |
-| Web application | Next.js 16, React 19, TypeScript |
-| Interface | Tailwind CSS, Radix, Framer Motion |
+| Web | Next.js 16, React 19, TypeScript |
+| UI | Tailwind CSS, Radix/shadcn, Framer Motion |
 | Identity | Auth.js, OAuth, password authentication |
-| Data and integrations | PostgreSQL, Prisma, Hapi |
-| Validation | Vitest, Playwright, TypeScript |
-| Operations | Vercel, Railway, Web Analytics, Speed Insights |
+| Data/integrations | PostgreSQL, Prisma, Hapi |
+| Tests | Vitest, Playwright, TypeScript |
+| Operations | Vercel, Railway, consent-controlled Analytics / Speed Insights |
 
-## Engineering decisions
+## Four decisions worth discussing
 
-- **Separate integration service:** Hapi keeps shipping and warehouse integrations independent of the Next.js client.
-- **Server-authoritative access:** authentication, ownership checks, and AI entitlement checks run on the server. The model picker is not an authorization boundary.
-- **Progressive loading:** route-specific skeletons, lazy feature modules, image prioritization, and a lightweight gate reduce work before visitors can interact.
-- **Privacy-aware measurement:** optional telemetry follows the analytics preference, strips URL query parameters, and masks private conversation identifiers.
+- **Verified money, not redirects.** The server owns NOK prices. Only a verified capture can fulfill an order; capture IDs are unique and grants are transactional. This adds integration work but prevents client-price tampering and duplicate fulfillment.
+- **Reserve before AI spend.** Atomic balance updates, bounded model/input/output allowances, failure refunds and a separate platform fuse protect different failure cases. Conservative flat message prices trade precision for predictable costs.
+- **Next as reference client; Hapi as integration core.** Shipping and warehouse integrations can evolve independently of the web UI, at the cost of another service to operate. These modules are experimental.
+- **Stable layout and private telemetry.** Persistent shell navigation, constrained content widths, contained drawers and predictable loading states reduce visual jumps. Optional measurement waits for consent; automated lab tests are not claimed as field performance.
 
 ## Run locally
 
-Install dependencies in `frontend` and `backend`, copy their environment templates where available, and supply your own development credentials. Never copy production data or secrets into a public demo.
+Use Node.js compatible with Next.js 16. Copy the frontend environment template to `frontend/.env.local`, then supply a **development database** and development provider credentials. Use PayPal Sandbox locally; never put Live PayPal credentials there.
 
 ```sh
 npm install
-npm install --prefix frontend
 npm install --prefix backend
-npm run dev
 ```
 
-Set `frontend/.env.local` from `frontend/.env.example`. Keep `AUTH_URL` aligned with the local port, normally `http://localhost:3000`; register the matching callback URL in each OAuth application. A production URL in local configuration breaks OAuth cookie verification.
+In a frontend PowerShell terminal, load the local environment for Prisma's install hook:
 
-## Validation
+```powershell
+cd frontend
+$env:DOTENV_CONFIG_PATH='.env.local'
+npm install
+npm run dev -- --webpack -p 3000
+```
+
+Start the integration service separately with `npm run dev --prefix backend`. Apply migrations only after checking the intended database target. Set `AUTH_URL=http://localhost:3000` and register the matching Google/GitHub/Discord callbacks; do not substitute another localhost port.
+
+## Tests and release evidence
 
 ```sh
 cd frontend
 npm run test:unit
 npx tsc --noEmit
-npm run build
+npm run build -- --webpack
 npm run test:e2e
 ```
 
-Playwright's consolidated suite covers routing, public content, API shapes, and user journeys. Authenticated checks require dedicated test credentials; external-provider and sandbox-payment checks need configured services. Passing unit tests alone does not prove checkout or paid-credit safety.
+App E2E tests live in `frontend/e2e/suite.spec.ts`. Real-provider and recovery tests are opt-in; CI must not spend live money. AI ledger concurrency tests use a disposable PostgreSQL schema and require `TEST_AI_LEDGER_DATABASE=1`. They never alter real balances. [Credit safety notes](docs/ai-credit-safety.md) explain limits and failure tests; the [responsive audit](docs/responsive-audit.md) distinguishes real scrolling checks from untested interactions.
 
-## Showcase scope
+## Production versus experimental
 
-Lead with the marketplace: browse a product, inspect the seller experience, and explain the integration architecture. AI chat and Pulse demonstrate additional work on streaming and realtime interaction. Trading, wallet flows, and paid AI credits remain experimental until their security and end-to-end acceptance checks are complete.
+The public catalogue, isolated demo, cart, free demo receipt and private sample delivery have local/live browser evidence. Paid PayPal fulfillment awaits credentials and real transaction testing. Configured OAuth initiation has been checked, but every owner consent/callback is not yet verified.
+
+Pulse, polls, Web3/wallets, trading, logistics and realtime voice are experimental modules, not the flagship product or a claim of production financial capability. AI audio transcription requires a personal OpenAI key until platform audio costs can be safely bounded.
+
+No open-source licence has been selected; contact the owner before reuse.

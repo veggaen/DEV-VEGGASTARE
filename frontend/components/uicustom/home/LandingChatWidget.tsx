@@ -19,13 +19,11 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { CreditModelPicker, AiCreditStatus } from '@/components/uicustom/ai/CreditModelPicker';
+import { useAiCreditConfig, type AiCreditConfig } from '@/hooks/use-ai-credit-config';
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   type AiProvider,
-  type AiModelOption,
-  type AiModelCapability,
-  AI_PROVIDERS,
-  CAPABILITY_BADGES,
   getProviderDef,
   getDefaultModel,
   inferProviderFromApiKey,
@@ -163,623 +161,6 @@ function genId() {
 // (Anon chat history is intentionally not persisted — the landing chat starts
 // fresh on every page load.)
 
-// ─── Capability Badge component ───────────────────────────────────────────────
-
-function CapBadge({ cap }: { cap: AiModelCapability }) {
-  const b = CAPABILITY_BADGES[cap];
-  if (!b) return null;
-  // Only "flagship" gets a colored highlight; everything else is a quiet chip.
-  // Borders on 9px pills just add visual noise (border overuse), so the muted
-  // chips drop the border and lean on a faint fill; flagship uses the brand
-  // accent instead of off-brand violet.
-  const isHot = cap === "flagship";
-  return (
-    <span
-      className={`inline-flex items-center text-[9px] leading-none px-1.5 py-0.5 rounded-full ${
-        isHot
-          ? "bg-brand-accent/12 text-brand-accent"
-          : "bg-foreground/[0.04] text-muted-foreground/60"
-      }`}
-      title={b.tip}
-    >
-      {b.label}
-    </span>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ─── Model Selector Popover ───────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
-
-interface ModelSelectorProps {
-  provider: AiProvider;
-  model: string;
-  byokActive: boolean;
-  detectedByokProvider: AiProvider | null;
-  isLoggedIn: boolean;
-  onSelectModel: (provider: AiProvider, model: string) => void;
-  onOpenByok: () => void;
-  compact?: boolean;
-}
-
-const DROPDOWN_W = 320; // matches w-80 = 20rem = 320px
-
-function calcDropdownPos(triggerEl: HTMLElement) {
-  const rect = triggerEl.getBoundingClientRect();
-  let left = rect.right - DROPDOWN_W;
-  if (left < 8) left = 8;
-  if (left + DROPDOWN_W > window.innerWidth - 8)
-    left = window.innerWidth - DROPDOWN_W - 8;
-  return { top: rect.bottom + 6, left };
-}
-
-function ModelSelector({
-  provider, model, byokActive, detectedByokProvider, isLoggedIn,
-  onSelectModel, onOpenByok, compact = false,
-}: ModelSelectorProps) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [expandedLegacy, setExpandedLegacy] = useState<AiProvider | null>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-
-  // Toggle + compute position synchronously (batched with setOpen — no flash)
-  const handleToggle = useCallback(() => {
-    if (!open && triggerRef.current) {
-      setPos(calcDropdownPos(triggerRef.current));
-    }
-    setOpen((prev) => !prev);
-  }, [open]);
-
-  const requestSignIn = useCallback(() => {
-    setOpen(false);
-    window.location.assign("/auth/login?callbackUrl=%2F");
-  }, []);
-
-  // Close on click outside (checks both trigger and portal dropdown)
-  useEffect(() => {
-    if (!open) return;
-    function handle(e: MouseEvent) {
-      const target = e.target as Node;
-      if (triggerRef.current?.contains(target)) return;
-      if (dropdownRef.current?.contains(target)) return;
-      setOpen(false);
-    }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [open]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    function handle(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("keydown", handle);
-    return () => document.removeEventListener("keydown", handle);
-  }, [open]);
-
-  // Re-anchor dropdown on scroll / resize so it stays pinned to the trigger
-  useEffect(() => {
-    if (!open) return;
-    function reanchor() {
-      if (triggerRef.current) setPos(calcDropdownPos(triggerRef.current));
-    }
-    window.addEventListener("scroll", reanchor, true); // capture phase for nested scrollers
-    window.addEventListener("resize", reanchor);
-    return () => {
-      window.removeEventListener("scroll", reanchor, true);
-      window.removeEventListener("resize", reanchor);
-    };
-  }, [open]);
-
-  const activeProviderDef = getProviderDef(
-    byokActive && detectedByokProvider ? detectedByokProvider : provider
-  );
-  const activeModel =
-    activeProviderDef?.models.find((m) => m.value === model) ??
-    activeProviderDef?.models.find((m) => m.isDefault) ??
-    activeProviderDef?.models[0];
-
-  // Separate providers by tier
-  const freeProviders = AI_PROVIDERS.filter((p) => p.tier === "free");
-  const premiumProviders = AI_PROVIDERS.filter((p) => p.tier === "premium");
-  const byokProviders = AI_PROVIDERS.filter((p) => p.tier === "byok-only");
-
-  // Filter by search
-  const matchesSearch = (text: string) =>
-    !search || text.toLowerCase().includes(search.toLowerCase());
-
-  return (
-    <>
-      {/* Trigger pill */}
-      <button
-        ref={triggerRef}
-        onClick={handleToggle}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        className={`flex cursor-pointer items-center gap-1.5 text-[11px] rounded-lg border transition-all hover:border-sky-500/30 dark:hover:border-emerald-500/30 hover:bg-sky-500/5 dark:hover:bg-emerald-500/5 ${
-          byokActive
-            ? "border-sky-500/30 dark:border-emerald-500/30 bg-sky-500/10 dark:bg-emerald-500/10 text-sky-400 dark:text-emerald-400"
-            : "border-black/12 dark:border-white/10 text-muted-foreground"
-        } px-2 py-1`}
-        title={isLoggedIn ? "Choose AI model" : "Browse AI models"}
-      >
-        <span>{activeProviderDef?.emoji}</span>
-        <span className="font-medium truncate max-w-30">
-          {compact
-            ? (activeModel?.label ?? "Model")
-            : (activeModel?.label ?? activeProviderDef?.label ?? "Model")}
-        </span>
-        {byokActive && (
-          <span
-            className="inline-block h-1.5 w-1.5 rounded-full bg-sky-400 dark:bg-emerald-400 shrink-0"
-            title="Using your API key"
-          />
-        )}
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          className="shrink-0 opacity-60"
-        >
-          <path d={open ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
-        </svg>
-      </button>
-
-      {/* Dropdown — rendered via portal to escape overflow:hidden ancestors */}
-      {typeof document !== "undefined" &&
-        createPortal(
-          <AnimatePresence>
-            {open && (
-              <motion.div
-                ref={dropdownRef}
-                initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                transition={{ duration: 0.12 }}
-                className="fixed z-[200] w-80 max-h-[min(420px,70vh)] overflow-hidden rounded-xl border border-white/10 bg-[#0f0f14]/98 backdrop-blur-xl shadow-2xl shadow-black/40 flex flex-col"
-                style={{ top: pos.top, left: pos.left }}
-              >
-            {!isLoggedIn && (
-              <div className="mx-3 mt-3 rounded-lg border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-[11px] leading-relaxed text-sky-100">
-                Gemini 2.5 Flash-Lite is available as a free preview.{" "}
-                <button
-                  type="button"
-                  onClick={requestSignIn}
-                  className="font-semibold text-sky-300 underline underline-offset-2 hover:text-white"
-                >
-                  Sign in
-                </button>{" "}
-                to choose other models or add your own API key.
-              </div>
-            )}
-            {/* Search */}
-            <div className="px-3 pt-3 pb-2">
-              <div className="relative">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.35-4.35" />
-                </svg>
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search models…"
-                  className="w-full h-8 bg-white/5 border border-white/8 rounded-lg text-xs pl-8 pr-3 text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-sky-500/30 dark:focus:border-emerald-500/30"
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            {/* Scrollable model list */}
-            <div
-              className="flex-1 overflow-y-auto px-2 pb-2 space-y-1"
-              style={{ scrollbarWidth: "thin" }}
-            >
-              {/* ── Free tier providers ── */}
-              {freeProviders.map((prov) => {
-                const recommended = prov.models.filter(
-                  (m) =>
-                    m.group !== "legacy" &&
-                    matchesSearch(
-                      m.label + (m.description ?? "") + prov.label
-                    )
-                );
-                const legacy = prov.models.filter(
-                  (m) =>
-                    m.group === "legacy" &&
-                    matchesSearch(
-                      m.label + (m.description ?? "") + prov.label
-                    )
-                );
-                if (recommended.length === 0 && legacy.length === 0)
-                  return null;
-                return (
-                  <div key={prov.value}>
-                    <div className="flex items-center justify-between px-2 pt-2 pb-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                        {prov.emoji} {prov.label}
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 dark:bg-emerald-500/15 text-sky-400 dark:text-emerald-400 border border-sky-500/20 dark:border-emerald-500/20">
-                        {isLoggedIn ? "FREE" : "FREE PREVIEW"}
-                      </span>
-                    </div>
-                    {recommended.map((m) => (
-                      <ModelRow
-                        key={m.value}
-                        model={m}
-                        providerEmoji={prov.emoji}
-                        isActive={prov.value === provider && m.value === model}
-                        locked={!isLoggedIn && !(prov.value === "GOOGLE" && m.value === "gemini-2.5-flash-lite")}
-                        onClick={() => {
-                          if (!isLoggedIn && !(prov.value === "GOOGLE" && m.value === "gemini-2.5-flash-lite")) {
-                            requestSignIn();
-                          } else {
-                            onSelectModel(prov.value, m.value);
-                            setOpen(false);
-                            setSearch("");
-                          }
-                        }}
-                      />
-                    ))}
-                    {legacy.length > 0 && (
-                      <LegacyToggle
-                        count={legacy.length}
-                        expanded={expandedLegacy === prov.value}
-                        onToggle={() =>
-                          setExpandedLegacy(
-                            expandedLegacy === prov.value ? null : prov.value
-                          )
-                        }
-                      />
-                    )}
-                    {expandedLegacy === prov.value &&
-                      legacy.map((m) => (
-                        <ModelRow
-                          key={m.value}
-                          model={m}
-                          providerEmoji={prov.emoji}
-                          isActive={
-                            prov.value === provider && m.value === model
-                          }
-                          locked={!isLoggedIn && !(prov.value === "GOOGLE" && m.value === "gemini-2.5-flash-lite")}
-                          onClick={() => {
-                            if (!isLoggedIn && !(prov.value === "GOOGLE" && m.value === "gemini-2.5-flash-lite")) {
-                              requestSignIn();
-                            } else {
-                              onSelectModel(prov.value, m.value);
-                              setOpen(false);
-                              setSearch("");
-                            }
-                          }}
-                        />
-                      ))}
-                  </div>
-                );
-              })}
-
-              {/* ── Premium providers (credits or BYOK) ── */}
-              {premiumProviders.map((prov) => {
-                const isUnlocked =
-                  byokActive && detectedByokProvider === prov.value;
-                const recommended = prov.models.filter(
-                  (m) =>
-                    m.group !== "legacy" &&
-                    matchesSearch(
-                      m.label + (m.description ?? "") + prov.label
-                    )
-                );
-                const legacy = prov.models.filter(
-                  (m) =>
-                    m.group === "legacy" &&
-                    matchesSearch(
-                      m.label + (m.description ?? "") + prov.label
-                    )
-                );
-                if (recommended.length === 0 && legacy.length === 0)
-                  return null;
-                return (
-                  <div key={prov.value}>
-                    <div className="flex items-center justify-between px-2 pt-3 pb-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                        {prov.emoji} {prov.label}
-                      </span>
-                      {isUnlocked ? (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20">
-                          YOUR KEY
-                        </span>
-                      ) : (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">
-                          PREMIUM
-                        </span>
-                      )}
-                    </div>
-                    {recommended.map((m) => (
-                      <ModelRow
-                        key={m.value}
-                        model={m}
-                        providerEmoji={prov.emoji}
-                        isActive={prov.value === provider && m.value === model}
-                        locked={!isLoggedIn}
-                        onClick={() => {
-                          if (!isLoggedIn) {
-                            requestSignIn();
-                          } else {
-                            onSelectModel(prov.value, m.value);
-                            setOpen(false);
-                            setSearch("");
-                          }
-                        }}
-                      />
-                    ))}
-                    {legacy.length > 0 && (
-                      <LegacyToggle
-                        count={legacy.length}
-                        expanded={expandedLegacy === prov.value}
-                        onToggle={() =>
-                          setExpandedLegacy(
-                            expandedLegacy === prov.value ? null : prov.value
-                          )
-                        }
-                      />
-                    )}
-                    {expandedLegacy === prov.value &&
-                      legacy.map((m) => (
-                        <ModelRow
-                          key={m.value}
-                          model={m}
-                          providerEmoji={prov.emoji}
-                          isActive={
-                            prov.value === provider && m.value === model
-                          }
-                          locked={!isLoggedIn}
-                          onClick={() => {
-                            if (!isLoggedIn) {
-                              requestSignIn();
-                            } else {
-                              onSelectModel(prov.value, m.value);
-                              setOpen(false);
-                              setSearch("");
-                            }
-                          }}
-                        />
-                      ))}
-                  </div>
-                );
-              })}
-
-              {/* ── BYOK-only providers ── */}
-              {byokProviders.map((prov) => {
-                const isUnlocked =
-                  byokActive && detectedByokProvider === prov.value;
-                const recommended = prov.models.filter(
-                  (m) =>
-                    m.group !== "legacy" &&
-                    matchesSearch(
-                      m.label + (m.description ?? "") + prov.label
-                    )
-                );
-                const legacy = prov.models.filter(
-                  (m) =>
-                    m.group === "legacy" &&
-                    matchesSearch(
-                      m.label + (m.description ?? "") + prov.label
-                    )
-                );
-                if (recommended.length === 0 && legacy.length === 0)
-                  return null;
-                return (
-                  <div key={prov.value}>
-                    <div className="flex items-center justify-between px-2 pt-3 pb-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                        {prov.emoji} {prov.label}
-                      </span>
-                      {isUnlocked ? (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20">
-                          CONNECTED
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            if (!isLoggedIn) {
-                              requestSignIn();
-                            } else {
-                              onOpenByok();
-                              setOpen(false);
-                            }
-                          }}
-                          className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10 transition-colors flex items-center gap-1"
-                          title={`Add your ${prov.label} API key`}
-                        >
-                          🔑 Add key
-                        </button>
-                      )}
-                    </div>
-                    {recommended.map((m) => (
-                      <ModelRow
-                        key={m.value}
-                        model={m}
-                        providerEmoji={prov.emoji}
-                        isActive={prov.value === provider && m.value === model}
-                        locked={!isUnlocked}
-                        onClick={() => {
-                          if (isUnlocked) {
-                            onSelectModel(prov.value, m.value);
-                            setOpen(false);
-                            setSearch("");
-                          } else {
-                            onOpenByok();
-                            setOpen(false);
-                          }
-                        }}
-                      />
-                    ))}
-                    {legacy.length > 0 && (
-                      <LegacyToggle
-                        count={legacy.length}
-                        expanded={expandedLegacy === prov.value}
-                        onToggle={() =>
-                          setExpandedLegacy(
-                            expandedLegacy === prov.value ? null : prov.value
-                          )
-                        }
-                      />
-                    )}
-                    {expandedLegacy === prov.value &&
-                      legacy.map((m) => (
-                        <ModelRow
-                          key={m.value}
-                          model={m}
-                          providerEmoji={prov.emoji}
-                          isActive={
-                            prov.value === provider && m.value === model
-                          }
-                          locked={!isUnlocked}
-                          onClick={() => {
-                            if (isUnlocked) {
-                              onSelectModel(prov.value, m.value);
-                              setOpen(false);
-                              setSearch("");
-                            } else {
-                              onOpenByok();
-                              setOpen(false);
-                            }
-                          }}
-                        />
-                      ))}
-                  </div>
-                );
-              })}
-            </div>
-              </motion.div>
-            )}
-          </AnimatePresence>,
-          document.body
-        )}
-    </>
-  );
-}
-
-function ModelRow({
-  model,
-  providerEmoji,
-  isActive,
-  locked,
-  onClick,
-}: {
-  model: AiModelOption;
-  providerEmoji: string;
-  isActive: boolean;
-  locked?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors group ${
-        isActive
-          ? "bg-sky-500/10 dark:bg-emerald-500/10 border border-sky-500/20 dark:border-emerald-500/20"
-          : "hover:bg-white/5 border border-transparent"
-      } ${locked ? "opacity-60" : ""}`}
-    >
-      {/* Active indicator */}
-      <div className="mt-1 shrink-0 w-3 flex justify-center">
-        {isActive ? (
-          <span className="h-2 w-2 rounded-full bg-sky-400 dark:bg-emerald-400" />
-        ) : locked ? (
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="text-muted-foreground/40"
-          >
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-        ) : null}
-      </div>
-      {/* Model info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs font-medium text-foreground truncate">
-            {model.label}
-          </span>
-          {model.contextSize && (
-            <span
-              className="text-[9px] text-muted-foreground/50"
-              title="Context window"
-            >
-              {model.contextSize}
-            </span>
-          )}
-          {model.isDefault && (
-            <span className="text-[9px] text-sky-400/70 dark:text-emerald-400/70">★</span>
-          )}
-        </div>
-        {model.description && (
-          <p className="text-[10px] text-muted-foreground/60 mt-0.5 leading-snug">
-            {model.description}
-          </p>
-        )}
-        {model.capabilities && model.capabilities.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
-            {model.capabilities.map((c) => (
-              <CapBadge key={c} cap={c} />
-            ))}
-          </div>
-        )}
-      </div>
-    </button>
-  );
-}
-
-function LegacyToggle({
-  count,
-  expanded,
-  onToggle,
-}: {
-  count: number;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[10px] text-muted-foreground/50 hover:text-muted-foreground/80 transition-colors"
-    >
-      <svg
-        width="10"
-        height="10"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      >
-        <path d={expanded ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
-      </svg>
-      {expanded ? "Hide" : `${count} legacy model${count > 1 ? "s" : ""}`}
-    </button>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ─── Main Component ───────────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
 
 interface LandingChatWidgetProps {
   isLoggedIn: boolean;
@@ -794,6 +175,7 @@ export default function LandingChatWidget({
   const reduceMotion = useReducedMotion();
 
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+  const { config: creditConfig, error: creditError } = useAiCreditConfig();
   const [provider, setProvider] = useState<AiProvider>("GOOGLE");
   const [model, setModel] = useState<string>("gemini-2.5-flash-lite");
   const [viewMode, setViewMode] = useState<ViewMode>("widget");
@@ -985,6 +367,7 @@ export default function LandingChatWidget({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: apiMessages,
+          requestId: crypto.randomUUID(),
           sessionId,
           provider: activeProvider,
           model,
@@ -1066,6 +449,10 @@ export default function LandingChatWidget({
           if (raw === "[DONE]") continue;
           try {
             const parsed = JSON.parse(raw);
+            if (parsed.error) {
+              dispatch({ type: 'SET_ERROR', error: parsed.message ?? 'The response was interrupted.' });
+              return;
+            }
             if (parsed.text) {
               fullAiContent += parsed.text;
               dispatch({
@@ -1095,6 +482,9 @@ export default function LandingChatWidget({
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       dispatch({ type: "SET_ERROR", error: "Connection lost. Try again." });
+    } finally {
+      dispatch({ type: 'STREAM_DONE' });
+      window.dispatchEvent(new Event('ai-credit:refresh'));
     }
   }, [
     state.input,
@@ -1117,6 +507,8 @@ export default function LandingChatWidget({
   // Shared props for ChatPanelInner
   const panelProps = {
     state,
+    creditConfig,
+    creditError,
     dispatch,
     provider,
     model,
@@ -1317,6 +709,8 @@ export default function LandingChatWidget({
 
 interface ChatPanelInnerProps {
   state: WidgetState;
+  creditConfig: AiCreditConfig | null;
+  creditError: boolean;
   dispatch: React.Dispatch<WidgetAction>;
   provider: AiProvider;
   model: string;
@@ -1352,6 +746,8 @@ interface ChatPanelInnerProps {
 
 function ChatPanelInner({
   state,
+  creditConfig,
+  creditError,
   dispatch,
   provider,
   model,
@@ -1404,36 +800,34 @@ function ChatPanelInner({
   return (
     <>
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-black/8 dark:border-white/10 shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-y-2 px-3 py-2.5 border-b border-black/8 dark:border-white/10 shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-sky-400 dark:text-emerald-400">✦</span>
           <span className="text-sm font-semibold">Ask AI</span>
           {!isLoggedIn && (
             <span
               className="text-[10px] text-muted-foreground bg-white/5 rounded px-1.5 py-0.5"
-              title="Free Gemini preview with automatic Vercel fallback. Sign in for all models."
+              title="Bounded free AI preview. Sign in for more models."
             >
               Free preview
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex w-full min-w-0 items-center gap-1.5 sm:w-auto">
           {/* Model selector */}
-          <ModelSelector
+          <CreditModelPicker
             provider={provider}
             model={model}
-            byokActive={byokActive}
-            detectedByokProvider={detectedByokProvider}
-            isLoggedIn={isLoggedIn}
-            onSelectModel={onSelectModel}
-            onOpenByok={() => setShowByokPanel(true)}
-            compact={!desktopMode}
+            byokProvider={byokActive && !creditConfig?.demo ? detectedByokProvider : null}
+            config={creditConfig} error={creditError}
+            onSelect={onSelectModel}
+            disabled={state.isStreaming}
           />
           {/* BYOK toggle */}
-          {isLoggedIn && (
+          {isLoggedIn && !creditConfig?.demo && (
             <button
               onClick={() => setShowByokPanel(!showByokPanel)}
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`grid size-11 shrink-0 place-items-center rounded-lg transition-colors ${
                 byokActive
                   ? "bg-sky-500/15 dark:bg-emerald-500/15 text-sky-400 dark:text-emerald-400 border border-sky-500/30 dark:border-emerald-500/30"
                   : "hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground"
@@ -1460,7 +854,7 @@ function ChatPanelInner({
           {/* Expand */}
           <button
             onClick={onExpand}
-            className="p-1.5 rounded-lg hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
             title={
               viewMode === "widget"
                 ? "Expand to larger view"
@@ -1491,7 +885,7 @@ function ChatPanelInner({
           {/* Close */}
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Close chat"
             title={
               viewMode === "expanded" ? "Back to widget" : "Close chat"
@@ -1732,7 +1126,7 @@ function ChatPanelInner({
               <p className="text-xs text-muted-foreground max-w-60 mx-auto">
                 {isLoggedIn
                   ? "Pick a model above or bring your own key to unlock all providers."
-                  : "Free Gemini preview with automatic Vercel fallback. Sign in to choose from 20+ AI models."}
+                  : "Try a limited free preview. Sign in for more models with clear per-message credit costs."}
               </p>
             </div>
             <div
@@ -1849,6 +1243,7 @@ function ChatPanelInner({
       </AnimatePresence>
 
       {/* ── Input area ── */}
+      {isLoggedIn && <div className="shrink-0 px-4 py-2"><AiCreditStatus config={creditConfig} error={creditError} /></div>}
       <div className="px-3 py-3 border-t border-black/8 dark:border-white/10 shrink-0 chat-input-area">
         {/* Model indicator bar */}
         <div className="flex items-center justify-between mb-2 px-1">
@@ -1894,14 +1289,14 @@ function ChatPanelInner({
             placeholder="Ask anything…"
             rows={1}
             disabled={state.isStreaming}
-            className="field-size-content flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none max-h-32 disabled:opacity-50"
+            aria-label="AI message"
+            className="field-size-content min-w-0 flex-1 resize-none bg-transparent text-base text-foreground placeholder:text-muted-foreground/50 outline-none max-h-32 disabled:opacity-50"
             style={{ lineHeight: "1.4", scrollbarWidth: "none" }}
-            aria-label="Chat message"
           />
           <button
             onClick={onSend}
             disabled={!state.input.trim() || state.isStreaming}
-            className="shrink-0 flex items-center justify-center h-7 w-7 rounded-lg bg-sky-500 dark:bg-emerald-500 text-black hover:bg-sky-400 dark:hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors chat-send-btn"
+            className="shrink-0 flex items-center justify-center h-11 w-11 rounded-lg bg-sky-500 dark:bg-emerald-500 text-black hover:bg-sky-400 dark:hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors chat-send-btn"
             aria-label="Send"
           >
             {state.isStreaming ? (

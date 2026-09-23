@@ -1,174 +1,60 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { MyLibUserAuth } from "@/lib/user-auth";
-import { dbPrisma } from "@/lib/db";
-import { getUserAiKeyForGeneration } from "@/lib/ai-key-store";
-import { buildAiParticipantSystemPrompt, buildGeminiContents, stripHtml } from "@/lib/ai-chat/safety";
+/** @fileOverview Metered participant replies; only the key owner can spend BYOK. @stability experimental */
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { dbPrisma } from '@/lib/db';
+import { getUserAiKeyForGeneration } from '@/lib/ai-key-store';
+import { buildAiParticipantSystemPrompt } from '@/lib/ai-chat/safety';
+import { generateMeteredStream, aiErrorResponse } from '@/lib/ai-chat/generation';
+import { guardAiRequest, readAiJson } from '@/lib/ai-chat/request';
+import { AiCreditError } from '@/lib/ai-credit-ledger';
 
 export const maxDuration = 60;
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
+const schema = z.object({ participantId: z.string().cuid(), requestId: z.string().uuid().optional() });
+const providerSchema = z.enum(['GOOGLE','OPENAI','GROQ','GROK','ANTHROPIC','VERCEL','OPENROUTER']);
 
-const schema = z.object({
-  participantId: z.string().cuid(),
-});
-
-/**
- * POST /api/ai-chat/sessions/[sessionId]/trigger-ai
- * Manually trigger a specific BYOK AI participant to respond.
- * Only the human who "owns" the BYOK AI (byokUserId === session.userId) can trigger it.
- */
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> }
-) {
-  const { sessionId } = await params;
-  const session = await MyLibUserAuth();
-  if (!session?.id) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
-
-  let body: z.infer<typeof schema>;
+export async function POST(request: NextRequest, { params }: { params: Promise<{ sessionId: string }> }) {
   try {
-    body = schema.parse(await req.json());
-  } catch {
-    return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
-  }
-
-  // Load conversation + target AI participant
-  const conv = await dbPrisma.aiConversation.findUnique({
-    where: { id: sessionId },
-    include: {
-      participants: true,
-      messages: {
-        orderBy: { createdAt: "asc" },
-        take: 40,
-        select: {
-          role: true,
-          content: true,
-          participant: { select: { displayName: true, type: true } },
-        },
+    const user = await MyLibUserAuth();
+    if (!user?.id) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+    await guardAiRequest(request, user.id);
+    const body = schema.parse(await readAiJson(request));
+    const { sessionId } = await params;
+    const conv = await dbPrisma.aiConversation.findUnique({ where: { id: sessionId }, include: {
+      participants: true, messages: { orderBy: { createdAt: 'desc' }, take: 20, select: { role: true, content: true } },
+    } });
+    if (!conv || conv.isDeleted || conv.isSuspended) throw new AiCreditError('CONVERSATION_UNAVAILABLE', 403);
+    const participant = conv.participants.find(p => p.id === body.participantId && p.isActive && (p.type === 'AI_BYOK' || p.type === 'AI_PLATFORM'));
+    if (!participant) throw new AiCreditError('PARTICIPANT_NOT_FOUND', 404);
+    const member = conv.creatorId === user.id || conv.participants.some(p => p.userId === user.id && p.isActive);
+    if (!member) throw new AiCreditError('FORBIDDEN', 403);
+    const provider = providerSchema.parse(participant.aiProvider ?? 'GOOGLE');
+    let key: { apiKey: string } | undefined;
+    if (participant.type === 'AI_BYOK') {
+      // Owning the conversation does not grant access to another person's key.
+      if (participant.byokUserId !== user.id) throw new AiCreditError('FORBIDDEN', 403);
+      const saved = await getUserAiKeyForGeneration({ userId: user.id, provider });
+      if (!saved?.apiKey || saved.provider !== provider) throw new AiCreditError('BYOK_KEY_NOT_FOUND', 404);
+      key = { apiKey: saved.apiKey };
+    } else if (conv.creatorId !== user.id) throw new AiCreditError('FORBIDDEN', 403);
+    const messages = conv.messages.reverse().filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content.slice(0, 4000) }));
+    if (!messages.length) throw new AiCreditError('INVALID_REQUEST', 400);
+    const response = await generateMeteredStream({ request, userId: user.id, requestId: body.requestId, provider,
+      model: participant.aiModel ?? undefined, messages, key, useSavedKey: false,
+      systemPrompt: buildAiParticipantSystemPrompt({ displayName: participant.displayName ?? 'AI assistant',
+        mode: participant.responseMode, brief: participant.responseBrief }),
+      beforeComplete: async content => {
+        await dbPrisma.$transaction([
+          dbPrisma.aiConvMessage.create({ data: { conversationId: conv.id, participantId: participant.id,
+            content, role: 'assistant', senderType: participant.type, modelUsed: participant.aiModel,
+            providerUsed: provider, sensitiveTypes: [] } }),
+          dbPrisma.aiConversation.update({ where: { id: conv.id }, data: { updatedAt: new Date() } }),
+        ]);
       },
-    },
-  });
-
-  if (!conv) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  if (conv.isDeleted) return NextResponse.json({ error: "DELETED" }, { status: 410 });
-  if (conv.isSuspended) return NextResponse.json({ error: "SUSPENDED" }, { status: 403 });
-
-  // Find the target AI participant
-  const aiParticipant = conv.participants.find(
-    (p) => p.id === body.participantId && (p.type === "AI_BYOK" || p.type === "AI_PLATFORM")
-  );
-
-  if (!aiParticipant) {
-    return NextResponse.json({ error: "PARTICIPANT_NOT_FOUND" }, { status: 404 });
-  }
-
-  // Auth check: only the BYOK key owner or conversation creator can trigger this AI
-  const isByokOwner = aiParticipant.byokUserId === session.id;
-  const isConvCreator = conv.creatorId === session.id;
-  if (!isByokOwner && !isConvCreator) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  }
-
-  // Get API key
-  let apiKey: string;
-  let provider = aiParticipant.aiProvider ?? "GOOGLE";
-  const model = aiParticipant.aiModel ?? "gemini-3.8-flash";
-
-  if (aiParticipant.type === "AI_BYOK" && aiParticipant.byokUserId) {
-    const keyResult = await getUserAiKeyForGeneration({
-      userId: aiParticipant.byokUserId,
-      provider: provider,
     });
-    if (!keyResult?.apiKey) {
-      return NextResponse.json({ error: "BYOK_KEY_NOT_FOUND" }, { status: 400 });
-    }
-    apiKey = keyResult.apiKey;
-  } else {
-    apiKey = process.env.GOOGLE_API_KEY ?? process.env.GOOGLE_AI_API_KEY ?? "";
-    if (!apiKey) return NextResponse.json({ error: "AI_NOT_CONFIGURED" }, { status: 503 });
-  }
-
-  // Build system prompt based on AI participant settings
-  const systemPrompt = buildAiParticipantSystemPrompt({
-    displayName: aiParticipant.displayName ?? "AI Assistant",
-    mode: (aiParticipant.responseMode as "CONTEXT_ONLY" | "DEEP_ANALYSIS") ?? "CONTEXT_ONLY",
-    brief: aiParticipant.responseBrief ?? false,
-  });
-
-  // Build conversation history for context
-  const contents = buildGeminiContents(
-    conv.messages.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }))
-  );
-
-  // Call Gemini (or extend for other providers based on aiParticipant.aiProvider)
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
-
-  const upstream = await fetch(geminiUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents,
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-    }),
-  });
-
-  if (!upstream.ok) {
-    return NextResponse.json({ error: "AI_UPSTREAM_ERROR", status: upstream.status }, { status: 502 });
-  }
-
-  const encoder = new TextEncoder();
-  const readable = new ReadableStream({
-    async start(controller) {
-      const reader = upstream.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const raw = line.slice(6).trim();
-            if (raw === "[DONE]") {
-              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-              continue;
-            }
-            try {
-              const parsed = JSON.parse(raw);
-              const text: string = parsed?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-              if (text) {
-                controller.enqueue(
-                  encoder.encode(`data: ${JSON.stringify({ text: stripHtml(text), participantId: aiParticipant.id })}\n\n`)
-                );
-              }
-            } catch { /* skip */ }
-          }
-        }
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-      } catch { /* stream error */ } finally {
-        controller.close();
-        reader.releaseLock();
-      }
-    },
-  });
-
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      "X-Participant-Id": aiParticipant.id,
-      "X-Participant-Name": aiParticipant.displayName ?? "AI",
-    },
-  });
+    const headers = new Headers(response.headers); headers.set('X-Participant-Id', participant.id);
+    return new Response(response.body, { status: response.status, headers });
+  } catch (error) { return aiErrorResponse(error); }
 }

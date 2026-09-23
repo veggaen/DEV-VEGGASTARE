@@ -1,78 +1,121 @@
 # AI credit safety
 
-Status: **foundation tested, not yet integrated into chat or deployed**. This is
-not a claim that today's public AI routes enforce these controls.
+Status: **integrated in the release candidate; local browser acceptance passed**.
+The additive reservation migration is applied. Production still runs the earlier
+release until the new deployment is explicitly recorded in the scoreboard.
 
-## Implemented foundation
+## Spending invariants
 
 - Existing S4 `AiCreditAccount`/`AiCreditEntry` balances are the source of truth.
-  SANDBOX, LIVE and DEMO accounts are separate even when environments share a DB.
-- Reserve a server-owned credit quote **before** calling any provider. A guarded
-  balance update and the ledger entry commit in one transaction. Negative balances
-  are also forbidden by the database, not only application code.
-- A request ID is scoped to the actor/environment and single-use. Replays cannot
-  start another provider call, even if the original reservation was refunded.
-- Concurrent requests share the platform budget lock. Existing `DailyAiUsage` is
-  checked and incremented atomically: 20 attempts/user/day; five for demo users.
-  No owner exemption. Other legacy callers must be integrated before this daily
-  quota is authoritative across every feature.
-- The independent global provider-cost budget defaults to USD 5/day, can be
-  disabled with `AI_PLATFORM_DAILY_BUDGET_USD=0`, and cannot exceed USD 10/day or
-  500 attempts/day. It is shared across environments that share this database.
-  Cost ceilings must come from a server-owned model allowlist and hard input/output
-  caps. The budget cannot guarantee protection for providers/routes bypassing it.
-- Provider failure refunds the user's credit reservation exactly once. Budget and
-  attempt counters are **not** refunded: a timed-out request can still be billed.
-- Reservations abandoned beyond two minutes are refunded on the account's next
-  balance/read/reservation operation. Provider timeouts must be shorter than this
-  lease. A late settlement cannot re-charge an already refunded reservation.
-- Demo gets five credits once per isolated demo identity, not once per purchase.
-  Existing demo-creation caps remain mandatory. Demo AI remains disabled until
-  the complete generation path is guarded.
-- BYOK reservations debit neither credits nor platform budget, but still consume
-  the authenticated daily quota. Existing encrypted key storage is retained.
+  SANDBOX, LIVE and DEMO accounts remain separate even when they share a database.
+- Reserve a server-owned credit quote **before** any provider request. A guarded
+  balance update and ledger entry commit in one transaction. Database constraints
+  also forbid a negative balance.
+- Actor/environment-scoped request IDs are single-use, including after a refund.
+- The global budget lock serializes spend reservations across replicas. Existing
+  `DailyAiUsage` is checked/incremented atomically: 20 attempts/account/day; five
+  for demos. BYOK consumes the daily quota too. No owner exemption.
+- The independent global provider-cost allowance defaults to USD 5/day.
+  `AI_PLATFORM_DAILY_BUDGET_USD=0` stops platform calls; malformed configuration
+  fails closed. Database/application ceilings are USD 10/day and 500 attempts/day,
+  shared across environments using the same database.
+- Budget is a conservative **reserved ceiling**, not a precise provider invoice.
+  It is never refunded on timeout, failure, or cancellation because a failed
+  request may still cost the provider money.
+- User credit reservations refund once on provider failure, empty/incomplete/error
+  streams, timeout or early cancellation. Abandoned reservations older than two
+  minutes recover on the account's next balance or reservation operation.
+- Text input is capped at 10,000 UTF-8 bytes including the system prompt, with at
+  most 20 recent messages; output is capped at 2,048 tokens including reasoning
+  where supported. No tools, images, search or other separately billed operations
+  are requested. Upstream timeout is 40 seconds; responses are size-bounded.
+- A completed, nonempty terminal stream settles success. Structured poll output
+  is validated before settlement. There are no automatic billable retries.
+- The reviewed price/model allowance expires **2026-10-24 UTC**. Review official
+  price cards and caps before extending it; expired/unlisted models fail closed
+  for platform spending. BYOK is not charged to this budget.
+
+## Integrated paths
+
+Main chat, participant replies, experimental poll generation, answer verification
+and dictation cleanup use the same generation boundary. Titles use the first
+message locally and incur no extra AI call. Poll preview output is limited to
+three questions to fit its explicit generation budget.
+
+Audio transcription is **BYOK-only** until server-verified audio duration can
+bound platform costs. It uses a saved personal OpenAI key, upload/time limits and
+the shared daily request quota. No platform OpenAI audio key fallback remains.
+
+The legacy order-minus-usage entitlement calculation now reads the ledger.
+Provider key availability and saved-provider metadata are returned without keys;
+unavailable models are disabled. Saved-key decryption failures do not silently
+switch to platform billing. Keys remain encrypted using the existing key store.
+
+Demo gets five credits once per isolated identity on its first guarded generation;
+free platform models cost one demo credit. Demo identity-creation caps remain in
+force. Demo conversations stay private, have a five-session cap, and cannot add
+personal keys or make real purchases.
+
+## Model allowance
+
+Credits are a disclosed flat price per message, not an exact token bill. Normal
+accounts can use configured free models at zero credits within daily limits.
+
+| Model | Credits | Conservative platform reservation |
+| --- | ---: | ---: |
+| Gemini 2.5 Flash Lite | 0 | USD 0.005 |
+| GPT-OSS 20B on Groq | 0 | USD 0.004 |
+| Ling 3.0 Flash via Vercel | 0 | USD 0.001 |
+| GPT-5.6 Luna | 2 | USD 0.015 |
+| GPT-6 Astra | 60 | USD 0.600 |
+| Grok 4.7 | 8 | USD 0.080 |
+| Claude Sonnet 4.6 | 16 | USD 0.160 |
+
+Configured project model-list APIs confirmed OpenAI Luna/Astra, Groq GPT-OSS 20B
+and Grok 4.7 IDs. A listed model is not evidence of a successful generation.
+Anthropic is disabled without a configured platform key.
 
 ## Verification
 
-`frontend/lib/ai-credit-ledger.test.ts` has nine configuration checks and ten real
-PostgreSQL checks. The database tests opt in via `TEST_AI_LEDGER_DATABASE=1`, create
-an unpredictable `qa_ai_ledger_*` schema, exercise concurrent transactions, and
-drop only that schema afterward. They never call a provider or change public
-users, balances, orders or daily counters. `AI_LEDGER_TEST_DATABASE_URL` can select
-a dedicated test database; otherwise a local database URL is used without printing
-it. A database account with schema-creation rights is needed for this opt-in test.
+- **19/19** ledger tests: last-credit concurrency, replay rejection, duplicate
+  refunds, no refund after successful settlement, lease recovery, one-time demo
+  grant, daily cap, budget races, BYOK isolation and database constraints.
+- **63/63** generation/stream/request/demo-policy tests: reserve before provider
+  call, insufficient-credit denial without spend, saved-key failure isolation,
+  malformed/oversize/empty/error streams, cancellation, timeout and origin/body
+  guards. **107/107** with the selected payment regression files.
+- Final local production build, TypeScript and touched-file lint passed. Focused
+  Playwright **5/5** (49.2s, including setup): AI drawer/transcript reflow at eight
+  sizes, real Groq debit to zero and subsequent premium denial, Pulse/footer/drawer
+  scrolling and anonymous model selection. Earlier real OpenAI sends debited two
+  credits and exposed a response-shape bug; the saved reply now reloads correctly.
+  No test allowance or daily counter was reset.
 
-From `frontend/` in PowerShell:
+The database tests opt in, create a random `qa_ai_ledger_*` schema, and remove only
+that schema afterward. They never call providers or change public balances/orders.
+`AI_LEDGER_TEST_DATABASE_URL` can select a dedicated database; otherwise the
+configured local URL is used without printing it.
 
 ```powershell
+# In frontend/; requires rights to create an isolated test schema.
 $env:TEST_AI_LEDGER_DATABASE='1'
 npx vitest run lib/ai-credit-ledger.test.ts
 ```
 
-Verified: simultaneous last-credit debits (only one succeeds); replay rejection;
-duplicate failure refunds (only one); successful settlement cannot be refunded;
-crashed-request recovery; demo grant concurrency; daily quota; concurrent platform
-budget exhaustion; BYOK isolation; database negative-balance and hard-budget checks.
-Result: **19/19**, TypeScript and touched-file lint passed.
+The real-provider Playwright check requires `E2E_AI_REAL=1` and a retained
+app-issued demo storage state. It spends only that account's existing allowance,
+does not reset counters, and verifies saved replies and the zero-credit error.
+Normal CI does not make these paid provider calls.
 
-## Release gates still open
+## Release gates
 
-1. Server-owned model/price ceilings, strict total input-byte and output-token caps.
-   Unknown models fail closed for platform funds; missing provider keys disable UI.
-2. Integrate main chat, participant generation, title generation, poll generation,
-   answer verification and voice routes. No alternate unmetered platform path.
-3. Propagate timeout, provider SSE error, empty stream and user disconnect to
-   settlement. Bound response sizes and stop upstream work on cancellation.
-4. Replace legacy order-minus-usage entitlement calculation; display current ledger
-   balance, per-model credits and zero-balance purchase CTA; enable bounded demo AI.
-5. Apply additive migration, run one real bounded debit and one zero-balance denial
-   locally, then deploy and repeat in the actual UI. Provider calls are not yet
-   covered by the foundation tests.
+Deploy and repeat against the live alias. Paid credit purchase remains separately blocked
+by missing PayPal credentials; demo generation is not proof of paid capture.
 
-## Official model research
+## Official references
 
-Checked the current [Vercel model catalog](https://ai-gateway.vercel.sh/v1/models)
-and [GPT-6 Astra model documentation](https://developers.openai.com/api/docs/models/gpt-6-astra).
-An official model ID does not establish this project's account access. Verify
-access before enabling a model. Output ceilings must include invisible/reasoning
-tokens, not just visible text: [OpenAI token-counting documentation](https://developers.openai.com/api/docs/guides/token-counting).
+[Model catalog](https://ai-gateway.vercel.sh/v1/models),
+[GPT-6 Astra](https://developers.openai.com/api/docs/models/gpt-6-astra),
+[OpenAI token counting](https://developers.openai.com/api/docs/guides/token-counting),
+[Groq model documentation](https://console.groq.com/docs/models),
+[Grok 4.7](https://docs.x.ai/developers/models/grok-4.7).

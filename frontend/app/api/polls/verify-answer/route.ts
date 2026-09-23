@@ -11,6 +11,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { MyLibUserAuth } from "@/lib/user-auth";
+import { generateMeteredText, aiErrorResponse } from "@/lib/ai-chat/generation";
+import { guardAiRequest, readAiJson } from "@/lib/ai-chat/request";
+export const maxDuration = 60;
 
 const VerifyAnswerSchema = z.object({
   userAnswer: z.string().min(1).max(1000),
@@ -18,21 +22,18 @@ const VerifyAnswerSchema = z.object({
   questionText: z.string().max(2000).optional(),
 });
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+
 
 export async function POST(req: NextRequest) {
   try {
-    const json = await req.json();
+    const user = await MyLibUserAuth();
+    await guardAiRequest(req, user?.id);
+    const json = await readAiJson(req);
     const parsed = VerifyAnswerSchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json({ isCorrect: false, error: "Invalid payload" }, { status: 400 });
     }
     const { userAnswer, correctAnswer, questionText } = parsed.data;
-
-    if (!GROQ_API_KEY) {
-      // No API key configured — fail closed (fuzzy result stands)
-      return NextResponse.json({ isCorrect: false, error: "AI not configured" }, { status: 200 });
-    }
 
     const contextLine = questionText
       ? `\nThe quiz question was: "${questionText}"`
@@ -53,32 +54,13 @@ Rules:
 
 Reply with ONLY the word YES or NO.`;
 
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-oss-20b",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0,
-        max_completion_tokens: 512,
-        reasoning_effort: "low",
-        include_reasoning: false,
-      }),
-    });
-
-    if (!res.ok) {
-      return NextResponse.json({ isCorrect: false, error: "AI provider error" }, { status: 200 });
-    }
-
-    const data = await res.json();
-    const reply = (data.choices?.[0]?.message?.content ?? "").trim().toUpperCase();
-    const isCorrect = reply.startsWith("YES");
+    const reply = (await generateMeteredText({ request: req, userId: user?.id, provider: "GROQ", model: "openai/gpt-oss-20b",
+      useSavedKey: false, messages: [{ role: "user", content: prompt }], systemPrompt: "Check the quiz answer. Output YES or NO only.",
+    })).trim().toUpperCase();
+    const isCorrect = reply === "YES";
 
     return NextResponse.json({ isCorrect });
-  } catch {
-    return NextResponse.json({ isCorrect: false, error: "Internal error" }, { status: 200 });
+  } catch (error) {
+    return aiErrorResponse(error);
   }
 }

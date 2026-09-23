@@ -490,7 +490,7 @@ export default function BelowFoldSections() {
             delay={0}
             href="/ai"
             title="AI Chat"
-            description="Six AI models including GPT, Claude, and Gemini. Free on platform keys — or bring your own for unlimited access."
+            description="Try a free preview or use prepaid credits for available premium models. Personal API keys are encrypted; daily safety limits apply."
             icon={AI_ICON}
             accentClass="from-violet-500/6 to-transparent"
             onMouseEnter={handleFeatureEnter}
@@ -550,7 +550,7 @@ export default function BelowFoldSections() {
             {(
               [
                 { value: "6", label: "AI Models" },
-                { value: "BYOK", label: "Your Keys, No Limits" },
+                { value: "BYOK", label: "Your Keys, Your Billing" },
                 { value: "$0", label: "To Start" },
                 { value: "12", label: "Trust Tiers" },
               ] as const
@@ -589,7 +589,7 @@ export default function BelowFoldSections() {
         >
           {(
             [
-              { step: "01", title: "Browse or Ask", description: "Explore products or ask AI for recommendations. Choose or select multiple models from included tiers, or bring your own key for unlimited access." },
+              { step: "01", title: "Browse or Ask", description: "Explore digital products or ask AI about Veggat. Model costs and your remaining credits are shown before you send." },
               { step: "02", title: "Vote & Decide", description: "Join live polls where you and llm-models are creating the options, the activity, the mission or the goal, to then have its weight adjusted by the Reach architecture." },
               { step: "03", title: "Track & Ship", description: "Track product orders, inventory statuses, and shipping logistics from one dashboard." },
             ] as const
@@ -622,8 +622,8 @@ export default function BelowFoldSections() {
               <HoverableHeading text="Start exploring Veggat" />
             </h2>
             <p className="max-w-md text-sm leading-relaxed text-gray-400 dark:text-white/40">
-              SaaS, shop, and crypto in one platform — free to start. Subscribe for
-              premium AI, or bring your own key for no limits.
+              Discover digital goods and explore the free demo. Premium AI uses prepaid credits;
+              personal keys bill your provider directly. Daily limits apply.
             </p>
             <Link
               href="/pricing"

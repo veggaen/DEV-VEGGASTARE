@@ -108,9 +108,7 @@ export async function GET() {
     const rows = await Promise.all(
       users.map(async (user) => {
         const entitlement = await getPaidAiEntitlement(user.id);
-        const daily = entitlement.mode === 'daily_cap'
-          ? await checkDailyQuota(user.id, entitlement.dailyLimit)
-          : null;
+        const daily = await checkDailyQuota(user.id, entitlement.dailyLimit);
 
         return {
           userId: user.id,

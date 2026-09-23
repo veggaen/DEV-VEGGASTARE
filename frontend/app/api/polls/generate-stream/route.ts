@@ -3,10 +3,13 @@ import { z } from "zod";
 
 import { sanitizeApiKey } from "@/lib/ai-key-crypto";
 import { MyLibUserAuth } from "@/lib/user-auth";
-import { ensureUser } from "@/lib/ensure-user";
 import { getUserAiKeyForGeneration, upsertUserAiKey } from "@/lib/ai-key-store";
-import { checkDailyQuota, incrementDailyUsage, DAILY_LIMIT } from "@/lib/daily-ai-quota";
+import { checkDailyQuota } from "@/lib/daily-ai-quota";
+import { AI_DAILY_REQUEST_LIMIT } from "@/lib/ai-credit-ledger";
+import { getDefaultModel } from "@/lib/ai-models";
 import { getPaidAiEntitlement } from "@/lib/ai-paid-entitlement";
+import { generateMeteredText, aiErrorResponse } from '@/lib/ai-chat/generation';
+import { guardAiRequest, readAiJson } from '@/lib/ai-chat/request';
 
 // Allow up to 300s for AI generation (Vercel Pro plan)
 export const maxDuration = 300;
@@ -17,7 +20,7 @@ export const maxDuration = 300;
 // display each research/validation phase as it happens.
 //
 // Auth: REQUIRED for all modes (free tier + BYOK).
-// Free tier: 5 generations/user/day using platform key. BYOK: unlimited.
+// All calls use shared daily limits. Platform models use reviewed credit prices.
 //
 // Events:
 //   { step: 1-6, label: string, status: "active"|"done"|"error", totalSteps: 6 }
@@ -194,7 +197,7 @@ Rules:
   2) deeper insight (common mistake, real-world example, or practical application), shown on "Still don't understand?"
   For deepExplanation, provide a reasoning chain beyond the surface. Reference research context when available. Include "why it matters" or a real-world consequence.
 - Keep questions clear, concise, and well-written
-- Generate 5-15 questions unless the user specifies a count
+- Generate up to 3 concise questions in this bounded experimental preview; never exceed 3.
 - Use a variety of question types for richness unless the user specifies types
 - Prefer multiple sections for longer quizzes (8+ questions)
 - Every option must have a unique "id" across the entire poll
@@ -304,21 +307,7 @@ function canPersistProvider(provider: ResolvedAuth["provider"]): provider is "OP
 }
 
 function defaultModelForProvider(provider: ResolvedAuth["provider"]): string {
-  switch (provider) {
-    case "GROQ":
-      return "openai/gpt-oss-20b";
-    case "OPENROUTER":
-      return "openai/gpt-4o-mini";
-    case "ANTHROPIC":
-      return "claude-sonnet-4-6";
-    case "GROK":
-      return "grok-4.7";
-    case "GOOGLE":
-      return "gemini-3.8-flash";
-    case "OPENAI":
-    default:
-      return process.env.OPENAI_MODEL || "gpt-5.6-luna";
-  }
+  return getDefaultModel(provider)?.value ?? "";
 }
 
 function formatProviderStatus(provider: ResolvedAuth["provider"], model?: string): string {
@@ -643,377 +632,46 @@ function ensureQuestionQuality(
 // "one_time": user explicitly provided a BYOK key this request.
 // "saved" / "platform": legacy compat, mapped to auto behavior.
 
-async function resolveGenerationAuth(reqBody: z.infer<typeof StreamRequestSchema>, userId: string, userEmail?: string | null): Promise<ResolvedAuth> {
+async function resolveGenerationAuth(reqBody: z.infer<typeof StreamRequestSchema>, userId: string): Promise<ResolvedAuth> {
   const mode = reqBody.aiAuth?.mode || "auto";
-  const requestedProvider = reqBody.aiAuth?.provider
-    ? normalizeGenerationProvider(reqBody.aiAuth.provider)
-    : undefined;
+  const requestedProvider = reqBody.aiAuth?.provider ? normalizeGenerationProvider(reqBody.aiAuth.provider) : undefined;
   const requestedModel = reqBody.aiAuth?.model?.trim() || undefined;
-
-  // BYOK: user typed a key in the UI
   if (mode === "one_time") {
-    const oneTimeKey = sanitizeApiKey(reqBody.aiAuth?.apiKey);
-    const inferredProvider = oneTimeKey ? inferProviderFromApiKey(oneTimeKey) : null;
-    const provider = inferredProvider || requestedProvider || "OPENAI";
-    const resolvedModel = requestedModel && isModelLikelyForProvider(provider, requestedModel)
-      ? requestedModel
-      : defaultModelForProvider(provider);
-
-    if (!oneTimeKey) throw new Error("Please paste an API key.");
+    const apiKey = sanitizeApiKey(reqBody.aiAuth?.apiKey);
+    if (!apiKey) throw new Error("Please enter your own API key.");
+    const provider = requestedProvider || inferProviderFromApiKey(apiKey) || "OPENAI";
     if (reqBody.aiAuth?.rememberKey && canPersistProvider(provider)) {
-      const ensured = await ensureUser({ id: userId } as any);
-      if (ensured.success) {
-        await upsertUserAiKey({ userId: ensured.userId, provider, apiKey: oneTimeKey, setDefault: true });
-      }
+      await upsertUserAiKey({ userId, provider, apiKey, setDefault: true });
     }
-    return { provider, apiKey: oneTimeKey, model: resolvedModel };
+    return { provider, apiKey, model: requestedModel || defaultModelForProvider(provider) };
   }
-
-  // Auto mode: try saved key first → then platform key
-  try {
-    const savedPreference = requestedProvider && canPersistProvider(requestedProvider)
-      ? requestedProvider
-      : undefined;
-
-    if (!requestedProvider || canPersistProvider(requestedProvider)) {
-      const ensured = await ensureUser({ id: userId } as any);
-      if (ensured.success) {
-        const saved = await getUserAiKeyForGeneration({ userId: ensured.userId, provider: savedPreference });
-        if (saved && (!savedPreference || saved.provider === savedPreference)) {
-          return {
-            provider: saved.provider,
-            apiKey: saved.apiKey,
-            model: requestedModel || defaultModelForProvider(saved.provider),
-            usedSavedKey: true,
-            savedKeyProvider: saved.provider,
-          };
-        }
-      }
+  // Never silently switch a failed saved-key decryption to platform billing.
+  if (mode !== "platform") {
+    const saved = await getUserAiKeyForGeneration({ userId, provider: requestedProvider });
+    if (saved && (!requestedProvider || saved.provider === requestedProvider)) {
+      return { provider: saved.provider, apiKey: saved.apiKey, model: requestedModel || defaultModelForProvider(saved.provider),
+        usedSavedKey: true, savedKeyProvider: saved.provider };
     }
-  } catch {
-    // No saved key — fall through to platform key
+    if (mode === "saved") throw new Error("Save a key for this provider in Settings first.");
   }
-
-  // Platform key fallback
-  const ownerEmail = process.env.PLATFORM_OWNER_EMAIL;
-  const isOwner = ownerEmail && userEmail && userEmail.toLowerCase() === ownerEmail.toLowerCase();
-  const paidEntitlement = await getPaidAiEntitlement(userId);
-  const hasPremiumAccess = isOwner || paidEntitlement.hasAccess;
-  const openaiKey = sanitizeApiKey(process.env.OPENAI_API_KEY);
-  const groqKey = sanitizeApiKey(process.env.GROQ_API_KEY);
-
-  if (requestedProvider === "OPENROUTER" || requestedProvider === "ANTHROPIC" || requestedProvider === "GROK") {
-    throw new Error(`To use ${formatProviderStatus(requestedProvider, requestedModel)}, add your own API key in “Set up your own AI”.`);
-  }
-
-  if (requestedProvider === "OPENAI") {
-    if (hasPremiumAccess && openaiKey) {
-      return { provider: "OPENAI", apiKey: openaiKey, model: requestedModel || defaultModelForProvider("OPENAI") };
-    }
-    throw new Error("OpenAI platform access is premium-only. Use Groq (free) or add your own OpenAI key.");
-  }
-
-  if (requestedProvider === "GROQ") {
-    if (groqKey) {
-      return { provider: "GROQ", apiKey: groqKey, model: requestedModel || defaultModelForProvider("GROQ") };
-    }
-    throw new Error("Groq is not configured right now. Please add your own API key, or try again later.");
-  }
-
-  // Premium path (owner + paid): platform OpenAI is available, optional Groq preference
-  if (hasPremiumAccess) {
-    if (openaiKey) {
-      return { provider: "OPENAI", apiKey: openaiKey, model: requestedModel || defaultModelForProvider("OPENAI") };
-    }
-    if (groqKey) {
-      return { provider: "GROQ", apiKey: groqKey, model: requestedModel || defaultModelForProvider("GROQ") };
-    }
-    if (paidEntitlement.hasAccess) {
-      throw new Error("Premium AI is temporarily unavailable. Please contact support.");
-    }
-  }
-
-  // Everyone else: Groq free tier only (never default to platform OpenAI)
-  if (groqKey) {
-    return { provider: "GROQ", apiKey: groqKey, model: requestedModel || defaultModelForProvider("GROQ") };
-  }
-
-  if (openaiKey && isOwner) {
-    return { provider: "OPENAI", apiKey: openaiKey, model: requestedModel || defaultModelForProvider("OPENAI") };
-  }
-
-  throw new Error("AI generation is not available right now. Please provide your own API key, or try again later.");
+  const provider = requestedProvider || "GROQ";
+  // Central generation selects the key and checks the exact model, ledger and
+  // platform budget; owner accounts have no special spending exemption.
+  return { provider, apiKey: "", model: requestedModel || defaultModelForProvider(provider) };
 }
 
-// ── Provider error formatter ───────────────────────────────────────────────
-// Parses each provider's JSON error body and returns an actionable message.
-
-const PROVIDER_CONSOLE_URLS: Record<string, string> = {
-  OPENAI:     "platform.openai.com/api-keys",
-  OPENROUTER: "openrouter.ai/keys",
-  ANTHROPIC:  "console.anthropic.com/settings/keys",
-  GROK:       "console.x.ai",
-  GROQ:       "console.groq.com/keys",
-  GOOGLE:     "aistudio.google.com/apikey",
-};
-
-function formatProviderError(
-  provider: "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ" | "GOOGLE",
-  status: number,
-  rawBody: string,
-  apiKey?: string,
-): string {
-  const label = provider === "OPENROUTER" ? "OpenRouter"
-    : provider === "ANTHROPIC" ? "Anthropic"
-    : provider === "GROQ"      ? "Groq"
-    : provider === "GROK"      ? "Grok (xAI)"
-    : provider === "GOOGLE"    ? "Google Gemini"
-    : "OpenAI";
-  const consoleUrl = PROVIDER_CONSOLE_URLS[provider] ?? "the provider dashboard";
-
-  // All providers use { error: { message } }; Google also uses array form
-  let parsed: any = null;
-  try { parsed = JSON.parse(rawBody); } catch { /* keep raw text */ }
-  const apiMsg: string | null =
-    parsed?.error?.message
-    ?? parsed?.[0]?.error?.message
-    ?? parsed?.message
-    ?? null;
-
-  const bodyLower = (apiMsg ?? rawBody).toLowerCase();
-
-  // ── 401 / 403: bad API key ──────────────────────────────────────────────
-  if (status === 401 || status === 403) {
-    if (provider === "GROQ") {
-      const looksOpenAiKey = /^sk-(proj-)?/i.test(apiKey ?? "") && !/^sk-or-/i.test(apiKey ?? "") && !/^sk-ant-/i.test(apiKey ?? "");
-      return looksOpenAiKey
-        ? "Groq rejected your key — this looks like an OpenAI key. Switch provider to OpenAI or paste a Groq key (starts with gsk_)."
-        : `Groq rejected your API key. Verify it at ${consoleUrl}.`;
-    }
-    return `${label} rejected your API key. Verify it at ${consoleUrl}.`;
-  }
-
-  // ── Credit/billing keywords (used by both 429 and 400/402 checks) ────────
-  const creditKeywords = ["credit", "billing", "balance", "quota", "insufficient_quota", "payment", "low", "exceeded your current"];
-
-  // ── 429: quota exhausted (OpenAI/OpenRouter) OR rate limit ───────────────
-  // OpenAI sends insufficient_quota as 429, not 402 — detect it by error code/type/message.
-  if (status === 429) {
-    const isQuota =
-      parsed?.error?.code === "insufficient_quota" ||
-      parsed?.error?.type === "insufficient_quota" ||
-      creditKeywords.some(k => bodyLower.includes(k));
-    if (isQuota) {
-      return apiMsg
-        ? `${label} billing error: ${apiMsg}`
-        : `${label}: Your quota is exhausted. Top up your account at ${consoleUrl}.`;
-    }
-    return apiMsg
-      ? `${label} rate limit: ${apiMsg}`
-      : `${label} rate limit reached — try again in a moment, or upgrade your plan for higher limits.`;
-  }
-
-  // ── 402 or credit/billing 400 ───────────────────────────────────────────
-  if (status === 402 || (status === 400 && creditKeywords.some(k => bodyLower.includes(k)))) {
-    return apiMsg
-      ? `${label} billing error: ${apiMsg}`
-      : `${label}: Insufficient credits. Top up your account at ${consoleUrl}.`;
-  }
-
-  // ── 404 or model-not-found 400 ──────────────────────────────────────────
-  const modelKeywords = ["model", "not found", "does not exist", "invalid_model", "no such"];
-  if (status === 404 || (status === 400 && modelKeywords.some(k => bodyLower.includes(k)))) {
-    return apiMsg
-      ? `${label} model error: ${apiMsg}`
-      : `${label}: Model not found. Check the model name is correct for your account tier.`;
-  }
-
-  // ── Google-specific: API_KEY_INVALID buried in a 400 ───────────────────
-  if (provider === "GOOGLE" && status === 400 && rawBody.includes("API_KEY_INVALID")) {
-    return `Google rejected your API key. Verify it at ${consoleUrl}.`;
-  }
-
-  // ── Any 400 with a clear API message ────────────────────────────────────
-  if (status === 400 && apiMsg) {
-    return `${label}: ${apiMsg}`;
-  }
-
-  // ── 503 / 529: overloaded ───────────────────────────────────────────────
-  if (status === 503 || status === 529) {
-    return `${label} is currently overloaded. Please try again in a few seconds.`;
-  }
-
-  // ── Fallback ────────────────────────────────────────────────────────────
-  return apiMsg
-    ? `${label} error (${status}): ${apiMsg}`
-    : `${label} AI error (${status}). Check your key has the right permissions and try again.`;
-}
-
-// ── Provider call ──────────────────────────────────────────────────────────
-
-// Must stay under Vercel Pro's 300s hard function limit — our abort fires at 270s
-// so the clean "took too long" SSE error reaches the client before Vercel cuts the connection.
-const PROVIDER_TIMEOUT_MS = 270_000; // 270s — fires before Vercel Pro's 300s hard limit
-
-async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ" | "GOOGLE"; apiKey: string; prompt: string; model?: string; systemPrompt?: string; thinking?: boolean; }): Promise<{ content: string; model: string }> {
-  const systemPrompt = input.systemPrompt || SYSTEM_PROMPT;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
-
-  try {
-  if (input.provider === "GROQ") {
-    const model = input.model || defaultModelForProvider("GROQ");
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.apiKey}` },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: input.prompt.trim() }],
-        temperature: 0.7,
-        max_tokens: 16384,
-        response_format: { type: "json_object" },
-      }),
-    });
-    if (!response.ok) {
-      const e = await response.text();
-      console.error("Groq error:", response.status, e);
-      throw new Error(formatProviderError("GROQ", response.status, e, input.apiKey));
-    }
-    const completion = await response.json();
-    const content = completion.choices?.[0]?.message?.content;
-    if (!content) throw new Error("No response from Groq.");
-    return { content, model };
-  }
-
-  if (input.provider === "ANTHROPIC") {
-    const model = input.model || defaultModelForProvider("ANTHROPIC");
-    // Anthropic extended thinking: when enabled, use budget_tokens and remove temperature
-    const useThinking = !!input.thinking;
-    const anthropicBody: any = {
-      model,
-      // 5000 tokens = safety hard cap (~50-62s at Anthropic's 80-100 t/s output speed).
-      // The real budget control is done in the prompt via server-side question-count injection
-      // (see below), which reduces natural generation to ~2500 tokens (~25-30s).
-      max_tokens: useThinking ? 32768 : 16384,
-      system: systemPrompt,
-      messages: [{ role: "user", content: input.prompt.trim() }],
-      ...(useThinking
-        ? { thinking: { type: "enabled", budget_tokens: 16384 } }
-        : { temperature: 0.7 }),
-    };
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": input.apiKey, "anthropic-version": "2023-06-01" },
-      signal: controller.signal,
-      body: JSON.stringify(anthropicBody),
-    });
-    if (!response.ok) {
-      const e = await response.text();
-      console.error("Anthropic error:", response.status, e);
-      throw new Error(formatProviderError("ANTHROPIC", response.status, e, input.apiKey));
-    }
-    const completion = await response.json();
-    const content = completion?.content?.find((i: any) => i?.type === "text")?.text;
-    if (!content) throw new Error("No response from AI.");
-    return { content, model };
-  }
-  // Grok (xAI) uses an OpenAI-compatible API
-  if (input.provider === "GROK") {
-    const model = input.model || defaultModelForProvider("GROK");
-    const response = await fetch("https://api.x.ai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.apiKey}` },
-      signal: controller.signal,
-      body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: input.prompt.trim() }], temperature: 0.7, max_tokens: 16384, response_format: { type: "json_object" } }),
-    });
-    if (!response.ok) {
-      const e = await response.text();
-      console.error("Grok error:", response.status, e);
-      throw new Error(formatProviderError("GROK", response.status, e, input.apiKey));
-    }
-    const completion = await response.json();
-    const content = completion.choices?.[0]?.message?.content;
-    if (!content) throw new Error("No response from Grok.");
-    return { content, model };
-  }
-  // Google Gemini — uses the Gemini REST API with generateContent
-  if (input.provider === "GOOGLE") {
-    const model = input.model || defaultModelForProvider("GOOGLE");
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${input.apiKey}`;
-    // Gemini 2.5 thinking: when enabled, set thinkingConfig with a budget
-    const useThinking = !!input.thinking && (model.includes("2.5") || model.includes("2-5"));
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: `${systemPrompt}\n\n${input.prompt.trim()}` }] }],
-        generationConfig: {
-          temperature: useThinking ? undefined : 0.7,
-          maxOutputTokens: useThinking ? 16384 : 16384,
-          responseMimeType: "application/json",
-          ...(useThinking ? { thinkingConfig: { thinkingBudget: 8192 } } : {}),
-        },
-      }),
-    });
-    if (!response.ok) {
-      const e = await response.text();
-      console.error("Google Gemini error:", response.status, e);
-      throw new Error(formatProviderError("GOOGLE", response.status, e, input.apiKey));
-    }
-    const result = await response.json();
-    const content = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!content) throw new Error("No response from Google Gemini.");
-    return { content, model };
-  }
-  const endpoint = input.provider === "OPENROUTER" ? "https://openrouter.ai/api/v1/chat/completions" : "https://api.openai.com/v1/chat/completions";
-  const model = input.model || (input.provider === "OPENROUTER" ? defaultModelForProvider("OPENROUTER") : defaultModelForProvider("OPENAI"));
-  // OpenAI GPT-5.x / GPT-4.1 / o-series thinking: use reasoning param
-  const isOSeries = model.startsWith("o");
-  const isGpt5 = model.startsWith("gpt-5");
-  const isGpt41 = model.startsWith("gpt-4.1");
-  const isNewModel = isOSeries || isGpt5 || isGpt41; // newer models use max_completion_tokens
-  const useThinking = !!input.thinking && (isOSeries || isGpt5);
-  const openaiBody: any = {
-    model,
-    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: input.prompt.trim() }],
-    // GPT-5.x, GPT-4.1, and o-series require max_completion_tokens; older models use max_tokens
-    ...(isNewModel ? { max_completion_tokens: 16384 } : { max_tokens: 16384 }),
-    response_format: { type: "json_object" },
-    // o-series models don't support temperature
-    ...(isOSeries ? {} : { temperature: 0.7 }),
-    ...(useThinking && isOSeries ? { reasoning_effort: "high" } : {}),
-    ...(useThinking && isGpt5 ? { reasoning: { effort: "high" } } : {}),
-  };
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.apiKey}`, ...(input.provider === "OPENROUTER" ? { "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://veggat.com", "X-Title": "VeggaStare Poll Generator" } : {}) },
-    signal: controller.signal,
-    body: JSON.stringify(openaiBody),
+async function callProvider(input: { provider: "OPENAI" | "OPENROUTER" | "ANTHROPIC" | "GROK" | "GROQ" | "GOOGLE"; apiKey: string; prompt: string; model?: string; systemPrompt?: string; thinking?: boolean; request: Request; userId: string; byok: boolean }): Promise<{ content: string; model: string }> {
+  const model = input.model || defaultModelForProvider(input.provider);
+  const content = await generateMeteredText({ request: input.request, userId: input.userId, provider: input.provider, model,
+    messages: [{ role: 'user', content: input.prompt }], systemPrompt: input.systemPrompt || 'Return the requested poll as valid JSON.',
+    ...(input.byok ? { key: { apiKey: input.apiKey } } : {}), useSavedKey: false,
+    beforeComplete: async text => {
+      const poll = extractJson(text);
+      if (!poll?.title || !Array.isArray(poll.questions) || !poll.questions.length) throw new Error("INVALID_AI_POLL");
+      if (/\\bsk-[a-z0-9]{20,}|\\bpassword\\s*[:=]|\\bapi[_-]?key\\b/i.test(text)) throw new Error("UNSAFE_AI_OUTPUT");
+    },
   });
-  if (!response.ok) {
-    const e = await response.text();
-    console.error(`${input.provider} error:`, response.status, e);
-    throw new Error(formatProviderError(input.provider, response.status, e, input.apiKey));
-  }
-  const completion = await response.json();
-  const content = completion.choices?.[0]?.message?.content;
-  if (!content) throw new Error("No response from AI.");
   return { content, model };
-
-  } catch (err: any) {
-    if (err?.name === "AbortError") {
-      throw new Error(
-        "Generation timed out. To fix: (1) Request fewer questions — 10 or less works best. " +
-        "(2) Switch to Groq — it's free and generates 5× faster than Anthropic/Google. " +
-        "(3) If using Anthropic/Grok, try a smaller/faster model like Claude Haiku or Grok Mini."
-      );
-    }
-    throw err;
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 // ── Daily quota guard (platform mode only) ─────────────────────────────────
@@ -1042,13 +700,11 @@ export async function POST(req: NextRequest) {
   // Parse body before starting the stream
   let rawBody: any;
   try {
-    rawBody = await req.json();
-  } catch {
-    await sendEvent(writer, { step: "error", message: "Invalid request body." });
-    try { writer.close(); } catch { /* ignore */ }
-    return new Response(readable, {
-      headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
-    });
+    rawBody = await readAiJson(req);
+  } catch (error) {
+    // No consumer exists yet: awaiting writer.write here would deadlock.
+    void writer.abort().catch(() => undefined);
+    return aiErrorResponse(error);
   }
 
   // Run the generation pipeline in the background while streaming events
@@ -1073,6 +729,7 @@ export async function POST(req: NextRequest) {
         return;
       }
       const userId = session.id;
+      await guardAiRequest(req, userId);
       const userEmail = (session as any).email || (session as any).user?.email || null;
       const ownerEmail = process.env.PLATFORM_OWNER_EMAIL;
       const isOwner = !!(ownerEmail && userEmail && userEmail.toLowerCase() === ownerEmail.toLowerCase());
@@ -1093,6 +750,10 @@ export async function POST(req: NextRequest) {
       let activeSystemPrompt = SYSTEM_PROMPT;
 
       if (isRefinement && existingQuiz) {
+        if ((existingQuiz.questions?.length ?? 0) > 3) {
+          await sendEvent(writer, { step: 'error', message: 'The bounded AI preview supports up to three questions. Edit larger quizzes manually.' });
+          return;
+        }
         activeSystemPrompt = REFINEMENT_SYSTEM_PROMPT;
         // Send existing quiz + user feedback as a structured prompt
         effectivePrompt = `EXISTING QUIZ JSON:\n${JSON.stringify(existingQuiz, null, 2)}\n\nUSER REQUEST:\n${prompt}\n\nReturn the ENTIRE updated quiz as valid JSON.`;
@@ -1110,50 +771,19 @@ export async function POST(req: NextRequest) {
 
       let auth: ResolvedAuth;
       try {
-        auth = await resolveGenerationAuth(parsedBody.data, userId, userEmail);
+        auth = await resolveGenerationAuth(parsedBody.data, userId);
       } catch (authErr: any) {
         await sendEvent(writer, { step: "error", message: authErr?.message || "Auth failed." });
         return;
       }
 
-      // Daily quota check — only for platform key (not BYOK / saved key)
       const mode = parsedBody.data.aiAuth?.mode || "auto";
       const isPlatformKey = !auth.usedSavedKey && mode !== "one_time";
       let freeUsed: number | null = null;
-      let freeLimit = DAILY_LIMIT;
-
-      if (isPlatformKey) {
-        if (!isOwner && paidEntitlement.mode === "credit_pack") {
-          freeUsed = paidEntitlement.usedCredits;
-          freeLimit = paidEntitlement.totalCredits;
-          if (paidEntitlement.remainingCredits <= 0) {
-            await sendEvent(writer, {
-              step: "error",
-              message: "Your AI credit pack is exhausted. Buy another pack or use your own API key.",
-              freeUsed: freeLimit,
-              freeLimit,
-            });
-            return;
-          }
-        } else {
-          freeLimit = paidEntitlement.hasAccess ? paidEntitlement.dailyLimit : DAILY_LIMIT;
-          const quota = await checkDailyQuota(userId, freeLimit);
-          freeUsed = quota.used;
-          if (!quota.allowed) {
-            const limitLabel = paidEntitlement.hasAccess ? "premium" : "free";
-            await sendEvent(writer, {
-              step: "error",
-              message: `You've used all ${quota.limit} ${limitLabel} generations for today. Provide your own API key for unlimited, or try again tomorrow.`,
-              freeUsed: quota.limit,
-              freeLimit: quota.limit,
-            });
-            return;
-          }
-        }
-      }
-
+      const freeLimit = AI_DAILY_REQUEST_LIMIT;
+      // The central reservation enforces quota and credits atomically.
       // (Multi-phase handlers removed — Vercel Pro 300s timeout allows single-call generation)
-      const questionCountCapped: number | null = null;
+      const questionCountCapped = 3;
 
       await sendEvent(writer, {
         step: 1,
@@ -1168,9 +798,9 @@ export async function POST(req: NextRequest) {
       const HEARTBEAT_MESSAGES = [
         isRefinement ? "Applying changes…" : "Querying AI model…",
         `Querying ${formatProviderStatus(auth.provider, auth.model)}…`,
-        "Cross-referencing multiple knowledge sources…",
-        "Building answer reasoning chains…",
-        "Evaluating question complexity & difficulty curve…",
+        "Waiting for the model response…",
+        "Generating concise explanations…",
+        "Preparing questions and answer choices…",
         "Preparing structured quiz output…",
         "Almost there — finalizing AI response…",
       ];
@@ -1190,12 +820,13 @@ export async function POST(req: NextRequest) {
       let resolvedModel: string | null = null;
       try {
         const thinking = parsedBody.data.aiAuth?.thinking ?? false;
-        const providerResult = await callProvider({ provider: auth.provider, apiKey: auth.apiKey, prompt: effectivePrompt, model: auth.model, systemPrompt: activeSystemPrompt, thinking });
+        const providerResult = await callProvider({ provider: auth.provider, apiKey: auth.apiKey, prompt: effectivePrompt, model: auth.model, systemPrompt: activeSystemPrompt, thinking, request: req, userId, byok: !isPlatformKey });
         content = providerResult.content;
         resolvedModel = providerResult.model;
       } catch (providerErr: any) {
         clearInterval(heartbeatInterval);
-        await sendEvent(writer, { step: "error", message: providerErr?.message || "AI provider failed." });
+        const detail = await aiErrorResponse(providerErr).json();
+        await sendEvent(writer, { step: "error", message: detail.message });
         return;
       } finally {
         clearInterval(heartbeatInterval);
@@ -1210,14 +841,11 @@ export async function POST(req: NextRequest) {
       try {
         pollData = extractJson(content);
       } catch (jsonErr) {
-        console.error("JSON extraction failed. Raw content (first 500 chars):", content.slice(0, 500));
-        console.error("Raw content (last 200 chars):", content.slice(-200));
-        console.error("JSON error:", jsonErr);
         const truncated = content.length > 3500 && !content.trimEnd().endsWith("}");
         await sendEvent(writer, {
           step: "error",
           message: truncated
-            ? "AI response was too long and got cut off. Try requesting fewer questions (e.g. 10 instead of 20)."
+            ? "AI response was too long and got cut off. Try requesting fewer questions (e.g. 3 instead of 10)."
             : "AI returned invalid JSON. Try a different prompt.",
         });
         return;
@@ -1282,28 +910,7 @@ export async function POST(req: NextRequest) {
       ];
       for (const { pattern, label } of UNSAFE_OUTPUT_PATTERNS) {
         if (pattern.test(allText)) {
-          // ── Detailed audit log for Vercel / server logs ──
-          // Extract the matched snippet for owner review
-          const match = allText.match(pattern);
-          const matchSnippet = match
-            ? allText.slice(Math.max(0, match.index! - 60), match.index! + match[0].length + 60)
-            : "(no snippet)";
-
-          console.warn(
-            "[AI output safety] BLOCKED",
-            JSON.stringify({
-              label,
-              pattern: pattern.source,
-              userId,
-              userEmail: userEmail || "unknown",
-              isOwner,
-              prompt: rawPrompt.slice(0, 500),
-              provider: auth.provider,
-              model: resolvedModel || auth.model || "unknown",
-              matchSnippet: matchSnippet.slice(0, 300),
-              timestamp: new Date().toISOString(),
-            })
-          );
+          console.warn("[AI output safety] Blocked category:", label);
 
           await sendEvent(writer, { step: "error", message: "AI produced unexpected content. Please try a different topic." });
           return;
@@ -1351,16 +958,8 @@ export async function POST(req: NextRequest) {
           : qualityWarning;
       }
 
-      // Increment daily usage only for platform key users
-      if (isPlatformKey) {
-        await incrementDailyUsage(userId);
-        if (!isOwner && paidEntitlement.mode === "credit_pack") {
-          freeUsed = Math.min(freeLimit, (paidEntitlement.usedCredits || 0) + 1);
-        } else {
-          const quotaAfter = await checkDailyQuota(userId, freeLimit);
-          freeUsed = quotaAfter.used;
-        }
-      }
+      freeUsed = (await checkDailyQuota(userId, freeLimit)).used;
+      const entitlementAfter = await getPaidAiEntitlement(userId);
 
       await sendEvent(writer, { step: 6, label: GENERATION_STEPS[5].label, status: "done", totalSteps: TOTAL_STEPS });
 
@@ -1387,7 +986,7 @@ export async function POST(req: NextRequest) {
             premiumAiEnabled: paidEntitlement.hasAccess,
             premiumAiProducts: paidEntitlement.purchasedProductIds,
             premiumAiMode: paidEntitlement.mode,
-            creditPackRemaining: paidEntitlement.mode === "credit_pack" && freeUsed != null ? Math.max(0, freeLimit - freeUsed) : null,
+            creditPackRemaining: entitlementAfter.remainingCredits,
             isRefinement,
             questionCountCapped: questionCountCapped ?? null,
           },
@@ -1397,7 +996,7 @@ export async function POST(req: NextRequest) {
       // ResponseAborted = client disconnected; no point logging or sending
       const isAbort = err?.name === "ResponseAborted" || err?.code === "ERR_INVALID_STATE";
       if (!isAbort) {
-        console.error("Stream generate error:", err);
+        console.error("Poll generation did not complete.");
         await sendEvent(writer, { step: "error", message: "Unexpected error. Please try again." });
       }
     } finally {

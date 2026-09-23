@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { dbPrisma } from "@/lib/db";
+import { isDemoUserId } from '@/lib/demo-policy';
+import { allowAuthAttempt } from '@/lib/auth-rate-limit';
 
 export const dynamic = "force-dynamic";
 
@@ -18,21 +20,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
   const userId = session.id;
+  if (req.headers.get('origin') !== req.nextUrl.origin) return NextResponse.json({ error: 'INVALID_ORIGIN' }, { status: 403 });
+  if (!await allowAuthAttempt('ai-session-create', userId, req)) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   let body: z.infer<typeof createSchema>;
   try {
     body = createSchema.parse(await req.json());
   } catch {
-    body = createSchema.parse({});
+    return NextResponse.json({ error: 'INVALID_BODY' }, { status: 400 });
   }
 
   // Create conversation + creator participant + platform AI participant in a transaction
   const conversation = await dbPrisma.$transaction(async (tx) => {
+    if (isDemoUserId(userId)) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`demo-chats:${userId}`}, 0))`;
+      if (await tx.aiConversation.count({ where: { creatorId: userId } }) >= 5) return null;
+    }
     const conv = await tx.aiConversation.create({
       data: {
         title: body.title,
         creatorId: userId,
-        isPublic: body.isPublic,
+        isPublic: isDemoUserId(userId) ? false : body.isPublic,
         triggerMode: body.triggerMode,
       },
     });
@@ -55,7 +63,7 @@ export async function POST(req: NextRequest) {
         userId: null,
         displayName: "Gemini",
         aiProvider: "GOOGLE",
-        aiModel: "gemini-3.8-flash",
+        aiModel: "gemini-2.5-flash-lite",
         byokUserId: null,
       },
     });
@@ -63,6 +71,7 @@ export async function POST(req: NextRequest) {
     return conv;
   });
 
+  if (!conversation) return NextResponse.json({ error: 'DEMO_SESSION_LIMIT', message: 'Your demo already has five conversations. Open an existing chat.' }, { status: 429 });
   return NextResponse.json({ id: conversation.id, title: conversation.title }, { status: 201 });
 }
 

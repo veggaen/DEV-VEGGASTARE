@@ -12,32 +12,32 @@ import Link from "next/link";
 import PricingTiers from "@/components/uicustom/pricing/PricingTiers";
 
 export const metadata: Metadata = {
-  title: "Pricing — VeggaStare",
+  title: "Pricing — Veggat",
   description:
-    "Start free, bring your own AI key for no limits, or go Pro for premium AI on us. One platform for SaaS, shop and crypto — by THORSEN SOFTWARE.",
+    "Explore Veggat for free. Available premium AI uses prepaid credits; personal API keys bill your own provider. Daily safety limits apply.",
   openGraph: {
-    title: "Pricing — VeggaStare",
+    title: "Pricing — Veggat",
     description:
-      "Start free, bring your own AI key, or go Pro. SaaS + shop, one platform.",
+      "A free demo, one-time AI credit packs, and encrypted personal API keys.",
   },
 };
 
 const FAQ: { q: string; a: string }[] = [
   {
     q: "What does “bring your own key” mean?",
-    a: "Add your own API key from any of six AI providers (OpenAI, Anthropic, Google, Groq, Grok, OpenRouter). You get unlimited AI at your provider's cost — we never charge for it, and your key is encrypted at rest and only decrypted server-side at call time.",
+    a: "Add your own API key from any of six AI providers (OpenAI, Anthropic, Google, Groq, Grok, OpenRouter). Your provider bills usage directly. We do not debit platform credits; daily account and rate limits still apply. Keys are encrypted at rest and decrypted only on the server.",
   },
   {
     q: "Do I need a subscription to sell or buy in the shop?",
-    a: "No. The marketplace, checkout, and shipping are free to use. Subscriptions only cover premium AI usage on our platform keys.",
+    a: "No subscription is required. Digital products and AI credit packs are individual purchases. Shipping and other experimental integrations are not part of the reviewer purchase path.",
   },
   {
     q: "Which payment methods are supported?",
-    a: "Shop purchases support Stripe (cards), Vipps, Klarna, PayPal and crypto. Pro subscriptions are billed through Stripe.",
+    a: "The reviewer checkout uses PayPal when configured. Demo checkout is free and never opens a payment provider. Other payment methods and recurring subscriptions are not offered in this showcase.",
   },
   {
-    q: "Can I cancel anytime?",
-    a: "Yes. Manage or cancel your subscription from your account billing page at any time — access continues until the end of the period you've paid for.",
+    q: "How do AI limits work?",
+    a: "Model costs are shown before sending. A successful premium message spends its quoted credits; failed generations refund reserved credits. Normal accounts have a 20-attempt daily limit, demo accounts five, and the platform has an independent spending fuse.",
   },
 ];
 
@@ -55,9 +55,9 @@ export default function PricingPage() {
             Pay for value, never for keys.
           </h1>
           <p className="mt-4 text-pretty text-base text-muted-foreground">
-            Start free. Bring your own AI key for no limits at no cost to you —
-            or go Pro and we handle the premium models for you. One platform for
-            SaaS, shop and crypto.
+            Explore the demo without a card. Choose a one-time credit pack for available
+            premium models, or connect a personal key billed by your provider.
+            Clear costs and daily safety limits — no recurring subscription.
           </p>
         </header>
 

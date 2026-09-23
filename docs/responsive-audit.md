@@ -125,6 +125,14 @@ geometry scans are triage, not a substitute for viewing the screenshots.
 
 ## Remaining audit queue (not passes)
 
+Latest local S5 candidate: model Sheet scroll boundaries, Escape/focus restoration,
+conversation/settings/participant drawers, transcript wheel scrolling and pinned
+composer passed at 360×800, 390×844, 844×390, 768×1024, 1024×768, 1280×800,
+1920×1080 and 2560×1440. No horizontal page overflow. Outer-page auto-scroll and
+duplicate header-height allocation were corrected. This is Playwright viewport
+emulation, not a claim about a physical mobile keyboard or real Chrome zoom.
+The Pulse/footer/independent-navigation regression was rerun and passed locally.
+
 - Products: continue full keyboard traversal and seller-row target-size review.
   Drawer focus/scroll, category selection, search/empty state and gallery arrows
   have focused coverage; this does not verify every filtering combination.

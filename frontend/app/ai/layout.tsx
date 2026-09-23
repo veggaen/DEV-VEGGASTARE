@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { AiChatShell } from "./AiChatShell";
+import { isDemoUserId } from '@/lib/demo-policy';
 
 export const metadata: Metadata = {
   title: "AI Chat",
@@ -15,5 +16,5 @@ export const metadata: Metadata = {
  */
 export default async function AiLayout({ children }: { children: React.ReactNode }) {
   const user = await MyLibUserAuth();
-  return <AiChatShell isLoggedIn={!!user}>{children}</AiChatShell>;
+  return <AiChatShell isLoggedIn={!!user} isDemo={isDemoUserId(user?.id)}>{children}</AiChatShell>;
 }
