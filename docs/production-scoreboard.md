@@ -2,6 +2,19 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Latest production release — 24 September 2026
+
+Currency/menu-only release `d74aecf` / `dpl_6qbGpvzsTJS1DpsGdWM5qfFuzRXp`
+is READY on all production aliases. It includes security base `37866d8`, but no
+Preview-only custom-credit/schema/payment changes. Selected fiat (crypto) is
+shared across commerce and order views. Local build, changed-file lint, **73/73**
+units, local currency journeys and final live **3/3 (37.3s)** pass. Real Chrome
+mobile cart/menu/checkout and desktop basket were checked; live health is healthy.
+See [exact scope, evidence and remaining work](production-currency-display-2026-09.md).
+Historical entries below are chronological evidence, not the current deployment
+or credential state. PayPal paid acceptance and the complete S1–S9 mission remain
+PARTIAL; currency-aware price filters and basket retry handling are next.
+
 Current wallet/PayPal candidate (not yet deployed): optional AppKit startup and
 automatic wallet reconnection no longer run for ordinary marketplace visitors.
 Stable providers remain mounted. Local browser **12/12 (1.0m)** and focused

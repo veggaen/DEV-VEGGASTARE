@@ -53,15 +53,23 @@ used for verification.
   current-rate USD (ETH) catalogue prices in the existing signed-in session.
 - A final source scan found one legacy shipping label hardcoded to dollars. It
   now uses the recorded currency through PreferredMoney, with added rendering
-  regressions. Touched lint and standalone TypeScript pass; follow-up deploy
-  verification is pending when this source commit was prepared.
+  regressions. Touched lint and standalone TypeScript pass. Final release
+  `d74aecf` / `dpl_6qbGpvzsTJS1DpsGdWM5qfFuzRXp` is READY and read back from
+  www.veggat.com with all production aliases attached. Final live browser
+  **3/3 (37.3s)** passes; `/api/health` is 200/healthy. Vercel build/TypeScript
+  passes with no pending migration. Real Chrome mobile checkout, scrolling,
+  USD/NOK selection preserving ETH, and live basket totals were checked without
+  submitting payment. Normal viewport and USD (ETH) preference were restored.
 
 ## Outstanding work outside this release
 
 Custom-credit paid acceptance, Live micro-purchases/refunds, owner OAuth/wallet
 consent, Railway authorization, hosted CI billing and the remaining full-route QA
 scoreboard are not completed by this presentation release. Basket fetch-error and
-concurrent-edit handling also need a separate focused follow-up.
+concurrent-edit handling also need a separate focused follow-up. The product
+filter's numeric price slider/inputs are still unlabelled raw values; selected-
+currency filter semantics need separate validation and correction. This is not a
+claim that every financial input, tax record or experimental trading UI was audited.
 
 Rollback target before this release: `dpl_7jL8ZAP6MDY5xRdEWCHJA2Sj4A5u`
 (`dev-veggastare-1jns3389f-v3ggas-projects.vercel.app`).
