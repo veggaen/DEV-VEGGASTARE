@@ -1,8 +1,7 @@
 "use client";
-/** @fileOverview Full application providers, loaded only after the access gate. @stability stable */
+/** @fileOverview Stable, server-rendered application providers and navigation shell. @stability stable */
 
 import * as React from "react";
-import dynamic from "next/dynamic";
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import SiteTelemetry from "@/components/providers/site-telemetry";
@@ -18,15 +17,10 @@ import { Toaster } from "@/components/ui/sonner";
 import { FollowStateProvider } from "@/hooks/useFollowState";
 import { CurrencyRatesProvider } from "@/hooks/useCurrencyRates";
 import { CartProvider } from "@/contexts/cart-context";
-import { AppBootSkeleton } from "@/components/ui/route-skeleton";
-
-// Keep the provider tree stable, but render its children on the server. A
-// client-only wrapper here hid every route behind the wallet download waterfall.
-// Wallet connections/modal initialization still happen in client effects.
-const Web3Providers = dynamic(
-  () => import("@/components/crypto-related/Web3Providers"),
-  { loading: () => <AppBootSkeleton /> }
-);
+// Providers must not be lazy boundaries around the whole page: even with SSR
+// enabled, delayed client chunks replaced readable content with a boot skeleton.
+// Optional wallet UI remains lazy inside the drawer; provider identity is stable.
+import Web3Providers from "@/components/crypto-related/Web3Providers";
 
 import MyTopBar from "@/components/uicustom/topbar";
 import DesktopNavigation from "@/components/uicustom/desktop-navigation";

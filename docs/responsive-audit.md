@@ -956,6 +956,27 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Live deployment/results are recorded below when complete.
 - Real Chrome inventory remains empty. Playwright is the working browser;
   physical-phone keyboard and native 125% Chrome zoom remain unverified.
+- Navigation release `364d8f5` / `dpl_EBHSw9111gQQHHktYM4UnF4aXfck` is READY.
+  First live focused batch **24/25** passed. The delayed-wallet fixture was
+  delaying every subsequently requested script, including unrelated drawer
+  infrastructure; isolating the wallet-panel bundle gives **2/2** live passes
+  including setup, with unchanged height/scroll assertions.
+- Separate live visual inspection caught an important existing boot flicker:
+  Dashboard was visible, then replaced by the full-app skeleton. A local
+  controlled delay of the Web3Providers bundle reproduced it: the original
+  heading became hidden and AppBootSkeleton appeared. SSR-enabled dynamic
+  imports alone did not prevent this client loading transition.
+- Follow-up removes lazy boundaries around AppShell and Web3Providers; optional
+  wallet panels still load on demand. This prioritizes stable readable content
+  and eliminates a provider download waterfall, not the total wallet dependency
+  size. Tradeoff: `/gate` no longer has a separate lightweight JS dependency
+  graph, although it still does not mount the app/wallet providers. A future
+  bundle reduction must isolate optional UI without making providers replace
+  the page. New tests hold non-initial scripts while allowing root hydration,
+  require a usable menu and retain the exact original heading DOM node.
+  Final local webpack/TypeScript and touched-file lint pass; expanded browser
+  regression **27/27** passes (2.3m), including both partial-loading widths.
+  Live follow-up deployment/results are recorded below when complete.
 
 ## Research references
 

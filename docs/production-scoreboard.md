@@ -470,8 +470,16 @@ member-to-member delivery remains separate from the mocked error test.
   the next scoped audit. Profile's initial loading capture is not a feature pass.
 - Final candidate: webpack/TypeScript, touched-file lint and local focused
   browser **25/25** pass (2.6m). Not a whole-app or measured CWV completion claim.
-  Live deployment/results
-  are recorded after final local verification.
+- Navigation release `364d8f5` is live. First live batch **24/25**; the delayed
+  wallet fixture also blocked unrelated drawer infrastructure. Isolating only
+  the wallet-panel bundle gives **2/2** live passes with identical assertions.
+- Live visual QA exposed a separate whole-app loading regression: delayed
+  provider code could replace readable server content with AppBootSkeleton.
+  A controlled local delay reproduced the disappearance. AppShell and wallet
+  providers now use stable static boundaries; optional wallet UI stays lazy.
+  Tradeoff: the gate no longer has a separate lightweight JS dependency graph.
+  Follow-up build/TypeScript, lint and local browser **27/27** pass (2.3m).
+  Its live deployment/results are recorded after verification.
 
 ## Environment and safety
 

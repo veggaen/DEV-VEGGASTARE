@@ -1,17 +1,12 @@
 "use client";
 
-/** @fileOverview Lightweight route shell that keeps wallet bundles off the gate. @stability stable */
+/** @fileOverview Stable provider boundary; essential SSR content is never replaced by a lazy app shell. @stability stable */
 import type { ReactNode } from "react";
 import type { Session } from "next-auth";
-import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { ThemeProvider } from "@/components/providers/themeprovider";
 import SiteTelemetry from "@/components/providers/site-telemetry";
-import { AppBootSkeleton } from "@/components/ui/route-skeleton";
-
-const AppShell = dynamic(() => import("./app-shell"), {
-  loading: () => <AppBootSkeleton />,
-});
+import AppShell from "./app-shell";
 
 export default function AppProviders({ children, session }: {
   children: ReactNode;

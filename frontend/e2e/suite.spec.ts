@@ -102,6 +102,7 @@ test('S7 — delayed wallet controls do not move a scrolled navigation drawer', 
   const page = await context.newPage();
   let release!: () => void;
   const pending = new Promise<void>(resolve => { release = resolve; });
+  let walletBundleHeld = false;
   try {
     await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
@@ -109,10 +110,21 @@ test('S7 — delayed wallet controls do not move a scrolled navigation drawer', 
     if (await consent.isVisible()) await consent.click();
     const trigger = page.getByRole('button', { name: 'Open menu', exact: true });
     await expect(trigger).toBeEnabled();
-    await page.route('**/_next/static/chunks/**', async route => { await pending; await route.continue(); });
+    await page.route('**/_next/static/chunks/**', async route => {
+      const response = await route.fetch();
+      const source = await response.text();
+      // Isolate this panel, not Radix's scroll-lock/focus code or other UI chunks.
+      if (source.includes('Connect a wallet to get started') && source.includes('Extension, WalletConnect')) {
+        walletBundleHeld = true;
+        await pending;
+      }
+      await route.fulfill({ response });
+    });
     await trigger.click();
     const menu = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
     await expect(menu.getByText('Loading wallet controls…', { exact: true })).toBeVisible();
+    await expect.poll(() => walletBundleHeld).toBe(true);
+    await menu.evaluate(async e => { await Promise.all(e.getAnimations().map(a => a.finished.catch(() => {}))); });
     const scroll = page.locator('[data-navigation-scroll]');
     const box = await scroll.boundingBox();
     await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
@@ -126,6 +138,48 @@ test('S7 — delayed wallet controls do not move a scrolled navigation drawer', 
     await expect(trigger).toBeFocused();
   } finally { release(); await context.close(); }
 });
+
+for (const width of [390, 1280]) {
+test(`S7 — deferred chunks cannot replace readable server content (${width}px)`, async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: 844 } });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const html = await (await context.request.get('/dashboard')).text();
+  const initialScripts = new Set([...html.matchAll(/<script[^>]*src="([^"]+)"/g)].map(match => new URL(match[1], baseURL).pathname));
+  expect(initialScripts.size).toBeGreaterThan(0);
+  let release!: () => void, deferredCount = 0;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/_next/static/chunks/**', async route => {
+    if (!initialScripts.has(new URL(route.request().url()).pathname)) { deferredCount++; await pending; }
+    await route.continue();
+  });
+  try {
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+    const heading = page.getByRole('heading', { name: /Welcome back,/ });
+    await expect(heading).toBeVisible();
+    const originalHeading = await heading.elementHandle();
+    const menu = page.getByRole('button', { name: 'Open menu', exact: true });
+    // Root scripts may hydrate, but deferred UI/provider chunks are still held.
+    await expect(menu).toBeEnabled();
+    await expect(heading).toBeVisible();
+    expect(await originalHeading!.evaluate(e => e.isConnected)).toBe(true);
+    await expect(page.getByRole('status', { name: 'Loading page', exact: true })).toHaveCount(0);
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    await page.mouse.move(width / 2, 600);
+    await page.mouse.wheel(0, 300);
+    await expect.poll(() => page.locator('[data-site-scroll]').evaluate(e => e.scrollTop)).toBeGreaterThan(0);
+    release();
+    await menu.click();
+    await expect(page.getByRole('dialog', { name: 'Navigation Menu', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    expect(await originalHeading!.evaluate(e => e.isConnected)).toBe(true);
+    expect(errors).toEqual([]);
+    test.info().annotations.push({ type: 'deferred-chunks', description: String(deferredCount) });
+  } finally { release(); await context.close(); }
+});
+}
 
 test('S7 — dashboard shares one unobscured navigation rail in both themes', async ({ browser, baseURL }) => {
   test.setTimeout(90_000);
