@@ -2,12 +2,15 @@
 
 import { dbPrisma } from '@/lib/db';
 import { Prisma } from '@/generated/prisma/browser';
+import { MyLibUserAuth } from '@/lib/user-auth';
 
 type WarehouseWithInventory = Prisma.WarehouseLocationGetPayload<{
   include: { Inventory: { include: { Product: true } } };
 }>;
 
 export async function fetchWarehouses(): Promise<WarehouseWithInventory[]> {
+  const session = await MyLibUserAuth();
+  if (!session?.id || !['ADMIN', 'OWNER'].includes(session.role)) throw new Error('Forbidden');
   try {
     console.log('[frontend/actions/fetchWarehouses.ts] Fetching all warehouses');
     const warehouses = await dbPrisma.warehouseLocation.findMany({
