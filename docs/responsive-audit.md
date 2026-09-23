@@ -1226,7 +1226,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   closed `PollTakerModal` chunk was held. The whole-feed Suspense spinner reduced
   content height, exposed the footer and clamped scroll. This differs from the
   already-covered pagination-footer behavior.
-- Candidate mounts the poll taker only with a selected poll. Poll taking and
+- Release `2a8cf25` mounts the poll taker only with a selected poll. Poll taking and
   importing have independent Suspense boundaries with accessible, cancellable
   dialogs. The whole-feed fallback reuses the route-shaped skeleton and carries
   the pending-footer marker. Initial hydration no longer resets page scrolling;
@@ -1242,7 +1242,19 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   TypeScript, touched lint and local browser **7/7 (33.7s)** pass; a supplementary
   screenshot capture run **2/2 (7.8s)** also passes. Feed-at-scroll and loading
   dialog screenshots at 390px, landscape 844x390 and desktop 1280px were reviewed:
-  `.private-showcase/pulse-cold-local-*.png`. Live verification is pending.
+  `.private-showcase/pulse-cold-local-*.png`.
+- Deployment `dpl_BMgpgcA29mYdHh9gz3CTLAWqwYEC` is READY at www.veggat.com,
+  veggat.com and dev-veggastare.vercel.app. Live focused browser **7/7 (46.4s)**
+  passes. Live fixture feed/dialog captures at the same sizes were visually
+  reviewed: `.private-showcase/pulse-cold-live-*.png`.
+- An independent new browser context loaded real live feed data at 390x844,
+  immediately wheeled 700px after the SSR feed appeared, and recorded 146
+  animation frames through hydration/data readiness. The initial skeleton
+  clamped that wheel to 675px; it stayed at 675px as content grew from 1,394px
+  to 8,746px. Zero missing-feed frames, zero visible-footer frames, and zero
+  page errors. Capture: `.private-showcase/pulse-real-cold-live.png`. This is
+  specific observed behavior, not proof that every cold-load/network state or
+  native Chrome has been tested. Both local/live health returned 200/healthy.
 - The regression additionally opens, cancels and reopens delayed poll/import
   dialogs, verifies the feed remains mounted, and closes the loaded dialogs.
   Poll data is intercepted unpublished fixture content; no real poll is posted,

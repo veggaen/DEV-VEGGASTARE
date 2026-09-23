@@ -2,14 +2,20 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-Current candidate: reproduced and fixed cold-load Pulse disappearance while a
+Latest verified follow-up: reproduced and fixed cold-load Pulse disappearance while a
 closed poll module loads, plus the resulting early-scroll/footer jump. Optional
 poll/import dialogs now load independently with cancellable fallbacks. Strict
 build/TypeScript, touched lint and local browser **7/7 (33.7s)** pass; additional
 capture run **2/2 (7.8s)** passes. Phone/landscape/desktop dialog screenshots were
-reviewed. Live deployment/verification is pending; other route work continues.
+reviewed. Release `2a8cf25`, deployment `dpl_BMgpgcA29mYdHh9gz3CTLAWqwYEC`, is
+READY at all three main aliases. Live browser **7/7 (46.4s)** passes, including
+independent sidebar scrolling and pagination/footer retry. A fresh real-data
+390px cold-load wheel trace retained the feed for all 146 sampled frames,
+preserved early scrolling (675px), and showed no footer flash or page error.
+Live feed/dialog screenshots were reviewed; local/live health are 200/healthy.
+This closes the reproduced Pulse cold-load regression, not the full app audit.
 
-Latest verified follow-up: Profile uploads/storage boundary release `9d088f4`,
+Previous verified follow-up: Profile uploads/storage boundary release `9d088f4`,
 deployment `dpl_8XHLyTALxFrBkxtuc95eUeYQJKwN`, READY at all three main aliases.
 Strict webpack/TypeScript, touched-file lint, **68/68** units, local browser
 **9/9 (1.1m)** and live **9/9 (1.6m)** pass. Includes actual avatar/banner retry,
@@ -17,8 +23,9 @@ private multipart upload/download, stale-session/anonymous/foreign-user denial
 and focused Profile/navigation/Pulse scrolling. Only disposable QA accounts and
 files were created/removed; no owner profile, paid entitlement or cap changed.
 An independent live cold-load Pulse scroll then exposed a transient blank feed/
-footer flash, absent from the settled-page fixtures. This remains OPEN and is
-the immediate next investigation; the passing batch is not a no-flicker claim.
+footer flash, absent from the settled-page fixtures. The subsequent `2a8cf25`
+release above fixes that separately reproduced regression; the storage batch
+alone was not a no-flicker claim.
 
 Previous verified follow-up: Profile loading, real Connections, follow counts,
 mobile alignment and controls shipped as `d2c3da0` /
