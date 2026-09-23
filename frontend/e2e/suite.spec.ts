@@ -9,7 +9,7 @@ for (const width of [390, 1280]) {
     const errors: string[] = [];
     const privateReads: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
-    page.on('request', request => { if (/\/api\/analytics\/(users|products|companies)(?:\?|$)/.test(request.url())) privateReads.push(request.url()); });
+    page.on('request', request => { if (/\/api\/analytics\/(users|products|companies|user-product-creation)(?:\?|$)/.test(request.url())) privateReads.push(request.url()); });
     try {
       await page.goto('/analytics', { waitUntil: 'domcontentloaded' });
       await expect(page.getByRole('heading', { name: 'Analytics Dashboard', exact: true })).toBeVisible();
@@ -19,6 +19,16 @@ for (const width of [390, 1280]) {
         await page.locator('main').getByRole('link', { name: new RegExp('^' + metric + ' ') }).click();
         await expect(page.getByText('Illustrative sample · not live platform data', { exact: true })).toBeVisible();
         await expect(page.getByRole('img', { name: new RegExp('^' + metric + ': cumulative count') })).toBeVisible();
+        await expect(page.locator('main h1')).toHaveCount(1);
+        if (metric === 'Users') {
+          const mix = page.getByRole('region', { name: 'Product publishing mix', exact: true });
+          await expect(mix).toContainText('Illustrative publishing mix · fictional counts');
+          const growthBox = await page.getByRole('region', { name: 'Users growth report', exact: true }).boundingBox();
+          const mixBox = await mix.boundingBox();
+          expect(Math.abs(growthBox!.x - mixBox!.x)).toBeLessThan(1);
+          expect(Math.abs(growthBox!.width - mixBox!.width)).toBeLessThan(1);
+          expect((await context.request.get('/api/analytics/user-product-creation')).status()).toBe(403);
+        }
         await expect(page.getByRole('status').filter({ hasText: '30 daily values' })).toBeVisible();
         const range = page.getByRole('combobox', { name: 'Date range', exact: true });
         expect((await range.boundingBox())!.height).toBeGreaterThanOrEqual(48);
@@ -74,9 +84,23 @@ for (const width of [390, 1280]) {
       await page.keyboard.press('Escape');
       await expect(drawer).toBeHidden();
       await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeFocused();
-      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
-        await page.setViewportSize(size);
-        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('[data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+      for (const metricPath of ['products', 'users', 'companies']) {
+        await page.goto('/analytics/' + metricPath, { waitUntil: 'domcontentloaded' });
+        await expect(page.getByText('Illustrative sample · not live platform data', { exact: true })).toBeVisible();
+        for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+          await page.setViewportSize(size);
+          await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('[data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+          if (metricPath === 'users') {
+            const growthBox = await page.getByRole('region', { name: 'Users growth report', exact: true }).boundingBox();
+            const mixBox = await page.getByRole('region', { name: 'Product publishing mix', exact: true }).boundingBox();
+            expect(Math.abs(growthBox!.x - mixBox!.x)).toBeLessThan(1);
+            expect(Math.abs(growthBox!.width - mixBox!.width)).toBeLessThan(1);
+          }
+          await site.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+          await page.mouse.move(size.width / 2, size.height - 50);
+          await page.mouse.wheel(0, 9000);
+          await expect(page.locator('footer')).toBeInViewport();
+        }
       }
       expect(privateReads).toEqual([]);
       expect(errors).toEqual([]);
@@ -88,12 +112,24 @@ for (const width of [390, 1280]) {
     const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: 844 } });
     const page = await context.newPage();
     let fail = true;
+    let failMix = true;
     // Only the browser session response is a fixture. Every private analytics request
     // is intercepted; the actual signed-in USER remains unable to query the API.
     const realSession = await (await context.request.get('/api/auth/session')).json();
     expect(realSession.user.role).not.toBe('ADMIN');
     await page.route('**/api/auth/session', route => route.fulfill({ json: { ...realSession, user: { ...realSession.user, role: 'ADMIN' } } }));
-    await page.route(/\/api\/analytics\/(products|users|companies)(?:\?|$)/, route => fail ? route.fulfill({ status: 503, json: { error: 'Fixture outage' } }) : route.fulfill({ json: { data: [{ label: 'Product Growth', data: [{ date: '2026-03-01T00:00:00Z', users: 2 }, { date: '2026-03-02T00:00:00Z', users: 4 }] }], firstProductDate: '2026-03-01', lastProductDate: '2026-03-02', today: '2026-03-02' } }));
+    await page.route(/\/api\/analytics\/(products|users|companies)(?:\?|$)/, route => {
+      const kind = new URL(route.request().url()).pathname.split('/').at(-1);
+      const name = kind === 'companies' ? 'Company' : kind === 'users' ? 'User' : 'Product';
+      const field = kind === 'companies' ? 'companies' : 'users';
+      return fail ? route.fulfill({ status: 503, json: { error: 'Fixture outage' } }) : route.fulfill({ json: {
+        data: [{ label: name + ' Growth', data: [{ date: '2026-03-01T00:00:00Z', [field]: 2 }, { date: '2026-03-02T00:00:00Z', [field]: 4 }] }],
+        ['first' + name + 'Date']: '2026-03-01', ['last' + name + 'Date']: '2026-03-02', today: '2026-03-02',
+      } });
+    });
+    await page.route('**/api/analytics/user-product-creation', route => failMix
+      ? route.fulfill({ status: 503, json: { error: 'Fixture outage' } })
+      : route.fulfill({ json: { data: [{ label: 'Independent seller products', count: 27 }, { label: 'Company products', count: 9 }] } }));
     try {
       await page.goto('/analytics/products', { waitUntil: 'domcontentloaded' });
       await expect(page.getByRole('heading', { name: 'Product Growth Analytics', exact: true })).toBeVisible();
@@ -113,6 +149,17 @@ for (const width of [390, 1280]) {
       await expect(page.locator('main').getByRole('alert')).toContainText('Showing the last successfully loaded report below.');
       await expect(page.getByRole('status').filter({ hasText: '2 daily values' })).toBeVisible();
       expect((await context.request.get('/api/analytics/products')).status()).toBe(403);
+      fail = false;
+      await page.goto('/analytics/users', { waitUntil: 'domcontentloaded' });
+      await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); });
+      const mix = page.getByRole('region', { name: 'Product publishing mix', exact: true });
+      await expect(mix.getByRole('alert')).toContainText('The publishing mix is temporarily unavailable.');
+      failMix = false;
+      await mix.getByRole('button', { name: 'Retry publishing mix', exact: true }).click();
+      await expect(mix.getByRole('definition').filter({ hasText: /^27$/ })).toBeVisible();
+      await expect(mix.getByRole('definition').filter({ hasText: /^9$/ })).toBeVisible();
+      await expect(mix.getByRole('alert')).toBeHidden();
+      expect((await context.request.get('/api/analytics/user-product-creation')).status()).toBe(403);
     } finally { await page.unrouteAll({ behavior: 'wait' }); await context.close(); }
   });
 }

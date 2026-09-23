@@ -1,76 +1,55 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { Bar } from 'react-chartjs-2';
-import { defaultBarChartOptions } from '@/components/uicustom/charts/chartjs';
-import { useFetchUserProductCreationAnalytics } from '@/hooks/useFetchUserProductCreationAnalytics'; // Use the new custom hook
+import { useSession } from 'next-auth/react';
+import { Button } from '@/components/ui/button';
+import { useFetchUserProductCreationAnalytics } from '@/hooks/useFetchUserProductCreationAnalytics';
 
-type UserProductCreationDatum = { label: string; count: number };
+type PublishingCount = { label: string; count: number };
+const sample: PublishingCount[] = [
+  { label: 'Independent seller products', count: 42 },
+  { label: 'Company products', count: 18 },
+];
 
-const UserProductCreationChart = () => {
-  const { data, loading, error } = useFetchUserProductCreationAnalytics('/api/analytics/user-product-creation');
+function Counts({ data }: { data: PublishingCount[] }) {
+  return <dl className="grid grid-cols-2 gap-3">
+    {data.map(item => <div key={item.label} className="min-w-0 rounded-xl border border-border p-4">
+      <dt className="text-sm leading-relaxed text-muted-foreground">{item.label}</dt>
+      <dd className="mt-2 text-2xl font-semibold tabular-nums">{item.count.toLocaleString('en-GB')}</dd>
+    </div>)}
+  </dl>;
+}
 
-  const chartData = useMemo(() => {
-    const labels = data.map((d) => d.label);
-    const values = data.map((d) => d.count);
-    return {
-      labels,
-      datasets: [
-        {
-          label: 'User Product Creation',
-          data: values,
-          backgroundColor: 'rgba(34,197,94,0.35)',
-          borderColor: 'rgba(34,197,94,0.9)',
-          borderWidth: 1,
-        },
-      ],
-    };
-  }, [data]);
+function CountSkeleton() {
+  return <div role="status" aria-label="Loading publishing mix" className="grid grid-cols-2 gap-3">
+    <div className="h-28 rounded-xl bg-muted motion-safe:animate-pulse" />
+    <div className="h-28 rounded-xl bg-muted motion-safe:animate-pulse" />
+  </div>;
+}
 
-  return (
-    <div className="flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 py-6">
-      <div className="max-w-4xl w-full text-center">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">
-          User Product Creation Overview
-        </h1>
-        <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-300 mb-8">
-          This chart displays the number of products created directly by users and on behalf of companies.
-        </p>
+function LiveCounts({ userId }: { userId: string }) {
+  const { data, loading, refreshing, error, retry } = useFetchUserProductCreationAnalytics(userId);
+  if (loading) return <CountSkeleton />;
+  return <div className="space-y-4">
+    <p className="text-sm text-muted-foreground">Current platform totals · administrator access. Independent of the date range above.</p>
+    {error && <div role="alert" className="rounded-xl border border-destructive/40 p-4 text-sm">
+      <p>{error}</p>{data && <p className="mt-1 text-muted-foreground">Showing the last successfully loaded publishing mix.</p>}
+    </div>}
+    {data && <Counts data={data} />}
+    <Button variant="outline" size="touch" disabled={refreshing} onClick={retry}>
+      {refreshing ? 'Refreshing…' : error ? 'Retry publishing mix' : 'Refresh publishing mix'}
+    </Button>
+  </div>;
+}
 
-        {loading ? (
-          <div className="flex flex-col items-center">
-            <div className="loader"></div>
-            <p className="text-gray-600 dark:text-gray-300 mt-4">Loading data...</p>
-          </div>
-        ) : error ? (
-          <div className="text-red-600 dark:text-red-400">
-            <p>{`${error}`}</p>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center">
-            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 w-full h-full">
-              {data.length > 0 ? (
-                <div className="w-full h-96 md:h-128 lg:h-[48rem]">
-                  <Bar
-                    data={chartData}
-                    options={{
-                      ...defaultBarChartOptions,
-                      plugins: {
-                        ...defaultBarChartOptions.plugins,
-                        legend: { display: false },
-                      },
-                    }}
-                  />
-                </div>
-              ) : (
-                <p className="text-gray-600 dark:text-gray-300">No data available for the selected date range.</p>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+export default function UserProductCreationChart() {
+  const { data: session, status } = useSession();
+  return <section aria-labelledby="publishing-mix-title" className="space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-6">
+    <div className="space-y-2">
+      <h2 id="publishing-mix-title" className="text-lg font-semibold">Product publishing mix</h2>
+      <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">Product counts by publisher type, not unique sellers or revenue.</p>
     </div>
-  );
-};
-
-export default UserProductCreationChart;
+    {status === 'loading' ? <CountSkeleton /> : session?.user?.role === 'ADMIN' && session.user.id
+      ? <LiveCounts key={session.user.id} userId={session.user.id} />
+      : <><p className="text-sm text-muted-foreground">Illustrative publishing mix · fictional counts, independent of the date range above.</p><Counts data={sample} /></>}
+  </section>;
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
@@ -55,10 +55,11 @@ function LiveReport({ metric, userId }: { metric: AnalyticsMetricKey; userId: st
   </div>;
 }
 
-export default function MetricTimeSeriesChart({ metric }: { metric: AnalyticsMetricKey }) {
+export default function MetricTimeSeriesChart({ metric, children }: { metric: AnalyticsMetricKey; children?: ReactNode }) {
   const { data: session, status } = useSession();
   const def = analyticsMetrics[metric];
   return <AnalyticsShell title={def.title} description={'Cumulative ' + def.datasetLabel.toLowerCase() + ' created over time. Compare date ranges and inspect the daily counts without relying on chart hover.'}>
     {status === 'loading' ? <ReportSkeleton /> : session?.user?.role === 'ADMIN' && session.user.id ? <LiveReport key={session.user.id} metric={metric} userId={session.user.id} /> : <GrowthReport key={metric} points={sampleGrowth(metric)} metric={metric} preview />}
+    {children}
   </AnalyticsShell>;
 }

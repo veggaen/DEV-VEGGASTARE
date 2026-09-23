@@ -1,47 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import useSWR from 'swr';
+import { UserProductCreationAnalyticsResponseSchema } from '@/lib/types/analytics';
 
-type UserProductCreationDatum = { label: string; count: number }; // Specific type for this chart
-
-interface UseFetchUserProductCreationResult {
-  data: UserProductCreationDatum[];
-  loading: boolean;
-  error: string | null;
-}
-
-export const useFetchUserProductCreationAnalytics = (endpoint: string): UseFetchUserProductCreationResult => {
-  const [data, setData] = useState<UserProductCreationDatum[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        const response = await fetch(endpoint);
-        if (!response.ok) {
-          throw new Error('Failed to fetch data');
-        }
-        const result = await response.json();
-
-        // Sanitize and set the data
-        const sanitizedData = result.data.map((item: any) => ({
-          label: item.label,
-          count: typeof item.count === 'number' ? item.count : 0, // Ensure count is a number
-        }));
-
-        setData(sanitizedData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setError('Failed to load analytics data. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, [endpoint]);
-
-  return { data, loading, error };
+export const useFetchUserProductCreationAnalytics = (userId: string) => {
+  const result = useSWR(['/api/analytics/user-product-creation', userId], async ([endpoint]) => {
+    const response = await fetch(endpoint, { cache: 'no-store' });
+    if (!response.ok) throw new Error(response.status === 429
+      ? 'Too many requests. Wait a minute before trying again.'
+      : response.status === 401 || response.status === 403
+        ? 'Sign in with an administrator account to view the publishing mix.'
+        : 'The publishing mix is temporarily unavailable. Please try again.');
+    try { return UserProductCreationAnalyticsResponseSchema.parse(await response.json()).data; }
+    catch { throw new Error('The publishing mix returned an unreadable response. Please try again.'); }
+  }, { revalidateOnFocus: false, shouldRetryOnError: false, dedupingInterval: 60_000 });
+  return { data: result.data, loading: result.isLoading, refreshing: result.isValidating,
+    error: result.error instanceof Error ? result.error.message : null,
+    retry: () => { void result.mutate(); } };
 };

@@ -404,7 +404,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   or browsers. These tests use the explicitly authorized Playwright browser, not
   the owner's real Chrome session.
 
-### Analytics growth follow-up (local verification; deployment pending)
+### Analytics growth follow-up (initial release live; publishing-mix follow-up pending)
 
 - Replaced the centered filler/error pages with the existing token-based, bounded
   page shell: 16/24/32px gutters, 1280px maximum canvas, labelled report cards,
@@ -428,7 +428,23 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   and real demo API 403. All eight specified viewport sizes have no horizontal
   page overflow. Admin UI tests intercept browser responses only: they do not
   promote the real demo user or claim a real administrator database session.
-- Remaining: live rerun, crypto's second footer and price
+- Initial release `c929ec7` / `dpl_EJDBb1jcJMvMr94tWtCKKzo19Di3` is READY at
+  www.veggat.com; its live regression was **5/5** (21.3s including setup).
+  Further actual live scrolling on Users exposed a legacy second chart with its
+  own H1, incompatible full-width container and unrestricted platform-count API.
+  The first regression missed it: it focused on the new growth chart. Expanded
+  coverage now checks the entire page's title count, both sections' alignment,
+  every private analytics request, and wheel scrolling at every target size.
+  It fails on the pre-follow-up build, proving that this gap is covered.
+- Follow-up: compose the existing publishing section inside the shared shell;
+  use a labelled, fictional preview for non-admins and readable counts rather
+  than another oversized chart. Enforce ADMIN/auth/rate limits on its API and
+  use database counts instead of loading all product/user IDs. Explicit retry,
+  validation and a user-scoped cache match the growth reports. Units **20/20**.
+  Final local follow-up build/TypeScript/lint pass; expanded browser **5/5**
+  (23.6s). Real local demo mix request returns 403; lower-page visual alignment
+  and a single H1 were independently confirmed in the interactive browser.
+- Remaining: final follow-up live rerun, crypto's second footer and price
   controls, real Chrome/OS zoom and real-phone keyboard checks. The whole app
   audit is still PARTIAL; these results cover the hub and three growth pages.
 
