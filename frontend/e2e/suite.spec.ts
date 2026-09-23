@@ -1006,12 +1006,16 @@ test.describe("Layer 3 — Content", () => {
         await page.mouse.wheel(0, 2000);
         await expect(page.locator('footer')).toBeInViewport();
         const backgroundTop = await scroller.evaluate(e => e.scrollTop);
-        await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+        const menuTrigger = page.getByRole('button', { name: 'Open menu', exact: true });
+        expect((await menuTrigger.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        if (size.width < 1024) await expect(menuTrigger.getByText('Menu', { exact: true })).toBeVisible();
+        await menuTrigger.click();
         const drawer = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
         await expect(drawer).toBeVisible();
         await drawer.evaluate(async element => {
           await Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {})));
         });
+        await expect(drawer.getByText('Loading wallet controls…', { exact: true })).toBeHidden();
         const drawerScroller = page.locator('[data-navigation-scroll]');
         const box = await drawerScroller.boundingBox();
         await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);

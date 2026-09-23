@@ -125,6 +125,15 @@ member-to-member delivery remains separate from the mocked error test.
   `dpl_6a76C651Gpg4NWBXmZjB2xBh6wPb` is READY. Live Companies plus Pulse/footer
   regression **5/5** (37.5s); live phone visual inspection also passed.
 
+## S7 — Navigation follow-up (local verified; live pending)
+
+- Explicit mobile Menu button with 44px target; optional wallet UI split from the
+  initial top-bar bundle without replacing providers or sessions. Email debug log
+  removed. Build/TypeScript/lint pass; focused local browser regression **8/8**
+  (50.4s), including wallet lifecycle and actual drawer/footer scrolling.
+- Wallet panel chunk only requested on menu open. Local LCP 2,708ms / CLS 0 lab
+  sample is roughly unchanged; no major speed gain claimed. Live pending.
+
 ## S5 — Metered AI integration (demo debit/denial verified local/live; paid purchase blocked)
 
 - Added reservation/refund state machine, one-time isolated demo grant, environment

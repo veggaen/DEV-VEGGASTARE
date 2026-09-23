@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, type ReactNode } from "react";
+import dynamic from 'next/dynamic';
 import Link from "@/components/ui/navigation-link";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { motion, useReducedMotion } from "framer-motion";
-import WalletConnection from "../crypto-related/WalletAdapter"; // Your wallet UI (legacy)
-import SidebarWalletPanel from "../crypto-related/SidebarWalletPanel";
 import AppKitButton from "../crypto-related/AppKitButton";
 import NetworkSyncBridge from "@/components/crypto-related/NetworkSyncBridge";
 import { MyDialogbarNavigator } from "@/app/(protected)/_components/dialog-bar";
@@ -30,8 +29,6 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "@/components/ui/sheet";
-import EvmWalletVerify from "@/components/crypto-related/EvmWalletVerify";
-import EvmWalletList from "@/components/crypto-related/EvmWalletList";
 import ThemeToggleMenu from "@/components/uicustom/ThemeToggleMenu";
 import { CurrencySelector } from "@/components/uicustom/currency-selector";
 import { NotificationDropdown } from "@/components/uicustom/notifications/notification-dropdown";
@@ -47,6 +44,16 @@ import { useAppKitAccount } from "@reown/appkit/react";
 import { CopyChip } from "@/components/uicustom/CopyChip";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { isLocalChain } from "@/lib/is-local-chain";
+import { FiMenu } from 'react-icons/fi';
+
+// These panels are only mounted inside the open navigation/settings sheet.
+// Keep connection providers stable; defer optional UI, not the entire app tree.
+function WalletPanelLoading() {
+	return <div role="status" className="min-h-24 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">Loading wallet controls…</div>;
+}
+const SidebarWalletPanel = dynamic(() => import('../crypto-related/SidebarWalletPanel'), { ssr: false, loading: WalletPanelLoading });
+const EvmWalletVerify = dynamic(() => import('@/components/crypto-related/EvmWalletVerify'), { ssr: false, loading: WalletPanelLoading });
+const EvmWalletList = dynamic(() => import('@/components/crypto-related/EvmWalletList'), { ssr: false, loading: WalletPanelLoading });
 
 type NavLinkProps = {
 	href: string;
@@ -123,7 +130,6 @@ function AppKitOAuthBridge() {
 
 		// Small delay to let wallet registry finish saving to sessionStorage
 		const timer = setTimeout(() => {
-			console.log(`[AppKitOAuthBridge] Auto-bridging AppKit ${appKitAuthProvider ?? 'unknown'} → NextAuth ${bridgeProvider}:`, appKitEmail);
 			sessionStorage.setItem(bridgeKey, String(Date.now()));
 			signIn(bridgeProvider, { callbackUrl: window.location.pathname || '/products' });
 		}, 1200);
@@ -722,13 +728,11 @@ const MyTopBar = () => {
 										data-nav-key="avatar"
 										data-nav-round="true"
 										onMouseEnter={handleNavHover}
-										className={`flex items-center justify-center rounded-full transition-all duration-200 hover:scale-105 ${clientUser
-											? "h-14 w-14"
-											: "h-14 w-14 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
-											}`}
+										className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-14 lg:w-14 lg:rounded-full lg:border-0 lg:p-0"
 										aria-label="Open menu"
 									>
-										{clientUser ? (
+										<span className="inline-flex items-center gap-2 lg:hidden"><FiMenu aria-hidden="true" className="size-5" /><span>Menu</span></span>
+										<span className="hidden lg:inline-flex">{clientUser ? (
 											<Avatar className="h-14 w-14">
 												<AvatarImage
 													src={clientUser.image || "/users/avatar.webp"}
@@ -740,7 +744,7 @@ const MyTopBar = () => {
 											</Avatar>
 										) : (
 											<TbHexagons className="h-6 w-6" />
-										)}
+										)}</span>
 									</button>
 								</SheetTrigger>
 

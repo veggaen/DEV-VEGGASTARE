@@ -289,6 +289,24 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Local company-page navigation drawer was additionally wheel-scrolled to its
   boundary at 844×390: background stayed at 0 and Escape restored trigger focus.
 
+### Navigation discoverability and optional UI loading (local verified; live pending)
+
+- Phones now show an explicit 44px Menu button instead of an unlabeled-looking
+  profile image as the sole navigation cue. Desktop avatar remains. Drawer aria
+  name, focus restoration, connection providers and sessions are unchanged.
+- Sidebar wallet/verification/list UIs are separate lazy chunks, mounted only
+  inside the open sheet. Removed the OAuth bridge's email console output.
+- Production build/TypeScript/touched lint pass. Local focused browser **8/8**
+  (50.4s): Settings, injected wallet, pre-bundle paint, reduced-motion hydration,
+  Companies, Pulse/footer/drawer and marketplace/cart. Mobile visual review passed.
+- Local source-to-chunk check confirms the wallet panel chunk was absent before
+  opening the menu and requested afterward (about 29KB transferred). Other menu
+  requests include link prefetches; do not attribute all of them to the wallet.
+  Cold-context 20s sample: LCP 2,708ms, FCP 1,896ms, CLS 0, transfer 1,985,129 bytes.
+  That is roughly unchanged versus earlier local paint samples, not a claimed
+  major speed gain. Remaining live trace shows CSS/font and shared-script download
+  competition; the wallet core is still global. Live release pending.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
