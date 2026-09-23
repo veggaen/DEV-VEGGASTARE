@@ -265,7 +265,7 @@ member-to-member delivery remains separate from the mocked error test.
 
 ## Feature scoreboard
 
-### S7 Products follow-up — local verified, live pending
+### S7 Products follow-up — local/live verified
 
 - Stable 1280px catalog canvas/H1, native product links, 44px mobile gallery and
   filter controls, listing-currency prices and matching route/card skeletons.
@@ -277,7 +277,14 @@ member-to-member delivery remains separate from the mocked error test.
   saved-dock hydration verified. Final local build/TypeScript, touched lint,
   **21/21** units and **11/11** focused browser checks pass (56.6s), including eight
   viewport sizes, real wheel gestures, Pulse/footer and demo product/cart flow.
-- Live deployment/testing pending. Owner Chrome is still not exposed by the
+- Release `e11500c` / `dpl_4DAXWppTxnFvTWPwh1so2XPYYYW3` is READY at
+  www.veggat.com. The final live browser batch is **12/12** (1.3m), adding direct
+  catalog cart/buy-now checkout navigation and transport-failure recovery. That
+  added case also passed locally **2/2** with setup (10.9s). No fulfillment,
+  payment or additional AI credit grant occurred. Phone/light/landscape/wide
+  screenshots inspected; live 1280px canvas centered at x=640 on 2560px, filter
+  body scrolls to 512px while the underlying page remains at 0; no JS exceptions.
+- Owner Chrome is still not exposed by the
   connector; physical-device/125% zoom, payment credentials, owner OAuth consent,
   Railway and the remaining route controls are not marked complete by this slice.
 

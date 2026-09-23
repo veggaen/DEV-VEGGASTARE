@@ -700,7 +700,16 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   failed/empty responses. Final production build/TypeScript and expanded local
   browser regression **11/11** pass (56.6s), including malformed-currency safety,
   persisted right-dock reload with no hydration errors, PDP/profile scrolling,
-  Pulse/footer pagination/retry and the real demo catalog/cart flow. Live pending.
+  Pulse/footer pagination/retry and the real demo catalog/cart flow. Added direct
+  catalog Add-to-cart/Buy-now and transport-failure recovery pass locally **2/2**
+  with setup (10.9s); no checkout submission, payment or credit grant was made.
+- Production release `e11500c` / `dpl_4DAXWppTxnFvTWPwh1so2XPYYYW3` is READY at
+  www.veggat.com. Complete live batch **12/12** passes (1.3m), including those
+  purchase-button checks. Live public metadata now correctly reports the two
+  available categories and 29–39 NOK price bounds. Phone dark/light and landscape
+  visuals were inspected locally; live phone/dark/landscape/ultrawide inspected.
+  At 2560px the canvas is 1280px centered at x=640. Actual landscape filter wheel
+  scrolling reaches 512px while the background remains at 0, with no JS errors.
 - Limits: this is not a field Core Web Vitals claim. Physical phone keyboard and
   owner Chrome/125% zoom remain unverified: the connection inventory again
   reports `apps: [], browsers: []`. Owner/payment-provider secrets and full-route

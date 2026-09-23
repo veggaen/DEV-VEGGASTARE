@@ -178,6 +178,39 @@ test('S7 — catalog desktop filter docks, categories, price and page size work'
   } finally { await context.close(); }
 });
 
+test('S7 — catalog cart and buy-now buttons reach checkout and recover from failure', async ({ browser, baseURL }) => {
+  test.setTimeout(60_000);
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Reuses an isolated, app-issued demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.isDemo).toBe(true);
+    expect((await context.request.delete(`/api/cart/${session.user.id}`)).ok()).toBe(true);
+    await page.goto('/products', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('button', { name: 'Exit demo', exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+    const pack = page.getByRole('article', { name: 'Veggat Interview Pack', exact: true });
+    await pack.getByRole('button', { name: 'Add Veggat Interview Pack to cart', exact: true }).click();
+    await expect(page.getByText('Added to basket', { exact: true })).toBeVisible();
+    await page.getByRole('article', { name: 'Interviewer AI Credits', exact: true }).getByRole('button', { name: 'Buy now', exact: true }).click();
+    await expect(page).toHaveURL(/\/checkout$/);
+    await expect(page.getByRole('heading', { name: 'Secure checkout', exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Order items' }).getByRole('heading', { level: 3 })).toHaveCount(2);
+    await expect(page.getByText('0.00 NOK', { exact: true })).toBeVisible();
+    // Do not fulfill an order or grant more credits during this catalog check.
+    await page.goto('/products', { waitUntil: 'domcontentloaded' });
+    await page.route(url => url.pathname === `/api/cart/${session.user.id}`, route => route.request().method() === 'POST'
+      ? route.fulfill({ status: 503, json: { error: 'Temporary test outage' } }) : route.continue());
+    const add = pack.getByRole('button', { name: 'Add Veggat Interview Pack to cart', exact: true });
+    await add.click();
+    await expect(page.getByText('Could not add this product to your basket. Please try again.', { exact: true })).toBeVisible();
+    await expect(add).toBeEnabled();
+    await expect(page).toHaveURL(/\/products$/);
+  } finally { await context.close(); }
+});
+
 test('S2 — auth layouts, fields, theme and scrolling stay usable from phone to ultrawide', async ({ browser, baseURL }) => {
   test.setTimeout(120_000);
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
