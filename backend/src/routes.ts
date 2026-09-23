@@ -1,21 +1,10 @@
-import { Server, ResponseToolkit, Request } from '@hapi/hapi';
-import { PrismaClient } from './generated/prisma/client';
+import { Server, ResponseToolkit } from '@hapi/hapi';
 import { z } from 'zod';
-import { broadcastWarehousesUpdate } from './websocket';
 import { getBringProvider } from './integrations/bring';
-import { isDbConfigured } from './db';
 
 const LOG_PREFIX = '[backend/src/routes.ts]';
 
-type JsonObject = Record<string, unknown>;
-
 // ============ Zod Schemas for Input Validation ============
-
-const updateWarehouseSchema = z.object({
-  warehouseId: z.string().min(1, 'warehouseId is required'),
-  inventoryId: z.string().min(1, 'inventoryId is required'),
-  stock: z.number().int().min(0, 'stock must be a non-negative integer'),
-});
 
 const shippingRatesSchema = z.object({
   fromCountryCode: z.string().min(1).max(3),
@@ -46,12 +35,6 @@ const postalSuggestionsSchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
 });
 
-const pusherTriggerSchema = z.object({
-  channel: z.string().min(1),
-  event: z.string().min(1),
-  data: z.unknown(),
-});
-
 // ============ Helper Functions ============
 
 function badRequest(h: ResponseToolkit, message: string) {
@@ -63,7 +46,7 @@ function zodError(h: ResponseToolkit, error: z.ZodError) {
   return h.response({ error: 'Validation failed', details: issues }).code(400);
 }
 
-const registerRoutes = (server: Server, prisma: PrismaClient): void => {
+const registerRoutes = (server: Server): void => {
   server.route({
     method: 'GET',
     path: '/',
@@ -72,47 +55,18 @@ const registerRoutes = (server: Server, prisma: PrismaClient): void => {
     },
   });
 
-  server.route({
-    method: 'POST',
-    path: '/api/update',
-    handler: async (request, h) => {
-      if (!isDbConfigured) {
-        return h
-          .response({ error: 'DATABASE_URL_MAINLIVE not set (DB disabled). Warehouse updates unavailable.' })
-          .code(503);
-      }
-
-      // Validate input with Zod
-      const parsed = updateWarehouseSchema.safeParse(request.payload);
-      if (!parsed.success) {
-        return zodError(h, parsed.error);
-      }
-
-      const { warehouseId, inventoryId, stock } = parsed.data;
-
-      try {
-        console.log(LOG_PREFIX, 'Updating warehouse:', warehouseId, 'inventory:', inventoryId, 'stock:', stock);
-        const updatedWarehouse = await prisma.warehouseLocation.update({
-          where: { id: warehouseId },
-          data: {
-            inventory: {
-              update: {
-                where: { id: inventoryId },
-                data: { stock },
-              },
-            },
-          },
-        });
-
-        await broadcastWarehousesUpdate(); // Broadcast update to all WebSocket clients and Pusher
-
-        return h.response('Update broadcasted').code(200);
-      } catch (error) {
-        console.error(LOG_PREFIX, '[Hapi Server] Error updating warehouse:', error);
-        return h.response('Error updating warehouse').code(500);
-      }
-    },
-  });
+  // These unused prototypes had neither user auth nor tenant authorization.
+  // CORS is not authorization. Inventory writes belong to the authenticated app.
+  for (const path of ['/api/update', '/api/pusher-trigger']) {
+    server.route({
+      method: 'POST', path,
+      options: { payload: { parse: false, maxBytes: 4096 } },
+      handler: (_request, h) => h.response({
+        error: 'This legacy integration endpoint has been retired.',
+        code: 'LEGACY_ENDPOINT_RETIRED',
+      }).code(410).header('Cache-Control', 'no-store'),
+    });
+  }
 
   // ---- Integration Core v1 (public-ish) ----
   server.route({

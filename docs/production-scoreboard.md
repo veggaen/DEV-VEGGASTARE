@@ -171,6 +171,15 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Environment and safety
 
+- Backend follow-up: retired unauthenticated stock/Pusher endpoints (410), removed
+  client-triggered inventory broadcasts, and reject legacy socket handshakes.
+  Build and **5/5** Node boundary tests pass; actual local `/v1/health` remains
+  200. Compatible lockfile patches reduce npm audit findings from 12 to 7;
+  remaining Prisma-tooling advisories were not hidden with a major downgrade.
+  This backend correction is **not deployed**: Railway owner authorization is
+  required, and the first browserless login link expired. Live shipping access
+  control/provider limits and active frontend warehouse events need further audit.
+
 - Work is isolated in the `showcase/ai-revival` worktree; original dirty workspace preserved.
 - Local OAuth origin is `http://localhost:3000`.
 - Current local production-mode test process uses the live database. Test identities are isolated and non-admin; no Live PayPal keys are added to localhost.

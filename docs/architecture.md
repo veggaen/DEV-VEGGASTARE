@@ -17,7 +17,9 @@ production behavior; the presence of an integration is not a readiness claim.
   application guards. Schema and migrations are in `frontend/prisma/`.
 - **Hapi integration core (Railway).** Shipping and warehouse/realtime experiments
   live in `backend/`, independent of React. Its health endpoint is `/v1/health`.
-  Backend deployment, authorization and operational readiness remain separate
+  The unauthenticated legacy stock/Pusher endpoints now return 410 and the
+  legacy socket refuses connections; current handlers open no database client.
+  Backend deployment, shipping authorization and operational readiness remain separate
   audit items; they are not required for private digital sample delivery.
 - **External systems.** PayPal for verified orders, private storage for digital
   bytes, AI providers for bounded generation, and Pusher for application events.
