@@ -125,14 +125,33 @@ member-to-member delivery remains separate from the mocked error test.
   `dpl_6a76C651Gpg4NWBXmZjB2xBh6wPb` is READY. Live Companies plus Pulse/footer
   regression **5/5** (37.5s); live phone visual inspection also passed.
 
-## S7 — Navigation follow-up (local verified; live pending)
+## S7 — Navigation and Pulse footer follow-up (local/live verified)
 
 - Explicit mobile Menu button with 44px target; optional wallet UI split from the
   initial top-bar bundle without replacing providers or sessions. Email debug log
   removed. Build/TypeScript/lint pass; focused local browser regression **8/8**
   (50.4s), including wallet lifecycle and actual drawer/footer scrolling.
 - Wallet panel chunk only requested on menu open. Local LCP 2,708ms / CLS 0 lab
-  sample is roughly unchanged; no major speed gain claimed. Live pending.
+  sample is roughly unchanged; no major speed gain claimed.
+- Live `cc9e5db` verification caught a reduced-motion hydration error (3/3
+  reproductions). Fixed server/first-client motion snapshots and stable text
+  markup in the hero/topbar/lower sections; semantic heading text replaces
+  letter-by-letter accessible names. Lower homepage sections no longer wait
+  for opacity entrances. Five hook/provider unit tests pass.
+- Actual infinite-feed scrolling exposed a footer flash missed by finite
+  fixtures. Footer now waits for the final cursor; delayed/error batches retain
+  scroll position and offer retry. Superseded filter requests abort, and an
+  empty filtered batch offers an explicit check-more control.
+- Final Webpack build/TypeScript/touched lint pass. Local browser **10/10**
+  (47.4s), live **10/10** (1.1m): Settings, wallet lifecycle, pre-bundle paint,
+  hydration at 390/1280, Pulse/drawer scrolling, delayed pagination/retry and
+  marketplace/cart. Release `3a8f0cc` / `dpl_B8hWfk6B1Pfw1BBArndAeL2P1Mg9`
+  is READY at www.veggat.com. Actual live feed scrolling has no horizontal
+  overflow/console exceptions; Polls resets a deep scroll to 0, and checking
+  the next empty-filter batch successfully reveals real poll cards.
+- Extra live hydration regression **7/7** (16.2s, setup plus three repeats at
+  each of 390/1280px), with no hydration errors. Analytics role-aware/error/mobile
+  layout remains the next route slice; this is not a full-app completion claim.
 
 ## S5 — Metered AI integration (demo debit/denial verified local/live; paid purchase blocked)
 
@@ -220,7 +239,7 @@ member-to-member delivery remains separate from the mocked error test.
 | Quality | Touched-file lint | PARTIAL — run after each slice |
 | Quality | Home → demo → product → cart E2E | DONE — local and live pass; payment coverage remains a separate S4 task |
 | Quality | Payment mocked in CI | PARTIAL — S4 pending |
-| Layout | Core path at 360 and 2560, other requested sizes, 125% zoom | PARTIAL — earlier 390/1440 smoke checks only |
+| Layout | Core path at 360 and 2560, other requested sizes, 125% zoom | PARTIAL — core route/drawer/scroll tests include 360/390/landscape/768/1024/1280/1920/2560; all-route interaction, real phone keyboard and actual Chrome 125% zoom remain unverified |
 | Interview | Root README | PARTIAL — public demo, optional 29/39 NOK SKUs, architecture, four decisions and S5 evidence documented; payment and walkthrough still pending |
 
 ## Environment and safety

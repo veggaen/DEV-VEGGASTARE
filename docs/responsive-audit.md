@@ -289,7 +289,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Local company-page navigation drawer was additionally wheel-scrolled to its
   boundary at 844×390: background stayed at 0 and Escape restored trigger focus.
 
-### Navigation discoverability and optional UI loading (local verified; live pending)
+### Navigation discoverability and optional UI loading (local/live verified after follow-up)
 
 - Phones now show an explicit 44px Menu button instead of an unlabeled-looking
   profile image as the sole navigation cue. Desktop avatar remains. Drawer aria
@@ -308,9 +308,9 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   competition; the wallet core is still global. Release `cc9e5db` /
   `dpl_DybY1nKVmdXPn3BP4TBP1fXubhtY` is READY, but live verification returned
   **7 pass / 1 fail**: reduced-motion hydration failed, reproduced **3/3**.
-  Navigation is not marked fully verified until that regression is resolved.
+  The follow-up below resolves that regression; the failed run remains recorded.
 
-### Reduced-motion hydration regression (fix under verification)
+### Reduced-motion hydration regression (local/live verified)
 
 - A fresh live browser reproduced React #418 with reduced motion even without
   stored wallet preferences; normal motion did not reproduce it. Webpack dev's
@@ -330,9 +330,10 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   stable structure there; the release was not deployed after the failed check.
   Final Webpack build/TypeScript passes; repeated local browser checks **10/10**
   (19.2s): pre-bundle paint plus 390/1280px hydration/geometry/shell retention,
-  each repeated three times. Live verification remains pending.
+  each repeated three times. Live combined verification passes in the footer
+  follow-up release below; additional repeated live checks are recorded there.
 
-### Next audit findings (not yet fixed)
+### Findings from the next route pass
 
 - Real `/pulse` feed scrolling (390px, retained demo, no response fixture) exposed
   a gap missed by the finite-feed regression: after the first 30 posts, fetching
@@ -359,7 +360,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   that run. Continue verifying readiness and session initialization rather than
   treating the initial screenshot or a single metric as proof of stable loading.
 
-### Pulse pagination footer follow-up (under verification)
+### Pulse pagination footer follow-up (local/live verified)
 
 - Scoped footer visibility to the feed's real pagination boundary: no provisional
   footer while loading, when another cursor exists, or while a failed batch needs
@@ -390,7 +391,15 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   feed retry/scroll preservation/footer and marketplace/cart. Actual phone
   screenshots confirm lower sections are readable immediately, accessible
   headings read whole words, and the real feed keeps its footer hidden while
-  more posts remain. Live verification is pending.
+  more posts remain. Release `3a8f0cc` / `dpl_B8hWfk6B1Pfw1BBArndAeL2P1Mg9`
+  is READY at www.veggat.com. The same live regression is **10/10** (1.1m).
+  Extra live reduced-motion repetitions are **7/7** (16.2s, setup plus three
+  runs at each of 390/1280px), with no hydration errors.
+  Actual live phone scrolling independently confirmed hidden pending footer,
+  no horizontal overflow/JS exceptions, and Polls reset from deep scroll to 0.
+  Its new check-more button successfully loaded real poll cards after an empty
+  filtered batch. Existing legacy Markdown/confidence copy remains editorial
+  backlog, not changed during the layout correction.
 - Real Chrome connector was checked again: its inventory still returned no apps
   or browsers. These tests use the explicitly authorized Playwright browser, not
   the owner's real Chrome session.
