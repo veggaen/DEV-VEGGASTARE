@@ -1,5 +1,183 @@
 import { test, expect } from "@playwright/test";
 
+test('S7 — catalog canvas, first wheel and controls remain stable at eight sizes', async ({ browser, baseURL }) => {
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto('/products', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Marketplace', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Essential Only', exact: true })).toBeHidden();
+    const scroll = page.locator('[data-app-scroll-container]');
+    const search = page.getByRole('searchbox', { name: 'Search products' });
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size);
+      await scroll.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+      const header = page.getByRole('heading', { level: 1 }).locator('..').locator('..');
+      const before = await header.boundingBox();
+      const inputBefore = await search.boundingBox();
+      const card = await page.getByRole('article', { name: 'Veggat Interview Pack', exact: true }).boundingBox();
+      expect(card!.width).toBeLessThan(500);
+      expect(inputBefore!.height).toBeGreaterThanOrEqual(44);
+      expect(await search.evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(16);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('[data-app-scroll-container],main')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+      await expect(page.locator('footer')).toHaveCount(0);
+      const max = await scroll.evaluate(e => e.scrollHeight - e.clientHeight);
+      if (max > 50) {
+        await page.mouse.move(size.width - 24, size.height - 30);
+        await page.mouse.wheel(0, 50);
+        await expect.poll(() => scroll.evaluate(e => e.scrollTop)).toBe(50);
+        // Two frames beyond the previous 200ms collapse catches scroll anchoring regressions.
+        await page.waitForTimeout(250);
+        expect(await scroll.evaluate(e => e.scrollTop)).toBe(50);
+        expect((await header.boundingBox())!.height).toBe(before!.height);
+        expect((await search.boundingBox())!.width).toBe(inputBefore!.width);
+        await page.mouse.wheel(0, 10000);
+        await expect.poll(() => scroll.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+        await page.mouse.wheel(0, -10000);
+        await expect.poll(() => scroll.evaluate(e => e.scrollTop)).toBe(0);
+      }
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+      test.info().annotations.push({ type: 'catalog-viewport', description: `${size.width}x${size.height}; card ${card!.width}px` });
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    const first = page.getByRole('article', { name: 'Veggat Interview Pack', exact: true });
+    await first.getByRole('button', { name: 'Next image of Veggat Interview Pack', exact: true }).click();
+    await expect(page).toHaveURL(/\/products$/);
+    await first.getByRole('button', { name: 'Previous image of Veggat Interview Pack', exact: true }).click();
+    await first.getByRole('heading').getByRole('link').click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S7 — catalog retains results through slow search, error and recovery', async ({ browser, baseURL }) => {
+  test.setTimeout(90_000);
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  let releaseInitial!: () => void;
+  let releaseOld!: () => void;
+  let sawOld!: () => void;
+  const initial = new Promise<void>(resolve => { releaseInitial = resolve; });
+  const old = new Promise<void>(resolve => { releaseOld = resolve; });
+  const oldStarted = new Promise<void>(resolve => { sawOld = resolve; });
+  const items = await (await context.request.get('/api/products?perPage=2')).json();
+  expect(items.length).toBeGreaterThan(0);
+  let fail = true;
+  let firstRequest = true;
+  await page.route(url => url.pathname === '/api/products', async route => {
+    const term = new URL(route.request().url()).searchParams.get('searchTerm');
+    if (firstRequest) { firstRequest = false; await initial; }
+    if (term === 'old') {
+      sawOld(); await old;
+      await route.fulfill({ json: [{ ...items[0], title: 'Obsolete result' }] }).catch(() => {});
+    } else if (term === 'new') await route.fulfill({ json: [{ ...items[0], title: 'Newest result' }] });
+    else if (term === 'error' && fail) await route.fulfill({ status: 503, json: { error: 'Unavailable' } });
+    else if (term === 'empty') await route.fulfill({ json: [] });
+    else if (term === 'currency') await route.fulfill({ json: [{ ...items[0], priceCurrency: 'INVALID' }] });
+    else await route.fulfill({ json: items });
+  });
+  try {
+    await page.goto('/products', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    const skeleton = page.getByRole('status', { name: 'Loading products', exact: true });
+    await expect(skeleton).toBeVisible();
+    const placeholder = await skeleton.locator('[aria-hidden] > div').first().boundingBox();
+    releaseInitial();
+    await expect(page.getByRole('article').first()).toBeVisible();
+    const card = await page.getByRole('article').first().boundingBox();
+    expect(Math.abs(card!.height - placeholder!.height)).toBeLessThan(2);
+    expect(Math.abs(card!.y - placeholder!.y)).toBeLessThan(2);
+    const search = page.getByRole('searchbox', { name: 'Search products' });
+    await search.fill('old'); await oldStarted;
+    await expect(page.getByRole('article')).toHaveCount(items.length);
+    await expect(skeleton).toHaveCount(0);
+    await expect(page.getByText('Updating products…', { exact: true })).toBeVisible();
+    await search.fill('new');
+    await expect(page.getByRole('heading', { name: 'Newest result', exact: true })).toBeVisible();
+    releaseOld();
+    await search.fill('error');
+    await expect(page.getByRole('alert').filter({ hasText: 'Check your connection' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Newest result', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Obsolete result', exact: true })).toHaveCount(0);
+    fail = false;
+    await page.getByRole('button', { name: 'Retry products', exact: true }).click();
+    await expect(page.getByRole('heading', { name: items[0].title, exact: true })).toBeVisible();
+    await search.fill('empty');
+    await expect(page.getByRole('heading', { name: 'No products match this view', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Show all products', exact: true }).click();
+    await expect(search).toHaveValue('');
+    await expect(page.getByRole('article')).toHaveCount(items.length);
+    await search.fill('currency');
+    await expect(page.getByText('Price unavailable', { exact: true })).toBeVisible();
+    await expect(page.getByRole('article').getByRole('button', { name: 'Buy now', exact: true })).toBeDisabled();
+  } finally { releaseInitial(); releaseOld(); await context.close(); }
+});
+
+test('S7 — catalog desktop filter docks, categories, price and page size work', async ({ browser, baseURL }) => {
+  test.setTimeout(90_000);
+  const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto('/products', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Browse categories', exact: true }).click();
+    await page.getByRole('menuitemcheckbox', { name: /Digital art/i }).click();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('article h2')).toHaveText(['Veggat Interview Pack']);
+    await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+    await page.getByRole('button', { name: 'Product filters', exact: true }).click();
+    const panel = page.getByRole('complementary', { name: 'Product filters', exact: true });
+    const scroll = page.locator('[data-app-scroll-container]');
+    const body = panel.locator('[data-product-filter-scroll]');
+    for (const dock of ['Right edge', 'Beside products, right', 'Beside products, left', 'Left edge']) {
+      await page.getByRole('button', { name: 'Filter panel position', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: dock, exact: true }).click();
+      const box = await panel.boundingBox();
+      const card = await page.getByRole('article').first().boundingBox();
+      expect(box!.x >= 0 && box!.x + box!.width <= 1280).toBe(true);
+      expect(box!.x + box!.width <= card!.x || box!.x >= card!.x + card!.width).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    const background = await scroll.evaluate(e => e.scrollTop);
+    const box = await body.boundingBox();
+    await page.mouse.move(box!.x + 15, box!.y + box!.height / 2);
+    await page.mouse.wheel(0, 5000);
+    await expect.poll(() => body.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+    await page.mouse.wheel(0, 5000);
+    expect(await scroll.evaluate(e => e.scrollTop)).toBe(background);
+    await panel.getByRole('button', { name: 'View Options', exact: true }).click();
+    await panel.getByRole('combobox', { name: 'Products per page' }).click();
+    const pageSize = page.waitForResponse(response => { const u = new URL(response.url()); return u.pathname === '/api/products' && u.searchParams.get('perPage') === '10'; });
+    await page.getByRole('option', { name: '10 per page', exact: true }).click();
+    expect((await pageSize).status()).toBe(200);
+    await body.hover(); await page.mouse.wheel(0, -5000);
+    await expect.poll(() => body.evaluate(e => e.scrollTop)).toBe(0);
+    await panel.getByText('Enter exact values', { exact: true }).click();
+    await panel.getByRole('spinbutton', { name: 'Maximum price', exact: true }).fill('30');
+    await expect(page.locator('article h2')).toHaveText(['Veggat Interview Pack']);
+    await panel.getByRole('button', { name: /Reset all filters/ }).click();
+    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true })).toBeVisible();
+    await panel.getByRole('button', { name: 'Close filters', exact: true }).click();
+    await expect(panel).toBeHidden();
+    await page.getByRole('button', { name: 'Filter panel position', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: 'Right edge', exact: true }).click();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Product filters', exact: true }).click();
+    await expect(panel).toBeVisible();
+    expect((await panel.boundingBox())!.x).toBeGreaterThan(900);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S2 — auth layouts, fields, theme and scrolling stay usable from phone to ultrawide', async ({ browser, baseURL }) => {
   test.setTimeout(120_000);
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, colorScheme: 'dark' });

@@ -114,7 +114,7 @@ const FilterSection = ({
       inert={!isOpen}
       aria-hidden={!isOpen}
       className={cn(
-        "transition-[flex] duration-200 ease-out overflow-hidden min-h-0",
+        "overflow-hidden min-h-0",
         isOpen ? (canGrow ? "flex-1 flex flex-col" : "") : "flex-[0_0_0px]"
       )}
     >
@@ -164,8 +164,9 @@ const CategoryItem = ({ category, isSelected, onToggle, disabled }: CategoryItem
 );
 
 export const MySidebarProductsMenu = () => {
-  const { isSidebarOpen, toggleSidebar, closeSidebar, cancelSidebarSwipe, isContentScrolled, sidebarDock, setSidebarDock, productsFrameBounds, perPage, setPerPage } = useSidebar();
-  const isDocked = isContentScrolled;
+  const { isSidebarOpen, toggleSidebar, closeSidebar, cancelSidebarSwipe, sidebarDock, setSidebarDock, productsFrameBounds, perPage, setPerPage } = useSidebar();
+  // Scrolling must not change the panel's size, padding or controls geometry.
+  const isDocked = true;
 	const isRightDock = sidebarDock === 'edge-right' || sidebarDock === 'frame-right';
   const isEdgeDock = sidebarDock === 'edge-left' || sidebarDock === 'edge-right';
   const isFrameDock = sidebarDock === 'frame-left' || sidebarDock === 'frame-right';
@@ -176,9 +177,10 @@ export const MySidebarProductsMenu = () => {
   const SIDEBAR_WIDTH = 340;
   const FRAME_GAP = 16;
 
-  const [viewportW, setViewportW] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 0));
+  const [viewportW, setViewportW] = useState(0);
   useEffect(() => {
     const onResize = () => setViewportW(window.innerWidth);
+    onResize();
     window.addEventListener('resize', onResize, { passive: true });
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -523,9 +525,7 @@ export const MySidebarProductsMenu = () => {
           )}
           style={{
             // Use CSS variable for alignment with topbar, fallback to 68px
-            height: variant === 'desktop' && isDocked && isEdgeDock
-              ? 'calc(var(--products-controls-height, 68px))'
-              : '68px',
+            height: '68px',
             maxHeight: '68px',
             paddingTop: variant === 'desktop' && isDocked && isEdgeDock ? 0 : undefined,
             paddingBottom: variant === 'desktop' && isDocked && isEdgeDock ? 0 : undefined,
@@ -552,6 +552,7 @@ export const MySidebarProductsMenu = () => {
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="size-11"
                   onClick={toggleSidebar}
                   aria-label="Close filters"
                   onPointerDown={(e) => e.stopPropagation()}
@@ -575,6 +576,7 @@ export const MySidebarProductsMenu = () => {
               <Button
                 variant="ghost"
                 size="icon"
+                className="size-11"
                 onClick={toggleSidebar}
                 aria-label="Close filters"
                 onPointerDown={(e) => e.stopPropagation()}
@@ -587,7 +589,7 @@ export const MySidebarProductsMenu = () => {
       </div>
 
         {/* ─── Scrollable Body ─── */}
-        <div data-product-filter-scroll className={cn("flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3", variant === 'mobile' ? 'space-y-2' : 'flex flex-col gap-1')}>
+        <div data-product-filter-scroll className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3 space-y-2">
 
           {/* Price Filter */}
           <FilterSection
@@ -612,29 +614,33 @@ export const MySidebarProductsMenu = () => {
             
             {/* Fallback manual inputs for precise entry */}
             <details className="mt-3 group">
-              <summary className="text-xs text-zinc-500 dark:text-zinc-400 cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors select-none">
+              <summary className="min-h-11 py-3 text-sm text-zinc-500 dark:text-zinc-400 cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 select-none">
                 Enter exact values
               </summary>
               <div className="flex items-center gap-2 mt-2">
                 <div className="flex-1 relative">
-                  <label className="sr-only">Minimum price</label>
+                  <label htmlFor={`catalog-min-${variant}`} className="mb-1 block text-sm">Minimum price</label>
                   <input
+                    id={`catalog-min-${variant}`}
+                    min={0}
                     type="number"
                     placeholder="Min"
                     value={minPrice ?? ''}
-                    onChange={(e) => setMinPrice(e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full h-9 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-sky-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onChange={(e) => setMinPrice(Number.isFinite(e.target.valueAsNumber) ? Math.max(0, e.target.valueAsNumber) : null)}
+                    className="w-full h-11 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-sky-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
                 <span className="text-zinc-400 text-sm font-medium select-none">–</span>
                 <div className="flex-1 relative">
-                  <label className="sr-only">Maximum price</label>
+                  <label htmlFor={`catalog-max-${variant}`} className="mb-1 block text-sm">Maximum price</label>
                   <input
+                    id={`catalog-max-${variant}`}
+                    min={0}
                     type="number"
                     placeholder="Max"
                     value={maxPrice ?? ''}
-                    onChange={(e) => setMaxPrice(e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full h-9 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-sky-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onChange={(e) => setMaxPrice(Number.isFinite(e.target.valueAsNumber) ? Math.max(0, e.target.valueAsNumber) : null)}
+                    className="w-full h-11 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-sky-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>
@@ -663,10 +669,11 @@ export const MySidebarProductsMenu = () => {
                     <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
                     <input
                       type="text"
-                      placeholder="Search categories..."
+                      placeholder="Search categories…"
+                      aria-label="Search categories"
                       value={categorySearch}
                       onChange={(e) => setCategorySearch(e.target.value)}
-                      className="w-full h-8 pl-8 pr-3 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg text-sm outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 focus-visible:border-sky-500"
+                      className="w-full h-11 pl-8 pr-3 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg text-base outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 focus-visible:border-sky-500"
                     />
                   </div>
                 )}
@@ -679,7 +686,7 @@ export const MySidebarProductsMenu = () => {
                         category={cat}
                         isSelected={selectedCategories.includes(cat.category)}
                         onToggle={() => handleCategoryChange(cat.category)}
-                        disabled={cat.count === 0}
+                        disabled={cat.count === 0 && !selectedCategories.includes(cat.category)}
                       />
                     ))
                   ) : (
@@ -712,10 +719,11 @@ export const MySidebarProductsMenu = () => {
                     <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
                     <input
                       type="text"
-                      placeholder="Search sellers..."
+                      placeholder="Search sellers…"
+                      aria-label="Search sellers"
                       value={sellerSearch}
                       onChange={(e) => setSellerSearch(e.target.value)}
-                      className="w-full h-8 pl-8 pr-3 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg text-sm outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 focus-visible:border-sky-500"
+                      className="w-full h-11 pl-8 pr-3 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg text-base outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 focus-visible:border-sky-500"
                     />
                   </div>
                 )}
@@ -726,7 +734,7 @@ export const MySidebarProductsMenu = () => {
                       <label
                         key={seller.id}
                         className={cn(
-                          "flex items-center gap-2.5 py-1.5 px-4 -mx-1 rounded-md cursor-pointer transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]",
+                          "flex min-h-11 items-center gap-2.5 py-1.5 px-3 rounded-md cursor-pointer transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]",
                           selectedSellers.includes(seller.id) && "bg-sky-500/5 dark:bg-sky-500/10"
                         )}
                       >
@@ -788,7 +796,7 @@ export const MySidebarProductsMenu = () => {
               <div className="grid gap-1.5 sm:grid-cols-[auto,1fr] sm:items-center sm:gap-2">
                 <div className="text-xs text-zinc-600 dark:text-zinc-300">Items / page</div>
                 <Select value={perPage.toString()} onValueChange={(v) => setPerPage(Number(v))}>
-                  <SelectTrigger className="h-10 w-full sm:w-[170px] rounded-lg border-black/10 bg-white/60 text-zinc-800 shadow-sm shadow-black/[0.03] hover:bg-white/75 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.10]">
+                  <SelectTrigger aria-label="Products per page" className="min-h-11 w-full rounded-lg border-black/10 bg-white/60 text-base text-zinc-800 shadow-sm shadow-black/[0.03] hover:bg-white/75 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.10]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-lg border-black/10 bg-white/95 text-zinc-950 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/10 dark:bg-surface-1/80 dark:text-zinc-50">
@@ -822,22 +830,11 @@ export const MySidebarProductsMenu = () => {
     );
   };
 
-				// Align flush under the TopBar when scrolled. On /products the TopBar morphs between
-				// a floating (taller) state and a docked state (exactly --app-header). If we always
-				// use --app-header-offset we can get a small lingering gap during/after the morph.
-				const headerTopVar = 'calc(var(--app-header-offset) + var(--demo-notice-height, 0px))';
-				// When the products controls bar becomes sticky, it occupies the very top of the
-				// /products scroll container. For frame-left/frame-right we want the sidebar below it.
-				const desktopTop = isDocked && isFrameDock
-					? `calc(${headerTopVar} + var(--products-controls-offset))`
-					: headerTopVar;
-				// When NOT scrolled (floating), push sidebar DOWN to create visual separation from navbar.
-				// This makes the sidebar feel "disconnected" / floating when at the top of the page.
-				// Once scrolled, this becomes 0 and the sidebar "connects" with the topbar.
-				const floatingTopOffset = !isDocked ? 24 : 0;
-				const desktopHeight = isDocked && isFrameDock
-					? `calc(100dvh - ${headerTopVar} - var(--products-controls-offset))`
-					: `calc(100dvh - ${headerTopVar} - ${floatingTopOffset}px)`;
+				// Keep both desktop positions stable while the page scrolls.
+        const headerTopVar = 'calc(var(--app-header-offset) + var(--demo-notice-height, 0px))';
+        const desktopTop = headerTopVar;
+        const floatingTopOffset = 0;
+        const desktopHeight = `calc(100dvh - ${headerTopVar})`;
         const bottomInsetPx = footerLiftPx + cookieLiftPx;
         const desktopHeightWithInset =
           bottomInsetPx > 0 ? `calc(${desktopHeight} - ${bottomInsetPx}px)` : desktopHeight;
@@ -873,7 +870,7 @@ export const MySidebarProductsMenu = () => {
       >
 					<div
 						className={cn(
-							"h-full transition-[padding] duration-500 ease-out",
+							"h-full",
 							// When floating (not scrolled), inset the panel with padding all around
 							// so it visually feels disconnected from the navbar.
 							isDocked ? "p-0" : "p-3"
@@ -881,7 +878,7 @@ export const MySidebarProductsMenu = () => {
 					>
 						<div
 							className={cn(
-								"w-full h-full bg-white/55 dark:bg-surface-1/40 backdrop-blur-xl transition-[border-radius,box-shadow] duration-500 ease-out",
+								"w-full h-full bg-white/55 dark:bg-surface-1/40 backdrop-blur-xl",
 								isDocked
 									? cn(
 										"shadow-none rounded-none",
@@ -913,7 +910,7 @@ export const MySidebarProductsMenu = () => {
           onCloseAutoFocus={event => {
             event.preventDefault();
             const triggers = document.querySelectorAll<HTMLButtonElement>('[data-product-filter-trigger]');
-            [...triggers].find(button => button.getBoundingClientRect().width > 0)?.focus();
+            [...triggers].find(button => button.getBoundingClientRect().width > 0)?.focus({ preventScroll: true });
           }}
         >
           {renderSidebarPanel('mobile')}

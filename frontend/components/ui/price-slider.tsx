@@ -54,7 +54,7 @@ export const PriceSlider = ({
   const maxInputRef = useRef<HTMLInputElement>(null);
   
   // Handle dimensions - track has padding for handles
-  const handleSize = 24; // w-6
+  const handleSize = 44; // touch target; the visual thumb remains 20px
   const trackPadding = handleSize / 2; // 12px padding each side
   
   // Default parser
@@ -79,6 +79,8 @@ export const PriceSlider = ({
       }
     };
     // Use requestAnimationFrame to ensure DOM is fully laid out
+    const observer = new ResizeObserver(updateWidth);
+    if (trackRef.current) observer.observe(trackRef.current);
     const raf = requestAnimationFrame(() => {
       updateWidth();
       setHasMounted(true);
@@ -86,6 +88,7 @@ export const PriceSlider = ({
     window.addEventListener('resize', updateWidth);
     return () => {
       cancelAnimationFrame(raf);
+      observer.disconnect();
       window.removeEventListener('resize', updateWidth);
     };
   }, [trackPadding]);
@@ -363,20 +366,22 @@ export const PriceSlider = ({
           {editingMin ? (
             <input
               ref={minInputRef}
+              aria-label="Edit minimum price"
               type="text"
               inputMode="numeric"
               value={minInputValue}
               onChange={(e) => setMinInputValue(e.target.value)}
               onBlur={handleMinBlur}
               onKeyDown={handleMinKeyDown}
-              className="w-full h-6 bg-white/60 dark:bg-white/[0.08] border border-emerald-400/50 dark:border-emerald-500/40 rounded px-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-200 tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/50"
+              className="w-full h-11 bg-white/60 dark:bg-white/[0.08] border border-emerald-400/50 dark:border-emerald-500/40 rounded px-1.5 text-base font-medium text-zinc-800 dark:text-zinc-200 tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/50"
               autoFocus
             />
           ) : (
             <button
               type="button"
               onClick={handleMinClick}
-              className="group w-full text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 tabular-nums truncate rounded px-1 -mx-1 py-0.5 -my-0.5 hover:bg-white/40 dark:hover:bg-white/[0.06] transition-colors cursor-text border border-transparent hover:border-emerald-400/30 dark:hover:border-emerald-500/20"
+              aria-label="Edit minimum price"
+              className="group min-h-11 w-full text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 tabular-nums truncate rounded px-1 -mx-1 py-0.5 -my-0.5 hover:bg-white/40 dark:hover:bg-white/[0.06] transition-colors cursor-text border border-transparent hover:border-emerald-400/30 dark:hover:border-emerald-500/20"
               title="Click to edit"
             >
               {formatValue(effectiveMin)}
@@ -392,20 +397,22 @@ export const PriceSlider = ({
           {editingMax ? (
             <input
               ref={maxInputRef}
+              aria-label="Edit maximum price"
               type="text"
               inputMode="numeric"
               value={maxInputValue}
               onChange={(e) => setMaxInputValue(e.target.value)}
               onBlur={handleMaxBlur}
               onKeyDown={handleMaxKeyDown}
-              className="w-full h-6 bg-white/60 dark:bg-white/[0.08] border border-violet-400/50 dark:border-violet-500/40 rounded px-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-200 tabular-nums text-right outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
+              className="w-full h-11 bg-white/60 dark:bg-white/[0.08] border border-violet-400/50 dark:border-violet-500/40 rounded px-1.5 text-base font-medium text-zinc-800 dark:text-zinc-200 tabular-nums text-right outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
               autoFocus
             />
           ) : (
             <button
               type="button"
               onClick={handleMaxClick}
-              className="group w-full text-right text-sm font-medium text-zinc-800 dark:text-zinc-200 tabular-nums truncate rounded px-1 -mx-1 py-0.5 -my-0.5 hover:bg-white/40 dark:hover:bg-white/[0.06] transition-colors cursor-text border border-transparent hover:border-violet-400/30 dark:hover:border-violet-500/20"
+              aria-label="Edit maximum price"
+              className="group min-h-11 w-full text-right text-sm font-medium text-zinc-800 dark:text-zinc-200 tabular-nums truncate rounded px-1 -mx-1 py-0.5 -my-0.5 hover:bg-white/40 dark:hover:bg-white/[0.06] transition-colors cursor-text border border-transparent hover:border-violet-400/30 dark:hover:border-violet-500/20"
               title="Click to edit"
             >
               {formatValue(effectiveMax)}
@@ -417,7 +424,7 @@ export const PriceSlider = ({
       {/* Track container with padding for handles - overflow hidden to prevent handle overflow */}
       <div
         ref={trackRef}
-        className="relative h-10 flex items-center cursor-pointer overflow-hidden"
+        className="relative h-12 flex items-center cursor-pointer overflow-hidden"
         style={{ touchAction: 'none' }}
         onPointerDown={handleTrackPointerDown}
         onMouseEnter={() => setIsHovered(true)}
@@ -438,9 +445,9 @@ export const PriceSlider = ({
           <motion.div
             className="absolute inset-0"
             animate={reduceMotion ? undefined : {
-              opacity: isDragging || isHovered ? [0.5, 0.8, 0.5] : 0.3,
+              opacity: isDragging || isHovered ? 0.7 : 0.3,
             }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
             style={{
               background: `radial-gradient(ellipse 200% 100% at ${glowPosition * 100}% 50%, rgba(34,197,94,0.4), rgba(56,189,248,0.3), transparent 70%)`,
             }}
@@ -471,7 +478,7 @@ export const PriceSlider = ({
           aria-valuemin={rangeMin}
           aria-valuemax={rangeMax}
           className={cn(
-            "absolute w-6 h-6 rounded-full cursor-grab active:cursor-grabbing",
+            "absolute size-11 rounded-full cursor-grab active:cursor-grabbing",
             "flex items-center justify-center",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2",
             // Dragging handle always on top, otherwise last dragged handle on top
@@ -493,9 +500,9 @@ export const PriceSlider = ({
           <motion.div
             className="absolute -inset-1 rounded-full pointer-events-none"
             animate={reduceMotion ? undefined : {
-              opacity: isDragging === 'min' ? [0.6, 1, 0.6] : isHovered ? 0.4 : 0.15,
+              opacity: isDragging === 'min' ? 0.8 : isHovered ? 0.4 : 0.15,
             }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
             style={{
               background: 'radial-gradient(circle, rgba(34,197,94,0.6), rgba(56,189,248,0.4), transparent 70%)',
               filter: 'blur(4px)',
@@ -503,11 +510,11 @@ export const PriceSlider = ({
           />
           {/* Handle body - scale effect on hover/active via CSS to avoid position jump */}
           <div className={cn(
-            "relative w-5 h-5 rounded-full shadow-md transition-transform duration-150",
+            "relative w-5 h-5 rounded-full shadow-md motion-safe:transition-transform motion-safe:duration-150",
             "bg-linear-to-br from-white to-zinc-100",
             "dark:from-zinc-600 dark:to-zinc-800",
             "border-2 border-emerald-500 dark:border-emerald-400",
-            "hover:scale-110 active:scale-115",
+            "motion-safe:[@media(hover:hover)]:hover:scale-110 motion-safe:active:scale-110",
             isDragging === 'min' && "scale-115"
           )}>
             <div className="absolute inset-0.5 rounded-full bg-linear-to-br from-emerald-200/30 to-transparent dark:from-emerald-400/20" />
@@ -525,7 +532,7 @@ export const PriceSlider = ({
           aria-valuemin={rangeMin}
           aria-valuemax={rangeMax}
           className={cn(
-            "absolute w-6 h-6 rounded-full cursor-grab active:cursor-grabbing",
+            "absolute size-11 rounded-full cursor-grab active:cursor-grabbing",
             "flex items-center justify-center",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2",
             // Dragging handle always on top, otherwise last dragged handle on top
@@ -547,9 +554,9 @@ export const PriceSlider = ({
           <motion.div
             className="absolute -inset-1 rounded-full pointer-events-none"
             animate={reduceMotion ? undefined : {
-              opacity: isDragging === 'max' ? [0.6, 1, 0.6] : isHovered ? 0.4 : 0.15,
+              opacity: isDragging === 'max' ? 0.8 : isHovered ? 0.4 : 0.15,
             }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
             style={{
               background: 'radial-gradient(circle, rgba(167,139,250,0.6), rgba(236,72,153,0.4), transparent 70%)',
               filter: 'blur(4px)',
@@ -557,11 +564,11 @@ export const PriceSlider = ({
           />
           {/* Handle body - scale effect on hover/active via CSS to avoid position jump */}
           <div className={cn(
-            "relative w-5 h-5 rounded-full shadow-md transition-transform duration-150",
+            "relative w-5 h-5 rounded-full shadow-md motion-safe:transition-transform motion-safe:duration-150",
             "bg-linear-to-br from-white to-zinc-100",
             "dark:from-zinc-600 dark:to-zinc-800",
             "border-2 border-violet-500 dark:border-violet-400",
-            "hover:scale-110 active:scale-115",
+            "motion-safe:[@media(hover:hover)]:hover:scale-110 motion-safe:active:scale-110",
             isDragging === 'max' && "scale-115"
           )}>
             <div className="absolute inset-0.5 rounded-full bg-linear-to-br from-violet-200/30 to-transparent dark:from-violet-400/20" />
@@ -570,7 +577,7 @@ export const PriceSlider = ({
       </div>
 
       {/* Range labels */}
-      <div className="flex items-center justify-between mt-1 text-[10px] text-zinc-400 dark:text-zinc-500">
+      <div className="flex items-center justify-between mt-1 text-xs text-zinc-400 dark:text-zinc-500">
         <span>{formatValue(rangeMin)}</span>
         <span>{formatValue(rangeMax)}</span>
       </div>

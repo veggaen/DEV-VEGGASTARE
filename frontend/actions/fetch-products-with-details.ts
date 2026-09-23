@@ -2,6 +2,7 @@
 
 import { dbPrisma } from '@/lib/db';
 import type { ProductsListItem } from '@/lib/types/products';
+import { publicCatalogWhere } from '@/lib/public-catalog';
 
 const toIsoString = (value: unknown): string => {
   if (value instanceof Date) return value.toISOString();
@@ -44,15 +45,10 @@ export const fetchProductsWithDetails = async ({
     const skip = (page - 1) * perPage;
 
     const whereClause: any = {
-      visibility: 'PUBLIC',
+      ...publicCatalogWhere(),
       price: {
         gte: minPrice,
       },
-      OR: [
-        { productType: 'DIGITAL', downloadsEnabled: true },
-        { productType: 'HYBRID', downloadsEnabled: true, stock: { gt: 0 } },
-        { productType: 'PHYSICAL', stock: { gt: 0 } },
-      ],
     };
 
     if (maxPrice !== undefined && maxPrice !== Infinity) {

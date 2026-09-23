@@ -666,6 +666,47 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   connector still reports `apps: [], browsers: []`; this is Playwright evidence.
   Physical phone keyboard behavior and real browser 125% zoom remain unverified.
 
+## Products follow-up — stable catalog and filter boundaries
+
+- Observed the original 50px wheel gesture settle at 10px because the product
+  heading collapsed and browser scroll anchoring pulled the content back. The
+  toolbar also inserted controls after scrolling, changing the search width.
+  Both now have stable geometry, a real H1, a bounded 1280px canvas and 16/24/32px
+  gutters. The footer remains absent on this catalog route by design.
+- Replaced hover-only metadata, 10–11px text and oversized portrait cards with
+  readable, container-responsive 1/2/3/4-column cards, stable 4:3 media and native
+  product links. Mobile gallery arrows are visible 44px controls. Listing prices
+  display their actual currency (29/39 NOK for the reviewer SKUs); malformed
+  currency data displays an unavailable state and disables purchase controls.
+- Initial route/data skeletons share final card geometry. Existing results stay
+  visible while filters refresh. Search cancellation is immediate, requests time
+  out after 15 seconds, and explicit retry preserves the failed page number.
+  Load-more is explicit; there are no orphan automatic retries or skipped pages.
+- Categories use the existing keyboard-accessible menu primitive. Desktop filter
+  positions reserve space at all four docks, not just screen edges; mobile filters
+  remain a focus-trapped sheet. Panel position/size no longer morph while scrolling.
+  Removed per-scroll React progress updates and decorative catalog particles.
+  Slider targets/edit fields are 44px/16px and track sizing follows ResizeObserver.
+- The audit found a data mismatch: categories, sellers and price bounds counted
+  hidden/unavailable listings while the catalog excluded them. Shared public
+  visibility/availability criteria now apply to every facet query, including
+  combinations of search/seller/category filters. Price bounds use one query.
+- Touched-file lint and **21/21** focused unit tests pass. First browser batch
+  **4/6**: one test wheeled before cookie-overlay exit, and another used an
+  incorrect retained-session file path. After fixing test readiness/path, **6/6**
+  passed (27.0s), including the eight requested viewport sizes, exact first-wheel
+  movement, no horizontal page overflow, drawer boundaries/focus, all four desktop
+  docks, real image navigation, matching skeleton height and intercepted stale/
+  failed/empty responses. Final production build/TypeScript and expanded local
+  browser regression **11/11** pass (56.6s), including malformed-currency safety,
+  persisted right-dock reload with no hydration errors, PDP/profile scrolling,
+  Pulse/footer pagination/retry and the real demo catalog/cart flow. Live pending.
+- Limits: this is not a field Core Web Vitals claim. Physical phone keyboard and
+  owner Chrome/125% zoom remain unverified: the connection inventory again
+  reports `apps: [], browsers: []`. Owner/payment-provider secrets and full-route
+  feature work elsewhere remain tracked separately; no live payment or new
+  AI credit grant was made during this catalog slice.
+
 ## Research references
 
 - [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)

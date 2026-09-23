@@ -11,7 +11,6 @@ export type SidebarDock = "edge-left" | "frame-left" | "frame-right" | "edge-rig
 
 // Sidebar dimensions - must match sidebar.tsx
 const SIDEBAR_WIDTH = 340;
-const SIDEBAR_GAP = 16; // breathing room between sidebar and content
 
 const SIDEBAR_DOCK_KEY = "veggastare.products.sidebarDock";
 const LEGACY_PLACEMENT_KEY = "veggastare.products.sidebarPlacement";
@@ -33,8 +32,6 @@ interface SidebarContextProps {
 	/** Mobile-only: whether the global TopBar should be visible. */
 	topBarVisible: boolean;
 	scrollContainerRef: RefObject<HTMLDivElement | null>;
-	/** True when the products scroll container is past the initial threshold. */
-	isContentScrolled: boolean;
 	sidebarDock: SidebarDock;
 	setSidebarDock: (dock: SidebarDock) => void;
 	/**
@@ -43,17 +40,9 @@ interface SidebarContextProps {
 	 */
 	registerProductsFrame: RefCallback<HTMLElement>;
 	productsFrameBounds: { left: number; right: number } | null;
-	/** Scroll progress as a value from 0 to 1 */
-	scrollProgress: number;
-	/** Whether to show the site footer (false during infinite scroll loading) */
-	showFooter: boolean;
-	setShowFooter: (show: boolean) => void;
 	/** Pagination size for /products */
 	perPage: number;
 	setPerPage: (n: number) => void;
-	/** Sticky toolbar element to render at scroll container level */
-	stickyToolbar: React.ReactNode;
-	setStickyToolbar: (toolbar: React.ReactNode) => void;
 }
 
 // Create the context
@@ -76,7 +65,7 @@ export const useSidebarOptional = () => {
 // Define the ProductProvider component
 const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
-	const hideSidebarOnThisRoute = pathname?.startsWith("/products/create");
+	const hideSidebarOnThisRoute = pathname !== '/products';
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 	const [sidebarSwipePx, setSidebarSwipePx] = useState(0);
 	const [isSidebarSwiping, setIsSidebarSwiping] = useState(false);
@@ -165,8 +154,12 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		}
 	}, [hideSidebarOnThisRoute]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const previousPathname = useRef(pathname);
   useLayoutEffect(() => {
-    scrollContainerRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (previousPathname.current !== pathname) {
+      scrollContainerRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      previousPathname.current = pathname;
+    }
   }, [pathname]);
 	// Swipe-to-open on mobile: kept lightweight (passive touch listeners), and only
 	// triggers when the gesture starts near the screen edges.
@@ -401,32 +394,23 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 		// Keep navigation stable while scrolling. Collapsing the global header
 		// changed the viewport height and shifted product content on every gesture.
-		const onChromeScroll = () => setChrome(true, true);
 
 		el.addEventListener("touchstart", onTouchStart, { passive: true });
 		el.addEventListener("touchmove", onTouchMove, { passive: false });
 		el.addEventListener("touchend", onTouchEnd, { passive: true });
 		el.addEventListener("touchcancel", onTouchEnd, { passive: true });
-		el.addEventListener("scroll", onChromeScroll, { passive: true });
 		return () => {
 			mq?.removeEventListener?.("change", onMq);
 			el.removeEventListener("touchstart", onTouchStart as any);
 			el.removeEventListener("touchmove", onTouchMove as any);
 			el.removeEventListener("touchend", onTouchEnd as any);
 			el.removeEventListener("touchcancel", onTouchEnd as any);
-			el.removeEventListener("scroll", onChromeScroll as any);
 		};
 	}, [openSidebar]);
-	// Footer visibility - hidden during infinite scroll loading on /products
-	const [showFooter, setShowFooter] = useState(false);
-	// Pagination size - used by products page + sidebar
 	const [perPage, setPerPage] = useState(30);
-	// Sticky toolbar - registered by pages, rendered at scroll container level
-	const [stickyToolbar, setStickyToolbar] = useState<React.ReactNode>(null);
-		const [isContentScrolled, setIsContentScrolled] = useState(false);
-		// Scroll progress (0-1) for progress indicator
-		const [scrollProgress, setScrollProgress] = useState(0);
-	const [sidebarDock, setSidebarDockState] = useState<SidebarDock>(() => {
+	const [sidebarDock, setSidebarDockState] = useState<SidebarDock>('edge-left');
+	useEffect(() => {
+		const readDock = (): SidebarDock => {
 		// Prefer the new key; fall back to legacy placement key.
 		try {
 			const raw = localStorage.getItem(SIDEBAR_DOCK_KEY);
@@ -438,17 +422,21 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 			if (legacy === "left") return "edge-left";
 		} catch {}
 		return "edge-left";
-	});
+		};
+		// Browser-only preference: match server markup first. The panel is closed
+		// during this one synchronization, so visible content does not move.
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setSidebarDockState(readDock());
+	}, []);
 
 	const [productsFrameBounds, setProductsFrameBounds] = useState<{ left: number; right: number } | null>(null);
 	const [productsFrameNode, setProductsFrameNode] = useState<HTMLElement | null>(null);
 
 	// ─── Viewport width tracking for responsive sidebar padding ───────────────
-	const [viewportWidth, setViewportWidth] = useState(() =>
-		typeof window !== 'undefined' ? window.innerWidth : 0
-	);
+	const [viewportWidth, setViewportWidth] = useState(0);
 	useEffect(() => {
 		const onResize = () => setViewportWidth(window.innerWidth);
+		onResize();
 		window.addEventListener('resize', onResize, { passive: true });
 		return () => window.removeEventListener('resize', onResize);
 	}, []);
@@ -494,22 +482,6 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		};
 	}, [productsFrameNode]);
 
-	// Native scrolling must respond to the first wheel or touch gesture. Compact
-	// chrome follows the actual position; never consume input to run an animation.
-	useEffect(() => {
-		const el = scrollContainerRef.current;
-		if (!el) return;
-		const onScroll = () => {
-			const top = el.scrollTop;
-			const max = el.scrollHeight - el.clientHeight;
-			setScrollProgress(max > 0 ? Math.min(1, top / max) : 0);
-			setIsContentScrolled(top > 8);
-			if (top > 8) el.setAttribute('data-products-compact', 'true');
-			else el.removeAttribute('data-products-compact');
-		};
-		el.addEventListener('scroll', onScroll, { passive: true });
-		return () => el.removeEventListener('scroll', onScroll);
-	}, []);
 
   // Prevent “double scrollbars” (window + inner container) on /products.
   // The ProductProvider owns the main scroll area via `scrollContainerRef`.
@@ -531,27 +503,11 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 	// with a spacer that takes up the sidebar width. This forces the content to
 	// shrink (grid reflows to fewer columns, inputs shrink) instead of just shifting.
 	const isDesktop = viewportWidth >= 1024; // lg breakpoint
-	const isEdgeDock = sidebarDock === 'edge-left' || sidebarDock === 'edge-right';
 	const effectiveSidebarOpen = hideSidebarOnThisRoute ? false : isSidebarOpen;
-	const showLeftSpacer = effectiveSidebarOpen && isDesktop && sidebarDock === 'edge-left';
-	const showRightSpacer = effectiveSidebarOpen && isDesktop && sidebarDock === 'edge-right';
+	const showLeftSpacer = effectiveSidebarOpen && isDesktop && (sidebarDock === 'edge-left' || sidebarDock === 'frame-left');
+	const showRightSpacer = effectiveSidebarOpen && isDesktop && (sidebarDock === 'edge-right' || sidebarDock === 'frame-right');
 	const spacerWidth = SIDEBAR_WIDTH; // No extra gap needed - sidebar already has some padding
 
-	// Spacer style with smooth transition
-	const spacerStyle: React.CSSProperties = {
-		width: spacerWidth,
-		minWidth: spacerWidth,
-		transition: 'width 300ms ease-out, min-width 300ms ease-out, opacity 300ms ease-out',
-	};
-	const collapsedSpacerStyle: React.CSSProperties = {
-		width: 0,
-		minWidth: 0,
-		transition: 'width 300ms ease-out, min-width 300ms ease-out, opacity 300ms ease-out',
-	};
-
-	// When scrolled/sticky, show a toolbar-matching background on the spacer to seamlessly
-	// connect the sticky toolbar with the edge-docked sidebar (no visible gap).
-	const spacerHasToolbarBg = isContentScrolled && effectiveSidebarOpen && isEdgeDock;
 
 	// /products/create should fit on one screen on desktop. Lock the provider scroll
 	// container on large screens so the page doesn't scroll, while keeping mobile scroll.
@@ -570,18 +526,12 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 				productsControlsVisible,
 				topBarVisible,
 				scrollContainerRef,
-				isContentScrolled,
 					sidebarDock,
 					setSidebarDock,
 					registerProductsFrame,
 					productsFrameBounds,
-					scrollProgress,
-					showFooter,
-					setShowFooter,
 					perPage,
 					setPerPage,
-					stickyToolbar,
-					setStickyToolbar,
 			}}
 		>
 		    <div className="productProvider relative flex w-full h-full min-h-0">
@@ -603,7 +553,6 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 								style={{
 									paddingLeft: showLeftSpacer ? spacerWidth : 0,
 									paddingRight: showRightSpacer ? spacerWidth : 0,
-									transition: 'padding 300ms ease-out',
 								}}
 							>
 								{children}

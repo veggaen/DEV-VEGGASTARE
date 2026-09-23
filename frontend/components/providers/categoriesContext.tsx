@@ -74,16 +74,18 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
 
   // Fetch initial data
   useEffect(() => {
+    const controller = new AbortController();
     const fetchData = async () => {
       try {
         setCategoriesLoading(true);
         setSellersLoading(true);
 
         const [fetchedCategoriesWithCounts, fetchedPriceRange, fetchedSellers] = await Promise.all([
-          fetch('/api/categories-with-counts').then((res) => (res.ok ? res.json() : [])),
-          fetch('/api/price-range').then((res) => (res.ok ? res.json() : null)),
-          fetch('/api/products/sellers').then((res) => (res.ok ? res.json() : [])),
+          fetch('/api/categories-with-counts', { signal: controller.signal }).then((res) => (res.ok ? res.json() : [])),
+          fetch('/api/price-range', { signal: controller.signal }).then((res) => (res.ok ? res.json() : null)),
+          fetch('/api/products/sellers', { signal: controller.signal }).then((res) => (res.ok ? res.json() : [])),
         ]);
+        if (controller.signal.aborted) return;
 
         // Set categories with counts
         if (Array.isArray(fetchedCategoriesWithCounts)) {
@@ -105,20 +107,24 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
           // triggered a second product request and empty-state → skeleton flicker.
         }
       } catch (error) {
-        console.error('Failed to fetch filter data:', error);
+        if (!controller.signal.aborted) console.error('Failed to fetch filter data:', error);
       } finally {
-        setCategoriesLoading(false);
-        setSellersLoading(false);
+        if (!controller.signal.aborted) {
+          setCategoriesLoading(false);
+          setSellersLoading(false);
+        }
       }
     };
 
     fetchData();
+    return () => controller.abort();
   }, []);
 
   // Fetch dynamic counts when filters change
   useEffect(() => {
     // Skip if we haven't loaded initial data yet
     if (categoriesLoading || sellersLoading) return;
+    const controller = new AbortController();
 
     const fetchDynamicCounts = async () => {
       try {
@@ -139,10 +145,11 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
           params.set('searchTerm', searchTerm);
         }
 
-        const response = await fetch(`/api/filter-counts?${params}`);
+        const response = await fetch(`/api/filter-counts?${params}`, { signal: controller.signal });
         if (!response.ok) throw new Error('Failed to fetch counts');
 
         const data = await response.json();
+        if (controller.signal.aborted) return;
 
         // Update counts while preserving category/seller order
         if (data.categories) {
@@ -162,13 +169,13 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
           );
         }
       } catch (error) {
-        console.error('Failed to fetch dynamic filter counts:', error);
+        if (!controller.signal.aborted) console.error('Failed to fetch dynamic filter counts:', error);
       }
     };
 
     // Debounce to avoid too many requests
     const timeoutId = setTimeout(fetchDynamicCounts, 150);
-    return () => clearTimeout(timeoutId);
+    return () => { clearTimeout(timeoutId); controller.abort(); };
   }, [selectedCategories, selectedSellers, minPrice, maxPrice, searchTerm, categoriesLoading, sellersLoading]);
 
   // Reset functions

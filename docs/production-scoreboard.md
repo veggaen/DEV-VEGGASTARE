@@ -265,6 +265,22 @@ member-to-member delivery remains separate from the mocked error test.
 
 ## Feature scoreboard
 
+### S7 Products follow-up — local verified, live pending
+
+- Stable 1280px catalog canvas/H1, native product links, 44px mobile gallery and
+  filter controls, listing-currency prices and matching route/card skeletons.
+  Removed header collapse/search resizing, decorative particles and unnecessary
+  per-scroll React updates. Existing results remain visible during filter changes;
+  cancellation, 15s timeout, explicit retry/load-more prevent stale results and
+  skipped pages. Hidden/unavailable listings no longer appear in public facets.
+- All four desktop filter docks reserve space; mobile sheet scrolling/focus and
+  saved-dock hydration verified. Final local build/TypeScript, touched lint,
+  **21/21** units and **11/11** focused browser checks pass (56.6s), including eight
+  viewport sizes, real wheel gestures, Pulse/footer and demo product/cart flow.
+- Live deployment/testing pending. Owner Chrome is still not exposed by the
+  connector; physical-device/125% zoom, payment credentials, owner OAuth consent,
+  Railway and the remaining route controls are not marked complete by this slice.
+
 ### S8 Crypto follow-up — local/live verification
 
 - Removed the duplicate footer and unified the historical-price page with the

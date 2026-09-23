@@ -1,5 +1,6 @@
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { publicCatalogWhere } from '@/lib/public-catalog';
 import {
   FilterCountsBadRequestSchema,
   FilterCountsResponseSchema,
@@ -46,6 +47,7 @@ export async function GET(request: Request) {
 
     // Build base where clause (excluding the dimension we're counting)
     const baseWhere: any = {
+      AND: [publicCatalogWhere()],
       price: { gte: minPrice },
     };
     if (Number.isFinite(maxPrice)) {
@@ -62,6 +64,7 @@ export async function GET(request: Request) {
     const categoryWhere = { ...baseWhere };
     if (selectedSellers.length > 0) {
       categoryWhere.AND = [
+        ...baseWhere.AND,
         { OR: [{ userId: { in: selectedSellers } }, { companyId: { in: selectedSellers } }] },
       ];
     }
@@ -75,6 +78,7 @@ export async function GET(request: Request) {
     // Get all categories (even those with 0 count when filtered)
     const allCategories = await dbPrisma.product.groupBy({
       by: ['category'],
+      where: publicCatalogWhere(),
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
     });
@@ -114,6 +118,7 @@ export async function GET(request: Request) {
 
     // Also get sellers that might have 0 count (from full list)
     const allSellersRaw = await dbPrisma.product.findMany({
+      where: publicCatalogWhere(),
       distinct: ['userId', 'companyId'],
       select: {
         userId: true,

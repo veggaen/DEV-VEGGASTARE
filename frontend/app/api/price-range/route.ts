@@ -1,6 +1,7 @@
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { PriceRangeResponseSchema } from '@/lib/types/products';
+import { publicCatalogWhere } from '@/lib/public-catalog';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -12,22 +13,19 @@ function toNumber(value: unknown): number {
 
 export async function GET() {
   try {
-    const minPriceResult = await dbPrisma.product.findFirst({
-      orderBy: { price: 'asc' },
-      select: { price: true }
-    });
-    const maxPriceResult = await dbPrisma.product.findFirst({
-      orderBy: { price: 'desc' },
-      select: { price: true }
+    const range = await dbPrisma.product.aggregate({
+      where: publicCatalogWhere(),
+      _min: { price: true },
+      _max: { price: true },
     });
 
     // In an empty marketplace, return a safe default instead of 404. Consumers
     // use this for filter initialization and should not crash.
-    if (minPriceResult === null || maxPriceResult === null) {
+    if (range._min.price === null || range._max.price === null) {
       return NextResponse.json({ min: 0, max: 0 }, { status: 200 });
     }
 
-    const dto = { min: toNumber(minPriceResult.price), max: toNumber(maxPriceResult.price) };
+    const dto = { min: toNumber(range._min.price), max: toNumber(range._max.price) };
     const parsed = PriceRangeResponseSchema.safeParse(dto);
     if (!parsed.success) {
       console.error('[api/price-range] Invalid GET DTO:', parsed.error);

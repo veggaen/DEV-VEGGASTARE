@@ -3,6 +3,7 @@
 
 # Probe / audit artifacts + secrets (screenshots, reports, tokens) — never commit
 scripts/_probe/
+**/.private-showcase/
 **/.vercel_token
 
 # Python bytecode cache
