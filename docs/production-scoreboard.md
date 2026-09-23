@@ -153,7 +153,7 @@ member-to-member delivery remains separate from the mocked error test.
   each of 390/1280px), with no hydration errors. The Analytics follow-up is below;
   this is not a full-app completion claim.
 
-## S8 — Analytics growth (initial release live; publishing-mix follow-up pending)
+## S8 — Analytics growth and publishing mix (local/live verified)
 
 - Hub and three growth reports now use the existing bounded layout and tokens,
   mobile-sized controls, explicit fictional previews for non-admin visitors,
@@ -177,7 +177,12 @@ member-to-member delivery remains separate from the mocked error test.
   with database counts. Targeted units now **20/20**. Final local follow-up
   build/TypeScript/lint pass and expanded browser **5/5** (23.6s); real local
   publishing-mix request by the demo user returns 403.
-- Next: verify/deploy the publishing-mix follow-up, then crypto's duplicated footer and price controls.
+- Follow-up `10c00ad` / `dpl_FmYLPXbffVtaGYQAGTmSGpsPXTtc` is READY at
+  www.veggat.com. Expanded live browser **5/5** (34.2s) passes. Each of the three
+  growth pages is wheel-scrolled at all eight target sizes. All four APIs return
+  401 anonymously; real demo publishing-mix access is 403. Settled live phone
+  visuals have aligned sections, one H1, no overflow or JavaScript exceptions.
+- Next: crypto's duplicated footer and price controls.
   Real Chrome/OS zoom/phone keyboard and the remaining route audit are pending.
 
 ## S5 — Metered AI integration (demo debit/denial verified local/live; paid purchase blocked)

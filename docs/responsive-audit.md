@@ -404,7 +404,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   or browsers. These tests use the explicitly authorized Playwright browser, not
   the owner's real Chrome session.
 
-### Analytics growth follow-up (initial release live; publishing-mix follow-up pending)
+### Analytics growth and publishing mix (local/live verified)
 
 - Replaced the centered filler/error pages with the existing token-based, bounded
   page shell: 16/24/32px gutters, 1280px maximum canvas, labelled report cards,
@@ -444,7 +444,15 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Final local follow-up build/TypeScript/lint pass; expanded browser **5/5**
   (23.6s). Real local demo mix request returns 403; lower-page visual alignment
   and a single H1 were independently confirmed in the interactive browser.
-- Remaining: final follow-up live rerun, crypto's second footer and price
+- Follow-up `10c00ad` / `dpl_FmYLPXbffVtaGYQAGTmSGpsPXTtc` is READY at
+  www.veggat.com. Expanded live browser **5/5** (34.2s including setup), with
+  all three reports scrolled at all eight sizes, and admin growth/mix recovery
+  tested using browser-only fixtures. Actual live requests to all four endpoints
+  return 401 anonymously; the real demo publishing-mix request returns 403.
+  Settled live phone inspection shows aligned sections, one H1, no horizontal
+  overflow or JavaScript exceptions. Skeleton and settled states were inspected
+  separately; a region's presence alone is not a data-readiness assertion.
+- Remaining: crypto's second footer and price
   controls, real Chrome/OS zoom and real-phone keyboard checks. The whole app
   audit is still PARTIAL; these results cover the hub and three growth pages.
 
