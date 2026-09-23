@@ -452,9 +452,52 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Settled live phone inspection shows aligned sections, one H1, no horizontal
   overflow or JavaScript exceptions. Skeleton and settled states were inspected
   separately; a region's presence alone is not a data-readiness assertion.
-- Remaining: crypto's second footer and price
-  controls, real Chrome/OS zoom and real-phone keyboard checks. The whole app
-  audit is still PARTIAL; these results cover the hub and three growth pages.
+- Remaining: Crypto is covered in the next entry. Real Chrome/OS zoom and
+  real-phone keyboard checks remain unverified. The whole app audit is PARTIAL.
+
+### Crypto price history (local verified; production verification pending)
+
+- Actual browser reproduction found two footers, unlabelled 40px selectors,
+  incompatible page spacing and a large, fixed-height chart. Reused AnalyticsShell
+  and existing tokens: one heading/footer, bounded canvas, labelled 48px controls,
+  two-column phone/four-column desktop filter grid and a stable chart placeholder.
+  Lazy, non-animated canvas has a text summary and paginated, keyboard-accessible
+  table; its scroll boundary does not move the background. Light/dark and real
+  360px / 2560px screenshots were inspected, not only geometry assertions.
+- Date ranges filter the canonical daily history locally. Weekly means use UTC
+  Mondays; monthly means use calendar months rather than 30-day slices. Partial
+  periods, historical rather than live prices, provider retrieval time and hourly
+  caching are disclosed. Empty, invalid, delayed and stale/error states retain
+  the page chrome. Asset/currency keys prevent late data relabelling.
+- Both current and legacy endpoints now share strict coin/currency/date allowlists,
+  rate limiting, a ten-second upstream timeout, bounded response validation and
+  redacted 503 errors. Nine canonical coin/currency pairs share validated hourly
+  server caching; user dates do not create additional upstream cache entries.
+  Existing Pro keys stay in headers; optional Demo keys use a separate documented
+  variable. No key, billing setting, or environment value was changed.
+- Actual local requests: Ethereum USD/EUR/NOK, Bitcoin USD and WPLS USD all 200
+  with 365 daily values. Seven-day and legacy monthly requests reused the same
+  Ethereum retrieval timestamp (7 observations / 13 calendar periods). This
+  verifies availability/caching, not independent accuracy of market prices.
+- Focused analytics units **38/38**, touched-file lint and initial Webpack build /
+  TypeScript pass. Initial Crypto browser run: **2 pass / 3 fail**, including setup.
+  Failures came from interacting with inert server-rendered controls before shell
+  hydration; tests now wait for the first actual client request before interacting
+  or measuring its loading placeholder. No fixed sleep was added. Expanded local
+  Crypto + growth regression **9/9** (34.4s): retries, empty/zero/malformed data,
+  filter changes without refetches, reversed/cleared dates, data pagination, late
+  responses, drawer focus, table and page/footer wheel scrolling at eight sizes.
+- Real Chrome inventory was checked again and remains empty. This evidence uses
+  the explicitly authorized Playwright browser, not the owner's Chrome session.
+  Browser zoom and a physical phone keyboard remain separate, unverified checks.
+- Final small-value axis formatting/light-theme contrast build and TypeScript
+  pass. Settled phone inspection caught touching date labels; added axis label
+  spacing, rebuilt and visually verified distinct dates. Final targeted Crypto
+  regression **5/5** (15.7s); preceding combined analytics regression **9/9**
+  (34.8s). Production deployment and live verification are next.
+- Next-route triage: Pricing's “Manage API keys” link actually lands on the
+  Profile panel (`/settings#ai-keys`); Settings expects `?section=ai`. Confirmed
+  through the visible button in the real local app, not just source inspection.
 
 ## Research references
 
@@ -469,3 +512,6 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - [React hydration consistency](https://react.dev/reference/react-dom/client/hydrateRoot)
 - [React external-store server snapshots](https://react.dev/reference/react/useSyncExternalStore)
 - [CSS relational selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Selectors/:has)
+- [CoinGecko historical market-chart intervals](https://docs.coingecko.com/demo/reference/coins-id-market-chart)
+- [CoinGecko Demo header authentication](https://docs.coingecko.com/demo/reference/authentication)
+- [Next.js persistent function caching](https://nextjs.org/docs/app/api-reference/functions/unstable_cache)

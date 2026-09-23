@@ -1,308 +1,124 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Line } from 'react-chartjs-2';
-import { defaultChartOptions } from '@/components/uicustom/charts/chartjs';
-import { format, addDays, subDays, subWeeks, subMonths, isValid, parseISO } from 'date-fns';
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
+import useSWR from 'swr';
+import { Button } from '@/components/ui/button';
+import { displayDay } from '@/lib/analytics/growth';
+import { coinNames, historyResponseSchema, selectPriceHistory, formatHistoryPrice,
+  type HistoryCoin, type HistoryCurrency, type HistoryInterval, type HistoryRange } from '@/lib/analytics/crypto-history';
 
-type CryptoPriceDatum = { date: string; price: number };
+const PriceHistoryLine = dynamic(() => import('./PriceHistoryLine'), {
+  ssr: false, loading: () => <div className="h-full rounded-xl bg-muted motion-safe:animate-pulse" role="status" aria-label="Loading price chart" />,
+});
+type Filters = { coin: HistoryCoin; currency: HistoryCurrency; range: HistoryRange; interval: HistoryInterval; from: string; to: string };
+const defaults: Filters = { coin: 'ethereum', currency: 'usd', range: '30', interval: 'daily', from: '', to: '' };
+const fieldClass = 'min-h-12 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring';
+const intervals = { daily: 'Daily observations', weekly: 'Weekly mean', monthly: 'Monthly mean' };
 
-const CryptoPriceChart = () => {
-  const [allData, setAllData] = useState<CryptoPriceDatum[]>([]);
-  const [data, setData] = useState<CryptoPriceDatum[]>([]);
-  const [currency, setCurrency] = useState<string>('usd');
-  const [crypto, setCrypto] = useState<string>('ethereum');  // Default to Ethereum
-  const [interval, setInterval] = useState<string>('daily');
-  const [days, setDays] = useState<string>('max');
-  const [fromDate, setFromDate] = useState<string | null>(null);
-  const [toDate, setToDate] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+async function fetchHistory(url: string) {
+  let response: Response;
+  try { response = await fetch(url, { signal: AbortSignal.timeout(15_000) }); }
+  catch { throw new Error('The price service did not respond. Check your connection and try again.'); }
+  if (!response.ok) throw new Error(response.status === 429
+    ? 'Too many requests. Wait a minute before trying again.'
+    : 'Historical prices are temporarily unavailable. Try another asset or try again later.');
+  try {
+    const history = historyResponseSchema.parse(await response.json());
+    const query = new URL(url, 'https://veggat.com').searchParams;
+    if (history.coin !== query.get('crypto') || history.currency !== query.get('vs_currency')) throw new Error('Mismatched history');
+    return history;
+  } catch { throw new Error('The price service returned an unreadable response. Please try again.'); }
+}
 
-  const [firstAvailableDate, setFirstAvailableDate] = useState<string>('');
-  const [lastAvailableDate, setLastAvailableDate] = useState<string>(new Date().toISOString().split('T')[0]);
+export default function CryptoPriceChart() {
+  const [filters, setFilters] = useState<Filters>(defaults);
+  const [tablePage, setTablePage] = useState(0);
+  const endpoint = '/api/analytics/crypto-price?' + new URLSearchParams({ crypto: filters.coin, vs_currency: filters.currency, interval: 'daily', days: '365' });
+  const request = useSWR(endpoint, fetchHistory, { revalidateOnFocus: false, shouldRetryOnError: false, dedupingInterval: 60_000, keepPreviousData: false });
+  const history = request.data?.coin === filters.coin && request.data?.currency === filters.currency ? request.data : undefined;
+  const error = request.error instanceof Error ? request.error.message : null;
+  const selected = selectPriceHistory(history?.data ?? [], filters.range, filters.from, filters.to, filters.interval);
+  const last = selected.points.at(-1);
+  const pageCount = Math.max(1, Math.ceil(selected.points.length / 30));
+  const pageIndex = Math.min(tablePage, pageCount - 1);
+  const rows = selected.points.slice(pageIndex * 30, (pageIndex + 1) * 30);
+  const chartLabel = coinNames[filters.coin] + ' · ' + intervals[filters.interval] + ' · ' + filters.currency.toUpperCase();
 
-  useEffect(() => {
-    fetchCryptoPriceData();
-  }, [currency, crypto]);
+  function update(patch: Partial<Filters>) {
+    setFilters(current => ({ ...current, ...patch }));
+    setTablePage(0);
+  }
 
-  useEffect(() => {
-    filterData();
-  }, [interval, days, fromDate, toDate, allData]);
-
-  const fetchCryptoPriceData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const apiUrl = `/api/analytics/crypto-price?vs_currency=${currency}&crypto=${crypto}&interval=daily&days=365`;
-      const response = await fetch(apiUrl);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${crypto} price data`);
-      }
-
-      const result = await response.json();
-      setAllData(result.data);
-
-      const firstDate = result.data[0]?.date || '';
-      const lastDate = result.data[result.data.length - 1]?.date || new Date().toISOString().split('T')[0];
-
-      setFirstAvailableDate(format(new Date(firstDate), 'yyyy-MM-dd'));
-      setLastAvailableDate(format(new Date(lastDate), 'yyyy-MM-dd'));
-      setData(result.data);
-      setFromDate(format(new Date(firstDate), 'yyyy-MM-dd'));
-      setToDate(format(new Date(lastDate), 'yyyy-MM-dd'));
-    } catch (error) {
-      console.error(`Error fetching ${crypto} price data:`, error);
-      setError('Failed to fetch data. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterData = () => {
-    let filteredData = allData;
-
-    if (days !== 'max' && toDate) {
-      let startDate: Date | undefined;
-      const endDate = new Date(toDate);
-      if (interval === 'daily') {
-        startDate = subDays(endDate, parseInt(days));
-      } else if (interval === 'weekly') {
-        startDate = subWeeks(endDate, parseInt(days));
-      } else if (interval === 'monthly') {
-        startDate = subMonths(endDate, parseInt(days));
-      }
-      if (startDate) {
-        setFromDate(format(startDate, 'yyyy-MM-dd'));
-        filteredData = filteredData.filter((datum) => new Date(datum.date) >= startDate);
-      }
-    }
-
-    if (fromDate || toDate) {
-      filteredData = filteredData.filter((datum) => {
-        const datumDate = new Date(datum.date);
-        const from = fromDate ? new Date(fromDate) : null;
-        const to = toDate ? new Date(toDate) : null;
-        return (!from || datumDate >= from) && (!to || datumDate <= to);
-      });
-    }
-
-    if (interval === 'weekly') {
-      setData(aggregateData(filteredData, 7));
-    } else if (interval === 'monthly') {
-      setData(aggregateData(filteredData, 30));
-    } else {
-      setData(filteredData);
-    }
-  };
-
-  const aggregateData = (data: CryptoPriceDatum[], days: number) => {
-    const aggregatedData: CryptoPriceDatum[] = [];
-    if (data.length === 0) return aggregatedData;
-
-    let currentDate = new Date(data[0].date);
-    let currentSum = 0;
-    let count = 0;
-
-    data.forEach((datum) => {
-      const datumDate = new Date(datum.date);
-      if (datumDate < addDays(currentDate, days)) {
-        currentSum += datum.price;
-        count++;
-      } else {
-        aggregatedData.push({
-          date: format(currentDate, 'yyyy-MM-dd'),
-          price: currentSum / count,
-        });
-        currentDate = datumDate;
-        currentSum = datum.price;
-        count = 1;
-      }
-    });
-
-    if (count > 0) {
-      aggregatedData.push({
-        date: format(currentDate, 'yyyy-MM-dd'),
-        price: currentSum / count,
-      });
-    }
-
-    return aggregatedData;
-  };
-
-  const handleFromDateChange = (date: string) => {
-    if (!isValid(parseISO(date))) return; // Validate date
-    setFromDate(date);
-    setDays('max');
-
-    if (toDate && new Date(toDate) < new Date(date)) {
-      setToDate('');
-    }
-  };
-
-  const handleToDateChange = (date: string) => {
-    if (!isValid(parseISO(date))) return; // Validate date
-    setToDate(date);
-    if (days !== 'max') {
-      const newFromDate = calculateFromDateBasedOnToDate(date, parseInt(days));
-      setFromDate(newFromDate);
-    }
-  };
-
-  const calculateFromDateBasedOnToDate = (toDate: string, days: number): string => {
-    const to = new Date(toDate);
-    let fromDate: Date;
-    if (interval === 'daily') {
-      fromDate = subDays(to, days);
-    } else if (interval === 'weekly') {
-      fromDate = subWeeks(to, days);
-    } else if (interval === 'monthly') {
-      fromDate = subMonths(to, days);
-    } else {
-      fromDate = new Date(); // default case to prevent undefined
-    }
-    return format(fromDate, 'yyyy-MM-dd');
-  };
-
-  const handleReset = () => {
-    setCurrency('usd');
-    setCrypto('ethereum');
-    setInterval('daily');
-    setFromDate(firstAvailableDate);
-    setToDate(lastAvailableDate);
-    setDays('max');
-  };
-
-  const getDaysOptions = () => {
-    if (interval === 'daily') {
-      return ['1', '7', '30', '365', 'max'];
-    } else if (interval === 'weekly') {
-      return ['1', '2', '3', '4', '30', 'max'];
-    } else if (interval === 'monthly') {
-      return ['1', '2', '3', '4', '6', '24', 'max'];
-    }
-    return [];
-  };
-
-  const chartData = useMemo(() => {
-    const labels = data.map((d) => format(new Date(d.date), 'MM/dd/yyyy'));
-    const values = data.map((d) => d.price);
-    const label = `${crypto.charAt(0).toUpperCase() + crypto.slice(1)} Price`;
-    return {
-      labels,
-      datasets: [
-        {
-          label,
-          data: values,
-          borderColor: 'rgba(34,197,94,0.95)',
-          backgroundColor: 'rgba(34,197,94,0.20)',
-          fill: true,
-          tension: 0.35,
-          pointRadius: 0,
-          pointHitRadius: 8,
-        },
-      ],
-    };
-  }, [data, crypto]);
-
-  return (
-    <div className="flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 py-6">
-      <div className="w-full text-center">
-        {/* Filter Controls */}
-        <div className="flex flex-wrap justify-center gap-4 mb-6">
-          <select
-            value={crypto}
-            onChange={(e) => setCrypto(e.target.value)}
-            className="p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-          >
-            <option value="ethereum">Ethereum</option>
-            <option value="bitcoin">Bitcoin</option>
-            <option value="wrapped-pulse-wpls">Pulse (WPLS)</option>
-            {/* Add more options dynamically as needed */}
-          </select>
-
-          <select
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            className="p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-          >
-            <option value="usd">USD</option>
-            <option value="eur">EUR</option>
-          </select>
-
-          <select
-            value={days}
-            onChange={(e) => setDays(e.target.value)}
-            className="p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-          >
-            {getDaysOptions().map((option) => (
-              <option key={option} value={option}>
-                {option === 'max' ? 'Max' : `${option} ${interval === 'daily' ? 'days' : interval === 'weekly' ? 'weeks' : 'months'}`}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={interval}
-            onChange={(e) => setInterval(e.target.value)}
-            className="p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-          >
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-
-          <input
-            type="date"
-            value={fromDate || ''}
-            onChange={(e) => handleFromDateChange(e.target.value)}
-            className="p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-            min={firstAvailableDate}
-            max={toDate || lastAvailableDate}
-          />
-          <input
-            type="date"
-            value={toDate || ''}
-            onChange={(e) => handleToDateChange(e.target.value)}
-            className="p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-            min={fromDate || firstAvailableDate}
-            max={lastAvailableDate}
-          />
-          <button
-            onClick={handleReset}
-            className="p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-200 dark:bg-gray-800 text-black dark:text-white hover:bg-red-600/50"
-          >
-            Reset
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="flex flex-col items-center">
-            <div className="loader"></div>
-            <p className="text-gray-600 dark:text-gray-300 mt-4">Loading data...</p>
-          </div>
-        ) : error ? (
-          <div className="text-red-600 dark:text-red-400">
-            <p>{`${error}`}</p>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center">
-            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 w-full h-full">
-              {data.length > 0 ? (
-                <div className="w-full h-96 md:h-128 lg:h-[48rem]">
-                  <Line data={chartData} options={defaultChartOptions} />
-                </div>
-              ) : (
-                <p className="text-gray-600 dark:text-gray-300">No data available for the selected date range.</p>
-              )}
-            </div>
-          </div>
-        )}
-
+  return <section aria-label="Historical price explorer" className="min-w-0 space-y-5 rounded-2xl border border-border bg-card p-4 sm:p-6">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="min-w-0 space-y-2">
+        <label htmlFor="price-asset" className="block text-sm font-medium">Asset</label>
+        <select id="price-asset" name="asset" className={fieldClass} value={filters.coin} onChange={event => update({ coin: event.target.value as HistoryCoin })}>
+          <option value="ethereum">Ethereum</option><option value="bitcoin">Bitcoin</option><option value="wrapped-pulse-wpls">WPLS</option>
+        </select>
+      </div>
+      <div className="min-w-0 space-y-2">
+        <label htmlFor="price-currency" className="block text-sm font-medium">Currency</label>
+        <select id="price-currency" name="currency" className={fieldClass} value={filters.currency} onChange={event => update({ currency: event.target.value as HistoryCurrency })}>
+          <option value="usd">USD</option><option value="eur">EUR</option><option value="nok">NOK</option>
+        </select>
+      </div>
+      <div className="min-w-0 space-y-2">
+        <label htmlFor="price-range" className="block text-sm font-medium">Date range</label>
+        <select id="price-range" name="range" className={fieldClass} value={filters.range} onChange={event => update(event.target.value === 'custom'
+          ? { range: 'custom', from: history?.data.at(-30)?.date ?? history?.data[0]?.date ?? '', to: history?.data.at(-1)?.date ?? '' }
+          : { range: event.target.value as HistoryRange })}>
+          <option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option><option value="365">365 days</option><option value="custom">Custom dates</option>
+        </select>
+      </div>
+      <div className="min-w-0 space-y-2">
+        <label htmlFor="price-interval" className="block text-sm font-medium">Display</label>
+        <select id="price-interval" name="interval" className={fieldClass} value={filters.interval} onChange={event => update({ interval: event.target.value as HistoryInterval })}>
+          <option value="daily">Daily</option><option value="weekly">Weekly mean</option><option value="monthly">Monthly mean</option>
+        </select>
       </div>
     </div>
-  );
-};
-
-export default CryptoPriceChart;
+    {filters.range === 'custom' && <div className="grid gap-4 sm:grid-cols-2">
+      <div className="min-w-0 space-y-2"><label htmlFor="price-from" className="block text-sm font-medium">Start date (UTC)</label><input id="price-from" name="from" type="date" className={fieldClass} value={filters.from} onChange={event => update({ from: event.target.value })} aria-invalid={!!selected.error} aria-describedby={selected.error ? 'price-date-error' : undefined} /></div>
+      <div className="min-w-0 space-y-2"><label htmlFor="price-to" className="block text-sm font-medium">End date (UTC)</label><input id="price-to" name="to" type="date" className={fieldClass} value={filters.to} onChange={event => update({ to: event.target.value })} aria-invalid={!!selected.error} aria-describedby={selected.error ? 'price-date-error' : undefined} /></div>
+    </div>}
+    {selected.error && <p role="alert" id="price-date-error" className="text-sm text-destructive">{selected.error}</p>}
+    <div className="flex flex-wrap gap-3">
+      <Button variant="outline" size="touch" onClick={() => { setFilters(defaults); setTablePage(0); }}>Reset filters</Button>
+      <Button variant="outline" size="touch" disabled={request.isValidating} onClick={() => { void request.mutate(); }}>{request.isValidating ? 'Loading prices…' : error ? 'Retry prices' : 'Refresh view'}</Button>
+    </div>
+    {error && <div role="alert" className="space-y-1 rounded-xl border border-destructive/40 p-4 text-sm">
+      <p>{error}</p>{history && <p className="text-muted-foreground">Showing the last successfully loaded data for this asset and currency.</p>}
+    </div>}
+    <div className="min-h-24 space-y-2 rounded-xl border border-border p-4" role="status" aria-live="polite">
+      <p className="text-sm font-medium">{chartLabel}</p>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <p className="break-words text-2xl font-semibold tabular-nums">{last ? formatHistoryPrice(last.price, filters.currency) : '—'}</p>
+        <p className="text-sm text-muted-foreground">{last ? selected.points.length + (selected.points.length === 1 ? ' displayed value' : ' displayed values') : request.isLoading ? 'Loading historical prices…' : selected.error ? 'Correct the dates to view prices.' : history ? 'No observations in this date range.' : 'No price data loaded.'}</p>
+      </div>
+      {last && <p className="text-xs text-muted-foreground">Last displayed {filters.interval === 'daily' ? 'observation' : 'period begins'}: {displayDay(last.date)}. Not a live quote.</p>}
+    </div>
+    <div className="h-80 min-w-0 sm:h-96">
+      {request.isLoading ? <div role="status" aria-label="Loading historical price data" className="h-full rounded-xl bg-muted motion-safe:animate-pulse" />
+        : selected.points.length > 0 ? <PriceHistoryLine points={selected.points} currency={filters.currency} label={chartLabel} />
+        : <div className="flex h-full items-center justify-center rounded-xl bg-muted/40 p-6 text-center text-sm text-muted-foreground">{selected.error ? 'Choose valid dates to view the chart.' : error ? 'Use Retry prices or choose another asset.' : 'No observations available. Try another date range or asset.'}</div>}
+    </div>
+    <p className="text-sm leading-relaxed text-muted-foreground">Date ranges end at the latest available observation. Daily values use the latest observation for each UTC day. Weekly means start on Monday; monthly means use calendar months. Averages include only available days in the selected range, including partial periods.</p>
+    {history && <p className="text-xs leading-relaxed text-muted-foreground">Provider response retrieved {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(history.fetchedAt))} UTC. Refresh view reuses the hourly cache.</p>}
+    {rows.length > 0 && <details className="rounded-xl border border-border">
+      <summary className="min-h-12 cursor-pointer rounded-xl px-4 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">View price data table</summary>
+      <div className="max-h-72 overflow-auto overscroll-contain px-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring" tabIndex={0} role="region" aria-label="Scrollable price observations">
+        <table className="w-full text-left text-sm tabular-nums"><caption className="pb-3 text-left text-muted-foreground">{chartLabel}</caption>
+          <thead className="sticky top-0 bg-card"><tr><th scope="col" className="py-3 pr-2">{filters.interval === 'daily' ? 'Date (UTC)' : 'Period starts (UTC)'}</th><th scope="col" className="py-3 text-right">{filters.currency.toUpperCase()}</th></tr></thead>
+          <tbody>{rows.map(point => <tr key={point.date} className="border-t border-border"><th scope="row" className="py-3 pr-2 font-normal">{displayDay(point.date)}</th><td className="py-3 text-right">{formatHistoryPrice(point.price, filters.currency)}</td></tr>)}</tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3">
+        <Button variant="outline" size="lg" disabled={pageIndex === 0} onClick={() => setTablePage(pageIndex - 1)}>Previous rows</Button>
+        <span className="text-xs tabular-nums">Page {pageIndex + 1} of {pageCount}</span>
+        <Button variant="outline" size="lg" disabled={pageIndex >= pageCount - 1} onClick={() => setTablePage(pageIndex + 1)}>Next rows</Button>
+      </div>
+    </details>}
+  </section>;
+}

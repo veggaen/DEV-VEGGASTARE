@@ -250,6 +250,24 @@ member-to-member delivery remains separate from the mocked error test.
 
 ## Feature scoreboard
 
+### S8 Crypto follow-up — local verification
+
+- Removed the duplicate footer and unified the historical-price page with the
+  responsive analytics shell. Labelled 48px filters, stable lazy chart geometry,
+  accessible paginated table, contained scrolling and explicit experimental copy.
+- Canonical daily history is validated/cached hourly per allowlisted asset and
+  currency; date/weekly/monthly filtering is calendar-accurate and client-local.
+  Both API paths enforce bounded inputs, rate limits, timeout and redacted errors.
+- **38/38** analytics units and touched lint pass. Initial build/TypeScript pass;
+  expanded local analytics browser regression **9/9** (34.4s). Actual local
+  provider reads succeed for all three assets and three currencies tested, with
+  cache reuse confirmed across date filters and the legacy alias. Eight requested
+  sizes, page/table/drawer scrolling and late-response isolation covered.
+- Final chart-axis/contrast build and TypeScript pass; targeted local browser
+  **5/5** (15.7s), plus the preceding combined run **9/9** (34.8s).
+  Production deployment/live verification pending. Whole-app audit,
+  real Chrome access, physical keyboard and 125% browser zoom remain incomplete.
+
 | Area | Feature | Status / evidence |
 | --- | --- | --- |
 | Auth | Email login, session | DONE — current local/live browser round trips, revoked sessions rejected |

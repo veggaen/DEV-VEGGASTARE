@@ -1,6 +1,169 @@
 import { test, expect } from "@playwright/test";
 
 for (const width of [390, 1280]) {
+  test(`S8 — crypto filters, errors, table and scroll geometry (${width}px)`, async ({ browser, baseURL }) => {
+    test.setTimeout(120_000);
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: 844 }, colorScheme: 'dark' });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    let calls = 0;
+    let mode: 'failure' | 'normal' | 'empty' | 'zero' | 'invalid' = 'failure';
+    let release!: () => void;
+    const initialGate = new Promise<void>(resolve => { release = resolve; });
+    await page.route('**/api/analytics/crypto-price?**', async route => {
+      calls++;
+      if (calls === 1) await initialGate;
+      const query = new URL(route.request().url()).searchParams;
+      const coin = query.get('crypto');
+      const currency = query.get('vs_currency');
+      if (mode === 'failure') return route.fulfill({ status: 503, json: { error: 'Fixture provider outage' } });
+      const data = mode === 'empty' ? [] : mode === 'zero' ? [{ date: '2026-03-31', price: 0 }] : Array.from({ length: 90 }, (_, index) => ({ date: new Date(Date.UTC(2026, 0, 1) + index * 86400000).toISOString().slice(0, 10), price: (coin === 'bitcoin' ? 60000 + index * 100 : coin === 'wrapped-pulse-wpls' ? 0.0001 + index * 0.000001 : 1000 + index) * (currency === 'nok' ? 10 : currency === 'eur' ? 0.9 : 1) }));
+      return route.fulfill({ json: mode === 'invalid' ? { data: 'invalid' } : { coin, currency, fetchedAt: '2026-03-31T12:00:00Z', data } });
+    });
+    try {
+      await page.goto('/analytics/crypto', { waitUntil: 'domcontentloaded' });
+      const heading = page.getByRole('heading', { name: 'Crypto Price Overview', exact: true });
+      const explorer = page.getByRole('region', { name: 'Historical price explorer', exact: true });
+      await expect(heading).toBeVisible();
+      // The server-rendered explorer can precede AppShell hydration. Its first
+      // client request is the readiness signal; do not interact with inert SSR controls.
+      await expect.poll(() => calls).toBe(1);
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      await expect(explorer.getByRole('status', { name: 'Loading historical price data', exact: true })).toBeVisible();
+      const skeleton = await explorer.getByRole('status', { name: 'Loading historical price data', exact: true }).boundingBox();
+      await page.evaluate(() => { (window as Window & { __cryptoHeading?: Element | null }).__cryptoHeading = document.querySelector('main h1'); });
+      release();
+      await expect(explorer.getByRole('alert')).toContainText('Historical prices are temporarily unavailable.');
+      await expect(explorer.getByText('No price data loaded.', { exact: true })).toBeVisible();
+      mode = 'normal';
+      await explorer.getByRole('button', { name: 'Retry prices', exact: true }).click();
+      const chart = explorer.getByRole('img', { name: /^Ethereum · Daily observations · USD/ });
+      await expect(chart).toBeVisible();
+      expect((await chart.boundingBox())!.height).toBeCloseTo(skeleton!.height, 0);
+      expect(await page.evaluate(() => (window as Window & { __cryptoHeading?: Element | null }).__cryptoHeading === document.querySelector('main h1'))).toBe(true);
+      await expect(page.locator('main h1')).toHaveCount(1);
+      await expect(page.locator('footer')).toHaveCount(1);
+      for (const label of ['Asset', 'Currency', 'Date range', 'Display']) expect((await explorer.getByRole('combobox', { name: label, exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(48);
+      const callsBeforeFilters = calls;
+      await explorer.getByLabel('Date range', { exact: true }).selectOption('7');
+      await expect(explorer.getByText('7 displayed values', { exact: true })).toBeVisible();
+      await explorer.getByLabel('Display', { exact: true }).selectOption('weekly');
+      await expect(explorer.getByText('2 displayed values', { exact: true })).toBeVisible();
+      await explorer.getByLabel('Display', { exact: true }).selectOption('monthly');
+      await expect(explorer.getByText('1 displayed value', { exact: true })).toBeVisible();
+      await explorer.getByLabel('Date range', { exact: true }).selectOption('custom');
+      await explorer.getByLabel('Start date (UTC)').fill('2026-03-31');
+      await explorer.getByLabel('End date (UTC)').fill('2026-01-01');
+      await expect(explorer.getByRole('alert')).toHaveText('End date must be on or after start date.');
+      await explorer.getByLabel('Start date (UTC)').fill('');
+      await expect(explorer.getByRole('alert')).toHaveText('Enter a valid start and end date.');
+      await explorer.getByLabel('Start date (UTC)').fill('2027-01-01');
+      await explorer.getByLabel('End date (UTC)').fill('2027-02-01');
+      await expect(explorer.getByText('No observations in this date range.', { exact: true })).toBeVisible();
+      expect(calls).toBe(callsBeforeFilters);
+      await explorer.getByRole('button', { name: 'Reset filters', exact: true }).click();
+      await expect(explorer.getByLabel('Display', { exact: true })).toHaveValue('daily');
+      await expect(explorer.getByText('30 displayed values', { exact: true })).toBeVisible();
+      await explorer.getByLabel('Currency', { exact: true }).selectOption('nok');
+      await expect(explorer.getByRole('img', { name: /^Ethereum · Daily observations · NOK/ })).toBeVisible();
+      await explorer.getByLabel('Asset', { exact: true }).selectOption('bitcoin');
+      await expect(explorer.getByRole('img', { name: /^Bitcoin · Daily observations · NOK/ })).toBeVisible();
+      await explorer.getByLabel('Date range', { exact: true }).selectOption('365');
+      await explorer.getByText('View price data table', { exact: true }).click();
+      const table = explorer.getByRole('region', { name: 'Scrollable price observations', exact: true });
+      await expect(explorer.getByText('Page 1 of 3', { exact: true })).toBeVisible();
+      expect(await table.locator('tbody tr').count()).toBe(30);
+      await explorer.getByRole('button', { name: 'Next rows', exact: true }).click();
+      await expect(explorer.getByText('Page 2 of 3', { exact: true })).toBeVisible();
+      await explorer.getByRole('button', { name: 'Previous rows', exact: true }).click();
+      await expect(explorer.getByText('Page 1 of 3', { exact: true })).toBeVisible();
+      await table.scrollIntoViewIfNeeded();
+      const scroller = page.locator('[data-site-scroll]');
+      const backgroundTop = await scroller.evaluate(e => e.scrollTop);
+      const tableBox = await table.boundingBox();
+      await page.mouse.move(tableBox!.x + tableBox!.width / 2, tableBox!.y + tableBox!.height / 2);
+      await page.mouse.wheel(0, 6000);
+      await expect.poll(() => table.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+      await page.mouse.wheel(0, 1000);
+      expect(await scroller.evaluate(e => e.scrollTop)).toBe(backgroundTop);
+      await explorer.getByText('View price data table', { exact: true }).click();
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('[data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+        await scroller.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+        await page.mouse.move(size.width / 2, size.height - 50);
+        await page.mouse.wheel(0, 9000);
+        await expect(page.locator('footer')).toBeInViewport();
+      }
+      await page.setViewportSize({ width, height: 844 });
+      const beforeDrawer = await scroller.evaluate(e => e.scrollTop);
+      await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+      const drawer = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
+      await expect(drawer).toBeVisible();
+      await drawer.evaluate(async e => { await Promise.all(e.getAnimations().map(a => a.finished.catch(() => {}))); });
+      await expect(drawer.getByText('Loading wallet controls…', { exact: true })).toBeHidden();
+      const rail = page.locator('[data-navigation-scroll]');
+      const railBox = await rail.boundingBox();
+      await page.mouse.move(railBox!.x + railBox!.width / 2, railBox!.y + railBox!.height / 2);
+      await page.mouse.wheel(0, 5000);
+      await expect.poll(() => rail.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+      await page.mouse.wheel(0, 1000);
+      expect(await scroller.evaluate(e => e.scrollTop)).toBe(beforeDrawer);
+      await page.keyboard.press('Escape');
+      await expect(drawer).toBeHidden();
+      await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeFocused();
+      mode = 'empty';
+      await explorer.getByRole('button', { name: 'Refresh view', exact: true }).click();
+      await expect(explorer.getByText('No observations in this date range.', { exact: true })).toBeVisible();
+      mode = 'zero';
+      await explorer.getByRole('button', { name: 'Refresh view', exact: true }).click();
+      await expect(explorer.getByText('1 displayed value', { exact: true })).toBeVisible();
+      mode = 'invalid';
+      await explorer.getByRole('button', { name: 'Refresh view', exact: true }).click();
+      await expect(explorer.getByRole('alert')).toContainText('The price service returned an unreadable response.');
+      await expect(explorer.getByRole('alert')).toContainText('Showing the last successfully loaded data');
+      await expect(explorer.getByText('1 displayed value', { exact: true })).toBeVisible();
+      await page.getByRole('link', { name: 'All analytics', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Analytics Dashboard', exact: true })).toBeVisible();
+      expect(errors).toEqual([]);
+    } finally { release(); await page.unrouteAll({ behavior: 'wait' }); await context.close(); }
+  });
+
+  test(`S8 — crypto ignores late responses for a previously selected asset (${width}px)`, async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: 844 } });
+    const page = await context.newPage();
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    let first = true;
+    await page.route('**/api/analytics/crypto-price?**', async route => {
+      const query = new URL(route.request().url()).searchParams;
+      const coin = query.get('crypto');
+      if (first) { first = false; await gate; }
+      await route.fulfill({ json: { coin, currency: query.get('vs_currency'), fetchedAt: '2026-03-31T12:00:00Z', data: [{ date: '2026-03-31', price: coin === 'bitcoin' ? 60000 : 1000 }] } });
+    });
+    try {
+      await page.goto('/analytics/crypto', { waitUntil: 'domcontentloaded' });
+      const explorer = page.getByRole('region', { name: 'Historical price explorer', exact: true });
+      await expect.poll(() => first).toBe(false);
+      await expect(explorer.getByRole('status', { name: 'Loading historical price data', exact: true })).toBeVisible();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      await explorer.getByLabel('Asset', { exact: true }).selectOption('bitcoin');
+      await expect(explorer.getByLabel('Asset', { exact: true })).toHaveValue('bitcoin');
+      await expect(explorer.getByRole('img', { name: /^Bitcoin · Daily observations · USD/ })).toBeVisible();
+      const lateResponse = page.waitForResponse(response => response.url().includes('crypto=ethereum'));
+      release();
+      await lateResponse;
+      await expect(explorer.getByRole('img', { name: /^Bitcoin · Daily observations · USD/ })).toBeVisible();
+      await expect(explorer.getByRole('status').filter({ hasText: 'Bitcoin' })).toContainText(/USD.*60,000\.00/);
+      await expect(explorer.getByRole('img', { name: /^Ethereum / })).toBeHidden();
+    } finally { release(); await page.unrouteAll({ behavior: 'wait' }); await context.close(); }
+  });
+}
+
+for (const width of [390, 1280]) {
   test(`S8 — analytics previews, date controls and real scrolling (${width}px)`, async ({ browser, baseURL }) => {
     test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained non-admin demo session');
     test.setTimeout(120_000);
