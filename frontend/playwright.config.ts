@@ -125,7 +125,7 @@ export default defineConfig({
   ],
 
   webServer: process.env.E2E_BASE_URL ? undefined : {
-    command: "npm run dev",
+    command: process.env.E2E_PRODUCTION_BUILD === '1' ? "npm run start -- -p 3000" : "npm run dev -- --webpack -p 3000",
     url: "http://localhost:3000",
     reuseExistingServer: !IS_CI,
     timeout: 120_000,

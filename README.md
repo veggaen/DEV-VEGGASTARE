@@ -12,9 +12,9 @@ Open the public homepage and choose **Try the demo — no payment**. No password
 2. Complete the clearly labelled **free demo checkout** and download the real JPG and TXT.
 3. Open **AI Chat**, select an available model, and review its credit cost.
 
-The real reviewer SKUs are **29 NOK** for the Interview Pack and **39 NOK** for 100 AI credits. These are optional, real-money purchases only when production PayPal is configured. **PayPal credentials are currently missing; no Live or Sandbox purchase has been verified.** Demo purchases cost 0 NOK and never simulate a paid credit grant.
+The reviewer SKUs are **29 NOK** for the Interview Pack and **39 NOK** for 100 AI credits. Paying is optional. Sandbox purchases of both SKUs, protected delivery and paid-credit AI usage have been verified. Production-only Live credentials are configured, but **Live transaction acceptance is still pending**; do not treat the integration as fully production-certified. Demo purchases cost zero and never simulate a paid credit grant.
 
-The demo includes five one-time AI credits. Real OpenAI/Groq replies, saved conversations, credit debit and premium denial at zero have passed local and live browser tests. Paid-credit purchase still awaits PayPal credentials. Read the scoreboard for model-specific coverage and remaining release gates.
+The demo includes five one-time AI credits. Real OpenAI/Groq replies, saved conversations, credit debit and premium denial at zero have passed local and live browser tests. Sandbox credit-funded OpenAI and Grok messages have also been checked in real Chrome. The [isolated Preview](https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app) additionally supports custom **100–1,000 credits** with progressive discounts and a consistent fiat (crypto) display; custom paid capture/refund acceptance remains pending. Read the scoreboard for model-specific evidence and release gates.
 
 ## Architecture
 
@@ -73,11 +73,15 @@ npm run build -- --webpack
 npm run test:e2e
 ```
 
-App E2E tests live in `frontend/e2e/suite.spec.ts`. Real-provider and recovery tests are opt-in; CI must not spend live money. AI ledger concurrency tests use a disposable PostgreSQL schema and require `TEST_AI_LEDGER_DATABASE=1`. They never alter real balances. [Credit safety notes](docs/ai-credit-safety.md) explain limits and failure tests; the [responsive audit](docs/responsive-audit.md) distinguishes real scrolling checks from untested interactions.
+App E2E tests live in `frontend/e2e/suite.spec.ts`. The focused interview workflow starts an empty PostgreSQL service and the production-style app on **:3000**, seeds synthetic products, then tests home → demo login → product → custom-credit cart → unpaid receipt. It checks a simulated checkout outage, stable retry identity and idempotent completion. Provider transport is mocked in payment unit tests; no PayPal/AI keys or production database secrets are available to this job. Its database is discarded with the runner.
+
+The historical migration directory lacks an initial baseline, so this CI browser database uses `prisma db push` against an explicitly empty, loopback-only target. **That is not proof of a clean migration replay.** Applied upgrade migrations and real PostgreSQL constraints are verified separately on isolated Preview. See [CI acceptance](docs/ci-acceptance.md) for exact commands and current results.
+
+Real-provider and recovery tests are opt-in; CI must not spend live money. AI ledger concurrency tests use a disposable PostgreSQL schema and require `TEST_AI_LEDGER_DATABASE=1`. They never alter real balances. [Credit safety notes](docs/ai-credit-safety.md) explain limits and failure tests; the [responsive audit](docs/responsive-audit.md) distinguishes real scrolling checks from untested interactions.
 
 ## Production versus experimental
 
-The public catalogue, isolated demo, cart, free demo receipt and private sample delivery have local/live browser evidence. Paid PayPal fulfillment awaits credentials and real transaction testing. Configured OAuth initiation has been checked, but every owner consent/callback is not yet verified.
+The public catalogue, isolated demo, cart, free demo receipt and private sample delivery have local/live browser evidence. Sandbox server capture is verified; remote webhook/refund and Live micro-purchase acceptance remain release gates. Configured OAuth initiation has been checked, but every owner consent/callback is not yet verified.
 
 Pulse, polls, Web3/wallets, trading, logistics and realtime voice are experimental modules, not the flagship product or a claim of production financial capability. AI audio transcription requires a personal OpenAI key until platform audio costs can be safely bounded.
 

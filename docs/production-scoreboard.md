@@ -681,21 +681,21 @@ member-to-member delivery remains separate from the mocked error test.
 | Auth | GitHub, Discord | PARTIAL — initiation checked, full consent/callback pending |
 | Shop | List, PDP, images | DONE — both reviewer products and actual images verified locally/live |
 | Shop | Cart | DONE — two lines, reload, quantity/removal, stable ordering and badge synchronization locally/live |
-| Shop | Checkout | PARTIAL — local free demo UI completed; normal payment safely disabled without keys |
-| Shop | Live PayPal, sandbox PayPal | BLOCKED on PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_WEBHOOK_ID; implementation and mocked validation done, provider transactions not run |
-| Shop | Confirmation, signed download | PARTIAL — local/live demo receipt and actual JPG/TXT downloads pass; anonymous 401 and idempotent replay pass; paid verification blocked on PayPal keys |
-| Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — seeded at 29/39 NOK; paid fulfillment pending |
-| AI | Chat, selector, streaming | DONE for current OpenAI Luna/Groq demo path, selector and persisted streaming replies local/live; current Astra/Grok paid generation still unverified |
-| AI | Credit debit, zero balance, no overcharge | DONE for demo debit/402 local/live plus ledger concurrency/fuse tests; paid-credit purchase remains blocked on PayPal |
+| Shop | Checkout | PARTIAL — local/Preview custom-credit demo, quote editing and retries pass; production promotion awaits payment acceptance |
+| Shop | Live PayPal, sandbox PayPal | PARTIAL — both Sandbox SKUs captured; Live keys/webhook configured. Custom Sandbox webhook/refund tests need the owner's Developer sign-in; Live micro-purchase remains unverified |
+| Shop | Confirmation, signed download | PARTIAL — local/live demo and actual Sandbox JPG/TXT downloads verified; anonymous 401 and replay pass. Live paid download still pending |
+| Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — 29/39 NOK Sandbox purchases verified. Custom 100–1,000 credits verified local/Preview in demo, not paid capture yet |
+| AI | Chat, selector, streaming | DONE for tested OpenAI Luna/Groq demo and Sandbox-funded OpenAI Luna/Astra/Grok paths; other unconfigured models remain disabled |
+| AI | Credit debit, zero balance, no overcharge | PARTIAL — demo debit/402, actual Sandbox 100→98→90→30 and insufficient-balance denial verified; atomic ledger/fuse tests pass. Provider-project hard caps/alerts and Live funding still require acceptance; no absolute overcharge guarantee |
 | Wallets | Connect UI, no crash | PARTIAL — injected-wallet cancel/connect/disconnect passes local/live; configured WalletConnect open/escape and configuration units pass; owner-wallet verification pending |
 | Platform | Public homepage | DONE — S1 verified locally and live |
 | Platform | Consent controls Analytics/Speed Insights | DONE — no scripts before consent/Essential Only; both 200 after opt-in; real visitor metrics pending |
 | Platform | Health | PARTIAL — local Hapi `/v1/health` 200 and mock shipping returns two NOK options; Railway auth expired and live backend unverified |
 | Quality | Touched-file lint | PARTIAL — run after each slice |
 | Quality | Home → demo → product → cart E2E | DONE — local and live pass; payment coverage remains a separate S4 task |
-| Quality | Payment mocked in CI | PARTIAL — S4 pending |
+| Quality | Payment mocked in CI | PARTIAL — isolated happy-path workflow implemented; local demo/retry/replay passes, hosted run pending. Provider transport mocked in unit tests |
 | Layout | Core path at 360 and 2560, other requested sizes, 125% zoom | PARTIAL — core route/drawer/scroll tests include 360/390/landscape/768/1024/1280/1920/2560; all-route interaction, real phone keyboard and actual Chrome 125% zoom remain unverified |
-| Interview | Root README | PARTIAL — public demo, optional 29/39 NOK SKUs, architecture, four decisions and S5 evidence documented; payment and walkthrough still pending |
+| Interview | Root README | PARTIAL — human product story, demo, architecture, decisions, current payment status and CI scope documented; recording and Live payment evidence remain pending |
 
 ## S7 — Shared navigation alignment (local/live verified)
 
@@ -756,13 +756,13 @@ member-to-member delivery remains separate from the mocked error test.
 
 - Work is isolated in the `showcase/ai-revival` worktree; original dirty workspace preserved.
 - Local OAuth origin is `http://localhost:3000`.
-- Current local production-mode test process uses the live database. Test identities are isolated and non-admin; no Live PayPal keys are added to localhost.
-- After the PC crash, Chrome inventory is empty and the native helper pipe is unavailable. Playwright is the active browser test mechanism, not the owner's Chrome. Do not spoof Google's browser checks or telemetry automation exclusions.
+- Current local production-style test process uses the isolated Neon Preview database through the guarded Sandbox launcher. No Live PayPal keys are added to localhost. Earlier live-database test observations above are historical, not the current routing.
+- Real Chrome is connected and has been used for Sandbox checkout, credit-funded chat and the custom-credit/currency checks. Browser-blocked OAuth is not bypassed; owner consent still needs completion. Do not spoof Google's browser checks or telemetry automation exclusions.
 - Demo creates a separate temporary USER per visitor, bounded to five per daily IP fingerprint and 200 globally/day in a serialized transaction; sessions expire after a day. The S5 candidate permits guarded private chat creation/messages and five one-time credits. Cart/demo-checkout remain isolated; real payments, public posting and provider-key changes remain denied.
 - New paid entitlements must never be granted from client prices or a return URL. S4/S5 remain release blockers.
-- PayPal credentials are absent locally and in Vercel Production. Owner asked to create Sandbox credentials (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`) locally; Live credentials must stay in Vercel Production. `PAYPAL_WEBHOOK_ID` also remains absent. Dashboard inspection redirected to owner sign-in. No test or real charge has been made.
+- Sandbox PayPal credentials are configured locally/Preview; Live credentials and webhook are Production-only. Both fixed Sandbox SKUs were purchased using test money. No Live charge has been made. The current Developer sign-in/passkey handoff blocks retrieving the Sandbox buyer, not API-key configuration.
 - Railway CLI is installed but `railway list --json` returns Unauthorized; the
   showcase worktree has no linked Railway project. Backend health/deployment
-  cannot yet be verified. Real Chrome inventory is still empty; attempting to
-  open Railway in Chrome reports `Browser is not available: chrome`.
+  cannot yet be verified. The earlier Chrome connection failure is resolved;
+  Railway authorization/deployment still needs a fresh check.
 - Payment implementation references: [PayPal environment separation](https://developer.paypal.com/api/make-api-requests), [Orders v2](https://developer.paypal.com/api/orders/v2), [idempotency](https://developer.paypal.com/api/rest/reference/idempotency/). Unsafe legacy capture/grant handlers now fail closed; webhook development bypass removed. Production webhook target is `/api/webhooks/paypal`.

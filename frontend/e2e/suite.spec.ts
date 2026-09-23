@@ -1,5 +1,66 @@
 import { test, expect } from "@playwright/test";
 
+test('CI showcase happy path — real demo, custom cart, payment error recovery and unpaid receipt', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_CI_SHOWCASE !== '1', 'Explicit disposable demo flow only');
+  test.setTimeout(180_000);
+  const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const errors: string[] = [], checkoutRequests: { requestKey: string; expectedQuote: string }[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await context.route(/https:\/\/[^/]*paypal\.com\//, route => route.abort());
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Try the demo — no payment', exact: true }).click();
+    await page.waitForURL('**/products', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('complementary', { name: 'Demo mode', exact: true })).toBeVisible();
+    await page.getByText('Interviewer AI Credits', { exact: true }).first().click();
+    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true, level: 1 })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    const image = page.getByRole('img', { name: 'Interviewer AI Credits', exact: true }).first();
+    await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+    await page.getByRole('textbox', { name: 'Number of credits', exact: true }).fill('122');
+    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
+    await expect(page.getByRole('button', { name: '1 item in basket', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'View basket', exact: true }).click();
+    await page.waitForURL('**/cart', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('textbox', { name: 'Number of credits', exact: true })).toHaveValue('122');
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user).toMatchObject({ isDemo: true, role: 'USER' });
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await page.getByRole('link', { name: 'Proceed to checkout', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Secure checkout', exact: true })).toBeVisible();
+    // One browser-only outage fixture, then the real unpaid demo handler.
+    // PayPal transport is separately mocked in unit tests, never contacted here.
+    await page.route('**/api/demo/checkout', route => {
+      checkoutRequests.push(route.request().postDataJSON());
+      return checkoutRequests.length === 1 ? route.fulfill({ status: 503, json: { error: 'CHECKOUT_TEMPORARILY_UNAVAILABLE' } }) : route.continue();
+    });
+    const submit = page.getByRole('button', { name: 'Complete free demo order', exact: true });
+    await submit.click();
+    await expect(page.getByRole('alert').filter({ hasText: 'Your cart is saved' })).toBeVisible();
+    await expect(submit).toBeEnabled();
+    await submit.click();
+    await expect(page.getByRole('heading', { name: 'Your demo order is ready', exact: true })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Receipt items', exact: true })).toContainText('122 credits');
+    expect(checkoutRequests).toHaveLength(2);
+    expect(checkoutRequests[1]).toEqual(checkoutRequests[0]);
+    const orders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
+    expect(orders).toHaveLength(1);
+    expect(orders[0]).toMatchObject({ checkout: { environment: 'DEMO', state: 'COMPLETED', captureId: null }, payment: null });
+    const replay = await context.request.post('/api/demo/checkout', { headers: { Origin: new URL(baseURL!).origin }, data: checkoutRequests[1] });
+    expect(replay.ok()).toBe(true);
+    expect(await replay.json()).toMatchObject({ orderId: orders[0].id, alreadyCompleted: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: testInfo.outputPath('interview-demo-receipt-390.png') });
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S7 isolated Preview prepares a free demo receipt for currency QA', async ({ browser, baseURL }) => {
   test.skip(process.env.E2E_PREVIEW_SEED_DEMO !== '1', 'Explicit isolated Preview demo creation only');
   test.setTimeout(120_000);
