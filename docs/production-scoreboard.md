@@ -179,6 +179,13 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   This backend correction is **not deployed**: Railway owner authorization is
   required, and the first browserless login link expired. Live shipping access
   control/provider limits and active frontend warehouse events need further audit.
+- Active frontend warehouse notifications now contain only an invalidation marker,
+  never stock/product DTOs; list/detail clients refetch through role-filtered HTTP.
+  No new public inventory subscription is opened for demo/ordinary users. Focused
+  warehouse tests **7/7**, touched-file lint and production build/TypeScript pass.
+  Local warehouse read/refresh/back-navigation at 360/390/1280/2560 **2/2** (6.4s,
+  including setup). Live release check pending; privileged mutation itself is
+  still not claimed tested by the demo session.
 
 - Work is isolated in the `showcase/ai-revival` worktree; original dirty workspace preserved.
 - Local OAuth origin is `http://localhost:3000`.

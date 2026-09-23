@@ -33,8 +33,9 @@ const usePusher = <T = unknown>(channelName: string, eventName: string, callback
   const hasLoggedRef = useRef(false);
 
   useEffect(() => {
+    if (!channelName) return;
     const pusherClient = getPusherClient();
-    if (!pusherClient || !channelName) return;
+    if (!pusherClient) return;
 
     // Scope the channel name to the current environment
     const scopedChannel = scopeChannel(channelName);

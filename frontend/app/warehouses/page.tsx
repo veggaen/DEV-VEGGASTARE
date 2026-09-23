@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useTransition, FC } from 'react';
+import { useCallback, useEffect, useState, useTransition, FC } from 'react';
 import Link from 'next/link';
 import { updateWarehouseInventory } from '@/actions/updateWarehouse';
 import { Button } from '@/components/ui/button';
 import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import Pusher from 'pusher-js';
+import usePusher from '@/hooks/usePusher';
 import throttle from 'lodash.throttle';
 import { WarehousesListResponseSchema, type WarehouseLocationDto } from '@/lib/types/warehouses';
 
@@ -23,7 +23,7 @@ const WarehouseOverview = () => {
   const [isPending, startTransition] = useTransition();
   const intervalDuration = 3600000; // 60 minutes
 
-  const getWarehouses = async () => {
+  const getWarehouses = useCallback(async () => {
     console.log(LOG_PREFIX, 'Fetching warehouses');
     try {
       setRefreshing(true);
@@ -42,7 +42,7 @@ const WarehouseOverview = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     getWarehouses();
@@ -52,45 +52,11 @@ const WarehouseOverview = () => {
     }, intervalDuration); // Poll every X seconds
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [getWarehouses]);
 
-  useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_PUSHER_KEY;
-    const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
-    if (showDropdown && key && cluster) {
-      // One connection per open inventory, disposed on close/unmount.
-      const pusherClient = new Pusher(key, { cluster, forceTLS: true });
-      const channelName = `WarehouseChannel_${showDropdown}`;
-      console.log(`${LOG_PREFIX} Subscribing to channel ${channelName}`);
-      const channel = pusherClient.subscribe(channelName);
-
-      const eventHandler = (data: any) => {
-        console.log(LOG_PREFIX, '[Pusher] Message received:', data);
-        setWarehouses((prevWarehouses) => {
-          return prevWarehouses.map((warehouse) => {
-            if (warehouse.id === data.payload.warehouseId) {
-              return {
-                ...warehouse,
-                inventory: warehouse.inventory?.map((item) =>
-                  item.id === data.payload.inventoryId ? { ...item, stock: data.payload.stock, version: data.payload.version } : item
-                ),
-              };
-            }
-            return warehouse;
-          });
-        });
-      };
-
-      channel.bind('my-event-warehouse', eventHandler);
-
-      return () => {
-        console.log(`${LOG_PREFIX} Unsubscribing from channel ${channelName}`);
-        channel.unbind('my-event-warehouse', eventHandler);
-        pusherClient.unsubscribe(channelName);
-        pusherClient.disconnect();
-      };
-    }
-  }, [showDropdown]);
+  const canReadInventory = clientUser?.role === 'ADMIN' || clientUser?.role === 'OWNER';
+  const handleInventoryEvent = useCallback(() => { void getWarehouses(); }, [getWarehouses]);
+  usePusher(canReadInventory && showDropdown ? `WarehouseChannel_${showDropdown}` : '', 'my-event-warehouse', handleInventoryEvent);
 
   const handleStockUpdate = throttle(async (warehouseId: string, inventoryId: string, action: 'add' | 'subtract') => {
     console.log(LOG_PREFIX, 'Updating stock for warehouse:', warehouseId, 'inventory:', inventoryId, 'action:', action);

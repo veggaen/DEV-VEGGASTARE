@@ -3,7 +3,7 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibRoleAuth } from '@/lib/user-auth';
 import { UserRole } from '@/generated/prisma/browser';
-import { pusherServer } from '@/lib/pusher';
+import { publishWarehouseInvalidation } from '@/lib/warehouse-events';
 
 const LOG_PREFIX = '[frontend/actions/updateWarehouse.ts]';
 
@@ -59,19 +59,7 @@ export async function updateWarehouseInventory(warehouseId: string, inventoryId:
 
     try {
       console.log(LOG_PREFIX, 'Triggering Pusher event for warehouse update');
-      await pusherServer.trigger(`WarehouseChannel_${warehouseId}`, 'my-event-warehouse', {
-        type: 'INVENTORY_UPDATE',
-        payload: {
-          warehouseId,
-          inventoryId,
-          stock: updatedInventory?.stock,
-          version: updatedInventory?.version,
-          product: {
-            id: updatedInventory?.Product?.id,
-            title: updatedInventory?.Product?.title,
-          },
-        },
-      });
+      await publishWarehouseInvalidation(warehouseId);
       console.log(LOG_PREFIX, 'Pusher event triggered successfully');
     } catch (pusherError) {
       console.error(LOG_PREFIX, 'Error triggering Pusher event:', pusherError);

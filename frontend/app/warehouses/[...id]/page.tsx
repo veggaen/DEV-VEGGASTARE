@@ -102,19 +102,11 @@ const WarehouseDetails = () => {
     return () => clearInterval(intervalId);
   }, [getWarehouseDetails]);
 
-  const handleInventoryEvent = useCallback((data: { payload: { warehouseId: string; inventoryId: string; stock: number } }) => {
-    if (data.payload.warehouseId === warehouseId) {
-      setWarehouse((prevWarehouse) => {
-        if (!prevWarehouse) return prevWarehouse;
-        return {
-          ...prevWarehouse,
-          inventory: prevWarehouse.inventory?.map((item) =>
-            item.id === data.payload.inventoryId ? { ...item, stock: data.payload.stock } : item
-          ),
-        };
-      });
-    }
-  }, [warehouseId]);
+  // Public notifications carry no inventory data. Re-read through the role-
+  // checked API, including when another client's role has since been revoked.
+  const handleInventoryEvent = useCallback(() => {
+    void getWarehouseDetails();
+  }, [getWarehouseDetails]);
   const canReadInventory = clientUser?.role === 'ADMIN' || clientUser?.role === 'OWNER';
   usePusher(canReadInventory && warehouseId ? `WarehouseChannel_${warehouseId}` : '', 'my-event-warehouse', handleInventoryEvent);
 

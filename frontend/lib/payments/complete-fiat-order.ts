@@ -24,7 +24,7 @@ import { sendOrderConfirmationEmail, sendSellerOrderNotification, sendWarehouseO
 import { generateDownloadTokensForOrder } from '@/lib/download-tokens';
 import { recalculateVerificationTier } from '@/lib/verification-recalc';
 import { grantRepoAccessForOrder } from '@/lib/github-repo-access';
-import { pusherServer } from '@/lib/pusher';
+import { publishWarehouseInvalidation } from '@/lib/warehouse-events';
 import { bookPaidOrderShipment } from '@/lib/shipping/book-paid-order-shipment';
 
 export interface CompletePaidOrderResult {
@@ -229,7 +229,7 @@ export async function completePaidOrder(
   }
 
   console.log(`[completePaidOrder] Order ${orderId} completed via ${opts.source}`);
-  await publishWarehouseInventoryUpdates(inventoryUpdates, opts.source);
+  await publishWarehouseInventoryUpdates(inventoryUpdates);
 
   try {
     if (opts.paymentKind === 'web3') {
@@ -443,14 +443,10 @@ export async function releaseReservedOrderStock(
   }
 }
 
-async function publishWarehouseInventoryUpdates(updates: InventoryUpdateEvent[], source: string) {
+async function publishWarehouseInventoryUpdates(updates: InventoryUpdateEvent[]) {
   for (const update of updates) {
     try {
-      await pusherServer.trigger(`WarehouseChannel_${update.warehouseId}`, 'my-event-warehouse', {
-        type: 'INVENTORY_UPDATE',
-        source,
-        payload: update,
-      });
+      await publishWarehouseInvalidation(update.warehouseId);
     } catch (err) {
       console.error('[completePaidOrder] Warehouse pusher update failed:', err);
     }
