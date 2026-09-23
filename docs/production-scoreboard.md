@@ -92,7 +92,7 @@ also pass locally **4/4** (42.5s): Settings, AI and Pulse/footer. Release `8a410
 regressions **6/6** (58.8s including setup) and phone visual review pass. Actual
 member-to-member delivery remains separate from the mocked error test.
 
-## S7 — First-render speed (local verified; live pending)
+## S7 — First-render speed (local/live verified; more speed work remains)
 
 - Removed the global client-only wallet render barrier while preserving the
   provider tree; browser preferences restore after matching server/client markup.
@@ -104,7 +104,12 @@ member-to-member delivery remains separate from the mocked error test.
 - Two cold-context 20s lab observations (390px, 4× CPU, 1.6 Mbps/150ms) report
   LCP **2,564 / 2,624ms**, CLS **0**. Same-condition old live sample: **14,700ms**.
   Local/live bundlers and network differ; these are not field percentiles.
-  Live deployment and same-host measurements are still pending.
+  Release `2778cb2` / `dpl_CyqBXU5FnH83fPpf5P3dihaWBThL` is READY. Live
+  focused regressions **7/7** (49.3s): pre-bundle paint, reduced-motion hydration,
+  injected-wallet lifecycle, AI, Messages and actual Pulse/footer/drawer scrolling.
+  Two same-host 20s lab observations report LCP **7,528 / 6,044ms**, FCP **6,632 / 5,168ms**,
+  CLS **0**. Paint no longer waits for wallet hydration, but server/network latency
+  and JavaScript weight still need work; this is not a Core Web Vitals pass.
 
 ## S5 — Metered AI integration (demo debit/denial verified local/live; paid purchase blocked)
 

@@ -222,7 +222,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   Profile/refactor this boundary without remounting the shell, breaking wallet
   state, or replacing content with a fresh skeleton on navigation.
 
-### First-render correction (local verified; live pending)
+### First-render correction (local/live verified)
 
 - Keep the provider tree mounted but allow server rendering; network preferences
   no longer return a blank subtree. Restore browser preferences after the matching
@@ -250,7 +250,13 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   pass. Initial provider candidate core route regression **8/8** (1.1m): Settings,
   AI, Messages, warehouses, product filters, Pulse/footer, cart. Final paint
   candidate focused **5/5** (23.4s): pre-bundle paint, stored preference hydration,
-  injected-wallet lifecycle and AI. Live deployment/measurement pending.
+  injected-wallet lifecycle and AI. Release `2778cb2` /
+  `dpl_CyqBXU5FnH83fPpf5P3dihaWBThL` is READY. Live regressions **7/7** (49.3s)
+  include pre-bundle visibility, reduced-motion hydration, wallet lifecycle,
+  AI, Messages and Pulse/footer/drawer scrolling. Two same-host 20s observations
+  after release: LCP **7,528 / 6,044ms**, FCP **6,632 / 5,168ms**, CLS **0**.
+  Old-live settled LCP was 14,700ms. Remaining server/network delay and roughly
+  1.66MB resource transfer mean this is improvement, not a performance pass.
 
 ## Research references
 
