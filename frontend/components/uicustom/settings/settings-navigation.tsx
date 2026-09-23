@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { IconType } from "react-icons";
 import { FiChevronRight, FiMenu } from "react-icons/fi";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useClientReady } from "@/hooks/use-client-ready";
 
 type Section<T extends string> = { id: T; label: string; description: string; icon: IconType };
 
@@ -14,6 +15,7 @@ export function SettingsNavigation<T extends string>({ sections, active, onSelec
   onSelect: (section: T) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const clientReady = useClientReady();
   const trigger = useRef<HTMLButtonElement>(null);
   const drawer = useRef<HTMLDivElement>(null);
   const selected = sections.find(section => section.id === active) ?? sections[0];
@@ -25,7 +27,7 @@ export function SettingsNavigation<T extends string>({ sections, active, onSelec
   }, []);
 
   const items = sections.map(section => (
-    <button key={section.id} type="button" aria-current={active === section.id ? 'page' : undefined}
+    <button key={section.id} type="button" disabled={!clientReady} aria-current={active === section.id ? 'page' : undefined}
       onClick={() => { onSelect(section.id); setOpen(false); }}
       className={`flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active === section.id
         ? 'border-emerald-500/50 bg-emerald-500/10 text-foreground'
@@ -49,7 +51,7 @@ export function SettingsNavigation<T extends string>({ sections, active, onSelec
     <div className="min-w-0 lg:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <button ref={trigger} type="button" aria-label={`Settings sections: ${selected.label}`}
+          <button ref={trigger} type="button" disabled={!clientReady} aria-label={`Settings sections: ${selected.label}`}
             className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <selected.icon aria-hidden="true" className="size-5 shrink-0 text-emerald-500" />
             <span className="min-w-0 flex-1 text-sm font-medium">{selected.label}</span>

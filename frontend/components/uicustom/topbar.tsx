@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { motion } from "framer-motion";
 import { useHydratedReducedMotion as useReducedMotion } from "@/hooks/use-hydrated-reduced-motion";
+import { useClientReady } from "@/hooks/use-client-ready";
 import AppKitButton from "../crypto-related/AppKitButton";
 import NetworkSyncBridge from "@/components/crypto-related/NetworkSyncBridge";
 import { MyDialogbarNavigator } from "@/app/(protected)/_components/dialog-bar";
@@ -142,6 +143,7 @@ function AppKitOAuthBridge() {
 }
 
 const MyTopBar = () => {
+	const clientReady = useClientReady();
 	const pathname = usePathname();
 	const clientUser = useCurrentUser();
 	const prefersReducedMotion = useReducedMotion();
@@ -731,6 +733,7 @@ const MyTopBar = () => {
 										onMouseEnter={handleNavHover}
 										className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-14 lg:w-14 lg:rounded-full lg:border-0 lg:p-0"
 										aria-label="Open menu"
+										disabled={!clientReady}
 									>
 										<span className="inline-flex items-center gap-2 lg:hidden"><FiMenu aria-hidden="true" className="size-5" /><span>Menu</span></span>
 										<span className="hidden lg:inline-flex">{clientUser ? (

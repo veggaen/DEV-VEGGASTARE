@@ -11,6 +11,12 @@ production behavior; the presence of an integration is not a readiness claim.
   catalogue/cart, checkout, AI generation and signed digital-delivery routes live
   in `frontend/`. The persistent shell keeps navigation mounted while main
   content changes. Browser code never receives platform provider secrets.
+  Root rendering initializes that shell from the server-verified session so
+  identity-dependent banners/composers do not arrive after a visitor scrolls.
+  Personalized HTML is request-rendered and private/no-store, not CDN-shared;
+  public assets/data can retain their separate caches. This trades a small
+  server lookup for correct first-paint geometry and removes the initial
+  browser session-fetch waterfall. APIs/actions still authorize independently.
 - **PostgreSQL / Prisma.** Product, cart and order records; authenticated download
   entitlements; environment-separated credit accounts, ledger entries and request
   reservations. Database uniqueness and nonnegative-balance constraints complement

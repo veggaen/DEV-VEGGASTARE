@@ -844,6 +844,29 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - Fresh computer-use inventory still reports no apps/browsers. Actual owner
   Chrome/physical-phone behavior remains unverified; Playwright is not reported
   as the owner's browser.
+- Initial release `4d3769b` / `dpl_6c587YbafuzPL5rL28DqidJX76Mm` is READY on
+  www.veggat.com. Live first batch **19/20**: shared session/cache/Pulse cases
+  passed; a Settings drawer click was accepted before its handlers were ready.
+  New held-script tests fail on both old-build widths as expected. Settings
+  navigation, the global menu and demo exit now share hydration-safe disabled
+  states. Corrected local production build/TypeScript, touched lint, combined
+  browser **22/22** and auth/scroll/voice units **33/33** pass. Live follow-up
+  remains pending.
+- Live actual feed: scrolled through the filtered batches, used Check more posts,
+  reached the end marker and then the footer; the footer stayed hidden while
+  further batches remained. A first screenshot during scrolling did not paint
+  the demo text; settled screenshot and hit-testing show its text/Exit control
+  unobscured at y=72..125, with the toolbar below at y=125 and document scrollY=0.
+- Speed finding remains open: first post-deploy live Pulse navigation had
+  responseStart 64ms, responseEnd 5186ms, DCL 5297ms, FCP 5380ms. Warm full-HTML
+  samples were Pulse 817/285/261ms and Products 476/180/141ms. These are lab
+  samples, not field CWV or proof of a universal speedup. Deployment inspection
+  shows runtime region **arn1** (not its iad1 build region), with 7.78MB functions;
+  the primary database is London. Investigate cold execution and bundle work
+  before changing regions/billing or claiming the loading-speed goal complete.
+- Ultrawide Pulse content remains centered/bounded with no page overflow, but
+  the shared topbar uses a wider canvas than the 1280px body. Cross-route chrome
+  alignment and persistent desktop navigation remain separate unfinished work.
 
 ## Research references
 

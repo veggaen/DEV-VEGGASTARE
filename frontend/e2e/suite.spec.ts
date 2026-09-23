@@ -88,6 +88,47 @@ test('S2 — personalized HTML stays private and invalid sessions fail closed', 
   } finally { await Promise.all([guest.dispose(), demo.dispose(), invalid.dispose()]); }
 });
 
+for (const width of [390, 1280]) {
+test(`S7 — session navigation waits for handlers before accepting clicks (${width}px)`, async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: 844 } });
+  const page = await context.newPage();
+  let release!: () => void;
+  const scripts = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/_next/static/**', async route => {
+    if (new URL(route.request().url()).pathname.endsWith('.js')) await scripts;
+    await route.continue();
+  });
+  try {
+    await page.goto('/settings?section=wallet', { waitUntil: 'commit' });
+    const menu = page.getByRole('button', { name: 'Open menu', exact: true });
+    await expect(menu).toBeVisible();
+    await expect(menu).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Exit demo', exact: true })).toBeDisabled();
+    const change = width < 1024 ? page.getByRole('button', { name: 'Settings sections: Web3 & Wallet', exact: true })
+      : page.getByRole('navigation', { name: 'Settings sections', exact: true }).getByRole('button', { name: /^Payments / });
+    await expect(change).toBeVisible();
+    await expect(change).toBeDisabled();
+    release();
+    await expect(menu).toBeEnabled();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
+    await change.click();
+    if (width < 1024) {
+      const drawer = page.getByRole('dialog', { name: 'Settings sections', exact: true });
+      await expect(drawer).toBeVisible();
+      await drawer.getByRole('button', { name: /^Payments / }).click();
+    }
+    await expect(page.getByRole('heading', { name: 'Seller Payments', exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/section=payments/);
+    await menu.click();
+    await expect(page.getByRole('dialog', { name: 'Navigation Menu', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeFocused();
+  } finally { release(); await context.close(); }
+});
+}
+
 test('S7 — cart layout, exact currency and scrolling work at eight sizes', async ({ browser, baseURL }) => {
   test.setTimeout(90_000);
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');

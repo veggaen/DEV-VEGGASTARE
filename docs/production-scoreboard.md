@@ -371,6 +371,15 @@ member-to-member delivery remains separate from the mocked error test.
   versus old guest-only cached 6–10ms; the initial client session fetch and late
   identity reflow are removed. Not a field-speed or zero-CLS claim. Full audit,
   live verification and owner-only prerequisites remain incomplete.
+- Initial release `4d3769b` / `dpl_6c587YbafuzPL5rL28DqidJX76Mm` is READY.
+  First live batch **19/20**: session/Pulse checks passed; Settings accepted an
+  early click before hydration. Navigation/demo-exit now stay disabled until
+  their handlers attach. Both new slow-script cases failed on the old build,
+  then pass with the fix; local combined follow-up **22/22** and repeated
+  auth/scroll/voice units **33/33** pass. Live follow-up remains pending.
+- First post-deploy live Pulse FCP was 5.38s; subsequent full-HTML requests were
+  817/285/261ms. Cold-start/server bundle work remains a real speed finding,
+  not hidden by local warm timings. Actual deployment runtime is arn1.
 
 | Area | Feature | Status / evidence |
 | --- | --- | --- |
