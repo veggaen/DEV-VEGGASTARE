@@ -80,13 +80,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   including setup in 1.0m, release `6b8adc1` / `dpl_ABEFDCXREp97puGonJb9PzvkFFqp`.
   Live warehouse phone screenshot confirmed a 44px refresh target and no overflow.
 
-## S7 — Messages follow-up (local verified; live pending)
+## S7 — Messages follow-up (local/live verified)
 
 S7 Messages follow-up: improved mobile list/composer, accessible fields, read-only
 demo state and caught search/send failures with draft retention. A browser scroll
 test exposed the creation form incorrectly using the immersive transcript shell;
 corrected. Production build/TypeScript/lint pass; local focused browser **3/3**
-(9.2s) including eight viewport sizes and mocked transport failure. Live pending.
+(9.2s) including eight viewport sizes and mocked transport failure. Shell regressions
+also pass locally **4/4** (42.5s): Settings, AI and Pulse/footer. Release `8a410a5` /
+`dpl_CSfnTPogxR24AfB47kgKeTkDa2Wh` is READY at www.veggat.com. Live combined
+regressions **6/6** (58.8s including setup) and phone visual review pass. Actual
+member-to-member delivery remains separate from the mocked error test.
 
 ## S5 — Metered AI integration (demo debit/denial verified local/live; paid purchase blocked)
 

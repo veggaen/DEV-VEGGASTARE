@@ -185,7 +185,7 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
 - Actual Chrome, physical keyboard/safe-area behavior and 125% browser zoom remain
   unverified after the PC crash. No connected Chrome surface is available yet.
 
-## Messages follow-up (local verified; live pending)
+## Messages follow-up (local/live verified)
 
 - Phone/landscape inspection found unassociated labels, 14px form text, nested
   link/button markup, and errors visible only in the console. Candidate uses
@@ -199,7 +199,10 @@ debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6*
   browser **3/3** (9.2s including setup): eight viewport sizes with actual wheel
   scrolling, demo write prevention, labelled 16px/48px fields, keyboard recipient
   selection and draft retention after a mocked failure. Portrait and short-
-  landscape lower scroll boundaries were visually reviewed. Live check pending.
+  landscape lower scroll boundaries were visually reviewed. Shell regressions
+  **4/4** (42.5s) also pass locally. Release `8a410a5` /
+  `dpl_CSfnTPogxR24AfB47kgKeTkDa2Wh` passed **6/6** live (58.8s), combining both
+  Messages checks with Settings, AI and Pulse/footer. Live phone visual review passed.
 - Normal-account error tests intercept user search and conversation creation;
   they are UI resilience tests, not real delivery to another user. No real-member
   messages are sent by this audit.
