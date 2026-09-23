@@ -26,8 +26,10 @@ export const WarehouseLocationDtoSchema = z
     userId: z.string().min(1).nullable(),
     companyId: z.string().min(1).nullable(),
     postalCode: z.string().min(1),
-    address: z.string().min(1),
-    city: z.string().min(1),
+    // Read DTOs include older/draft locations with incomplete addresses. This
+    // does not relax creation or shipping validation; don't invent an address.
+    address: z.string(),
+    city: z.string(),
     country: z.string().min(1),
     latitude: z.number().finite().nullable(),
     longitude: z.number().finite().nullable(),

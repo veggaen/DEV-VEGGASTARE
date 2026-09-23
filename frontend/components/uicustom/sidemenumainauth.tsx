@@ -207,33 +207,31 @@ export const MyMenuSide = () => {
           bottom: FLOATING_GAP,
           left: "50%",
           transform: "translateX(-50%)",
-          maxWidth: `calc(100vw - ${FLOATING_GAP * 2}px)`,
+          maxWidth: `calc(100% - ${FLOATING_GAP * 2}px)`,
         };
       case "top":
         return {
           ...base,
-          top: `calc(var(--app-header, 72px) + ${FLOATING_GAP}px)`,
+          top: `calc(var(--app-header-offset, 72px) + var(--demo-notice-height, 0px) + ${FLOATING_GAP}px)`,
           left: "50%",
           transform: "translateX(-50%)",
-          maxWidth: `calc(100vw - ${FLOATING_GAP * 2}px)`,
+          maxWidth: `calc(100% - ${FLOATING_GAP * 2}px)`,
         };
       case "left":
         return {
           ...base,
-          top: `calc(var(--app-header, 72px) + ${FLOATING_GAP}px)`,
+          top: `calc(var(--app-header-offset, 72px) + var(--demo-notice-height, 0px) + ${FLOATING_GAP}px)`,
           left: FLOATING_GAP,
           bottom: FLOATING_GAP,
           width: isExpanded ? EXPANDED_V_WIDTH : COLLAPSED_SIZE,
-          transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         };
       case "right":
         return {
           ...base,
-          top: `calc(var(--app-header, 72px) + ${FLOATING_GAP}px)`,
+          top: `calc(var(--app-header-offset, 72px) + var(--demo-notice-height, 0px) + ${FLOATING_GAP}px)`,
           right: FLOATING_GAP,
           bottom: FLOATING_GAP,
           width: isExpanded ? EXPANDED_V_WIDTH : COLLAPSED_SIZE,
-          transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         };
     }
   }, [position, isExpanded]);
@@ -571,6 +569,8 @@ function DockPositionPicker({
         break;
     }
 
+    // This is a measured popover position; update before paint to avoid a jump.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDropdownPos(style);
   }, [show, dockPosition]);
 

@@ -59,18 +59,18 @@ const OrderConfirmationPage = () => {
 
   if (loading) {
     return (
-      <main className="mx-auto flex min-h-[60vh] w-full max-w-3xl items-center px-6">
+      <section className="mx-auto flex min-h-[60vh] w-full max-w-3xl items-center px-6">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">Loading order</p>
           <h1 className="mt-3 text-2xl font-semibold text-foreground">Finding your confirmation...</h1>
         </div>
-      </main>
+      </section>
     );
   }
 
   if (error || orders.length === 0) {
     return (
-      <main className="mx-auto flex min-h-[60vh] w-full max-w-3xl items-center px-6">
+      <section className="mx-auto flex min-h-[60vh] w-full max-w-3xl items-center px-6">
         <section className="w-full border-y border-border py-10">
           <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">
             {error ? 'Order lookup failed' : 'No recent orders'}
@@ -97,12 +97,12 @@ const OrderConfirmationPage = () => {
             </Link>
           </div>
         </section>
-      </main>
+      </section>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-10">
+    <section className="mx-auto w-full max-w-4xl px-6 py-10">
       <div className="mb-8 border-b border-border pb-6">
         <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">Order confirmation</p>
         <h1 className="mt-3 text-3xl font-semibold text-foreground">Choose an order to inspect</h1>
@@ -129,7 +129,7 @@ const OrderConfirmationPage = () => {
           </Link>
         ))}
       </div>
-    </main>
+    </section>
   );
 };
 

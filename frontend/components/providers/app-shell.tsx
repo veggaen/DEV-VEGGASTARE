@@ -44,6 +44,13 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+	const scrollRef = React.useRef<HTMLDivElement>(null);
+	// The persistent shell owns this scroller, so Next's window scroll reset is
+	// insufficient. Keep Pulse's intercepted detail modal at the feed position.
+	const scrollKey = pathname?.startsWith('/pulse/') ? '/pulse' : pathname;
+	React.useLayoutEffect(() => {
+		scrollRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+	}, [scrollKey]);
 	const isProductsRoute = pathname?.startsWith('/products');
   // Immersive chat surfaces own the full viewport — no site footer or dev banner
   // (which read as a fake "footer line" under the composer), and no reserved
@@ -75,7 +82,7 @@ export default function AppShell({
                     <MyTopBar />
                     <ImpersonationBanner />
                     <DemoSessionNotice />
-                    <div className={`flex flex-1 flex-col min-h-0 overscroll-contain-y ${isProductsRoute || isImmersiveChat ? 'overflow-hidden' : 'overflow-auto'}`}>
+                    <div ref={scrollRef} data-site-scroll="true" data-app-scroll-container={isProductsRoute || isImmersiveChat ? undefined : 'true'} className={`flex flex-1 flex-col min-h-0 min-w-0 overscroll-contain-y ${isProductsRoute || isImmersiveChat ? 'overflow-hidden' : 'overflow-auto'}`}>
                       <main id="main-content" tabIndex={-1} className={`min-w-0 outline-none ${isProductsRoute || isImmersiveChat ? 'flex flex-1 flex-col min-h-0' : 'shrink-0 min-h-[calc(100dvh-var(--app-header-offset,0px)-var(--demo-notice-height,0px))]'} ${isImmersiveChat ? '' : 'pb-[var(--cookie-banner-offset,0px)]'}`}>
                         {children}
                       </main>

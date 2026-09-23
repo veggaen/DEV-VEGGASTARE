@@ -114,7 +114,7 @@ const OrderConfirmationPage = () => {
 
   if (error || !orderDetails) {
     return (
-      <main className="mx-auto flex min-h-[60vh] w-full max-w-3xl items-center px-6">
+      <section className="mx-auto flex min-h-[60vh] w-full max-w-3xl items-center px-6">
         <section className="w-full border-y border-border py-10">
           <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">Order confirmation</p>
           <h1 className="mt-3 text-3xl font-semibold text-foreground">We could not open this order.</h1>
@@ -136,12 +136,12 @@ const OrderConfirmationPage = () => {
             </Link>
           </div>
         </section>
-      </main>
+      </section>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl p-4 lg:p-8">
+    <section className="mx-auto w-full max-w-3xl p-4 lg:p-8">
       <section className="auth-card-enter mb-6 border-y border-emerald-500/40 py-6">
         <div className="flex items-center gap-3">
           {/* Confirmation moment — animated check, readable in both themes */}
@@ -308,7 +308,7 @@ const OrderConfirmationPage = () => {
           )}
         </section>
       )}
-    </main>
+    </section>
   );
 };
 

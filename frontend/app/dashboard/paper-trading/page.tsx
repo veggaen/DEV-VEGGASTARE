@@ -7,6 +7,9 @@
  */
 
 import React, { useCallback, useEffect, useState, useTransition } from "react";
+import Link from 'next/link';
+import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
+import { isDemoUserId } from '@/lib/demo-policy';
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/providers/confirm-dialog";
@@ -56,6 +59,18 @@ type PortfolioData = {
 type TabId = "portfolio" | "trade" | "history";
 
 export default function PaperTradingPage() {
+  const { user, isLoading } = useCurrentUserWithStatus();
+  if (isLoading) return <div role="status" aria-label="Loading paper trading" className="m-6 h-48 rounded-xl bg-muted motion-safe:animate-pulse" />;
+  if (isDemoUserId(user?.id)) return <section className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Experimental module</p>
+    <h1 className="mt-3 text-3xl font-semibold">Paper trading</h1>
+    <p className="mt-4 text-muted-foreground">Practice trading uses a separate virtual portfolio. Portfolio creation and trading are disabled in the read-only interview demo; no money or wallet is needed for the marketplace tour.</p>
+    <Link href="/products" className="mt-6 inline-flex min-h-11 items-center underline underline-offset-4">Explore the demo marketplace</Link>
+  </section>;
+  return <PaperTradingWorkspace />;
+}
+
+function PaperTradingWorkspace() {
   const { mode, setMode } = useTradeMode();
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<TabId>("portfolio");

@@ -1515,14 +1515,23 @@ function ProductDetails({ product }: { product: Product }) {
   const createdAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.createdAt));
 
   return (
-    <div data-product-detail className="relative w-full space-y-8 pb-24 text-white">
+    <div data-product-detail className="relative w-full min-w-0 space-y-6 pb-[calc(6rem+env(safe-area-inset-bottom))] text-white">
       <ProductDetailCursor />
+      <div data-mobile-product-actions role="region" aria-label="Product purchase" style={{ marginBlock: 0 }} className="fixed inset-x-0 bottom-[var(--cookie-banner-offset,0px)] z-50 border-t border-white/15 bg-zinc-950/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-lg lg:hidden">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="truncate text-xs text-zinc-400">{product.title}</p>
+            <p className="mt-1 font-semibold tabular-nums">{new Intl.NumberFormat('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.price)} {product.priceCurrency || 'USD'}</p>
+          </div>
+          <Button type="button" variant="vegaAddBasketBtn" className="h-12 shrink-0 rounded-xl px-4" onClick={handleAddToCart} disabled={!canPurchase}>Add to basket</Button>
+        </div>
+      </div>
       <div className="flex items-center justify-between gap-3">
         <Link
           href="/products"
           aria-label="Back to products"
           title="Back to products"
-          className="group inline-grid h-10 w-10 place-items-center border border-white/10 bg-white/[0.035] text-zinc-300 transition-all duration-300 hover:-translate-x-0.5 hover:border-emerald-300/50 hover:text-white"
+          className="group inline-grid size-11 place-items-center rounded-lg border border-white/10 bg-white/[0.035] text-zinc-300 transition-colors duration-200 hover:border-emerald-300/50 hover:text-white focus-visible:outline focus-visible:outline-2"
         >
           <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
         </Link>
@@ -1542,7 +1551,7 @@ function ProductDetails({ product }: { product: Product }) {
 
       {/* Top section */}
       <motion.section
-        className="grid min-h-[calc(100vh-150px)] grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-10"
+        className="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8"
         initial={false}
         animate="show"
         variants={{
@@ -1577,14 +1586,16 @@ function ProductDetails({ product }: { product: Product }) {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
+              {product.image.length > 1 && <>
+                <CarouselPrevious aria-label="Previous product image" className="flex size-11 border border-white/20 bg-black/75 disabled:opacity-30" />
+                <CarouselNext aria-label="Next product image" className="flex size-11 border border-white/20 bg-black/75 disabled:opacity-30" />
+              </>}
             </Carousel>
             </div>
           </div>
 
           {/* Quick stats — text on background, divided by hairlines (no boxes) */}
-          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="mt-5 hidden grid-cols-3 gap-3 lg:grid">
             <div className="rounded-lg border border-white/10 bg-white/[0.055] px-4 py-3 text-center shadow-[0_18px_70px_rgba(0,0,0,0.24)] backdrop-blur-2xl transition-transform duration-300 hover:-translate-y-1">
               <div className="text-sm font-semibold text-white">{availabilityLabel}</div>
               <div className="mt-0.5 text-xs text-zinc-400">Availability</div>
@@ -1602,7 +1613,7 @@ function ProductDetails({ product }: { product: Product }) {
 
         {/* Details */}
         <motion.div
-          className="flex flex-col gap-4 rounded-xl border border-white/10 bg-black/40 p-6 shadow-[0_28px_110px_rgba(0,0,0,0.36)] backdrop-blur-2xl sm:p-7 lg:sticky lg:top-24 lg:col-span-5"
+          className="flex min-w-0 flex-col gap-4 rounded-xl border border-white/10 bg-black/40 p-4 shadow-[0_28px_110px_rgba(0,0,0,0.36)] backdrop-blur-2xl sm:p-6 lg:sticky lg:top-6 lg:col-span-5"
           variants={{
             show: { opacity: 1, x: 0 },
           }}
@@ -1630,7 +1641,7 @@ function ProductDetails({ product }: { product: Product }) {
                   {product.category}
                 </span>
               </div>
-              <h1 className="mt-5 max-w-2xl text-4xl font-semibold leading-[0.98] tracking-normal text-white md:text-6xl lg:text-5xl xl:text-6xl">
+              <h1 className="mt-4 max-w-2xl text-balance text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl lg:text-4xl xl:text-5xl">
                 {product.title}
               </h1>
               <div className="mt-5 text-2xl font-semibold text-emerald-200">
@@ -1801,7 +1812,7 @@ function ProductDetails({ product }: { product: Product }) {
               <Button
                 type="button"
                 variant="vegaAddBasketBtn"
-                className="h-[52px] rounded-xl px-5 text-sm font-semibold"
+                className="hidden h-[52px] w-full rounded-xl px-5 text-sm font-semibold lg:inline-flex"
                 onClick={handleAddToCart}
                 disabled={!canPurchase}
               >
@@ -2251,7 +2262,7 @@ export default function ProductClient({ productId }: { productId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const pageShellClassName = "relative z-10 mx-auto w-full max-w-screen-2xl px-3 py-5 sm:px-4 md:px-6";
+  const pageShellClassName = "relative z-10 mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 lg:px-8";
   const renderShell = (children: ReactNode) => (
     <div data-product-detail className="relative isolate min-h-full w-full overflow-hidden bg-black text-white">
       <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(rgba(52,211,153,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(52,211,153,0.035)_1px,transparent_1px)] bg-[size:46px_46px] opacity-20" />

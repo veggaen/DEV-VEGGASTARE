@@ -1034,50 +1034,51 @@ export default function ProfilePage() {
         <div className="mt-6 pt-4">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
             <TabsList
-              className="w-full sm:w-auto bg-muted/30 border border-border/50 p-1 rounded-xl gap-1"
+              aria-label="Profile sections"
+              className="grid h-auto w-full grid-cols-4 gap-1 rounded-xl border border-border/50 bg-muted/30 p-1 sm:inline-flex sm:w-auto"
             >
               <TabsTrigger
                 value="posts"
-                className="rounded-lg data-[state=active]:shadow-sm transition-all duration-200 text-muted-foreground data-[state=active]:text-foreground"
+                className="min-h-12 min-w-0 flex-col gap-1 rounded-lg px-1 text-[11px] transition-colors duration-200 text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:min-h-11 sm:flex-row sm:px-3 sm:text-sm"
                 style={activeTab === 'posts' ? {
                   backgroundColor: bannerColors ? `${bannerColors.primary}15` : 'hsl(var(--background))',
                   color: bannerColors?.primaryLight,
                 } : undefined}
               >
-                <FiGrid className="h-4 w-4 mr-1.5" />
+                <FiGrid aria-hidden="true" className="h-4 w-4 shrink-0 sm:mr-1.5" />
                 Posts
               </TabsTrigger>
               <TabsTrigger
                 value="activity"
-                className="rounded-lg data-[state=active]:shadow-sm transition-all duration-200 text-muted-foreground data-[state=active]:text-foreground"
+                className="min-h-12 min-w-0 flex-col gap-1 rounded-lg px-1 text-[11px] transition-colors duration-200 text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:min-h-11 sm:flex-row sm:px-3 sm:text-sm"
                 style={activeTab === 'activity' ? {
                   backgroundColor: bannerColors ? `${bannerColors.primary}15` : 'hsl(var(--background))',
                   color: bannerColors?.primaryLight,
                 } : undefined}
               >
-                <FiActivity className="h-4 w-4 mr-1.5" />
+                <FiActivity aria-hidden="true" className="h-4 w-4 shrink-0 sm:mr-1.5" />
                 Activity
               </TabsTrigger>
               <TabsTrigger
                 value="reach"
-                className="rounded-lg data-[state=active]:shadow-sm transition-all duration-200 text-muted-foreground data-[state=active]:text-foreground"
+                className="min-h-12 min-w-0 flex-col gap-1 rounded-lg px-1 text-[11px] transition-colors duration-200 text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:min-h-11 sm:flex-row sm:px-3 sm:text-sm"
                 style={activeTab === 'reach' ? {
                   backgroundColor: `${bannerColors?.primaryContrast || '#10b981'}20`,
                   color: bannerColors?.primaryContrast || '#10b981',
                 } : undefined}
               >
-                <FiTrendingUp className="h-4 w-4 mr-1.5" />
+                <FiTrendingUp aria-hidden="true" className="h-4 w-4 shrink-0 sm:mr-1.5" />
                 Reach
               </TabsTrigger>
               <TabsTrigger
                 value="connections"
-                className="rounded-lg data-[state=active]:shadow-sm transition-all duration-200 text-muted-foreground data-[state=active]:text-foreground"
+                className="min-h-12 min-w-0 flex-col gap-1 rounded-lg px-1 text-[11px] transition-colors duration-200 text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:min-h-11 sm:flex-row sm:px-3 sm:text-sm"
                 style={activeTab === 'connections' ? {
                   backgroundColor: bannerColors ? `${bannerColors.primary}15` : 'hsl(var(--background))',
                   color: bannerColors?.primaryLight,
                 } : undefined}
               >
-                <FiUsers className="h-4 w-4 mr-1.5" />
+                <FiUsers aria-hidden="true" className="h-4 w-4 shrink-0 sm:mr-1.5" />
                 Connections
               </TabsTrigger>
             </TabsList>

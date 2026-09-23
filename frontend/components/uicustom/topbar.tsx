@@ -521,7 +521,7 @@ const MyTopBar = () => {
 			/>
 			<motion.header
 				ref={headerRef}
-				className="sticky top-0 z-60 w-full"
+				className="sticky top-0 z-60 w-full shrink-0"
 				style={{
 					pointerEvents: collapseForProducts ? "none" : "auto",
 				}}
@@ -746,12 +746,12 @@ const MyTopBar = () => {
 
 								<SheetContent
 									side="right"
-									className="w-[92vw] max-w-[380px] bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800"
+									className="w-[calc(100%-2rem)] max-w-[380px] h-dvh overflow-hidden overscroll-contain bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]"
 									onTouchStart={onMenuTouchStart}
 									onTouchEnd={onMenuTouchEnd}
 									accessibleTitle="Navigation Menu"
 								>
-									<div className="flex h-full flex-col">
+									<div className="flex h-full min-h-0 flex-col">
 										{/* User Profile Header */}
 										{clientUser ? (
 											<>
@@ -823,7 +823,7 @@ const MyTopBar = () => {
 										)}
 
 										{/* Main scrollable content */}
-										<div className="flex-1 overflow-y-auto">
+										<div data-navigation-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
 											{/* Navigation Pane */}
 											{(!clientUser || menuPane === "nav") && (
 												<div className="p-3">
@@ -843,7 +843,8 @@ const MyTopBar = () => {
 																				key={item.href}
 																				href={item.href}
 																				onClick={() => setMenuOpen(false)}
-																				className={`group/navitem relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${active ? "bg-brand-accent/10 text-foreground font-medium" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
+																				aria-current={active ? 'page' : undefined}
+																				className={`group/navitem relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 ${active ? "bg-brand-accent/10 text-foreground font-medium" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
 																			>
 																				{active && (<span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-brand-accent" />)}
 																					<Icon className={`h-4 w-4 shrink-0 transition-colors ${active ? "text-brand-accent" : "text-muted-foreground/70 group-hover/navitem:text-foreground"}`} />
@@ -907,7 +908,7 @@ const MyTopBar = () => {
 										</div>
 
 										{/* Footer actions */}
-										<div className="border-t border-zinc-100 dark:border-zinc-800 p-4 space-y-2">
+										<div className="shrink-0 border-t border-zinc-100 dark:border-zinc-800 p-4 space-y-2">
 											{clientUser ? (
 												<button
 													type="button"

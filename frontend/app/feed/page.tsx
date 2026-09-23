@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react';
 import { usePathname, useRouter, useSearchParams, redirect } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -236,6 +236,12 @@ const FeedPage: React.FC = () => {
   const [filter, setFilter] = useState<ContentFilter>('all');
   const [sortBy, setSortBy] = useState<SortType>('recent');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+
+  // Reset the actual app scroller before a shorter result list can clamp the
+  // old offset to its footer. Window scrolling does not move this feed.
+  useLayoutEffect(() => {
+    document.querySelector<HTMLElement>('[data-site-scroll="true"]')?.scrollTo({ top: 0, behavior: 'instant' });
+  }, [filter, sortBy, tagFilter]);
   
   // Cursor-based pagination state
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -673,7 +679,7 @@ const FeedPage: React.FC = () => {
           loadMore();
         }
       },
-      { rootMargin: '400px' } // Pre-fetch 400px before visible
+      { root: document.querySelector('[data-site-scroll="true"]'), rootMargin: '400px' }
     );
 
     observer.observe(sentinel);
@@ -703,7 +709,9 @@ const FeedPage: React.FC = () => {
     setHasMore(true);
     await fetchFeed(true);
     // Scroll to top smoothly
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector<HTMLElement>('[data-site-scroll="true"]')?.scrollTo({
+      top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+    });
   }, [fetchFeed]);
 
   const trendingTags = useMemo(() => {
@@ -841,14 +849,18 @@ const FeedPage: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-3 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
+      <header className="flex items-center justify-between gap-3 py-4">
+        <h1 className="text-xl font-semibold tracking-tight">Pulse</h1>
+        <Badge variant="outline" className="shrink-0 text-muted-foreground">Experimental</Badge>
+      </header>
       {/* ─── Flow Sub-navbar (sticky — stays while the feed scrolls) ───
            The page scrolls inside an inner overflow-auto container that begins
            below the app header, so we stick at top-0 of THAT container — not at
            var(--app-header-offset), which would push the bar a full header
            height too low and overlap the composer below it. */}
-      <div className="sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 mb-5 border-b border-border/50 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center gap-3 h-11 px-3 sm:px-6 lg:px-8">
+      <div data-pulse-toolbar className="sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 mb-5 border-b border-border/50 bg-background/95 backdrop-blur-md">
+        <div className="flex min-w-0 items-center gap-2 h-[60px] px-4 sm:gap-3 sm:px-6 lg:px-8">
           {/* Brand link - "Flow" goes to /pulse (shows all content) */}
           <Link
             href="/pulse"
@@ -856,59 +868,63 @@ const FeedPage: React.FC = () => {
               changeFilter('all');
               changeSort('recent');
             }}
-            className="text-sm font-bold bg-linear-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent hover:from-emerald-400 hover:to-cyan-400 transition-all shrink-0 flex items-center gap-1.5"
+            aria-label="All Pulse posts"
+            className="hidden min-h-11 shrink-0 items-center gap-1.5 rounded text-sm font-semibold text-brand-accent focus-visible:outline focus-visible:outline-2 sm:flex"
           >
             <Zap className="h-4 w-4 text-emerald-500" />
-            Flow
+            All
           </Link>
           
-          <div className="h-4 w-px bg-border/60" />
+          <div className="hidden h-4 w-px bg-border/60 sm:block" />
           
           {/* Content Type Filters */}
-          <div className="flex items-center gap-1">
+          <div className="grid min-w-0 flex-1 grid-cols-3 gap-1 sm:flex sm:flex-none">
             <Button
               variant={filter === 'pulses' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => changeFilter('pulses')}
-              className="h-8"
+              className="h-11 min-w-0 px-2 text-xs sm:px-3 sm:text-sm"
+              aria-pressed={filter === 'pulses'}
               title="Only regular pulses (no polls)"
             >
-              <PulseHeart className="h-4 w-4 mr-1" /> Pulse
+              <PulseHeart aria-hidden="true" className="mr-1 hidden h-4 w-4 sm:block" /> Pulse
             </Button>
             <Button
               variant={filter === 'polls' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => changeFilter('polls')}
-              className="h-8"
+              className="h-11 min-w-0 px-2 text-xs sm:px-3 sm:text-sm"
+              aria-pressed={filter === 'polls'}
               title="Only polls and surveys"
             >
-              <FiBarChart2 className="h-4 w-4 mr-1" /> Polls
+              <FiBarChart2 aria-hidden="true" className="mr-1 hidden h-4 w-4 sm:block" /> Polls
             </Button>
             <Button
               variant={filter === 'trending' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => changeFilter('trending')}
-              className="h-8"
+              className="h-11 min-w-0 px-2 text-xs sm:px-3 sm:text-sm"
+              aria-pressed={filter === 'trending'}
               title="Trending content"
             >
-              <FiTrendingUp className="h-4 w-4 mr-1" /> Trending
+              <FiTrendingUp aria-hidden="true" className="mr-1 hidden h-4 w-4 sm:block" /> Trending
             </Button>
           </div>
 
-          <div className="h-4 w-px bg-border/60" />
+          <div className="hidden h-4 w-px bg-border/60 sm:block" />
           
           {/* Filters dropdown with sort and additional options */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5">
-                <FiFilter className="h-4 w-4" />
+              <Button variant="ghost" size="sm" aria-label="Feed filters" className="h-11 w-11 shrink-0 gap-1.5 p-0 sm:w-auto sm:px-3">
+                <FiFilter aria-hidden="true" className="h-4 w-4" />
                 <span className="hidden sm:inline">Filters</span>
                 {sortBy !== 'recent' && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  <Badge variant="secondary" className="ml-1 hidden h-5 px-1.5 text-xs xl:inline-flex">
                     {SORT_OPTIONS.find(s => s.value === sortBy)?.label}
                   </Badge>
                 )}
-                <FiChevronDown className="h-3 w-3" />
+                <FiChevronDown aria-hidden="true" className="hidden h-3 w-3 sm:block" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-64">
@@ -994,13 +1010,13 @@ const FeedPage: React.FC = () => {
           </DropdownMenu>
 
           {/* Active filter badges */}
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="ml-auto hidden min-w-0 items-center gap-2 xl:flex">
             {filter !== 'all' && (
               <Badge variant="outline" className="flex items-center gap-1 text-xs">
                 {filter === 'pulses' && <><PulseHeart className="h-3 w-3" /> Pulses</>}
                 {filter === 'polls' && <><FiBarChart2 className="h-3 w-3" /> Polls</>}
                 {filter === 'trending' && <><FiTrendingUp className="h-3 w-3" /> Trending</>}
-                <button onClick={() => changeFilter('all')} className="ml-1 hover:text-destructive">
+                <button aria-label="Clear content filter" onClick={() => changeFilter('all')} className="ml-1 inline-flex min-h-6 min-w-6 items-center justify-center rounded hover:text-destructive">
                   <FiX className="h-3 w-3" />
                 </button>
               </Badge>
@@ -1009,15 +1025,15 @@ const FeedPage: React.FC = () => {
               <Badge variant="outline" className="flex items-center gap-1 text-xs">
                 {SORT_OPTIONS.find(s => s.value === sortBy)?.icon}
                 <span className="ml-1">{SORT_OPTIONS.find(s => s.value === sortBy)?.label}</span>
-                <button onClick={() => changeSort('recent')} className="ml-1 hover:text-destructive">
+                <button aria-label="Reset sorting" onClick={() => changeSort('recent')} className="ml-1 inline-flex min-h-6 min-w-6 items-center justify-center rounded hover:text-destructive">
                   <FiX className="h-3 w-3" />
                 </button>
               </Badge>
             )}
             {tagFilter && (
               <Badge variant="outline" className="flex items-center gap-1 text-xs">
-                #{tagFilter}
-                <button onClick={() => setTagFilter(null)} className="ml-1 hover:text-destructive">
+                <span className="max-w-24 truncate">#{tagFilter}</span>
+                <button aria-label="Clear tag filter" onClick={() => setTagFilter(null)} className="ml-1 inline-flex min-h-6 min-w-6 items-center justify-center rounded hover:text-destructive">
                   <FiX className="h-3 w-3" />
                 </button>
               </Badge>
@@ -1056,8 +1072,8 @@ const FeedPage: React.FC = () => {
         <div className="min-w-0 space-y-4">
           {/* Compose Box - changes based on filter */}
           {!currentUser && (
-            <div
-              onClick={() => router.push('/auth/login')}
+            <Link
+              href="/auth/login"
               className="group rounded-2xl border border-border/50 bg-card/70 dark:bg-zinc-900/70 backdrop-blur-xl p-4 cursor-pointer transition-[border-color,box-shadow] duration-200 hover:border-brand-accent/50 hover:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.08)]"
             >
               <div className="flex gap-3 items-center">
@@ -1068,7 +1084,7 @@ const FeedPage: React.FC = () => {
                   Sign in to pulse your thoughts…
                 </div>
               </div>
-            </div>
+            </Link>
           )}
           {currentUser && (
             <div className="rounded-[22px] border border-black/8 dark:border-white/10 bg-card/80 dark:bg-zinc-900/70 backdrop-blur-xl shadow-sm transition-all duration-200 focus-within:border-brand-accent/50 focus-within:shadow-[0_0_0_4px_hsl(var(--brand-accent)/0.10)]">
@@ -1285,10 +1301,11 @@ const FeedPage: React.FC = () => {
                     <div className="flex-1 min-w-0 space-y-2">
                       <Textarea
                         ref={textareaRef}
+                        aria-label="Write a Pulse"
                         value={composeText}
                         onChange={(e) => setComposeText(e.target.value)}
                         placeholder={pendingAdvancedPoll ? "Add a message with your advanced poll (optional)..." : "Pulse your thoughts..."}
-                        className="min-h-[44px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 pt-1.5 text-[15px] leading-relaxed placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                        className="min-h-[44px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 pt-1.5 text-base leading-relaxed placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                         rows={1}
                       />
 
@@ -1390,7 +1407,7 @@ const FeedPage: React.FC = () => {
                         {tags.map(tag => (
                           <Badge key={tag} variant="secondary" className="text-xs">
                             #{tag}
-                            <button onClick={() => removeTag(tag)} className="ml-1">
+                            <button aria-label={`Remove ${tag} tag`} onClick={() => removeTag(tag)} className="ml-1 inline-flex size-6 items-center justify-center rounded">
                               <FiX className="h-3 w-3" />
                             </button>
                           </Badge>
@@ -1402,10 +1419,11 @@ const FeedPage: React.FC = () => {
                       <div className="flex gap-2">
                         <Input
                           value={tagInput}
+                          aria-label="New Pulse tag"
                           onChange={(e) => setTagInput(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
                           placeholder="Add tag..."
-                          className="flex-1 h-8 text-sm"
+                          className="min-w-0 flex-1 text-base"
                         />
                         <Button type="button" size="sm" variant="ghost" onClick={addTag}>
                           Add
@@ -1418,7 +1436,7 @@ const FeedPage: React.FC = () => {
                 {/* Action bar — ghost icon controls, matching the chat composer.
                     Divider is inset to line up under the textarea (not the avatar),
                     so the seam reads intentional rather than floating. */}
-                <div className="flex items-center justify-between gap-2 ml-12 border-t border-black/5 dark:border-white/8 pt-2 mt-0.5">
+                <div className="mt-0.5 flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-black/5 pt-2 sm:ml-12 dark:border-white/8">
                   <div className="flex items-center gap-0.5">
                     {/* Poll Options Dropdown */}
                     <DropdownMenu>
@@ -1428,14 +1446,15 @@ const FeedPage: React.FC = () => {
                           variant="ghost"
                           size="sm"
                           className={cn(
-                            'h-9 rounded-full gap-1 px-2.5 transition-colors',
+                            'h-11 w-11 rounded-full gap-1 p-0 transition-colors sm:w-auto sm:px-2.5',
                             includePoll
                               ? 'text-sky-600 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
                               : 'text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10',
                           )}
                         >
-                          <FiBarChart2 className="h-4 w-4" />
-                          <FiChevronDown className="h-3 w-3" />
+                          <span className="sr-only">Poll options</span>
+                          <FiBarChart2 aria-hidden="true" className="h-4 w-4" />
+                          <FiChevronDown aria-hidden="true" className="hidden h-3 w-3 sm:block" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72 p-1.5 rounded-2xl">
@@ -1535,8 +1554,10 @@ const FeedPage: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowTagInput(!showTagInput)}
+                      aria-label="Add tags"
+                      aria-expanded={showTagInput}
                       className={cn(
-                        'grid place-items-center h-9 w-9 rounded-full transition-colors',
+                        'grid place-items-center h-11 w-11 rounded-full p-0 transition-colors',
                         showTagInput
                           ? 'text-sky-600 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
                           : 'text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10',
@@ -1552,10 +1573,11 @@ const FeedPage: React.FC = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-9 rounded-full gap-1 px-2.5 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10"
+                          aria-label="Post visibility and replies"
+                          className="h-11 w-11 rounded-full gap-1 p-0 text-muted-foreground hover:bg-black/5 sm:w-auto sm:px-2.5 dark:hover:bg-white/10"
                         >
                           {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.icon}
-                          <FiChevronDown className="h-3 w-3" />
+                          <FiChevronDown aria-hidden="true" className="hidden h-3 w-3 sm:block" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-64">
@@ -1628,7 +1650,7 @@ const FeedPage: React.FC = () => {
                         aria-label={dictation.listening ? 'Release to stop voice typing' : 'Hold to voice type'}
                         title={dictation.listening ? 'Release to stop voice typing' : 'Hold to voice type. Right-click to choose microphone.'}
                         className={cn(
-                          'relative grid place-items-center h-9 w-9 rounded-full transition-colors',
+                          'relative grid place-items-center h-11 w-11 rounded-full p-0 transition-colors',
                           dictation.listening
                             ? 'text-red-500 bg-red-500/10'
                             : 'text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10',
@@ -1722,10 +1744,10 @@ const FeedPage: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2">
+                  <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
                     {/* Show current settings as badges if not default */}
                     {(visibility !== 'PUBLIC' || replyPermission !== 'EVERYONE') && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-muted-foreground">
                         {visibility !== 'PUBLIC' && (
                           <Badge variant="outline" className="text-xs py-0">
                             {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.label}
@@ -1743,7 +1765,7 @@ const FeedPage: React.FC = () => {
                       onClick={handlePost}
                       disabled={isSubmitting || (!composeText.trim() && !pollQuestion.trim())}
                       size="sm"
-                      className="rounded-full px-5 bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover shadow-sm shadow-brand-accent/20 transition-all active:scale-[0.97] disabled:opacity-40"
+                      className="h-11 rounded-full px-4 bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover shadow-sm shadow-brand-accent/20 disabled:opacity-40"
                     >
                       {isSubmitting ? <Spinner /> : <><PulsePositive className="h-4 w-4 mr-1" /> {pulseLabels.post}</>}
                     </Button>
@@ -1755,7 +1777,7 @@ const FeedPage: React.FC = () => {
           )}
 
           {/* Feed - unified feed for all content types */}
-          <div className="space-y-3">
+          <div role="feed" aria-label="Pulse feed" aria-busy={loading} className="space-y-3">
             {loading ? (
               <FeedSkeleton count={5} />
             ) : items.length === 0 ? (
@@ -2111,8 +2133,8 @@ const FeedPage: React.FC = () => {
         </div>
 
         {/* Explore sidebar */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-4 space-y-4">
+        <aside aria-label="Explore Pulse" className="hidden min-w-0 lg:block">
+          <div data-pulse-explore-scroll tabIndex={0} aria-label="Explore Pulse panels" className="sticky top-[76px] max-h-[calc(100dvh-var(--app-header-offset,72px)-var(--demo-notice-height,0px)-92px)] space-y-4 overflow-y-auto overscroll-contain rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
             {!currentUser && (
               <div className="rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-zinc-200/80 dark:hover:bg-card/30">
                 <div className="font-semibold">Welcome</div>

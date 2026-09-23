@@ -269,6 +269,123 @@ test.describe("Layer 2 — Routing", () => {
 /*  Now we know routes work, verify they render something meaningful.  */
 /* ================================================================== */
 test.describe("Layer 3 — Content", () => {
+  test("S7 — mobile product native scrolling and profile tabs", async ({ browser, baseURL }) => {
+    test.setTimeout(90_000);
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained app-issued demo session');
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, colorScheme: 'dark' });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    try {
+      await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      const scroll = page.locator('[data-app-scroll-container]');
+      await page.mouse.move(190, 560);
+      await page.mouse.wheel(0, 450);
+      // A first gesture must move content, not merely run a header animation.
+      await expect.poll(() => scroll.evaluate(e => e.scrollTop)).toBeGreaterThan(100);
+      const purchase = page.getByRole('region', { name: 'Product purchase', exact: true });
+      await expect(purchase.getByRole('button', { name: 'Add to basket', exact: true })).toBeInViewport();
+      expect(await purchase.evaluate(e => Math.abs(e.getBoundingClientRect().bottom - innerHeight) < 2)).toBe(true);
+      await page.mouse.wheel(0, -4000);
+      await expect.poll(() => scroll.evaluate(e => e.scrollTop)).toBe(0);
+      await page.getByRole('button', { name: 'Next product image', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Previous product image', exact: true })).toBeEnabled();
+      await page.getByRole('button', { name: 'Previous product image', exact: true }).click();
+      for (const width of [320, 360, 390, 1280, 2560]) {
+        await page.setViewportSize({ width, height: 844 });
+        expect(await scroll.evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+      }
+      await page.goto('/profile', { waitUntil: 'domcontentloaded' });
+      const tabs = page.getByRole('tablist', { name: 'Profile sections' });
+      await expect(tabs).toBeVisible();
+      for (const width of [320, 360, 390, 1280, 2560]) {
+        await page.setViewportSize({ width, height: 844 });
+        expect(await tabs.evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      for (const name of ['Posts', 'Activity', 'Reach', 'Connections']) {
+        await page.getByRole('tab', { name, exact: true }).click();
+        await expect(page.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-selected', 'true');
+      }
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
+  test("S7 — Pulse filters, footer and independent navigation scrolling", async ({ browser, baseURL }) => {
+    test.setTimeout(120_000);
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    // Deterministic layout fixture only. Live feed/API behavior is separately
+    // exercised by the read-only audit harness and interactive browser checks.
+    await page.route('**/api/conversations?**', route => route.fulfill({ json: {
+      conversations: Array.from({ length: 12 }, (_, index) => ({
+        id: `layout-fixture-${index}`, title: 'Layout audit fixture',
+        description: 'A repeatable paragraph to exercise scrolling, sticky controls and the end of the feed.',
+        type: 'PUBLIC_THREAD', tags: ['layout'], userId: 'layout-fixture-user',
+        user: { id: 'layout-fixture-user', name: 'Layout reviewer', email: '' },
+        createdAt: '2026-01-01T12:00:00.000Z', messageCount: 1, hasPoll: false,
+      })), nextCursor: null,
+    } }));
+    try {
+      await page.goto('/pulse', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('feed', { name: 'Pulse feed' })).toHaveAttribute('aria-busy', 'false');
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 },
+        { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        const scroller = page.locator('[data-site-scroll]');
+        await expect.poll(() => scroller.evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+        await expect(page.getByRole('button', { name: 'Feed filters', exact: true })).toBeInViewport();
+        await page.mouse.move(size.width / 2, size.height - 100);
+        await page.mouse.wheel(0, 700);
+        await expect.poll(() => scroller.evaluate(e => e.scrollTop)).toBeGreaterThan(200);
+        if (size.width >= 1024) {
+          const rail = page.locator('[data-pulse-explore-scroll]');
+          const toolbar = await page.locator('[data-pulse-toolbar]').boundingBox();
+          const railBox = await rail.boundingBox();
+          expect(railBox!.y).toBeGreaterThanOrEqual(toolbar!.y + toolbar!.height);
+        }
+        await page.getByRole('button', { name: 'Polls', exact: true }).click();
+        await expect(page.getByText('No polls yet', { exact: true })).toBeVisible();
+        await expect.poll(() => scroller.evaluate(e => e.scrollTop)).toBe(0);
+        expect(await page.locator('footer').evaluate(e => e.getBoundingClientRect().top >= innerHeight - 1)).toBe(true);
+        await page.mouse.move(size.width / 2, size.height - 100);
+        await page.mouse.wheel(0, 2000);
+        await expect(page.locator('footer')).toBeInViewport();
+        const backgroundTop = await scroller.evaluate(e => e.scrollTop);
+        await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+        const drawer = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
+        await expect(drawer).toBeVisible();
+        await drawer.evaluate(async element => {
+          await Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {})));
+        });
+        const drawerScroller = page.locator('[data-navigation-scroll]');
+        const box = await drawerScroller.boundingBox();
+        await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+        await page.mouse.wheel(0, 4000);
+        await expect.poll(() => drawerScroller.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+        await page.mouse.wheel(0, 4000);
+        expect(await scroller.evaluate(e => e.scrollTop)).toBe(backgroundTop);
+        await page.keyboard.press('Escape');
+        await expect(drawer).toBeHidden();
+        await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeFocused();
+        await page.getByRole('button', { name: 'Feed filters', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'All Content', exact: true }).click();
+        await expect(page.getByRole('feed', { name: 'Pulse feed' })).toHaveAttribute('aria-busy', 'false');
+      }
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
   test("S3 — demo marketplace: real images, separate cart lines and reload", async ({ browser, baseURL }) => {
     test.setTimeout(120_000);
     // Reuse an app-issued demo session for repeated local QA without relaxing

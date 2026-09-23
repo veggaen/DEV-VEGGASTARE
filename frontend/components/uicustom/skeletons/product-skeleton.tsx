@@ -2,21 +2,23 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 
 export default function ProductSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-4 md:px-6 py-6">
-      <section className="grid lg:grid-cols-2 gap-6 lg:gap-10">
+    <div role="status" aria-label="Loading product" className="w-full min-w-0 space-y-6">
+      <span className="sr-only">Loading product</span>
+      <div aria-hidden className="size-11 rounded-lg bg-zinc-800 motion-safe:animate-pulse" />
+      <section aria-hidden className="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
         {/* Gallery skeleton */}
-        <div className="lg:sticky lg:top-6">
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-900/40 p-2 animate-pulse">
-            <AspectRatio ratio={1 / 1}>
+        <div className="lg:col-span-7">
+          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3 motion-safe:animate-pulse">
+            <AspectRatio ratio={3 / 2}>
               <div className="w-full h-full bg-linear-to-br from-zinc-200 to-zinc-300 dark:from-zinc-700 dark:to-zinc-800 rounded-xl" />
             </AspectRatio>
           </div>
         </div>
 
         {/* Details skeleton */}
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4 rounded-xl border border-white/10 p-4 sm:p-6 lg:col-span-5">
           {/* Hero heading skeleton */}
-          <div className="relative rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 bg-linear-to-br from-zinc-50/80 to-zinc-100/80 dark:from-zinc-900/50 dark:to-zinc-800/50 p-6 overflow-hidden animate-pulse">
+          <div className="relative overflow-hidden motion-safe:animate-pulse">
             {/* Category badge */}
             <div className="inline-flex mb-3">
               <div className="h-6 w-40 bg-zinc-200 dark:bg-zinc-700 rounded-full" />
@@ -67,7 +69,7 @@ export default function ProductSkeleton() {
       </section>
 
       {/* Specifications skeleton */}
-      <section className="mt-8 rounded-2xl bg-zinc-100/60 dark:bg-gray-800/50 border border-zinc-200 dark:border-gray-800 p-6 animate-pulse">
+      <section aria-hidden className="mt-8 rounded-2xl bg-zinc-100/60 dark:bg-gray-800/50 border border-zinc-200 dark:border-gray-800 p-6 motion-safe:animate-pulse">
         <div className="h-6 w-36 bg-zinc-200 dark:bg-zinc-700 rounded mb-4" />
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (

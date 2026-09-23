@@ -2,31 +2,19 @@
 
 import { useEffect, useState, useTransition, FC } from 'react';
 import Link from 'next/link';
-import { fetchWarehouses } from '@/actions/fetchWarehouses';
 import { updateWarehouseInventory } from '@/actions/updateWarehouse';
 import { Button } from '@/components/ui/button';
 import Spinner from '@/components/uicustom/spinner';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import Pusher from 'pusher-js';
 import throttle from 'lodash.throttle';
-import { Product, WarehouseLocation } from '@/generated/prisma/browser';
+import { WarehousesListResponseSchema, type WarehouseLocationDto } from '@/lib/types/warehouses';
 
 const LOG_PREFIX = '[frontend/app/warehouses/page.tsx]';
 
-interface InventoryItem {
-  id: string;
-  stock: number;
-  version: number;
-  Product: Product;
-}
-
-interface extendedWarehouse extends WarehouseLocation {
-  Inventory: InventoryItem[];
-}
-
 const WarehouseOverview = () => {
   const clientUser = useCurrentUser();
-  const [warehouses, setWarehouses] = useState<extendedWarehouse[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseLocationDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,26 +23,21 @@ const WarehouseOverview = () => {
   const [isPending, startTransition] = useTransition();
   const intervalDuration = 3600000; // 60 minutes
 
-  // Browser-only: pusher-js must never be constructed during SSR (its default
-  // export resolves to undefined in the server bundle → "not a constructor").
-  const pusherClient = typeof window === 'undefined'
-    ? undefined
-    : new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-        forceTLS: true,
-      });
-
   const getWarehouses = async () => {
     console.log(LOG_PREFIX, 'Fetching warehouses');
     try {
       setRefreshing(true);
-      const data = await fetchWarehouses();
+      // Read through the authenticated, role-filtered GET endpoint. A Server
+      // Action is a POST and is intentionally denied for read-only demo users.
+      const response = await fetch('/api/warehouses');
+      if (!response.ok) throw new Error('Warehouses are temporarily unavailable. Please retry.');
+      const data = WarehousesListResponseSchema.parse(await response.json());
       setWarehouses(data);
+      setError(null);
       setPermissionError(null); // Clear any permission error
-      console.log(LOG_PREFIX, 'Fetched warehouses:', data);
     } catch (error) {
       console.error(LOG_PREFIX, 'Failed to fetch warehouses:', (error as Error).message);
-      setError((error as Error).message);
+      setError('Warehouses are temporarily unavailable. Please retry.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -72,7 +55,11 @@ const WarehouseOverview = () => {
   }, []);
 
   useEffect(() => {
-    if (showDropdown && pusherClient) {
+    const key = process.env.NEXT_PUBLIC_PUSHER_KEY;
+    const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+    if (showDropdown && key && cluster) {
+      // One connection per open inventory, disposed on close/unmount.
+      const pusherClient = new Pusher(key, { cluster, forceTLS: true });
       const channelName = `WarehouseChannel_${showDropdown}`;
       console.log(`${LOG_PREFIX} Subscribing to channel ${channelName}`);
       const channel = pusherClient.subscribe(channelName);
@@ -84,7 +71,7 @@ const WarehouseOverview = () => {
             if (warehouse.id === data.payload.warehouseId) {
               return {
                 ...warehouse,
-                Inventory: warehouse.Inventory.map((item) =>
+                inventory: warehouse.inventory?.map((item) =>
                   item.id === data.payload.inventoryId ? { ...item, stock: data.payload.stock, version: data.payload.version } : item
                 ),
               };
@@ -100,6 +87,7 @@ const WarehouseOverview = () => {
         console.log(`${LOG_PREFIX} Unsubscribing from channel ${channelName}`);
         channel.unbind('my-event-warehouse', eventHandler);
         pusherClient.unsubscribe(channelName);
+        pusherClient.disconnect();
       };
     }
   }, [showDropdown]);
@@ -182,16 +170,16 @@ const WarehouseOverview = () => {
     );
   };
 
-  if (loading) return <Spinner />;
-  if (error) return <div>{error}</div>;
+  if (loading) return <section role="status" aria-label="Loading warehouses" className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8"><div className="h-8 w-56 rounded bg-muted motion-safe:animate-pulse" /><div className="h-48 rounded-xl bg-muted motion-safe:animate-pulse" /></section>;
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 min-h-screen bg-white dark:bg-gray-900 text-black dark:text-white">
-      <div className="flex justify-between items-center mb-4">
+    <div className="mx-auto w-full max-w-7xl px-4 py-8 text-foreground sm:px-6 lg:px-8">
+      <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Experimental · logistics workspace</p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-lg md:text-2xl font-bold">Warehouse Overview</h1>
         <LoadingTimer intervalDuration={intervalDuration} onRefresh={getWarehouses} refreshing={refreshing} />
       </div>
-      {refreshing && <Spinner />}
+      {error && <p role="alert" className="mb-6 rounded-xl border border-destructive/30 p-4 text-sm">{error}</p>}
       {permissionError && <div className="text-red-500">{permissionError}</div>}
       {warehouses.length === 0 ? (
         <p>No warehouses available.</p>
@@ -199,33 +187,34 @@ const WarehouseOverview = () => {
         <div className="flex flex-col justify-start items-center">
           {warehouses.map((warehouse) => (
             <div key={warehouse.id} className="mb-6 border p-4 bg-white/10 border-gray-200 dark:border-gray-700 w-full md:max-w-[1200px] rounded">
-              <div className="flex justify-between items-center gap-2">
-                <div>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="min-w-0">
                   <h2 className="text-lg md:text-xl font-semibold mb-2">
                     {warehouse.address ? `${warehouse.address}, ` : ''}
                     {warehouse.city ? `${warehouse.city}, ` : ''}
                     {warehouse.country}
                   </h2>
+                  {(!warehouse.address || !warehouse.city) && <p className="mb-2 text-sm text-muted-foreground">Address incomplete · not ready for shipping</p>}
                   <Link href={`/warehouses/${warehouse.id}`}>
                     <div className="text-blue-500 dark:text-blue-300 hover:underline">View Details</div>
                   </Link>
                 </div>
-                <Button variant="vegaNormalBtn" className="" onClick={() => setShowDropdown(showDropdown === warehouse.id ? null : warehouse.id)}>
+                {warehouse.inventory && <Button variant="vegaNormalBtn" className="min-h-11" aria-expanded={showDropdown === warehouse.id} onClick={() => setShowDropdown(showDropdown === warehouse.id ? null : warehouse.id)}>
                   {showDropdown === warehouse.id ? 'Hide inventory' : 'Show inventory'}
-                </Button>
+                </Button>}
               </div>
               {showDropdown === warehouse.id && (
                 <div className="warehousedropdown block">
                   <ul>
-                    {warehouse.Inventory.map((item) => (
-                      <li key={item.id} className="flex justify-between items-center mb-2">
-                        <div>
-                          <strong>{item.Product.title}</strong> - Stock: {item.stock}
+                    {warehouse.inventory?.map((item) => (
+                      <li key={item.id} className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <strong>{item.product.title}</strong> - Stock: {item.stock}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" onClick={() => handleStockUpdate(warehouse.id, item.id, 'add')}>+</Button>
-                          <Button variant="outline" onClick={() => handleStockUpdate(warehouse.id, item.id, 'subtract')}>-</Button>
-                        </div>
+                        {clientUser?.role === 'ADMIN' && <div className="flex items-center gap-2">
+                          <Button variant="outline" className="size-11" disabled={isPending} aria-label={`Increase stock for ${item.product.title}`} onClick={() => handleStockUpdate(warehouse.id, item.id, 'add')}>+</Button>
+                          <Button variant="outline" className="size-11" disabled={isPending || item.stock <= 0} aria-label={`Decrease stock for ${item.product.title}`} onClick={() => handleStockUpdate(warehouse.id, item.id, 'subtract')}>−</Button>
+                        </div>}
                       </li>
                     ))}
                   </ul>

@@ -35,6 +35,37 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 - Final release `f2e68c7`, deployment `dpl_PJxBHUGyQunCL9pU2jvTdmvA2h9h`, is READY at www.veggat.com. Expanded marketplace test passes locally 2/2 (14.2s) and live 2/2 (27.8s), including setup. Live uses a fresh demo from the visible homepage button, both real product images, separate cart lines, reload at 390/1280, add/increment/decrement/remove badge synchronization, stable row order and demo upload denial. No browser exceptions.
 - Remaining: checkout, paid order/receipt, seller order visibility, private signed downloads and credit grants (S4/S5). Do not claim this vertical slice is complete yet.
 
+## S4 — Verified checkout (PARTIAL, local implementation)
+
+- Additive production database migration applied: server-side checkout attempts,
+  unique capture/request IDs, separate environment credit ledgers and nonnegative
+  balance constraints. No unrelated database objects removed.
+- Server-priced 29/39 NOK SKUs, separate line items, two attempts/user/day,
+  strict verified-capture amount/currency/order/payee binding, transactional
+  fulfillment and replay protection implemented. Return URLs cannot grant goods.
+- Real private JPG/TXT files provisioned; raw storage URLs deny unauthenticated
+  access. Authenticated entitlement route checks ownership, completion, expiry,
+  revocation and usage cap before returning verified file bytes.
+- Local browser: free demo checkout completed with both items, 0.00 NOK receipt,
+  real JPG/TXT downloads, signed-out download 401, replay returns the same order.
+  Demo purchase intentionally grants no paid balance; S5 free grant is pending.
+- Payment/storage/entitlement unit tests **60/60**; database constraint checks
+  **4/4** in a rolled-back transaction. No real or sandbox PayPal charge yet.
+- `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` remain missing.
+  Normal payment CTA fails closed. Production values belong only in Vercel
+  Production; local/preview use Sandbox. Refund workflow remains unfinished.
+- New S4 code is not yet deployed. Previous S3 deployment remains live.
+
+## S7/S8 — Restarted mobile audit (PARTIAL)
+
+- See [responsive audit](responsive-audit.md) for real scrolling reproductions,
+  fixes, screenshots, targeted tests and explicit coverage limits.
+- Local Pulse/footer, dropdown, drawer, profile-tab and product mobile fixes
+  verified in their recorded scope. Production build passed; focused browser
+  regressions **4/4** (30.4s including setup), payment/storage/warehouse units
+  **62/62**. Warehouses GET/refresh 200; mobile dashboard rail is hidden and the
+  paper-trading demo is explicitly read-only. Full feature/live audit is incomplete.
+
 ## Feature scoreboard
 
 | Area | Feature | Status / evidence |
@@ -45,9 +76,9 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 | Auth | GitHub, Discord | PARTIAL — initiation checked, full consent/callback pending |
 | Shop | List, PDP, images | DONE — both reviewer products and actual images verified locally/live |
 | Shop | Cart | DONE — two lines, reload, quantity/removal, stable ordering and badge synchronization locally/live |
-| Shop | Checkout | PARTIAL — legacy new orders fail closed during replacement |
-| Shop | Live PayPal, sandbox PayPal | PARTIAL — no payment made; environment verification and server-priced orders pending |
-| Shop | Confirmation, signed download | PARTIAL — verified-capture/entitlement tests pending |
+| Shop | Checkout | PARTIAL — local free demo UI completed; normal payment safely disabled without keys |
+| Shop | Live PayPal, sandbox PayPal | BLOCKED on PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_WEBHOOK_ID; implementation and mocked validation done, provider transactions not run |
+| Shop | Confirmation, signed download | PARTIAL — local demo receipt and actual JPG/TXT downloads pass; anonymous 401 and idempotent replay pass; live pending |
 | Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — seeded at 29/39 NOK; paid fulfillment pending |
 | AI | Chat, selector, streaming | DONE (previous deployment) — local/live Gemini, Groq, OpenAI/Grok one-time-key UI tests |
 | AI | Credit debit, zero balance, no overcharge | PARTIAL — existing premium denial tested; atomic ledger/fuse not implemented |
@@ -66,8 +97,8 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 - Work is isolated in the `showcase/ai-revival` worktree; original dirty workspace preserved.
 - Local OAuth origin is `http://localhost:3000`.
 - Current local production-mode test process uses the live database. Test identities are isolated and non-admin; no Live PayPal keys are added to localhost.
-- Native Chrome is readable, but click geometry/screenshot capture currently fails (`SetIsBorderRequired`, `0x80004002`). Playwright is the active browser test mechanism. Do not spoof Google's browser checks or telemetry automation exclusions.
-- Demo creates a separate temporary USER per visitor, bounded to five per daily IP fingerprint and 200 globally/day in a serialized database transaction; no shared password/account. Demo mutations are restricted to its cart and logout, and sessions expire after a day. Demo AI stays blocked until atomic grants and the platform fuse ship in S5.
+- After the PC crash, Chrome inventory is empty and the native helper pipe is unavailable. Playwright is the active browser test mechanism, not the owner's Chrome. Do not spoof Google's browser checks or telemetry automation exclusions.
+- Demo creates a separate temporary USER per visitor, bounded to five per daily IP fingerprint and 200 globally/day in a serialized database transaction; no shared password/account. Demo mutations are restricted to its cart, unpaid demo checkout and logout (storage session initialization is read-only), and sessions expire after a day. Demo AI stays blocked until atomic grants and the platform fuse ship in S5.
 - New paid entitlements must never be granted from client prices or a return URL. S4/S5 remain release blockers.
 - PayPal credentials are absent locally and in Vercel Production. Owner asked to create Sandbox credentials (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`) locally; Live credentials must stay in Vercel Production. `PAYPAL_WEBHOOK_ID` also remains absent. Dashboard inspection redirected to owner sign-in. No test or real charge has been made.
-- Payment implementation references: [PayPal environment separation](https://developer.paypal.com/api/make-api-requests), [Orders v2](https://developer.paypal.com/api/orders/v2), [idempotency](https://developer.paypal.com/api/rest/reference/idempotency/). The existing capture handler lacks amount/order binding and the legacy webhook verifier bypasses verification in development; replacement must close both before payment is re-enabled.
+- Payment implementation references: [PayPal environment separation](https://developer.paypal.com/api/make-api-requests), [Orders v2](https://developer.paypal.com/api/orders/v2), [idempotency](https://developer.paypal.com/api/rest/reference/idempotency/). Unsafe legacy capture/grant handlers now fail closed; webhook development bypass removed. Production webhook target is `/api/webhooks/paypal`.

@@ -78,7 +78,7 @@ function OwnerCheckoutTestPanel() {
 export default function MyProductCreationPage() {
   return (
     <div className="h-full w-full overflow-y-auto bg-background text-foreground">
-      <main className="mx-auto w-full max-w-[1040px] px-4 py-5 sm:px-6 lg:px-8">
+      <section aria-label="Create product" className="mx-auto w-full max-w-[1040px] px-4 py-5 sm:px-6 lg:px-8">
         <div className="mb-5 flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -99,7 +99,7 @@ export default function MyProductCreationPage() {
 
         <MyProductCreationForm />
         <OwnerCheckoutTestPanel />
-      </main>
+      </section>
     </div>
   );
 }

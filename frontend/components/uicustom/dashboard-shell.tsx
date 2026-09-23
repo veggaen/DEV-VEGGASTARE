@@ -30,23 +30,23 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
     switch (position) {
       case "left":
-        return { paddingLeft: offset, transition: "padding-left 0.3s cubic-bezier(0.4,0,0.2,1)" };
+        return { '--dashboard-left': `${offset}px` } as React.CSSProperties;
       case "right":
-        return { paddingRight: offset, transition: "padding-right 0.3s cubic-bezier(0.4,0,0.2,1)" };
+        return { '--dashboard-right': `${offset}px` } as React.CSSProperties;
       case "top":
-        return { paddingTop: offset };
+        return { '--dashboard-top': `${offset}px` } as React.CSSProperties;
       case "bottom":
-        return { paddingBottom: offset };
+        return { '--dashboard-bottom': `${offset}px` } as React.CSSProperties;
     }
   }, [position, isExpanded]);
 
   return (
     <section
-      className="relative w-full min-h-[calc(100dvh-var(--app-header,72px))]"
+      className="relative w-full min-w-0 min-h-[calc(100dvh-var(--app-header-offset,72px)-var(--demo-notice-height,0px))] lg:pl-[var(--dashboard-left,0px)] lg:pr-[var(--dashboard-right,0px)] lg:pt-[var(--dashboard-top,0px)] lg:pb-[var(--dashboard-bottom,0px)]"
       style={contentStyle}
     >
       {children}
-      <MyMenuSide />
+      <div className="hidden lg:block"><MyMenuSide /></div>
     </section>
   );
 }

@@ -2,7 +2,7 @@
 
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RefCallback, RefObject } from "react";
 import { usePathname } from "next/navigation";
 import { MySidebarProductsMenu } from "../uicustom/product/sidebar";
@@ -165,6 +165,9 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		}
 	}, [hideSidebarOnThisRoute]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [pathname]);
 	// Swipe-to-open on mobile: kept lightweight (passive touch listeners), and only
 	// triggers when the gesture starts near the screen edges.
 	useEffect(() => {
@@ -183,8 +186,6 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		let startCarouselCanScrollPrev = false;
 		let startCarouselCanScrollNext = false;
 		let isSwipingSidebar = false;
-		let lastScrollTop = el.scrollTop || 0;
-		let upAccum = 0;
 		const isMobile = () => (window.matchMedia ? !window.matchMedia("(min-width: 768px)").matches : true);
 		const setChrome = (nextControls: boolean, nextTopbar: boolean) => {
 			if (productsControlsVisibleRef.current !== nextControls) setProductsControlsVisible(nextControls);
@@ -398,49 +399,9 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 			}
 		};
 
-		const onChromeScroll = () => {
-			if (!isMobile()) {
-				setChrome(true, true);
-				lastScrollTop = el.scrollTop || 0;
-				upAccum = 0;
-				return;
-			}
-			// Don't auto-hide UI while a sheet is open.
-			if (menuOpenRef.current || sidebarOpenRef.current || isSidebarSwipingRef.current) return;
-
-			const top = el.scrollTop || 0;
-			const delta = top - lastScrollTop;
-			lastScrollTop = top;
-
-			// At the very top, show everything.
-			if (top <= 2) {
-				upAccum = 0;
-				setChrome(true, true);
-				return;
-			}
-
-			const DOWN_EPS = 2;
-			const UP_EPS = 2;
-			const HIDE_AFTER_PX = 10;
-			const REVEAL_CONTROLS_UP_PX = 10;
-			const REVEAL_TOPBAR_UP_PX = 44;
-
-			if (delta > DOWN_EPS) {
-				upAccum = 0;
-				if (top >= HIDE_AFTER_PX) setChrome(false, false);
-				return;
-			}
-
-			if (delta < -UP_EPS) {
-				upAccum += -delta;
-				if (!productsControlsVisibleRef.current && upAccum >= REVEAL_CONTROLS_UP_PX) {
-					setChrome(true, false);
-				}
-				if (!topBarVisibleRef.current && upAccum >= REVEAL_TOPBAR_UP_PX) {
-					setChrome(true, true);
-				}
-			}
-		};
+		// Keep navigation stable while scrolling. Collapsing the global header
+		// changed the viewport height and shifted product content on every gesture.
+		const onChromeScroll = () => setChrome(true, true);
 
 		el.addEventListener("touchstart", onTouchStart, { passive: true });
 		el.addEventListener("touchmove", onTouchMove, { passive: false });
@@ -463,11 +424,6 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 	// Sticky toolbar - registered by pages, rendered at scroll container level
 	const [stickyToolbar, setStickyToolbar] = useState<React.ReactNode>(null);
 		const [isContentScrolled, setIsContentScrolled] = useState(false);
-		// "Compact / full" mode for /products. Entered on first scroll gesture even if we prevent
-		// the actual scroll movement, to avoid the initial scroll feeling "boosted".
-		const [isCompactMode, setIsCompactMode] = useState(false);
-		const compactRef = useRef(false);
-		const hasLeftTopRef = useRef(false);
 		// Scroll progress (0-1) for progress indicator
 		const [scrollProgress, setScrollProgress] = useState(0);
 	const [sidebarDock, setSidebarDockState] = useState<SidebarDock>(() => {
@@ -538,194 +494,22 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		};
 	}, [productsFrameNode]);
 
-	// Track scroll state (docked vs floating) based on the owned scroll container.
+	// Native scrolling must respond to the first wheel or touch gesture. Compact
+	// chrome follows the actual position; never consume input to run an animation.
 	useEffect(() => {
 		const el = scrollContainerRef.current;
 		if (!el) return;
-
-			// Mobile: first upward swipe (which would normally scroll content down) at the very top
-			// should only enter compact mode, without moving the grid.
-			let touchStartX: number | null = null;
-			let touchStartY: number | null = null;
-			let blockTouchScrollForGesture = false;
-			const TOUCH_THRESHOLD_PX = 6;
-			const onTouchStart = (e: TouchEvent) => {
-				blockTouchScrollForGesture = false;
-				if (e.touches.length !== 1) {
-					touchStartX = null;
-					touchStartY = null;
-					return;
-				}
-				touchStartX = e.touches[0].clientX;
-				touchStartY = e.touches[0].clientY;
-			};
-			const onTouchMove = (e: TouchEvent) => {
-				// Allow pinch-zoom / multi-touch gestures.
-				if (e.touches.length !== 1) return;
-
-				// Ignore touch events from inside the filters sidebar - let sidebar scroll independently
-				const target = e.target as HTMLElement | null;
-				if (target?.closest('[data-sidebar-filters="true"]')) return;
-
-				if (blockTouchScrollForGesture) {
-					e.preventDefault();
-					e.stopPropagation();
-					return;
-				}
-
-				if (touchStartX == null || touchStartY == null) return;
-				const dx = e.touches[0].clientX - touchStartX;
-				const dy = e.touches[0].clientY - touchStartY;
-
-				// Ignore mostly-horizontal gestures.
-				if (Math.abs(dx) > Math.abs(dy)) return;
-
-				// Helper to detect mobile for chrome visibility
-				const isMobile = () => (window.matchMedia ? !window.matchMedia("(min-width: 768px)").matches : true);
-
-				// Helper to update chrome visibility (updates refs + state + dispatches event)
-				const updateChrome = (controls: boolean, topbar: boolean) => {
-					setProductsControlsVisible(controls);
-					setTopBarVisible(topbar);
-					productsControlsVisibleRef.current = controls;
-					topBarVisibleRef.current = topbar;
-					try {
-						window.dispatchEvent(
-							new CustomEvent("veggat:products-chrome", {
-								detail: { controlsVisible: controls, topbarVisible: topbar },
-							})
-						);
-					} catch {}
-				};
-
-				// dy < 0 means finger moved up -> would scroll content down (enter compact).
-				if (el.scrollTop === 0 && !compactRef.current && dy < -TOUCH_THRESHOLD_PX) {
-					e.preventDefault();
-					e.stopPropagation();
-					blockTouchScrollForGesture = true;
-					compactRef.current = true;
-					setIsCompactMode(true);
-					setIsContentScrolled(true);
-					// On mobile, entering compact mode should also hide the chrome
-					if (isMobile()) {
-						updateChrome(false, false);
-					}
-					return;
-				}
-
-				// dy > 0 means finger moved down -> would scroll content up (exit compact).
-				// Allow exiting compact mode with swipe down when at top.
-				if (el.scrollTop === 0 && compactRef.current && dy > TOUCH_THRESHOLD_PX) {
-					e.preventDefault();
-					e.stopPropagation();
-					blockTouchScrollForGesture = true;
-					compactRef.current = false;
-					setIsCompactMode(false);
-					setIsContentScrolled(false);
-					// On mobile, exiting compact mode should show the chrome
-					if (isMobile()) {
-						updateChrome(true, true);
-					}
-				}
-			};
-			const onTouchEnd = () => {
-				blockTouchScrollForGesture = false;
-				touchStartX = null;
-				touchStartY = null;
-			};
-
-			const onWheel = (e: WheelEvent) => {
-				// allow ctrl/cmd + wheel zoom gestures
-				if (e.ctrlKey || e.metaKey) return;
-
-				// Ignore wheel events from inside the filters sidebar - let sidebar scroll independently
-				const target = e.target as HTMLElement | null;
-				if (target?.closest('[data-sidebar-filters="true"]')) return;
-
-				// First downward wheel notch at the very top should *only* enter compact mode,
-				// not actually scroll the products grid.
-				if (el.scrollTop === 0 && !compactRef.current && e.deltaY > 0) {
-					e.preventDefault();
-					e.stopPropagation();
-					compactRef.current = true;
-					setIsCompactMode(true);
-					setIsContentScrolled(true);
-					return;
-				}
-
-				// Wheel up while at top AND in compact mode should exit compact mode.
-				// This allows "scroll down once to enter, scroll up once to exit".
-				if (el.scrollTop === 0 && compactRef.current && e.deltaY < 0) {
-					e.preventDefault();
-					e.stopPropagation();
-					compactRef.current = false;
-					setIsCompactMode(false);
-					setIsContentScrolled(false);
-				}
-			};
-
 		const onScroll = () => {
 			const top = el.scrollTop;
-				// Calculate scroll progress (0-1)
-				const scrollHeight = el.scrollHeight - el.clientHeight;
-				const progress = scrollHeight > 0 ? Math.min(1, top / scrollHeight) : 0;
-				setScrollProgress(progress);
-
-				if (top > 0) {
-					hasLeftTopRef.current = true;
-					// Once the user has actually scrolled, we stay in compact mode.
-					if (!compactRef.current) {
-						compactRef.current = true;
-						setIsCompactMode(true);
-					}
-					setIsContentScrolled(true);
-					return;
-				}
-
-				// top === 0
-				if (hasLeftTopRef.current) {
-					// User returned to the very top after scrolling; restore the hero state.
-					hasLeftTopRef.current = false;
-					if (compactRef.current) setIsCompactMode(false);
-					setIsContentScrolled(false);
-					return;
-				}
-
-				// Still at the very top (we may be in compact mode via the first wheel gesture).
-				setIsContentScrolled(compactRef.current);
+			const max = el.scrollHeight - el.clientHeight;
+			setScrollProgress(max > 0 ? Math.min(1, top / max) : 0);
+			setIsContentScrolled(top > 8);
+			if (top > 8) el.setAttribute('data-products-compact', 'true');
+			else el.removeAttribute('data-products-compact');
 		};
-
-		onScroll();
-			el.addEventListener("touchstart", onTouchStart, { passive: true });
-			el.addEventListener("touchmove", onTouchMove, { passive: false });
-			el.addEventListener("touchend", onTouchEnd, { passive: true });
-			el.addEventListener("touchcancel", onTouchEnd, { passive: true });
-			el.addEventListener("wheel", onWheel, { passive: false });
-			el.addEventListener("scroll", onScroll, { passive: true });
-			return () => {
-				el.removeEventListener("touchstart", onTouchStart);
-				el.removeEventListener("touchmove", onTouchMove);
-				el.removeEventListener("touchend", onTouchEnd);
-				el.removeEventListener("touchcancel", onTouchEnd);
-				el.removeEventListener("wheel", onWheel);
-				el.removeEventListener("scroll", onScroll);
-			};
+		el.addEventListener('scroll', onScroll, { passive: true });
+		return () => el.removeEventListener('scroll', onScroll);
 	}, []);
-
-		// Keep refs + a DOM hint in sync for components outside this provider (TopBar).
-		useEffect(() => {
-			compactRef.current = isCompactMode;
-			const el = scrollContainerRef.current;
-			if (!el) return;
-			if (isCompactMode) {
-				el.setAttribute("data-products-compact", "true");
-			} else {
-				el.removeAttribute("data-products-compact");
-			}
-			// Trigger listeners that only react to scroll events (e.g. TopBar) even when
-			// the first wheel gesture was prevented.
-			el.dispatchEvent(new Event("scroll"));
-		}, [isCompactMode]);
 
   // Prevent “double scrollbars” (window + inner container) on /products.
   // The ProductProvider owns the main scroll area via `scrollContainerRef`.

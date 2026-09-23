@@ -592,7 +592,7 @@ export default function MyProductsPage() {
 											? selectedCategories.length === 1
 												? selectedCategories[0]
 												: `${selectedCategories.length} categories`
-											: 'Freedom Store'} / live marketplace
+											: 'Veggat'} / digital marketplace
 									</motion.div>
 
 									</div>

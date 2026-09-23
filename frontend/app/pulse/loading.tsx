@@ -7,15 +7,21 @@ import { FeedSkeleton, Skeleton } from "@/components/ui/skeleton";
  */
 export default function PulseLoading() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
+    <div role="status" aria-label="Loading Pulse" className="mx-auto w-full max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
+      <span className="sr-only">Loading Pulse…</span>
+      <div aria-hidden="true" className="flex h-[60px] items-center justify-between">
+        <Skeleton className="h-7 w-16" />
+        <Skeleton className="h-5 w-24 rounded-full" />
+      </div>
       {/* Tab row */}
-      <div className="mb-5 flex items-center gap-4">
-        {[14, 12, 10, 16].map((w, i) => (
-          <Skeleton key={i} className="h-4 animate-pulse rounded" style={{ width: `${w * 6}px` }} />
+      <div aria-hidden="true" className="mb-5 flex h-[61px] min-w-0 items-center gap-2 border-b border-border/50">
+        {[0, 1, 2].map(i => (
+          <Skeleton key={i} className="h-11 min-w-0 flex-1 rounded sm:max-w-24" />
         ))}
+        <Skeleton className="size-11 shrink-0 rounded" />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div aria-hidden="true" className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         {/* Feed column */}
         <div className="min-w-0 space-y-3">
           {/* Composer */}

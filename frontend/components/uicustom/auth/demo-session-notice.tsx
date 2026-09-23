@@ -13,8 +13,10 @@ export default function DemoSessionNotice() {
     return () => { observer.disconnect(); document.documentElement.style.removeProperty('--demo-notice-height'); };
   }, [data?.user?.isDemo]);
   if (!data?.user?.isDemo) return null;
-  return <aside ref={ref} className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b bg-muted px-4 py-2 text-sm" aria-label="Demo mode">
-    <span>Demo mode · Your own temporary workspace · No real payments</span>
-    <button type="button" className="min-h-11 underline underline-offset-4" onClick={() => void signOut({ callbackUrl: '/' })}>Exit demo</button>
+  return <aside ref={ref} className="relative z-10 shrink-0 border-b bg-muted text-sm" aria-label="Demo mode">
+    <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-1 sm:justify-center sm:gap-4 sm:px-6 lg:px-8">
+      <span className="min-w-0 text-xs leading-relaxed sm:text-sm"><span className="sm:hidden">Demo workspace · No payments</span><span className="hidden sm:inline">Demo mode · Your own temporary workspace · No real payments</span></span>
+      <button type="button" className="min-h-11 shrink-0 rounded px-1 underline underline-offset-4 focus-visible:outline focus-visible:outline-2" onClick={() => void signOut({ callbackUrl: '/' })}>Exit demo</button>
+    </div>
   </aside>;
 }
