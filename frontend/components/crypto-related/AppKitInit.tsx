@@ -17,6 +17,7 @@ import type { AppKitNetwork } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { cookieStorage, createStorage } from '@wagmi/core';
 import { getDappOrigin } from './dapp-origin';
+import { WEB3_PROJECT_ID } from '@/lib/web3-config';
 
 const pulsechain = {
   id: 369,
@@ -57,9 +58,7 @@ const enableLocalChains =
   process.env.NEXT_PUBLIC_ENABLE_LOCAL_CHAINS === 'true' || isTestMode;
 
 // Project ID — prefer Reown AppKit (social login + WC), fall back to WalletConnect-only
-const projectId = process.env.NEXT_PUBLIC_APPKIT_PROJECT_ID ??
-  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ??
-  process.env.NEXT_PUBLIC_PROJECT_ID ?? '';
+const projectId = WEB3_PROJECT_ID;
 
 const appKitAnalyticsEnabled = process.env.NEXT_PUBLIC_APPKIT_ANALYTICS === 'true';
 

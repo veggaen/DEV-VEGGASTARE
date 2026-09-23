@@ -2,7 +2,7 @@
 
 Veggat is a trust-first marketplace for digital products: discover a file, checkout, and receive an authenticated, time-limited download. Multi-provider AI adds a second example of server-authoritative access and billing.
 
-[Live app](https://www.veggat.com) · [Architecture](architecture.md) · [Verified feature scoreboard](docs/production-scoreboard.md) · [Frontend setup](frontend/README.md)
+[Live app](https://www.veggat.com) · [Architecture](docs/architecture.md) · [Verified feature scoreboard](docs/production-scoreboard.md) · [Frontend setup](frontend/README.md)
 
 ## Try it in 90 seconds
 
@@ -14,7 +14,7 @@ Open the public homepage and choose **Try the demo — no payment**. No password
 
 The real reviewer SKUs are **29 NOK** for the Interview Pack and **39 NOK** for 100 AI credits. These are optional, real-money purchases only when production PayPal is configured. **PayPal credentials are currently missing; no Live or Sandbox purchase has been verified.** Demo purchases cost 0 NOK and never simulate a paid credit grant.
 
-The S5 credit integration is undergoing local/live acceptance testing. Read the scoreboard for the current deployed evidence rather than treating feature code as proof of completion.
+The demo includes five one-time AI credits. Real OpenAI/Groq replies, saved conversations, credit debit and premium denial at zero have passed local and live browser tests. Paid-credit purchase still awaits PayPal credentials. Read the scoreboard for model-specific coverage and remaining release gates.
 
 ## Architecture
 

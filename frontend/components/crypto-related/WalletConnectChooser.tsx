@@ -37,41 +37,36 @@ export default function WalletConnectChooser({
   authenticateDirect?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
+  const [opening, setOpening] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const openAppKit = async () => {
+    if (!IS_WEB3_CONFIGURED || opening) return;
+    setOpening(true);
+    setError(null);
     try {
       const { ModalController } = await import("@reown/appkit-controllers");
-      ModalController.open({ view: "Connect" });
+      await ModalController.open({ view: "Connect" });
       setOpen(false);
-      setTimeout(() => {
-        const isOpen = (ModalController as unknown as { state?: { open?: boolean } })?.state?.open;
-        if (!isOpen) {
-          import("sonner").then(({ toast }) =>
-            toast.error("Wallet connect is still loading — try again in a moment.")
-          );
-        }
-      }, 600);
     } catch {
-      import("sonner").then(({ toast }) =>
-        toast.error("Wallet connect unavailable right now.")
-      );
-    }
+      setError("WalletConnect could not open. Try a browser wallet below, or try again later.");
+    } finally { setOpening(false); }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-md rounded-2xl border-border/60 bg-card shadow-2xl">
-        <DialogHeader>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto overscroll-contain sm:max-w-md rounded-2xl border-border/60 bg-card p-4 shadow-2xl sm:p-6 [&>button]:right-2 [&>button]:top-2 [&>button]:flex [&>button]:size-11 [&>button]:items-center [&>button]:justify-center motion-reduce:animate-none">
+        <DialogHeader className="pr-10 text-left">
           <DialogTitle className="text-lg">Connect a wallet</DialogTitle>
           <DialogDescription>
-            Pick how you want to connect — the full picker, or your wallet directly.
+            Connect a browser wallet or use WalletConnect. Connecting alone does not authorize a payment.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-1">
           {/* Method 1 — All wallets via Reown AppKit */}
-          {IS_WEB3_CONFIGURED && (
+          {IS_WEB3_CONFIGURED ? (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Recommended
@@ -79,7 +74,8 @@ export default function WalletConnectChooser({
               <button
                 type="button"
                 onClick={openAppKit}
-                className="group flex w-full items-center gap-3 rounded-xl border border-border/70 bg-muted/30 p-3.5 text-left transition-all hover:border-brand-accent/50 hover:bg-muted/60 active:scale-[0.99]"
+                disabled={opening}
+                className="group flex w-full items-center gap-3 rounded-xl border border-border/70 bg-muted/30 p-3.5 text-left hover:border-brand-accent/50 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
               >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-accent/12 text-brand-accent">
                   {/* Reown / AppKit mark */}
@@ -89,18 +85,22 @@ export default function WalletConnectChooser({
                   </svg>
                 </span>
                 <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">Reown AppKit</span>
+                  <span className="block text-sm font-semibold text-foreground">{opening ? 'Opening WalletConnect…' : 'WalletConnect · Reown'}</span>
                   <span className="block text-xs text-muted-foreground">600+ wallets · WalletConnect QR · social &amp; email</span>
                 </span>
                 <FiChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
               </button>
             </div>
-          )}
+          ) : <div className="rounded-xl border border-border bg-muted/30 p-4">
+            <p className="text-sm font-medium">WalletConnect unavailable</p>
+            <p className="mt-1 text-sm text-muted-foreground">QR and mobile-wallet connections are not configured for this deployment. A detected browser wallet can still connect below.</p>
+          </div>}
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
           {/* Method 2 — Direct, no Reown */}
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Or connect directly
+              Browser wallets
             </p>
             <DirectWalletConnect authenticateOnConnect={authenticateDirect} onConnected={() => setOpen(false)} />
             <p className="mt-2 text-[11px] text-muted-foreground/70">

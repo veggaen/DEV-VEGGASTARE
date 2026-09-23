@@ -14,6 +14,7 @@ import { randomBytes, timingSafeEqual } from 'crypto';
 import { sendPaypalVerificationEmail } from '@/lib/mail';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { isDemoUserId } from '@/lib/demo-policy';
 
 const log = createLogger('seller-payment');
 
@@ -55,6 +56,7 @@ type Result = { error: string } | { success: string };
 async function authAndRateLimit(): Promise<{ error: string } | { dbUser: { id: string } }> {
   const me = await MyLibUserAuth();
   if (!me?.id) return { error: 'Unauthorized' };
+  if (isDemoUserId(me.id)) return { error: 'Demo accounts cannot change payout settings. Use your own account.' };
 
   const rl = await checkRateLimit(me.id, 'payment');
   if (!rl.success) return { error: 'Too many requests. Please try again shortly.' };

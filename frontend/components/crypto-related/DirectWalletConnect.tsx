@@ -38,8 +38,25 @@ export default function DirectWalletConnect({
 }) {
   const { connectAsync, connectors, isPending, variables } = useConnect();
   const { signInWithAddress, signingIn: authing } = useWalletSignIn();
+  const [error, setError] = React.useState<string | null>(null);
+  const [ready, setReady] = React.useState<Record<string, boolean>>({});
+  React.useEffect(() => {
+    let active = true;
+    for (const connector of connectors) {
+      // Only probe extension connectors. SDK / WalletConnect providers may open
+      // an external picker and must not initialize as a side effect of rendering.
+      if (connector.type !== 'injected') continue;
+      void connector.getProvider().then(provider => {
+        if (active) setReady(previous => ({ ...previous, [connector.uid]: !!provider }));
+      }).catch(() => {
+        if (active) setReady(previous => ({ ...previous, [connector.uid]: false }));
+      });
+    }
+    return () => { active = false; };
+  }, [connectors]);
 
   const handleConnect = async (connector: (typeof connectors)[number]) => {
+    setError(null);
     try {
       const result = await connectAsync({ connector });
       const account = result.accounts?.[0];
@@ -51,12 +68,12 @@ export default function DirectWalletConnect({
       }
       // Shared SIWE flow (wagmi useSignMessage under the hood) — same path the
       // AppKit bridge uses, so there's one implementation.
-      await signInWithAddress(account);
+      if (await signInWithAddress(account)) onConnected?.();
     } catch (e) {
       const msg = (e as Error)?.message ?? "";
-      if (!/reject|denied|cancel/i.test(msg)) {
-        toast.error(msg.slice(0, 120) || "Wallet connection failed", { id: "wallet-auth" });
-      }
+      setError(/reject|denied|cancel/i.test(msg)
+        ? 'Connection cancelled. You can choose a wallet again when ready.'
+        : 'Could not connect. Check that your wallet is installed and unlocked, then try again.');
     }
   };
 
@@ -90,23 +107,25 @@ export default function DirectWalletConnect({
   if (direct.length === 0) {
     return (
       <div className={`rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 text-sm text-muted-foreground ${className}`}>
-        No browser extension wallets detected. Install MetaMask, Coinbase Wallet, Rabby, or use WalletConnect.
+        No browser extension wallets detected. Open Veggat in your wallet browser or use a browser with a wallet extension installed.
       </div>
     );
   }
 
   return (
     <div className={`grid grid-cols-1 gap-2 ${className}`}>
+      {error && <p role="alert" className="rounded-lg border border-border p-3 text-sm text-muted-foreground">{error}</p>}
       {direct.map((w) => {
         const busy = (isPending && variables?.connector === w.connector) || authing;
         const pending = busy;
+        const unavailable = w.connector.type === 'injected' && !ready[w.connector.uid];
         return (
           <button
             key={w.connector.uid}
             type="button"
-            disabled={isPending || authing}
+            disabled={isPending || authing || unavailable}
             onClick={() => handleConnect(w.connector)}
-            className="flex items-center gap-3 h-12 rounded-xl border border-border/70 bg-muted/20 px-3 text-sm font-medium text-foreground enabled:hover:border-brand-accent/40 enabled:hover:bg-muted/50 transition-all active:scale-[0.99] disabled:opacity-60 disabled:cursor-wait"
+            className="flex min-h-12 items-center gap-3 rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-sm font-medium text-foreground enabled:hover:border-brand-accent/40 enabled:hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
             title={`Connect with ${w.label}`}
           >
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-background">
@@ -118,7 +137,9 @@ export default function DirectWalletConnect({
                 <span className="text-base leading-none">{w.emoji}</span>
               )}
             </span>
-            <span className="flex-1 text-left">{authing ? "Sign in your wallet…" : pending ? "Connecting…" : w.label}</span>
+            <span className="min-w-0 flex-1 text-left">{authing ? "Sign in your wallet…" : pending ? "Connecting…" : w.label}
+              {unavailable && <span className="block text-xs font-normal text-muted-foreground">No extension detected in this browser</span>}
+            </span>
           </button>
         );
       })}

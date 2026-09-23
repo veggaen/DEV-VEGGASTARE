@@ -9,6 +9,9 @@ import { useEffect, useState, useTransition, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import Link from 'next/link';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { isDemoUserId } from '@/lib/demo-policy';
 import {
   FiCheckCircle, FiAlertCircle, FiMail, FiTrash2, FiLoader,
   FiCreditCard, FiExternalLink,
@@ -35,7 +38,36 @@ interface EvmWallet {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export function SellerPaymentSettings() {
+  const user = useCurrentUser();
+  return isDemoUserId(user?.id) ? <DemoSellerPayments /> : <EditableSellerPayments />;
+}
+
+function DemoSellerPayments() {
+  return <section className="space-y-6" aria-labelledby="seller-payment-heading">
+    <div className="border-b border-border pb-4">
+      <h2 id="seller-payment-heading" className="text-xl font-semibold">Seller Payments</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Payout setup preview · no money moves in the demo.</p>
+    </div>
+    <p className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+      Use your own account to save and verify a PayPal receiving email or link a payout wallet. Demo accounts cannot change payout details.
+    </p>
+    <div className="space-y-2">
+      <label htmlFor="demo-paypal" className="text-sm font-medium">PayPal receiving email</label>
+      <Input id="demo-paypal" type="email" disabled placeholder="seller@example.com" className="min-h-11 text-base" />
+      <p className="text-sm text-muted-foreground">Email verification proves access to the address. Automatic seller payouts require separate PayPal multiparty onboarding.</p>
+    </div>
+    <div className="space-y-2 rounded-xl border border-dashed border-border p-4">
+      <h3 className="font-medium">Verified payout wallet</h3>
+      <p className="text-sm text-muted-foreground">Ownership is verified by a signed challenge, never by entering a seed phrase.</p>
+      <Link href="/settings?section=wallet" className="inline-flex min-h-11 items-center text-sm text-emerald-500 underline underline-offset-4">View wallet connection options</Link>
+    </div>
+  </section>;
+}
+
+function EditableSellerPayments() {
   const [isPending, startTransition] = useTransition();
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [status, setStatus] = useState<SellerPaymentStatus | null>(null);
   const [wallets, setWallets] = useState<EvmWallet[]>([]);
   const [paypalInput, setPaypalInput] = useState('');
@@ -46,12 +78,15 @@ export function SellerPaymentSettings() {
 
   const fetchStatus = useCallback(async () => {
     setIsLoadingStatus(true);
-    const res = await getSellerPaymentStatus({ target: 'user' });
-    if ('data' in res) {
-      setStatus(res.data);
-      setPaypalInput(res.data.paypalEmail ?? '');
-    }
-    setIsLoadingStatus(false);
+    setLoadError(null);
+    try {
+      const res = await getSellerPaymentStatus({ target: 'user' });
+      if ('data' in res) {
+        setStatus(res.data);
+        setPaypalInput(res.data.paypalEmail ?? '');
+      } else setLoadError(res.error);
+    } catch { setLoadError('Payment settings could not load. Try again.'); }
+    finally { setIsLoadingStatus(false); }
   }, []);
 
   const fetchWallets = useCallback(async () => {
@@ -69,73 +104,53 @@ export function SellerPaymentSettings() {
   }, []);
 
   useEffect(() => {
-    void (async () => {
-      await fetchWallets();
-      await fetchStatus();
-    })();
+    void Promise.all([fetchWallets(), fetchStatus()]);
   }, [fetchStatus, fetchWallets]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const handleSavePaypal = () => {
-    if (!paypalInput.trim()) return;
+  const runUpdate = (action: () => Promise<{ error: string } | { success: string }>) => {
+    setSaveError(null);
     startTransition(async () => {
-      const res = await savePaypalEmail({ paypalEmail: paypalInput.trim(), target: 'user' });
-      if ('error' in res) {
-        toast.error(res.error);
-      } else {
-        toast.success(res.success);
-        await fetchStatus();
-      }
+      try {
+        const res = await action();
+        if ('error' in res) setSaveError(res.error);
+        else { toast.success(res.success); await fetchStatus(); }
+      } catch { setSaveError('Your change could not be saved. Please try again.'); }
     });
   };
-
+  const handleSavePaypal = () => {
+    if (paypalInput.trim()) runUpdate(() => savePaypalEmail({ paypalEmail: paypalInput.trim(), target: 'user' }));
+  };
   const handleRemovePaypal = () => {
-    startTransition(async () => {
-      const res = await removePaypalEmail({ target: 'user' });
-      if ('error' in res) {
-        toast.error(res.error);
-      } else {
-        toast.success(res.success);
-        setPaypalInput('');
-        await fetchStatus();
-      }
-    });
+    if (window.confirm('Remove your PayPal receiving email? You can add it again later.'))
+      runUpdate(() => removePaypalEmail({ target: 'user' }));
   };
 
   const handleSetDefaultWallet = (walletId: string) => {
-    startTransition(async () => {
-      const res = await setDefaultReceivingWallet({ walletId, target: 'user' });
-      if ('error' in res) {
-        toast.error(res.error);
-      } else {
-        toast.success(res.success);
-        await fetchStatus();
-      }
-    });
+    runUpdate(() => setDefaultReceivingWallet({ walletId, target: 'user' }));
   };
 
   const handleRemoveDefaultWallet = () => {
-    startTransition(async () => {
-      const res = await removeDefaultReceivingWallet({ target: 'user' });
-      if ('error' in res) {
-        toast.error(res.error);
-      } else {
-        toast.success(res.success);
-        await fetchStatus();
-      }
-    });
+    if (window.confirm('Remove your default payout wallet? Its verified link will stay saved.'))
+      runUpdate(() => removeDefaultReceivingWallet({ target: 'user' }));
   };
 
   // ── Loading state ─────────────────────────────────────────────────────────
 
   if (isLoadingStatus) {
     return (
-      <div className="flex items-center justify-center py-16">
+      <div role="status" className="flex items-center justify-center gap-3 py-16">
         <FiLoader className="h-6 w-6 animate-spin text-zinc-400" />
+        <span className="text-sm text-muted-foreground">Loading payment settings…</span>
       </div>
     );
   }
+  if (loadError) return <div className="space-y-4">
+    <h2 className="text-xl font-semibold">Seller Payments</h2>
+    <p role="alert" className="text-sm text-destructive">{loadError}</p>
+    <Button className="min-h-11" onClick={() => void fetchStatus()}>Retry payment settings</Button>
+  </div>;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -181,20 +196,22 @@ export function SellerPaymentSettings() {
         )}
 
         {/* Input + actions */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
+        <label htmlFor="seller-paypal-email" className="block text-sm font-medium">Receiving email</label>
+        <form onSubmit={event => { event.preventDefault(); handleSavePaypal(); }} className="flex flex-wrap items-start gap-2">
+          <div className="relative min-w-0 basis-full sm:flex-1 sm:basis-auto">
             <FiMail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
             <Input
               type="email"
+              id="seller-paypal-email" name="paypalEmail" autoComplete="email" spellCheck={false} required maxLength={254}
               placeholder="your-paypal@email.com"
               value={paypalInput}
               onChange={(e) => setPaypalInput(e.target.value)}
-              className="pl-10"
+              className="min-h-11 pl-10 text-base"
               disabled={isPending}
             />
           </div>
           <Button
-            onClick={handleSavePaypal}
+            type="submit" className="min-h-11"
             disabled={isPending || !paypalInput.trim() || paypalInput.trim() === status?.paypalEmail}
             size="sm"
           >
@@ -205,12 +222,14 @@ export function SellerPaymentSettings() {
               variant="destructive"
               size="sm"
               onClick={handleRemovePaypal}
+              type="button" aria-label="Remove PayPal receiving email" className="size-11"
               disabled={isPending}
             >
               <FiTrash2 className="h-4 w-4" />
             </Button>
           )}
-        </div>
+        </form>
+        {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
       </div>
 
       {/* ─── Default Receiving Wallet ──────────────────────────────────────── */}
@@ -254,18 +273,9 @@ export function SellerPaymentSettings() {
             <FiCreditCard className="mx-auto mb-2 h-8 w-8 text-zinc-400 dark:text-white/30" />
             <p className="text-sm text-zinc-500 dark:text-white/40">
               No verified wallets yet. Connect and sign a wallet in{' '}
-              <button
-                className="text-emerald-600 underline underline-offset-2 hover:text-emerald-700 dark:text-emerald-400"
-                onClick={() => {
-                  // Navigate to wallet section
-                  const url = new URL(window.location.href);
-                  url.searchParams.set('section', 'wallet');
-                  window.history.replaceState(null, '', url.toString());
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                }}
-              >
+              <Link href="/settings?section=wallet" className="text-emerald-600 underline underline-offset-2 hover:text-emerald-700 dark:text-emerald-400">
                 Web3 & Wallet
-              </button>{' '}
+              </Link>{' '}
               . The first verified wallet is now used automatically for new product sales.
             </p>
           </div>

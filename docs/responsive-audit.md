@@ -132,6 +132,35 @@ composer passed at 360×800, 390×844, 844×390, 768×1024, 1024×768, 1280×800
 duplicate header-height allocation were corrected. This is Playwright viewport
 emulation, not a claim about a physical mobile keyboard or real Chrome zoom.
 The Pulse/footer/independent-navigation regression was rerun and passed locally.
+Release `cd99962` subsequently passed the same live checks: real provider
+debit/persistence/denial **2/2**, non-spending layout/catalog regressions **6/6**.
+
+### Settings and wallets follow-up
+
+- Reproduced Settings' phone navigation taking more than a viewport before the
+  selected panel appeared. Replaced it with an accessible Sheet; desktop retains
+  a sticky, independently scrollable rail. Section changes reset the content
+  scroller, preserve URL state and restore trigger focus on drawer dismissal.
+- Reproduced an uncaught server-action error and permanent loading spinner in
+  demo payment settings. Demo now shows an explicit read-only payout preview.
+  Normal users get caught request errors/retry, labelled 44px/16px email controls,
+  wrapping actions and confirmation before removing payout details.
+- Wallet chooser now fits short landscape with contained scrolling and 44px close
+  control. Undetected extensions are disabled, cancellation has a human inline
+  message, and an unconfigured QR path has explicit guidance. Demo linking and
+  payout mutations stay denied on the server.
+- Local production focused browser **3/3** in 12.3s including setup: settings
+  navigation at eight sizes, actual drawer/rail/page wheel scrolling, footer,
+  payout preview, and injected test-wallet cancellation/connect/disconnect while
+  preserving the demo session. The fixture has no private key and cannot sign or
+  send transactions. This is not owner-wallet or on-chain verification.
+- All 12 Settings sections rendered at 390px without a page exception or horizontal
+  page overflow. This is read/render coverage, not proof that every save action
+  works. Configured WalletConnect opened and escaped locally without an exception;
+  its provider-owned wallet buttons and owner consent are not fully audited.
+- Payout ownership/demo guards and project-ID configuration: **30/30** focused
+  unit tests including demo policy. Local screenshots visually compared portrait
+  and short landscape. Final release/live validation pending.
 
 - Products: continue full keyboard traversal and seller-row target-size review.
   Drawer focus/scroll, category selection, search/empty state and gallery arrows

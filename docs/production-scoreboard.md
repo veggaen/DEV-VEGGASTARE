@@ -80,7 +80,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   including setup in 1.0m, release `6b8adc1` / `dpl_ABEFDCXREp97puGonJb9PzvkFFqp`.
   Live warehouse phone screenshot confirmed a 44px refresh target and no overflow.
 
-## S5 — Metered AI integration (PARTIAL; local verified, deployment pending)
+## S5 — Metered AI integration (demo debit/denial verified local/live; paid purchase blocked)
 
 - Added reservation/refund state machine, one-time isolated demo grant, environment
   separation, daily quota and an independent bounded platform budget. No owner bypass.
@@ -100,12 +100,41 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
   No credits or request caps were reset to make tests pass.
 - Focused AI/request/demo units **63/63**, with selected payment regression files
   **107/107**, plus real PostgreSQL ledger **19/19**. Build/TypeScript/touched lint
-  pass. Runtime production rollout/live verification still pending.
+  pass. Release `cd99962` / `dpl_DMGSUQQ1DPgCfG1FUfvp955WHQtJ` is READY at
+  https://www.veggat.com. Live real-provider browser test **2/2** (37.7s, including
+  setup): two OpenAI Luna replies and one Groq reply persisted, five demo credits
+  exhausted, then another premium request returned 402. No allowance was reset.
+  Live non-spending regressions **6/6** (55.6s): AI at eight viewport sizes, model
+  picker, contained drawer/transcript scrolling, Pulse/footer, product filters,
+  separate cart lines and badge/reload behavior. Phone chat visually inspected.
 - Corrected cramped phone chat header, competing viewport heights, outer-page
   auto-scroll and inaccessible custom drawers. Reused Radix Sheets with contained
   scrolling and focus restoration. Pricing no longer promises nonexistent
   subscriptions, alternate payment providers or unlimited AI.
 - See [AI credit safety](ai-credit-safety.md) for invariants and remaining gates.
+
+## S6 — Wallet/settings UI (PARTIAL)
+
+- Phone Settings now opens the selected panel immediately; its 12 navigation
+  items live in a focus-managed drawer. Desktop keeps a sticky, independently
+  scrollable rail. Both reuse one section definition and keep URL state.
+- Fixed demo payment settings' blocked-server-action spinner/crash. A read-only
+  preview now explains payout restrictions. Normal payout requests handle errors,
+  retry reads, label the email field, wrap actions and confirm removal. Added
+  server-side demo payout denial; wallet ownership/verification checks retained.
+- Wallet chooser constrains height and scrolling in short landscape, has a 44px
+  close target and human cancellation/unavailable-extension states. All AppKit
+  setup now uses one trimmed project-ID selection; absent IDs show guidance.
+- Local production browser checks: drawer/rail/page scrolling, demo payout preview,
+  injected test-wallet cancellation/connect/disconnect with preserved auth. The
+  injected fixture cannot sign or send transactions. Local configured WalletConnect
+  picker opened and escaped without an exception. All 12 Settings panels rendered
+  at 390px without page exceptions or horizontal overflow.
+- **30/30** focused payout ownership/configuration/demo-policy unit tests; final
+  build, TypeScript and touched-file lint pass. Final local regression **6/6**
+  (51.7s including setup): S6 plus AI reflow, Pulse/footer and marketplace cart.
+  Production rollout/live checks pending. Actual owner-wallet signatures, on-chain operations and normal-account
+  payout saves are not claimed verified by the test-wallet flow.
 
 ## Feature scoreboard
 
@@ -121,9 +150,9 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 | Shop | Live PayPal, sandbox PayPal | BLOCKED on PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_WEBHOOK_ID; implementation and mocked validation done, provider transactions not run |
 | Shop | Confirmation, signed download | PARTIAL — local/live demo receipt and actual JPG/TXT downloads pass; anonymous 401 and idempotent replay pass; paid verification blocked on PayPal keys |
 | Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — seeded at 29/39 NOK; paid fulfillment pending |
-| AI | Chat, selector, streaming | DONE (previous deployment) — local/live Gemini, Groq, OpenAI/Grok one-time-key UI tests |
-| AI | Credit debit, zero balance, no overcharge | PARTIAL — local UI debit/402 and ledger/fuse tests pass; live verification pending |
-| Wallets | Connect UI, no crash | PARTIAL — actual connect/disconnect/missing-config tests pending |
+| AI | Chat, selector, streaming | DONE for current OpenAI Luna/Groq demo path, selector and persisted streaming replies local/live; current Astra/Grok paid generation still unverified |
+| AI | Credit debit, zero balance, no overcharge | DONE for demo debit/402 local/live plus ledger concurrency/fuse tests; paid-credit purchase remains blocked on PayPal |
+| Wallets | Connect UI, no crash | PARTIAL — local injected-wallet cancel/connect/disconnect and configured WalletConnect open/escape pass; configuration units pass; live and owner-wallet verification pending |
 | Platform | Public homepage | DONE — S1 verified locally and live |
 | Platform | Consent controls Analytics/Speed Insights | DONE — no scripts before consent/Essential Only; both 200 after opt-in; real visitor metrics pending |
 | Platform | Health | PARTIAL — frontend checked previously; Hapi `/v1/health` pending |
@@ -131,7 +160,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 | Quality | Home → demo → product → cart E2E | DONE — local and live pass; payment coverage remains a separate S4 task |
 | Quality | Payment mocked in CI | PARTIAL — S4 pending |
 | Layout | Core path at 360 and 2560, other requested sizes, 125% zoom | PARTIAL — earlier 390/1440 smoke checks only |
-| Interview | Root README | PARTIAL — public demo, optional 29/39 NOK SKUs, architecture and four decisions documented; payment/live S5 evidence still pending |
+| Interview | Root README | PARTIAL — public demo, optional 29/39 NOK SKUs, architecture, four decisions and S5 evidence documented; payment and walkthrough still pending |
 
 ## Environment and safety
 
@@ -142,4 +171,8 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 - Demo creates a separate temporary USER per visitor, bounded to five per daily IP fingerprint and 200 globally/day in a serialized transaction; sessions expire after a day. The S5 candidate permits guarded private chat creation/messages and five one-time credits. Cart/demo-checkout remain isolated; real payments, public posting and provider-key changes remain denied.
 - New paid entitlements must never be granted from client prices or a return URL. S4/S5 remain release blockers.
 - PayPal credentials are absent locally and in Vercel Production. Owner asked to create Sandbox credentials (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`) locally; Live credentials must stay in Vercel Production. `PAYPAL_WEBHOOK_ID` also remains absent. Dashboard inspection redirected to owner sign-in. No test or real charge has been made.
+- Railway CLI is installed but `railway list --json` returns Unauthorized; the
+  showcase worktree has no linked Railway project. Backend health/deployment
+  cannot yet be verified. Real Chrome inventory is still empty; attempting to
+  open Railway in Chrome reports `Browser is not available: chrome`.
 - Payment implementation references: [PayPal environment separation](https://developer.paypal.com/api/make-api-requests), [Orders v2](https://developer.paypal.com/api/orders/v2), [idempotency](https://developer.paypal.com/api/rest/reference/idempotency/). Unsafe legacy capture/grant handlers now fail closed; webhook development bypass removed. Production webhook target is `/api/webhooks/paypal`.

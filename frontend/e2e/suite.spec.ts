@@ -269,6 +269,136 @@ test.describe("Layer 2 — Routing", () => {
 /*  Now we know routes work, verify they render something meaningful.  */
 /* ================================================================== */
 test.describe("Layer 3 — Content", () => {
+  test('S6 — settings drawers, payout preview and independent scrolling', async ({ browser, baseURL }) => {
+    test.setTimeout(120_000);
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses an existing isolated app-issued demo');
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+    const page = await context.newPage(), errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    try {
+      await page.goto('/settings?section=wallet', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Web3 & Wallet', exact: true })).toBeVisible();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      await expect(page.getByRole('switch', { name: 'Toggle Web3 mode' })).toBeDisabled();
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        await page.locator('[data-site-scroll]').evaluate(el => el.scrollTo(0, 0));
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        const heading = page.getByRole('heading', { name: 'Web3 & Wallet', exact: true });
+        await expect(heading).toBeInViewport();
+        let nav = page.getByRole('navigation', { name: 'Settings sections', exact: true });
+        if (size.width < 1024) {
+          const trigger = page.getByRole('button', { name: 'Settings sections: Web3 & Wallet', exact: true });
+          await trigger.click();
+          const dialog = page.getByRole('dialog', { name: 'Settings sections', exact: true });
+          await expect(dialog).toBeVisible();
+          nav = dialog.getByRole('navigation', { name: 'Settings sections', exact: true });
+          await dialog.evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
+        }
+        const navBox = await nav.boundingBox();
+        await page.mouse.move(navBox!.x + 30, navBox!.y + navBox!.height / 2);
+        await page.mouse.wheel(0, 5000);
+        await expect.poll(() => nav.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThan(2);
+        expect(await page.locator('[data-site-scroll]').evaluate(el => el.scrollTop)).toBe(0);
+        if (size.width < 1024) {
+          await page.keyboard.press('Escape');
+          await expect(page.getByRole('button', { name: 'Settings sections: Web3 & Wallet' })).toBeFocused();
+        }
+        const outer = page.locator('[data-site-scroll]');
+        const content = await page.locator('[data-settings-content]').boundingBox();
+        await page.mouse.move(content!.x + 30, Math.min(size.height - 30, content!.y + 30));
+        await page.mouse.wheel(0, 5000);
+        await expect.poll(() => outer.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThan(2);
+        await expect(page.getByRole('contentinfo')).toBeInViewport();
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.locator('[data-site-scroll]').evaluate(el => el.scrollTo(0, 0));
+      await page.getByRole('button', { name: 'Settings sections: Web3 & Wallet' }).click();
+      await page.getByRole('dialog', { name: 'Settings sections', exact: true }).getByRole('button', { name: /^Payments / }).click();
+      await expect(page).toHaveURL(/section=payments/);
+      await expect(page.getByRole('heading', { name: 'Seller Payments', exact: true })).toBeInViewport();
+      await expect(page.getByLabel('PayPal receiving email', { exact: true })).toBeDisabled();
+      await page.getByRole('link', { name: 'View wallet connection options', exact: true }).click();
+      await expect(page).toHaveURL(/section=wallet/);
+      const chooser = page.getByRole('button', { name: 'Choose wallet connection method', exact: true });
+      await chooser.click();
+      const walletDialog = page.getByRole('dialog', { name: 'Connect a wallet', exact: true });
+      for (const size of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+        await page.setViewportSize(size);
+        await expect(walletDialog).toBeInViewport({ ratio: 0.99 });
+        const box = await walletDialog.boundingBox();
+        await page.mouse.move(box!.x + 30, box!.y + box!.height / 2);
+        await page.mouse.wheel(0, 5000);
+        await expect.poll(() => walletDialog.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThan(2);
+        await page.mouse.wheel(0, -5000);
+        await expect.poll(() => walletDialog.evaluate(el => el.scrollTop)).toBe(0);
+        await expect(walletDialog.getByRole('button', { name: 'Close', exact: true })).toBeInViewport();
+      }
+      await page.keyboard.press('Escape');
+      await expect(chooser).toBeFocused();
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
+  test('S6 — injected test wallet cancellation, connect and disconnect preserve demo auth', async ({ browser, baseURL }) => {
+    test.setTimeout(90_000);
+    test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses an existing isolated app-issued demo');
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+      viewport: { width: 390, height: 844 } });
+    // Browser-only EIP-6963 fixture: no private key, signatures or transactions.
+    // Exercises the real wagmi connector lifecycle, not a live wallet service.
+    await context.addInitScript(() => {
+      let requested = 0, connected = false;
+      const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+      const address = '0x0000000000000000000000000000000000000001';
+      const provider = {
+        request: async ({ method }: { method: string }) => {
+          if (method === 'eth_chainId') return '0x1';
+          if (method === 'eth_accounts') return connected ? [address] : [];
+          if (method === 'eth_requestAccounts') {
+            if (++requested === 1) throw Object.assign(new Error('User rejected connection'), { code: 4001 });
+            connected = true; return [address];
+          }
+          if (method === 'wallet_requestPermissions' || method === 'wallet_getPermissions') return [{ parentCapability: 'eth_accounts' }];
+          if (method === 'wallet_revokePermissions') { connected = false; return null; }
+          if (/sign|sendTransaction/i.test(method)) throw new Error('QA wallet forbids signing and transactions');
+          throw Object.assign(new Error('Unsupported QA wallet method'), { code: 4200 });
+        },
+        on: (event: string, listener: (...args: unknown[]) => void) => {
+          const set = listeners.get(event) ?? new Set(); set.add(listener); listeners.set(event, set);
+        },
+        removeListener: (event: string, listener: (...args: unknown[]) => void) => { listeners.get(event)?.delete(listener); },
+      };
+      const announce = () => window.dispatchEvent(new CustomEvent('eip6963:announceProvider', { detail: {
+        info: { uuid: '83b13b23-24f7-498f-a49d-26fca16003a7', name: 'Veggat QA Test Wallet', icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>', rdns: 'test.veggat.wallet' }, provider,
+      } }));
+      window.addEventListener('eip6963:requestProvider', announce); announce();
+    });
+    const page = await context.newPage(), errors: string[] = [], forbidden: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('request', request => { if (/\/api\/(auth\/wallet\/nonce|wallets\/evm\/verify|payments)/.test(request.url()) && request.method() === 'POST') forbidden.push(new URL(request.url()).pathname); });
+    try {
+      const before = (await (await context.request.get('/api/auth/session')).json()).user.id;
+      await page.goto('/settings?section=wallet', { waitUntil: 'domcontentloaded' });
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      await page.getByRole('button', { name: 'Choose wallet connection method', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Connect a wallet', exact: true });
+      const wallet = dialog.getByRole('button', { name: /Veggat QA Test Wallet/ });
+      await expect(wallet).toBeEnabled(); await wallet.click();
+      await expect(dialog.getByRole('alert')).toContainText('Connection cancelled');
+      await wallet.click();
+      await expect(dialog).toBeHidden();
+      await expect(page.getByText('Current wallet session', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Disconnect session', exact: true }).click();
+      await expect(page.getByText(/No live wallet session/)).toBeVisible();
+      expect((await (await context.request.get('/api/auth/session')).json()).user.id).toBe(before);
+      expect(forbidden).toEqual([]); expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  });
+
   test("S5 — AI drawers, transcript scroll and composer reflow without provider calls", async ({ browser, baseURL }) => {
     test.setTimeout(120_000);
     test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses a retained app-issued demo with a saved conversation');

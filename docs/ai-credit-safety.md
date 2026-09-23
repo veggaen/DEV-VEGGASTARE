@@ -1,8 +1,8 @@
 # AI credit safety
 
-Status: **integrated in the release candidate; local browser acceptance passed**.
-The additive reservation migration is applied. Production still runs the earlier
-release until the new deployment is explicitly recorded in the scoreboard.
+Status: **deployed; demo debit, persistence and zero-credit denial verified locally and live**.
+The additive reservation migration is applied. Release `cd99962`, deployment
+`dpl_DMGSUQQ1DPgCfG1FUfvp955WHQtJ`, is READY at https://www.veggat.com.
 
 ## Spending invariants
 
@@ -90,6 +90,11 @@ Anthropic is disabled without a configured platform key.
   scrolling and anonymous model selection. Earlier real OpenAI sends debited two
   credits and exposed a response-shape bug; the saved reply now reloads correctly.
   No test allowance or daily counter was reset.
+- Live real-provider browser check **2/2** (37.7s including setup): two OpenAI Luna
+  replies and one Groq reply persisted, exhausting the existing five-credit demo
+  grant; a subsequent premium request returned 402. Live non-spending AI/layout,
+  Pulse and marketplace regressions **6/6** (55.6s). Current Astra/Grok paid
+  generations are not covered by this demo allowance and are not claimed tested.
 
 The database tests opt in, create a random `qa_ai_ledger_*` schema, and remove only
 that schema afterward. They never call providers or change public balances/orders.
@@ -109,8 +114,9 @@ Normal CI does not make these paid provider calls.
 
 ## Release gates
 
-Deploy and repeat against the live alias. Paid credit purchase remains separately blocked
-by missing PayPal credentials; demo generation is not proof of paid capture.
+Paid credit purchase remains separately blocked by missing PayPal credentials;
+demo generation is not proof of paid capture. Verify the paid models after a
+verified purchase, without manually changing balances or bypassing quotas.
 
 ## Official references
 

@@ -38,6 +38,8 @@ import type { NotificationSettings as NotificationSettingsType, NotificationMute
 import { CurrencySelector, useCurrency, FIAT_CURRENCIES, CRYPTO_CURRENCIES } from '@/components/uicustom/currency-selector';
 import { VerificationDashboard } from '@/components/uicustom/verification-dashboard';
 import { SellerPaymentSettings } from '@/components/uicustom/settings/seller-payment-settings';
+import { SettingsNavigation } from '@/components/uicustom/settings/settings-navigation';
+import { isDemoUserId } from '@/lib/demo-policy';
 import { useAddresses, type Address } from '@/hooks/use-addresses';
 import type { AddressLabel } from '@/generated/prisma/browser';
 import WalletConnectChooser from '@/components/crypto-related/WalletConnectChooser';
@@ -79,7 +81,10 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
-  const [activeSection, setActiveSection] = useState<SectionId>('profile');
+  const [activeSection, setActiveSection] = useState<SectionId>(() => {
+    const section = searchParams.get('section') as SectionId;
+    return SECTION_IDS.includes(section) ? section : 'profile';
+  });
   
   // Read section from URL params (e.g. /settings?section=notifications)
   useEffect(() => {
@@ -91,6 +96,7 @@ export default function SettingsPage() {
 
   const handleSectionChange = useCallback((section: SectionId) => {
     setActiveSection(section);
+    document.querySelector('[data-site-scroll]')?.scrollTo({ top: 0, behavior: 'instant' });
     const next = `/settings?section=${section}`;
     if (window.location.pathname + window.location.search !== next) {
       router.replace(next, { scroll: false });
@@ -498,43 +504,23 @@ export default function SettingsPage() {
         spheres={[{ position: "top-right", color: "blue", size: "lg" }]}
       />
 
-      <div className="relative mx-auto w-full max-w-5xl px-6 py-10 lg:py-12">
+      <div className="relative mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <motion.div
           initial={reduceMotion || prefs.pageAnimations === "none" ? undefined : { opacity: 0, y: 14 }}
           animate={reduceMotion || prefs.pageAnimations === "none" ? undefined : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
         >
           {/* Header */}
-          <header className="mb-8">
+          <header className="mb-6">
             <h1 className="text-3xl font-semibold text-foreground dark:text-white sm:text-4xl mb-2">Settings</h1>
             <p className="text-muted-foreground dark:text-white/60 text-sm">Manage your account settings and preferences</p>
           </header>
 
-          <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-            {/* Sidebar Navigation */}
-            <nav className="space-y-1">
-              {sections.map((section) => (
-                <button
-                  key={section.id}
-                  onClick={() => handleSectionChange(section.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all border-2 ${
-                    activeSection === section.id
-                      ? 'bg-emerald-50 border-emerald-500 text-foreground shadow-md shadow-emerald-500/10 dark:bg-emerald-500/10 dark:border-emerald-500 dark:text-white'
-                      : 'bg-white border-transparent text-muted-foreground hover:bg-zinc-50 hover:border-zinc-200 hover:text-foreground dark:bg-transparent dark:text-white/60 dark:hover:bg-white/5 dark:hover:border-white/10 dark:hover:text-white/80'
-                  }`}
-                >
-                  <section.icon className={`h-5 w-5 ${activeSection === section.id ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
-                  <div className="flex-1">
-                    <div className="font-medium text-sm">{section.label}</div>
-                    <div className="text-xs text-muted-foreground/70 dark:text-white/40">{section.description}</div>
-                  </div>
-                  <FiChevronRight className={`h-4 w-4 transition-transform ${activeSection === section.id ? 'rotate-90 text-emerald-600 dark:text-emerald-400' : ''}`} />
-                </button>
-              ))}
-            </nav>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6">
+            <SettingsNavigation sections={sections} active={activeSection} onSelect={handleSectionChange} />
 
             {/* Main Content */}
-            <div className="rounded-2xl border-2 border-zinc-200 bg-white shadow-lg dark:border-white/10 dark:bg-white/[0.02] p-6">
+            <div data-settings-content className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-6">
               {activeSection === 'profile' && (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between border-b border-border dark:border-white/10 pb-4">
@@ -2162,6 +2148,7 @@ function AppearanceSettings() {
 
 function Web3WalletSettings() {
   const user = useCurrentUser();
+  const demo = isDemoUserId(user?.id);
   const [web3Enabled, setWeb3Enabled] = useState(false);
   const [walletRefresh, setWalletRefresh] = useState(0);
   const [linkingGuide, setLinkingGuide] = useState(false);
@@ -2188,15 +2175,16 @@ function Web3WalletSettings() {
       <div className="border-b border-border dark:border-white/10 pb-4">
         <h2 className="text-xl font-semibold text-foreground dark:text-white">Web3 & Wallet</h2>
         <p className="text-sm text-muted-foreground dark:text-white/50">
-          Connect wallets, manage crypto features, and raise your auth level
+          Experimental wallet connections and verified payout addresses. Not required for shopping.
         </p>
       </div>
 
       {/* How It Works */}
       <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-500/20 dark:bg-blue-500/5">
         <button
+          type="button" aria-expanded={linkingGuide} aria-controls="wallet-linking-guide"
           onClick={() => setLinkingGuide(prev => !prev)}
-          className="flex w-full items-center justify-between text-left"
+          className="flex min-h-11 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="flex items-center gap-2">
             <FiInfo className="h-4 w-4 text-blue-500" />
@@ -2207,7 +2195,7 @@ function Web3WalletSettings() {
           <FiChevronRight className={`h-4 w-4 text-blue-500 transition-transform ${linkingGuide ? 'rotate-90' : ''}`} />
         </button>
         {linkingGuide && (
-          <div className="mt-3 space-y-2 text-sm text-blue-600 dark:text-blue-300/80">
+          <div id="wallet-linking-guide" className="mt-3 space-y-2 text-sm text-blue-600 dark:text-blue-300/80">
             <p>1. <strong>Enable Web3 Mode</strong> below to unlock wallet features</p>
             <p>2. <strong>Connect</strong> with a browser extension directly, or use AppKit for WalletConnect/social wallets</p>
             <p>3. <strong>Verify ownership</strong> by signing a challenge message — this links the wallet to your account</p>
@@ -2220,8 +2208,11 @@ function Web3WalletSettings() {
       </div>
 
       {/* Web3 Mode Toggle */}
-      <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
-        <div>
+      {demo && <p className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+        Demo preview: you can inspect wallet connection options. Saving a wallet link, changing payout settings and on-chain transactions are disabled. No signature is requested here.
+      </p>}
+      <div className="flex items-center justify-between gap-4 rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+        <div className="min-w-0">
           <div className="font-medium text-foreground dark:text-white/90">Web3 Mode</div>
           <div className="text-sm text-muted-foreground dark:text-white/40">
             Enable wallet connections, crypto payments, and on-chain features
@@ -2231,7 +2222,7 @@ function Web3WalletSettings() {
       </div>
 
       {/* Wallet Connection */}
-      {web3Enabled && (
+      {(web3Enabled || demo) && (
         <div className="space-y-4">
           {/* Connect Wallet */}
           <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10 space-y-3">
@@ -2242,7 +2233,7 @@ function Web3WalletSettings() {
               </div>
             </div>
             <WalletConnectChooser authenticateDirect={false}>
-              <Button type="button" className="w-full justify-center bg-emerald-600 text-white hover:bg-emerald-500">
+              <Button type="button" className="min-h-11 h-auto w-full whitespace-normal justify-center bg-emerald-600 px-3 py-3 text-white hover:bg-emerald-500">
                 Choose wallet connection method
               </Button>
             </WalletConnectChooser>
@@ -2250,7 +2241,7 @@ function Web3WalletSettings() {
           </div>
 
           {/* Verify & Link */}
-          <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10 space-y-3">
+          {!demo && <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10 space-y-3">
             <div>
               <div className="font-medium text-foreground dark:text-white/90">Verify & Link Wallet</div>
               <div className="text-sm text-muted-foreground dark:text-white/40">
@@ -2261,10 +2252,10 @@ function Web3WalletSettings() {
               enabled={web3Enabled}
               onVerified={() => setWalletRefresh(prev => prev + 1)}
             />
-          </div>
+          </div>}
 
           {/* Linked Wallets */}
-          <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10 space-y-3">
+          {!demo && <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10 space-y-3">
             <div>
               <div className="font-medium text-foreground dark:text-white/90">Verified Wallet Links</div>
               <div className="text-sm text-muted-foreground dark:text-white/40">
@@ -2275,7 +2266,7 @@ function Web3WalletSettings() {
               enabled={web3Enabled}
               refreshToken={walletRefresh}
             />
-          </div>
+          </div>}
 
           {/* Auth Level Info */}
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
@@ -2296,7 +2287,7 @@ function Web3WalletSettings() {
         </div>
       )}
 
-      {!web3Enabled && (
+      {!web3Enabled && !demo && (
         <div className="flex flex-col items-center gap-3 py-8 text-center">
           <FiLock className="h-8 w-8 text-zinc-300 dark:text-zinc-600" />
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -2350,7 +2341,7 @@ function WalletSessionDisconnectButton() {
         size="sm"
         disabled={busy}
         onClick={disconnectSession}
-        className="border-emerald-500/30 bg-black/5 text-emerald-800 hover:bg-emerald-500/15 dark:bg-white/5 dark:text-emerald-100"
+        className="min-h-11 border-emerald-500/30 bg-black/5 text-emerald-800 hover:bg-emerald-500/15 dark:bg-white/5 dark:text-emerald-100"
       >
         {busy ? "Disconnecting..." : "Disconnect session"}
       </Button>
@@ -2424,7 +2415,7 @@ function Web3ModeToggle() {
   return (
     <Switch
       checked={web3ModeEnabled}
-      disabled={isRequesting}
+      disabled={isRequesting || isDemoUserId(user?.id)}
       onCheckedChange={handleToggle}
       aria-label="Toggle Web3 mode"
     />
