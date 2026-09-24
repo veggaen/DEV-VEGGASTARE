@@ -1,9 +1,9 @@
 /** @fileOverview Shared cart credit validation and authoritative display quotes for both cart endpoints. @stability experimental */
 import { z } from 'zod';
 import { SHOWCASE_PRODUCTS } from './showcase-catalog';
-import { DEFAULT_PURCHASE_CREDITS, MIN_PURCHASE_CREDITS, MAX_PURCHASE_CREDITS, quoteCreditPurchase } from './ai-credit-purchase';
+import { DEFAULT_PURCHASE_CREDITS, isPurchasableCreditAmount, quoteCreditPurchase } from './ai-credit-purchase';
 
-export const cartCreditAmountSchema = z.number().int().min(MIN_PURCHASE_CREDITS).max(MAX_PURCHASE_CREDITS).optional();
+export const cartCreditAmountSchema = z.number().int().refine(isPurchasableCreditAmount).optional();
 export class CartCreditError extends Error {}
 export function creditCartData(productId: string, quantity: number, creditAmount?: number) {
   if (productId !== SHOWCASE_PRODUCTS.credits.id) {
@@ -13,7 +13,7 @@ export function creditCartData(productId: string, quantity: number, creditAmount
   }
   if (quantity !== 1) throw new CartCreditError('Enter the number of credits instead of changing pack quantity.');
   const credits = creditAmount ?? DEFAULT_PURCHASE_CREDITS;
-  if (!cartCreditAmountSchema.safeParse(credits).success) throw new CartCreditError('Enter a whole number from 100 to 1,000 credits.');
+  if (!cartCreditAmountSchema.safeParse(credits).success) throw new CartCreditError('Choose the 10-credit starter pack or a whole number from 100 to 1,000 credits.');
   return { quantity: 1, creditAmount: credits };
 }
 

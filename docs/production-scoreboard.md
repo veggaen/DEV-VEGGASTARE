@@ -4,6 +4,24 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Analytics access recovery: **DONE for this scoped slice**. Source **`9c437cd`**,
+deployment **`dpl_ASxDaUbduMNpF9P2YLTdXwLpPxcg`** on www.veggat.com. A 401/403
+refresh now clears previously displayed private reports; a later 503 cannot
+restore them. Normal transient errors still retain authorized data. Strict
+builds, touched lint, **28/28 units** and **6/6 browser checks per local, Preview
+and live** pass. Real Chrome verifies actual demo table controls and scrolling.
+See [evidence and rollback](analytics-access-acceptance-2026-09.md).
+
+**Live payment is UNTESTED.** The owner explicitly corrected the apparent
+purchase report: no 39 NOK payment has been confirmed. The current Live webhook
+configuration is verified, but it is not capture evidence. A **9 NOK / 10-credit**
+starter option is in verification to reduce the cost of future Live testing;
+normal 100-credit pricing and existing receipts stay unchanged. See
+[starter-pack acceptance](small-credit-pack-2026-09.md). No further 39 NOK test
+purchase should be requested. Other full-mission gaps below remain open.
+
+### Previous warehouse slice
+
 Warehouse reliability and responsive read path: **DONE for this scoped slice**.
 App authority is **`72e528e` / `dpl_G8smj6frN5e8EVfje5tRrar43owu`** on
 www.veggat.com. Refresh retains the empty card and valid rows without a layout

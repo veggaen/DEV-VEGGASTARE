@@ -6205,6 +6205,69 @@ test.describe("Layer 5 — API Data Shapes", () => {
     expect([200, 400, 401, 404, 500, 502]).toContain(res.status());
   });
 });
+test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', async ({ browser, baseURL }, testInfo) => {
+  test.setTimeout(120_000);
+  test.skip(process.env.E2E_SMALL_CREDITS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE,
+    'Opt-in disposable demo cart only; never requests payment or grants credits');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+    viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+  const page = await context.newPage();
+  let cartPath: string | undefined;
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.isDemo).toBe(true);
+    const path = `/api/cart/${session.user.id}`;
+    expect((await (await context.request.get(path)).json()).items).toHaveLength(0);
+    cartPath = path;
+    await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) {
+      await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    }
+    const input = page.getByRole('textbox', { name: 'Number of credits', exact: true });
+    await expect(input).toHaveValue('100');
+    await page.getByRole('button', { name: 'Choose 10-credit starter pack', exact: true }).click();
+    await expect(input).toHaveValue('10');
+    await expect(page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true })).toBeDisabled();
+    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
+    await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+    await expect(input).toHaveValue('10');
+    const cart = await (await context.request.get(path)).json();
+    expect(cart.items).toHaveLength(1);
+    expect(cart.items[0]).toMatchObject({ quantity: 1, creditAmount: 10, product: { price: 9, priceCurrency: 'NOK' } });
+    for (const invalid of [1, 9, 11, 99, '10', 10.5]) {
+      expect((await context.request.patch(`${path}/items/${cart.items[0].id}`, { data: { creditAmount: invalid } })).status()).toBe(400);
+    }
+    await input.fill('100');
+    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await expect.poll(async () => (await (await context.request.get(path)).json()).items[0].product.price).toBe(39);
+    await page.getByRole('button', { name: 'Choose 10-credit starter pack', exact: true }).click();
+    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await expect.poll(async () => (await (await context.request.get(path)).json()).items[0].product.price).toBe(9);
+    await page.getByRole('link', { name: 'Proceed to checkout', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits · 10 credits', exact: true })).toBeVisible();
+    let submittedQuote: unknown;
+    await page.route('**/api/demo/checkout', async route => {
+      submittedQuote = JSON.parse(route.request().postDataJSON().expectedQuote);
+      await route.fulfill({ status: 503, json: { error: 'PAYPAL_NOT_CONFIGURED' } });
+    });
+    await page.getByRole('button', { name: 'Complete free demo order', exact: true }).click();
+    await expect.poll(() => submittedQuote).toMatchObject({ totalOre: 900, lines: [{ credits: 10, amountOre: 900 }] });
+    for (const width of [360, 390, 1280, 2560]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await page.locator('[data-site-scroll]').evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: testInfo.outputPath('small-credit-checkout-390.png') });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(input).toHaveValue('10');
+    // Checkout request was intercepted: no provider call, order or credit grant.
+  } finally {
+    if (cartPath) expect((await context.request.delete(cartPath)).ok()).toBe(true);
+    await context.close();
+  }
+});
+
 test('S4 — custom credits persist across product, basket, cart, checkout and receipt', async ({ browser, baseURL }, testInfo) => {
   test.setTimeout(240_000);
   test.skip(process.env.E2E_CUSTOM_CREDITS !== '1', 'Opt-in isolated demo cart/order; never a real payment');

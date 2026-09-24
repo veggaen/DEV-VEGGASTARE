@@ -3,7 +3,7 @@
 /** @fileOverview Row-isolated cart edits with bounded requests and explicit uncertain-outcome recovery. @stability stable */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CartItemResponseSchema, CartResponseSchema, type CartItemDto } from "@/lib/types/carts";
-import { MIN_PURCHASE_CREDITS, MAX_PURCHASE_CREDITS } from '@/lib/ai-credit-purchase';
+import { isPurchasableCreditAmount } from '@/lib/ai-credit-purchase';
 
 export function useCartPage(userId: string | undefined, syncCart: (items: CartItemDto[]) => void) {
   const [items, setItems] = useState<CartItemDto[]>([]);
@@ -91,8 +91,9 @@ export function useCartPage(userId: string | undefined, syncCart: (items: CartIt
     if (!previous || (action === "decrement" && previous.quantity <= 1)) return;
     const credits = previous.creditAmount !== undefined;
     if (credits && (action === 'increment' || action === 'decrement')) return false;
-    if (typeof action === 'number' && (!Number.isInteger(action) || action < (credits ? MIN_PURCHASE_CREDITS : 1) ||
-        action > (credits ? MAX_PURCHASE_CREDITS : 1000) || action === (credits ? previous.creditAmount : previous.quantity))) return false;
+    if (typeof action === 'number' && ((credits ? !isPurchasableCreditAmount(action) :
+        !Number.isInteger(action) || action < 1 || action > 1000) ||
+        action === (credits ? previous.creditAmount : previous.quantity))) return false;
     const version = epoch.current;
     locks.current.add(itemId);
     setPending(new Set(locks.current));

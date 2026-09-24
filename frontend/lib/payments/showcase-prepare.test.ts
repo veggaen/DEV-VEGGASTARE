@@ -64,6 +64,15 @@ it('keeps the first consent snapshot on an idempotent retry, including legacy or
   expect(await prepareShowcaseCheckout('buyer1', 'request1', undefined, consent)).toBe(prior);
   expect(m.order).not.toHaveBeenCalled(); expect(m.attempt).not.toHaveBeenCalled();
 });
+it('prepares the small pack at 9 NOK without weakening delivery consent or repricing old attempts', async () => {
+  const small = [{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, creditAmount: 10 }];
+  m.cart.mockResolvedValue({ CartItem: small.map(row => ({ ...row, Product: { visibility: 'PUBLIC', productType: 'DIGITAL', Files: [] } })) });
+  await expect(prepareShowcaseCheckout('buyer1', 'small1')).rejects.toThrow('DELIVERY_CONSENT_REQUIRED');
+  expect(m.order).not.toHaveBeenCalled();
+  await prepareShowcaseCheckout('buyer1', 'small1', JSON.stringify(quoteShowcaseCart(small)), consent);
+  expect(m.attempt).toHaveBeenCalledWith({ data: expect.objectContaining({ totalOre: 900,
+    quote: expect.objectContaining({ lines: [expect.objectContaining({ credits: 10, amountOre: 900 })] }) }) });
+});
 
 it.each(Object.values(SHOWCASE_PRODUCTS))('blocks paused $id on the server before an order or provider session exists', async sku => {
   const paused = [{ productId: sku.id, quantity: 1 }];

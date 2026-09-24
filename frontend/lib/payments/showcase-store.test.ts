@@ -59,6 +59,21 @@ describe('transactional checkout fulfillment', () => {
     await expect(completeShowcaseCheckout('order1', 'buyer1')).rejects.toThrow('PAYMENT_BINDING_MISMATCH');
     expect(m.transaction).not.toHaveBeenCalled();
   });
+  it('grants exactly 10 credits for the small pack and never doubles it on replay', async () => {
+    const small = { ...attempt(), totalOre: 900, quote: quoteShowcaseCart([
+      { productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, creditAmount: 10 },
+    ]) };
+    m.find.mockResolvedValue(small); m.fresh.mockResolvedValue(small);
+    const p = proof(); p.purchase_units[0].amount.value = '9.00';
+    p.purchase_units[0].payments.captures[0].amount.value = '9.00';
+    m.capture.mockResolvedValue(p);
+    await completeShowcaseCheckout('order1', 'buyer1');
+    expect(m.adjust).toHaveBeenCalledWith(expect.anything(), 'SANDBOX:buyer1', 10);
+    expect(m.entry).toHaveBeenCalledWith({ data: { accountId: 'SANDBOX:buyer1', delta: 10, kind: 'PURCHASE', sourceKey: 'checkout:order1' } });
+    m.find.mockResolvedValue({ ...small, state: 'COMPLETED' });
+    await completeShowcaseCheckout('order1', 'buyer1');
+    expect(m.adjust).toHaveBeenCalledOnce(); expect(m.entry).toHaveBeenCalledOnce();
+  });
   it('grants the immutable custom amount after exact capture, not the current catalog pack', async () => {
     const customQuote = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, creditAmount: 122 }]);
     const custom = { ...attempt(), totalOre: 4716, quote: customQuote };

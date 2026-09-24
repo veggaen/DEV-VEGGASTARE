@@ -10,6 +10,12 @@ function proof() { return { id: 'PAYPALORDER1', status: 'COMPLETED', purchase_un
 }] }; }
 
 describe('reviewer checkout policy', () => {
+  it('binds a small-pack quote to 9 NOK and exactly 10 credits regardless of client price', () => {
+    const quote = quoteShowcaseCart([{ productId: skus.credits.id, quantity: 1, creditAmount: 10, amountOre: 1, credits: 100 }]);
+    expect(quote.totalOre).toBe(900);
+    expect(quote.lines).toHaveLength(1);
+    expect(quote.lines[0]).toMatchObject({ credits: 10, amountOre: 900, pricingVersion: '2026-09-small-v1' });
+  });
   it('quotes custom credits and files as separate server-priced lines', () => {
     const quote = quoteShowcaseCart([{ productId: skus.credits.id, quantity: 1, creditAmount: 122, amountOre: 1 }, { productId: skus.interviewPack.id, quantity: 1 }]);
     expect(quote.totalOre).toBe(7616);

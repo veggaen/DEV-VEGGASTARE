@@ -1,7 +1,7 @@
 /** @fileOverview Authoritative NOK quotes and strict PayPal capture validation. @stability experimental */
 import { z } from 'zod';
 import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
-import { DEFAULT_PURCHASE_CREDITS, MIN_PURCHASE_CREDITS, MAX_PURCHASE_CREDITS, quoteCreditPurchase } from '@/lib/ai-credit-purchase';
+import { DEFAULT_PURCHASE_CREDITS, isPurchasableCreditAmount, quoteCreditPurchase } from '@/lib/ai-credit-purchase';
 
 export class CheckoutError extends Error {
   constructor(public code: string, public status = 400) { super(code); }
@@ -18,7 +18,7 @@ export function paypalEnvironment(env: Record<string, string | undefined> = proc
 }
 
 const CartInput = z.array(z.object({ productId: z.string(), quantity: z.number().int().min(1).max(1),
-  creditAmount: z.number().int().min(MIN_PURCHASE_CREDITS).max(MAX_PURCHASE_CREDITS).nullish() })).min(1).max(2);
+  creditAmount: z.number().int().refine(isPurchasableCreditAmount).nullish() })).min(1).max(2);
 export function quoteShowcaseCart(input: unknown) {
   const parsed = CartInput.safeParse(input);
   if (!parsed.success) throw new CheckoutError('ONE_OF_EACH_REVIEWER_ITEM_PER_ORDER');

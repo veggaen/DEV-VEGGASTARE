@@ -2,6 +2,13 @@
 export const MIN_PURCHASE_CREDITS = 100;
 export const MAX_PURCHASE_CREDITS = 1000;
 export const DEFAULT_PURCHASE_CREDITS = 100;
+// A small, explicitly priced starter option for inexpensive Live acceptance.
+// Do not discount the normal pack or rewrite previously stored order quotes.
+export const SMALL_CREDIT_PACK = { credits: 10, amountOre: 900, pricingVersion: '2026-09-small-v1' } as const;
+export function isPurchasableCreditAmount(credits: number) {
+  return Number.isSafeInteger(credits) && (credits === SMALL_CREDIT_PACK.credits ||
+    (credits >= MIN_PURCHASE_CREDITS && credits <= MAX_PURCHASE_CREDITS));
+}
 export const CREDIT_BASE_UNIT_ORE = 39;
 export const CREDIT_PRICE_VERSION = '2026-09-custom-v1';
 export const DAILY_PURCHASE_CAP_ORE = 50_000;
@@ -15,9 +22,13 @@ export const CREDIT_PRICE_TIERS = [
 ] as const;
 
 export function quoteCreditPurchase(credits: number) {
-  if (!Number.isSafeInteger(credits) || credits < MIN_PURCHASE_CREDITS || credits > MAX_PURCHASE_CREDITS) {
+  if (!isPurchasableCreditAmount(credits)) {
     throw new Error('INVALID_CREDIT_AMOUNT');
   }
+  if (credits === SMALL_CREDIT_PACK.credits) return {
+    credits, amountOre: SMALL_CREDIT_PACK.amountOre, listAmountOre: SMALL_CREDIT_PACK.amountOre,
+    discountOre: 0, currency: 'NOK' as const, pricingVersion: SMALL_CREDIT_PACK.pricingVersion,
+  };
   let previous = 0, priceBasisPoints = 0;
   for (const tier of CREDIT_PRICE_TIERS) {
     const count = Math.max(0, Math.min(credits, tier.upTo) - previous);

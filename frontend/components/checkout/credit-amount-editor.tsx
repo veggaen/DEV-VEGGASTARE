@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PriceAmount from '@/components/crypto-related/PriceAmount';
-import { MIN_PURCHASE_CREDITS, MAX_PURCHASE_CREDITS, quoteCreditPurchase } from '@/lib/ai-credit-purchase';
+import { SMALL_CREDIT_PACK, isPurchasableCreditAmount, quoteCreditPurchase } from '@/lib/ai-credit-purchase';
 import { useCart } from '@/contexts/cart-context';
 
 export default function CreditAmountEditor({ value, onSave, onDirtyChange, disabled = false }: {
@@ -22,11 +22,11 @@ export default function CreditAmountEditor({ value, onSave, onDirtyChange, disab
   useEffect(() => { callback.current?.(dirty); }, [dirty]);
   useEffect(() => () => { callback.current?.(false); }, []);
   const number = /^\d+$/.test(draft) ? Number(draft) : NaN;
-  const valid = Number.isSafeInteger(number) && number >= MIN_PURCHASE_CREDITS && number <= MAX_PURCHASE_CREDITS;
+  const valid = isPurchasableCreditAmount(number);
   const quote = valid ? quoteCreditPurchase(number) : null;
   async function save() {
     if (disabled || saving || !dirty) return;
-    if (!valid) { setError('Enter a whole number from 100 to 1,000.'); input.current?.focus(); return; }
+    if (!valid) { setError('Choose 10 credits, or enter a whole number from 100 to 1,000.'); input.current?.focus(); return; }
     setSaving(true); setError('');
     try {
       if (await onSave(number) === false) throw new Error();
@@ -44,7 +44,11 @@ export default function CreditAmountEditor({ value, onSave, onDirtyChange, disab
       <Button type="button" variant="outline" className="min-h-11" disabled={disabled || saving || !dirty} onClick={() => void save()}>{saving ? 'Saving…' : 'Update credits'}</Button>
       {dirty && <Button type="button" variant="ghost" className="min-h-11" disabled={disabled || saving} onClick={() => { setDraft(String(value)); setError(''); }}>Cancel</Button>}
     </div>
-    <p id={`${id}-help`} className="text-xs leading-5 text-muted-foreground">100–1,000 credits. First 100 at standard price; next 400 receive 5% off; additional credits receive 10% off.</p>
+    <Button type="button" variant="outline" className="min-h-11 max-w-full whitespace-normal text-left" disabled={disabled || saving || draft === String(SMALL_CREDIT_PACK.credits)}
+      onClick={() => { setDraft(String(SMALL_CREDIT_PACK.credits)); setError(''); input.current?.focus(); }}>
+      Choose 10-credit starter pack
+    </Button>
+    <p id={`${id}-help`} className="text-xs leading-5 text-muted-foreground">Try 10 credits for <PriceAmount amount={SMALL_CREDIT_PACK.amountOre / 100} currency="NOK" /> total, or choose 100–1,000 credits at a lower price per credit. For custom amounts: first 100 at standard price; next 400 receive 5% off; additional credits receive 10% off. Update your selection before continuing.</p>
     <div role="status" className="text-sm tabular-nums">
       {quote && <>{dirty ? 'New total: ' : `${value} credits · `}<PriceAmount amount={quote.amountOre / 100} currency="NOK" />
         {quote.discountOre > 0 && <span className="ml-2 text-muted-foreground">Save <PriceAmount amount={quote.discountOre / 100} currency="NOK" /></span>}</>}
