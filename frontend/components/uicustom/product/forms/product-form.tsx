@@ -255,6 +255,9 @@ export const MyProductCreationForm = () => {
   // we only toggle which step's panel is visible. Navigation is free — users can
   // jump to any step — and validation is soft until the final Publish.
   const [activeStep, setActiveStep] = useState<number>(0);
+  const stepPanelsRef = useRef<HTMLDivElement>(null);
+  const reviewIssuesRef = useRef<HTMLDivElement>(null);
+  const stepFocusPending = useRef(false);
 
   // ── Price display unit ────────────────────────────────────────────────────
   // The Currency dropdown lets sellers express the price in a fiat OR a crypto
@@ -397,7 +400,7 @@ export const MyProductCreationForm = () => {
 
   // ── Fetch seller payment info (wallets + PayPal status) ─────────────────
   useEffect(() => {
-    if (!clientUser?.id) return;
+    if (!clientUser?.id || clientUser.isDemo) return;
     let cancelled = false;
     (async () => {
       try {
@@ -1506,11 +1509,21 @@ export const MyProductCreationForm = () => {
   const safeActiveStep = Math.min(activeStep, visibleSteps.length - 1);
   const currentStep = visibleSteps[safeActiveStep];
   const goToStep = (idx: number) => {
-    setActiveStep(Math.max(0, Math.min(idx, visibleSteps.length - 1)));
-    // Scroll the content column back to top on step change for a clean read.
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    const next = Math.max(0, Math.min(idx, visibleSteps.length - 1));
+    if (visibleSteps[next]?.id === 'review') void form.trigger(undefined, { shouldFocus: false });
+    stepFocusPending.current = next !== safeActiveStep;
+    setActiveStep(next);
   };
   const isStepActive = (id: string) => currentStep?.id === id;
+  useEffect(() => {
+    if (!stepFocusPending.current) return;
+    stepFocusPending.current = false;
+    const panel = stepPanelsRef.current?.querySelector<HTMLElement>(`[data-listing-step="${currentStep.id}"]`);
+    const heading = panel?.querySelector<HTMLElement>('h3');
+    const focusTarget = heading ?? panel;
+    if (focusTarget) { focusTarget.tabIndex = -1; focusTarget.focus({ preventScroll: true }); }
+    panel?.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }, [safeActiveStep, currentStep.id]);
 
   // Throttled form-state debug log — only fires once per 5 s to avoid console spam
   const lastFormLogRef = useRef(0);
@@ -1529,7 +1542,7 @@ export const MyProductCreationForm = () => {
   }
 
   // Only disable button during actual submission or image upload
-  const isSubmitDisabled = isSubmitting || isUploadingImages || isUploadingDigitalFile;
+  const isSubmitDisabled = isSubmitting || isUploadingImages || isUploadingDigitalFile || !!clientUser?.isDemo;
   const submitLabel = isUploadingImages 
     ? 'Uploading images...'
     : isUploadingDigitalFile
@@ -1597,6 +1610,14 @@ export const MyProductCreationForm = () => {
     // Sync productType to form state so validation sees the correct value
     form.setValue('productType', productType, { shouldValidate: false });
 
+    // Validate every step together before uploads/writes. The summary stays on
+    // Review and offers explicit recovery links instead of focusing hidden inputs.
+    const isValid = await form.trigger(undefined, { shouldFocus: false });
+    if (!isValid || imagePreviews.length === 0 || !hasRequiredShippingSpecs || !hasRequiredDigitalFile) {
+      requestAnimationFrame(() => { reviewIssuesRef.current?.focus(); reviewIssuesRef.current?.scrollIntoView({ block: 'center' }); });
+      return;
+    }
+
     // Check shipping specs for physical products
     if (needsShippingSpecs && !hasRequiredShippingSpecs) {
       setError('Physical products require Weight, Height, Length, and Width specifications');
@@ -1610,7 +1631,6 @@ export const MyProductCreationForm = () => {
     }
 
     // Trigger form validation and submit if valid
-    const isValid = await form.trigger();
     if (isValid) {
       form.handleSubmit(onSubmit)();
     }
@@ -1670,6 +1690,7 @@ export const MyProductCreationForm = () => {
                     <button
                       type="button"
                       onClick={() => goToStep(idx)}
+                      aria-current={active ? 'step' : undefined}
                       className={`group relative flex w-full items-center gap-2.5 whitespace-nowrap rounded-md px-2 py-2 text-left text-sm transition-all duration-200 lg:whitespace-normal ${
                         active
                           ? 'text-foreground'
@@ -1706,10 +1727,10 @@ export const MyProductCreationForm = () => {
           </nav>
 
           {/* ── Right column: step panels ─────────────────────────────────── */}
-          <div className="min-w-0">
+          <div className="min-w-0" ref={stepPanelsRef}>
 
           {/* Images Section — belongs to step 1 "Type & photos" */}
-          <div hidden={!isStepActive('type')} className="w-full pb-2">
+          <div hidden={!isStepActive('type')} data-listing-step="type" className="w-full scroll-mt-4 pb-2">
             <FormField control={form.control} name='image' render={() => (
               <FormItem className="hidden">
                 <FormMessage />
@@ -1840,7 +1861,7 @@ export const MyProductCreationForm = () => {
             {/* Column 1: Basic info + Pricing */}
             <div className='contents'>
               {/* Basic info section */}
-              <div hidden={!isStepActive('details')} className={`${customStyles.section} order-2`}>
+              <div hidden={!isStepActive('details')} data-listing-step="details" className={`${customStyles.section} scroll-mt-4 order-2`}>
                 <div className="space-y-1">
                   <h3 className="text-base font-semibold tracking-tight text-foreground">Describe your product</h3>
                   <p className="text-sm text-muted-foreground">
@@ -1926,18 +1947,18 @@ export const MyProductCreationForm = () => {
               </div>
 
               {/* Pricing - compact */}
-              <div hidden={!isStepActive('pricing')} className={`${customStyles.sectionAlt} order-3`}>
+              <div hidden={!isStepActive('pricing')} data-listing-step="pricing" className={`${customStyles.sectionAlt} scroll-mt-4 order-3`}>
                 <div className="space-y-1">
                   <h3 className="text-base font-semibold tracking-tight text-foreground">Set your price</h3>
                   <p className="text-sm text-muted-foreground">
-                    Price in any currency. Decimals are fine — e.g. 0.1 ETH or 49.99 NOK.
+                    Set the listing price in a fiat currency, for example 49.99 NOK. Crypto-denominated pricing is not available yet.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr,150px]">
                   <FormField control={form.control} name='price' render={({ field }) => (
                     <FormItem className={customStyles.item}>
-                      <FormLabel className={customStyles.label}>Price</FormLabel>
+                      <FormLabel htmlFor="listing-price" className={customStyles.label}>Price</FormLabel>
                       <FormControl>
                         <div className='relative'>
                           <span className='pointer-events-none absolute left-3 top-1/2 max-w-[3rem] -translate-y-1/2 truncate text-sm font-medium text-muted-foreground'>
@@ -1947,6 +1968,7 @@ export const MyProductCreationForm = () => {
                           </span>
                           <Input
                             {...field}
+                            id="listing-price"
                             disabled={isSubmitting}
                             placeholder='0.00'
                             type='text'
@@ -1975,6 +1997,7 @@ export const MyProductCreationForm = () => {
                           disabled={isSubmitting}
                           value={priceUnit}
                           onValueChange={(value) => {
+                            if (!(FiatCurrencyValues as readonly string[]).includes(value)) return;
                             setPriceUnit(value);
                             // Keep the stored fiat currency valid for checkout. For a
                             // crypto/custom unit we settle/display in USD until the
@@ -2001,11 +2024,11 @@ export const MyProductCreationForm = () => {
                             ))}
                             <div className="mt-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Crypto</div>
                             {CRYPTO_PRICE_UNITS.map((sym) => (
-                              <SelectItem key={sym} value={sym} className={customStyles.selectItem}>
+                              <SelectItem key={sym} value={sym} disabled className={customStyles.selectItem}>
                                 {sym}
                               </SelectItem>
                             ))}
-                            <SelectItem value="__CUSTOM__" className={customStyles.selectItem}>
+                            <SelectItem value="__CUSTOM__" disabled className={customStyles.selectItem}>
                               Custom token…
                             </SelectItem>
                           </SelectContent>
@@ -2118,7 +2141,7 @@ export const MyProductCreationForm = () => {
             </div>
 
             {/* ─── Seller Payment Status & Wallet Picker ─────────────────── */}
-            <div hidden={!isStepActive('delivery')} className={`${customStyles.sectionAlt} order-4`}>
+            <div hidden={!isStepActive('delivery')} data-listing-step="delivery" className={`${customStyles.sectionAlt} scroll-mt-4 order-4`}>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Receiving Payment Methods</h4>
               
               {/* PayPal status indicator */}
@@ -2627,7 +2650,7 @@ export const MyProductCreationForm = () => {
 
               {/* Digital File Upload - shown for DIGITAL and HYBRID */}
               {(productType === 'DIGITAL' || productType === 'HYBRID') && (
-                <div hidden={!isStepActive('digital')} className={`${customStyles.section} order-6`}>
+                <div hidden={!isStepActive('digital')} data-listing-step="digital" className={`${customStyles.section} scroll-mt-4 order-6`}>
                   <h3 className={customStyles.sectionTitle}>
                     Digital File
                     <span className="font-normal text-emerald-400/70 ml-1 normal-case tracking-normal">— required</span>
@@ -3078,7 +3101,7 @@ export const MyProductCreationForm = () => {
           </div>
 
           {/* ════════════ FINAL STEP — Review & publish ════════════ */}
-          <div hidden={!isStepActive('review')} className={`${customStyles.section} border-t-0 pt-0`}>
+          <div hidden={!isStepActive('review')} data-listing-step="review" className={`${customStyles.section} scroll-mt-4 border-t-0 pt-0`}>
             <h3 className={customStyles.sectionTitle}>Review &amp; Publish</h3>
             <p className="text-xs text-muted-foreground">
               A quick look at how your listing reads. Jump back to any step on the left to make changes.
@@ -3144,7 +3167,7 @@ export const MyProductCreationForm = () => {
 
             {/* Validation summary — only on the final step, where it can be acted on */}
             {hasValidationIssues && !success && (
-              <div className="mt-5 rounded-lg border border-amber-500/25 bg-amber-500/5 p-4 text-sm">
+              <div ref={reviewIssuesRef} tabIndex={-1} aria-label="Listing issues" aria-live="polite" className="mt-5 rounded-lg border border-amber-500/25 bg-amber-500/5 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                 <p className="font-medium text-foreground">
                   Finish {missingItems.length} item{missingItems.length !== 1 ? 's' : ''} before publishing
                 </p>
@@ -3159,7 +3182,7 @@ export const MyProductCreationForm = () => {
                           const targetIndex = visibleSteps.findIndex((step) => step.id === targetStep);
                           goToStep(targetIndex >= 0 ? targetIndex : safeActiveStep);
                         }}
-                        className="flex w-full items-start justify-between gap-3 rounded-md border border-border/60 bg-background/50 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:border-emerald-500/40 hover:text-foreground"
+                        className="flex min-h-11 w-full items-start justify-between gap-3 rounded-md border border-border/60 bg-background/50 px-3 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-emerald-500/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <span>{item}</span>
                         <span className="shrink-0 text-emerald-500">Fix</span>

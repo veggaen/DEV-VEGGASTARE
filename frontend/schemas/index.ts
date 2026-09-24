@@ -132,10 +132,10 @@ export const AcceptedTokenSchema = z.object({
 export type AcceptedToken = z.infer<typeof AcceptedTokenSchema>;
 
 export const MyProductCreateSchema = z.object({
-    title: z.string().min(1, { message: "Title is required" }),
-    description: z.string().min(1, { message: "Description is required" }),
+    title: z.string().trim().min(1, { message: "Title is required" }).max(200),
+    description: z.string().trim().min(1, { message: "Description is required" }).max(8000),
     // Legacy single category - kept for backward compatibility
-    category: z.string().min(1, { message: "Category is required" }),
+    category: z.string().trim().min(1, { message: "Category is required" }).max(200),
     // New multi-category system - array of category tags
     categories: z.array(CategoryTagSchema).optional().default([]),
     price: z.number().min(0, { message: "Price must be 0 or greater" }),

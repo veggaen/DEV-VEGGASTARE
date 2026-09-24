@@ -5,6 +5,95 @@ import { createHash } from 'node:crypto';
 import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders';
 import { SessionRailResponse } from '../lib/ai-chat/session-list';
 
+test('Isolated seller signs in, uploads a real private file and publishes a browse-only product',async({browser,baseURL},testInfo)=>{
+  test.skip(process.env.E2E_PUBLISH_WRITE!=='1'||!process.env.E2E_PUBLISH_EMAIL||!process.env.E2E_PUBLISH_PASSWORD,'Explicit isolated-Preview write runner only');
+  if(!baseURL||!(baseURL==='http://localhost:3000'||baseURL==='https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app'))throw new Error('Publication QA cannot write to production');
+  test.setTimeout(120_000);
+  const context=await browser.newContext({baseURL,viewport:{width:1280,height:800}}),page=await context.newPage();
+  try{
+    await page.goto('/auth/login?callbackUrl=%2Fproducts%2Fcreate',{waitUntil:'domcontentloaded'});
+    await page.getByPlaceholder('you@example.com').fill(process.env.E2E_PUBLISH_EMAIL!);
+    await page.locator('input[type="password"]').waitFor({state:'visible'});
+    await page.locator('input[type="password"]').fill(process.env.E2E_PUBLISH_PASSWORD!).catch(()=>{throw new Error('QA password entry unavailable');});
+    await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.waitForURL('**/products/create');
+    await expect(page.getByText('Publishing does not activate checkout',{exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Essential Only',exact:true}).click();
+    await page.locator('[data-listing-step="type"] input[type="file"]').setInputFiles('public/showcase/fjord-study-small.jpg');
+    await page.locator('label').filter({has:page.getByRole('radio',{name:'Digital Downloadable file',exact:true})}).click();
+    await page.getByRole('button',{name:/^2\. Details/}).click();
+    await page.getByRole('textbox',{name:'Product title',exact:true}).fill(process.env.E2E_PUBLISH_TITLE!);
+    await page.getByRole('textbox',{name:'Description',exact:true}).fill('Synthetic isolated seller QA listing. Never offered for payment.');
+    await page.getByRole('textbox',{name:'Categories',exact:true}).fill('Digital');await page.getByRole('textbox',{name:'Categories',exact:true}).press('Enter');
+    await page.getByRole('button',{name:/^3\. Digital file/}).click();
+    await page.locator('[data-listing-step="digital"] input[type="file"]').setInputFiles({name:'veggat-qa.txt',mimeType:'text/plain',buffer:Buffer.from('Veggat isolated upload and publication verification.\n')});
+    await page.getByRole('button',{name:/^4\. Price & payment/}).click();await page.getByRole('textbox',{name:'Price',exact:true}).fill('29');
+    await page.getByRole('button',{name:/^6\. Review & publish/}).click();
+    await expect(page.getByText(/Finish \d+ items? before publishing/)).toHaveCount(0);
+    const registered=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/digital-assets'&&r.request().method()==='POST');
+    await page.getByRole('button',{name:'Create Listing',exact:true}).click();
+    const response=await registered;expect(response.status()).toBe(200);expect(await response.json()).not.toHaveProperty('storageKey');
+    await page.waitForURL(/\/products\/c[a-z0-9]+$/,{timeout:60_000});
+    await expect(page.getByRole('heading',{name:process.env.E2E_PUBLISH_TITLE!,level:1,exact:true})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Browse-only listing',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Unavailable',exact:true})).toBeDisabled();
+    await page.screenshot({path:testInfo.outputPath('published-isolated-listing.png')});
+  }finally{await context.close();}
+});
+
+test('Seller listing review exposes all missing fields, restores focus and keeps demo publication disabled', async ({browser,baseURL},testInfo)=>{
+  test.skip(process.env.E2E_LISTING_REVIEW!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Read-only seller form in retained demo');
+  test.setTimeout(120_000);
+  for(const width of [390,1280]){
+    const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width,height:844},reducedMotion:'reduce'}),page=await context.newPage();
+    if(process.env.E2E_LISTING_THEME==='dark')await context.addInitScript(()=>localStorage.setItem('veggat:theme','dark'));
+    const writes:string[]=[],errors:string[]=[];
+    page.on('pageerror',e=>errors.push(e.message));
+    page.on('request',r=>{if(r.method()==='POST'&&(r.headers()['next-action']||/\/api\/digital-assets$/.test(r.url())))writes.push(r.url());});
+    try{
+      await page.goto('/products/create',{waitUntil:'domcontentloaded'});
+      await expect(page.getByText('Explore listing creation in demo mode',{exact:true})).toBeVisible();
+      if(!await page.evaluate(()=>localStorage.getItem('veggat:cookieConsent')))await page.getByRole('button',{name:'Essential Only',exact:true}).click();
+      await page.locator('label').filter({has:page.getByRole('radio',{name:'Digital Downloadable file',exact:true})}).click();
+      await expect(page.getByRole('radio',{name:'Digital Downloadable file',exact:true})).toBeChecked();
+      await page.getByRole('button',{name:/^6\. Review & publish/}).click();
+      const titleIssue=page.getByRole('button',{name:'Product title: Title is required Fix',exact:true});
+      await expect(titleIssue).toBeVisible();
+      await expect(page.getByRole('button',{name:'Description: Description is required Fix',exact:true})).toBeVisible();
+      await expect(page.getByRole('button',{name:'Category: Category is required Fix',exact:true})).toBeVisible();
+      await expect(page.getByRole('button',{name:'Create Listing',exact:true})).toBeDisabled();
+      await titleIssue.click();
+      await expect(page.getByRole('heading',{name:'Describe your product',exact:true})).toBeFocused();
+      await page.getByRole('textbox',{name:'Product title',exact:true}).fill('Synthetic local draft — not published');
+      await page.getByRole('textbox',{name:'Description',exact:true}).fill('A QA draft retained when changing steps.');
+      const categories=page.getByRole('textbox',{name:'Categories',exact:true});await categories.fill('QA review');await categories.press('Enter');
+      await page.getByRole('button',{name:/^6\. Review & publish/}).click();
+      await expect(titleIssue).toHaveCount(0);await expect(page.getByText('Synthetic local draft — not published',{exact:true})).toBeVisible();
+      await expect(page.getByRole('button',{name:'At least one product image is required Fix',exact:true})).toBeVisible();
+      await expect(page.getByRole('button',{name:'A digital file is required for digital/hybrid products Fix',exact:true})).toBeVisible();
+      for(const size of [{width:360,height:800},{width:390,height:844},{width:844,height:390},{width:768,height:1024},{width:1024,height:768},{width:1280,height:800},{width:1920,height:1080},{width:2560,height:1080}]){
+        await page.setViewportSize(size);
+        expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+        await page.getByRole('button',{name:'Create Listing',exact:true}).scrollIntoViewIfNeeded();
+        await expect(page.getByRole('button',{name:'Create Listing',exact:true})).toBeInViewport();
+      }
+      await page.setViewportSize({width,height:844});await page.screenshot({path:testInfo.outputPath(`listing-review-${width}.png`)});
+      expect(errors).toEqual([]);expect(writes).toEqual([]);
+    }finally{await context.close();}
+  }
+});
+
+test('Digital asset routes reject anonymous writes and expose no company files to a demo', async ({browser,baseURL})=>{
+  test.skip(process.env.E2E_LISTING_REVIEW!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Unmocked digital asset HTTP guards');
+  const anonymous=await browser.newContext({baseURL}),demo=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE});
+  try{
+    expect((await anonymous.request.get('/api/digital-assets')).status()).toBe(401);
+    expect((await anonymous.request.post('/api/digital-assets',{data:{},headers:{origin:baseURL!}})).status()).toBe(401);
+    const response=await demo.request.get('/api/digital-assets?companyId=qa-foreign-company');expect(response.status()).toBe(200);
+    expect(await response.json()).toEqual({assets:[],readOnly:true});expect(response.headers()['cache-control']).toContain('no-store');
+    expect((await demo.request.post('/api/digital-assets',{data:{},headers:{origin:baseURL!}})).status()).toBe(403);
+  }finally{await anonymous.close();await demo.close();}
+});
+
 test('Catalog and product pages disclose purchase availability before a buyer changes their cart', async ({browser,baseURL},testInfo)=>{
   test.skip(process.env.E2E_PURCHASE_AVAILABILITY!=='1','Catalog/PDP availability fixtures; no database writes');
   test.setTimeout(90_000);

@@ -26,6 +26,9 @@ interface HierarchicalCategory {
 }
 
 interface CategoryTagInputProps {
+  id?: string;
+  'aria-describedby'?: string;
+  'aria-invalid'?: boolean | 'true' | 'false';
   value: CategoryTag[];
   onChange: (tags: CategoryTag[]) => void;
   disabled?: boolean;
@@ -49,6 +52,9 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export function CategoryTagInput({
+  id,
+  'aria-describedby': describedBy,
+  'aria-invalid': invalid,
   value = [],
   onChange,
   disabled = false,
@@ -325,6 +331,11 @@ export function CategoryTagInput({
         {/* Input */}
         {value.length < maxTags && (
           <input
+            id={id}
+            name="categories"
+            aria-label={id ? undefined : 'Categories'}
+            aria-describedby={describedBy}
+            aria-invalid={invalid}
             ref={inputRef}
             type="text"
             value={inputValue}
