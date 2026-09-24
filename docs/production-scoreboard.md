@@ -4,12 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
-Route audit/storage resilience: **PARTIAL — local and Preview verified, live pending**.
+Route audit/storage resilience: **DONE for scoped rendering regressions locally,
+Preview and live; full interaction audit remains PARTIAL**.
 Candidate `ac82106` fixes an unattended storage initialization rejection and
 moves a development-only preview guard to the server. **24 units**, touched lint,
 strict build and local **4/4 browser checks** pass, including 77 static routes at
 390/2560. This is rendering/scroll-input triage, not all-button or all-role
-acceptance. [Evidence and remaining dynamic-route scope](route-inventory-2026-09.md).
+acceptance. Production `dpl_99ac3nJpvGP48cqbTZhg7BzNxY9p` is promoted and the
+live batch passes **3/3** (154 static-route observations plus targeted failures).
+An additional fresh-demo checkout attempt locally hit the existing busy/limit
+path and is not claimed as passing; no safeguard was weakened.
+[Evidence and remaining dynamic-route scope](route-inventory-2026-09.md).
 
 Backend container: **DONE locally and deployed on Railway**. Node 22,
 non-root runtime, Windows and Linux security tests **5/5**, running-container
@@ -1141,7 +1146,7 @@ member-to-member delivery remains separate from the mocked error test.
 | Wallets | Connect UI, no crash | PARTIAL — injected-wallet cancel/connect/disconnect passes local/live; configured WalletConnect open/escape and configuration units pass; owner-wallet verification pending |
 | Platform | Public homepage | DONE — S1 verified locally and live |
 | Platform | Consent controls Analytics/Speed Insights | DONE — no scripts before consent/Essential Only; both 200 after opt-in; real visitor metrics pending |
-| Platform | Health | PARTIAL — local Hapi `/v1/health` 200 and mock shipping returns two NOK options; Railway auth expired and live backend unverified |
+| Platform | Health | DONE for deployed integration core — local and Railway `/v1/health` 200; live mock shipping returns two options; retired write endpoints return 410/no-store. Live Bring is not verified. |
 | Experimental | Warehouse list/detail/refresh | DONE for scoped reads — phone/ultrawide, real isolated access checks, live read-only inventory expansion and footer scrolling; stock-write guards unit-tested, real admin mutation acceptance remains separate |
 | Quality | Touched-file lint | PARTIAL — run after each slice |
 | Quality | Home → demo → product → cart E2E | DONE — local and live pass; payment coverage remains a separate S4 task |

@@ -73,5 +73,26 @@ mobile; corrected to the shared menu. The corrected three-size regression passes
 locally and on Preview (2/2 including setup each). Application code did not change
 for these test corrections.
 
-The full Preview inventory and live verification remain pending. Do not treat
-this document as proof of production acceptance until deployment evidence is added.
+## Production deployment and verification
+
+Production `dpl_99ac3nJpvGP48cqbTZhg7BzNxY9p` (source `83b23bb`) built with
+the SDK patch applied, strict TypeScript passing and no pending migrations.
+It was promoted to `www.veggat.com`; Vercel inspect resolves that domain to this
+deployment. Live focused regressions pass **3/3** in 2.7 minutes, including
+154 static-route observations, the controlled storage outage and preview guard.
+Results: `test-results-release-route-inventory-live/results.json`.
+The redirect-aware local rerun also passes with 154 observations.
+
+Real Chrome confirms the product gallery moves to its second image; actual
+page scrolling reaches the footer below the specifications without overlapping
+content. At 390px the sticky add-to-basket control remains visible. The browser
+viewport override was reset. These are scoped observations, not complete
+all-button/all-role acceptance or a physical-phone keyboard test.
+
+An extra local fresh-demo checkout attempt was refused with the existing
+"Demo is busy" error before sign-in. A read-only isolated Preview DB check found
+eight demos today, grouped 5 and 3 per fingerprint; one group is at the existing
+five-per-day limit. No limit, fingerprint or account was changed to force a pass.
+That fresh-demo run is **not passing**, and this release does not claim a new
+full checkout acceptance result. Retained-session route checks pass. Actual
+uploads and owner Live capture/refund still require their separate acceptance.
