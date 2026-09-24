@@ -54,10 +54,19 @@ Reference: [Auth.js public credentials error codes](https://authjs.dev/reference
   no pending migrations. All **3/3** focused checks pass (17.3s): phone/desktop
   refusal recovery, webhook malformed/unsigned rejection, and auth callback
   host/PKCE/cookies/malformed-session checks. This is not full OAuth consent or
-  a new Sandbox capture/refund acceptance. Live acceptance remains pending.
+  a new Sandbox capture/refund acceptance.
+- Production `dpl_6CH8kjDUcoZwbfxaEJ7sfxniLtUe` (source `a3f0055`, app
+  `b8b03d8`) passed its strict build using Production configuration, with no
+  pending migrations, and is promoted to www.veggat.com. Live **2/2** focused
+  checks pass (16.5s): phone/desktop refusal recovery and auth protocol safeguards.
+  The refusal test intercepts exactly eight responses; it does not consume demo
+  identities or prove a fresh successful sign-in. Real Chrome was reloaded and
+  owner-session Home-to-Marketplace navigation rendered both reviewer products.
 - The webhook regression reproduced 503 on the prior deployment. Acceptance
   requires malformed input 400 and unsigned input 401; neither fixture reaches
   fulfillment. All 16 webhook verification/reconciliation units pass.
 
 This does not prove successful fresh-demo provisioning after the cap resets,
-or full auth/payment acceptance. Production still uses the prior verified app.
+or full auth/payment acceptance. PayPal remains at its owner password screen;
+the retained Live checkout still has the unpaid 10-credit starter with consent
+unchecked. No Live transaction was submitted or verified in this release.

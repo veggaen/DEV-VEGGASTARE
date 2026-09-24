@@ -4,14 +4,19 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
-Demo refusal recovery: **local and Preview verified; production pending**.
+Demo refusal recovery: **local, Preview and live verified for this slice**.
 Source `b8b03d8`, 30 provisioning/policy units, strict build, two local refusal
 checks and one local auth protocol check pass. Preview exposed branch-scoped
 AUTH_URL/PAYPAL_WEBHOOK_ID values missing from CLI deployments. Explicit
 Preview-only build/runtime values fix the observed callbacks-to-production and
 webhook-503 failures; `dpl_52SXaPka2Kp7nCgdcJsWWCHfH4MZ` passes **3/3** focused
 checks on the stable Preview alias. Future CLI Preview deployments must retain
-these overrides until branch selection is resolved. Production is unchanged.
+these overrides until branch selection is resolved. Production
+`dpl_6CH8kjDUcoZwbfxaEJ7sfxniLtUe` (source `a3f0055`) is promoted to
+www.veggat.com after its strict Production build. Live **2/2** focused checks
+pass, and real Chrome Home-to-Marketplace navigation renders the reviewer
+products. This does not prove a new successful demo sign-in after the cap resets,
+full OAuth consent, or Live payment acceptance.
 See [demo recovery evidence](demo-refusal-2026-09.md).
 
 Route audit/storage resilience: **DONE for scoped rendering regressions locally,
