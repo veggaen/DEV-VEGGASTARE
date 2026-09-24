@@ -4,6 +4,13 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Backend container: **DONE locally / BLOCKED on Railway billing**. Node 22,
+non-root runtime, Windows and Linux security tests **5/5**, running-container
+health/mock shipping/retired endpoint checks pass. Real Chrome confirms the
+connected Railway workspace is trial-expired with no active deployment; no
+billing changes or deployment were made. See [backend evidence](backend-container-2026-09.md).
+This does not change the deployed frontend or complete the full scoreboard.
+
 Catalog first render: **DONE for this scoped slice**. App **`e8252bd`** plus
 test **`53b4dfd`**, production **`dpl_9vx4UsAL6W2EC9NLdD3fSSAj46DS`**, verified
 on www.veggat.com. Product cards and the first image preload now arrive in

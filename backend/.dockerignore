@@ -6,3 +6,6 @@ dist
 .git
 .gitignore
 README.md
+src/generated
+.private-*
+test-results*

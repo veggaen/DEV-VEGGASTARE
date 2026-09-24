@@ -15,7 +15,7 @@ the old socket prototype until a scoped authorization protocol is implemented.
 
 ```bash
 cd backend
-npm install
+npm ci
 cp .env.example .env   # Configure your env vars (see below)
 npm run dev             # Starts with nodemon + ts-node
 ```
@@ -63,7 +63,7 @@ backend/
 |-----------|---------|---------|
 | **Hapi.js** | ^21.3.10 | HTTP server framework |
 | **Socket.IO** | ^4.7.5 | WebSocket server (warehouse real-time sync) |
-| **Prisma Client** | ^6.16.3 | Database ORM |
+| **Prisma Client** | ^7.4.0 (lockfile: 7.8.0) | Legacy database modules; not loaded by current handlers |
 | **Pusher** | ^5.2.0 | Event broadcasting to frontend |
 | **Zod** | ^4.3.6 | Runtime input validation |
 | **TypeScript** | ^5.5.4 | Type safety |
@@ -110,7 +110,7 @@ All request payloads are validated with Zod schemas:
 | `PUSHER_KEY` | No | — | Pusher key |
 | `PUSHER_SECRET` | No | — | Pusher secret |
 | `PUSHER_CLUSTER` | No | — | Pusher cluster |
-| `CORS_ORIGINS` | Prod only | `*` | Comma-separated allowed origins |
+| `CORS_ORIGINS` | Prod browser access | Disabled in production; `*` in development | Comma-separated allowed origins; CORS is not authentication |
 | `LOG_REQUESTS` | No | `0` | Enable request logging (`1` to enable) |
 
 ---
@@ -141,7 +141,22 @@ separate and must enforce their own data-access boundaries.
 
 ## Deployment
 
-Deployed on **Railway** using the `Dockerfile`. The `railway.toml` configures the build and start commands.
+Configured for **Railway** using the `Dockerfile`, with `/backend` as the service
+root. The `railway.toml` configures the build, start command and `/v1/health` check.
+Configuration is not evidence of an active deployment: on 24 September 2026 the
+connected VeggaStare workspace showed an expired trial and no active deployment.
+
+The multi-stage image uses Node 22 on Debian Bookworm, runs the five backend
+security tests during its build, and starts the runtime as the non-root `node`
+user. Local environment files and host-generated Prisma output are excluded from
+the build context. No database or provider secrets are required to build it.
+
+```bash
+docker build -t veggat-backend:local .
+docker run --rm -p 127.0.0.1:3001:3001 -e BRING_MODE=mock veggat-backend:local
+```
+
+Use a different host port if your existing development server occupies 3001.
 
 Production considerations:
 - Set `NODE_ENV=production`

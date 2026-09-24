@@ -1,5 +1,5 @@
 # ── Stage 1: Build ──────────────────────────────────────────
-FROM node:20.19.0-bullseye-slim AS builder
+FROM node:22-bookworm-slim AS builder
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends openssl ca-certificates \
@@ -15,17 +15,17 @@ RUN npm ci
 
 # Copy source + build
 COPY . .
-RUN npx prisma generate
-RUN npm run build
+RUN npm run build && node --test tests/security.test.cjs
 
 # ── Stage 2: Production (slim) ──────────────────────────────
-FROM node:20.19.0-bullseye-slim AS runner
+FROM node:22-bookworm-slim AS runner
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends openssl ca-certificates \
 	&& rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src
+ENV NODE_ENV=production
 
 # Copy only production deps
 COPY package*.json ./
@@ -41,4 +41,5 @@ COPY --from=builder /usr/src/prisma.config.ts ./prisma.config.ts
 EXPOSE 3001
 EXPOSE 3002
 
+USER node
 CMD ["node", "dist/index.js"]
