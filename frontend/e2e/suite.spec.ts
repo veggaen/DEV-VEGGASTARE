@@ -5,6 +5,64 @@ import { createHash } from 'node:crypto';
 import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders';
 import { SessionRailResponse } from '../lib/ai-chat/session-list';
 
+test('Platform consent controls fit every viewport and release scrolling immediately', async ({browser,baseURL},testInfo)=>{
+  test.skip(process.env.E2E_CONSENT !== '1','Focused optional-telemetry and consent presentation acceptance');
+  test.setTimeout(120_000);
+  const context=await browser.newContext({baseURL,viewport:{width:390,height:844},reducedMotion:'no-preference'});
+  if(process.env.E2E_CONSENT_THEME==='dark') await context.addInitScript(()=>localStorage.setItem('veggat:theme','dark'));
+  const page=await context.newPage(), scripts:string[]=[], errors:string[]=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  // Observe actual SDK script mounting, without sending synthetic QA visits or
+  // performance measurements to analytics. Event-level revocation has units.
+  await page.route('**/_vercel/**',route=>{scripts.push(new URL(route.request().url()).pathname);return route.fulfill({contentType:'application/javascript',body:''});});
+  try{
+    await page.goto('/terms',{waitUntil:'domcontentloaded'});
+    const panel=page.getByRole('region',{name:'Cookie Preferences',exact:true});
+    await expect(panel).toBeVisible();expect(scripts).toEqual([]);
+    await panel.getByRole('button',{name:'Customize cookie preferences',exact:true}).click();
+    await expect(panel.getByRole('switch',{name:'Analytics',exact:true})).not.toBeChecked();
+    for(const size of [{width:360,height:800},{width:390,height:844},{width:844,height:390},{width:768,height:1024},{width:1024,height:768},{width:1280,height:800},{width:1920,height:1080},{width:2560,height:1080}]){
+      await page.setViewportSize(size);
+      await expect.poll(()=>panel.evaluate(el=>{const b=el.getBoundingClientRect();return b.left>=15&&b.right<=innerWidth-15&&b.top>=15&&b.bottom<=innerHeight-15;})).toBe(true);
+      expect(await panel.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+      for(const name of ['Essential Only','Save Preferences','Back']){
+        const control=panel.getByRole('button',{name,exact:true});await expect(control).toBeInViewport();expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
+      const scroll=panel.locator('[data-cookie-scroll]'), box=await scroll.boundingBox();
+      const before=await page.locator('[data-site-scroll]').evaluate(el=>el.scrollTop);
+      await page.mouse.move(box!.x+box!.width/2,box!.y+box!.height/2);await page.mouse.wheel(0,5000);
+      await expect.poll(()=>scroll.evaluate(el=>Math.abs(el.scrollHeight-el.clientHeight-el.scrollTop))).toBeLessThan(2);
+      expect(await page.locator('[data-site-scroll]').evaluate(el=>el.scrollTop)).toBe(before);
+      if([390,844,1280].includes(size.width))await page.screenshot({path:testInfo.outputPath(`consent-${size.width}.png`)});
+    }
+    await page.setViewportSize({width:1280,height:800});
+    expect(await panel.evaluate(el=>el.contains(document.elementFromPoint(120,720)))).toBe(false);
+    await panel.getByRole('button',{name:'Essential Only',exact:true}).click();
+    // Deliberately no exit-animation wait before this first wheel gesture.
+    await page.mouse.move(640,700);await page.mouse.wheel(0,700);
+    await expect.poll(()=>page.locator('[data-site-scroll]').evaluate(el=>el.scrollTop)).toBeGreaterThan(200);
+    await expect(panel).toHaveCount(0);expect(scripts).toEqual([]);
+    expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('veggat:cookieConsent')!).analytics)).toBe(false);
+    const reopen=async()=>{
+      await page.getByRole('button',{name:'Open menu',exact:true}).click();
+      const drawer=page.getByRole('dialog',{name:'Navigation Menu',exact:true});
+      await drawer.getByRole('button',{name:'Cookie preferences',exact:true}).click();await expect(drawer).toBeHidden();await expect(panel).toBeVisible();
+      await expect(panel.getByRole('heading',{name:'Cookie Preferences',exact:true})).toBeFocused();
+    };
+    await reopen();await panel.getByRole('switch',{name:'Analytics',exact:true}).check();
+    expect(scripts).toEqual([]);await panel.getByRole('button',{name:'Save Preferences',exact:true}).click();
+    await expect.poll(()=>scripts.some(path=>path.includes('/insights/'))).toBe(true);
+    await expect.poll(()=>scripts.some(path=>path.includes('/speed-insights/'))).toBe(true);
+    await reopen();await expect(panel.getByRole('switch',{name:'Analytics',exact:true})).toBeChecked();
+    await panel.getByRole('switch',{name:'Analytics',exact:true}).focus();await page.keyboard.press('Space');
+    await panel.getByRole('button',{name:'Save Preferences',exact:true}).click();
+    expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('veggat:cookieConsent')!).analytics)).toBe(false);
+    scripts.length=0;await page.reload({waitUntil:'domcontentloaded'});await expect(page.getByRole('heading',{name:'Salgsvilkår',exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Open menu',exact:true}).click();await expect(page.getByRole('dialog',{name:'Navigation Menu',exact:true})).toBeVisible();await page.keyboard.press('Escape');
+    expect(scripts).toEqual([]);await expect(panel).toHaveCount(0);expect(errors).toEqual([]);
+  }finally{await context.close();}
+});
+
 test('S5 AI navigation shows loading and failures honestly, searches and pages without stale races', async ({ browser, baseURL }, testInfo) => {
   test.skip(process.env.E2E_AI_NAV !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Read-only AI navigation acceptance');
   test.setTimeout(120_000);
@@ -1639,6 +1697,10 @@ test('S7 — a closed slow poll bundle cannot replace the Pulse feed or reset ea
     const screenshotPrefix = '.private-showcase/pulse-cold-' + (new URL(baseURL!).hostname === 'localhost' ? 'local' : 'live');
     await page.screenshot({ path: screenshotPrefix + '-feed.png' });
     const openPoll = page.getByRole('button', { name: /Delayed module poll/ });
+    // Keep the early-scroll assertion above; make the normal privacy choice
+    // before measuring the click/dialog transition (no overlay bypass).
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await page.getByRole('button', {name:'Essential Only',exact:true}).click();
+    await expect(page.getByRole('button', {name:'Essential Only',exact:true})).toBeHidden();
     await openPoll.scrollIntoViewIfNeeded();
     const before = await page.locator('[data-app-scroll-container]').evaluate(e => e.scrollTop);
     await openPoll.click();
@@ -4967,7 +5029,8 @@ test.describe("Layer 3 — Content", () => {
       await page.goto('/pulse', { waitUntil: 'domcontentloaded' });
       await expect(page.getByRole('feed', { name: 'Pulse feed' })).toHaveAttribute('aria-busy', 'false');
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
-      if (await consent.isVisible()) await consent.click();
+      if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await consent.click();
+      await expect(consent).toBeHidden();
       for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 },
         { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
         await page.setViewportSize(size);
@@ -5059,7 +5122,8 @@ test.describe("Layer 3 — Content", () => {
       // shell regression also verifies its server-rendered first paint.
       if (process.env.E2E_DEMO_STORAGE_STATE) await expect(page.getByRole('button', { name: 'Exit demo', exact: true })).toBeVisible();
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
-      if (await consent.isVisible()) await consent.click();
+      if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await consent.click();
+      await expect(consent).toBeHidden();
       await expect(page.locator('footer')).toBeHidden();
       await page.mouse.move(width / 2, 700);
       await page.mouse.wheel(0, 12000);

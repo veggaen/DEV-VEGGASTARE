@@ -334,12 +334,10 @@ const MyTopBar = () => {
 
 	const menuGroups = getNavigationGroups(clientUser);
 
+	const cookieAfterClose = useRef(false);
 	const openCookieSettings = () => {
-		try {
-			window.dispatchEvent(new Event("veggat:cookie-consent-open"));
-		} catch {
-			// ignore
-		}
+		cookieAfterClose.current = true;
+		setMenuOpen(false);
 	};
 
 	useEffect(() => {
@@ -521,6 +519,12 @@ const MyTopBar = () => {
 									onTouchStart={onMenuTouchStart}
 									onTouchEnd={onMenuTouchEnd}
 									accessibleTitle="Navigation Menu"
+									onCloseAutoFocus={event => {
+										if (!cookieAfterClose.current) return;
+										cookieAfterClose.current = false;
+										event.preventDefault();
+										requestAnimationFrame(() => window.dispatchEvent(new Event("veggat:cookie-consent-open")));
+									}}
 								>
 									<div className="flex h-full min-h-0 flex-col">
 										{/* User Profile Header */}
@@ -677,9 +681,12 @@ const MyTopBar = () => {
 													effectiveWeb3ModeEnabled={effectiveWeb3ModeEnabled}
 													walletRefreshToken={walletRefreshToken}
 													setWalletRefreshToken={setWalletRefreshToken}
-													openCookieSettings={openCookieSettings}
 												/>
 											)}
+											{/* Privacy choices must remain reachable without an account. */}
+											<div className="border-t border-border p-4">
+												<button type="button" onClick={openCookieSettings} className="flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Cookie preferences</button>
+											</div>
 
 										</div>
 
@@ -1007,13 +1014,12 @@ function SidebarWalletInfo() {
 
 // Explicit controls work equally with touch, mouse and keyboard.
 function SettingsPaneLite({
-  setMenuOpen, effectiveWeb3ModeEnabled, walletRefreshToken, setWalletRefreshToken, openCookieSettings,
+  setMenuOpen, effectiveWeb3ModeEnabled, walletRefreshToken, setWalletRefreshToken,
 }: {
   setMenuOpen: (open: boolean) => void;
   effectiveWeb3ModeEnabled: boolean;
   walletRefreshToken: number;
   setWalletRefreshToken: (fn: (t: number) => number) => void;
-  openCookieSettings: () => void;
 }) {
   const { theme, setTheme } = useTheme();
   const { prefs, setPrefs } = useUiPreferences();
@@ -1101,7 +1107,6 @@ function SettingsPaneLite({
 
       <div className="space-y-1 border-t border-border pt-3">
         <Link href="/settings" onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center justify-center rounded-xl bg-muted px-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All settings</Link>
-        <button type="button" onClick={() => { setMenuOpen(false); setTimeout(openCookieSettings, 0); }} className="flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Cookie preferences</button>
       </div>
     </div>
   );

@@ -1,49 +1,28 @@
 "use client";
+/** @fileOverview Non-modal, bounded consent controls; dismissed UI never traps page input. @stability stable */
 
 import * as React from "react";
 import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Cookie, Settings2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { CONSENT_CHANGED_EVENT, CONSENT_STORAGE_KEY } from "@/lib/telemetry-policy";
 
-const COOKIE_CONSENT_VERSION = 1;
-const STORAGE_KEY = CONSENT_STORAGE_KEY;
-
 type CookieConsent = {
-  version: number;
+  version: 1;
   necessary: true;
   analytics: boolean;
-  marketing: boolean;
+  marketing: false;
   updatedAt: string;
 };
 
 function readConsent(): CookieConsent | null {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<CookieConsent>;
-    if (typeof parsed?.version !== "number") return null;
-    if (parsed.version !== COOKIE_CONSENT_VERSION) return null;
-
-    return {
-      version: COOKIE_CONSENT_VERSION,
-      necessary: true,
-      analytics: !!parsed.analytics,
-      marketing: !!parsed.marketing,
-      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : new Date().toISOString(),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function writeConsent(consent: CookieConsent) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(consent));
-    window.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
-  } catch {
-    // ignore
-  }
+    const parsed = JSON.parse(window.localStorage.getItem(CONSENT_STORAGE_KEY) ?? "null");
+    if (parsed?.version !== 1 || typeof parsed.analytics !== "boolean") return null;
+    return { version: 1, necessary: true, analytics: parsed.analytics, marketing: false,
+      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : "" };
+  } catch { return null; }
 }
 
 export default function CookieBanner() {
@@ -51,269 +30,148 @@ export default function CookieBanner() {
   const [mounted, setMounted] = React.useState(false);
   const [showCustomize, setShowCustomize] = React.useState(false);
   const [analytics, setAnalytics] = React.useState(false);
-  const [marketing, setMarketing] = React.useState(false);
   const [dismissed, setDismissed] = React.useState(true);
-  const ref = React.useRef<HTMLDivElement | null>(null);
+  const [saveError, setSaveError] = React.useState(false);
+  const [focusPreferences, setFocusPreferences] = React.useState(false);
+  const panel = React.useRef<HTMLElement>(null);
+  const heading = React.useRef<HTMLHeadingElement>(null);
+  const customize = React.useRef<HTMLButtonElement>(null);
+  const returnFocus = React.useRef<HTMLElement | null>(null);
 
   React.useEffect(() => {
     setMounted(true);
     const existing = readConsent();
-    if (existing) {
-      setAnalytics(existing.analytics);
-      setMarketing(existing.marketing);
-      setDismissed(true);
-      return;
-    }
-    setDismissed(false);
-  }, []);
-
-  const openPreferences = React.useCallback(() => {
-    const existing = readConsent();
     setAnalytics(existing?.analytics ?? false);
-    setMarketing(existing?.marketing ?? false);
-    setShowCustomize(true);
-    setDismissed(false);
+    setDismissed(Boolean(existing));
   }, []);
-
-  const resetConsent = React.useCallback(() => {
-    try {
-      window.localStorage.removeItem(STORAGE_KEY);
-      window.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
-    } catch {
-      // ignore
-    }
-    openPreferences();
-  }, [openPreferences]);
 
   React.useEffect(() => {
-    if (!mounted) return;
-    const onOpen = () => openPreferences();
-    const onReset = () => resetConsent();
-    window.addEventListener("veggat:cookie-consent-open", onOpen);
-    window.addEventListener("veggat:cookie-consent-reset", onReset);
-    return () => {
-      window.removeEventListener("veggat:cookie-consent-open", onOpen);
-      window.removeEventListener("veggat:cookie-consent-reset", onReset);
+    const open = () => {
+      returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      setAnalytics(readConsent()?.analytics ?? false);
+      setShowCustomize(true);
+      setSaveError(false);
+      setDismissed(false);
+      setFocusPreferences(true);
     };
-  }, [mounted, openPreferences, resetConsent]);
-
-  const isVisible = mounted && !dismissed;
-
-  const setCookieOffsetVar = React.useCallback((px: number) => {
-    try {
-      document.documentElement.style.setProperty("--cookie-banner-offset", `${Math.max(0, px)}px`);
-      window.dispatchEvent(new Event("veggat:cookie-banner-offset"));
-    } catch {
-      // ignore
-    }
+    const reset = () => {
+      try {
+        window.localStorage.removeItem(CONSENT_STORAGE_KEY);
+        window.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
+      } catch { /* Saving reports storage failures visibly below. */ }
+      open();
+    };
+    window.addEventListener("veggat:cookie-consent-open", open);
+    window.addEventListener("veggat:cookie-consent-reset", reset);
+    return () => {
+      window.removeEventListener("veggat:cookie-consent-open", open);
+      window.removeEventListener("veggat:cookie-consent-reset", reset);
+    };
   }, []);
 
+  const isVisible = mounted && !dismissed;
   React.useLayoutEffect(() => {
-    if (!mounted) return;
-
-    if (!isVisible) {
-      setCookieOffsetVar(0);
-      return;
-    }
-
-    const el = ref.current;
-    if (!el) return;
-
+    if (!isVisible || !panel.current) return;
+    const element = panel.current;
     const update = () => {
-      const h = el.getBoundingClientRect().height;
-      setCookieOffsetVar(Number.isFinite(h) ? h + 16 : 0);
+      const bottom = Number.parseFloat(getComputedStyle(element).bottom) || 16;
+      const height = element.getBoundingClientRect().height;
+      document.documentElement.style.setProperty("--cookie-banner-offset", `${Math.ceil(height + bottom + 8)}px`);
+      window.dispatchEvent(new Event("veggat:cookie-banner-offset"));
     };
-
     update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    window.addEventListener('resize', update);
     return () => {
-      ro.disconnect();
-      setCookieOffsetVar(0);
+      observer.disconnect();
+      window.removeEventListener('resize', update);
+      document.documentElement.style.setProperty("--cookie-banner-offset", "0px");
+      window.dispatchEvent(new Event("veggat:cookie-banner-offset"));
     };
-  }, [isVisible, mounted, setCookieOffsetVar]);
+  }, [isVisible]);
 
-  const saveAndDismiss = (next: { analytics: boolean; marketing: boolean }) => {
-    const consent: CookieConsent = {
-      version: COOKIE_CONSENT_VERSION,
-      necessary: true,
-      analytics: next.analytics,
-      marketing: next.marketing,
-      updatedAt: new Date().toISOString(),
-    };
-    writeConsent(consent);
+  React.useEffect(() => {
+    if (isVisible && focusPreferences) {
+      heading.current?.focus({ preventScroll: true });
+      setFocusPreferences(false);
+    }
+  }, [isVisible, focusPreferences]);
+
+  const dismiss = () => {
     setDismissed(true);
     setShowCustomize(false);
+    // A menu item may have unmounted by the time its preferences are closed.
+    const target = returnFocus.current?.isConnected ? returnFocus.current
+      : document.querySelector<HTMLElement>('button[aria-label="Open menu"]') ?? document.getElementById('main-content');
+    target?.focus({ preventScroll: true });
+    returnFocus.current = null;
   };
 
+  const save = (allowAnalytics: boolean) => {
+    const consent: CookieConsent = { version: 1, necessary: true, analytics: allowAnalytics,
+      marketing: false, updatedAt: new Date().toISOString() };
+    try {
+      window.localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(consent));
+    } catch {
+      setSaveError(true);
+      return;
+    }
+    window.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
+    dismiss();
+  };
+
+  // No exit presence: a transparent banner previously intercepted the first
+  // wheel/click for 250ms after saving. The panel alone owns its hit area.
+  if (!isVisible) return null;
   return (
-    <AnimatePresence>
-      {isVisible ? (
-        <motion.div
-          key="cookie-banner"
-          initial={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
-          animate={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
-          transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="fixed inset-x-0 bottom-4 z-85 px-4"
-        >
-          <div ref={ref} className="mx-auto max-w-md">
-            <div className="relative overflow-hidden rounded-2xl border border-zinc-200/60 dark:border-zinc-700/50 bg-white/95 dark:bg-zinc-900/95 shadow-2xl shadow-zinc-900/10 dark:shadow-black/30 backdrop-blur-xl">
-              {/* Subtle gradient overlay */}
-              <div className="absolute inset-0 bg-linear-to-br from-zinc-50/50 via-transparent to-zinc-100/30 dark:from-zinc-800/30 dark:via-transparent dark:to-zinc-800/20 pointer-events-none" />
-              
-              {/* Main content */}
-              <div className="relative p-5">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-700 shadow-inner">
-                    <Cookie className="h-5 w-5 text-zinc-600 dark:text-zinc-300" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                      Cookie Preferences
-                    </p>
-                    <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                      We use essential cookies for security. Analytics are optional.{" "}
-                      <Link 
-                        href="/privacy" 
-                        className="font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                      >
-                        Privacy Policy
-                      </Link>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Customize panel */}
-                <AnimatePresence>
-                  {showCustomize && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="mt-5 space-y-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 p-4 border border-zinc-200/50 dark:border-zinc-700/30">
-                        {/* Essential - always on */}
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Essential</p>
-                            <p className="text-[11px] text-zinc-500 dark:text-zinc-500">Login, security, core features</p>
-                          </div>
-                          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">
-                            Always On
-                          </span>
-                        </div>
-
-                        {/* Analytics toggle */}
-                        <div className="flex items-center justify-between gap-3 pt-2 border-t border-zinc-200/50 dark:border-zinc-700/30">
-                          <div>
-                            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Analytics</p>
-                            <p className="text-[11px] text-zinc-500 dark:text-zinc-500">Help us improve</p>
-                          </div>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={analytics}
-                            aria-label="Analytics"
-                            onClick={() => setAnalytics((v) => !v)}
-                            className={`relative h-6 w-11 rounded-full transition-all duration-200 ${
-                              analytics 
-                                ? "bg-linear-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/30" 
-                                : "bg-zinc-300 dark:bg-zinc-600"
-                            }`}
-                          >
-                            <span
-                              className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ${
-                                analytics ? "translate-x-5" : "translate-x-0"
-                              }`}
-                            />
-                          </button>
-                        </div>
-
-                        {/* Marketing toggle */}
-                        <div className="flex items-center justify-between gap-3 pt-2 border-t border-zinc-200/50 dark:border-zinc-700/30">
-                          <div>
-                            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Marketing</p>
-                            <p className="text-[11px] text-zinc-500 dark:text-zinc-500">Personalized content</p>
-                          </div>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={marketing}
-                            aria-label="Marketing"
-                            onClick={() => setMarketing((v) => !v)}
-                            className={`relative h-6 w-11 rounded-full transition-all duration-200 ${
-                              marketing 
-                                ? "bg-linear-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/30" 
-                                : "bg-zinc-300 dark:bg-zinc-600"
-                            }`}
-                          >
-                            <span
-                              className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ${
-                                marketing ? "translate-x-5" : "translate-x-0"
-                              }`}
-                            />
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Action buttons */}
-                <div className="mt-5 flex items-center gap-2">
-                  {showCustomize ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => saveAndDismiss({ analytics, marketing })}
-                        className="flex-1 rounded-xl bg-linear-to-r from-zinc-800 to-zinc-900 dark:from-white dark:to-zinc-100 px-4 py-2.5 text-sm font-semibold text-white dark:text-zinc-900 transition-all hover:shadow-lg hover:shadow-zinc-900/20 dark:hover:shadow-white/10 hover:-translate-y-0.5 active:translate-y-0"
-                      >
-                        Save Preferences
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowCustomize(false)}
-                        className="rounded-xl px-4 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                      >
-                        Back
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => saveAndDismiss({ analytics: true, marketing: false })}
-                        className="flex-1 rounded-xl bg-linear-to-r from-zinc-800 to-zinc-900 dark:from-white dark:to-zinc-100 px-4 py-2.5 text-sm font-semibold text-white dark:text-zinc-900 transition-all hover:shadow-lg hover:shadow-zinc-900/20 dark:hover:shadow-white/10 hover:-translate-y-0.5 active:translate-y-0"
-                      >
-                        Accept All
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => saveAndDismiss({ analytics: false, marketing: false })}
-                        className="flex-1 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 px-4 py-2.5 text-sm font-semibold text-zinc-700 dark:text-zinc-300 transition-all hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                      >
-                        Essential Only
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowCustomize(true)}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-zinc-200 dark:border-zinc-700 text-zinc-500 transition-all hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300"
-                        aria-label="Customize cookie preferences"
-                        title="Customize"
-                      >
-                        <Settings2 className="h-4 w-4" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
+    <motion.section
+      ref={panel}
+      role="region"
+      aria-labelledby="cookie-preferences-title"
+      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.18 }}
+      className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-85 flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-xl"
+    >
+      <div data-cookie-scroll className="min-h-0 overflow-y-auto overscroll-contain p-5">
+        <div className="flex items-start gap-3">
+          <Cookie aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 space-y-2">
+            <h2 ref={heading} id="cookie-preferences-title" tabIndex={-1} className="text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring">Cookie Preferences</h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Essential storage keeps sign-in and security working. Optional analytics and speed measurements help improve Veggat.
+            </p>
+            <Link href="/privacy" className="inline-flex min-h-11 items-center rounded text-sm underline underline-offset-4 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring">Privacy Policy</Link>
           </div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+        </div>
+        {showCustomize && (
+          <div className="mt-4 space-y-4 rounded-xl border border-border bg-muted/40 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div><p className="text-sm font-medium">Essential</p><p className="text-xs text-muted-foreground">Sign-in, security and core features</p></div>
+              <span className="text-xs font-medium text-muted-foreground">Always on</span>
+            </div>
+            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-4 border-t border-border pt-3">
+              <span className="min-w-0"><span className="block text-sm font-medium">Analytics</span><span id="cookie-analytics-description" className="block text-xs text-muted-foreground">Optional visit and performance measurements</span></span>
+              <input type="checkbox" role="switch" name="analytics" aria-label="Analytics" aria-describedby="cookie-analytics-description" checked={analytics}
+                onChange={event => setAnalytics(event.target.checked)} className="h-6 w-6 shrink-0 cursor-pointer accent-primary outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" />
+            </label>
+            <p className="text-xs leading-relaxed text-muted-foreground">You can change this choice at any time from Menu → Cookie preferences. Marketing tracking is not enabled.</p>
+          </div>
+        )}
+        {saveError && <p role="alert" className="mt-4 text-sm text-destructive">Your browser could not save this choice. Allow site storage and try again. Optional analytics stay governed by your last saved choice.</p>}
+      </div>
+      <div className="shrink-0 space-y-2 border-t border-border bg-popover p-4">
+        <div className="grid grid-cols-2 gap-2">
+          <Button type="button" variant="outline" className="h-auto min-h-11 whitespace-normal" onClick={() => save(false)}>Essential Only</Button>
+          <Button type="button" variant="outline" className="h-auto min-h-11 whitespace-normal" onClick={() => save(showCustomize ? analytics : true)}>{showCustomize ? 'Save Preferences' : 'Allow Analytics'}</Button>
+        </div>
+        {showCustomize ? (
+          <Button type="button" variant="ghost" className="min-h-11 w-full" onClick={() => { setShowCustomize(false); setSaveError(false); requestAnimationFrame(() => customize.current?.focus({preventScroll:true})); }}>Back</Button>
+        ) : (
+          <Button ref={customize} type="button" variant="ghost" className="min-h-11 w-full gap-2" aria-expanded={false} aria-label="Customize cookie preferences" onClick={() => setShowCustomize(true)}><Settings2 aria-hidden="true" className="h-4 w-4" />Customize</Button>
+        )}
+      </div>
+    </motion.section>
   );
 }

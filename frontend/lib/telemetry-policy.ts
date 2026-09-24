@@ -18,10 +18,13 @@ export function sanitizeTelemetryUrl(raw: string): string | null {
     // Never send OAuth codes, verification tokens, search terms, or fragments.
     url.search = "";
     url.hash = "";
+    url.username = "";
+    url.password = "";
     // Keep route-level measurements, not account/conversation/order identifiers.
+    url.pathname = url.pathname.replace(/^\/checkout\/receipt\/[^/]+/, "/checkout/receipt/[id]");
     url.pathname = url.pathname.replace(
       /^\/(ai|conversations|profile|order-confirmation|trade)\/[^/]+/,
-      "/$1/[id]",
+      (match, section) => match === '/ai/credits' || match === '/conversations/new' ? match : `/${section}/[id]`,
     );
     return url.toString();
   } catch {

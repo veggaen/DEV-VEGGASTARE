@@ -20,6 +20,13 @@ describe("telemetry URLs", () => {
     expect(sanitizeTelemetryUrl("https://www.veggat.com/conversations/private-id"))
       .toBe("https://www.veggat.com/conversations/[id]");
   });
+  it("removes receipt identifiers, credentials and query values", () => {
+    expect(sanitizeTelemetryUrl("https://name:secret@www.veggat.com/checkout/receipt/private-order?token=secret#file"))
+      .toBe("https://www.veggat.com/checkout/receipt/[id]");
+  });
+  it.each(['/ai/credits', '/conversations/new'])("preserves the static route %s", route => {
+    expect(sanitizeTelemetryUrl(`https://www.veggat.com${route}`)).toBe(`https://www.veggat.com${route}`);
+  });
   it.each(["invalid", "javascript:alert(1)"])("rejects %s", url => {
     expect(sanitizeTelemetryUrl(url)).toBeNull();
   });
