@@ -57,7 +57,7 @@ try {
       }
     }
     await client.query(dryRun ? 'ROLLBACK' : 'COMMIT');
-    console.log(`${dryRun ? 'Validated and rolled back' : 'Saved'} showcase catalog in ${target}: one company, two fixed reviewer SKUs. Existing listings preserved. Checkout remains paused until verified fulfillment ships.`);
+    console.log(`${dryRun ? 'Validated and rolled back' : 'Saved'} showcase catalog in ${target}: one company, two fixed reviewer SKUs. Existing listings preserved. This catalog operation does not verify payments or fulfillment.`);
   } catch (error) { await client.query('ROLLBACK'); throw error; }
   finally { client.release(); }
 } finally { await pool.end(); }

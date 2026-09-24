@@ -4,19 +4,24 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
-Checkout + credit-budget refresh: **PARTIAL — local acceptance passes; deployment
-pending**. Balanced checkout, explicit delivery in the main column, compact help,
+Checkout + credit-budget refresh: **DONE for scoped local/Preview/live UI and
+pricing acceptance; S4 money acceptance remains PARTIAL**. Source `db145f7` is
+deployed as Production `dpl_8Dg2DatTEJRpRNZ3jpLE875m9WFu` and Preview
+`dpl_79mwE3RQZ9jEhVS8jvG53KQRiUs9`; main-domain deployment inspection and health
+pass. Balanced checkout, explicit delivery in the main column, compact help,
 quantity-neutral artwork and linked credit/fiat-budget inputs support 100–10,000
 credits plus the 9 NOK starter. Server margin guard, two-attempt cap and a bounded
 5,000 NOK daily exposure limit remain. 137 focused units (including request detail),
-41 further payment/ledger units (21 skipped), isolated PostgreSQL prepare checks,
-strict build/lint and focused browser flows pass. Real Chrome budget entry also
-passes. No new Sandbox or Live capture is claimed. See
+41 further payment/ledger units, then all 30 explicit isolated-Postgres ledger
+checks (including the previously skipped 21), isolated PostgreSQL prepare checks,
+strict builds/lint and focused browser flows pass. Hosted Preview is 6/6 and Live
+4/4; payment POSTs are mocked/blocked. Real Chrome local budget entry and hosted
+checkout page/footer/drawer scrolling pass. No new Sandbox or Live capture is claimed. See
 [checkout evidence](checkout-credit-budget-2026-09.md). PayPal signed out after
 the PC restart; the owner has a retained passkey sign-in handoff.
 
-Request detail: **PARTIAL — local acceptance passes; deployment pending**.
-18 units and 2 browser tests cover gallery, long-content reflow in both themes,
+Request detail: **DONE for scoped local/Preview/live acceptance** in the same
+release. 18 units and 2 browser tests per environment cover gallery, long-content reflow in both themes,
 outage recovery and 401/403/404 distinctions without stale private details.
 No real request was published or another account's access changed.
 
@@ -26,7 +31,7 @@ cached rows after 401/403 and prevents resurrection on a later outage. Baseline
 browser reproduction failed; **9 units**, strict builds/lint and **2/2 focused
 browser checks per local/live** pass. Real Chrome actual empty-board refresh
 also passes. No membership or publication was changed. Dynamic request-detail
-coverage remains open. See [request-access evidence](request-access-2026-09.md).
+coverage is now recorded above. See [request-access evidence](request-access-2026-09.md).
 
 Interview artifact cleanup: **DONE in the release worktree**. Historical
 `REBUILD_PROMPT.md`, `REVIVAL_PROMPT.md`, `monetisation.md` and the three-line
@@ -1204,7 +1209,7 @@ member-to-member delivery remains separate from the mocked error test.
 | Shop | Checkout | PARTIAL — custom-credit demo, quote editing/retries and request follow-up deployed and verified local/Preview/live; owner Live money acceptance remains |
 | Shop | Live PayPal, sandbox PayPal | PARTIAL — fixed and custom mixed Sandbox capture, delivery, verified refund and replay pass; original refund-webhook Failure corrected to Success. Live keys/webhook configured; owner Live micro-purchase remains unverified |
 | Shop | Confirmation, signed download | PARTIAL — local/live demo and actual Sandbox JPG/TXT downloads verified; anonymous 401 and replay pass. Live paid download still pending |
-| Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — 29/39 NOK fixed Sandbox purchases and 76.16 NOK mixed 122-credit/file capture verified. Custom 100–1,000 credit selection is deployed; Live paid purchase remains pending |
+| Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — 29/39 NOK fixed Sandbox purchases and 76.16 NOK mixed 122-credit/file capture verified. Custom 100–10,000 credits, linked spending-budget entry and a 10-credit/9 NOK starter are deployed and UI-tested; new starter capture and Live paid purchase remain pending |
 | Shop | Buyer notices / seller review | DONE for scoped local/Preview/live flows — private originals, retained drafts, whole-order permissions and revision checks; not an automatic refund or legal-compliance certification |
 | AI | Chat, selector, streaming | DONE for tested OpenAI Luna/Groq demo and Sandbox-funded OpenAI Luna/Astra/Grok paths; other unconfigured models remain disabled |
 | AI | Credit debit, zero balance, no overcharge | PARTIAL — demo debit/402, actual Sandbox 100→98→90→30 and insufficient-balance denial verified; atomic ledger/fuse tests pass. Provider-project hard caps/alerts and Live funding still require acceptance; no absolute overcharge guarantee |
