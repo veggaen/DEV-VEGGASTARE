@@ -7,6 +7,85 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('S4 payment verification preserves one order through a failed response and retry', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_RECEIPT_COMPACT !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Mocked verification only; never captures a payment');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const requests: unknown[] = [];
+  await page.route('**/api/checkout/complete', route => { requests.push(route.request().postDataJSON()); return route.fulfill({ status: 503, json: { error: 'Controlled QA outage' } }); });
+  try {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/checkout/return?orderId=receipt-layout-test', { waitUntil: 'domcontentloaded' });
+    const cookie = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await cookie.click();
+    await expect(page.getByRole('heading', { name: 'Verifying your payment' })).toBeVisible();
+    const retry = page.getByRole('button', { name: 'Retry verification' });
+    await expect(retry).toBeVisible(); await retry.click();
+    await expect.poll(() => requests.length).toBe(2);
+    expect(requests).toEqual([{ orderId: 'receipt-layout-test' }, { orderId: 'receipt-layout-test' }]);
+    await expect(page.getByRole('link', { name: 'View this order' })).toHaveAttribute('href', '/my-orders?order=receipt-layout-test');
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`verification-${width}.png`) });
+    }
+  } finally { await context.close(); }
+});
+
+test('S4 compact receipt keeps the purchase and actions above the desktop fold', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_RECEIPT_COMPACT !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo receipt; never create or capture a payment');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let paymentWrites = 0;
+  await page.route(/\/api\/(checkout|demo\/checkout|returns)(\/|$)/, route => {
+    if (route.request().method() !== 'GET') { paymentWrites++; return route.abort(); }
+    return route.continue();
+  });
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user?.isDemo).toBe(true);
+    const orders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
+    const order = orders.find((row: { checkout?: { environment: string; state: string } }) => row.checkout?.environment === 'DEMO' && row.checkout.state === 'COMPLETED');
+    expect(order, 'An existing completed demo receipt is required').toBeTruthy();
+    await page.goto(`/checkout/receipt/${order.id}`, { waitUntil: 'domcontentloaded' });
+    const cookie = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await cookie.click();
+    await expect(page.getByRole('heading', { name: 'Your demo order is ready', exact: true })).toBeVisible();
+    const receipt = page.locator('[data-receipt]');
+    const support = page.locator('[data-receipt-support]');
+    const summary = page.getByRole('complementary', { name: 'Payment details', exact: true });
+    const original = page.getByRole('link', { name: 'Download order confirmation (.txt)', exact: true });
+    for (const theme of ['dark', 'light'] as const) {
+      await page.emulateMedia({ colorScheme: theme });
+      for (const [width, height] of [[360,800], [390,844], [844,390], [768,1024], [1024,768], [1280,800], [1920,1080], [2560,1440]]) {
+        await page.setViewportSize({ width, height });
+        await page.locator('[data-site-scroll]:visible').evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('[data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+        const purchaseBox = (await page.locator('[data-receipt-purchase]').boundingBox())!, summaryBox = (await summary.boundingBox())!;
+        if (width >= 1024) {
+          expect(summaryBox.x).toBeGreaterThan(purchaseBox.x + purchaseBox.width);
+          expect(summaryBox.width).toBeGreaterThanOrEqual(320);
+          await expect(receipt.getByRole('navigation', { name: 'Receipt navigation' })).toBeInViewport();
+          await expect(original).toBeInViewport();
+        } else expect(summaryBox.y).toBeGreaterThan(purchaseBox.y);
+        expect(await support.getAttribute('open')).toBeNull();
+        if ([390,1280,2560].includes(width)) await page.screenshot({ path: testInfo.outputPath(`receipt-${theme}-${width}.png`), fullPage: false });
+      }
+    }
+    await support.locator('summary').focus(); await page.keyboard.press('Enter');
+    await expect(support.getByRole('button', { name: 'Withdraw from this purchase', exact: true })).toBeVisible();
+    await support.getByRole('button', { name: 'Report a purchase problem', exact: true }).click();
+    await expect(support.getByRole('heading', { name: 'Tell us what went wrong' })).toBeVisible();
+    await support.getByRole('button', { name: 'Cancel', exact: true }).click();
+    const download = page.waitForEvent('download'); await original.click();
+    const file = await download; expect(await file.failure()).toBeNull();
+    expect(file.suggestedFilename()).toBe(`veggat-order-${order.id}.txt`);
+    expect(paymentWrites).toBe(0); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S1 marketplace story and feature links remain clear across viewport sizes', async ({ browser, baseURL }, testInfo) => {
   test.skip(process.env.E2E_MARKETPLACE_STORY !== '1', 'Focused public-home story and navigation audit');
   test.setTimeout(90_000);

@@ -4,6 +4,15 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Live 9 NOK starter: **DONE for owner-approved capture and one ten-credit grant**.
+The owner completed the existing order with another buyer account after the
+merchant-account rejection. Capture `8N819301P61947841`, order
+`cmug44q96000004l8zgx0cxo9`, 900 ore / NOK: attempt and payment completed,
+exactly one +10 purchase entry, Live balance 10. The Live webhook returned 200.
+Live digital purchase/refund acceptance remains open. Compact receipt layout is
+**local verified; deployment pending** (19 units, build/lint and 2 browser checks).
+See [receipt and Live starter evidence](receipt-layout-2026-09.md).
+
 Invalid-session recovery: **DONE for scoped local/Preview/Live acceptance**.
 Source `775c07d`, Production `dpl_7Qme9rWWkaYXxAUEM7D1sU7rS6sT`, Preview
 `dpl_HYATp3FnCWFuqgBMwVskvC2HoWYL`. Real Chrome revealed a returning-user trap on `/nexus`: an invalid JWT
@@ -26,12 +35,12 @@ one +10 grant exists. Purchased credits then funded a real OpenAI reply, 10 -> 8
 the 60-credit model was blocked without a reservation. The existing zero-credit
 Live demo again passed UI blocking and server 402 with no new grant/provider call.
 See [starter acceptance](sandbox-starter-acceptance-2026-09.md).
-**Live capture remains unverified**. The owner attempted the 9 NOK starter on
+The initial Live capture was unverified. The owner attempted the 9 NOK starter on
 25 September, but PayPal rejected the receiving merchant account as the buyer.
 A read-only production check of order `cmug44q96000004l8zgx0cxo9` / PayPal order
 `3XL1972193645690B` found `APPROVAL_PENDING`, 900 ore, no capture/completion and
 no purchase grant. This is not a successful payment. A separate buyer must
-complete approval; avoid creating repeated attempts while resolving the login.
+complete approval; this later succeeded as recorded at the top of this document.
 Sixty focused webhook, receipt, refund-policy and download tests pass. The
 receipt test double now renders the checkout's server-provided order/summary
 slots so the existing pre-payment adjustment disclosure remains covered; no
