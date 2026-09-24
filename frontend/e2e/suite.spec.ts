@@ -211,10 +211,12 @@ test('CI showcase happy path — real demo, custom cart, payment error recovery 
     await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true, level: 1 })).toBeVisible();
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) await consent.click();
-    const image = page.getByRole('img', { name: 'Interviewer AI Credits', exact: true }).first();
-    await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+    const creditPreview = page.getByRole('figure', { name: 'Selected credit amount', exact: true });
+    await expect(creditPreview).toBeVisible();
+    await expect(creditPreview.locator('[data-credit-preview]')).toHaveText('100');
     await page.getByRole('textbox', { name: 'Number of credits', exact: true }).fill('122');
     await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await expect(creditPreview.locator('[data-credit-preview]')).toHaveText('122');
     await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
     await expect(page.getByRole('button', { name: '1 item in basket', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'View basket', exact: true }).click();
@@ -241,6 +243,18 @@ test('CI showcase happy path — real demo, custom cart, payment error recovery 
     await submit.click();
     await expect(page.getByRole('heading', { name: 'Your demo order is ready', exact: true })).toBeVisible();
     await expect(page.getByRole('list', { name: 'Receipt items', exact: true })).toContainText('122 credits');
+    const confirmationLink = page.getByRole('link', { name: 'Download order confirmation (.txt)', exact: true });
+    await expect(confirmationLink).toBeVisible();
+    const confirmationPath = await confirmationLink.getAttribute('href');
+    const confirmation = await context.request.get(confirmationPath!);
+    expect(confirmation.status()).toBe(200);
+    expect(confirmation.headers()['content-disposition']).toContain('attachment;');
+    const confirmationText = await confirmation.text();
+    expect(confirmationText).toContain('Actually charged: 0.00 NOK');
+    expect(confirmationText).toContain('no paid delivery consent was collected');
+    const anonymous = await browser.newContext({ baseURL });
+    try { expect((await anonymous.request.get(confirmationPath!)).status()).toBe(401); }
+    finally { await anonymous.close(); }
     expect(checkoutRequests).toHaveLength(2);
     expect(checkoutRequests[1]).toEqual(checkoutRequests[0]);
     const orders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
@@ -253,6 +267,80 @@ test('CI showcase happy path — real demo, custom cart, payment error recovery 
     await page.screenshot({ path: testInfo.outputPath('interview-demo-receipt-390.png') });
     expect(errors).toEqual([]);
   } finally { await context.close(); }
+});
+
+test('S4 delivery consent is explicit, responsive and never contacts PayPal in UI QA', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_DELIVERY_CONSENT !== '1', 'Opt-in isolated password buyer only; checkout POST is mocked');
+  test.setTimeout(180_000);
+  expect(['http://localhost:3000', 'https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app']).toContain(baseURL);
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const added: string[] = [];
+  let buyerId = '';
+  const posts: Record<string, unknown>[] = [];
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await context.route(/https:\/\/[^/]*paypal\.com\//, route => route.abort());
+    await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
+    await page.getByPlaceholder('you@example.com').fill(process.env.E2E_TEST_EMAIL!);
+    await page.locator('input[type="password"]').fill(process.env.E2E_TEST_PASSWORD!);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.waitForURL(/\/(nexus|products|dashboard|pulse)(?:[/?#]|$)/);
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user).toMatchObject({ id: 'cveggatpreviewbuyer000001', role: 'USER' });
+    buyerId = session.user.id;
+    const initial = await (await context.request.get(`/api/cart/${buyerId}`)).json();
+    for (const productId of ['cveggatinterviewpack000001', 'cveggatinterviewcredits01']) {
+      if (!initial.items.some((item: { product: { id: string } }) => item.product.id === productId)) {
+        expect((await context.request.post(`/api/cart/${buyerId}`, { data: { productId, quantity: 1 } })).ok()).toBe(true);
+        added.push(productId);
+      }
+    }
+    await page.route('**/api/checkout', route => {
+      posts.push(route.request().postDataJSON());
+      return route.fulfill({ status: 503, json: { error: 'CHECKOUT_TEMPORARILY_UNAVAILABLE' } });
+    });
+    await page.goto('/checkout', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Secure checkout', exact: true })).toBeVisible();
+    const cookieConsent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await cookieConsent.isVisible()) await cookieConsent.click();
+    const files = page.getByRole('checkbox', { name: /^I request immediate delivery of the digital files/ });
+    const credits = page.getByRole('checkbox', { name: /^I request that AI usage starts/ });
+    const submit = page.getByRole('button', { name: 'Continue to PayPal', exact: true });
+    await expect(files).not.toBeChecked(); await expect(credits).not.toBeChecked();
+    await submit.click();
+    await expect(files).toBeFocused(); expect(posts).toHaveLength(0);
+    await files.press('Space'); await submit.click();
+    await expect(credits).toBeFocused(); expect(posts).toHaveLength(0);
+    await credits.press('Space');
+    await expect(page.getByRole('alert').filter({ hasText: 'Select the delivery request' })).toHaveCount(0);
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size);
+      await submit.scrollIntoViewIfNeeded();
+      await expect(submit).toBeInViewport();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      if ([390, 1280].includes(size.width)) await page.screenshot({ path: testInfo.outputPath(`delivery-payment-controls-${size.width}.png`) });
+      await page.getByRole('heading', { name: 'Secure checkout', exact: true }).scrollIntoViewIfNeeded();
+      if ([390, 1280].includes(size.width)) await page.screenshot({ path: testInfo.outputPath(`delivery-consent-${size.width}.png`), fullPage: true });
+    }
+    await submit.click();
+    await expect(page.getByRole('alert').filter({ hasText: 'Your cart is saved' })).toBeVisible();
+    expect(posts).toHaveLength(1);
+    expect(posts[0]).toMatchObject({ consent: { version: '2026-09-24.1', files: true, credits: true } });
+    await submit.click();
+    expect(posts).toHaveLength(2); expect(posts[1]).toEqual(posts[0]);
+    await expect(submit).toBeEnabled();
+    expect(errors).toEqual([]);
+  } finally {
+    if (buyerId && added.length) {
+      const current = await (await context.request.get(`/api/cart/${buyerId}`)).json();
+      for (const item of current.items) if (added.includes(item.product.id)) {
+        expect((await context.request.delete(`/api/cart/${buyerId}/items/${item.id}`)).ok()).toBe(true);
+      }
+    }
+    await context.close();
+  }
 });
 
 test('S7 isolated Preview prepares a free demo receipt for currency QA', async ({ browser, baseURL }) => {

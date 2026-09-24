@@ -41,17 +41,19 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
     <p className="mt-3 max-w-2xl text-muted-foreground">Digital products from Veggat Studio. No shipping, no recurring charge. Your files and credits stay attached to your account.</p>
     {cancelled && <div role="status" className="mt-6 rounded-xl border border-border bg-muted/30 p-4 text-sm"><h2 className="font-semibold">Returned from PayPal</h2><p className="mt-1">Your cart is saved. Returning here does not confirm a payment or add credits. If you already approved payment, check <Link href="/my-orders" className="underline underline-offset-4">My orders</Link> before starting another checkout.</p></div>}
     <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <section className="min-w-0 rounded-xl border border-border bg-card p-4 sm:p-6" aria-label="Order items">
+      <section className="min-w-0 self-start rounded-xl border border-border bg-card p-4 sm:p-6" aria-label="Order items">
         <h2 className="text-lg font-semibold">Your order</h2>
         <div className="mt-4 divide-y divide-border">
-          {quote.lines.map(line => <div key={line.productId} className="flex min-w-0 gap-4 py-5">
-            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
-              <Image src={cart!.CartItem.find(item => item.productId === line.productId)!.Product.image[0]} alt={line.title} fill sizes="80px" className="object-cover" />
+          {quote.lines.map(line => <div key={line.productId} className="grid min-w-0 grid-cols-[4rem_minmax(0,1fr)] gap-x-4 gap-y-3 py-5 sm:grid-cols-[5rem_minmax(0,1fr)]">
+            <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-muted sm:h-20 sm:w-20">
+              <Image src={cart!.CartItem.find(item => item.productId === line.productId)!.Product.image[0]} alt="" fill sizes="(max-width: 639px) 64px, 80px" className="object-cover" />
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="break-words font-medium">{line.title}</h3>
               <p className="mt-1 text-sm text-muted-foreground">{line.kind === 'DIGITAL_FILES' ? 'Original JPG + interview notes TXT · private downloads' : `${line.credits} AI usage credits · no subscription`}</p>
               <div className="mt-2 text-sm font-semibold"><PreferredMoney amount={line.amountOre / 100} /> <span>· Qty 1</span></div>
+            </div>
+            <div className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2">
               {line.credits > 0 && <CheckoutCreditAmount itemId={cart!.CartItem.find(item => item.productId === line.productId)!.id} value={line.credits} />}
               <RemoveCheckoutItem itemId={cart!.CartItem.find(item => item.productId === line.productId)!.id} title={line.title} />
             </div>
@@ -65,7 +67,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
         <p className="mb-6 text-sm text-muted-foreground">{demo ? 'No card, no charge. Preview fulfillment with an isolated demo order.' : 'PayPal handles your payment details. We never receive your card number. Maximum two checkout attempts per day.'}</p>
         {!available && <p role="status" className="mb-4 text-sm text-muted-foreground">PayPal setup is in progress. No payment can be taken yet. The free demo remains available.</p>}
         {(creditAccount?.refundAdjustment ?? 0) > 0 && <div className="mb-4"><CreditRefundNotice adjustment={creditAccount!.refundAdjustment} purchasedCredits={purchasedCredits} /></div>}
-        <ReviewerCheckoutButton key={JSON.stringify(quote)} expectedQuote={JSON.stringify(quote)} demo={demo} disabled={!available} />
+        <ReviewerCheckoutButton key={JSON.stringify(quote)} expectedQuote={JSON.stringify(quote)} demo={demo} disabled={!available}
+          hasFiles={quote.lines.some(line => line.kind === 'DIGITAL_FILES')} hasCredits={purchasedCredits > 0} />
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{quote.lines.some(line => line.kind === 'DIGITAL_FILES') ? 'Download links expire after 24 hours and require this account. ' : ''}{quote.lines.some(line => line.kind === 'AI_CREDITS') ? 'Credits are prepaid usage, not a subscription. ' : ''}</p>
         <div className="mt-2 flex gap-4 text-sm text-muted-foreground"><Link href="/terms" className="inline-flex min-h-11 items-center underline">Terms</Link><Link href="/privacy" className="inline-flex min-h-11 items-center underline">Privacy</Link></div>
       </aside>

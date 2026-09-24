@@ -8,6 +8,7 @@ import { capturePayPalOrder, createPayPalOrder, paypalConfigured, readPayPalOrde
 import { applyAiCreditDelta } from '@/lib/ai-credit-adjustment';
 import { creditSaleEconomics, DAILY_PURCHASE_CAP_ORE } from '@/lib/ai-credit-purchase';
 import { FUNDED_AI_MODELS, pricingIsReviewed } from '@/lib/ai-chat/credit-policy';
+import { recordCheckoutAgreement, type DeliveryConsent } from './checkout-agreement';
 
 const includeOrder = { Order: { include: { OrderItem: true } } } as const;
 function filesReady(files: { DigitalAsset: { isActive: boolean; mimeType: string } }[]) {
@@ -16,7 +17,7 @@ function filesReady(files: { DigitalAsset: { isActive: boolean; mimeType: string
     files.some(file => file.DigitalAsset.mimeType === 'text/plain');
 }
 
-export async function prepareShowcaseCheckout(userId: string, requestKey: string, expectedQuote?: string) {
+export async function prepareShowcaseCheckout(userId: string, requestKey: string, expectedQuote?: string, consent?: DeliveryConsent) {
   const environment = isDemoUserId(userId) ? 'DEMO' : paypalEnvironment().mode;
   if (environment !== 'DEMO' && !paypalConfigured()) throw new CheckoutError('PAYPAL_NOT_CONFIGURED', 503);
   return dbPrisma.$transaction(async tx => {
@@ -36,6 +37,7 @@ export async function prepareShowcaseCheckout(userId: string, requestKey: string
     // The browser may assert what it saw, never set a price. A cross-tab cart
     // edit requires another review instead of silently charging a changed total.
     if (expectedQuote !== undefined && expectedQuote !== JSON.stringify(quote)) throw new CheckoutError('CART_CHANGED', 409);
+    const agreement = recordCheckoutAgreement(quote, consent, environment === 'DEMO');
     for (const line of quote.lines) {
       if (line.credits && (!pricingIsReviewed() || !creditSaleEconomics(line.credits, FUNDED_AI_MODELS).eligible)) {
         throw new CheckoutError('CREDIT_SALES_PAUSED', 503);
@@ -56,12 +58,12 @@ export async function prepareShowcaseCheckout(userId: string, requestKey: string
       OrderItem: { create: quote.lines.map(line => ({ productId: line.productId, title: line.title, quantity: 1, priceAtTime: line.amountOre / 100 })) },
     } });
     return tx.checkoutAttempt.create({ data: { orderId: order.id, userId, requestKey, environment,
-      totalOre: quote.totalOre, quote, currency: 'NOK' } });
+      totalOre: quote.totalOre, quote: { ...quote, agreement }, currency: 'NOK' } });
   }, { timeout: 15_000 });
 }
 
-export async function beginShowcaseCheckout(userId: string, requestKey: string, expectedQuote?: string) {
-  const attempt = await prepareShowcaseCheckout(userId, requestKey, expectedQuote);
+export async function beginShowcaseCheckout(userId: string, requestKey: string, expectedQuote?: string, consent?: DeliveryConsent) {
+  const attempt = await prepareShowcaseCheckout(userId, requestKey, expectedQuote, consent);
   if (attempt.state === 'COMPLETED') return { orderId: attempt.orderId, completed: true };
   if (['REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'].includes(attempt.state)) throw new CheckoutError('ORDER_PAYMENT_ADJUSTED', 409);
   if (attempt.environment === 'DEMO') return { orderId: attempt.orderId, demo: true };

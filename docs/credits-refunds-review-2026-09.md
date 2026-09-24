@@ -68,8 +68,10 @@ Findings and current disposition:
   all order lines must belong to the seller or their managed companies. Approval
   is only a review decision, not money returned. Same-origin, durable throttling,
   concurrency and sensitive-error guards were added. 13 regressions pass.
-- Checkout has no persisted separate digital-delivery consent/acknowledgement.
-  Do not retroactively manufacture consent for existing purchases.
+- Follow-up: separate delivery requests and server-owned wording/timestamp are
+  now recorded for new paid checkouts, with a private retainable confirmation.
+  See `checkout-delivery-record-2026-09.md`. Historical consent is not fabricated;
+  email delivery/full legal confirmation requirements remain unfinished.
 - Download counters are useful delivery evidence, not proof of client receipt or
   blanket grounds to reject defect claims. Preserve buyer support/reporting.
 - Product detail visual/scroll/keyboard audit completed for this slice at 360,
