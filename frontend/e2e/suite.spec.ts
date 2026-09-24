@@ -34,8 +34,9 @@ test('S8 production chat preview stays unavailable without client render errors'
   try {
     for (const width of [390, 1280, 2560]) {
       await page.setViewportSize({ width, height: 844 });
-      await page.goto('/dev/chat-preview', { waitUntil: 'networkidle' });
+      await page.goto('/dev/chat-preview', { waitUntil: 'domcontentloaded' });
       await expect(page.getByRole('heading', { name: 'This page wandered off', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
       await expect(page.getByRole('heading', { name: 'Alex Rivera', exact: true })).toHaveCount(0);
       expect(errors).toEqual([]);
     }
@@ -49,7 +50,7 @@ test('S8 route inventory read-only rendering and scrolling audit', async ({ brow
   const files = readdirSync(path.resolve('app'), { recursive: true }).map(String)
     .filter(file => /(^|[\\/])page\.tsx$/.test(file));
   const routes = files.map(file => '/' + file.replaceAll('\\', '/').split('/')
-    .filter(segment => !/^\([^)]*\)$/.test(segment) && segment !== 'page.tsx')
+    .filter(segment => !/^\([^)]*\)$/.test(segment) && !segment.startsWith('@') && segment !== 'page.tsx')
     .map(segment => segment.replace(/^\(\.\)/, '')).join('/'));
   const dynamic = routes.filter(route => route.includes('['));
   const staticRoutes = [...new Set(routes.filter(route => !route.includes('[')))].sort();
