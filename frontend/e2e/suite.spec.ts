@@ -64,8 +64,12 @@ test('S7 basket retries failed reads and reconciles uncertain concurrent edits w
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 1280, height: 800 } });
   let releaseFirst!: () => void;
   const first = new Promise<void>(resolve => { releaseFirst = resolve; });
+  let releaseHydration!: () => void;
+  const hydration = new Promise<void>(resolve => { releaseHydration = resolve; });
   try {
     const page = await context.newPage();
+    // Simulate a slow JS download: a server-rendered basket must not swallow an early click.
+    await page.route('**/_next/static/**/*.js', async route => { await hydration; await route.continue(); });
     const catalog = await (await context.request.get('/api/products?perPage=2')).json();
     let lines = catalog.map((item: { id: string; title: string; price: number; priceCurrency: string; image: string[] }, i: number) => ({ id: `basket-qa-${i}`, quantity: 1, product: { id: item.id, title: item.title, price: item.price, priceCurrency: item.priceCurrency, image: item.image } }));
     let failRead = true, loseFirstResponse = true, writes = 0;
@@ -78,10 +82,13 @@ test('S7 basket retries failed reads and reconciles uncertain concurrent edits w
       if (id === lines[0].id && loseFirstResponse) { await first; return route.fulfill({ status: 503, json: { error: 'Simulated lost response after commit' } }); }
       return route.fulfill({ json: lines.find((item: { id: string }) => item.id === id) });
     });
-    await page.goto('/products', { waitUntil: 'domcontentloaded' });
+    await page.goto('/products', { waitUntil: 'commit' });
+    const opener = page.getByRole('button', { name: /^(Basket|\d+ items? in basket)$/ });
+    await expect(opener).toBeDisabled();
+    releaseHydration();
+    await expect(opener).toBeEnabled();
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) await consent.click();
-    const opener = page.getByRole('button', { name: /^(Basket|\d+ items? in basket)$/ });
     await opener.click();
     const basket = page.getByRole('dialog', { name: 'Shopping basket', exact: true });
     await expect(basket.getByRole('alert')).toContainText('refresh before making another change');
@@ -116,7 +123,7 @@ test('S7 basket retries failed reads and reconciles uncertain concurrent edits w
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.keyboard.press('Escape');
     await expect(basket).toHaveCount(0); await expect(opener).toBeFocused();
-  } finally { releaseFirst(); await context.close(); }
+  } finally { releaseHydration(); releaseFirst(); await context.close(); }
 });
 
 test('S7 seller and warehouse prices use selected fiat and crypto without changing order amounts', async ({ browser, baseURL }) => {

@@ -340,6 +340,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
       {/* Trigger button */}
       <button
         ref={triggerRef}
+        disabled={!mounted}
         onClick={() => { setActivated(true); setOpen(prev => !prev); }}
         className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
         aria-label={cartCount > 0 ? `${cartCount} item${cartCount !== 1 ? "s" : ""} in basket` : "Basket"}
