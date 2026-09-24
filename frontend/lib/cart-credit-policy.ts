@@ -13,7 +13,7 @@ export function creditCartData(productId: string, quantity: number, creditAmount
   }
   if (quantity !== 1) throw new CartCreditError('Enter the number of credits instead of changing pack quantity.');
   const credits = creditAmount ?? DEFAULT_PURCHASE_CREDITS;
-  if (!cartCreditAmountSchema.safeParse(credits).success) throw new CartCreditError('Choose the 10-credit starter pack or a whole number from 100 to 1,000 credits.');
+  if (!cartCreditAmountSchema.safeParse(credits).success) throw new CartCreditError('Choose the 10-credit starter pack or a whole number from 100 to 10,000 credits.');
   return { quantity: 1, creditAmount: credits };
 }
 

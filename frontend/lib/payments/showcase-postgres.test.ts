@@ -17,7 +17,7 @@ it.skipIf(process.env.RUN_SHOWCASE_POSTGRES_TESTS !== '1')('prepares 122, 555 an
   const transact = dbPrisma.$transaction.bind(dbPrisma);
   const rollback = new Error('ROLLBACK_SYNTHETIC_CHECKOUT');
   try {
-    for (const demo of [true, false]) for (const [credits, includeFile, totalOre] of [[122, false, 4716], [555, false, 20651], [1000, true, 39170]] as const) {
+    for (const demo of [true, false]) for (const [credits, includeFile, totalOre] of [[122, false, 4716], [555, false, 20651], [2815, false, 99977], [10000, true, 355070]] as const) {
       await expect(transact(async tx => {
         const userId = `${demo ? 'demo' : 'buyer'}_integration_${randomUUID()}`;
         await tx.user.create({ data: { id: userId, name: 'Disposable checkout integration test', role: 'USER' } });

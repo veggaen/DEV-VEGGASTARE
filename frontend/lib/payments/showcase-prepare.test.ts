@@ -30,7 +30,7 @@ it('locks the buyer before atomically checking caps and saving the authoritative
       agreement: expect.objectContaining({ recordedAt: '2026-09-23T18:00:00.000Z', requests: [DELIVERY_REQUESTS.credits] }) }) }) });
 });
 it('counts pending/failed attempts toward daily exposure and does not create an over-cap order', async () => {
-  m.exposure.mockResolvedValue({ _sum: { totalOre: 30000 } });
+  m.exposure.mockResolvedValue({ _sum: { totalOre: 480000 } });
   await expect(prepareShowcaseCheckout('buyer1', 'request1', undefined, consent)).rejects.toThrow('DAILY_PURCHASE_AMOUNT_LIMIT');
   expect(m.order).not.toHaveBeenCalled();
   expect(m.exposure).toHaveBeenCalledWith({ where: { userId: 'buyer1', environment: 'SANDBOX', createdAt: { gte: new Date('2026-09-23T00:00:00Z') } }, _sum: { totalOre: true } });
@@ -62,6 +62,17 @@ it('keeps the first consent snapshot on an idempotent retry, including legacy or
   const prior = { orderId: 'prior', environment: 'SANDBOX', quote: { agreement: { version: 'older', requests: ['original'] } } };
   m.prior.mockResolvedValue(prior);
   expect(await prepareShowcaseCheckout('buyer1', 'request1', undefined, consent)).toBe(prior);
+  expect(m.order).not.toHaveBeenCalled(); expect(m.attempt).not.toHaveBeenCalled();
+});
+it('accepts 10,000 credits at the server price and rejects cumulative exposure above 5,000 NOK', async () => {
+  const large = [{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, creditAmount: 10000 }];
+  m.cart.mockResolvedValue({ CartItem: large.map(row => ({ ...row, Product: { visibility: 'PUBLIC', productType: 'DIGITAL', Files: [] } })) });
+  m.exposure.mockResolvedValue({ _sum: { totalOre: 147830 } });
+  await prepareShowcaseCheckout('buyer1', 'large', JSON.stringify(quoteShowcaseCart(large)), consent);
+  expect(m.attempt).toHaveBeenCalledWith({ data: expect.objectContaining({ totalOre: 352170 }) });
+  m.order.mockClear(); m.attempt.mockClear();
+  m.exposure.mockResolvedValue({ _sum: { totalOre: 147831 } });
+  await expect(prepareShowcaseCheckout('buyer1', 'over', undefined, consent)).rejects.toThrow('DAILY_PURCHASE_AMOUNT_LIMIT');
   expect(m.order).not.toHaveBeenCalled(); expect(m.attempt).not.toHaveBeenCalled();
 });
 it('prepares the small pack at 9 NOK without weakening delivery consent or repricing old attempts', async () => {

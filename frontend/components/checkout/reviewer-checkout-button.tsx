@@ -1,6 +1,8 @@
 'use client';
 /** @fileOverview One explicit payment action with stable retry identity and clear errors. @stability experimental */
-import { useId, useRef, useState } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
+import Link from 'next/link';
+import { ArrowUpRight, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCheckoutEditing } from './checkout-edit-context';
 import { useCart } from '@/contexts/cart-context';
@@ -23,7 +25,7 @@ const messages: Record<string, string> = {
   CHECKOUT_EXPIRED: 'This checkout has expired. Return to your cart to start again.',
   ONE_OF_EACH_REVIEWER_ITEM_PER_ORDER: 'Please keep one of each reviewer item in your cart.',
 };
-export default function ReviewerCheckoutButton({ demo, disabled = false, expectedQuote, hasFiles = false, hasCredits = false }: { demo: boolean; disabled?: boolean; expectedQuote?: string; hasFiles?: boolean; hasCredits?: boolean }) {
+export default function ReviewerCheckoutButton({ demo, disabled = false, expectedQuote, hasFiles = false, hasCredits = false, order, summary }: { demo: boolean; disabled?: boolean; expectedQuote?: string; hasFiles?: boolean; hasCredits?: boolean; order: ReactNode; summary: ReactNode }) {
   const editing = useCheckoutEditing();
   const { checkoutBlocked } = useCart();
   const key = useRef<string | null>(null);
@@ -51,38 +53,53 @@ export default function ReviewerCheckoutButton({ demo, disabled = false, expecte
     } catch { setError('Connection interrupted. Retry safely using the same checkout.'); }
     finally { setPending(false); editing?.setPaymentPending(false); }
   }
-  return <div className="space-y-3">
-    <div className="text-sm leading-relaxed text-muted-foreground">
-      <p>Full sales terms (Norwegian), version {SALES_TERMS_VERSION}, and an optional withdrawal form are available before you continue. Your new order confirmation keeps this version.</p>
-      <div className="mt-1 flex flex-wrap gap-x-4">
-        <a href="/terms" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-sm underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2">Read full terms (new tab)</a>
-        <a href={SALES_TERMS_DOWNLOAD} download className="inline-flex min-h-11 items-center rounded-sm underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2">Save terms and withdrawal form (.txt)</a>
-      </div>
-    </div>
-    {!demo && <fieldset className="min-w-0 space-y-3 rounded-lg border border-border p-3" disabled={pending || disabled || editing?.busy || checkoutBlocked}>
-      <legend className="px-1 text-sm font-semibold">Delivery preferences</legend>
-      <p className="text-sm text-muted-foreground">This checkout delivers immediately after verified payment. Review each request before continuing.</p>
-      {hasFiles && <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md py-2 text-sm leading-relaxed">
+  return <div className="mt-6 grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,1fr)] lg:gap-8">
+    <div className="min-w-0 space-y-6">
+      {order}
+      {!demo && <section aria-label="Delivery preferences" className="min-w-0 rounded-2xl border border-border bg-card p-5 sm:p-6">
+      <fieldset className="min-w-0 space-y-2" disabled={pending || disabled || editing?.busy || checkoutBlocked}>
+      <legend className="mb-3 text-lg font-semibold">Immediate delivery</legend>
+      {hasFiles && <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border border-border bg-background/50 p-4 text-sm leading-relaxed">
         <input ref={filesInput} type="checkbox" name="immediate-files" checked={files} onChange={event => setFiles(event.target.checked)}
           aria-invalid={consentError && !files} aria-describedby={consentError && !files ? `${consentId}-error` : undefined}
           className="mt-1 size-5 shrink-0 accent-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4" />
         <span>{DELIVERY_REQUESTS.files}</span>
       </label>}
-      {hasCredits && <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md py-2 text-sm leading-relaxed">
+      {hasCredits && <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border border-border bg-background/50 p-4 text-sm leading-relaxed">
         <input ref={creditsInput} type="checkbox" name="immediate-ai" checked={credits} onChange={event => setCredits(event.target.checked)}
           aria-invalid={consentError && !credits} aria-describedby={consentError && !credits ? `${consentId}-error` : undefined}
           className="mt-1 size-5 shrink-0 accent-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4" />
         <span>{DELIVERY_REQUESTS.credits}</span>
       </label>}
       {consentError && ((hasFiles && !files) || (hasCredits && !credits)) && <p id={`${consentId}-error`} role="alert" className="text-sm text-destructive">Select the delivery request for each item, or return to your cart. No payment has been taken.</p>}
-      <details className="text-sm text-muted-foreground">
-        <summary className="min-h-11 cursor-pointer py-3 underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Read the purchase and withdrawal record</summary>
-        <p className="whitespace-pre-line break-words leading-relaxed">{DIGITAL_PURCHASE_RECORD}</p>
+      </fieldset>
+      </section>}
+      <details className="rounded-xl border border-border px-5 text-sm text-muted-foreground sm:px-6">
+        <summary className="min-h-12 cursor-pointer py-4 font-medium text-foreground focus-visible:outline focus-visible:outline-2">Terms, delivery & refunds</summary>
+        <div className="space-y-3 pb-5 leading-relaxed">
+          <div className="flex flex-wrap gap-x-4">
+            <a href="/terms" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 rounded-sm underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2">Read full terms (new tab)<ArrowUpRight aria-hidden="true" className="size-4" /></a>
+            <a href={SALES_TERMS_DOWNLOAD} download className="inline-flex min-h-11 items-center rounded-sm underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2">Save terms and withdrawal form (.txt)</a>
+          </div>
+          <p>Norwegian sales terms · Version {SALES_TERMS_VERSION}. A copy is kept with your order.</p>
+          <details><summary className="min-h-11 cursor-pointer py-3 underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Read the purchase and withdrawal record</summary>
+            <p className="whitespace-pre-line break-words">{DIGITAL_PURCHASE_RECORD}</p>
+          </details>
+        </div>
       </details>
-    </fieldset>}
-    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-    <Button className="min-h-12 w-full text-base" disabled={disabled || pending || editing?.busy || checkoutBlocked} onClick={submit}>
+    </div>
+    <aside aria-label="Payment summary" className="min-w-0 rounded-2xl border border-border bg-card p-5 sm:p-6 lg:sticky lg:top-6">
+      {summary}
+      {error && <p role="alert" className="mb-4 text-sm text-destructive">{error}</p>}
+      <Button className="min-h-12 w-full gap-2 text-base" disabled={disabled || pending || editing?.busy || checkoutBlocked} onClick={submit}>
       {pending ? 'Preparing your order…' : demo ? 'Complete free demo order' : 'Continue to PayPal'}
-    </Button>
+      {!pending && <ArrowUpRight aria-hidden="true" className="size-4" />}
+      </Button>
+      <p className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground"><LockKeyhole aria-hidden="true" className="size-3.5" />{demo ? 'No card required' : 'Payment details stay with PayPal'}</p>
+      <nav aria-label="Checkout help" className="mt-3 flex flex-wrap justify-center gap-x-5 text-xs text-muted-foreground">
+        <Link href="/terms" target="_blank" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground">Terms</Link>
+        <Link href="/privacy" target="_blank" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground">Privacy</Link>
+      </nav>
+    </aside>
   </div>;
 }

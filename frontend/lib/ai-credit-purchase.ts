@@ -1,6 +1,6 @@
 /** @fileOverview Bounded custom-credit prices and conservative sale economics; never accepts a client amount. @stability experimental */
 export const MIN_PURCHASE_CREDITS = 100;
-export const MAX_PURCHASE_CREDITS = 1000;
+export const MAX_PURCHASE_CREDITS = 10_000;
 export const DEFAULT_PURCHASE_CREDITS = 100;
 // A small, explicitly priced starter option for inexpensive Live acceptance.
 // Do not discount the normal pack or rewrite previously stored order quotes.
@@ -10,8 +10,10 @@ export function isPurchasableCreditAmount(credits: number) {
     (credits >= MIN_PURCHASE_CREDITS && credits <= MAX_PURCHASE_CREDITS));
 }
 export const CREDIT_BASE_UNIT_ORE = 39;
-export const CREDIT_PRICE_VERSION = '2026-09-custom-v1';
-export const DAILY_PURCHASE_CAP_ORE = 50_000;
+export const CREDIT_PRICE_VERSION = '2026-09-custom-v2';
+// Allows the full 10,000-credit selection (plus the file), without making
+// daily exposure unbounded. The independent two-attempt limit still applies.
+export const DAILY_PURCHASE_CAP_ORE = 500_000;
 
 // Marginal discounts: adding a credit always increases the price. The first 100
 // stay at the original 39 NOK, protecting small purchases from fixed fees.
@@ -42,6 +44,21 @@ export function quoteCreditPurchase(credits: number) {
     currency: 'NOK' as const, pricingVersion: CREDIT_PRICE_VERSION };
 }
 export type CreditPurchaseQuote = ReturnType<typeof quoteCreditPurchase>;
+
+/** Largest eligible whole-credit quote within a NOK budget. Never sends the
+ * budget to a payment provider: checkout still re-quotes the chosen credits.
+ * The gap between the starter and custom minimum is intentional. */
+export function creditsWithinBudget(budgetOre: number): CreditPurchaseQuote | null {
+  if (!Number.isSafeInteger(budgetOre) || budgetOre < SMALL_CREDIT_PACK.amountOre) return null;
+  if (budgetOre < quoteCreditPurchase(MIN_PURCHASE_CREDITS).amountOre) return quoteCreditPurchase(SMALL_CREDIT_PACK.credits);
+  let low = MIN_PURCHASE_CREDITS, high = MAX_PURCHASE_CREDITS;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (quoteCreditPurchase(mid).amountOre <= budgetOre) low = mid;
+    else high = mid - 1;
+  }
+  return quoteCreditPurchase(low);
+}
 
 // Deliberately conservative planning allowances, NOT the merchant's actual
 // statement, a tax determination, or a guarantee against fraud/chargebacks.

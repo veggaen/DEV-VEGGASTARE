@@ -1392,6 +1392,96 @@ test('S4 — real demo withdrawal is idempotent, private and never changes payme
   } finally { await context.close(); await anonymous.close(); }
 });
 
+test('S8 request detail gallery and long content reflow in both themes', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_REQUEST_DETAIL !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Synthetic request; real retained-demo profile navigation only');
+  test.setTimeout(120_000);
+  for (const theme of ['light', 'dark']) {
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce', viewport: { width: 390, height: 844 } });
+    await context.addInitScript(value => localStorage.setItem('theme', value), theme);
+    const page = await context.newPage();
+    const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session?.user?.isDemo).toBe(true);
+    const fixture = { id: 'qa-gallery', title: `Illustration request ${'LongTitle'.repeat(16)}`, userId: session.user.id,
+      user: { id: session.user.id, name: 'Demo requester', image: null }, descriptions: ['A clear brief with a long reference: '+ 'reference'.repeat(50)],
+      images: ['/watchlightmode.webp', '/watchdarkmode.webp'], links: ['https://example.com/'+ 'reference'.repeat(30), 'javascript:alert(1)'],
+      docs: ['https://example.com/brief.txt', 'data:text/html,test'], companyIds: [], price: 0, negotiable: true,
+      paymentMethod: 'Agreed with the requester', delivery: 'Digital', additionalNotes: 'No live publishing or project payment in this test.',
+      createdAt: '2026-09-24T12:00:00Z', updatedAt: '2026-09-24T12:00:00Z' };
+    let releaseRead!: () => void;
+    const pending = new Promise<void>(resolve => { releaseRead = resolve; });
+    await page.route('**/api/job-requests/qa-gallery', async route => { await pending; await route.fulfill({ json: fixture }); });
+    try {
+      await page.goto('/jobs/qa-gallery', { waitUntil: 'domcontentloaded' });
+      const main = page.getByRole('main');
+      await expect(main.getByRole('status', { name: 'Loading request', exact: true })).toBeVisible();
+      releaseRead();
+      await expect(main.getByRole('heading', { name: fixture.title, exact: true })).toBeVisible();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (await consent.isVisible()) await consent.click();
+      const gallery = main.getByRole('region', { name: 'Request gallery' });
+      await gallery.getByRole('button', { name: 'Show image 2', exact: true }).click();
+      await expect(gallery.getByRole('button', { name: 'Show image 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(gallery.getByRole('img', { name: /selected image/ })).toHaveAttribute('src', /watchdarkmode/);
+      await expect.poll(() => gallery.getByRole('img', { name: /selected image/ }).evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+      await expect(main.locator('a[href^="javascript:"],a[href^="data:"]')).toHaveCount(0);
+      for (const [width, height] of [[360,800],[390,844],[844,390],[768,1024],[1024,768],[1280,800],[1920,1080],[2560,1080]]) {
+        await page.setViewportSize({ width, height });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await main.getByRole('link', { name: 'Document 1 (opens in a new tab)', exact: true }).scrollIntoViewIfNeeded();
+        await page.mouse.move(width - 20, Math.min(height - 50, 700)); await page.mouse.wheel(0, 1200);
+        await expect(main.getByRole('link', { name: 'Document 1 (opens in a new tab)', exact: true })).toBeVisible();
+        if ([360,1280,2560].includes(width)) await page.screenshot({ path: testInfo.outputPath(`request-detail-${theme}-${width}.png`), fullPage: true });
+      }
+      const requester = main.getByRole('link', { name: 'View requester profile', exact: true });
+      await expect(requester).toHaveAttribute('href', `/profile/${session.user.id}`);
+      await requester.click(); await page.waitForURL(url => url.pathname === `/profile/${session.user.id}`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('main')).toBeVisible();
+      expect(errors).toEqual([]);
+    } finally { releaseRead(); await context.close(); }
+  }
+});
+
+test('S8 request detail distinguishes outages, denied access and missing requests', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_REQUEST_DETAIL !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo and synthetic detail responses only');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  let status = 503;
+  const fixture = { id: 'qa-detail', title: 'Illustration request', userId: 'qa-owner',
+    user: { id: 'qa-owner', name: 'Demo creator', image: null }, descriptions: ['Private synthetic brief'],
+    images: [], links: [], docs: [], companyIds: ['qa-company'], price: 0, negotiable: false,
+    paymentMethod: null, delivery: null, additionalNotes: null,
+    createdAt: 'invalid-date', updatedAt: '2026-09-24T12:00:00Z' };
+  await page.route('**/api/job-requests/qa-detail', route => route.fulfill({ status, json: status === 200 ? fixture : { error: 'Controlled QA error' } }));
+  try {
+    await page.goto('/jobs/qa-detail', { waitUntil: 'domcontentloaded' });
+    const main = page.getByRole('main');
+    await expect(main.getByRole('heading', { name: 'Could not load request', exact: true })).toBeVisible();
+    await expect(main.getByText('Request not found', { exact: true })).toHaveCount(0);
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    status = 200;
+    await main.getByRole('button', { name: 'Try again', exact: true }).click();
+    await expect(main.getByRole('heading', { name: fixture.title, exact: true })).toBeVisible();
+    await expect(main.getByText('Date unavailable', { exact: true })).toBeVisible();
+    for (const denial of [401, 403, 404]) {
+      status = denial;
+      await main.getByRole('button', { name: 'Refresh request', exact: true }).click();
+      await expect(main.getByRole('heading', { name: fixture.title, exact: true })).toHaveCount(0);
+      await expect(main.getByRole('heading', { name: denial === 404 ? 'Request not found' : 'Request unavailable', exact: true })).toBeVisible();
+      status = 503;
+      const outage = page.waitForResponse(response => response.url().endsWith('/api/job-requests/qa-detail') && response.status() === 503);
+      await main.getByRole('button', { name: 'Try again', exact: true }).click(); await outage;
+      await expect(main.getByRole('heading', { name: fixture.title, exact: true })).toHaveCount(0);
+      status = 200;
+      await main.getByRole('button', { name: 'Try again', exact: true }).click();
+      await expect(main.getByRole('heading', { name: fixture.title, exact: true })).toBeVisible();
+    }
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S8 request access revocation clears saved rows and cannot resurrect them on outage', async ({ browser, baseURL }) => {
   test.skip(process.env.E2E_REQUEST_ACCESS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Browser-only responses with a retained demo; no permission changes');
   for (const deniedStatus of [401, 403]) {
@@ -6527,6 +6617,91 @@ test.describe("Layer 5 — API Data Shapes", () => {
     expect([200, 400, 401, 404, 500, 502]).toContain(res.status());
   });
 });
+test('S4 flexible credit budgets persist and checkout reflows without a payment', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_CREDIT_BUDGET !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Retained disposable demo; no order submission');
+  test.setTimeout(180_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let cartPath = '', original: Array<{ product: { id: string }; quantity: number; creditAmount?: number }> = [];
+  let paymentPosts = 0;
+  try {
+    await context.addInitScript(() => {
+      localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency: 'NOK', preferredCryptoCurrency: 'ETH' }));
+      localStorage.removeItem('veggastare_currency_rates');
+    });
+    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1 }, fresh: true, timestamp: Date.now() }, crypto: { prices: { ETH: 2000 }, fresh: true, timestamp: Date.now() } } }));
+    await page.route(/\/api\/(demo\/)?checkout$/, route => { paymentPosts++; return route.abort(); });
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.isDemo).toBe(true);
+    cartPath = `/api/cart/${session.user.id}`;
+    original = (await (await context.request.get(cartPath)).json()).items;
+    expect((await context.request.delete(cartPath)).ok()).toBe(true);
+    await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
+    const cookie = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await cookie.click();
+    const credits = page.getByRole('textbox', { name: 'Number of credits', exact: true });
+    const budget = page.getByRole('textbox', { name: 'Spend up to (NOK)', exact: true });
+    await expect(credits).toHaveValue('100');
+    await credits.fill('10000'); await expect(budget).toHaveValue('3521.70');
+    await budget.fill('1000'); await expect(credits).toHaveValue('2815');
+    await expect(page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true })).toBeDisabled();
+    await budget.press('Enter'); await expect(budget).toHaveValue('999.77');
+    await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
+    await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+    await expect(credits).toHaveValue('2815');
+    const saved = (await (await context.request.get(cartPath)).json()).items[0];
+    expect(saved).toMatchObject({ quantity: 1, creditAmount: 2815, product: { price: 999.77, priceCurrency: 'NOK' } });
+    await credits.fill('10000'); await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await expect.poll(async () => (await (await context.request.get(cartPath)).json()).items[0].creditAmount).toBe(10000);
+    expect((await context.request.patch(`${cartPath}/items/${saved.id}`, { data: { creditAmount: 10001 } })).status()).toBe(400);
+    await page.getByRole('link', { name: 'Proceed to checkout', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Secure checkout', exact: true })).toBeVisible();
+    await expect(credits).toHaveValue('10000');
+    await expect(budget).toHaveValue('3521.70');
+    await budget.fill('1000');
+    await expect(credits).toHaveValue('2815');
+    const pay = page.getByRole('button', { name: 'Complete free demo order', exact: true });
+    await expect(pay).toBeDisabled();
+    await budget.press('Enter');
+    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits · 2815 credits', exact: true })).toBeVisible();
+    await expect(pay).toBeEnabled();
+    await page.reload({ waitUntil: 'domcontentloaded' }); await expect(credits).toHaveValue('2815');
+    await page.getByRole('button', { name: /^Display currency:/ }).click();
+    await page.getByRole('menuitemradio', { name: 'US Dollar', exact: true }).click();
+    await page.keyboard.press('Escape');
+    const usdBudget = page.getByRole('textbox', { name: 'Spend up to (USD)', exact: true });
+    await expect(usdBudget).toHaveValue('99.98');
+    await usdBudget.fill('100'); await expect(credits).toHaveValue('2815');
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(pay).toBeEnabled();
+    const items = page.getByRole('region', { name: 'Order items', exact: true });
+    const summary = page.getByRole('complementary', { name: 'Payment summary', exact: true });
+    for (const theme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: theme });
+      for (const [width, height] of [[360,800], [390,844], [844,390], [768,1024], [1024,768], [1280,800], [1920,1080], [2560,1440]]) {
+        await page.setViewportSize({ width, height });
+        const scroll = page.locator('[data-site-scroll]:visible');
+        await scroll.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('[data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
+        const orderBox = (await items.boundingBox())!, summaryBox = (await summary.boundingBox())!;
+        if (width >= 1024) { expect(summaryBox.x).toBeGreaterThan(orderBox.x + orderBox.width); expect(summaryBox.width).toBeGreaterThanOrEqual(320); expect(summaryBox.height).toBeLessThan(520); }
+        else expect(summaryBox.y).toBeGreaterThan(orderBox.y + orderBox.height);
+        await pay.scrollIntoViewIfNeeded(); await expect(pay).toBeInViewport();
+        await scroll.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+        if ([390,1280,2560].includes(width)) await page.screenshot({ path: testInfo.outputPath(`budget-checkout-${theme}-${width}.png`) });
+      }
+    }
+    expect(paymentPosts).toBe(0); expect(errors).toEqual([]);
+  } finally {
+    if (cartPath) {
+      expect((await context.request.delete(cartPath)).ok()).toBe(true);
+      for (const row of original) expect((await context.request.post(cartPath, { data: { productId: row.product.id, quantity: row.quantity, creditAmount: row.creditAmount } })).ok()).toBe(true);
+    }
+    await context.close();
+  }
+});
+
 test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', async ({ browser, baseURL }, testInfo) => {
   test.setTimeout(120_000);
   test.skip(process.env.E2E_SMALL_CREDITS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE,
@@ -6543,10 +6718,11 @@ test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', as
     originalItems = (await (await context.request.get(path)).json()).items;
     // Retained synthetic demo fixtures may keep the ordinary pack for other
     // tests. Preserve that known fixture, and refuse any unexpected cart.
-    expect(originalItems.length).toBeLessThanOrEqual(1);
-    for (const row of originalItems) expect(row).toMatchObject({
-      product: { id: 'cveggatinterviewcredits01' }, quantity: 1, creditAmount: 100,
-    });
+    expect(originalItems.length).toBeLessThanOrEqual(2);
+    for (const row of originalItems) {
+      expect(['cveggatinterviewcredits01', 'cveggatinterviewpack000001']).toContain(row.product.id);
+      expect(row.quantity).toBe(1);
+    }
     cartPath = path;
     if (originalItems.length) expect((await context.request.delete(path)).ok()).toBe(true);
     await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
@@ -6653,7 +6829,7 @@ test('S4 — custom credits persist across product, basket, cart, checkout and r
     const cart = await (await context.request.get(cartPath)).json();
     const rowId = cart.items[0].id;
     expect(cart.items[0]).toMatchObject({ quantity: 1, creditAmount: 122, product: { price: 47.16, priceCurrency: 'NOK' } });
-    for (const invalid of [99, 1001, 122.5, '555', -1]) {
+    for (const invalid of [99, 10001, 122.5, '555', -1]) {
       expect((await context.request.patch(`${cartPath}/items/${rowId}`, { data: { creditAmount: invalid } })).status()).toBe(400);
     }
     for (const width of [360, 390, 1280, 2560]) {

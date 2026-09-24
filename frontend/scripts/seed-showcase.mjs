@@ -24,10 +24,10 @@ const products = [
   },
   {
     id: 'cveggatinterviewcredits01', title: 'Interviewer AI Credits', price: 39, category: 'AI credits',
-    description: 'Choose 100–1,000 prepaid Veggat AI credits for supported premium chat models, with progressive volume discounts. Enter your exact amount on this page or in your cart. No subscription, automatic top-up or unlimited plan. Model availability and per-message credit costs are shown before sending. Credits are added only after verified payment; Sandbox credits stay separate from Live credits. The free demo includes a small allowance, so an interview never requires payment.',
-    images: ['/showcase/credits-cover.jpg'],
-    features: [{ text: 'Choose 100–1,000 prepaid credits' }, { text: 'No subscription or automatic top-ups' }, { text: 'Usage is bounded by your available balance' }],
-    specifications: [{ key: 'Included', value: 'Your selected credit amount' }, { key: 'Billing', value: 'One-time, no auto-renewal' }, { key: 'Price', value: '39 NOK' }],
+    description: 'Prepaid usage for supported AI models. Choose 100–10,000 credits or enter a spending budget; a 10-credit starter is also available. Volume discounts apply automatically. No subscription or automatic top-ups. Model availability and credit costs are shown before sending.',
+    images: ['/showcase/credits-cover-v2.jpg'],
+    features: [{ text: 'Choose credits or a spending budget' }, { text: 'No subscription or automatic top-ups' }, { text: 'Usage is bounded by your available balance' }],
+    specifications: [{ key: 'Included', value: 'Your selected credit amount' }, { key: 'Billing', value: 'One-time, no auto-renewal' }, { key: 'Price', value: 'Calculated from your selection' }],
   },
 ];
 
@@ -52,8 +52,8 @@ try {
       const saved = (await client.query('SELECT "companyId", "userId" FROM "Product" WHERE id=$1', [product.id])).rows[0];
       if (saved?.companyId !== companyId || saved?.userId !== owner) throw new Error('Showcase SKU collision; no changes applied.');
       if (refreshCreditCopy && product.id === 'cveggatinterviewcredits01') {
-        await client.query('UPDATE "Product" SET description=$2, features=$3::jsonb, specifications=$4::jsonb, "updatedAt"=now() WHERE id=$1',
-          [product.id, product.description, JSON.stringify(product.features), JSON.stringify(product.specifications)]);
+        await client.query('UPDATE "Product" SET description=$2, features=$3::jsonb, specifications=$4::jsonb, image=$5::text[], "updatedAt"=now() WHERE id=$1',
+          [product.id, product.description, JSON.stringify(product.features), JSON.stringify(product.specifications), product.images]);
       }
     }
     await client.query(dryRun ? 'ROLLBACK' : 'COMMIT');

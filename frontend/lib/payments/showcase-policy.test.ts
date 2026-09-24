@@ -19,10 +19,10 @@ describe('reviewer checkout policy', () => {
   it('quotes custom credits and files as separate server-priced lines', () => {
     const quote = quoteShowcaseCart([{ productId: skus.credits.id, quantity: 1, creditAmount: 122, amountOre: 1 }, { productId: skus.interviewPack.id, quantity: 1 }]);
     expect(quote.totalOre).toBe(7616);
-    expect(quote.lines.find(line => line.kind === 'AI_CREDITS')).toMatchObject({ credits: 122, amountOre: 4716, pricingVersion: '2026-09-custom-v1' });
+    expect(quote.lines.find(line => line.kind === 'AI_CREDITS')).toMatchObject({ credits: 122, amountOre: 4716, pricingVersion: '2026-09-custom-v2' });
     expect(quote.lines.find(line => line.kind === 'DIGITAL_FILES')).toMatchObject({ credits: 0, amountOre: 2900 });
   });
-  it.each([99, 1001, 122.5, '555', -1, Infinity])('rejects invalid custom credits %j', creditAmount => {
+  it.each([99, 10001, 122.5, '555', -1, Infinity])('rejects invalid custom credits %j', creditAmount => {
     expect(() => quoteShowcaseCart([{ productId: skus.credits.id, quantity: 1, creditAmount }])).toThrow();
   });
   it('rejects credit claims attached to the digital-file SKU', () => {

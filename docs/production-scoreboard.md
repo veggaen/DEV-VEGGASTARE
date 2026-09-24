@@ -4,6 +4,22 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Checkout + credit-budget refresh: **PARTIAL — local acceptance passes; deployment
+pending**. Balanced checkout, explicit delivery in the main column, compact help,
+quantity-neutral artwork and linked credit/fiat-budget inputs support 100–10,000
+credits plus the 9 NOK starter. Server margin guard, two-attempt cap and a bounded
+5,000 NOK daily exposure limit remain. 137 focused units (including request detail),
+41 further payment/ledger units (21 skipped), isolated PostgreSQL prepare checks,
+strict build/lint and focused browser flows pass. Real Chrome budget entry also
+passes. No new Sandbox or Live capture is claimed. See
+[checkout evidence](checkout-credit-budget-2026-09.md). PayPal signed out after
+the PC restart; the owner has a retained passkey sign-in handoff.
+
+Request detail: **PARTIAL — local acceptance passes; deployment pending**.
+18 units and 2 browser tests cover gallery, long-content reflow in both themes,
+outage recovery and 401/403/404 distinctions without stale private details.
+No real request was published or another account's access changed.
+
 Request-board cached-access correction: **DONE for this slice locally and live**.
 Source `b66f49f`, deployed `dpl_5PWt1ynV7w2N6KAoy8yFubwh8gjf`, clears private
 cached rows after 401/403 and prevents resurrection on a later outage. Baseline

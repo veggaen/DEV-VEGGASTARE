@@ -8,7 +8,7 @@ await mkdir(output, { recursive: true });
 await sharp(source).resize({ width: 960, withoutEnlargement: true }).jpeg({ quality: 82, mozjpeg: true }).toFile(`${output}/fjord-study-preview.jpg`);
 await sharp(source).resize({ width: 640, withoutEnlargement: true }).jpeg({ quality: 82, mozjpeg: true }).toFile(`${output}/fjord-study-small.jpg`);
 for (const name of ['credits-cover', 'interview-pack-contents']) {
-  await sharp(`${output}/${name}.svg`).jpeg({ quality: 88, mozjpeg: true }).toFile(`${output}/${name}.jpg`);
+  await sharp(`${output}/${name}.svg`).jpeg({ quality: 88, mozjpeg: true }).toFile(`${output}/${name === 'credits-cover' ? 'credits-cover-v2' : name}.jpg`);
 }
 // Private delivery copy, not a public image route or a repository asset.
 await sharp(source).jpeg({ quality: 95, mozjpeg: true }).toFile(fileURLToPath(new URL('../.private-showcase/fjord-study.jpg', import.meta.url)));

@@ -12,6 +12,7 @@ import { paypalConfigured } from '@/lib/payments/showcase-paypal';
 import ReviewerCheckoutButton from '@/components/checkout/reviewer-checkout-button';
 import CreditRefundNotice from '@/components/checkout/credit-refund-notice';
 import { productPurchaseState, PRODUCT_PURCHASE_NOTICE } from '@/lib/product-purchase-state';
+import { DAILY_PURCHASE_CAP_ORE } from '@/lib/ai-credit-purchase';
 
 export default async function CheckoutPage({ searchParams }: { searchParams?: Promise<{ cancelled?: string | string[] }> }) {
   const cancelled = (await searchParams)?.cancelled === '1';
@@ -51,10 +52,11 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
   return <CheckoutEditProvider><div data-checkout className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
     <Link href="/cart" className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline">Back to cart</Link>
     <h1 className="mt-3 text-3xl font-semibold tracking-tight">Secure checkout</h1>
-    <p className="mt-3 max-w-2xl text-muted-foreground">Digital products from Veggat Studio. No shipping, no recurring charge. Your files and credits stay attached to your account.</p>
+    <p className="mt-2 text-muted-foreground">One-time purchase · Digital delivery</p>
     {cancelled && <div role="status" className="mt-6 rounded-xl border border-border bg-muted/30 p-4 text-sm"><h2 className="font-semibold">Returned from PayPal</h2><p className="mt-1">Your cart is saved. Returning here does not confirm a payment or add credits. If you already approved payment, check <Link href="/my-orders" className="underline underline-offset-4">My orders</Link> before starting another checkout.</p></div>}
-    <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <section className="min-w-0 self-start rounded-xl border border-border bg-card p-4 sm:p-6" aria-label="Order items">
+    <ReviewerCheckoutButton key={JSON.stringify(quote)} expectedQuote={JSON.stringify(quote)} demo={demo} disabled={!available}
+      hasFiles={quote.lines.some(line => line.kind === 'DIGITAL_FILES')} hasCredits={purchasedCredits > 0} order={
+      <section className="min-w-0 rounded-2xl border border-border bg-card p-5 sm:p-6" aria-label="Order items">
         <h2 className="text-lg font-semibold">Your order</h2>
         <div className="mt-4 divide-y divide-border">
           {quote.lines.map(line => <div key={line.productId} className="grid min-w-0 grid-cols-[4rem_minmax(0,1fr)] gap-x-4 gap-y-3 py-5 sm:grid-cols-[5rem_minmax(0,1fr)]">
@@ -63,28 +65,22 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="break-words font-medium">{line.title}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{line.kind === 'DIGITAL_FILES' ? 'Original JPG + interview notes TXT · private downloads' : `${line.credits} AI usage credits · no subscription`}</p>
-              <div className="mt-2 text-sm font-semibold"><PreferredMoney amount={line.amountOre / 100} /> <span>· Qty 1</span></div>
+              <p className="mt-1 text-sm text-muted-foreground">{line.kind === 'DIGITAL_FILES' ? 'JPG + TXT · Private downloads' : 'Prepaid AI usage'}</p>
+              <div className="mt-2 text-sm font-semibold"><PreferredMoney amount={line.amountOre / 100} /></div>
             </div>
-            <div className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2">
+            <div className="col-span-2 min-w-0">
               {line.credits > 0 && <CheckoutCreditAmount itemId={cart!.CartItem.find(item => item.productId === line.productId)!.id} value={line.credits} />}
               <RemoveCheckoutItem itemId={cart!.CartItem.find(item => item.productId === line.productId)!.id} title={line.title} />
             </div>
           </div>)}
         </div>
-      </section>
-      <aside className="min-w-0 self-start rounded-xl border border-border bg-card p-4 sm:p-6 lg:sticky lg:top-6" aria-label="Payment summary">
+      </section>} summary={<>
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{mode === 'DEMO' ? 'Free demonstration' : mode === 'SANDBOX' ? 'PayPal Sandbox — test money only' : 'PayPal Live — real payment'}</p>
         <div className="my-6 flex flex-wrap items-baseline justify-between gap-3"><h2 className="font-medium">{demo ? 'Due today' : 'Total'}</h2><strong className="max-w-full text-2xl tabular-nums"><PreferredMoney amount={demo ? 0 : quote.totalOre / 100} /></strong></div>
-        <p className="mb-6 text-sm text-muted-foreground">{demo ? 'No card, no charge. Preview fulfillment with an isolated demo order.' : 'PayPal handles your payment details. We never receive your card number. Maximum two checkout attempts per day.'}</p>
-        {!demo && <p className="mb-4 text-sm text-muted-foreground">PayPal charges in NOK. Your selected currency is a display estimate; review the exact charge on PayPal before approval.</p>}
+        {!demo && <p className="mb-4 text-sm text-muted-foreground">PayPal charge: <strong className="font-medium text-foreground">NOK {(quote.totalOre / 100).toFixed(2)}</strong>. Other currencies are estimates.</p>}
         {!available && <p role="status" className="mb-4 text-sm text-muted-foreground">PayPal setup is in progress. No payment can be taken yet. The free demo remains available.</p>}
         {(creditAccount?.refundAdjustment ?? 0) > 0 && <div className="mb-4"><CreditRefundNotice adjustment={creditAccount!.refundAdjustment} purchasedCredits={purchasedCredits} /></div>}
-        <ReviewerCheckoutButton key={JSON.stringify(quote)} expectedQuote={JSON.stringify(quote)} demo={demo} disabled={!available}
-          hasFiles={quote.lines.some(line => line.kind === 'DIGITAL_FILES')} hasCredits={purchasedCredits > 0} />
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{quote.lines.some(line => line.kind === 'DIGITAL_FILES') ? 'Download links expire after 24 hours and require this account. ' : ''}{quote.lines.some(line => line.kind === 'AI_CREDITS') ? 'Credits are prepaid usage, not a subscription. ' : ''}</p>
-        <div className="mt-2 flex gap-4 text-sm text-muted-foreground"><Link href="/terms" className="inline-flex min-h-11 items-center underline">Terms</Link><Link href="/privacy" className="inline-flex min-h-11 items-center underline">Privacy</Link></div>
-      </aside>
-    </div>
+        {!demo && <details className="mb-4 text-xs text-muted-foreground"><summary className="min-h-11 cursor-pointer py-3 focus-visible:outline-2">Purchase limits</summary><p className="pb-3 leading-relaxed">Two new checkout attempts and NOK {new Intl.NumberFormat('en').format(DAILY_PURCHASE_CAP_ORE / 100)} per account per UTC day, including pending attempts. Retrying an existing order does not create another charge.</p></details>}
+      </>} />
   </div></CheckoutEditProvider>;
 }
