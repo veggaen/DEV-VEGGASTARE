@@ -6213,12 +6213,20 @@ test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', as
     viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
   const page = await context.newPage();
   let cartPath: string | undefined;
+  let originalItems: Array<{ product: { id: string }; quantity: number; creditAmount?: number }> = [];
   try {
     const session = await (await context.request.get('/api/auth/session')).json();
     expect(session.user.isDemo).toBe(true);
     const path = `/api/cart/${session.user.id}`;
-    expect((await (await context.request.get(path)).json()).items).toHaveLength(0);
+    originalItems = (await (await context.request.get(path)).json()).items;
+    // Retained synthetic demo fixtures may keep the ordinary pack for other
+    // tests. Preserve that known fixture, and refuse any unexpected cart.
+    expect(originalItems.length).toBeLessThanOrEqual(1);
+    for (const row of originalItems) expect(row).toMatchObject({
+      product: { id: 'cveggatinterviewcredits01' }, quantity: 1, creditAmount: 100,
+    });
     cartPath = path;
+    if (originalItems.length) expect((await context.request.delete(path)).ok()).toBe(true);
     await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
     if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) {
       await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
@@ -6244,6 +6252,20 @@ test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', as
     await page.getByRole('button', { name: 'Choose 10-credit starter pack', exact: true }).click();
     await page.getByRole('button', { name: 'Update credits', exact: true }).click();
     await expect.poll(async () => (await (await context.request.get(path)).json()).items[0].product.price).toBe(9);
+    await page.setViewportSize({ width: 1280, height: 844 });
+    await page.getByRole('button', { name: '1 item in basket', exact: true }).click();
+    const basket = page.getByRole('dialog', { name: 'Shopping basket', exact: true });
+    const basketInput = basket.getByRole('textbox', { name: 'Number of credits', exact: true });
+    await expect(basketInput).toHaveValue('10');
+    await basketInput.fill('100');
+    await basket.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await expect.poll(async () => (await (await context.request.get(path)).json()).items[0].product.price).toBe(39);
+    await basket.getByRole('button', { name: 'Choose 10-credit starter pack', exact: true }).click();
+    await basket.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await expect.poll(async () => (await (await context.request.get(path)).json()).items[0].product.price).toBe(9);
+    await page.screenshot({ path: testInfo.outputPath('small-credit-basket-1280.png') });
+    await page.getByRole('button', { name: 'Close basket', exact: true }).click();
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('link', { name: 'Proceed to checkout', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Interviewer AI Credits · 10 credits', exact: true })).toBeVisible();
     let submittedQuote: unknown;
@@ -6263,7 +6285,12 @@ test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', as
     await expect(input).toHaveValue('10');
     // Checkout request was intercepted: no provider call, order or credit grant.
   } finally {
-    if (cartPath) expect((await context.request.delete(cartPath)).ok()).toBe(true);
+    if (cartPath) {
+      expect((await context.request.delete(cartPath)).ok()).toBe(true);
+      for (const row of originalItems) expect((await context.request.post(cartPath, { data: {
+        productId: row.product.id, quantity: row.quantity, creditAmount: row.creditAmount,
+      } })).ok()).toBe(true);
+    }
     await context.close();
   }
 });
