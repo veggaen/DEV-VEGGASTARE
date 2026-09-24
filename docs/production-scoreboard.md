@@ -4,6 +4,24 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Catalog first render: **DONE for this scoped slice**. App **`e8252bd`** plus
+test **`53b4dfd`**, production **`dpl_9vx4UsAL6W2EC9NLdD3fSSAj46DS`**, verified
+on www.veggat.com. Product cards and the first image preload now arrive in
+server HTML; the duplicate initial browser catalog request is removed. Existing
+filters, pagination, public visibility and purchase authority are preserved.
+**21 units**, touched lint, strict builds and **9/9 focused browser checks per
+local/Preview/live** pass. Eight-size scrolling/layout checks include 360 and
+2560; real Chrome phone page/filter scrolling was also inspected. See
+[evidence, initial test failures and rollback](catalog-first-render-2026-09.md).
+No new field-speed score is claimed. The full-app scoreboard is not complete.
+
+**Live payment remains UNTESTED.** PayPal still shows its password sign-in page;
+the new 9 NOK Sandbox capture/replay check is waiting for owner authentication.
+This release performed only demo-cart checkout navigation, not provider capture.
+The owner's pending 10-credit/9 NOK selection and earlier receipts are unchanged.
+
+### Previous lower-cost credit slice
+
 Lower-cost credit selection: **DONE for pricing/cart/checkout readiness**.
 Source **`a095d0e`** plus test **`226744f`**, deployment
 **`dpl_9LVVv2jJJMeYcQrEVCT55Etm4rdD`**, on www.veggat.com. An explicit

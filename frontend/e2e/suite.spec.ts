@@ -1546,7 +1546,9 @@ test('S7 selected-currency price controls preserve the budget and validate exact
     await page.goto('/products', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('article')).toHaveCount(2);
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
-    if (await consent.isVisible()) await consent.click();
+    // Cards now precede hydration. A one-time isVisible check can miss the
+    // consent dialog's mount and interact with controls just as it takes focus.
+    await expect(consent).toBeVisible(); await consent.click(); await expect(consent).toBeHidden();
     await page.getByRole('button', { name: 'Product filters', exact: true }).click();
     const panel = page.getByRole('dialog', { name: 'Product filters', exact: true });
     await panel.getByText('Enter exact values', { exact: true }).click();

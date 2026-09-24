@@ -53,8 +53,34 @@ search interaction because browser API mocks cannot replace a server read.
 
 ## Release status
 
-Local acceptance passed. Preview and production deployment IDs/results will be
-appended after verification. This document does not claim this slice is deployed.
+- App source: **`e8252bd`**, image-preload assertion **`53b4dfd`**.
+- Local: strict build (37.7s compilation, 17.1s TypeScript), **9/9** browser
+  checks in **42.1s**, then the extra image-preload assertion **1/1**.
+- Preview: **`dpl_CxomZGF76HPcYmxjygCNHrJRhJRn`**,
+  `https://dev-veggastare-8ccq702ww-v3ggas-projects.vercel.app`, assigned to the
+  stable isolated Preview alias. Strict build/TypeScript passed, 49 existing
+  migrations with none pending, **9/9** browser checks in **1.1m**. Real Chrome
+  confirms search changes to one matching product and selected fiat/crypto.
+- Production: **`dpl_9vx4UsAL6W2EC9NLdD3fSSAj46DS`**,
+  `https://dev-veggastare-318fx0vlj-v3ggas-projects.vercel.app`, source `53b4dfd`.
+  Strict build/TypeScript passed, no pending migrations. Candidate health was
+  healthy and payment capabilities remained LIVE. Promoted only after Preview
+  acceptance, then `vercel inspect https://www.veggat.com` resolved this exact
+  deployment. **9/9 live browser checks passed in 52.1s**.
+- The first live run was 8/9: the currency test's one-time `isVisible` check
+  missed the later cookie-dialog mount and tried opening filters underneath it.
+  Its screenshot confirmed the cookie dialog, not a broken price conversion.
+  The test now explicitly waits for/dismisses the dialog. The application did
+  not change for that correction. The corrected check was also rerun locally
+  and on Preview.
+- Real Chrome live: 390×844 catalog layout, actual scrolling to the final card,
+  pinned controls and no footer jump visually checked. Viewport reset afterward.
+
+Artifact folders: `frontend/test-results-release-catalog-ssr-{baseline,local,
+local-final,local-accepted,preload-local,preview,live,live-accepted,consent-local,
+consent-preview}`. Tracked prior test artifacts were not included in commits.
+The browser tests use disposable demo carts only, stop before fulfillment and
+do not alter the owner's live cart or create a PayPal payment.
 
 ## Limits and rollback
 
