@@ -63,11 +63,12 @@ test('S8 warehouse long addresses stay inside a phone canvas', async ({browser,b
     const page=await context.newPage();
     await page.route('**/api/warehouses',route=>route.fulfill({json:[{id:'long-address',userId:null,companyId:null,postalCode:'0123',address:'UnbrokenAddress'.repeat(15),city:'City',country:'NO',latitude:null,longitude:null,createdAt:'2026-09-24T00:00:00Z',updatedAt:'2026-09-24T00:00:00Z'}]}));
     await page.goto('/warehouses',{waitUntil:'domcontentloaded'});
-    await expect(page.getByRole('heading',{level:2})).toBeVisible();
+    const address = page.getByRole('main').getByRole('heading',{level:2});
+    await expect(address).toBeVisible();
     const consent=page.getByRole('button',{name:'Essential Only',exact:true}); if(await consent.isVisible()) await consent.click();
     await page.screenshot({path:testInfo.outputPath('warehouse-long-address.png')});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&[...document.querySelectorAll('main,[data-site-scroll]')].every(e=>e.scrollWidth<=e.clientWidth))).toBe(true);
-    const heading=await page.getByRole('heading',{level:2}).boundingBox(); expect(heading!.x+heading!.width).toBeLessThanOrEqual(360);
+    const heading=await address.boundingBox(); expect(heading!.x+heading!.width).toBeLessThanOrEqual(360);
   } finally {await context.close();}
 });
 

@@ -4,6 +4,32 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Warehouse reliability and responsive read path: **DONE for this scoped slice**.
+App authority is **`72e528e` / `dpl_G8smj6frN5e8EVfje5tRrar43owu`** on
+www.veggat.com. Refresh retains the empty card and valid rows without a layout
+jump; errors no longer masquerade as empty data, revoked access clears saved
+details, and long addresses wrap on phones. Stock adjustments reject negative
+stock, overflow and mismatched warehouses while preserving ADMIN-only writes
+and version conflict protection.
+
+Strict builds, touched lint, **26/26 units**, **6/6 browser checks per local,
+Preview and live**, plus **1/1 real isolated-database read/access check on local
+and Preview** pass. The first live run exposed an ambiguous test selector, not a
+layout failure; that correction and reruns are recorded. Real Chrome verifies
+actual live inventory expansion/detail/refresh, phone footer scrolling and local
+independent mobile navigation. No live stock, payment or credit was changed.
+Testing/UI-guidelines skills informed read recovery, touch targets and actual
+scroll verification. See [evidence and rollback](warehouse-acceptance-2026-09.md).
+
+**Still PARTIAL:** owner Live purchase/refund, human-inbox delivery/legal review,
+remaining OAuth/wallet/backend checks, verified Web3/general-listing checkout,
+exhaustive route interactions, native 125% zoom and physical-phone keyboard
+acceptance. Actual admin stock-write/concurrency acceptance is not implied by
+mocked units. Next slice: analytics/workspace controls and remaining owner-gated
+payment/auth acceptance. The full production mission is not complete.
+
+### Previous display-rate slice
+
 Display-rate reliability and historical price explanation: **DONE for this
 scoped slice**. App authority is **`bbadc04` /
 `dpl_Gh1cjhYcXTydb3T3qnsxoZ3TureT`** on www.veggat.com. Cold rate outages no
@@ -1045,6 +1071,7 @@ member-to-member delivery remains separate from the mocked error test.
 | Platform | Public homepage | DONE — S1 verified locally and live |
 | Platform | Consent controls Analytics/Speed Insights | DONE — no scripts before consent/Essential Only; both 200 after opt-in; real visitor metrics pending |
 | Platform | Health | PARTIAL — local Hapi `/v1/health` 200 and mock shipping returns two NOK options; Railway auth expired and live backend unverified |
+| Experimental | Warehouse list/detail/refresh | DONE for scoped reads — phone/ultrawide, real isolated access checks, live read-only inventory expansion and footer scrolling; stock-write guards unit-tested, real admin mutation acceptance remains separate |
 | Quality | Touched-file lint | PARTIAL — run after each slice |
 | Quality | Home → demo → product → cart E2E | DONE — local and live pass; payment coverage remains a separate S4 task |
 | Quality | Payment mocked in CI | BLOCKED — workflow implemented and local demo/retry/replay passes; GitHub rejects execution due to account billing lock. Provider transport mocked in unit tests |
