@@ -4,21 +4,13 @@
 import useSWR from 'swr';
 import { analyticsMetrics, type AnalyticsMetricKey } from '@/lib/analytics/metricsRegistry';
 import { parseGrowth } from '@/lib/analytics/growth';
+import { readPrivateAnalytics } from '@/lib/analytics/private-read';
 
 export const useFetchAnalytics = (metric: AnalyticsMetricKey, userId: string) => {
-  const result = useSWR([analyticsMetrics[metric].endpoint, userId], async ([endpoint]) => {
-    const response = await fetch(endpoint, { cache: 'no-store' });
-    if (!response.ok) {
-      const message = response.status === 401 ? 'Your session has expired. Sign in again to view platform analytics.'
-        : response.status === 403 ? 'Platform analytics are available to administrators only.'
-        : response.status === 429 ? 'Too many requests. Wait a minute before trying again.'
-        : 'Analytics are temporarily unavailable. Try again in a moment.';
-      throw new Error(message);
-    }
-    try { return parseGrowth(metric, await response.json()); }
-    catch { throw new Error('Analytics returned an unreadable response. Please try again.'); }
-  }, { revalidateOnFocus: false, shouldRetryOnError: false, dedupingInterval: 60_000 });
-  return { data: result.data, loading: result.isLoading, refreshing: result.isValidating,
-    error: result.error instanceof Error ? result.error.message : null,
+  const result = useSWR([analyticsMetrics[metric].endpoint, userId, 'private-v2'], ([endpoint]) =>
+    readPrivateAnalytics(endpoint, value => parseGrowth(metric, value), 'growth'),
+  { revalidateOnFocus: false, shouldRetryOnError: false, dedupingInterval: 60_000 });
+  return { data: result.data?.data ?? undefined, loading: result.isLoading, refreshing: result.isValidating,
+    error: result.error instanceof Error ? result.error.message : result.data?.accessError ?? null,
     retry: () => { void result.mutate(); } };
 };

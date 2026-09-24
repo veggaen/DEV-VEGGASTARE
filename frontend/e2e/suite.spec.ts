@@ -5,6 +5,41 @@ import { createHash } from 'node:crypto';
 import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders';
 import { SessionRailResponse } from '../lib/ai-chat/session-list';
 
+for (const kind of ['growth', 'publishing'] as const) test(`Private analytics ${kind} clears revoked data and recovers`, async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_ANALYTICS_ACCESS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Browser-only admin/analytics fixtures; no real permission grant');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(); let status = 200, sessionReads = 0;
+  const session = await (await context.request.get('/api/auth/session')).json(); expect(session.user.role).toBe('USER');
+  await page.route('**/api/auth/session', route => { sessionReads++; return route.fulfill({ json: { ...session, user: { ...session.user, role: 'ADMIN' } } }); });
+  await page.route(/\/api\/analytics\/(users|user-product-creation)(?:\?|$)/, route => {
+    const mix = new URL(route.request().url()).pathname.endsWith('user-product-creation');
+    const fail = (kind === 'publishing') === mix && status !== 200;
+    return route.fulfill(fail ? { status, json: { error: 'QA access response' } } : { json: mix
+      ? { data: [{ label: 'Independent seller products', count: 1234 }, { label: 'Company products', count: 9 }] }
+      : { data: [{ label: 'User Growth', data: [{ date: '2026-03-01T00:00:00Z', users: 1234 }] }], firstUserDate: '2026-03-01', lastUserDate: '2026-03-01', today: '2026-03-01' } });
+  });
+  try {
+    await page.goto('/analytics/users', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'User Growth Analytics', exact: true })).toBeVisible();
+    await expect.poll(async () => { await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); return sessionReads; }).toBeGreaterThan(0);
+    const main = page.getByRole('main');
+    const target = kind === 'growth' ? main : page.getByRole('region', { name: 'Product publishing mix', exact: true });
+    const values = kind === 'growth' ? page.getByRole('region', { name: 'Users growth report', exact: true }) : target.locator('dl');
+    await expect(values).toContainText('1,234');
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    const refresh = () => target.getByRole('button', { name: kind === 'growth' ? /^(Refresh data|Retry analytics|Refreshing…)/ : /^(Refresh publishing mix|Retry publishing mix|Refreshing…)/ });
+    for (const denied of [403, 401]) {
+      status = denied; await refresh().click(); await expect(target.getByRole('alert')).toContainText(/administrator|session has expired/);
+      await expect(values).toHaveCount(0);
+      status = 503; await refresh().click(); await expect(target.getByRole('alert')).toContainText(/temporarily unavailable/);
+      await expect(values).toHaveCount(0);
+      status = 200; await refresh().click(); await expect(values).toContainText('1,234'); await expect(target.getByRole('alert')).toHaveCount(0);
+    }
+    expect((await context.request.get('/api/analytics/' + (kind === 'growth' ? 'users' : 'user-product-creation'))).status()).toBe(403);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  } finally { await context.close(); }
+});
+
 test('S8 real isolated warehouse detail loads through authorized reads without exposing stock to a demo',async({browser,baseURL},testInfo)=>{
   test.skip(!process.env.E2E_WAREHOUSE_REAL_ID||!process.env.E2E_DEMO_STORAGE_STATE,'Only the isolated temporary warehouse runner creates this fixture');
   expect(['http://localhost:3000','https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app']).toContain(baseURL);
@@ -4420,7 +4455,7 @@ for (const width of [390, 1280]) {
       await page.goto('/analytics', { waitUntil: 'domcontentloaded' });
       await expect(page.getByRole('heading', { name: 'Analytics Dashboard', exact: true })).toBeVisible();
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
-      if (await consent.isVisible()) await consent.click();
+      if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await consent.click();
       for (const metric of ['Products', 'Users', 'Companies']) {
         await page.locator('main').getByRole('link', { name: new RegExp('^' + metric + ' ') }).click();
         await expect(page.getByText('Illustrative sample · not live platform data', { exact: true })).toBeVisible();
@@ -4519,11 +4554,16 @@ for (const width of [390, 1280]) {
     const page = await context.newPage();
     let fail = true;
     let failMix = true;
+    let sessionReads = 0;
     // Only the browser session response is a fixture. Every private analytics request
     // is intercepted; the actual signed-in USER remains unable to query the API.
     const realSession = await (await context.request.get('/api/auth/session')).json();
     expect(realSession.user.role).not.toBe('ADMIN');
-    await page.route('**/api/auth/session', route => route.fulfill({ json: { ...realSession, user: { ...realSession.user, role: 'ADMIN' } } }));
+    await page.route('**/api/auth/session', route => { sessionReads++; return route.fulfill({ json: { ...realSession, user: { ...realSession.user, role: 'ADMIN' } } }); });
+    const refreshFixtureSession = async () => {
+      const before = sessionReads;
+      await expect.poll(async () => { await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); return sessionReads - before; }).toBeGreaterThan(0);
+    };
     await page.route(/\/api\/analytics\/(products|users|companies)(?:\?|$)/, route => {
       const kind = new URL(route.request().url()).pathname.split('/').at(-1);
       const name = kind === 'companies' ? 'Company' : kind === 'users' ? 'User' : 'Product';
@@ -4540,8 +4580,8 @@ for (const width of [390, 1280]) {
       await page.goto('/analytics/products', { waitUntil: 'domcontentloaded' });
       await expect(page.getByRole('heading', { name: 'Product Growth Analytics', exact: true })).toBeVisible();
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
-      if (await consent.isVisible()) await consent.click();
-      await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); });
+      if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await consent.click();
+      await refreshFixtureSession();
       await expect(page.locator('main').getByRole('alert')).toContainText('Analytics are temporarily unavailable.');
       await page.evaluate(() => { (window as Window & { __analyticsHeading?: Element | null }).__analyticsHeading = document.querySelector('main h1'); });
       fail = false;
@@ -4557,7 +4597,7 @@ for (const width of [390, 1280]) {
       expect((await context.request.get('/api/analytics/products')).status()).toBe(403);
       fail = false;
       await page.goto('/analytics/users', { waitUntil: 'domcontentloaded' });
-      await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); });
+      await refreshFixtureSession();
       const mix = page.getByRole('region', { name: 'Product publishing mix', exact: true });
       await expect(mix.getByRole('alert')).toContainText('The publishing mix is temporarily unavailable.');
       failMix = false;
