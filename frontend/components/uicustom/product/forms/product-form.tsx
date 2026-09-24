@@ -72,11 +72,12 @@ const shortAddress = (address?: string | null) => {
 
 const productCreationErrorMessage = (error: unknown) => {
   const raw = error instanceof Error ? error.message : String(error ?? '');
-  if (!raw) return 'Failed to create product.';
   if (/not allowed/i.test(raw) && /accepted types/i.test(raw)) {
-    return `Digital file upload blocked: ${raw.replace(/^EdgeStoreApiClientError:\s*/i, '')}`;
+    return 'This file type is not supported. Choose one of the listed formats and try again.';
   }
-  return raw.length > 180 ? `${raw.slice(0, 180)}...` : raw;
+  if (/upload.*context|upload session/i.test(raw)) return 'Your upload session changed. Please try again; your draft is kept.';
+  // Provider errors may contain signed URLs or other internal details.
+  return 'We could not finish publishing. Your draft is kept; please try again.';
 };
 
 type RepoAccessMode = 'COLLABORATOR' | 'TEAM';
@@ -171,7 +172,7 @@ export const MyProductCreationForm = () => {
   
   // General States
   const { user: clientUser, status: sessionStatus, isLoading: isSessionLoading } = useCurrentUserWithStatus();
-  const { edgestore } = useEdgeStore();
+  const { edgestore, reset: resetStorage, state: storageState } = useEdgeStore();
   const [uId, setUId] = useState<string | undefined>(clientUser?.id); // role admin to modify input value
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -774,7 +775,7 @@ export const MyProductCreationForm = () => {
 				});
         uploadedUrls.push(uploadResult.url);
       } catch (error) {
-        log.error('Image upload failed', error);
+        log.error('Image upload failed');
 				setIsUploadingImages(false);
         throw error;
       }
@@ -826,7 +827,7 @@ export const MyProductCreationForm = () => {
       setIsUploadingDigitalFile(false);
       return assetData.id;
     } catch (error) {
-      log.error('Digital file upload failed', error);
+      log.error('Digital file upload failed');
       setIsUploadingDigitalFile(false);
       throw error;
     }
@@ -1051,6 +1052,13 @@ export const MyProductCreationForm = () => {
       }
 
       // Handle digital file upload
+      // A late guest initialization after sign-in can leave a stale storage
+      // cookie. Refresh using the current authenticated session before bytes
+      // are sent; the server still independently checks identity/ownership.
+      if ((digitalFile && !digitalAssetId) || images.length > 0) {
+        if (storageState.loading) throw new Error('Upload session is initializing');
+        await resetStorage();
+      }
       if (digitalFile && !digitalAssetId) {
         const assetId = await digitalFileHandler();
         if (assetId) {
@@ -1150,7 +1158,7 @@ export const MyProductCreationForm = () => {
         router.push(`/products/${data.productId}`);
       }
     } catch (e) {
-      log.error('Create product failed', e);
+      log.error('Create product failed');
       setError(productCreationErrorMessage(e));
     } finally {
       setIsSubmitting(false);
@@ -1542,7 +1550,7 @@ export const MyProductCreationForm = () => {
   }
 
   // Only disable button during actual submission or image upload
-  const isSubmitDisabled = isSubmitting || isUploadingImages || isUploadingDigitalFile || !!clientUser?.isDemo;
+  const isSubmitDisabled = isSubmitting || isUploadingImages || isUploadingDigitalFile || storageState.loading || !!clientUser?.isDemo;
   const submitLabel = isUploadingImages 
     ? 'Uploading images...'
     : isUploadingDigitalFile

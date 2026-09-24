@@ -12,11 +12,17 @@ test('Isolated seller signs in, uploads a real private file and publishes a brow
   const context=await browser.newContext({baseURL,viewport:{width:1280,height:800}}),page=await context.newPage();
   try{
     await page.goto('/auth/login?callbackUrl=%2Fproducts%2Fcreate',{waitUntil:'domcontentloaded'});
+    // Test-only late guest context: reproduce an init response arriving after
+    // sign-in. Keep the token in memory; never trace, print or persist cookies.
+    const staleStorage=process.env.E2E_PUBLISH_STALE_STORAGE==='1';
+    if(staleStorage)expect((await context.request.post('/api/edgestore/init',{headers:{origin:baseURL}})).status()).toBe(200);
+    const guestStorage=staleStorage?(await context.cookies(baseURL)).filter(cookie=>cookie.name==='edgestore-ctx'):[];
+    if(staleStorage)expect(guestStorage.length).toBe(1);
     await page.getByPlaceholder('you@example.com').fill(process.env.E2E_PUBLISH_EMAIL!);
     await page.locator('input[type="password"]').waitFor({state:'visible'});
     await page.locator('input[type="password"]').fill(process.env.E2E_PUBLISH_PASSWORD!).catch(()=>{throw new Error('QA password entry unavailable');});
     await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.waitForURL('**/products/create');
-    await expect(page.getByText('Publishing does not activate checkout',{exact:true})).toBeVisible();
+    await expect(page.getByRole('main').getByText('Publishing does not activate checkout',{exact:true})).toBeVisible();
     await page.getByRole('button',{name:'Essential Only',exact:true}).click();
     await page.locator('[data-listing-step="type"] input[type="file"]').setInputFiles('public/showcase/fjord-study-small.jpg');
     await page.locator('label').filter({has:page.getByRole('radio',{name:'Digital Downloadable file',exact:true})}).click();
@@ -29,6 +35,7 @@ test('Isolated seller signs in, uploads a real private file and publishes a brow
     await page.getByRole('button',{name:/^4\. Price & payment/}).click();await page.getByRole('textbox',{name:'Price',exact:true}).fill('29');
     await page.getByRole('button',{name:/^6\. Review & publish/}).click();
     await expect(page.getByText(/Finish \d+ items? before publishing/)).toHaveCount(0);
+    if(staleStorage)await context.addCookies(guestStorage);
     const registered=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/digital-assets'&&r.request().method()==='POST');
     await page.getByRole('button',{name:'Create Listing',exact:true}).click();
     const response=await registered;expect(response.status()).toBe(200);expect(await response.json()).not.toHaveProperty('storageKey');
@@ -36,6 +43,9 @@ test('Isolated seller signs in, uploads a real private file and publishes a brow
     await expect(page.getByRole('heading',{name:process.env.E2E_PUBLISH_TITLE!,level:1,exact:true})).toBeVisible();
     await expect(page.getByRole('heading',{name:'Browse-only listing',exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:'Unavailable',exact:true})).toBeDisabled();
+    const cover=page.getByRole('img',{name:`${process.env.E2E_PUBLISH_TITLE!} — image 1`,exact:true});
+    await expect(cover).toBeVisible();
+    await expect.poll(()=>cover.evaluate((image:HTMLImageElement)=>image.complete&&image.naturalWidth>0),{timeout:30_000}).toBe(true);
     await page.screenshot({path:testInfo.outputPath('published-isolated-listing.png')});
   }finally{await context.close();}
 });
