@@ -1,5 +1,15 @@
 import { test, expect } from "@playwright/test";
 
+test('S4 — transactional email job rejects public and forged requests', async ({ request }) => {
+  test.skip(process.env.E2E_EMAIL_SLICE !== '1', 'Run only after the protected email route is deployed');
+  for (const headers of [{}, { Authorization: 'Bearer forged-qa-secret' }]) {
+    const response = await request.get('/api/cron/transactional-email', { headers });
+    expect(response.status()).toBe(401);
+    expect(response.headers()['cache-control']).toContain('no-store');
+    expect(await response.json()).toEqual({ error: 'Unauthorized' });
+  }
+});
+
 test('S4 — purchase support preserves drafts, confirms intent and fits phone to ultrawide', async ({ browser, baseURL }, testInfo) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo receipt; only intercepted request writes');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
@@ -62,6 +72,7 @@ test('S4 — purchase support preserves drafts, confirms intent and fits phone t
     await expect(support.getByRole('status')).toContainText('No refund has been issued');
     await expect(support.getByRole('status')).toBeFocused();
     await expect(support.getByRole('list', { name: 'Your purchase requests', exact: true })).toContainText(draft);
+    await expect(support.getByRole('list', { name: 'Your purchase requests', exact: true })).toContainText('no email sent');
     expect(calls).toBe(3);
     expect(errors).toEqual([]);
   } finally { await context.close(); }

@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ auth: vi.fn(), allow: vi.fn(), find: vi.fn() }));
 vi.mock('@/auth', () => ({ auth: mocks.auth }));
 vi.mock('@/lib/auth-rate-limit', () => ({ allowAuthAttempt: mocks.allow }));
-vi.mock('@/lib/db', () => ({ dbPrisma: { returnRequest: { findFirst: mocks.find } } }));
+vi.mock('@/lib/db', () => ({ dbPrisma: { transactionalEmail: { findFirst: vi.fn().mockResolvedValue(null) }, returnRequest: { findFirst: mocks.find } } }));
 import { GET } from '@/app/api/returns/[id]/acknowledgment/route';
 import { returnAcknowledgment } from './return-request';
 const record = { id: 'r1', orderId: 'o1', userId: 'buyer', reason: 'CHANGED_MIND' as const,

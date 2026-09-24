@@ -16,6 +16,33 @@ model AuthRateBucket {
   @@index([expiresAt])
 }
 
+// Immutable transactional copies, atomically queued with their source record.
+// Provider acceptance is not proof of delivery. No raw provider errors stored.
+model TransactionalEmail {
+  id             String    @id @default(uuid())
+  sourceKey      String    @unique
+  userId         String
+  orderId        String
+  environment    String
+  kind           String
+  recipient      String
+  payload        Json
+  status         String    @default("QUEUED")
+  attempts       Int       @default(0)
+  firstAttemptAt DateTime?
+  nextAttemptAt  DateTime  @default(now())
+  leaseUntil     DateTime?
+  providerId     String?   @unique
+  acceptedAt     DateTime?
+  deliveredAt    DateTime?
+  lastErrorCode  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([environment, status, nextAttemptAt])
+  @@index([orderId, userId])
+}
+
 // A server-owned quote and unique capture identity; never populated from a return URL.
 model CheckoutAttempt {
   orderId          String   @id

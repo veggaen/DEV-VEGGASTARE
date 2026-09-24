@@ -1,8 +1,9 @@
 /** @fileOverview Replay, atomic grant and environment isolation regressions. @stability stable */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
+vi.mock('./email-outbox', () => ({ queueTransactionEmail: m.email }));
 const m = vi.hoisted(() => ({ find: vi.fn(), fresh: vi.fn(), update: vi.fn(), lock: vi.fn(), account: vi.fn(), entry: vi.fn(),
-  files: vi.fn(), token: vi.fn(), order: vi.fn(), cart: vi.fn(), remove: vi.fn(), capture: vi.fn(), read: vi.fn(), transaction: vi.fn(), adjust: vi.fn() }));
+  files: vi.fn(), token: vi.fn(), order: vi.fn(), cart: vi.fn(), remove: vi.fn(), capture: vi.fn(), read: vi.fn(), transaction: vi.fn(), adjust: vi.fn(), email: vi.fn() }));
 vi.mock('@/lib/ai-credit-adjustment', () => ({ applyAiCreditDelta: m.adjust }));
 vi.mock('@/lib/db', () => ({ dbPrisma: {
   checkoutAttempt: { findUnique: m.find }, $transaction: m.transaction,
@@ -11,6 +12,7 @@ vi.mock('./showcase-paypal', () => ({ capturePayPalOrder: m.capture, readPayPalO
 import { completeShowcaseCheckout } from './showcase-store';
 import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
 import { quoteShowcaseCart } from './showcase-policy';
+import { CHECKOUT_AGREEMENT_VERSION, recordCheckoutAgreement } from './checkout-agreement';
 
 const quote = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1 }]);
 afterEach(() => vi.unstubAllEnvs());
@@ -32,6 +34,18 @@ describe('transactional checkout fulfillment', () => {
       aiCreditAccount: { upsert: m.account }, aiCreditEntry: { create: m.entry }, digitalProductFile: { findMany: m.files },
       downloadToken: { create: m.token }, order: { update: m.order }, cart: { findUnique: m.cart }, cartItem: { deleteMany: m.remove },
     }));
+  });
+  it('queues an original confirmation in the verified fulfillment transaction, never on replay', async () => {
+    const agreed = { ...attempt(), quote: { ...quote, agreement: recordCheckoutAgreement(quote,
+      { version: CHECKOUT_AGREEMENT_VERSION, files: false, credits: true }, false) } };
+    m.find.mockResolvedValue(agreed); m.fresh.mockResolvedValue(agreed);
+    await completeShowcaseCheckout('order1', 'buyer1');
+    expect(m.email).toHaveBeenCalledOnce();
+    expect(m.email).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ sourceKey: 'purchase:order1',
+      userId: 'buyer1', paymentEnvironment: 'SANDBOX', original: expect.stringContaining('CAPTURE1') }));
+    m.find.mockResolvedValue({ ...agreed, state: 'COMPLETED' });
+    await completeShowcaseCheckout('order1', 'buyer1');
+    expect(m.email).toHaveBeenCalledOnce();
   });
   it('grants sandbox credits only to a sandbox account in the completion transaction', async () => {
     await completeShowcaseCheckout('order1', 'buyer1');

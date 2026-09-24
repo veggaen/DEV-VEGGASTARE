@@ -2,7 +2,8 @@
 import 'server-only';
 import type { PrismaClient } from '@/generated/prisma/client';
 import type { z } from 'zod';
-import { CreateReturnSchema } from './return-request';
+import { CreateReturnSchema, returnAcknowledgment } from './return-request';
+import { queueTransactionEmail } from './email-outbox';
 
 export class BuyerRequestError extends Error {
   constructor(message: string, public status: number) { super(message); }
@@ -31,6 +32,9 @@ export async function createBuyerRequest(db: PrismaClient, userId: string, input
     const record = await tx.returnRequest.create({ data: {
       orderId: order.id, userId, reason: input.reason, description,
     } });
-    return { record, duplicate: false, order };
+    const email = await queueTransactionEmail(tx, { sourceKey: `buyer-request:${record.id}`, userId, orderId: order.id,
+      kind: 'BUYER_REQUEST', subject: 'Veggat received your purchase request',
+      filename: `veggat-request-${record.id}.txt`, original: returnAcknowledgment(record, true) });
+    return { record, duplicate: false, order, emailStatus: email?.status ?? null };
   }, { maxWait: 10_000, timeout: 15_000 });
 }

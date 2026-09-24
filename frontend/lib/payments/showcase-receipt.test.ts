@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({ auth: vi.fn(), receipt: vi.fn(), account: vi.fn(), cart: vi.fn() }));
 vi.mock('@/auth', () => ({ auth: m.auth }));
-vi.mock('@/lib/db', () => ({ dbPrisma: { checkoutAttempt: { findUnique: m.receipt }, aiCreditAccount: { findUnique: m.account }, cart: { findUnique: m.cart } } }));
+vi.mock('@/lib/db', () => ({ dbPrisma: { transactionalEmail: { findMany: vi.fn().mockResolvedValue([]) }, checkoutAttempt: { findUnique: m.receipt }, aiCreditAccount: { findUnique: m.account }, cart: { findUnique: m.cart } } }));
 vi.mock('@/lib/payments/showcase-paypal', () => ({ paypalConfigured: () => true }));
 vi.mock('@/components/checkout/reviewer-checkout-button', () => ({ default: () => React.createElement('button', null, 'Continue to PayPal') }));
 // These server-page tests provide the client shell dependencies that Next wraps

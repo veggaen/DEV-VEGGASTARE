@@ -4,6 +4,7 @@
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { BuyerRequestSchema, RETURN_REASONS, type BuyerRequest } from '@/lib/payments/return-request';
+import { emailStatusText } from '@/lib/payments/email-policy';
 
 const actionClass = 'inline-flex min-h-12 items-center justify-center rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
 const requestStatuses: Record<string, string> = { PENDING: 'Awaiting review', APPROVED: 'Approved for review — payment not confirmed',
@@ -61,6 +62,7 @@ export default function PurchaseSupport({ orderId, canRequest, demo, initialRequ
       <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{request.id}</p>
       {request.description && <p className="mt-3 whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">{request.description}</p>}
       {request.sellerNote && <p className="mt-3 whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">Seller response: {request.sellerNote}</p>}
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{demo ? 'Demo acknowledgment — download only; no email sent.' : emailStatusText(request.emailStatus)}</p>
       <a className={`${actionClass} mt-3`} href={`/api/returns/${encodeURIComponent(request.id)}/acknowledgment`} download>Save acknowledgment (.txt)</a>
     </li>)}</ul>}
     {!mode && <div className="mt-4 flex flex-wrap gap-3">
@@ -84,6 +86,6 @@ export default function PurchaseSupport({ orderId, canRequest, demo, initialRequ
         {busy ? 'Sending request…' : mode === 'withdraw' ? 'Confirm withdrawal request' : 'Send purchase request'}</button>
         <button type="button" disabled={busy} onClick={() => { setMode(null); setError(''); }} className={actionClass}>Cancel</button></div>
     </form>}
-    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">Acknowledgments are available here for download, not emailed. If this form is unavailable, you can send an unambiguous notice to <a href={contact} className="underline underline-offset-4">kontakt@veggat.com</a>. Quote your order reference.</p>
+    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">Keep the downloadable acknowledgment even if an email copy is delayed. If this form is unavailable, you can send an unambiguous notice to <a href={contact} className="underline underline-offset-4">kontakt@veggat.com</a>. Quote your order reference.</p>
   </section>;
 }

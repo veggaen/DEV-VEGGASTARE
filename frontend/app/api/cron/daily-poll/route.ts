@@ -17,6 +17,7 @@
 
 import { dbPrisma } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { isCronAuthorized } from '@/lib/cron-auth';
 
 const LOG_PREFIX = "[cron/daily-poll]";
 
@@ -25,17 +26,10 @@ export const maxDuration = 60;
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
-function isAuthorized(req: Request): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return true; // No secret configured = allow (dev mode)
-  const authHeader = req.headers.get("authorization");
-  return authHeader === `Bearer ${cronSecret}`;
-}
-
 // ─── POST Handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
-  if (!isAuthorized(req)) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

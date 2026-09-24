@@ -8,7 +8,8 @@ import { capturePayPalOrder, createPayPalOrder, paypalConfigured, readPayPalOrde
 import { applyAiCreditDelta } from '@/lib/ai-credit-adjustment';
 import { creditSaleEconomics, DAILY_PURCHASE_CAP_ORE } from '@/lib/ai-credit-purchase';
 import { FUNDED_AI_MODELS, pricingIsReviewed } from '@/lib/ai-chat/credit-policy';
-import { recordCheckoutAgreement, type DeliveryConsent } from './checkout-agreement';
+import { purchaseConfirmation, recordCheckoutAgreement, type DeliveryConsent } from './checkout-agreement';
+import { queueTransactionEmail } from './email-outbox';
 
 const includeOrder = { Order: { include: { OrderItem: true } } } as const;
 function filesReady(files: { DigitalAsset: { isActive: boolean; mimeType: string } }[]) {
@@ -101,7 +102,8 @@ export async function completeShowcaseCheckout(orderId: string, userId: string, 
     if (fresh.state === 'COMPLETED') return { orderId, alreadyCompleted: true };
     if (['REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'].includes(fresh.state)) throw new CheckoutError('ORDER_PAYMENT_ADJUSTED', 409);
     // Unique captureId also prevents reuse across different internal orders.
-    await tx.checkoutAttempt.update({ where: { orderId }, data: { state: 'COMPLETED', captureId: proof?.captureId, completedAt: new Date() } });
+    const completedAt = new Date();
+    await tx.checkoutAttempt.update({ where: { orderId }, data: { state: 'COMPLETED', captureId: proof?.captureId, completedAt } });
     const quote = fresh.quote as unknown as ShowcaseQuote;
     const grant = quote.lines.reduce((sum, line) => sum + line.credits, 0);
     // Sandbox balances cannot become Live balances, even in a shared database.
@@ -134,6 +136,10 @@ export async function completeShowcaseCheckout(orderId: string, userId: string, 
       cartId: cart.id, productId: line.productId, quantity: line.quantity,
       ...(line.credits ? { OR: [{ creditAmount: line.credits }, ...(line.credits === 100 ? [{ creditAmount: null }] : [])] } : {}),
     } });
+    const original = purchaseConfirmation({ ...fresh, captureId: proof?.captureId ?? null, completedAt });
+    if (original) await queueTransactionEmail(tx, { sourceKey: `purchase:${orderId}`, userId, orderId,
+      kind: 'PURCHASE', paymentEnvironment: fresh.environment, subject: 'Your Veggat order confirmation',
+      filename: `veggat-order-${orderId}.txt`, original });
     return { orderId, alreadyCompleted: false };
   }, { timeout: 15_000 });
 }

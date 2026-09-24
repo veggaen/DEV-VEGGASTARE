@@ -10,6 +10,7 @@ import PreferredMoney from '@/components/checkout/preferred-money';
 import { displayCreditPosition } from '@/lib/ai-credit-display';
 import { storedCheckoutAgreement } from '@/lib/payments/checkout-agreement';
 import PurchaseSupport from '@/components/checkout/purchase-support';
+import { emailStatusText } from '@/lib/payments/email-policy';
 
 export default async function ReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,6 +32,8 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   const balance = await dbPrisma.aiCreditAccount.findUnique({ where: { id: `${receipt.environment}:${session.user.id}` }, select: { balance: true, refundAdjustment: true } });
   const display = displayCreditPosition(balance, environment);
   const agreement = storedCheckoutAgreement(receipt.quote);
+  const emails = demo ? [] : await dbPrisma.transactionalEmail.findMany({ where: { orderId: id, userId: session.user.id },
+    select: { sourceKey: true, status: true }, take: 25 });
   return <section className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{demo ? 'Demo · no payment collected' : receipt.environment === 'SANDBOX' ? 'Sandbox · no real money' : 'PayPal Live'}</p>
     <h1 className="mt-3 text-balance text-3xl font-semibold">{refunded ? 'Your order was refunded' : reversed ? 'Your payment was reversed' : review ? 'Your payment is under review' : complete ? demo ? 'Your demo order is ready' : 'Your order is confirmed' : 'Order awaiting confirmation'}</h1>
@@ -48,7 +51,8 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     {!demo && <details className="mt-3 text-sm text-muted-foreground"><summary className="flex min-h-11 cursor-pointer items-center underline underline-offset-4">Original payment details</summary><p>Recorded PayPal amount: {moneyString(receipt.totalOre)} NOK. Display conversions use current reference rates, not the rate on your bank statement.{receipt.refundedOre > 0 ? ` Recorded refund: ${moneyString(receipt.refundedOre)} NOK.` : ''}</p></details>}
     {agreement && receipt.completedAt && (demo || receipt.captureId) && <section aria-label="Original order confirmation" className="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
       <h2 className="text-lg font-semibold">Keep your order confirmation</h2>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Save a text copy of your original order, {demo ? 'demo notice' : 'delivery requests'} and purchase terms. It stays unchanged if terms or payment status change later. This copy is provided here, not sent by email.</p>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Save a text copy of your original order, {demo ? 'demo notice' : 'delivery requests'} and purchase terms. It stays unchanged if terms or payment status change later.</p>
+      <p className="mt-2 text-sm text-muted-foreground">{demo ? 'Demo records are downloadable only; no email is sent.' : emailStatusText(emails.find(email => email.sourceKey === `purchase:${id}`)?.status)}</p>
       <a href={`/api/checkout/${encodeURIComponent(receipt.orderId)}/confirmation`} download className="mt-3 inline-flex min-h-12 items-center rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Download order confirmation (.txt)</a>
     </section>}
     {(balance?.refundAdjustment ?? 0) > 0 && <div className="mt-6"><CreditRefundNotice adjustment={balance!.refundAdjustment} /></div>}
@@ -59,6 +63,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     <PurchaseSupport orderId={receipt.orderId} canRequest={complete} demo={demo} initialRequests={receipt.Order.ReturnRequest.map(request => ({
       id: request.id, orderId: request.orderId, reason: request.reason, description: request.description,
       status: request.status, sellerNote: request.sellerNote, createdAt: request.createdAt.toISOString(),
+      emailStatus: emails.find(email => email.sourceKey === `buyer-request:${request.id}`)?.status ?? null,
     }))} />
     <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2">{hasDigitalFiles && <Link href="/my-downloads" className="inline-flex min-h-11 items-center underline">My downloads</Link>}<Link href="/my-orders" className="inline-flex min-h-11 items-center underline">My orders</Link><Link href="/ai" className="inline-flex min-h-11 items-center underline">Open AI chat</Link><Link href="/products" className="inline-flex min-h-11 items-center underline">Browse products</Link></div>
   </section>;

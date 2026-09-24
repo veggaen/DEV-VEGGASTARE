@@ -6,6 +6,8 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/generated/prisma/client';
 import { previewDatabaseUrl } from '@/lib/preview-database';
 vi.mock('server-only', () => ({}));
+// Outbox concurrency is tested separately against a disposable schema.
+vi.mock('./email-outbox', () => ({ queueTransactionEmail: vi.fn() }));
 import { createBuyerRequest } from './create-return-request';
 
 describe.skipIf(process.env.TEST_BUYER_REQUEST_DATABASE !== '1')('buyer notices: real Postgres concurrency', () => {

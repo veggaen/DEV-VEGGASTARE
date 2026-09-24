@@ -2,6 +2,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 vi.mock('server-only', () => ({}));
+vi.mock('@/lib/payments/email-outbox', () => ({ queueTransactionEmail: vi.fn() }));
+vi.mock('@/lib/payments/email-after', () => ({ scheduleTransactionEmail: vi.fn() }));
 
 const mock = vi.hoisted(() => ({
   auth: vi.fn(), allow: vi.fn(), readLimit: vi.fn(),

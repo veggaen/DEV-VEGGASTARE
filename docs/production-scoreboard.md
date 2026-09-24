@@ -4,6 +4,12 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Transactional email follow-up: **PARTIAL**, implementation/build/local browser
+verified; deployment acceptance in progress. Real sending is **BLOCKED** because
+the configured Resend key returns 401. See [email outbox evidence and exact
+boundaries](transactional-email-acceptance-2026-09.md). Do not count provider
+fixtures as delivered customer mail or mark the seller-review inbox complete.
+
 PARTIAL: `release/showcase-september` combines Showcase consent/refund/custom-credit
 work with the newer production currency-filter and basket fixes. Local strict
 build, touched lint, 235 focused units, six rolled-back checkout scenarios and

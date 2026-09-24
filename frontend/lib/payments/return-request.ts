@@ -20,6 +20,7 @@ export const BuyerRequestSchema = CreateReturnSchema.extend({
   id: z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/),
   description: z.string().max(2000).nullable(), sellerNote: z.string().max(2000).nullable(),
   status: z.string().min(1).max(40), createdAt: z.string().datetime(),
+  emailStatus: z.string().max(40).nullable().optional(),
 }).strip();
 export type BuyerRequest = z.infer<typeof BuyerRequestSchema>;
 
@@ -28,7 +29,7 @@ export type BuyerRequest = z.infer<typeof BuyerRequestSchema>;
 export function returnAcknowledgment(record: {
   id: string; orderId: string; userId: string; reason: keyof typeof RETURN_REASONS;
   description: string | null; createdAt: Date;
-}) {
+}, emailCopy = false) {
   return `VEGGAT — PURCHASE REQUEST RECEIVED
 
 Request reference: ${record.id}
@@ -42,7 +43,7 @@ ${record.description || '(No additional message provided.)'}
 
 This acknowledges receipt of your notice, not a decision about eligibility and not confirmation that money has been returned. Approval in Veggat alone does not transfer money. A refund is shown on your order only after payment-provider verification.
 A download or prior use alone does not automatically reject your request. Mandatory consumer rights and payment-provider disputes remain reviewable. A verified refund revokes future access, but cannot erase a file already saved.
-Keep this original acknowledgment. Review updates appear on your order receipt and do not alter this copy. This copy is provided for download, not sent by email.
+Keep this original acknowledgment. Review updates appear on your order receipt and do not alter this copy. ${emailCopy ? 'The original acknowledgment is also available on your receipt.' : 'This copy is provided for download, not sent by email.'}
 Contact: kontakt@veggat.com. Quote the order and request references; never send card details or passwords.
 `;
 }

@@ -6,6 +6,7 @@ import { verifyPayPalWebhook } from '@/lib/payments/webhook-verify';
 import { completeShowcaseCheckout } from '@/lib/payments/showcase-store';
 import { reconcilePayPalAdjustment } from '@/lib/payments/showcase-refunds';
 import { PayPalAdjustmentEvent } from '@/lib/payments/showcase-refund-policy';
+import { scheduleTransactionEmail } from '@/lib/payments/email-after';
 
 const Event = z.object({ id: z.string().min(1).max(128), event_type: z.string().max(128), resource: z.object({
   supplementary_data: z.object({ related_ids: z.object({ order_id: z.string().regex(/^[A-Z0-9]{1,36}$/).optional() }) }).optional(),
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
     if (['REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'].includes(attempt.state)) return NextResponse.json({ received: true, ignored: true });
     // Fetch fresh PayPal proof. Webhook JSON never directly grants entitlements.
     await completeShowcaseCheckout(attempt.orderId, attempt.userId, false);
+    scheduleTransactionEmail(`purchase:${attempt.orderId}`);
     return NextResponse.json({ received: true });
   } catch {
     // Acknowledge only completed processing so PayPal can retry transient failures.

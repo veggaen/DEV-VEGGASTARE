@@ -16,6 +16,7 @@ import { allowAuthAttempt } from '@/lib/auth-rate-limit';
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 import { CreateReturnSchema } from '@/lib/payments/return-request';
 import { BuyerRequestError, createBuyerRequest } from '@/lib/payments/create-return-request';
+import { scheduleTransactionEmail } from '@/lib/payments/email-after';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -62,7 +63,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { record: returnRequest, duplicate, order } = await createBuyerRequest(dbPrisma, session.user.id, parsed.data);
+    const { record: returnRequest, duplicate, order, emailStatus } = await createBuyerRequest(dbPrisma, session.user.id, parsed.data);
+    scheduleTransactionEmail(`buyer-request:${returnRequest.id}`);
 
     // Display a timing hint only. Never auto-reject a defect request based on
     // elapsed days, a download counter, or an unrecorded withdrawal waiver.
@@ -80,6 +82,7 @@ export async function POST(request: NextRequest) {
       sellerNote: returnRequest.sellerNote,
       createdAt: toIsoString(returnRequest.createdAt),
       duplicate,
+      emailStatus: emailStatus ?? null,
       withinWithdrawalPeriod: daysSinceRef <= 14,
       daysSinceDelivery: daysSinceRef,
     }, { status: duplicate ? 200 : 201, headers: { 'Cache-Control': 'private, no-store' } });

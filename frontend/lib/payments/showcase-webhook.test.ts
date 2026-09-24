@@ -4,6 +4,7 @@ const m = vi.hoisted(() => ({ verify: vi.fn(), find: vi.fn(), complete: vi.fn(),
 vi.mock('@/lib/db', () => ({ dbPrisma: { checkoutAttempt: { findUnique: m.find } } }));
 vi.mock('@/lib/payments/webhook-verify', () => ({ verifyPayPalWebhook: m.verify }));
 vi.mock('@/lib/payments/showcase-store', () => ({ completeShowcaseCheckout: m.complete }));
+vi.mock('@/lib/payments/email-after', () => ({ scheduleTransactionEmail: vi.fn() }));
 vi.mock('@/lib/payments/showcase-refunds', () => ({ reconcilePayPalAdjustment: m.adjust }));
 import { POST } from '@/app/api/webhooks/paypal/route';
 function request(eventType = 'PAYMENT.CAPTURE.COMPLETED') { return new Request('https://www.veggat.com/api/webhooks/paypal', {

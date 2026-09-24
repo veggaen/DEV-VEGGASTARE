@@ -2,6 +2,10 @@
   "buildCommand": "node scripts/migrate-deploy.mjs && next build --webpack",
   "crons": [
     {
+      "path": "/api/cron/transactional-email",
+      "schedule": "15 * * * *"
+    },
+    {
       "path": "/api/cron/reach-decay",
       "schedule": "0 3 * * *"
     },
