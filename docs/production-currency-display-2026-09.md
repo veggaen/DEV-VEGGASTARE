@@ -61,15 +61,47 @@ used for verification.
   USD/NOK selection preserving ETH, and live basket totals were checked without
   submitting payment. Normal viewport and USD (ETH) preference were restored.
 
+## Follow-up: selected-currency filters and resilient basket
+
+The catalogue price range now uses the selected fiat, including labelled exact
+minimum/maximum inputs, an Apply action and inline invalid-range feedback. A
+currency switch preserves the same budget. Common-USD bounds are converted to
+each listing currency in SQL before pagination, without replacing the public
+catalogue visibility rules. Mixed-currency range/facet queries use the same basis.
+Failed catalogue reads return an error, not a misleading successful empty list.
+
+The mini-basket now reuses the bounded, row-isolated cart request lifecycle.
+Failed reads show Retry; uncertain writes are reconciled by reading the saved
+cart, never automatically replaying a purchase quantity change. Numeric edits
+require Save/Enter, with checkout disabled until edits are saved or discarded.
+Concurrent edits cannot roll back a different item's confirmed change. Account
+switching clears private basket state; Escape and Close restore trigger focus.
+
+Local acceptance before deployment:
+
+- 90/90 focused catalogue, currency, cart and PayPal regression tests pass.
+- Touched-file ESLint, production webpack build and TypeScript pass (187 routes).
+- Playwright 6/6 (29.0s), including setup, selected-currency range/facets,
+  mini-basket failed-read retry, lost-write-response reconciliation, full-cart
+  concurrency, desktop filter docking, and the global fiat/crypto journey.
+- All browser cart writes in these failure/concurrency tests are intercepted
+  fixtures; they do not mutate real carts or claim payment acceptance.
+- Real Chrome local: 390px NOK filter, a 30 NOK maximum excluding the 39 NOK
+  product, drawer scrolling and reachable Reset; desktop basket draft/discard,
+  guarded checkout and close-focus return. No saved cart mutation or payment.
+- No schema, cart API, checkout, provider, webhook or AI ledger changes. Local
+  remains isolated Preview data with Sandbox credentials only.
+
+Production deployment and live acceptance of this follow-up are pending.
+
 ## Outstanding work outside this release
 
 Custom-credit paid acceptance, Live micro-purchases/refunds, owner OAuth/wallet
 consent, Railway authorization, hosted CI billing and the remaining full-route QA
-scoreboard are not completed by this presentation release. Basket fetch-error and
-concurrent-edit handling also need a separate focused follow-up. The product
-filter's numeric price slider/inputs are still unlabelled raw values; selected-
-currency filter semantics need separate validation and correction. This is not a
-claim that every financial input, tax record or experimental trading UI was audited.
+scoreboard are not completed by this presentation release. Catalogue filter URL
+persistence, full-cart/mini-basket cross-surface draft handoff and the broader cart
+provider lifecycle remain follow-ups. This is not a claim that every financial
+input, tax record or experimental trading UI was audited.
 
 Rollback target before this release: `dpl_7jL8ZAP6MDY5xRdEWCHJA2Sj4A5u`
 (`dev-veggastare-1jns3389f-v3ggas-projects.vercel.app`).

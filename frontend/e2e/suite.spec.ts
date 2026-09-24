@@ -1,5 +1,124 @@
 import { test, expect } from "@playwright/test";
 
+test('S7 selected-currency price controls preserve the budget and validate exact ranges', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await context.addInitScript(() => { localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency: 'NOK', preferredCryptoCurrency: 'ETH' })); localStorage.removeItem('veggastare_currency_rates'); });
+    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1 }, fresh: true }, crypto: { prices: { ETH: 2000 }, fresh: true } } }));
+    const response = await context.request.get('/api/products?perPage=50');
+    expect(response.ok()).toBe(true);
+    const catalog = (await response.json()).filter((item: { id: string }) => ['cveggatinterviewpack000001', 'cveggatinterviewcredits01'].includes(item.id));
+    expect(catalog).toHaveLength(2);
+    let maxSent: string | null = null;
+    await page.route(url => url.pathname === '/api/products', route => {
+      const params = new URL(route.request().url()).searchParams;
+      maxSent = params.get('maxPrice');
+      const max = maxSent == null ? Infinity : Number(maxSent), min = Number(params.get('minPrice') ?? 0);
+      return route.fulfill({ json: catalog.filter((item: { price: number }) => item.price * 0.1 >= min && item.price * 0.1 <= max) });
+    });
+    await page.goto('/products', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('article')).toHaveCount(2);
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    await page.getByRole('button', { name: 'Product filters', exact: true }).click();
+    const panel = page.getByRole('dialog', { name: 'Product filters', exact: true });
+    await panel.getByText('Enter exact values', { exact: true }).click();
+    await panel.getByRole('spinbutton', { name: 'Maximum price (NOK)', exact: true }).fill('35');
+    await panel.getByRole('button', { name: 'Apply price range', exact: true }).click();
+    await expect.poll(() => maxSent).toBe('3.5');
+    // The mobile drawer correctly makes catalogue semantics inert until closed.
+    await expect(page.locator('article')).toHaveCount(1);
+    await panel.getByRole('spinbutton', { name: 'Minimum price (NOK)', exact: true }).fill('40');
+    await panel.getByRole('button', { name: 'Apply price range', exact: true }).click();
+    await expect(panel.getByRole('alert')).toContainText('maximum at least');
+    expect(maxSent).toBe('3.5');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('article')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Display currency: NOK (ETH)', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: 'US Dollar', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Product filters', exact: true }).click();
+    await panel.getByText('Enter exact values', { exact: true }).click();
+    await expect(panel.getByRole('spinbutton', { name: 'Maximum price (USD)', exact: true })).toHaveValue('3.5');
+    await expect(panel.getByRole('spinbutton', { name: 'Minimum price (USD)', exact: true })).toHaveValue('');
+    await expect(page.locator('article')).toHaveCount(1);
+    await expect(panel.getByLabel('Selected price range')).toContainText('ETH)');
+    await page.screenshot({ path: 'test-results/currency-price-filter-390.png' });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.keyboard.press('Escape');
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.getByRole('button', { name: 'Product filters', exact: true }).click();
+    await expect(page.getByRole('complementary', { name: 'Product filters', exact: true })).toContainText('Filter in USD');
+    await page.screenshot({ path: 'test-results/currency-price-filter-1280.png' });
+    // Real read-only server query, independent of mocked UI rates/results above.
+    const nokResponse = await context.request.get('/api/products?priceCurrency=NOK&maxPrice=30&perPage=50');
+    expect(nokResponse.status()).toBe(200);
+    expect((await nokResponse.json()).map((item: { id: string }) => item.id)).toContain('cveggatinterviewpack000001');
+    expect((await (await context.request.get('/api/products?priceCurrency=NOK&maxPrice=30&perPage=50')).json()).map((item: { id: string }) => item.id)).not.toContain('cveggatinterviewcredits01');
+  } finally { await context.close(); }
+});
+
+test('S7 basket retries failed reads and reconciles uncertain concurrent edits without replaying writes', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses retained demo identity and intercepted cart requests only');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 1280, height: 800 } });
+  let releaseFirst!: () => void;
+  const first = new Promise<void>(resolve => { releaseFirst = resolve; });
+  try {
+    const page = await context.newPage();
+    const catalog = await (await context.request.get('/api/products?perPage=2')).json();
+    let lines = catalog.map((item: { id: string; title: string; price: number; priceCurrency: string; image: string[] }, i: number) => ({ id: `basket-qa-${i}`, quantity: 1, product: { id: item.id, title: item.title, price: item.price, priceCurrency: item.priceCurrency, image: item.image } }));
+    let failRead = true, loseFirstResponse = true, writes = 0;
+    await page.route(url => url.pathname.startsWith('/api/cart/'), async route => {
+      if (route.request().method() === 'GET') return route.fulfill(failRead ? { status: 503, json: { error: 'Fixture unavailable' } } : { json: { id: 'basket-qa', userId: 'demo-qa', items: lines } });
+      const id = new URL(route.request().url()).pathname.split('/').at(-1);
+      writes++;
+      const data = route.request().postDataJSON();
+      lines = lines.map((item: { id: string; quantity: number }) => item.id === id ? { ...item, quantity: data.quantity ?? item.quantity + (data.changeType === 'increment' ? 1 : -1) } : item);
+      if (id === lines[0].id && loseFirstResponse) { await first; return route.fulfill({ status: 503, json: { error: 'Simulated lost response after commit' } }); }
+      return route.fulfill({ json: lines.find((item: { id: string }) => item.id === id) });
+    });
+    await page.goto('/products', { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    const opener = page.getByRole('button', { name: /^(Basket|\d+ items? in basket)$/ });
+    await opener.click();
+    const basket = page.getByRole('dialog', { name: 'Shopping basket', exact: true });
+    await expect(basket.getByRole('alert')).toContainText('refresh before making another change');
+    await expect(basket.getByText('Your basket is empty', { exact: true })).toHaveCount(0);
+    failRead = false;
+    await basket.getByRole('button', { name: 'Retry saved basket', exact: true }).click();
+    const quantities = basket.getByRole('spinbutton');
+    await expect(quantities).toHaveCount(2);
+    await quantities.first().fill('555');
+    await expect(basket.getByRole('button', { name: 'Checkout', exact: true })).toBeDisabled();
+    expect(writes).toBe(0);
+    await quantities.first().press('Enter');
+    await expect(quantities.first()).toBeDisabled();
+    await basket.getByRole('button', { name: `Increase quantity for ${lines[1].product.title}`, exact: true }).click();
+    await expect(quantities.last()).toHaveValue('2');
+    await expect(quantities.last()).toBeEnabled();
+    expect(writes).toBe(2);
+    failRead = true; releaseFirst();
+    await expect(basket.getByRole('alert')).toContainText('refresh before making another change');
+    await expect(quantities).toHaveCount(2);
+    await expect(quantities.first()).toHaveValue('1');
+    await expect(quantities.last()).toHaveValue('2');
+    failRead = false; loseFirstResponse = false;
+    await basket.getByRole('button', { name: 'Retry saved basket', exact: true }).click();
+    await expect(quantities.first()).toHaveValue('555');
+    expect(writes).toBe(2);
+    await page.screenshot({ path: 'test-results/basket-recovered-1280.png' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(basket).toBeInViewport();
+    const rect = await basket.boundingBox(); expect(rect!.x).toBeGreaterThanOrEqual(0); expect(rect!.x + rect!.width).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: 'test-results/basket-recovered-390.png' });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.keyboard.press('Escape');
+    await expect(basket).toHaveCount(0); await expect(opener).toBeFocused();
+  } finally { releaseFirst(); await context.close(); }
+});
+
 test('S7 seller and warehouse prices use selected fiat and crypto without changing order amounts', async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo session; read-only order fixtures');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 1280, height: 800 } });
@@ -1864,6 +1983,7 @@ test('S7 — catalog desktop filter docks, categories, price and page size work'
   test.setTimeout(90_000);
   const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
+  await context.addInitScript(() => localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency: 'NOK', preferredCryptoCurrency: 'ETH' })));
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   try {
@@ -1903,7 +2023,8 @@ test('S7 — catalog desktop filter docks, categories, price and page size work'
     await body.hover(); await page.mouse.wheel(0, -5000);
     await expect.poll(() => body.evaluate(e => e.scrollTop)).toBe(0);
     await panel.getByText('Enter exact values', { exact: true }).click();
-    await panel.getByRole('spinbutton', { name: 'Maximum price', exact: true }).fill('30');
+    await panel.getByRole('spinbutton', { name: 'Maximum price (NOK)', exact: true }).fill('30');
+    await panel.getByRole('button', { name: 'Apply price range', exact: true }).click();
     await expect(page.locator('article h2')).toHaveText(['Veggat Interview Pack']);
     await panel.getByRole('button', { name: /Reset all filters/ }).click();
     await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true })).toBeVisible();

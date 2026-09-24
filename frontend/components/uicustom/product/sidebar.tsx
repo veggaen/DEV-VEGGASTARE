@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PriceSlider } from '@/components/ui/price-slider';
+import CatalogPriceFilter from '@/components/uicustom/product/catalog-price-filter';
 import { cn } from '@/lib/utils';
 import { UseCurrentRole } from '@/hooks/use-current-role';
 import { useCurrentUser } from '@/hooks/use-current-user';
@@ -600,51 +600,7 @@ export const MySidebarProductsMenu = () => {
             showReset={!!hasPriceChanges}
             onReset={resetPriceFilters}
           >
-            {/* Fancy animated price slider */}
-            <PriceSlider
-              minValue={minPrice}
-              maxValue={maxPrice}
-              rangeMin={0}
-              rangeMax={initialPriceRange?.max ?? 10000}
-              step={10}
-              onMinChange={setMinPrice}
-              onMaxChange={setMaxPrice}
-              formatValue={(v) => v.toLocaleString()}
-            />
-            
-            {/* Fallback manual inputs for precise entry */}
-            <details className="mt-3 group">
-              <summary className="min-h-11 py-3 text-sm text-zinc-500 dark:text-zinc-400 cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 select-none">
-                Enter exact values
-              </summary>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="flex-1 relative">
-                  <label htmlFor={`catalog-min-${variant}`} className="mb-1 block text-sm">Minimum price</label>
-                  <input
-                    id={`catalog-min-${variant}`}
-                    min={0}
-                    type="number"
-                    placeholder="Min"
-                    value={minPrice ?? ''}
-                    onChange={(e) => setMinPrice(Number.isFinite(e.target.valueAsNumber) ? Math.max(0, e.target.valueAsNumber) : null)}
-                    className="w-full h-11 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-sky-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-                <span className="text-zinc-400 text-sm font-medium select-none">–</span>
-                <div className="flex-1 relative">
-                  <label htmlFor={`catalog-max-${variant}`} className="mb-1 block text-sm">Maximum price</label>
-                  <input
-                    id={`catalog-max-${variant}`}
-                    min={0}
-                    type="number"
-                    placeholder="Max"
-                    value={maxPrice ?? ''}
-                    onChange={(e) => setMaxPrice(Number.isFinite(e.target.valueAsNumber) ? Math.max(0, e.target.valueAsNumber) : null)}
-                    className="w-full h-11 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-sky-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-              </div>
-            </details>
+            <CatalogPriceFilter minUsd={minPrice} maxUsd={maxPrice} rangeMaxUsd={initialPriceRange?.max ?? 10000} setMinUsd={setMinPrice} setMaxUsd={setMaxPrice} variant={variant} />
           </FilterSection>
 
           {/* Categories Filter */}

@@ -84,21 +84,22 @@ export function useCartPage(userId: string | undefined, syncCart: (items: CartIt
     };
   }, [reload]);
 
-  const mutate = async (itemId: string, action: "increment" | "decrement" | "remove") => {
+  const mutate = async (itemId: string, action: "increment" | "decrement" | "remove" | number) => {
     if (!userId || locks.current.has(itemId) || reading.current || uncertain.current) return;
     const previous = current.current.find(item => item.id === itemId);
     if (!previous || (action === "decrement" && previous.quantity <= 1)) return;
+    if (typeof action === 'number' && (!Number.isInteger(action) || action < 1 || action > 1000 || action === previous.quantity)) return;
     const version = epoch.current;
     locks.current.add(itemId);
     setPending(new Set(locks.current));
     setError("");
     // Keep a removal row mounted until confirmed: focus, errors and retry remain discoverable.
     if (action !== "remove") commit(current.current.map(item => item.id === itemId
-      ? { ...item, quantity: item.quantity + (action === "increment" ? 1 : -1) } : item));
+      ? { ...item, quantity: typeof action === 'number' ? action : item.quantity + (action === "increment" ? 1 : -1) } : item));
     try {
       const result = await request(`/api/cart/${userId}/items/${itemId}`, action === "remove"
         ? { method: "DELETE" }
-        : { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ changeType: action }) });
+        : { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(typeof action === 'number' ? { quantity: action } : { changeType: action }) });
       if (epoch.current !== version) return;
       if (action === "remove") commit(current.current.filter(item => item.id !== itemId));
       else {
