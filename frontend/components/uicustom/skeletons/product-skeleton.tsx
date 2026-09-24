@@ -12,9 +12,9 @@ export default function ProductSkeleton({ credits = false }: { credits?: boolean
     <div role="status" aria-label="Loading product" className="w-full min-w-0 space-y-6">
       <span className="sr-only">Loading product</span>
       <div aria-hidden className="h-11 w-36 rounded-lg bg-muted motion-safe:animate-pulse" />
-      <section aria-hidden className="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
+      <section aria-hidden className="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-2 xl:gap-8">
         {/* Gallery skeleton */}
-        <div className="min-w-0 lg:col-span-7">
+        <div className="min-w-0">
           <div className="rounded-xl border border-border bg-card p-3 motion-safe:animate-pulse">
             <AspectRatio ratio={3 / 2}>
               <div className="w-full h-full bg-linear-to-br from-zinc-200 to-zinc-300 dark:from-zinc-700 dark:to-zinc-800 rounded-xl" />
@@ -27,7 +27,7 @@ export default function ProductSkeleton({ credits = false }: { credits?: boolean
         </div>
 
         {/* Details skeleton */}
-        <div className="flex min-w-0 flex-col gap-4 rounded-xl border border-border p-4 sm:p-6 lg:col-span-5">
+        <div className="flex min-w-0 flex-col gap-4 rounded-xl border border-border p-4 sm:p-6">
           {/* Hero heading skeleton */}
           <div className="relative overflow-hidden motion-safe:animate-pulse">
             {/* Category badge */}
