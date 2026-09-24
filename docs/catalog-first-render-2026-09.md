@@ -30,6 +30,8 @@ design system or animation was added.
   bytes. The added card markup/DTO trades approximately 14 KB of raw HTML for
   removal of the initial browser product-fetch waterfall. This is not a claimed
   percentage improvement in LCP or a representative field measurement.
+- The first product image's preload link is also present in the server HTML,
+  rather than being inserted only after the browser catalog request completes.
 - **21 unit tests pass**: seeded/empty/mismatched data, StrictMode, pagination,
   filter reset, aborts, timeout, failure/retry, strict DTO validation and the
   existing public-listing boundary.

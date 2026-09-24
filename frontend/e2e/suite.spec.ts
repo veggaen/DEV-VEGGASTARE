@@ -3732,6 +3732,7 @@ test('S7 — catalog first response includes cards without a hydration fetch wat
       await testInfo.attach(`catalog-first-response-${width}.json`, { body: JSON.stringify(measurements.at(-1), null, 2), contentType: 'application/json' });
       expect(html.includes('<article aria-label="Veggat Interview Pack"'), 'Product cards must arrive in HTML, not only after hydration').toBe(true);
       expect(html.includes('<article aria-label="Interviewer AI Credits"')).toBe(true);
+      expect(/<link[^>]+rel="preload"[^>]+as="image"/.test(html), 'The first card image must be discoverable before hydration').toBe(true);
       expect(calls, 'Initial server results must not be immediately fetched again').toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await expect(page.getByRole('status', { name: 'Loading products', exact: true })).toHaveCount(0);
