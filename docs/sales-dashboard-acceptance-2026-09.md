@@ -48,7 +48,7 @@ approves a claim, grants files/credits or moves funds.
 
 ## Verification
 
-- 22 new API/transport units; total focused payment/legal batch **237 passed**,
+- 23 new API/transport units; total focused payment/legal batch **238 passed**,
   15 opt-in cases skipped. Touched ESLint passes.
 - Four real PostgreSQL tests pass against a random disposable schema in the
   isolated Preview database. They cover own/company/mixed/foreign/empty orders,
@@ -63,8 +63,14 @@ approves a claim, grants files/credits or moves funds.
   same checks then passed **3/3**. Real Chrome at 390px subsequently revealed
   overly bright dark-mode borders. Explicit existing border tokens and slightly
   denser mobile metric spacing fix that visual issue; no new design system.
-- Final local/Preview/live browser acceptance and exact deployment references
-  are pending for that final CSS refinement. The focused tests include actual demo API isolation separately
+- Final source inspection also caught completed demo orders without a Payment
+  row being described as completed payments. The API now retains the checkout
+  environment independently; the UI says “Demo — no payment”, or “No verified
+  payment recorded” when appropriate. Unit and browser regressions cover this.
+- Final strict local production build passes. Local browser checks pass **3/3**
+  in light mode plus **1/1** dark-mode responsive replay after the demo fix.
+  Preview/live acceptance and exact deployment references are pending for this
+  final payment-label correction. The focused tests include actual demo API isolation separately
   from mocked presentation fixtures, 360–2560 widths, long text, keyboard toggle,
   footer scrolling, retry, malformed responses, rapid filter changes, history and
   selected fiat/crypto regression. No fixture proves a real seller transaction.

@@ -70,6 +70,7 @@ export async function GET(request: Request) {
         return {
           id: order.id, createdAt: order.createdAt.toISOString(), currency: order.currency,
           status: order.status, fulfilmentStatus: order.fulfilmentStatus, sharedOrder,
+          environment: sharedOrder ? null : order.CheckoutAttempt?.environment ?? null,
           sellerTotal: order.OrderItem.reduce((sum, row) => sum + row.quantity * row.priceAtTime, 0),
           itemCount: order.OrderItem.length,
           customer: { name: order.User.name, email: resolveVisibleEmail({ targetUserId: order.User.id, targetEmail: order.User.email,

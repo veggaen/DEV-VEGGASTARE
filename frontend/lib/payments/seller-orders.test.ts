@@ -55,8 +55,13 @@ describe('personal seller orders', () => {
   });
   it('withholds whole-order routing and tracking on mixed or truncated orders', async () => {
     const value = record(); value._count.OrderItem = 2; value.OrderItem[0].Product.productType = 'PHYSICAL'; mock.orders.mockResolvedValue([value]);
-    const body = await (await GET(request())).json(); expect(body.orders[0]).toMatchObject({ sharedOrder: true, sellerTotal: 58, payment: null, tracking: null, shipping: { address: 'Private address' } });
+    const body = await (await GET(request())).json(); expect(body.orders[0]).toMatchObject({ sharedOrder: true, environment: null, sellerTotal: 58, payment: null, tracking: null, shipping: { address: 'Private address' } });
     expect(JSON.stringify(body)).not.toContain('CAPTURE'); expect(JSON.stringify(body)).not.toContain('seller@example.invalid');
+  });
+  it('retains demo environment even when no Payment row exists', async () => {
+    mock.orders.mockResolvedValue([{ ...record(), Payment: null, CheckoutAttempt: { environment: 'DEMO', state: 'COMPLETED' } }]);
+    const data = await (await GET(request())).json(); expect(data.orders[0]).toMatchObject({ environment: 'DEMO', status: 'COMPLETED', payment: null });
+    expect(SellerOrderList.safeParse(data).success).toBe(true);
   });
   it('keeps legitimate physical shipment data but drops unsafe links', async () => {
     const value = record(); value.OrderItem[0].Product.productType = 'PHYSICAL'; mock.orders.mockResolvedValue([value]);

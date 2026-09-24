@@ -14,7 +14,7 @@ test('S8 sales dashboard distinguishes failure and empty, filters once, and fits
   let releaseShipped = () => {};
   const shippedGate = new Promise<void>(resolve => { releaseShipped = resolve; });
   if (process.env.E2E_SALES_THEME === 'dark') await context.addInitScript(() => localStorage.setItem('veggat:theme', 'dark'));
-  const sample = { id: 'qa-sales-00000001', createdAt: '2026-09-24T00:00:00Z', currency: 'NOK', status: 'COMPLETED', fulfilmentStatus: 'UNFULFILLED',
+  const sample = { id: 'qa-sales-00000001', createdAt: '2026-09-24T00:00:00Z', currency: 'NOK', status: 'COMPLETED', environment: 'SANDBOX', fulfilmentStatus: 'UNFULFILLED',
     sellerTotal: 39, itemCount: 1, sharedOrder: false, customer: { name: 'Synthetic QA customer', email: `${'long'.repeat(30)}@example.invalid` }, shipping: null, tracking: null,
     items: [{ id: 'qa-item', productId: 'qa-product', title: 'Synthetic digital file with a long title '.repeat(8), quantity: 1, priceAtTime: 39, productType: 'DIGITAL' }],
     payment: { method: 'PAYPAL', status: 'COMPLETED', state: 'REFUNDED', environment: 'SANDBOX', receiver: `qa-${'seller'.repeat(25)}@example.invalid`, sender: null, reference: 'SYNTHETIC-NOT-A-REAL-CAPTURE', chainFamily: null, chainId: null, tokenSymbol: null, nativeAmount: null } };
@@ -27,7 +27,7 @@ test('S8 sales dashboard distinguishes failure and empty, filters once, and fits
       const selected = params.get('fulfilmentStatus'), currentPage = Number(params.get('page'));
       if (selected === 'SHIPPED' && holdShipped) await shippedGate;
       return route.fulfill({ json: { readOnly: false, counts: { ...emptySaleCounts(), ALL: 21, UNFULFILLED: 21 },
-        orders: selected === 'ALL' || selected === 'UNFULFILLED' ? [{ ...sample, id: currentPage === 2 ? 'qa-sales-00000002' : sample.id }] : [],
+        orders: selected === 'ALL' || selected === 'UNFULFILLED' ? [{ ...sample, ...(currentPage === 2 ? { id: 'qa-sales-00000002', environment: 'DEMO', payment: null } : {}) }] : [],
         pagination: { page: currentPage, limit: 20, total: selected === 'ALL' || selected === 'UNFULFILLED' ? 21 : 0, totalPages: selected === 'ALL' || selected === 'UNFULFILLED' ? 2 : 0 } } });
     });
     await page.goto('/my-sales', { waitUntil: 'domcontentloaded' });
@@ -55,6 +55,8 @@ test('S8 sales dashboard distinguishes failure and empty, filters once, and fits
     }
     await page.getByRole('button', { name: 'Next page', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Order 00000002 details', exact: true })).toBeVisible(); expect(reads).toBe(4);
+    await page.getByRole('button', { name: 'Order 00000002 details', exact: true }).click();
+    await expect(page.getByText('Demo — no payment', { exact: true })).toBeVisible(); expect(reads).toBe(4);
     await page.getByRole('button', { name: 'Shipped 0', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'No matching orders', exact: true })).toBeVisible(); expect(reads).toBe(5);
     await expect(page).toHaveURL(/status=SHIPPED$/);
@@ -938,7 +940,7 @@ test('S7 seller and warehouse prices use selected fiat and crypto without changi
     await page.route('**/api/companies/qa-company/orders?*', route => route.request().method() !== 'GET' ? route.abort() : route.fulfill({ json: { orders, pagination: { page: 1, totalPages: 1, total: 2 } } }));
     await page.route('**/api/seller/orders?*', route => route.request().method() !== 'GET' ? route.abort() : route.fulfill({ json: {
       readOnly: false, counts: { ...emptySaleCounts(), ALL: 2, UNFULFILLED: 2 }, pagination: { page: 1, limit: 20, totalPages: 1, total: 2 },
-      orders: orders.map(order => ({ ...order, sellerTotal: order.totalAmount, sharedOrder: false, itemCount: 1, tracking: null,
+      orders: orders.map(order => ({ ...order, environment: null, sellerTotal: order.totalAmount, sharedOrder: false, itemCount: 1, tracking: null,
         items: order.items.map(item => ({ ...item, productId: item.product.id, productType: item.product.productType })) })),
     } }));
     for (const path of ['/my-sales', '/nexus/company/qa-company/warehouse/qa-warehouse/orders']) {

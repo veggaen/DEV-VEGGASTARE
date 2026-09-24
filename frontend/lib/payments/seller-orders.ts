@@ -20,7 +20,7 @@ export const SellerOrderList = z.object({
   pagination: z.object({ page: z.number().int().positive(), limit: z.number().int().min(1).max(100), total: z.number().int().nonnegative(), totalPages: z.number().int().nonnegative() }),
   orders: z.array(z.object({
     id: z.string().min(1).max(200), createdAt: z.string().datetime(), currency: nullableText,
-    status: text, fulfilmentStatus: z.enum(SALE_FILTERS).exclude(['ALL']),
+    status: text, environment: nullableText, fulfilmentStatus: z.enum(SALE_FILTERS).exclude(['ALL']),
     sellerTotal: z.number().finite().nonnegative(), itemCount: z.number().int().nonnegative(),
     sharedOrder: z.boolean(), customer: z.object({ name: nullableText, email: nullableText }),
     shipping: z.object({ name: nullableText, address: nullableText, city: nullableText, postalCode: nullableText, country: nullableText }).nullable(),
