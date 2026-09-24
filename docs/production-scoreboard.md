@@ -4,6 +4,14 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Request-board cached-access correction: **DONE for this slice locally and live**.
+Source `b66f49f`, deployed `dpl_5PWt1ynV7w2N6KAoy8yFubwh8gjf`, clears private
+cached rows after 401/403 and prevents resurrection on a later outage. Baseline
+browser reproduction failed; **9 units**, strict builds/lint and **2/2 focused
+browser checks per local/live** pass. Real Chrome actual empty-board refresh
+also passes. No membership or publication was changed. Dynamic request-detail
+coverage remains open. See [request-access evidence](request-access-2026-09.md).
+
 Interview artifact cleanup: **DONE in the release worktree**. Historical
 `REBUILD_PROMPT.md`, `REVIVAL_PROMPT.md`, `monetisation.md` and the three-line
 `prd.md` moved from the root to `docs/archive/early-concepts/`, with an explicit

@@ -40,4 +40,18 @@ real request, payment or credit balance is changed.
 - Existing recovery/filter/read-only-demo regression passes alongside the
   new 401→503→200 and 403→503→200 cases.
 
-Not deployed yet. The wider production scoreboard remains incomplete.
+## Production acceptance
+
+Source `b66f49f` deployed as `dpl_5PWt1ynV7w2N6KAoy8yFubwh8gjf`, passed
+strict hosted build/TypeScript, with no pending migrations, and was promoted to
+`www.veggat.com`. The retained live demo was verified authenticated without
+creating an identity or printing session data. The same two focused browser
+checks pass live (20.9s). These use synthetic responses, not real permission
+revocation. Real Chrome's signed-in owner session separately loaded the actual
+empty board and completed Refresh without losing the empty state or leaving
+the button stuck. No request was published and the owner cart was untouched.
+
+The testing skill informed regression-first verification and separated mocked
+failure behavior from actual browser reads. The wider scoreboard remains
+incomplete. Next request-board audit: dynamic detail error states, asynchronous
+route changes and light-mode contrast; list coverage does not prove those paths.
