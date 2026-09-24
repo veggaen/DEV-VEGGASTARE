@@ -92,7 +92,16 @@ Local acceptance before deployment:
 - No schema, cart API, checkout, provider, webhook or AI ledger changes. Local
   remains isolated Preview data with Sandbox credentials only.
 
-Production deployment and live acceptance of this follow-up are pending.
+The initial live batch caught an early-click hydration race in the basket.
+The trigger now stays disabled until its handlers are ready; a delayed-JavaScript
+regression verifies this rather than hiding it behind a test-only wait.
+Final local browser batch **6/6 (28.1s)** and live **6/6 (48.9s)** pass.
+Release `bfe4fd3` / `dpl_DVNrF5kqvrnRPbRtjmzr5yd9jJbc` is READY at all three
+main aliases; live health is healthy. Final local and Vercel builds/TypeScript and
+touched lint pass. Real Chrome confirms the live phone NOK filter/ETH display.
+
+Rollback before this filter/basket follow-up is production currency release
+`d74aecf` / `dpl_6qbGpvzsTJS1DpsGdWM5qfFuzRXp`.
 
 ## Outstanding work outside this release
 
