@@ -30,7 +30,13 @@ export function completedRefundProof(input: unknown, refundId: string) {
   if (links.length !== 1) throw new CheckoutError('REFUND_CAPTURE_REFERENCE_INVALID', 502);
   const url = new URL(links[0].href);
   const match = /^\/v2\/payments\/captures\/([A-Z0-9]{1,36})$/.exec(url.pathname);
-  if (url.origin !== paypalEnvironment().apiOrigin || url.username || url.password || url.search || url.hash || !match) {
+  // Authenticated PayPal responses use both api and api-m HATEOAS hosts.
+  // Accept only exact HTTPS origins in this environment. Extract the ID only:
+  // readPayPalCapture still builds its request against our fixed api-m endpoint.
+  const origins = paypalEnvironment().mode === 'LIVE'
+    ? ['https://api-m.paypal.com', 'https://api.paypal.com']
+    : ['https://api-m.sandbox.paypal.com', 'https://api.sandbox.paypal.com'];
+  if (!origins.includes(url.origin) || url.username || url.password || url.search || url.hash || !match) {
     throw new CheckoutError('REFUND_CAPTURE_REFERENCE_INVALID', 502);
   }
   const amountOre = parseNokOre(refund.amount.value);

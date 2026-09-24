@@ -11,6 +11,17 @@ const refund = () => ({ id: 'REFUND1', status: 'COMPLETED', amount: { currency_c
 afterEach(() => vi.unstubAllEnvs());
 beforeEach(() => { vi.stubEnv('VERCEL', ''); vi.stubEnv('VERCEL_ENV', ''); });
 describe('server-read PayPal adjustment proof', () => {
+  it.each([
+    ['SANDBOX', 'https://api.sandbox.paypal.com'],
+    ['SANDBOX', 'https://api-m.sandbox.paypal.com'],
+    ['LIVE', 'https://api.paypal.com'],
+    ['LIVE', 'https://api-m.paypal.com'],
+  ])('accepts the official %s refund reference host %s without fetching its URL', (environment, origin) => {
+    vi.stubEnv('VERCEL', environment === 'LIVE' ? '1' : '');
+    vi.stubEnv('VERCEL_ENV', environment === 'LIVE' ? 'production' : 'preview');
+    const r = refund(); r.links[0].href = `${origin}/v2/payments/captures/CAPTURE1`;
+    expect(completedRefundProof(r, 'REFUND1')).toMatchObject({ captureId: 'CAPTURE1', amountOre: 3900 });
+  });
   it('verifies a completed refund against capture, invoice, amount, merchant and provider order', () => {
     expect(verifyPaymentAdjustment(captureAdjustmentDetails(capture()), expected, 'CAPTURE1', completedRefundProof(refund(), 'REFUND1')))
       .toEqual({ state: 'REFUNDED', refundedOre: 3900, reference: 'REFUND1' });
@@ -18,11 +29,21 @@ describe('server-read PayPal adjustment proof', () => {
   it.each(['http://api-m.sandbox.paypal.com/v2/payments/captures/CAPTURE1',
     'https://attacker.invalid/v2/payments/captures/CAPTURE1',
     'https://api-m.paypal.com/v2/payments/captures/CAPTURE1',
+    'https://api.paypal.com/v2/payments/captures/CAPTURE1',
+    'https://api.sandbox.paypal.com.attacker.invalid/v2/payments/captures/CAPTURE1',
+    'https://api.sandbox.paypal.com:444/v2/payments/captures/CAPTURE1',
+    'https://api.sandbox.paypal.com/v2/payments/captures/CAPTURE1#extra',
+    'https://user:password@api.sandbox.paypal.com/v2/payments/captures/CAPTURE1',
     'https://user@api-m.sandbox.paypal.com/v2/payments/captures/CAPTURE1',
     'https://api-m.sandbox.paypal.com/v2/payments/captures/CAPTURE1?extra=1',
     'https://api-m.sandbox.paypal.com/v2/payments/captures/CAPTURE1/refund',
   ])('rejects unsafe or wrong-environment capture reference %s', href => {
     const r = refund(); r.links[0].href = href;
+    expect(() => completedRefundProof(r, 'REFUND1')).toThrow('REFUND_CAPTURE_REFERENCE_INVALID');
+  });
+  it.each(['https://api.sandbox.paypal.com', 'https://api-m.sandbox.paypal.com'])('rejects Sandbox host %s in production', origin => {
+    vi.stubEnv('VERCEL', '1'); vi.stubEnv('VERCEL_ENV', 'production');
+    const r = refund(); r.links[0].href = `${origin}/v2/payments/captures/CAPTURE1`;
     expect(() => completedRefundProof(r, 'REFUND1')).toThrow('REFUND_CAPTURE_REFERENCE_INVALID');
   });
   it.each(['PENDING', 'FAILED', 'CANCELLED'])('does not revoke from a refund in %s', status => {
