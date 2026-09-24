@@ -31,7 +31,7 @@ The [Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guid
 and animation skill informed focus, touch targets, contained scrolling and
 short, reduced-motion-aware transitions. Existing tokens/components are reused.
 
-## Evidence in progress
+## Verification
 
 Focused component/privacy units: **25/25**. Touched lint and the first strict
 build pass. The first current-release Pulse batch was **1/5**: a cold-load test
@@ -50,10 +50,34 @@ local acceptance is **6/6 in 30.0s plus 1/1 dark replay in 5.8s**, retries disab
 Screenshots of the 390px, short landscape and desktop panel were reviewed.
 Real Chrome confirms the common menu entry. Its native zoom shortcut did not
 change the measured 2498×1319 viewport/device-pixel ratio, so no 125% claim is
-made; a reset shortcut was issued. Preview/live acceptance is pending. Browser
+made; a reset shortcut was issued. Final isolated Preview acceptance is
+**6/6 in 44.6s plus 1/1 dark replay in 7.2s**, retries disabled. Its mobile and
+short-landscape screenshots were reviewed. Final live acceptance is
+**6/6 in 44.7s plus 1/1 dark replay in 6.2s**, retries disabled; desktop/light
+and mobile/dark screenshots were reviewed. Browser
 telemetry script requests are intercepted to avoid contaminating real analytics;
 actual component callbacks are exercised in unit tests. Neither evidence is
 represented as human traffic or field Core Web Vitals.
+
+Source is `c3977b7`. Preview deployment
+`dpl_AgcpdrDM4zQGYCM9o7wV4AMVDWWs` is READY and the stable Preview alias was
+inspected against that exact ID. Its build used the isolated
+`ep-jolly-smoke-abgwws6k.eu-west-2.aws.neon.tech` database, with all 48 migrations
+already applied. No production database was used by Preview.
+
+Production deployment `dpl_icFDX1ttc5932VRK9HZtc2Kaiuyw`
+(`dev-veggastare-20qmb7hjv-v3ggas-projects.vercel.app`) built the same source
+against `ep-orange-wildflower-abp9cs2l.eu-west-2.aws.neon.tech`, with no pending
+migrations. Candidate health was healthy before promotion; www.veggat.com was
+then inspected against this exact deployment ID before live tests. Real owner
+Chrome verified Menu → Cookie preferences, focused heading, dismissal and
+natural Pulse scrolling to 1319px with no horizontal overflow. No scrollTop
+was assigned by the real-browser check.
+
+Rollback target for this slice is `a8ce335` /
+`dpl_6HAJX4GQhTNZETCPQe5V9GUGfUUP`
+(`dev-veggastare-or352kft0-v3ggas-projects.vercel.app`). No schema migration or
+payment configuration changed, so this UI rollback requires no data reversal.
 
 ## Remaining mission gates
 

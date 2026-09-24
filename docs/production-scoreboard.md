@@ -4,9 +4,29 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Consent controls and scrolling: **DONE for the scoped engineering slice**.
+Current app authority is **`c3977b7` / `dpl_icFDX1ttc5932VRK9HZtc2Kaiuyw`**
+on www.veggat.com. Dismissal immediately removes the banner hit area; bounded
+content and persistent actions fit 360–2560px and short landscape. Anonymous
+users can reopen preferences in the common menu. Analytics/Speed Insights are
+opt-in and retained callbacks reject events after revocation; receipt IDs are
+removed from telemetry URLs. Strict builds, touched lint, **25 focused units**,
+and **6/6 local, 6/6 Preview, 6/6 live**, each with a **1/1 dark replay**, pass.
+Real Chrome verifies local footer scrolling and live menu/focus/feed scrolling.
+UI/animation guidance informed contained scrolling, focus and reduced motion.
+See [consent evidence, boundaries and rollback](consent-scroll-acceptance-2026-09.md).
+
+**Still PARTIAL:** owner Live purchase/refund, human-inbox delivery/legal
+sufficiency, remaining OAuth/wallet/backend checks, historical-price explanation,
+full-route interaction and native 125% zoom. Daily Deals and Member Discount
+remain unpolished placeholder routes, next in the route audit. This is not
+whole-app approval or field Core Web Vitals evidence.
+
+### Previous AI conversation navigation slice
+
 AI conversation navigation: **DONE for the scoped engineering slice**.
-Current app authority is **`a8ce335` / `dpl_6HAJX4GQhTNZETCPQe5V9GUGfUUP`**
-on www.veggat.com (application changes `eb1b784`). Loading, empty and failure
+Its release was **`a8ce335` / `dpl_6HAJX4GQhTNZETCPQe5V9GUGfUUP`**
+(application changes `eb1b784`), retained in the current app above. Loading, empty and failure
 states are distinct; bounded server search, private compact pagination and
 stale-response protection replace the first-50-only rail. Rename Cancel no
 longer commits on blur. Deleted conversations and inactive memberships do not
