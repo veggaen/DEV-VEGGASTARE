@@ -4,6 +4,33 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Display-rate reliability and historical price explanation: **DONE for this
+scoped slice**. App authority is **`bbadc04` /
+`dpl_Gh1cjhYcXTydb3T3qnsxoZ3TureT`** on www.veggat.com. Cold rate outages no
+longer invent conversions; cached stale quotes stay stale across reloads, and
+the currency menu offers status/retry. Fresh-cache reuse avoids an unnecessary
+request. Receipts and buyer/seller orders distinguish current display estimates
+from unchanged recorded amounts. Landscape menu actions are more compact.
+
+Both new regressions fail on preceding source and pass after correction. Strict
+builds, touched lint, **89/89 units**, and **7/7 scoped browser checks on each of
+local, isolated Preview and live** pass. Global currency/overflow coverage spans
+eight sizes, 360–2560. Tests only prepare/restore an empty disposable demo cart;
+no payment, refund or credit grant occurs. Real Chrome verifies phone receipt
+scrolling and landscape menu scrolling locally, real Preview rate refresh and
+live desktop quotes. Its selected-tab viewport limitation is recorded rather
+than counted as live mobile evidence; the override was reset. See
+[evidence, limitations and rollback](display-rate-acceptance-2026-09.md).
+
+**Still PARTIAL:** owner Live purchase/refund, human-inbox delivery/legal
+sufficiency, remaining OAuth/wallet/backend checks, verified Web3/general-listing
+checkout, exhaustive route interactions, native 125% zoom and physical-phone
+keyboard acceptance. No whole-app accessibility, financial, security or field
+performance certification is implied. Next slice: remaining route/scroll
+interactions and release gaps, plus owner-dependent acceptance when available.
+
+### Previous listing price slice
+
 Listing currency, decimal entry and core form accessibility: **DONE for this
 scoped slice**. App authority is **`08d9937` /
 `dpl_3maNEBbPW77m28QLgu127w64hT9P`** on www.veggat.com. Restored NOK drafts no
