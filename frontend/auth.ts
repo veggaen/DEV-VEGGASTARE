@@ -392,7 +392,11 @@ export const {
         },
         async jwt({ token, user, account, profile, isNewUser }) {
 
-          if (!token.sub) return token;
+          // Auth.js only ends the session and clears its cookie when jwt returns
+          // null. A token without sub still produces a non-null session object,
+          // which leaves useSession() "authenticated" with no user and strands
+          // returning visitors on the workspace's sign-in redirect placeholder.
+          if (!token.sub) return null;
 
           // ── Impersonation check ──────────────────────────────────────
           // If the OWNER has started an impersonation session, the JWT
@@ -408,7 +412,7 @@ export const {
 
             if (impersonateOwnerId && impersonateTargetId) {
               const owner = await getUserById(impersonateOwnerId);
-              if (owner?.role !== 'OWNER') return { ...token, sub: undefined };
+              if (owner?.role !== 'OWNER') return null;
               // Load the target user
               const targetUser = await getUserById(impersonateTargetId);
               if (targetUser) {
@@ -448,12 +452,12 @@ export const {
           // If user was deleted (e.g. DB wipe), invalidate the session
           if (!existingUser) {
             if (isDev) console.log(`${LOG_PREFIX} jwt: user ${token.sub} not found — invalidating session`);
-            return { ...token, sub: undefined, email: undefined, name: undefined };
+            return null;
           }
 
           // Demo sessions expire after a day, even if a browser keeps refreshing them.
           if (isDemoUserId(existingUser.id) && Date.now() - existingUser.createdAt.getTime() > 86_400_000) {
-            return { ...token, sub: undefined };
+            return null;
           }
 
           // Session versioning: if tokenVersion changed, force re-login
@@ -463,7 +467,7 @@ export const {
             existingUser.tokenVersion !== token.tokenVersion
           ) {
             if (isDev) console.log(`${LOG_PREFIX} jwt: tokenVersion mismatch for ${token.sub} — forcing re-login`);
-            return { ...token, sub: undefined, email: undefined, name: undefined };
+            return null;
           }
 
           token.isTwoFactorEnabled = existingUser.isTwoFactorEnabled;

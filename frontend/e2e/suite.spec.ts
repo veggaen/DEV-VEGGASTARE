@@ -1641,6 +1641,26 @@ test('S5 demo receipt, chat and history agree without granting or replenishing c
   } finally { await context.close(); await pool.end(); }
 });
 
+test('S2 stale session returns to sign in instead of an authenticated empty workspace', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_STALE_SESSION_STORAGE_STATE, 'Explicit expired synthetic session only; no account mutation');
+  for (const width of [390, 1280]) {
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_STALE_SESSION_STORAGE_STATE,
+      viewport: { width, height: 844 }, reducedMotion: 'reduce' });
+    const page = await context.newPage();
+    const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+    try {
+      await page.goto('/nexus', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Sign in to Veggat', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled();
+      expect(await (await context.request.get('/api/auth/session')).json()).toBeNull();
+      expect((await context.request.get('/api/wallets')).status()).toBe(401);
+      expect((await context.cookies()).some(cookie => /authjs\.session-token(?:\.|$)/.test(cookie.name))).toBe(false);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  }
+});
+
 test('S2 security patch rejects malformed sessions and preserves OAuth host and cookie checks', async ({ playwright, baseURL }) => {
   test.skip(process.env.E2E_SECURITY_REGRESSION !== '1', 'Explicit auth protocol regression only');
   const origin = new URL(baseURL!).origin;

@@ -4,6 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Invalid-session recovery: **PARTIAL — fixed and verified locally; hosted patch
+pending**. Real Chrome revealed a returning-user trap on `/nexus`: an invalid JWT
+became a non-null session with no user. Returning `null` from JWT invalidation
+uses normal Auth.js cookie clearing. Eight new callback/handler tests and 26
+related auth tests pass, plus strict build/lint and 3/3 local browser checks.
+The same pre-fix browser test reproduces locally, on Preview and Live. See
+[session recovery evidence](stale-session-recovery-2026-09.md).
+Local GitHub's real authorization page currently rejects
+`http://localhost:3000/api/auth/callback/github` as an unregistered redirect;
+provider configuration is not a successful callback yet.
+
 Checkout + credit-budget refresh: **DONE for scoped local/Preview/live UI and
 pricing acceptance; S4 money acceptance remains PARTIAL**. Source `db145f7` is
 deployed as Production `dpl_8Dg2DatTEJRpRNZ3jpLE875m9WFu` and Preview
