@@ -4,8 +4,35 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Listing currency, decimal entry and core form accessibility: **DONE for this
+scoped slice**. App authority is **`08d9937` /
+`dpl_3maNEBbPW77m28QLgu127w64hT9P`** on www.veggat.com. Restored NOK drafts no
+longer show USD in a separate selector; dot/comma decimals are preserved without
+silent reinterpretation. Core fields and preference controls have larger targets
+and accessible labels, and shared form errors have readable light/dark colors.
+The form accurately distinguishes reviewer PayPal from unreleased general/Web3
+checkout. UI/testing skills informed labels, contrast, reflow and evidence.
+
+The two new regressions fail on the preceding source and pass after correction.
+Strict builds, touched lint, **47/47 focused units**, **4/4 browser checks on each
+of local, isolated Preview and live**, and **1/1 real stale-context private upload
+and publication on both local and Preview** pass. Cleanup completed for the
+temporary sellers; no live listing, purchase or refund was created. Real Chrome
+checks actual mobile input and keyboard scrolling, deployed Sandbox/Live status,
+and the owner session; temporary viewport restored. See
+[evidence, limitations and rollback](listing-price-acceptance-2026-09.md).
+
+**Still PARTIAL:** owner Live purchase/refund, human-inbox delivery/legal
+sufficiency, remaining OAuth/wallet/backend checks, verified Web3/general-listing
+checkout, full-route interaction, native 125% zoom and physical-phone keyboard
+acceptance. This is not a whole-app accessibility, performance or production
+certification. Next slice: remaining route/scroll interactions and historical
+price explanation; continue owner-dependent acceptance when a session is ready.
+
+### Previous seller publication slice
+
 Seller publication and private-file registration: **DONE for this scoped
-engineering slice**. App authority is **`9eac374` /
+engineering slice**. Its app authority was **`9eac374` /
 `dpl_Epxd7YKi27qXwmqF8AfdwMcAN1Nb`** on www.veggat.com. Publication is atomic;
 file/company/wallet/warehouse ownership is checked; private bytes receive a real
 checksum. Review exposes errors and restores focus, and demo publication remains
