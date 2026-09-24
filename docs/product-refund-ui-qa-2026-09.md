@@ -39,7 +39,18 @@ particularly meaningful controls, focus, image geometry and overflow handling.
   These layout tests do not submit orders, edit the owner's cart, or charge money.
 - Refund/return checks: see `paypal-refund-acceptance-2026-09.md`.
 
-Preview deployment/retest is next. This is not certification that all app routes,
+Preview `48ebacd` / `dpl_H8eb2Kb6xAhVP578H47yp55dsFNt` is READY at
+`https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app`.
+The same three browser journeys pass there (17.5s; local 8.6s). Real Chrome
+confirms the deployed credit preview. Deployed terms render and a cross-origin
+return mutation returns 403; the prior refunded receipt remains revoked.
+
+This is not certification that all app routes,
 real-device keyboards, browser zoom, Live purchases or statutory compliance pass.
 Separate persisted consent and durable confirmation remain unfinished; an already
 downloaded file cannot be remotely recalled, and defect/dispute rights remain.
+
+Do not promote this branch wholesale yet: a direct comparison with production
+`bfe4fd3` shows that the newer catalog-price filter and basket work is not fully
+merged here. Reconcile that release difference first. No production alias or
+Live payment was changed during this slice.

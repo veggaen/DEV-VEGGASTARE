@@ -38,8 +38,13 @@ platform fuse and request/concurrency caps. Failed requests return user credits
 without returning platform risk budget. Custom purchase discounts are marginal,
 server-priced, and tested against conservative cost/fee/tax allowances.
 
-Focused provider/pricing checks: **59 passed, 21 database tests skipped** in this
-run. Do not count the skipped integration cases as verified. Exact actual-token
+Focused provider/pricing checks initially passed 59 with 21 database tests skipped.
+The follow-up explicitly selected the isolated Neon Preview database: **31/31**
+ledger/configuration/checkout tests passed, including all 21 previously skipped
+ledger cases and one real custom-checkout test. They create only a validated
+temporary schema or roll back synthetic writes; no public balances or provider
+APIs are used. Production/default URL fallback was removed from the test setup.
+Exact actual-token
 settlement, provider-invoice reconciliation, and zero business losses are not
 claims supported by this implementation.
 
@@ -57,9 +62,9 @@ review final terms and seller details before treating these controls as complian
 
 Findings and current disposition:
 
-- FIXED locally: `frontend/app/terms/page.tsx` separates digital content/services,
+- FIXED locally and in Preview: `frontend/app/terms/page.tsx` separates digital content/services,
   preserves defect/dispute rights and replaces the discontinued EU ODR link.
-- FIXED locally: `frontend/app/api/returns/[id]/route.ts` rejects manual REFUND;
+- FIXED locally and in Preview: `frontend/app/api/returns/[id]/route.ts` rejects manual REFUND;
   all order lines must belong to the seller or their managed companies. Approval
   is only a review decision, not money returned. Same-origin, durable throttling,
   concurrency and sensitive-error guards were added. 13 regressions pass.
@@ -67,8 +72,10 @@ Findings and current disposition:
   Do not retroactively manufacture consent for existing purchases.
 - Download counters are useful delivery evidence, not proof of client receipt or
   blanket grounds to reject defect claims. Preserve buyer support/reporting.
-- Product detail still needs a visual/scroll/keyboard audit at 360, 390,
-  landscape, tablet, desktop, portrait and ultrawide; HTTP success is not UI QA.
+- Product detail visual/scroll/keyboard audit completed for this slice at 360,
+  390, landscape, tablet, desktop, portrait and ultrawide. Three journeys pass
+  locally and on Preview; see `product-refund-ui-qa-2026-09.md`. This does not
+  mean every route, live checkout or real-device keyboard has passed.
 
 ## Primary sources checked
 

@@ -80,6 +80,14 @@ lint pass; the amended terms render cleanly at 390 and 1280. Legal copy distingu
 files from services and removes the discontinued ODR link. Checkout consent and
 durable confirmation are still a separate unfinished compliance slice.
 
+Follow-up database verification: 31/31 ledger/configuration/checkout checks passed
+against isolated Neon Preview in 33.96s. All 21 real ledger cases ran, including
+last-credit races, duplicate refunds, partial/full ordering, reversal, provider
+failure and revocation rollback. Synthetic schemas were cleaned up; checkout
+fixtures roll back. These use mocked provider proof, in addition to the actual
+Sandbox purchase/refund above. They do not establish a Live purchase or Live
+partial-refund acceptance result.
+
 ## Provider references
 
 - [Refund captured payment](https://developer.paypal.com/api/payments/v2/captures-refund)

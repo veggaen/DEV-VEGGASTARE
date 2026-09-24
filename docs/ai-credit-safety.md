@@ -105,13 +105,15 @@ Anthropic is disabled without a configured platform key.
 
 The database tests opt in, create a random `qa_ai_ledger_*` schema, and remove only
 that schema afterward. They never call providers or change public balances/orders.
-`AI_LEDGER_TEST_DATABASE_URL` can select a dedicated database; otherwise the
-configured local URL is used without printing it.
+`AI_LEDGER_TEST_DATABASE_URL` or `DATABASE_URL_MAINPREVIEW` must explicitly select
+a dedicated non-production endpoint. There is no fallback to the owner's local
+or Live URL. The Preview guard rejects a matching production endpoint without
+printing credentials.
 
 ```powershell
-# In frontend/; requires rights to create an isolated test schema.
+# In frontend/; uses the verified private Preview configuration.
 $env:TEST_AI_LEDGER_DATABASE='1'
-npx vitest run lib/ai-credit-ledger.test.ts
+node scripts/with-preview-database.mjs node_modules/vitest/vitest.mjs run lib/ai-credit-ledger.test.ts
 ```
 
 The real-provider Playwright check requires `E2E_AI_REAL=1` and a retained

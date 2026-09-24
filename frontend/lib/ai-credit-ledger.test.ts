@@ -11,6 +11,7 @@ vi.mock('@/lib/payments/showcase-paypal', () => ({ readPayPalCapture: vi.fn(), r
 import { aiCreditEnvironment, createAiCreditLedger, platformDailyMicroUsd } from './ai-credit-ledger';
 import { applyAiCreditDelta } from './ai-credit-adjustment';
 import { createPayPalAdjustmentReconciler } from './payments/showcase-refunds';
+import { previewDatabaseUrl } from './preview-database';
 
 describe('AI spending safety configuration', () => {
   afterAll(() => vi.unstubAllEnvs());
@@ -49,9 +50,12 @@ describe.skipIf(process.env.TEST_AI_LEDGER_DATABASE !== '1')('AI ledger: real Po
     // the required DB value; never print values or load provider/payment keys.
     const { parse } = await import('dotenv');
     const local = parse(await readFile(new URL('../.env.local', import.meta.url), 'utf8').catch(() => ''));
-    const connectionString = process.env.AI_LEDGER_TEST_DATABASE_URL ?? process.env.DATABASE_URL_MAINLIVE ??
-      process.env.DATABASE_URL_MAINDEV ?? process.env.DATABASE_URL ?? local.DATABASE_URL_MAINLIVE ?? local.DATABASE_URL_MAINDEV ?? local.DATABASE_URL;
-    if (!connectionString) throw new Error('A database URL is required for isolated integration tests');
+    // Never create test schemas on the owner's default/production database.
+    // The runner must explicitly select the isolated Preview endpoint.
+    const connectionString = previewDatabaseUrl({
+      DATABASE_URL_MAINPREVIEW: process.env.AI_LEDGER_TEST_DATABASE_URL ?? process.env.DATABASE_URL_MAINPREVIEW,
+      DATABASE_URL_MAINLIVE: process.env.DATABASE_URL_MAINLIVE ?? local.DATABASE_URL_MAINLIVE,
+    });
     vi.stubEnv('VERCEL', ''); vi.stubEnv('VERCEL_ENV', ''); vi.stubEnv('AI_PLATFORM_DAILY_BUDGET_USD', '1');
     const directUrl = new URL(connectionString);
     if (directUrl.hostname.endsWith('.neon.tech')) directUrl.hostname = directUrl.hostname.replace('-pooler.', '.');
