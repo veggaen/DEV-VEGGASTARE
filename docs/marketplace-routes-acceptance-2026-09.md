@@ -51,7 +51,18 @@ sizes, keyboard disclosure, real wheel scrolling/footer, actual product/terms
 navigation, no-JavaScript content, private alias destination, and product
 loading/terms regressions. No checkout/payment/cart writes occurred. Real Chrome
 reviewed the desktop layout; mobile and desktop screenshots were reviewed.
-Preview/live acceptance, deployment IDs and rollback remain pending.
+The first Preview batch passed offer navigation, no-JavaScript rendering,
+private redirect and terms checks, but failed the existing product-loading
+regression (**4/5**). A subsequent read-only four-case diagnostic did not reproduce
+the flash, so a warm rerun was not used to waive it. The catalog loading boundary
+was still an ancestor of product-detail routes. Catalog `page.tsx` and
+`loading.tsx` now live in a URL-neutral `(catalog)` route group: product detail
+cannot inherit that catalog fallback. This follows the official
+[route-scoped loading guidance](https://nextjs.org/docs/app/getting-started/project-structure).
+The root public-offer fallback remains. URLs, shared product layout and
+authorization are unchanged. The corrected candidate passes touched lint, 33
+units, a fresh strict build and **5/5 local in 12.6s plus 1/1 dark in 4.8s**.
+Preview/live acceptance is pending; the failed Preview was not promoted.
 
 ## Remaining mission boundaries
 

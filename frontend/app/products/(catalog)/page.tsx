@@ -1,5 +1,5 @@
 /**
- * @fileOverview Responsive marketplace with stable loading and cancellable catalog requests.
+ * @fileOverview Responsive marketplace; its route group scopes loading to the catalog only.
  * @stability stable
  */
 'use client';

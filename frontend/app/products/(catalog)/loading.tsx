@@ -1,17 +1,11 @@
 /**
- * @fileOverview Same catalog geometry during route navigation and the first data request.
+ * @fileOverview Catalog-only loading boundary; never inherited by product detail or offer routes.
  * @stability stable
  */
 import ProductsSkeleton from '@/components/uicustom/skeletons/products-skeleton';
 import { CatalogHeader, catalogFrame } from '@/components/uicustom/products/CatalogHeader';
-import { headers } from 'next/headers';
-import MarketplaceOffers from '@/components/uicustom/products/MarketplaceOffers';
 
-export default async function ProductsLoading() {
-  const publication = (await headers()).get('x-veggat-publication');
-  if (publication === 'marketplace-deals' || publication === 'marketplace-members') {
-    return <MarketplaceOffers kind={publication === 'marketplace-deals' ? 'deals' : 'members'} />;
-  }
+export default function ProductsLoading() {
   return <div className="min-h-full w-full bg-background">
     <CatalogHeader />
     <div aria-hidden className="border-y border-border bg-background">

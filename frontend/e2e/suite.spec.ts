@@ -5843,7 +5843,7 @@ test('S7 — product loading uses gallery geometry without a catalogue flash', a
       const gallery = await page.locator('[data-product-gallery]').boundingBox();
       expect(Math.abs(gallery!.x - skeletonGallery!.x)).toBeLessThan(2);
       expect(Math.abs(gallery!.width - skeletonGallery!.width)).toBeLessThan(2);
-      expect(await page.evaluate(() => (window as Window & { productCatalogFlash?: boolean }).productCatalogFlash)).toBe(false);
+      expect(await page.evaluate(() => (window as Window & { productCatalogFlash?: boolean }).productCatalogFlash), `No catalogue flash at ${width}px (${navigate ? 'catalogue navigation' : 'direct entry'})`).toBe(false);
     } finally { release(); await context.close(); }
   }
 });
