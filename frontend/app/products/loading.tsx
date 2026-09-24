@@ -4,8 +4,14 @@
  */
 import ProductsSkeleton from '@/components/uicustom/skeletons/products-skeleton';
 import { CatalogHeader, catalogFrame } from '@/components/uicustom/products/CatalogHeader';
+import { headers } from 'next/headers';
+import MarketplaceOffers from '@/components/uicustom/products/MarketplaceOffers';
 
-export default function ProductsLoading() {
+export default async function ProductsLoading() {
+  const publication = (await headers()).get('x-veggat-publication');
+  if (publication === 'marketplace-deals' || publication === 'marketplace-members') {
+    return <MarketplaceOffers kind={publication === 'marketplace-deals' ? 'deals' : 'members'} />;
+  }
   return <div className="min-h-full w-full bg-background">
     <CatalogHeader />
     <div aria-hidden className="border-y border-border bg-background">

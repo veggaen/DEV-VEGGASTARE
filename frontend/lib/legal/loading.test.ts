@@ -15,3 +15,18 @@ it('cannot use the marker to enter a protected page', async () => {
   expect(response.status).toBe(307);
   expect(new URL(response.headers.get('location')!).pathname).toBe('/auth/login');
 });
+
+it.each([
+  ['/products/daily-deals', 'marketplace-deals'],
+  ['/products/member-discount', 'marketplace-members'],
+  ['/products/daily-deals/unknown', ''],
+  ['/products/cveggatinterviewcredits01', ''],
+])('only marks the exact public publication %s', async (path, marker) => {
+  const response = await proxy(new NextRequest(`http://localhost:3000${path}`, { headers: { 'x-veggat-publication': 'marketplace-members' } }));
+  expect(response.headers.get('x-middleware-request-x-veggat-publication')).toBe(marker);
+});
+it.each(['/products/create', '/dashboard/trading'])('a forged offer marker cannot expose %s', async path => {
+  const response = await proxy(new NextRequest(`http://localhost:3000${path}`, { headers: { 'x-veggat-publication': 'marketplace-deals' } }));
+  expect(response.status).toBe(307);
+  expect(new URL(response.headers.get('location')!).pathname).toBe('/auth/login');
+});

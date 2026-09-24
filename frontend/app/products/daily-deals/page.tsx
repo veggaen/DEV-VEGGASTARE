@@ -1,16 +1,8 @@
-'use client'
+/** @fileOverview Daily-promotion availability and useful marketplace navigation. @stability stable */
+import MarketplaceOffers from '@/components/uicustom/products/MarketplaceOffers';
 
-import React from 'react';
+export const metadata = { title: 'Daily deals', description: 'Daily promotion availability and current marketplace options.', robots: { index: false, follow: true } };
 
-const MyProductDailyDealsPage = () => {
-
-  return (
-    <div className='flex flex-col justify-start items-center'>
-      <h1 className='text-4xl font-extrabold text-transparent bg-clip-text bg-linear-to-bl dark:from-zinc-300 from-zinc-500 dark:to-zinc-300 to-zinc-900 text-pretty'>Daily Deals</h1>
-      <p>Under development...</p>
-      {/* Optionally, list existing products here */}
-    </div>
-  );
-};
-  
-export default MyProductDailyDealsPage;
+export default function DailyDealsPage() {
+  return <MarketplaceOffers kind="deals" />;
+}

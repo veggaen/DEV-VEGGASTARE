@@ -6,7 +6,7 @@ export default function SiteFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-auto shrink-0 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">
+    <footer role="contentinfo" className="mt-auto shrink-0 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">
       {/* Soft maintenance notice */}
       <div className="bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/20 px-6 py-2">
         <p className="text-center text-xs text-amber-700 dark:text-amber-200/80">

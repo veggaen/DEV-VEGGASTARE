@@ -5,6 +5,89 @@ import { createHash } from 'node:crypto';
 import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders';
 import { SessionRailResponse } from '../lib/ai-chat/session-list';
 
+test('S8 marketplace offer routes are honest, responsive and navigable without buying', async ({browser,baseURL},testInfo)=>{
+  test.skip(process.env.E2E_OFFERS !== '1','Focused marketplace continuation routes');
+  test.setTimeout(120_000);
+  const context=await browser.newContext({baseURL,viewport:{width:390,height:844},reducedMotion:'reduce'});
+  if(process.env.E2E_OFFERS_THEME==='dark') await context.addInitScript(()=>localStorage.setItem('veggat:theme','dark'));
+  const page=await context.newPage(),errors:string[]=[],writes:string[]=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  page.on('request',request=>{if(request.method()!=='GET'&&/^\/api\/(checkout|payments|cart)/.test(new URL(request.url()).pathname))writes.push(request.method());});
+  try{
+    for(const [slug,title] of [['daily-deals','Daily deals'],['member-discount','Member discounts']]){
+      await page.goto(`/products/${slug}`,{waitUntil:'domcontentloaded'});
+      await expect(page.getByRole('heading',{name:title,exact:true,level:1})).toBeVisible();
+      if(!await page.evaluate(()=>localStorage.getItem('veggat:cookieConsent')))await page.getByRole('button',{name:'Essential Only',exact:true}).click();
+      const offers=page.getByRole('region',{name:title,exact:true}), scroller=page.locator('[data-app-scroll-container="true"]');
+      await expect(offers.getByText('Planned · not active',{exact:true})).toBeVisible();
+      await expect(page.getByRole('navigation',{name:'Marketplace offers',exact:true}).getByRole('link',{name:title,exact:true})).toHaveAttribute('aria-current','page');
+      await expect(offers.getByText('Credits 101–500',{exact:true})).toBeVisible();
+      await expect(offers.getByText('5% off these credits',{exact:true})).toBeVisible();
+      const question=offers.locator('summary');await question.focus();await page.keyboard.press('Enter');await expect(offers.locator('details')).toHaveAttribute('open','');
+      await page.keyboard.press('Enter');await expect(offers.locator('details')).not.toHaveAttribute('open','');
+      for(const size of [{width:360,height:800},{width:390,height:844},{width:844,height:390},{width:768,height:1024},{width:1024,height:768},{width:1280,height:800},{width:1920,height:1080},{width:2560,height:1080}]){
+        await page.setViewportSize(size);
+        await offers.getByRole('heading',{name:title,exact:true}).scrollIntoViewIfNeeded();
+        expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+        expect(await scroller.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+        const frame=await offers.boundingBox();expect(frame!.width).toBeLessThanOrEqual(1280);
+        for(const name of ['Browse marketplace','Choose AI credits','View Interview Pack','Read the sales terms']){
+          expect((await offers.getByRole('link',{name,exact:true}).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        }
+        if([390,1280,2560].includes(size.width))await page.screenshot({path:testInfo.outputPath(`offers-${slug}-${size.width}.png`)});
+        await page.mouse.move(size.width/2,size.height-80);await page.mouse.wheel(0,5000);
+        await expect(page.getByRole('contentinfo')).toBeInViewport();
+        expect(await page.getByRole('contentinfo').count()).toBe(1);
+        await expect.poll(()=>scroller.evaluate(el=>el.scrollTop)).toBeGreaterThan(0);
+      }
+    }
+    await page.setViewportSize({width:390,height:844});
+    await page.getByRole('link',{name:'Choose AI credits',exact:true}).click();
+    await expect(page).toHaveURL(/\/products\/cveggatinterviewcredits01$/);
+    await expect(page.getByRole('heading',{name:'Interviewer AI Credits',exact:true,level:1})).toBeVisible();
+    await page.goBack({waitUntil:'domcontentloaded'});await expect(page.getByRole('heading',{name:'Member discounts',exact:true,level:1})).toBeVisible();
+    await page.getByRole('link',{name:'View Interview Pack',exact:true}).click();
+    await expect(page.getByRole('heading',{name:'Veggat Interview Pack',exact:true,level:1})).toBeVisible();
+    await page.goBack({waitUntil:'domcontentloaded'});
+    await page.getByRole('navigation',{name:'Marketplace offers',exact:true}).getByRole('link',{name:'Daily deals',exact:true}).click();
+    await expect(page.getByRole('heading',{name:'Daily deals',exact:true,level:1})).toBeVisible();
+    await page.getByRole('link',{name:'Read the sales terms',exact:true}).click();await expect(page.getByRole('heading',{name:'Salgsvilkår',exact:true})).toBeVisible();
+    await page.goBack({waitUntil:'domcontentloaded'});
+    await page.getByRole('link',{name:'Browse marketplace',exact:true}).click();await expect(page.getByRole('heading',{name:'Marketplace',exact:true})).toBeVisible();
+    expect(writes).toEqual([]);expect(errors).toEqual([]);
+  }finally{await context.close();}
+});
+
+test('S8 marketplace offer information and links work without JavaScript',async({browser,baseURL})=>{
+  test.skip(process.env.E2E_OFFERS!=='1','Server-rendered offer availability');
+  const context=await browser.newContext({baseURL,javaScriptEnabled:false,viewport:{width:390,height:844}}),page=await context.newPage();
+  try{
+    await page.goto('/products/daily-deals',{waitUntil:'domcontentloaded'});
+    await expect(page.getByRole('heading',{name:'Daily deals',exact:true,level:1})).toBeVisible();
+    await page.getByRole('navigation',{name:'Marketplace offers',exact:true}).getByRole('link',{name:'Member discounts',exact:true}).click();
+    await expect(page.getByRole('heading',{name:'Member discounts',exact:true,level:1})).toBeVisible();
+    // Hidden streamed templates remain in no-JS HTML. Exercise the accessible
+    // publication, not those inert copies of the same server component.
+    const help=page.getByRole('region',{name:'Before you buy',exact:true});
+    await help.locator('summary').click();await expect(help.locator('details')).toHaveAttribute('open','');
+    await expect(page.getByRole('link',{name:'Choose AI credits',exact:true})).toHaveAttribute('href','/products/cveggatinterviewcredits01');
+    await page.getByRole('link',{name:'Read the sales terms',exact:true}).click();await expect(page.getByRole('heading',{name:'Salgsvilkår',exact:true})).toBeVisible();
+  }finally{await context.close();}
+});
+
+test('S8 legacy inventory redirects on the server while keeping sign-in required',async({browser,baseURL})=>{
+  test.skip(process.env.E2E_OFFERS!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Retained demo session for legacy alias');
+  const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE}),anon=await browser.newContext({baseURL});
+  try{
+    const response=await context.request.get('/dashboard/inventory',{maxRedirects:0});
+    expect(response.status()).toBe(307);expect(response.headers().location).toBe('/dashboard/trading');
+    const alias=await anon.request.get('/dashboard/inventory',{maxRedirects:0});
+    expect(alias.status()).toBe(307);expect(alias.headers().location).toBe('/dashboard/trading');
+    const denied=await anon.request.get(alias.headers().location,{maxRedirects:0});
+    expect([302,303,307]).toContain(denied.status());expect(denied.headers().location).toContain('/auth/login');
+  }finally{await context.close();await anon.close();}
+});
+
 test('Platform consent controls fit every viewport and release scrolling immediately', async ({browser,baseURL},testInfo)=>{
   test.skip(process.env.E2E_CONSENT !== '1','Focused optional-telemetry and consent presentation acceptance');
   test.setTimeout(120_000);

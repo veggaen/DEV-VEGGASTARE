@@ -21,6 +21,11 @@ const nextConfig = {
     async redirects() {
         return [
             {
+                source: "/dashboard/inventory",
+                destination: "/dashboard/trading",
+                permanent: false,
+            },
+            {
                 source: "/feed",
                 destination: "/pulse",
                 permanent: true,
