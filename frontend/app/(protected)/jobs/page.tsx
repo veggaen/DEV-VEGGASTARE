@@ -11,17 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import PriceAmount from '@/components/crypto-related/PriceAmount';
 import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
-import { JobRequestsListResponseSchema } from '@/lib/types/job-requests';
-
-async function fetchRequests([url]: readonly [string, string]) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(response.status === 401
-    ? 'Your session has expired. Sign in again to browse requests.'
-    : 'Check your connection and try again.');
-  const result = JobRequestsListResponseSchema.safeParse(await response.json());
-  if (!result.success) throw new Error('The request list is temporarily unavailable. Please try again.');
-  return result.data;
-}
+import { readJobRequests } from '@/lib/job-requests-read';
 
 const dateFormatter = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'UTC' });
 function requestDate(value: string) {
@@ -36,11 +26,13 @@ export default function JobsPage() {
   const sort = searchParams.get('sort') === 'oldest' ? 'oldest' : 'newest';
   const [visibleCount, setVisibleCount] = useState(50);
   // Never reuse another account's private/company requests after a session change.
-  const { data, error, isLoading, isValidating, mutate } = useSWR(
+  const { data: read, error, isLoading, isValidating, mutate } = useSWR(
     user?.id ? ['/api/job-requests', user.id] as const : null,
-    fetchRequests,
+    readJobRequests,
     { revalidateOnFocus: false, shouldRetryOnError: false },
   );
+  const data = read?.data;
+  const accessError = read?.accessError;
   const requests = useMemo(() => {
     const query = search.trim().toLowerCase();
     return (data ?? []).filter(job => !query
@@ -107,10 +99,10 @@ export default function JobsPage() {
         </section>
       ) : (
         <>
-          {error && (
+          {(error || accessError) && (
             <section role="alert" className="space-y-3 rounded-xl border border-destructive/40 bg-card p-5">
               <h2 className="font-semibold">Could not load requests</h2>
-              <p className="text-sm text-muted-foreground">{error instanceof Error ? error.message : 'Please try again.'}</p>
+              <p className="text-sm text-muted-foreground">{error instanceof Error ? error.message : accessError || 'Please try again.'}</p>
               {data && <p className="text-sm text-muted-foreground">Your last loaded results are still shown below.</p>}
               <Button type="button" variant="outline" className="min-h-11" disabled={isValidating} onClick={() => void mutate()}>Try again</Button>
             </section>

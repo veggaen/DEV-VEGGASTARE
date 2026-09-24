@@ -1392,6 +1392,45 @@ test('S4 — real demo withdrawal is idempotent, private and never changes payme
   } finally { await context.close(); await anonymous.close(); }
 });
 
+test('S8 request access revocation clears saved rows and cannot resurrect them on outage', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_REQUEST_ACCESS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Browser-only responses with a retained demo; no permission changes');
+  for (const deniedStatus of [401, 403]) {
+    const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    let status = 200;
+    const fixture = { id: 'qa-private-brief', title: 'Private company brief', userId: 'qa-owner',
+      user: { id: 'qa-owner', name: 'QA creator', image: null }, descriptions: ['Synthetic private request'],
+      images: [], links: [], docs: [], companyIds: ['qa-company'], price: null, negotiable: false,
+      paymentMethod: null, delivery: null, additionalNotes: null,
+      createdAt: '2026-09-24T12:00:00Z', updatedAt: '2026-09-24T12:00:00Z' };
+    await page.route('**/api/job-requests', route => route.fulfill({ status, json: status === 200 ? [fixture] : { error: 'Controlled QA failure' } }));
+    try {
+      await page.goto('/jobs', { waitUntil: 'domcontentloaded' });
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      await expect(consent).toBeVisible(); await consent.click();
+      const main = page.getByRole('main');
+      const row = main.getByRole('link', { name: /Private company brief/ });
+      await expect(row).toBeVisible();
+      status = deniedStatus;
+      await main.getByRole('button', { name: 'Refresh requests', exact: true }).click();
+      await expect(main.getByRole('alert')).toBeVisible();
+      await expect(row).toHaveCount(0);
+      await expect(main.getByText('Your last loaded results are still shown below.')).toHaveCount(0);
+      status = 503;
+      const outage = page.waitForResponse(response => new URL(response.url()).pathname === '/api/job-requests' && response.status() === 503);
+      await main.getByRole('button', { name: 'Try again', exact: true }).click();
+      await outage;
+      await expect(main.getByRole('alert')).toContainText('temporarily unavailable');
+      await expect(main.getByRole('button', { name: 'Try again', exact: true })).toBeEnabled();
+      await expect(row).toHaveCount(0);
+      status = 200;
+      await main.getByRole('button', { name: 'Try again', exact: true }).click();
+      await expect(row).toBeVisible();
+      await expect(main.getByRole('alert')).toHaveCount(0);
+    } finally { await context.close(); }
+  }
+});
+
 test('S8 requests recover from failure, preserve filters and keep demo publishing read-only', async ({ browser, baseURL }, testInfo) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo; browser fixtures only');
   test.setTimeout(120_000);
