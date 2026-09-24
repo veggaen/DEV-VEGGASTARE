@@ -58,8 +58,13 @@ approves a claim, grants files/credits or moves funds.
 - Initial strict typecheck found a narrowed-session closure issue; capturing the
   role before serialization fixed it. The initial build passed. A subsequent
   loading refinement keeps filter controls mounted while a newer query is pending.
+- The first local browser batch had an ambiguous alert locator (the app alert and
+  Next.js route announcer both matched). Scoping it to main fixed the test; the
+  same checks then passed **3/3**. Real Chrome at 390px subsequently revealed
+  overly bright dark-mode borders. Explicit existing border tokens and slightly
+  denser mobile metric spacing fix that visual issue; no new design system.
 - Final local/Preview/live browser acceptance and exact deployment references
-  are pending. The focused tests include actual demo API isolation separately
+  are pending for that final CSS refinement. The focused tests include actual demo API isolation separately
   from mocked presentation fixtures, 360–2560 widths, long text, keyboard toggle,
   footer scrolling, retry, malformed responses, rapid filter changes, history and
   selected fiat/crypto regression. No fixture proves a real seller transaction.

@@ -13,6 +13,7 @@ test('S8 sales dashboard distinguishes failure and empty, filters once, and fits
   let mode: 'failure' | 'malformed' | 'ready' = 'failure', reads = 0, holdShipped = false;
   let releaseShipped = () => {};
   const shippedGate = new Promise<void>(resolve => { releaseShipped = resolve; });
+  if (process.env.E2E_SALES_THEME === 'dark') await context.addInitScript(() => localStorage.setItem('veggat:theme', 'dark'));
   const sample = { id: 'qa-sales-00000001', createdAt: '2026-09-24T00:00:00Z', currency: 'NOK', status: 'COMPLETED', fulfilmentStatus: 'UNFULFILLED',
     sellerTotal: 39, itemCount: 1, sharedOrder: false, customer: { name: 'Synthetic QA customer', email: `${'long'.repeat(30)}@example.invalid` }, shipping: null, tracking: null,
     items: [{ id: 'qa-item', productId: 'qa-product', title: 'Synthetic digital file with a long title '.repeat(8), quantity: 1, priceAtTime: 39, productType: 'DIGITAL' }],
