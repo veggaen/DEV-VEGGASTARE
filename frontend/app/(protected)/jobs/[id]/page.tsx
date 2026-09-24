@@ -1,352 +1,130 @@
 'use client';
+/** @fileOverview Responsive experimental request detail with explicit read/retry states. @stability experimental */
 
-import { useEffect, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useState, type ReactNode } from 'react';
+import useSWR from 'swr';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { ArrowLeft, ExternalLink, FileText, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import PriceAmount from '@/components/crypto-related/PriceAmount';
-import { formatDistanceToNow, format } from 'date-fns';
-import { FiArrowLeft, FiExternalLink, FiFileText, FiTruck, FiDollarSign, FiMessageSquare } from 'react-icons/fi';
+import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
+import { formatRequestDate, isRequestImage, isRequestUrl, readJobRequest } from '@/lib/job-request-detail';
 
-interface UserSummary {
-  id: string;
-  name: string | null;
-  image: string | null;
+const card = 'min-w-0 rounded-2xl border border-border bg-card p-5 sm:p-6';
+
+function RequestFrame({ children }: { children: ReactNode }) {
+  return <div className="mx-auto w-full min-w-0 max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+    <Button asChild variant="ghost" className="min-h-11"><Link href="/jobs"><ArrowLeft aria-hidden="true" className="size-4" />Back to requests</Link></Button>
+    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Experimental · Job board</p>
+    {children}
+  </div>;
 }
 
-// Security: Validate and sanitize user-provided URLs
-function isSafeUrl(url: string): boolean {
-  if (!url || typeof url !== 'string') return false;
-  const trimmed = url.trim().toLowerCase();
-  // Only allow http/https URLs - block javascript:, data:, vbscript:, etc.
-  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-    return false;
-  }
-  try {
-    new URL(url); // Validate URL format
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-interface JobRequest {
-  id: string;
-  title: string;
-  descriptions: string[];
-  images: string[];
-  links: string[];
-  docs: string[];
-  price: number | null;
-  negotiable: boolean | null;
-  paymentMethod: string | null;
-  delivery: string | null;
-  additionalNotes: string | null;
-  createdAt: string;
-  user: UserSummary;
+function DetailSkeleton() {
+  return <div role="status" aria-label="Loading request" className="space-y-6">
+    <span className="sr-only">Loading request…</span>
+    <div aria-hidden="true" className="space-y-3"><Skeleton className="h-5 w-40" /><Skeleton className="h-10 w-3/4" /></div>
+    <div aria-hidden="true" className="grid min-w-0 gap-6 lg:grid-cols-5">
+      <div className="min-w-0 space-y-4 lg:col-span-3"><Skeleton className="aspect-video w-full rounded-2xl" /><Skeleton className="h-28 w-full" /></div>
+      <Skeleton className="h-52 w-full rounded-2xl lg:col-span-2" />
+    </div>
+  </div>;
 }
 
 export default function JobDetailPage() {
-  const reduceMotion = useReducedMotion();
   const params = useParams();
-  const { id } = params;
-  const [jobRequest, setJobRequest] = useState<JobRequest | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const id = typeof params.id === 'string' ? params.id : '';
+  const { user, isLoading } = useCurrentUserWithStatus();
+  if (isLoading) return <RequestFrame><DetailSkeleton /></RequestFrame>;
+  if (!user?.id || !id) return <RequestFrame><section className={card}>
+    <h1 className="text-2xl font-semibold">Request unavailable</h1>
+    <p className="mt-3 text-muted-foreground">Sign in to view requests shared with your account.</p>
+    <Button asChild className="mt-4 min-h-11"><Link href={`/auth/login?callbackUrl=${encodeURIComponent(`/jobs/${id}`)}`}>Sign in</Link></Button>
+  </section></RequestFrame>;
+  // Identity and route changes reset the gallery. Each response is scoped to
+  // its account/request key, so a late response cannot render another request.
+  return <RequestDetail key={`${user.id}:${id}`} id={id} userId={user.id} />;
+}
 
-  useEffect(() => {
-    if (id) {
-      const fetchJobRequest = async () => {
-        try {
-          const response = await fetch(`/api/job-requests/${id}`);
-          if (!response.ok) throw new Error('Failed to fetch job request');
-          const data = await response.json();
-          setJobRequest(data);
-          if (data.images?.length > 0) {
-            setSelectedImage(data.images[0]);
-          }
-        } catch (error) {
-          console.error('Error fetching job request:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchJobRequest();
-    }
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
-        <div className="relative mx-auto w-full max-w-5xl px-6 py-10 lg:py-12">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 w-48 rounded bg-white/10" />
-            <div className="h-12 w-3/4 rounded bg-white/10" />
-            <div className="aspect-video w-full rounded-2xl bg-white/5" />
-            <div className="space-y-3">
-              <div className="h-4 w-full rounded bg-white/5" />
-              <div className="h-4 w-5/6 rounded bg-white/5" />
-              <div className="h-4 w-4/6 rounded bg-white/5" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!jobRequest) {
-    return (
-      <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
-        <div className="relative mx-auto w-full max-w-5xl px-6 py-10 lg:py-12">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-12 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/5">
-              <svg className="h-8 w-8 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <p className="text-lg font-medium text-white/80">Request not found</p>
-            <p className="mt-1 text-sm text-white/50">This request may have been removed or doesn&apos;t exist.</p>
-            <Link
-              href="/jobs"
-              className="mt-6 inline-flex rounded-xl bg-indigo-500/20 px-5 py-2.5 text-sm font-medium text-indigo-300 transition-colors hover:bg-indigo-500/30"
-            >
-              Back to Job Board
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
-      {/* Background */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-linear-to-b from-black/15 via-transparent to-black/5" />
-        <motion.div
-          className="absolute -right-20 top-32 h-[480px] w-[480px] rounded-full blur-3xl"
-          animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.1, 0.18, 0.1] }}
-          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            background: "radial-gradient(closest-side, rgba(99,102,241,0.15), rgba(56,189,248,0.08), transparent 70%)",
-            mixBlendMode: "screen",
-          }}
-        />
-      </div>
-
-      <div className="relative mx-auto w-full max-w-5xl px-6 py-10 lg:py-12">
-        <motion.div
-          initial={reduceMotion ? undefined : { opacity: 0, y: 14 }}
-          animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
-        >
-          {/* Back Link */}
-          <Link 
-            href="/jobs" 
-            className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors mb-6"
-          >
-            <FiArrowLeft className="h-4 w-4" />
-            Back to Job Board
-          </Link>
-
-          {/* Header */}
-          <header className="mb-8">
-            <div className="flex items-center gap-4 mb-4">
-              {jobRequest.user?.image && (
-                <Image
-                  src={jobRequest.user.image}
-                  alt={jobRequest.user.name || 'User'}
-                  width={48}
-                  height={48}
-                  className="h-12 w-12 rounded-full object-cover ring-2 ring-black/10 dark:ring-white/10"
-                />
-              )}
-              <div>
-                <p className="text-sm font-medium text-zinc-700 dark:text-white/80">{jobRequest.user?.name || 'Anonymous'}</p>
-                <p className="text-xs text-zinc-500 dark:text-white/50">
-                  Posted {formatDistanceToNow(new Date(jobRequest.createdAt), { addSuffix: true })}
-                  <span className="mx-1.5">·</span>
-                  {format(new Date(jobRequest.createdAt), 'MMM d, yyyy')}
-                </p>
-              </div>
-            </div>
-
-            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white sm:text-3xl lg:text-4xl">
-              {jobRequest.title || `Request #${jobRequest.id.slice(0, 8)}`}
-            </h1>
-
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {jobRequest.negotiable && (
-                <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
-                  Negotiable
-                </span>
-              )}
-              {jobRequest.price && (
-                <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-600 dark:text-indigo-300">
-                  Budget: <PriceAmount usd={jobRequest.price} />
-                </span>
-              )}
-              {jobRequest.delivery && (
-                <span className="rounded-full bg-black/5 dark:bg-white/5 px-3 py-1 text-xs font-medium text-zinc-500 dark:text-white/60">
-                  {jobRequest.delivery}
-                </span>
-              )}
-            </div>
-          </header>
-
-          <div className="grid gap-8 lg:grid-cols-5">
-            {/* Main Content */}
-            <div className="lg:col-span-3 space-y-6">
-              {/* Images */}
-              {jobRequest.images.length > 0 && (
-                <div className="space-y-3">
-                  <div className="relative aspect-video overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
-                    {selectedImage && (
-                      <Image
-                        src={selectedImage}
-                        alt="Request image"
-                        fill
-                        className="object-contain"
-                      />
-                    )}
-                  </div>
-                  {jobRequest.images.length > 1 && (
-                    <div className="flex gap-2 overflow-x-auto pb-2">
-                      {jobRequest.images.map((img, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => setSelectedImage(img)}
-                          className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-lg transition-all ${
-                            selectedImage === img
-                              ? 'ring-2 ring-indigo-400'
-                              : 'ring-1 ring-black/10 dark:ring-white/10 hover:ring-black/30 dark:hover:ring-white/30'
-                          }`}
-                        >
-                          <Image src={img} alt={`Thumbnail ${idx + 1}`} fill className="object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Descriptions */}
-              <div className="space-y-4">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-400 dark:text-white/40">Description</h2>
-                {jobRequest.descriptions.map((desc, idx) => (
-                  <div key={idx} className="rounded-xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-4">
-                    <p className="text-sm text-zinc-600 dark:text-white/70 whitespace-pre-wrap leading-relaxed">{desc}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Additional Notes */}
-              {jobRequest.additionalNotes && (
-                <div className="space-y-3">
-                  <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400 dark:text-white/40">
-                    <FiMessageSquare className="h-4 w-4" />
-                    Additional Notes
-                  </h2>
-                  <div className="rounded-xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-4">
-                    <p className="text-sm text-zinc-600 dark:text-white/70 whitespace-pre-wrap leading-relaxed">
-                      {jobRequest.additionalNotes}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Sidebar */}
-            <aside className="lg:col-span-2 space-y-6">
-              {/* Contact Card */}
-              <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-5">
-                <h3 className="text-sm font-semibold text-zinc-700 dark:text-white/80 mb-4">Interested in this request?</h3>
-                <Link
-                  href={`/conversations?userId=${jobRequest.user?.id}`}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-400"
-                >
-                  <FiMessageSquare className="h-4 w-4" />
-                  Contact Requester
-                </Link>
-              </div>
-
-              {/* Details Card */}
-              <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-5 space-y-4">
-                <h3 className="text-sm font-semibold text-zinc-700 dark:text-white/80">Request Details</h3>
-
-                {jobRequest.price && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <FiDollarSign className="h-4 w-4 text-zinc-400 dark:text-white/40" />
-                    <div>
-                      <p className="text-zinc-500 dark:text-white/50">Budget</p>
-                      <p className="text-zinc-800 dark:text-white/90"><PriceAmount usd={jobRequest.price} /></p>
-                    </div>
-                  </div>
-                )}
-
-                {jobRequest.delivery && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <FiTruck className="h-4 w-4 text-zinc-400 dark:text-white/40" />
-                    <div>
-                      <p className="text-zinc-500 dark:text-white/50">Delivery</p>
-                      <p className="text-zinc-800 dark:text-white/90">{jobRequest.delivery}</p>
-                    </div>
-                  </div>
-                )}
-
-                {jobRequest.paymentMethod && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <FiDollarSign className="h-4 w-4 text-zinc-400 dark:text-white/40" />
-                    <div>
-                      <p className="text-zinc-500 dark:text-white/50">Payment Method</p>
-                      <p className="text-zinc-800 dark:text-white/90">{jobRequest.paymentMethod}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Links */}
-              {jobRequest.links.filter(l => l && isSafeUrl(l)).length > 0 && (
-                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-5 space-y-3">
-                  <h3 className="text-sm font-semibold text-zinc-700 dark:text-white/80">Reference Links</h3>
-                  {jobRequest.links.filter(l => l && isSafeUrl(l)).map((link, idx) => (
-                    <a
-                      key={idx}
-                      href={link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-3 py-2 text-sm text-indigo-600 dark:text-indigo-300 transition-colors hover:bg-black/10 dark:hover:bg-white/10"
-                    >
-                      <FiExternalLink className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{link}</span>
-                    </a>
-                  ))}
-                </div>
-              )}
-
-              {/* Documents */}
-              {jobRequest.docs.filter(d => d && isSafeUrl(d)).length > 0 && (
-                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-5 space-y-3">
-                  <h3 className="text-sm font-semibold text-zinc-700 dark:text-white/80">Documents</h3>
-                  {jobRequest.docs.filter(d => d && isSafeUrl(d)).map((doc, idx) => (
-                    <a
-                      key={idx}
-                      href={doc}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-3 py-2 text-sm text-zinc-600 dark:text-white/70 transition-colors hover:bg-black/10 dark:hover:bg-white/10"
-                    >
-                      <FiFileText className="h-4 w-4 shrink-0" />
-                      <span className="truncate">Document {idx + 1}</span>
-                    </a>
-                  ))}
-                </div>
-              )}
-            </aside>
-          </div>
-        </motion.div>
-      </div>
-    </div>
+function RequestDetail({ id, userId }: { id: string; userId: string }) {
+  const { data: read, error, isLoading, isValidating, mutate } = useSWR(
+    [`/api/job-requests/${encodeURIComponent(id)}`, userId, id] as const, readJobRequest,
+    { revalidateOnFocus: false, shouldRetryOnError: false },
   );
+  const [chosenImage, setChosenImage] = useState<string | null>(null);
+  const request = read?.data;
+  const problem = read?.problem;
+  if (isLoading && !read) return <RequestFrame><DetailSkeleton /></RequestFrame>;
+  if (!request) return <RequestFrame><section role="alert" className={`${card} space-y-4`}>
+    <h1 className="text-2xl font-semibold">{error ? 'Could not load request' : problem?.kind === 'missing' ? 'Request not found' : 'Request unavailable'}</h1>
+    <p className="text-muted-foreground">{error instanceof Error ? error.message : problem?.message || 'Please try again.'}</p>
+    <Button type="button" variant="outline" className="min-h-11" disabled={isValidating} onClick={() => void mutate()}>Try again</Button>
+  </section></RequestFrame>;
+
+  const images = request.images.filter(isRequestImage);
+  const selectedImage = chosenImage && images.includes(chosenImage) ? chosenImage : images[0];
+  const links = request.links.filter(isRequestUrl);
+  const docs = request.docs.filter(isRequestUrl);
+  const title = request.title || `Request #${request.id.slice(0, 8)}`;
+
+  return <RequestFrame>
+    {error && <section role="alert" className={`${card} space-y-3 border-destructive/40`}>
+      <h2 className="font-semibold">Could not refresh request</h2>
+      <p className="text-sm text-muted-foreground">{error instanceof Error ? error.message : 'Please try again.'} Your last loaded request is still shown below.</p>
+      <Button type="button" variant="outline" className="min-h-11" disabled={isValidating} onClick={() => void mutate()}>Try again</Button>
+    </section>}
+    <header className="min-w-0 space-y-4">
+      <div className="flex min-w-0 items-center gap-3">
+        {request.user.image && isRequestImage(request.user.image) && <Image src={request.user.image} alt="" width={48} height={48} className="size-12 shrink-0 rounded-full object-cover" />}
+        <div className="min-w-0"><p className="font-medium [overflow-wrap:anywhere]">{request.user.name || 'Member'}</p><p className="text-sm text-muted-foreground">{formatRequestDate(request.createdAt)}</p></div>
+      </div>
+      <h1 className="text-balance text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-3xl lg:text-4xl">{title}</h1>
+      <Button type="button" variant="outline" className="min-h-11" disabled={isValidating} onClick={() => void mutate()}>
+        <RefreshCw aria-hidden="true" className={`size-4 ${isValidating ? 'animate-spin motion-reduce:animate-none' : ''}`} />{isValidating ? 'Refreshing…' : 'Refresh request'}
+      </Button>
+    </header>
+    <div className="grid min-w-0 items-start gap-6 lg:grid-cols-5">
+      <div className="min-w-0 space-y-6 lg:col-span-3">
+        {selectedImage && <section aria-label="Request gallery" className="min-w-0 space-y-3">
+          <div className="relative aspect-video overflow-hidden rounded-2xl border border-border bg-muted">
+            <Image src={selectedImage} alt={`${title} — selected image`} fill sizes="(min-width: 1024px) 640px, 100vw" className="object-contain" />
+          </div>
+          {images.length > 1 && <div className="flex gap-3 overflow-x-auto overscroll-x-contain p-1">
+            {images.map((src, index) => <button key={`${src}:${index}`} type="button" aria-label={`Show image ${index + 1}`} aria-pressed={selectedImage === src}
+              onClick={() => setChosenImage(src)} className={`relative size-16 shrink-0 overflow-hidden rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${selectedImage === src ? 'ring-2 ring-primary' : 'ring-1 ring-border hover:opacity-80'}`}>
+              <Image src={src} alt="" fill sizes="64px" className="object-cover" />
+            </button>)}
+          </div>}
+        </section>}
+        <section className={`${card} space-y-4`}><h2 className="text-lg font-semibold">Description</h2>
+          {request.descriptions.length ? request.descriptions.map((description, index) => <p key={index} className="whitespace-pre-wrap text-muted-foreground leading-relaxed [overflow-wrap:anywhere]">{description}</p>) : <p className="text-muted-foreground">No description provided.</p>}
+        </section>
+        {request.additionalNotes && <section className={`${card} space-y-3`}><h2 className="text-lg font-semibold">Additional notes</h2><p className="whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">{request.additionalNotes}</p></section>}
+      </div>
+      <aside aria-label="Request information" className="min-w-0 space-y-6 lg:col-span-2">
+        <section className={`${card} space-y-4`}><h2 className="text-lg font-semibold">Interested in this request?</h2>
+          <p className="text-sm text-muted-foreground">View the requester’s profile to see their details and available contact options. This experimental board does not process project payments.</p>
+          <Button asChild className="min-h-11 w-full"><Link href={`/profile/${encodeURIComponent(request.user.id)}`}>View requester profile</Link></Button>
+        </section>
+        <section className={`${card} space-y-4`}><h2 className="text-lg font-semibold">Request details</h2>
+          <dl className="space-y-4 text-sm">
+            <div><dt className="text-muted-foreground">Budget</dt><dd className="mt-1">{request.price !== null ? <PriceAmount usd={request.price} /> : 'Not specified'}{request.negotiable && <span className="ml-2 text-muted-foreground">· Negotiable</span>}</dd></div>
+            {request.delivery && <div><dt className="text-muted-foreground">Delivery</dt><dd className="mt-1 [overflow-wrap:anywhere]">{request.delivery}</dd></div>}
+            {request.paymentMethod && <div><dt className="text-muted-foreground">Requested payment method</dt><dd className="mt-1 [overflow-wrap:anywhere]">{request.paymentMethod}</dd></div>}
+          </dl>
+        </section>
+        {links.length > 0 && <section className={`${card} space-y-3`}><h2 className="text-lg font-semibold">Reference links</h2>
+          {links.map((href, index) => <a key={`${href}:${index}`} href={href} target="_blank" rel="noopener noreferrer" className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm text-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+            <ExternalLink aria-hidden="true" className="size-4 shrink-0" /><span className="min-w-0 [overflow-wrap:anywhere]">{href}<span className="sr-only"> (opens in a new tab)</span></span>
+          </a>)}
+        </section>}
+        {docs.length > 0 && <section className={`${card} space-y-3`}><h2 className="text-lg font-semibold">Documents</h2>
+          {docs.map((href, index) => <a key={`${href}:${index}`} href={href} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm hover:underline focus-visible:outline-2 focus-visible:outline-ring"><FileText aria-hidden="true" className="size-4" />Document {index + 1}<span className="sr-only"> (opens in a new tab)</span></a>)}
+        </section>}
+      </aside>
+    </div>
+  </RequestFrame>;
 }
