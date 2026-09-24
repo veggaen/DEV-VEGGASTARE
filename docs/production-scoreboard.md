@@ -4,8 +4,30 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Purchase availability and paused-delivery protection: **DONE for this scoped
+engineering slice**. Current app authority is **`6816380` /
+`dpl_72qycJnr4Zwp4os4xyFxRmBFJ7Xj`** on www.veggat.com. Catalog/PDP controls now
+match the existing reviewer-only checkout scope; mixed carts identify what
+needs attention. New checkout preparation rejects delivery-paused products
+before creating an order/attempt. Capture and refund reconciliation is unchanged.
+Strict builds, touched lint, **78/78 units**, **6/6 local, 6/6 Preview, 6/6 live**,
+plus a **1/1 dark replay** in each environment pass. Availability layout is
+checked at eight sizes, 360–2560. Real Chrome verifies local phone search,
+eligible credits controls and actual footer scrolling, plus the live owner
+default-status label. No new payment or publication was performed.
+See [evidence, fixture boundaries and rollback](purchase-availability-acceptance-2026-09.md).
+
+**Still PARTIAL:** owner Live purchase/refund, human-inbox delivery/legal
+sufficiency, remaining OAuth/wallet/backend checks, verified Web3 checkout,
+general-listing checkout, historical-price explanation, full-route interaction
+and native 125% zoom. No whole-app or field performance approval is implied.
+Next slice: seller listing/review recovery and accurate publication/payment
+messaging; inactive legacy checkout remains fail-closed.
+
+### Previous product-read slice
+
 Product reads and honest payment availability: **DONE for this scoped
-engineering slice**. Current app authority is **`6654f24` /
+engineering slice**. Its app authority was **`6654f24` /
 `dpl_HmPFfAVgHNXUxj6s2TSf6rARTHhy`** on www.veggat.com. Internal read helpers no
 longer register as Server Actions; detail reads are minimal, permission-checked,
 non-cacheable, and distinguish retryable outages from absent products. Direct
