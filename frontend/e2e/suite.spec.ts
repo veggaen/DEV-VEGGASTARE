@@ -4836,3 +4836,77 @@ test('S4 — custom credits persist across product, basket, cart, checkout and r
     expect(errors).toEqual([]);
   } finally { await context.close(); }
 });
+
+test('S7 — product gallery and purchase layout work across phone to ultrawide', async ({ browser, baseURL }, testInfo) => {
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, reducedMotion: 'reduce', colorScheme: 'dark' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    const main = page.locator('[data-app-scroll-container]:visible');
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 },
+      { width: 768, height: 1024 }, { width: 1024, height: 1366 }, { width: 1280, height: 800 },
+      { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size);
+      await main.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const detail = await page.locator('[data-product-detail]').last().boundingBox();
+      expect(detail!.width).toBeLessThanOrEqual(1280);
+      const second = page.getByRole('button', { name: 'View product image 2', exact: true });
+      await second.focus(); await page.keyboard.press('Enter');
+      await expect(second).toHaveAttribute('aria-pressed', 'true');
+      const first = page.getByRole('button', { name: 'View product image 1', exact: true });
+      await first.click(); await expect(first).toHaveAttribute('aria-pressed', 'true');
+      expect((await second.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      if (size.width < 1024) {
+        const bar = page.getByRole('region', { name: 'Product purchase', exact: true });
+        await expect(bar.getByRole('button', { name: 'Add to basket', exact: true })).toBeInViewport();
+      }
+      await page.mouse.move(size.width - 24, Math.min(size.height - 100, 500));
+      await page.mouse.wheel(0, 5000);
+      await expect.poll(() => main.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
+      const terms = page.getByRole('link', { name: 'Salgsvilkår', exact: true });
+      await expect(terms).toBeInViewport();
+      const bounds = await terms.boundingBox();
+      if (size.width < 1024) {
+        const mobile = await page.locator('[data-mobile-product-actions]').boundingBox();
+        expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(mobile!.y);
+      }
+      await page.screenshot({ path: testInfo.outputPath(`product-bottom-${size.width}x${size.height}.png`) });
+    }
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S7 — selected credits preview matches typed amount without placing an order', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  let moneyWrites = 0;
+  page.on('request', request => {
+    if (request.method() === 'POST' && /^\/api\/(checkout|payments|cart)/.test(new URL(request.url()).pathname)) moneyWrites++;
+  });
+  try {
+    await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    const input = page.getByRole('textbox', { name: 'Number of credits', exact: true });
+    for (const value of ['122', '555', '1000']) {
+      await input.fill(value);
+      await expect(page.getByRole('button', { name: 'Buy now', exact: true })).toBeDisabled();
+      await input.press('Enter');
+      await expect(page.locator('[data-credit-preview]')).toHaveText(Number(value).toLocaleString('en-US'));
+      await expect(page.getByRole('button', { name: 'Buy now', exact: true })).toBeEnabled();
+    }
+    await input.fill('99'); await input.press('Enter');
+    await expect(page.getByRole('alert').filter({ hasText: 'Enter a whole number' })).toBeVisible();
+    await expect(page.locator('[data-credit-preview]')).toHaveText('1,000');
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(input).toHaveValue('1000');
+    expect(moneyWrites).toBe(0);
+  } finally { await context.close(); }
+});

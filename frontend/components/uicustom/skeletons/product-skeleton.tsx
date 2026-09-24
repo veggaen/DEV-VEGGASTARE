@@ -4,14 +4,18 @@ export default function ProductSkeleton() {
   return (
     <div role="status" aria-label="Loading product" className="w-full min-w-0 space-y-6">
       <span className="sr-only">Loading product</span>
-      <div aria-hidden className="size-11 rounded-lg bg-muted motion-safe:animate-pulse" />
+      <div aria-hidden className="h-11 w-36 rounded-lg bg-muted motion-safe:animate-pulse" />
       <section aria-hidden className="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
         {/* Gallery skeleton */}
-        <div className="lg:col-span-7">
+        <div className="min-w-0 lg:col-span-7">
           <div className="rounded-xl border border-border bg-card p-3 motion-safe:animate-pulse">
             <AspectRatio ratio={3 / 2}>
               <div className="w-full h-full bg-linear-to-br from-zinc-200 to-zinc-300 dark:from-zinc-700 dark:to-zinc-800 rounded-xl" />
             </AspectRatio>
+          </div>
+          <div className="mt-3 flex h-16 gap-2" aria-hidden>
+            <div className="h-14 w-20 rounded-lg bg-muted motion-safe:animate-pulse" />
+            <div className="h-14 w-20 rounded-lg bg-muted motion-safe:animate-pulse" />
           </div>
         </div>
 
@@ -33,10 +37,10 @@ export default function ProductSkeleton() {
           <div className="h-6 w-32 bg-muted rounded motion-safe:animate-pulse" />
 
           {/* Action buttons */}
-          <div className="mt-2 flex flex-wrap gap-2">
-            <div className="h-12 w-28 bg-muted rounded motion-safe:animate-pulse" />
-            <div className="h-12 w-36 bg-muted rounded motion-safe:animate-pulse" />
-            <div className="h-12 w-40 bg-muted rounded motion-safe:animate-pulse" />
+          <div className="mt-2 grid grid-cols-[minmax(0,1fr)_6rem] gap-3">
+            <div className="h-12 bg-muted rounded motion-safe:animate-pulse" />
+            <div className="h-12 bg-muted rounded motion-safe:animate-pulse" />
+            <div className="hidden h-12 bg-muted rounded motion-safe:animate-pulse lg:block" />
           </div>
 
           {/* Shipping box */}
@@ -45,26 +49,14 @@ export default function ProductSkeleton() {
             <div className="h-4 w-full bg-muted rounded" />
           </div>
 
-          {/* Availability boxes */}
-          <div className="grid sm:grid-cols-2 gap-3 mt-2">
-            <div className="rounded-xl border border-border p-4 motion-safe:animate-pulse">
-              <div className="h-5 w-28 bg-muted rounded mb-2" />
-              <div className="h-4 w-full bg-muted rounded" />
-            </div>
-            <div className="rounded-xl border border-border p-4 motion-safe:animate-pulse">
-              <div className="h-5 w-32 bg-muted rounded mb-2" />
-              <div className="h-4 w-24 bg-muted rounded" />
-            </div>
-          </div>
+        </div>
+      </section>
 
-          {/* Description */}
-          <div className="mt-2 rounded-xl border border-border p-4 motion-safe:animate-pulse">
-            <div className="space-y-2">
-              <div className="h-4 w-full bg-muted rounded" />
-              <div className="h-4 w-full bg-muted rounded" />
-              <div className="h-4 w-3/4 bg-muted rounded" />
-            </div>
-          </div>
+      <section aria-hidden className="grid gap-4 border-t border-border py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-8">
+        <div className="h-6 w-36 rounded bg-muted motion-safe:animate-pulse" />
+        <div className="space-y-3 motion-safe:animate-pulse">
+          <div className="h-4 rounded bg-muted" /><div className="h-4 rounded bg-muted" />
+          <div className="h-4 w-3/4 rounded bg-muted" />
         </div>
       </section>
 

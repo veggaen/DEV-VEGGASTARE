@@ -60,8 +60,10 @@ at the stable isolated Preview alias. Production `bfe4fd3` remains unchanged.
   cannot be recalled from the buyer's device.
 - A late capture replay was DELIVERED with HTTP 200 at 02:58:04 local time.
   It did not revive the refunded order, regrant credits or restore downloads.
-- A further refund replay was requested and the ledger remains unchanged;
-  its individual delivery history is checked separately from the request result.
+- A further refund replay reached the same listener with HTTP 200 at
+  `2026-09-24T01:03:11.722Z` (Vercel request timestamp `1790211791722`).
+  The ledger remains exactly two entries, with one verified refund event. The
+  developer-console session later expired; no additional payment was required.
 - An actual funded-model request at zero balance returns 402
   `AI_CREDITS_REQUIRED` with a buy-credits destination, not a provider call.
 

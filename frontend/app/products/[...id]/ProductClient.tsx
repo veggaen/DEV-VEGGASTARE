@@ -1,28 +1,20 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useState, useCallback, useRef } from "react";
-import Image from "next/image";
 import PriceAmount from '@/components/crypto-related/PriceAmount';
 import CreditAmountEditor from '@/components/checkout/credit-amount-editor';
 import { DEFAULT_PURCHASE_CREDITS, quoteCreditPurchase } from '@/lib/ai-credit-purchase';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CiStar } from "react-icons/ci";
 import { useSession } from "next-auth/react";
 import { useCart } from "@/contexts/cart-context";
 import { CiMapPin } from "react-icons/ci";
 import { GoPackage } from "react-icons/go";
 import { CiDeliveryTruck } from "react-icons/ci";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
+import ProductGallery from '@/components/uicustom/product/product-gallery';
 import {
   Dialog,
   DialogContent,
@@ -116,34 +108,6 @@ const getPosition = () =>
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   });
-
-function ProductDetailCursor() {
-  const reduceMotion = useReducedMotion();
-  const x = useMotionValue(-80);
-  const y = useMotionValue(-80);
-  const springX = useSpring(x, { stiffness: 160, damping: 24, mass: 0.45 });
-  const springY = useSpring(y, { stiffness: 160, damping: 24, mass: 0.45 });
-
-  useEffect(() => {
-    if (reduceMotion) return;
-    const onMove = (event: PointerEvent) => {
-      x.set(event.clientX - 18);
-      y.set(event.clientY - 18);
-    };
-    window.addEventListener("pointermove", onMove, { passive: true });
-    return () => window.removeEventListener("pointermove", onMove);
-  }, [reduceMotion, x, y]);
-
-  if (reduceMotion) return null;
-
-  return (
-    <motion.div
-      aria-hidden
-      className="pointer-events-none fixed left-0 top-0 z-40 hidden h-9 w-9 rounded-full border border-emerald-300/35 bg-emerald-300/10 shadow-[0_0_34px_rgba(16,185,129,0.28)] backdrop-blur-md lg:block"
-      style={{ x: springX, y: springY }}
-    />
-  );
-}
 
 function ProductDetails({ product }: { product: Product }) {
   const router = useRouter();
@@ -461,7 +425,6 @@ function ProductDetails({ product }: { product: Product }) {
 
   return (
     <div data-product-detail className="relative w-full min-w-0 space-y-6 pb-8 text-foreground">
-      <ProductDetailCursor />
       <div data-mobile-product-actions role="region" aria-label="Product purchase" style={{ marginBlock: 0 }} className="fixed inset-x-0 bottom-[var(--cookie-banner-offset,0px)] z-50 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-lg lg:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div className="min-w-0">
@@ -476,9 +439,9 @@ function ProductDetails({ product }: { product: Product }) {
           href="/products"
           aria-label="Back to products"
           title="Back to products"
-          className="group inline-grid size-11 place-items-center rounded-lg border border-border bg-card text-muted-foreground transition-colors duration-200 hover:border-emerald-300/50 hover:text-foreground focus-visible:outline focus-visible:outline-2"
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
         >
-          <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+          <ArrowLeft aria-hidden className="h-4 w-4" /> Back to products
         </Link>
         {canManageProductLifecycle && (
           <div
@@ -502,38 +465,12 @@ function ProductDetails({ product }: { product: Product }) {
       >
         {/* Gallery */}
         <motion.div
-          className="lg:col-span-7"
+          className="min-w-0 lg:col-span-7"
         >
-          <div className="relative overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm ">
-            <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_8%,rgba(255,255,255,0.18),transparent_32%),radial-gradient(circle_at_84%_80%,rgba(16,185,129,0.18),transparent_34%)]" />
-            <div className="relative overflow-hidden rounded-lg bg-card">
-            <Carousel>
-              <CarouselContent>
-                {product.image.map((src, idx) => (
-                  <CarouselItem key={idx} className="bg-transparent">
-                    <AspectRatio ratio={3 / 2}>
-                      <Image
-                        src={src}
-                        alt={product.title}
-                        fill
-                        sizes="(max-width: 639px) calc(100vw - 58px), (max-width: 1023px) calc(100vw - 74px), (max-width: 1279px) 53vw, 664px"
-                        priority={idx === 0}
-                        className="object-contain p-2 motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:hover:scale-[1.018]"
-                      />
-                    </AspectRatio>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              {product.image.length > 1 && <>
-                <CarouselPrevious aria-label="Previous product image" className="flex size-11 border border-border bg-card disabled:opacity-30" />
-                <CarouselNext aria-label="Next product image" className="flex size-11 border border-border bg-card disabled:opacity-30" />
-              </>}
-            </Carousel>
-            </div>
-          </div>
+          <ProductGallery images={product.image} title={product.title} credits={isCreditPack ? selectedCredits : undefined} />
 
           {/* Quick stats — text on background, divided by hairlines (no boxes) */}
-          <div className="mt-5 hidden grid-cols-3 gap-3 lg:grid">
+          {!isDigitalProduct && <div className="mt-5 hidden grid-cols-3 gap-3 lg:grid">
             <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm  motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
               <div className="text-sm font-semibold text-foreground">{availabilityLabel}</div>
               <div className="mt-0.5 text-xs text-muted-foreground">Availability</div>
@@ -546,7 +483,7 @@ function ProductDetails({ product }: { product: Product }) {
               <div className="text-sm font-semibold text-foreground">{isDigitalProduct ? deliveryDestination : product.shipFromPostalId || "Not set"}</div>
               <div className="mt-0.5 text-xs text-muted-foreground">{isDigitalProduct ? "Delivery" : "Ships from"}</div>
             </div>
-          </div>
+          </div>}
         </motion.div>
 
         {/* Details */}
@@ -565,7 +502,7 @@ function ProductDetails({ product }: { product: Product }) {
                   {product.category}
                 </span>
               </div>
-              <h1 className="mt-4 max-w-2xl text-balance text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">
+              <h1 className="mt-4 max-w-2xl break-words text-balance text-2xl font-semibold leading-tight tracking-tight text-foreground sm:text-3xl">
                 {product.title}
               </h1>
               <div className="mt-5 text-2xl font-semibold text-emerald-700 dark:text-emerald-300">
@@ -962,7 +899,7 @@ function ProductDetails({ product }: { product: Product }) {
           </motion.div>
           ) : (
           <motion.div
-            className="mt-6 overflow-hidden rounded-2xl border border-border bg-card shadow-sm "
+            className="mt-2 overflow-hidden rounded-xl border border-border bg-card"
           >
             <div className="flex items-center gap-3 border-b border-border p-4">
               <GoPackage className="h-5 w-5 text-emerald-700 dark:text-emerald-300" />
@@ -985,7 +922,7 @@ function ProductDetails({ product }: { product: Product }) {
           )}
 
           {/* availability + ships-from — quiet inline stats, hairline separated */}
-          <motion.div
+          {!isDigitalProduct && <motion.div
             className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2"
           >
             <div className="rounded-2xl border border-border bg-card p-4 shadow-sm ">
@@ -1024,26 +961,29 @@ function ProductDetails({ product }: { product: Product }) {
                 {isDigitalProduct ? deliveryDestination : closestWarehouse?.postalCode || product.shipFromPostalId || "—"}
               </div>
             </div>
-          </motion.div>
-
-          {/* description */}
-          <motion.div
-            className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm "
-          >
-            <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">About this item</h3>
-            <p className="mt-3 text-sm leading-7 text-muted-foreground">{product.description}</p>
-          </motion.div>
+          </motion.div>}
         </motion.div>
       </motion.section>
+
+      <section aria-labelledby="product-description-title" className="grid gap-4 border-t border-border py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-8">
+        <h2 id="product-description-title" className="text-xl font-semibold tracking-tight">About this item</h2>
+        <div className="min-w-0 max-w-prose space-y-4">
+          <p className="break-words text-sm leading-7 text-muted-foreground">{product.description}</p>
+          {isDigitalProduct && <p className="text-sm leading-6 text-muted-foreground">
+            Questions about access or a refund? <Link href="/terms" className="inline-flex min-h-11 items-center font-medium text-foreground underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Read the delivery and refund terms</Link>.
+            Downloading or using credits does not remove your rights if the product is faulty.
+          </p>}
+        </div>
+      </section>
 
       {/* Features section */}
       {product.features && product.features.length > 0 && (
         <motion.section
-          className="pt-6 sm:pt-10"
+          className="border-t border-border pt-6"
           initial={false}
         >
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700 dark:text-emerald-300">Highlights</p>
-          <h3 className="mt-3 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">What stands out</h3>
+          <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">What stands out</h2>
 
           {/* Group features by category key */}
           {(() => {
@@ -1057,15 +997,15 @@ function ProductDetails({ product }: { product: Product }) {
             return Array.from(grouped.entries()).map(([category, items], groupIdx) => (
               <div key={groupIdx} className={groupIdx > 0 ? 'mt-6' : 'mt-8'}>
                 {category && (
-                  <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                     {category}
-                  </h4>
+                  </h3>
                 )}
                 <ul className="grid gap-3 sm:grid-cols-2">
                   {items.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm  motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
+                    <li key={idx} className="flex min-w-0 items-start gap-3 rounded-xl border border-border bg-card p-4">
                       <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" />
-                      <span className="text-sm leading-relaxed text-muted-foreground">
+                      <span className="min-w-0 break-words text-sm leading-relaxed text-muted-foreground">
                         {feature.text}
                       </span>
                     </li>
@@ -1079,16 +1019,16 @@ function ProductDetails({ product }: { product: Product }) {
 
       {/* Specifications */}
       <motion.section
-        className="pt-6 sm:pt-10"
+        className="border-t border-border pt-6"
         initial={false}
       >
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700 dark:text-emerald-300">Specifications</p>
-        <h3 className="mt-3 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Technical facts</h3>
+        <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Technical facts</h2>
         <dl className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {(product.specifications || []).map((spec, idx) => (
-            <div key={idx} className="flex justify-between gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm ">
-              <dt className="text-sm text-muted-foreground">{spec.key}</dt>
-              <dd className="text-right text-sm font-medium text-foreground">
+            <div key={idx} className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4 rounded-xl border border-border bg-card p-4">
+              <dt className="min-w-0 break-words text-sm text-muted-foreground">{spec.key}</dt>
+              <dd className="min-w-0 break-words text-right text-sm font-medium text-foreground">
                 {spec.key.trim().toLowerCase() === 'price'
                   ? displayPrice
                   : spec.value}
