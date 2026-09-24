@@ -6,7 +6,12 @@ const m = vi.hoisted(() => ({ auth: vi.fn(), receipt: vi.fn(), account: vi.fn(),
 vi.mock('@/auth', () => ({ auth: m.auth }));
 vi.mock('@/lib/db', () => ({ dbPrisma: { transactionalEmail: { findMany: vi.fn().mockResolvedValue([]) }, checkoutAttempt: { findUnique: m.receipt }, aiCreditAccount: { findUnique: m.account }, cart: { findUnique: m.cart } } }));
 vi.mock('@/lib/payments/showcase-paypal', () => ({ paypalConfigured: () => true }));
-vi.mock('@/components/checkout/reviewer-checkout-button', () => ({ default: () => React.createElement('button', null, 'Continue to PayPal') }));
+vi.mock('@/components/checkout/reviewer-checkout-button', () => ({
+  // Preserve the server-provided slots: financial disclosures now live inside
+  // the checkout layout, before its payment action.
+  default: ({ order, summary }: { order: React.ReactNode; summary: React.ReactNode }) =>
+    React.createElement(React.Fragment, null, order, summary, React.createElement('button', null, 'Continue to PayPal')),
+}));
 // These server-page tests provide the client shell dependencies that Next wraps
 // around the page in production. Keep the real money formatter and edit provider.
 vi.mock('@/components/providers/ui-preferences', () => ({ useUiPreferences: () => ({ prefs: { preferredFiatCurrency: 'USD', preferredCryptoCurrency: 'ETH' } }) }));

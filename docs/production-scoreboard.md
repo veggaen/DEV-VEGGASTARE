@@ -26,7 +26,16 @@ one +10 grant exists. Purchased credits then funded a real OpenAI reply, 10 -> 8
 the 60-credit model was blocked without a reservation. The existing zero-credit
 Live demo again passed UI blocking and server 402 with no new grant/provider call.
 See [starter acceptance](sandbox-starter-acceptance-2026-09.md).
-**Live remains untested/unpaid**; the owner's 9 NOK checkout is retained for review.
+**Live capture remains unverified**. The owner attempted the 9 NOK starter on
+25 September, but PayPal rejected the receiving merchant account as the buyer.
+A read-only production check of order `cmug44q96000004l8zgx0cxo9` / PayPal order
+`3XL1972193645690B` found `APPROVAL_PENDING`, 900 ore, no capture/completion and
+no purchase grant. This is not a successful payment. A separate buyer must
+complete approval; avoid creating repeated attempts while resolving the login.
+Sixty focused webhook, receipt, refund-policy and download tests pass. The
+receipt test double now renders the checkout's server-provided order/summary
+slots so the existing pre-payment adjustment disclosure remains covered; no
+payment runtime or deployment changed for this test-only correction.
 
 Checkout + credit-budget refresh: **DONE for scoped local/Preview/live UI and
 pricing acceptance; S4 money acceptance remains PARTIAL**. Source `db145f7` is
