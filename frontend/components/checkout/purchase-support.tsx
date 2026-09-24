@@ -3,7 +3,7 @@
 
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { RETURN_REASONS, type BuyerRequest } from '@/lib/payments/return-request';
+import { BuyerRequestSchema, RETURN_REASONS, type BuyerRequest } from '@/lib/payments/return-request';
 
 const actionClass = 'inline-flex min-h-12 items-center justify-center rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
 const requestStatuses: Record<string, string> = { PENDING: 'Awaiting review', APPROVED: 'Approved for review — payment not confirmed',
@@ -36,7 +36,11 @@ export default function PurchaseSupport({ orderId, canRequest, demo, initialRequ
         body: JSON.stringify({ orderId, reason: mode === 'withdraw' ? 'CHANGED_MIND' : reason, description }) });
       const result = await response.json().catch(() => null);
       if (!response.ok) throw new Error(result?.error || 'Your request could not be saved. Your message is kept below; try again or contact us.');
-      setSubmitted(result as BuyerRequest);
+      const confirmed = BuyerRequestSchema.safeParse(result);
+      if (!confirmed.success || confirmed.data.orderId !== orderId || confirmed.data.reason !== (mode === 'withdraw' ? 'CHANGED_MIND' : reason)) {
+        throw new Error('We could not confirm receipt of your request. Your message is kept below; retry or check your order before sending another notice.');
+      }
+      setSubmitted(confirmed.data);
       setMode(null); setDescription('');
       setNotice('Your request was received. Save the acknowledgment below. No refund has been issued by this action.');
       router.refresh();

@@ -16,10 +16,12 @@ export const CreateReturnSchema = z.object({
   description: z.string().trim().max(2000).optional(),
 }).strict();
 
-export type BuyerRequest = {
-  id: string; orderId: string; reason: keyof typeof RETURN_REASONS;
-  description: string | null; status: string; createdAt: string; sellerNote: string | null;
-};
+export const BuyerRequestSchema = CreateReturnSchema.extend({
+  id: z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/),
+  description: z.string().max(2000).nullable(), sellerNote: z.string().max(2000).nullable(),
+  status: z.string().min(1).max(40), createdAt: z.string().datetime(),
+}).strip();
+export type BuyerRequest = z.infer<typeof BuyerRequestSchema>;
 
 /** Original submitted notice only: deliberately excludes mutable review state,
  * seller notes, bank details, current product titles and private download links. */

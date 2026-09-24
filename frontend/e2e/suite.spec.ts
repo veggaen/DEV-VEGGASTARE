@@ -18,6 +18,7 @@ test('S4 — purchase support preserves drafts, confirms intent and fits phone t
       calls++;
       const input = route.request().postDataJSON();
       expect(input.orderId).toBe(order.id);
+      if (calls === 2) return route.fulfill({ status: 200, contentType: 'text/html', body: '<p>Unexpected sign-in page</p>' });
       return route.fulfill(calls === 1 ? { status: 503, json: { error: 'QA temporary failure — your message is kept.' } } : {
         status: 201, json: { id: 'qa-browser-only-notice', orderId: order.id, reason: input.reason,
           description: input.description, createdAt: '2026-09-24T10:20:30.000Z', status: 'PENDING', sellerNote: null },
@@ -54,10 +55,14 @@ test('S4 — purchase support preserves drafts, confirms intent and fits phone t
     await expect(support.getByRole('alert')).toContainText('temporary failure');
     await expect(message).toHaveValue(draft); await expect(send).toBeEnabled();
     await send.click();
+    await expect(support.getByRole('alert')).toContainText('could not confirm receipt');
+    await expect(message).toHaveValue(draft);
+    await expect(support.getByRole('status')).toHaveCount(0);
+    await send.click();
     await expect(support.getByRole('status')).toContainText('No refund has been issued');
     await expect(support.getByRole('status')).toBeFocused();
     await expect(support.getByRole('list', { name: 'Your purchase requests', exact: true })).toContainText(draft);
-    expect(calls).toBe(2);
+    expect(calls).toBe(3);
     expect(errors).toEqual([]);
   } finally { await context.close(); }
 });

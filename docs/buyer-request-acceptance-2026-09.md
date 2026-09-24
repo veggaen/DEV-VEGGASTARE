@@ -49,6 +49,14 @@ the demo actually owns the completed order. No account or financial caps changed
   matches the original, and reloading keeps the notice and original order status.
 - The initial real demo POST was blocked by the demo guard; the exact scoped
   allowance was added and tested, then the local build and both journeys rerun.
+- Real Chrome at 390px submitted a clearly labelled free-demo notice on order
+  `cmuevx0is0006e4t54861rob5`; the UI retained request
+  `cmueyx39n0001gkt5xvutyc33`, its UTC timestamp and no-refund notice. The form and
+  acknowledgment were visually reviewed in dark mode and viewport overrides reset.
+  Its download link was clicked once, but the expected Downloads artifact was not
+  found and Chrome's download-manager URL was blocked by browser policy. No
+  workaround or repeated click was attempted. The independently verified actual
+  TXT transfer above is Playwright evidence, not a claim about this Chrome file.
 
 ## Not claimed
 
@@ -63,3 +71,20 @@ The content/services distinction and conditions for losing withdrawal rights are
 discussed in the [Norwegian legislative explanation](https://www.regjeringen.no/no/dokumenter/prop.-50-ls-20222023/id2966742/?ch=8).
 The new electronic function is described in [Lovvedtak 85, section II](https://www.stortinget.no/no/Saker-og-publikasjoner/Vedtak/Beslutninger/Lovvedtak/2025-2026/vedtak-202526-085/?m=0).
 These sources inform safeguards; they do not certify Veggat's implementation.
+
+## Deployment
+
+Source `b09876d` is deployed to Preview as `dpl_29j9DctKWFe4ypvyREQX1qpfgyyK`:
+`https://dev-veggastare-qkmbhtadt-v3ggas-projects.vercel.app`, with the stable
+Showcase Preview alias assigned. The build selected the isolated Neon endpoint
+`ep-jolly-smoke-abgwws6k`, reported 47 migrations and none pending, and passed
+strict TypeScript. Both targeted Playwright journeys pass **2/2 (25.5s)** on the
+deployed alias, including an actual unpaid-demo notice and private TXT download.
+Preview rollback: `dpl_BDzoouNqWdLsSxrZcqjWv7mFr895` (source `6df9a4c`).
+
+A final response-validation follow-up rejects malformed/non-JSON HTTP 200 replies
+and mismatched order/reason records without clearing the draft or announcing a
+saved notice. Its browser regression explicitly supplies a sign-in HTML response
+between the service-failure and valid-response cases. The initial production
+candidate `dpl_3Ry4zH9dpjT1K7AHHpaGmzstQooS` is not promoted; production promotion
+waits for the corrected source and repeat local/Preview verification.
