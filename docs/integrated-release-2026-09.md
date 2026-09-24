@@ -32,7 +32,10 @@ the older deployed source. Only 00500/00600 remain for that database. Existing
 checkouts comprise two historical Sandbox completions and two demo completions;
 maximum recorded total is 6,800 ore. Existing proof/state constraints match the
 new reconciliation states. No preflight writes were made. Vercel's deploy-time
-database identity and migration result must still be checked.
+database identity was checked again in the production build: the expected
+`ep-orange-wildflower-abp9cs2l.eu-west-2.aws.neon.tech` endpoint applied only
+00500/00600 successfully (47 migrations present). No captured order or balance
+was rewritten.
 
 ## Local verification
 
@@ -85,10 +88,55 @@ the new basket, verified checkout lock while unsaved, then saw exactly 122 and
 47.16 NOK in checkout with 0 NOK due for the demo. Phone scrolling reached footer
 links above the fixed purchase bar. Viewport override was reset.
 
-Production candidate remains pending. Current production
-rollback target is `dpl_DVNrF5kqvrnRPbRtjmzr5yd9jJbc` (`bfe4fd3`). Current Preview
+Production source `32b4b1c` (same app code as `d2344f5`) built strictly and was first
+deployed with domain switching skipped. Deployment
+`dpl_8yVTJdq1wXhAB5UZL1DC78eDjvn9`,
+`https://dev-veggastare-c9ah38bvq-v3ggas-projects.vercel.app`, returned healthy
+database status and rejected an unsigned PayPal event with 401
+`INVALID_SIGNATURE` before promotion. It is now promoted; `vercel inspect
+www.veggat.com` resolves to this deployment. The main website health check
+returned 200 with 32 ms database latency after warm-up. No Live PayPal secret
+was copied locally.
+
+Live browser acceptance is **8/8 across three runs**: gate setup confirms the
+homepage is public; the custom-credit free demo order, eight-size product gallery,
+typed-credit preview, selected-currency range, basket failure recovery, global
+currency/receipt history, and actual AI debit/zero-balance journey pass.
+The AI test's first attempt stopped before any provider request because its
+one-shot cookie-banner check ran before hydration. The test now waits for the
+real Essential Only button when no recorded consent exists, clicks it normally,
+and waits for dismissal. It does not force-click through the banner or weaken
+consent. The corrected live test passes in 31.1 seconds.
+
+Real Chrome preserved the owner's session and one-item basket after deployment.
+The live digital product was visually inspected at desktop and 390 pixels,
+including actual scroll to the footer above the fixed purchase control. The live
+checkout shows `PAYPAL LIVE — REAL PAYMENT`, the editable 100-credit order,
+USD (ETH) estimates, the NOK charge disclosure, separate service-delivery request
+and purchase-record control. No delivery consent or Live payment was submitted.
+The bounded official seed refresh updated only the owned credit SKU's copy to
+describe 100–1,000 credits; a dry-run rolled back first, and the live product API
+verified the new text. Existing other listings, prices and balances were preserved.
+
+Real Chrome Preview AI used its existing five-credit demo allowance for four
+short actual replies: OpenAI Luna (-2), Groq GPT-OSS 20B (-1), Google Flash Lite
+(-1), and Vercel Gateway Ling (-1). The two-credit model was disabled at a
+one-credit balance and the draft survived model switching. Final history shows
+Available 0, Reserved 0, Refund adjustment 0, the original +5 grant and exactly
+four reservations. The independent live browser test uses its own existing demo
+allowance, verifies saved OpenAI/Groq replies, then confirms both the disabled
+zero-balance composer and a direct server 402 with unchanged balance. No manual
+grant, cap reset or unbounded provider request was used. Grok Live acceptance is
+still unverified, not inferred from the other providers.
+
+Production rollback target is `dpl_DVNrF5kqvrnRPbRtjmzr5yd9jJbc` (`bfe4fd3`). Preview
 rollback target is `dpl_FSe3qUPRo4eBrCqXqHjtm8jG2NrM` (`4eb2e76`). After additive
 database migrations, rollback code only; do not drop fields or financial records.
+
+Two small UX follow-ups were observed rather than hidden: product navigation can
+briefly inherit the catalogue loading boundary before the product skeleton;
+exhausted demo guidance still suggests choosing a cheaper model when no funded
+demo model costs zero. Neither is evidence of a payment or balance bypass.
 
 Live micro-purchase acceptance, email/full-agreement delivery, electronic
 withdrawal flow, legal review and the wider S1–S9 scoreboard remain unfinished.

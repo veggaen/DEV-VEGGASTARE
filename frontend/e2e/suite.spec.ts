@@ -3912,7 +3912,17 @@ test.describe("Layer 3 — Content", () => {
       expect([1, 3, 5]).toContain(initial.balance);
       await page.goto('/ai', { waitUntil: 'domcontentloaded' });
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
-      if (await consent.isVisible()) await consent.click();
+      // A fresh origin hydrates the banner after the server-rendered chat.
+      // Wait for its actual control instead of racing a one-shot isVisible().
+      const hasConsent = await page.evaluate(() => {
+        try { return JSON.parse(localStorage.getItem('veggat:cookieConsent') ?? 'null')?.version === 1; }
+        catch { return false; }
+      });
+      if (!hasConsent) {
+        await expect(consent).toBeVisible();
+        await consent.click();
+        await expect(consent).toBeHidden();
+      }
       await page.getByRole('button', { name: 'Start a blank chat', exact: true }).click();
       await expect(page).toHaveURL(/\/ai\/c[a-z0-9]+$/);
       const conversationPath = new URL(page.url()).pathname;
