@@ -4,9 +4,28 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Personal Sales dashboard: **DONE for the scoped engineering slice**.
+Current app authority is **`0699868` / `dpl_GQDV8P3CbfNz2WNNYAfEdvR4HXZh`**
+on www.veggat.com. One bounded, authorized request replaces six requests; error,
+empty, stale and loading states are distinct. Demo orders without a Payment row
+are explicitly not paid; mixed orders do not expose whole-order payment data.
+Strict builds, touched lint, **238 focused units**, **4 real isolated PostgreSQL
+tests**, and **4/4 local, 4/4 Preview, 4/4 live** scoped browser checks pass.
+Real owner Chrome confirms demo labels and actual wheel-scroll/footer behavior.
+Its viewport override did not apply; mobile evidence is Playwright, not a claimed
+physical-device test. One historical crypto order still lacks a usable display
+currency; the total fails closed rather than inventing a value. See
+[Sales evidence, limits and rollback](sales-dashboard-acceptance-2026-09.md).
+
+**Still PARTIAL:** owner Live purchase/refund, human-inbox delivery/legal
+sufficiency, remaining OAuth/wallet/backend checks, historical-price explanation
+and full-route interaction/native 125% zoom. This is not whole-app approval.
+
+### Previous full-terms slice
+
 Full published terms retention: **DONE for the scoped engineering slice**.
-Current app authority is **`4b77afb` / `dpl_3LU97pZnwY1w4Kh9W5mMZWEqDR6d`**
-on www.veggat.com. New checkout snapshots and original confirmation attachments
+Its release was **`4b77afb` / `dpl_3LU97pZnwY1w4Kh9W5mMZWEqDR6d`**,
+retained in the current release above. New checkout snapshots and original confirmation attachments
 include the complete versioned sales terms and optional withdrawal form. Earlier
 records remain byte-identical. The public document is usable without JavaScript;
 eight-size scroll/download tests pass. Strict builds, touched lint, **241 focused
@@ -17,7 +36,7 @@ was bypassed. See [full terms evidence and limits](full-terms-acceptance-2026-09
 
 **Still PARTIAL:** owner Live purchase/refund acceptance, human-inbox delivery
 and legal sufficiency, remaining OAuth/wallet/backend checks and full-route
-interaction/native 125% zoom. Older Sales dashboard polish is separate work.
+interaction/native 125% zoom. Sales dashboard acceptance is now recorded above.
 
 ### Previous seller-request slice
 
@@ -36,8 +55,8 @@ The earlier deployment IDs in the sections below are historical.
 
 **Still PARTIAL:** owner Live purchase/refund acceptance, human-inbox delivery,
 human durable delivery/legal review, remaining OAuth/wallet/backend
-checks and full-route interaction/125% zoom. Older Sales dashboard polish is
-separate work; the new inbox does not fix its legacy empty/error behavior.
+checks and full-route interaction/125% zoom. The later Sales slice above fixes
+the legacy dashboard's empty/error behavior separately from this inbox.
 
 ### Previous transactional email slice
 

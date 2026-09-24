@@ -64,6 +64,13 @@ The payment state remains authoritative even when a legacy review label says
 “refunded.” Demo sellers cannot inspect real correspondence or issue decisions.
 See [seller review evidence](seller-review-acceptance-2026-09.md).
 
+The personal Sales dashboard is a separate read-only, bounded projection. One
+request returns a page and all fulfilment counts using the same direct-seller or
+company-owner relation scope. It exposes only owned lines and suppresses
+whole-order routing on mixed/truncated orders. Demo accounts cannot inspect real
+sales; completed demo orders are not labelled as paid. Payment, fulfilment and
+displayed item value remain distinct. See [Sales dashboard acceptance](sales-dashboard-acceptance-2026-09.md).
+
 Checkout retains a server-owned, versioned full sales-terms snapshot. The
 public legal page and version-pinned download share one source; private original
 confirmations and email attachments use the stored snapshot, never today's

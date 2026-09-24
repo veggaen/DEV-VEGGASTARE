@@ -67,13 +67,42 @@ approves a claim, grants files/credits or moves funds.
   row being described as completed payments. The API now retains the checkout
   environment independently; the UI says “Demo — no payment”, or “No verified
   payment recorded” when appropriate. Unit and browser regressions cover this.
-- Final strict local production build passes. Local browser checks pass **3/3**
-  in light mode plus **1/1** dark-mode responsive replay after the demo fix.
-  Preview/live acceptance and exact deployment references are pending for this
-  final payment-label correction. The focused tests include actual demo API isolation separately
+- Final strict local production build passes. Local and deployed Preview browser
+  checks each pass **3/3** in light mode plus **1/1** dark-mode responsive replay
+  after the demo fix. Preview source `0699868`, deployment
+  `dpl_3PU469YE6P18gWARVCic55Rhd8av`, is verified at the stable showcase alias.
+  Its build used the isolated Neon Preview endpoint with no pending migrations.
+  Real Chrome's retained local demo resolves to the privacy-safe “No sales yet”
+  state. The focused tests include actual demo API isolation separately
   from mocked presentation fixtures, 360–2560 widths, long text, keyboard toggle,
   footer scrolling, retry, malformed responses, rapid filter changes, history and
   selected fiat/crypto regression. No fixture proves a real seller transaction.
+
+## Production acceptance
+
+App source `0699868` is deployed as `dpl_GQDV8P3CbfNz2WNNYAfEdvR4HXZh`
+(`dev-veggastare-c2ng1zemo-v3ggas-projects.vercel.app`). The production build
+passed against the production Neon endpoint, with 48 migrations and none pending.
+The separate candidate health probe returned healthy before promotion; CLI
+read-back confirms www.veggat.com resolves to this deployment. Live checks pass
+**3/3** plus **1/1** dark-mode responsive replay, with no test retries.
+
+Real signed-in owner Chrome shows seven scoped orders. Expanding an actual demo
+order confirms “Demo — no payment”; the older crypto record retains its recorded
+native ETH amount and reference. Actual wheel scrolling reaches the footer after
+the last order. No captured error logs. This is read-only acceptance: no order,
+claim, credit, customer message or payment was changed.
+
+The real-Chrome viewport override did not apply (measured 2498×1319 despite a
+390×844 request). It was reset; do not report that attempt as mobile Chrome
+coverage. The eight-size phone/landscape/ultrawide evidence comes from Playwright,
+including rendered screenshots, rather than physical-device or native-zoom QA.
+
+One historical crypto order has no usable listing-currency display, so its price
+and the combined displayed-items total fail closed as “Price unavailable”. Native
+crypto payment details remain visible. Do not infer a fiat price, silently drop
+that order from a purported complete total, or rewrite old money records. Clearer
+legacy-price explanation remains a follow-up usability item.
 
 ## Open gates
 
