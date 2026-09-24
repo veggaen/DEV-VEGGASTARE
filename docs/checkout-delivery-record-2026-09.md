@@ -1,5 +1,12 @@
 # Explicit delivery requests and retained confirmation — 24 September 2026
 
+Current release follow-up: purchase confirmations remain downloadable, not
+emailed. [Buyer withdrawal/problem notices and private original acknowledgments](buyer-request-acceptance-2026-09.md)
+now ship in production (`ffc112b`) after local/Preview/live acceptance. The
+Preview-only release boundary at the bottom records the original historical
+delivery-record release; it is not the current deployment authority. See the
+[production scoreboard](production-scoreboard.md) for that authority.
+
 ## Implemented
 
 - New paid reviewer checkouts require separate, initially unchecked requests for

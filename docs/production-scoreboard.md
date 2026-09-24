@@ -9,7 +9,7 @@ work with the newer production currency-filter and basket fixes. Local strict
 build, touched lint, 235 focused units, six rolled-back checkout scenarios and
 30 ledger/configuration tests pass. Deployed Preview acceptance is **10/10**;
 the integrated release is now on www.veggat.com at
-`dpl_9bGoFC8LBKDb4ZyLn6iTij3mMsjA` (source `6df9a4c`, following integrated release
+`dpl_4hQNe5XcwtEx5SipwmYLkHdmcgXV` (source `ffc112b`, following integrated release
 `32b4b1c`). Live selected browser
 acceptance is **8/8**, including the actual OpenAI/Groq debit and server-enforced
 zero-balance check. Real Chrome also verified four providers in Preview and the
@@ -21,6 +21,16 @@ guidance follow-up passes **3/3 locally, 3/3 in Preview and 3/3 live**, with no
 additional provider or payment requests. Deployment and browser acceptance
 are recorded in [the release note](integrated-release-2026-09.md). Historical
 deployment entries below are not the current release authority.
+
+Buyer withdrawal/problem notices and private original acknowledgments now ship
+on the receipt. **190 payment/demo units**, **3 real isolated-Postgres cases**,
+and **2/2 local, 2/2 Preview, 2/2 live** focused browser journeys pass. UI-review
+guidance informed labelled controls, keyboard focus, retained error drafts and
+360–2560 responsive/scroll checks. A malformed HTTP 200 cannot claim a saved
+notice. Demo QA creates no paid refund and leaves payment status unchanged.
+Actual email/full-agreement delivery, seller review operations, legal review and
+owner Live purchase approval remain **PARTIAL**. See
+[buyer-request evidence and rollback](buyer-request-acceptance-2026-09.md).
 
 ## Production security hotfix — 24 September 2026
 

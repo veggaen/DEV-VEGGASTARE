@@ -175,3 +175,20 @@ that remaining empty/loading-state polish is recorded for a subsequent slice.
 Live micro-purchase acceptance, email/full-agreement delivery, electronic
 withdrawal flow, legal review and the wider S1–S9 scoreboard remain unfinished.
 This merge is not evidence that every route, provider consent or payment path works.
+
+## Buyer notice follow-up — current release
+
+Source **`ffc112b`** supersedes the focused-polish deployment above. The receipt
+offers explicit buyer withdrawal/problem requests, draft-safe errors, deduplicated
+pending notices and private original TXT acknowledgments. These actions never
+grant/revoke credits or assert a provider refund. Email delivery is still pending.
+
+Current production: **`dpl_4hQNe5XcwtEx5SipwmYLkHdmcgXV`**, promoted and verified on
+www.veggat.com. Current Preview: **`dpl_H6SpsRxQ1cBpad1zScwBA1eV9Zfh`**, verified on
+the stable Showcase alias. Strict builds and touched lint pass; 190 units, three
+real database concurrency cases, and 2/2 browser journeys on each of local,
+Preview and production pass. No schema change or paid transaction was made.
+The superseded initial production candidate was never promoted. Immediate
+production rollback is `dpl_9bGoFC8LBKDb4ZyLn6iTij3mMsjA` (source `6df9a4c`).
+See [the buyer-request acceptance record](buyer-request-acceptance-2026-09.md)
+for exact limits, real-Chrome evidence and remaining email/legal work.

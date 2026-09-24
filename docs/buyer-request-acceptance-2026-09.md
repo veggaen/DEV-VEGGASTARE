@@ -88,3 +88,43 @@ saved notice. Its browser regression explicitly supplies a sign-in HTML response
 between the service-failure and valid-response cases. The initial production
 candidate `dpl_3Ry4zH9dpjT1K7AHHpaGmzstQooS` is not promoted; production promotion
 waits for the corrected source and repeat local/Preview verification.
+
+Corrected source **`ffc112b`** passes strict local build/TypeScript, the 190 unit
+checks, **2/2 local browser checks (7.5s)** and **2/2 Preview checks (24.4s)**.
+Current Preview is `dpl_H6SpsRxQ1cBpad1zScwBA1eV9Zfh` at
+`https://dev-veggastare-d2zbvb0ts-v3ggas-projects.vercel.app`, assigned to the stable
+Showcase alias. The first Preview above is superseded, not the current target.
+
+Production **`dpl_4hQNe5XcwtEx5SipwmYLkHdmcgXV`**, source **`ffc112b`**, is READY at
+`https://dev-veggastare-h3v6bhvi6-v3ggas-projects.vercel.app` and was promoted only
+after corrected Preview acceptance and healthy candidate response. `vercel
+inspect https://www.veggat.com` resolves this exact deployment. Both focused
+journeys pass **2/2 live (24.3s)** using the existing app-issued demo identity,
+including the real private acknowledgment download. No paid agreement, capture,
+refund or provider call was submitted. Production selected
+`ep-orange-wildflower-abp9cs2l`, with 47 migrations and none pending. Post-release
+health is healthy (99ms database latency on the sampled warm request).
+
+Rollback production: `dpl_9bGoFC8LBKDb4ZyLn6iTij3mMsjA` / source `6df9a4c`.
+No schema rollback is needed. Local :3000 runs the same corrected source with
+isolated Preview data and Sandbox credentials only. Owner Live checkout and
+PayPal login remain handoffs; the real-Chrome demo acknowledgment and Preview AI
+result are retained. Email delivery and seller review operations are next, not
+implied complete by these buyer-side checks.
+
+## Files changed in this slice
+
+- `frontend/app/api/returns/route.ts`
+- `frontend/app/api/returns/[id]/acknowledgment/route.ts`
+- `frontend/app/checkout/receipt/[id]/page.tsx`
+- `frontend/components/checkout/purchase-support.tsx`
+- `frontend/lib/payments/create-return-request.ts`
+- `frontend/lib/payments/return-request.ts`
+- `frontend/lib/payments/return-acknowledgment.test.ts`
+- `frontend/lib/payments/return-request.database.test.ts`
+- `frontend/lib/payments/returns-security.test.ts`
+- `frontend/lib/payments/showcase-receipt.test.ts`
+- `frontend/lib/demo-policy.ts` and `frontend/lib/demo-policy.test.ts`
+- `frontend/e2e/suite.spec.ts`
+- This acceptance record, `docs/production-scoreboard.md`,
+  `docs/integrated-release-2026-09.md`, and `docs/checkout-delivery-record-2026-09.md`
