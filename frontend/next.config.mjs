@@ -1,4 +1,5 @@
 // @ts-check
+import { fileURLToPath } from 'node:url';
 
 /**
  * @type {import('next').NextConfig}
@@ -49,6 +50,14 @@ const nextConfig = {
         root: import.meta.dirname,
     },
     webpack: (config) => {
+        // Dependency patches must invalidate cached vendor chunks as well as
+        // apply during install; node_modules is otherwise treated as managed.
+        if (config.cache && typeof config.cache === 'object') {
+            config.cache.buildDependencies = {
+                ...config.cache.buildDependencies,
+                veggatPatches: [fileURLToPath(new URL('./patches/@edgestore+react+0.7.0.patch', import.meta.url))],
+            };
+        }
         config.externals.push("pino-pretty", "lokijs", "encoding");
 
         // Some wallet SDKs pull in optional React-Native deps even for web builds.

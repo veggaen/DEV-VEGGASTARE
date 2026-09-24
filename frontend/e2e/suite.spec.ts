@@ -4,6 +4,100 @@ import { SALES_TERMS_DOWNLOAD, SALES_TERMS_VERSION } from '../lib/legal/sales-te
 import { createHash } from 'node:crypto';
 import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders';
 import { SessionRailResponse } from '../lib/ai-chat/session-list';
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
+
+test('S8 unavailable storage initialization does not throw across ordinary browsing', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_ROUTE_INVENTORY !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Controlled storage outage, retained demo');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.route('**/api/edgestore/init', route => route.fulfill({ status: 503,
+    json: { code: 'INTERNAL_SERVER_ERROR', message: 'Controlled QA storage outage' } }));
+  try {
+    const init = page.waitForResponse(response => response.url().endsWith('/api/edgestore/init'));
+    await page.goto('/products', { waitUntil: 'domcontentloaded' });
+    expect((await init).status()).toBe(503);
+    await expect(page.getByRole('heading', { name: 'Marketplace', exact: true })).toBeVisible();
+    await page.waitForTimeout(300);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S8 production chat preview stays unavailable without client render errors', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_ROUTE_INVENTORY !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Production-style route audit with retained demo');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    for (const width of [390, 1280, 2560]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('/dev/chat-preview', { waitUntil: 'networkidle' });
+      await expect(page.getByRole('heading', { name: 'This page wandered off', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Alex Rivera', exact: true })).toHaveCount(0);
+      expect(errors).toEqual([]);
+    }
+  } finally { await context.close(); }
+});
+
+test('S8 route inventory read-only rendering and scrolling audit', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_ROUTE_INVENTORY !== '1' || !process.env.E2E_DEMO_STORAGE_STATE,
+    'Opt-in read-only inventory; requires retained demo session');
+  test.setTimeout(900_000);
+  const files = readdirSync(path.resolve('app'), { recursive: true }).map(String)
+    .filter(file => /(^|[\\/])page\.tsx$/.test(file));
+  const routes = files.map(file => '/' + file.replaceAll('\\', '/').split('/')
+    .filter(segment => !/^\([^)]*\)$/.test(segment) && segment !== 'page.tsx')
+    .map(segment => segment.replace(/^\(\.\)/, '')).join('/'));
+  const dynamic = routes.filter(route => route.includes('['));
+  const staticRoutes = [...new Set(routes.filter(route => !route.includes('[')))].sort();
+  const results: Record<string, unknown>[] = [];
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+    reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const session = await (await context.request.get('/api/auth/session')).json();
+  expect(session.user?.isDemo).toBe(true);
+  try {
+    for (const width of [390, 2560]) {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 1440 });
+      for (const route of staticRoutes) {
+        const errors: string[] = [];
+        const listener = (error: Error) => errors.push(error.message);
+        page.on('pageerror', listener);
+        try {
+          const response = await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+          await page.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
+          // Allow pending route hydration/read effects to expose failures, then
+          // exercise actual wheel input. This is triage, not feature acceptance.
+          await page.waitForTimeout(500);
+          await page.mouse.move(width - 30, 500);
+          await page.mouse.wheel(0, 900);
+          const geometry = await page.evaluate(() => ({
+            overflow: document.documentElement.scrollWidth > innerWidth + 1,
+            headings: Array.from(document.querySelectorAll('h1')).map(element => element.textContent),
+            mainPresent: !!document.querySelector('main, [role="main"]'),
+          }));
+          const result = { route, width, status: response?.status(), finalUrl: new URL(page.url()).pathname,
+            ...geometry, errors: [...errors] };
+          results.push(result);
+          if (geometry.overflow || errors.length || (response?.status() ?? 0) >= 500) {
+            await testInfo.attach(`route-${width}-${route.replaceAll('/', '_')}`, {
+              body: await page.screenshot(), contentType: 'image/png',
+            });
+          }
+        } catch (error) {
+          results.push({ route, width, failure: String(error), errors: [...errors] });
+        } finally { page.off('pageerror', listener); }
+      }
+    }
+    console.log(`Route inventory: ${staticRoutes.length} static routes x 2 viewports; ${dynamic.length} dynamic routes require separate fixtures`);
+    await testInfo.attach('route-inventory', { body: JSON.stringify({ dynamicNotExercised: dynamic, results }, null, 2), contentType: 'application/json' });
+    const failures = results.filter(row => row.failure || row.overflow || (Number(row.status) >= 500) || (row.errors as string[]).length);
+    expect(failures, 'Inventory findings require investigation, not automatic acceptance').toEqual([]);
+  } finally { await context.close(); }
+});
 
 for (const kind of ['growth', 'publishing'] as const) test(`Private analytics ${kind} clears revoked data and recovers`, async ({ browser, baseURL }) => {
   test.skip(process.env.E2E_ANALYTICS_ACCESS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Browser-only admin/analytics fixtures; no real permission grant');
