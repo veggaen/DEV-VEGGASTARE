@@ -7,7 +7,8 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 PARTIAL: `release/showcase-september` combines Showcase consent/refund/custom-credit
 work with the newer production currency-filter and basket fixes. Local strict
 build, touched lint, 235 focused units, six rolled-back checkout scenarios and
-30 ledger/configuration tests pass. Deployment and integrated browser acceptance
+30 ledger/configuration tests pass. Deployed Preview acceptance is **10/10**;
+Production rollout remains pending. Deployment and integrated browser acceptance
 are recorded in [the release note](integrated-release-2026-09.md). Historical
 deployment entries below are not the current release authority.
 

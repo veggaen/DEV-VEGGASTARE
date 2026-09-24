@@ -21,12 +21,18 @@ No client display conversion becomes a payment amount.
 
 ## Database boundary
 
-Four migrations beyond production are included: credit refund adjustment,
-payment reconciliation metadata/states, nullable bounded cart credit amount, and
-the bounded custom-credit order ceiling. They add seven fields in total and
-replace relevant CHECK constraints; they do not delete tables, rewrite captured
-orders or manufacture purchases. Existing order totals fit the expanded ceiling.
-Preview has already applied them. Production application is still pending.
+Four migrations beyond the production source are included: credit refund
+adjustment, payment reconciliation metadata/states, nullable bounded cart credit
+amount, and the bounded custom-credit order ceiling. They add fields and replace
+relevant CHECK constraints; they do not delete tables, rewrite captured orders or
+manufacture purchases. Existing order totals fit the expanded ceiling.
+Preview has already applied all four. A read-only production preflight found the
+database already has the refund/reconciliation migrations (00300/00400), despite
+the older deployed source. Only 00500/00600 remain for that database. Existing
+checkouts comprise two historical Sandbox completions and two demo completions;
+maximum recorded total is 6,800 ore. Existing proof/state constraints match the
+new reconciliation states. No preflight writes were made. Vercel's deploy-time
+database identity and migration result must still be checked.
 
 ## Local verification
 
@@ -63,7 +69,23 @@ copied into this worktree.
 
 ## Release boundary
 
-Candidate only until deployed verification is recorded here. Current production
+Preview source `d2344f5`, deployment `dpl_GxiQb5XEXYj8PFWVDfAJiqfScwBL`, is READY
+at `https://dev-veggastare-2oxozt9hd-v3ggas-projects.vercel.app` and the stable
+showcase Preview alias. Strict Vercel build/TypeScript pass; it reports the isolated
+Neon host and 47 migrations with none pending. Explicit Preview AUTH_URL and
+Sandbox webhook ID were supplied without altering the stored production values.
+
+Deployed Preview acceptance: **4/4 (47.8s)** password/session/OAuth protocol,
+delivery consent and custom credits; **6/6 (27.0s)** currency/filter/basket recovery,
+order displays and product responsive/gallery checks. Existing isolated demo
+sessions were reused, not rate-limit bypasses. Real Chrome retained the prior
+file receipt, correct USD (ETH), original confirmation and both private download
+controls after reload. Local real Chrome additionally saved 555 → 122 credits in
+the new basket, verified checkout lock while unsaved, then saw exactly 122 and
+47.16 NOK in checkout with 0 NOK due for the demo. Phone scrolling reached footer
+links above the fixed purchase bar. Viewport override was reset.
+
+Production candidate remains pending. Current production
 rollback target is `dpl_DVNrF5kqvrnRPbRtjmzr5yd9jJbc` (`bfe4fd3`). Current Preview
 rollback target is `dpl_FSe3qUPRo4eBrCqXqHjtm8jG2NrM` (`4eb2e76`). After additive
 database migrations, rollback code only; do not drop fields or financial records.
