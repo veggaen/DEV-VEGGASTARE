@@ -65,8 +65,39 @@ complete current-law review. UI review used the
 - Temporary additions to the isolated password buyer's cart are removed after
   the test; pre-existing rows are preserved. No owner cart, keys, caps, Live
   balance or production schema is changed.
+- Real Chrome completed the existing **free demo** credit cart as order
+  `cmuevx0is0006e4t54861rob5`. The receipt says completed / 0 NOK / no paid credits.
+  Clicking its confirmation link produced a real browser download; the resulting
+  3,950-byte TXT in Downloads was checked for the original-record heading,
+  `Actually charged: 0.00 NOK`, no paid-consent claim, and no `token=` value.
+  The demo cart was consumed normally; no real-owner cart or PayPal order changed.
+  Real Chrome 390px scroll reached payment and footer; override reset afterward.
+- Final browser runs: **2/2 local (15.0s)** and **2/2 deployed Preview (32.6s)**.
+  Screenshots at 390/1280 were visually reviewed. The first visual pass caught
+  cramped phone controls and a validation warning that remained after correction;
+  both were fixed and the journeys rerun without weakening assertions.
+- Real Chrome also completed a **free Preview file order**
+  `cmuew1mus000504lc3cft9gr5` in the same browser session as demo login. Its
+  3,934-byte order confirmation downloaded with the unpaid/no-paid-consent labels.
+  Receipt JPG and TXT controls sent files without leaving the receipt. The
+  browser tool's download-event waiter timed out for these blob-based downloads;
+  no repeated clicks were issued. Fresh UI showed completion, and the actual
+  Downloads artifacts verified successful transfers:
+  - JPG: 539,906 bytes; SHA-256
+    `1b91c27fe3993088e0ddfa453e4811bb1efbd60ec5ef68c5749bb48261c0b5ca`.
+  - TXT: 2,682 bytes; SHA-256
+    `47ae3c0bbc6910679789463d167845f0cdb2c17484e5779a82daac5d93e3a96a`.
+  These match the private originals from prior Sandbox acceptance. Both receipts
+  were left open. This is free-demo fulfillment, not a new paid PayPal purchase.
 
 ## Release boundary
+
+Preview source **4eb2e76**, deployment **dpl_FSe3qUPRo4eBrCqXqHjtm8jG2NrM**, is READY:
+`https://dev-veggastare-31eih412v-v3ggas-projects.vercel.app`.
+The stable showcase Preview alias was assigned and read back to this deployment.
+Vercel's strict build passed; isolated Neon had 47 migrations and none pending.
+Rollback Preview: `dpl_H8eb2Kb6xAhVP578H47yp55dsFNt` /
+`https://dev-veggastare-bv9burkvy-v3ggas-projects.vercel.app`.
 
 Preview-only. Before any production promotion, merge the newer production
 currency-filter/basket fixes; do not overwrite them by promoting this branch
