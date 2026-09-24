@@ -4,10 +4,30 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Seller request review: **DONE for the scoped slice**, not whole-app completion.
+Current app authority is **`a902b42` / `dpl_2Ed57ytaWJr1BzyuE8ueLH6F2K1F`** on
+www.veggat.com. Whole-order authorization, demo privacy, revision conflicts and
+the distinction between review approval and verified money movement are enforced.
+Strict builds/touched lint, **229 units**, **4 real isolated PostgreSQL cases**,
+and final **5/5 local, 5/5 Preview, 5/5 live** browser batches pass. The real query
+tests caught and fixed nullable SQL authorization before deployment; the first
+Preview navigation failure and unchanged reruns are recorded, not discarded.
+Real Chrome verifies the owner inbox and retained no-paid-consent demo evidence.
+No actual seller decision, paid transaction or new customer email was submitted.
+See [seller review acceptance, limits and rollback](seller-review-acceptance-2026-09.md).
+The earlier deployment IDs in the sections below are historical.
+
+**Still PARTIAL:** owner Live purchase/refund acceptance, human-inbox delivery,
+full-agreement durable delivery/legal review, remaining OAuth/wallet/backend
+checks and full-route interaction/125% zoom. Older Sales dashboard polish is
+separate work; the new inbox does not fix its legacy empty/error behavior.
+
+### Previous transactional email slice
+
 Transactional email follow-up: **PARTIAL**, guarded outbox and original-copy
 downloads are deployed as **`82727bd` / `dpl_5yuYw7bESbW9aW6AWsSjM6xFmsrr`**
-on www.veggat.com. This is the current release authority; previous deployment
-IDs below are historical. Strict builds, **215 unit checks**, **3 real isolated
+on www.veggat.com and retained in the current release above. Strict builds,
+**215 unit checks**, **3 real isolated
 Postgres cases**, and **3/3 local, 3/3 Preview, 3/3 live** browser checks pass.
 Authenticated scheduled-job probes return 200/configured; public and forged
 requests return 401. Preview branch-prompt configuration failure was caught by
@@ -16,7 +36,7 @@ the positive probe and corrected before promotion. The configured Resend key is
 domain/history reads return `restricted_api_key` (401). Inbox delivery remains
 unverified. See [email outbox evidence and exact
 boundaries](transactional-email-acceptance-2026-09.md). Do not count provider
-fixtures as delivered customer mail or mark the seller-review inbox complete.
+fixtures as delivered customer mail. Seller review has its own later evidence above.
 No historical customer mail was queued, no Live payment/refund was submitted,
 and neither Vercel's overdue-billing warning nor GitHub's billing lock was changed.
 
@@ -786,10 +806,11 @@ member-to-member delivery remains separate from the mocked error test.
 | Auth | GitHub, Discord | PARTIAL — initiation checked, full consent/callback pending |
 | Shop | List, PDP, images | DONE — both reviewer products and actual images verified locally/live |
 | Shop | Cart | DONE — two lines, reload, quantity/removal, stable ordering and badge synchronization locally/live |
-| Shop | Checkout | PARTIAL — local/Preview custom-credit demo, quote editing and retries pass; production promotion awaits payment acceptance |
-| Shop | Live PayPal, sandbox PayPal | PARTIAL — both Sandbox SKUs captured; Live keys/webhook configured. Custom Sandbox webhook/refund tests need the owner's Developer sign-in; Live micro-purchase remains unverified |
+| Shop | Checkout | PARTIAL — custom-credit demo, quote editing/retries and request follow-up deployed and verified local/Preview/live; owner Live money acceptance remains |
+| Shop | Live PayPal, sandbox PayPal | PARTIAL — fixed and custom mixed Sandbox capture, delivery, verified refund and replay pass; original refund-webhook Failure corrected to Success. Live keys/webhook configured; owner Live micro-purchase remains unverified |
 | Shop | Confirmation, signed download | PARTIAL — local/live demo and actual Sandbox JPG/TXT downloads verified; anonymous 401 and replay pass. Live paid download still pending |
-| Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — 29/39 NOK Sandbox purchases verified. Custom 100–1,000 credits verified local/Preview in demo, not paid capture yet |
+| Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — 29/39 NOK fixed Sandbox purchases and 76.16 NOK mixed 122-credit/file capture verified. Custom 100–1,000 credit selection is deployed; Live paid purchase remains pending |
+| Shop | Buyer notices / seller review | DONE for scoped local/Preview/live flows — private originals, retained drafts, whole-order permissions and revision checks; not an automatic refund or legal-compliance certification |
 | AI | Chat, selector, streaming | DONE for tested OpenAI Luna/Groq demo and Sandbox-funded OpenAI Luna/Astra/Grok paths; other unconfigured models remain disabled |
 | AI | Credit debit, zero balance, no overcharge | PARTIAL — demo debit/402, actual Sandbox 100→98→90→30 and insufficient-balance denial verified; atomic ledger/fuse tests pass. Provider-project hard caps/alerts and Live funding still require acceptance; no absolute overcharge guarantee |
 | Wallets | Connect UI, no crash | PARTIAL — injected-wallet cancel/connect/disconnect passes local/live; configured WalletConnect open/escape and configuration units pass; owner-wallet verification pending |

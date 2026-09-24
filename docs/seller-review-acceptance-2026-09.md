@@ -1,6 +1,6 @@
 # Seller purchase-request review — 24 September 2026
 
-Status: release candidate, not yet deployed. This adds an operational review
+Status: deployed and verified locally, in Preview and on www.veggat.com. This adds an operational review
 inbox; it does not certify legal compliance or complete a payment/refund.
 
 ## Behavior and security boundaries
@@ -61,13 +61,45 @@ inbox; it does not certify legal compliance or complete a payment/refund.
   validation text; the option is shorter and field errors clear after correction.
   Native 125% desktop zoom is not verified by these viewport tests.
 - Final-source strict production-style build/TypeScript and touched lint pass.
-  Local five-check browser acceptance passes; deployed results follow below.
+  Local five-check browser acceptance passes **5/5 (11.1s)**.
+  Final Preview acceptance passes **5/5 (17.9s)** without changing assertions.
+  Live acceptance passes **5/5 (30.7s)**. Deployed 390/1280 screenshots were
+  reviewed; all eight viewport/scroll checks run inside the seller UI journey.
+  Real Chrome's existing owner session loads its actual admin-authorized inbox
+  and expands retained evidence for the unpaid demo notice. No approval/decline
+  or financial action is submitted. The visible evidence says no paid consent.
+  Its initial run was 4/5: the first navigation returned the app's not-found page
+  immediately after the stable alias switch. The next unmocked route guard
+  passed, alias inspection resolved the exact candidate, and an unchanged seller
+  rerun passed 2/2 before the final full batch. Alias propagation is a possible
+  explanation, not a proved root cause. The initial failure is retained here.
+  Real Chrome also verified the actual local demo filter URL and bottom-of-page
+  footer at 2498px, plus Sales → Purchase requests → Sales navigation.
+  The older Sales dashboard still has mixed-language/legacy styling, an unnamed
+  icon link and error-to-empty handling to audit separately; this link addition
+  is not a redesign of that dashboard. Old fetch errors occurred during the intentional local server
+  stop; no claim of clean historical server/browser logs is made.
 
 ## Release and rollback
 
-No schema or environment changes are required. Until promotion, production stays
-on `82727bd` / `dpl_5yuYw7bESbW9aW6AWsSjM6xFmsrr`; that is also the rollback
+No schema or environment changes are required. The previous production release
+`82727bd` / `dpl_5yuYw7bESbW9aW6AWsSjM6xFmsrr` is the rollback
 target for this slice. Existing correspondence and review records must be kept.
+
+Preview **`dpl_FcYcC3KQ7VUcdZBxkDp6QL4GsAUe`**, source **`a902b42`**, is READY at
+`https://dev-veggastare-31cjrm3ly-v3ggas-projects.vercel.app` and assigned to the
+stable Showcase Preview alias. Its strict build selected isolated Neon
+`ep-jolly-smoke-abgwws6k`, with 48 migrations and none pending.
+
+Production **`dpl_2Ed57ytaWJr1BzyuE8ueLH6F2K1F`**, source **`a902b42`**, is READY at
+`https://dev-veggastare-kdriviqoq-v3ggas-projects.vercel.app`. It was built without
+switching the public domain, passed candidate health, then promoted. CLI inspection
+of www.veggat.com resolves this exact deployment. Production selected Neon
+`ep-orange-wildflower-abp9cs2l`, with 48 migrations and none pending. The sampled
+candidate DB check took 1150ms; this is not a page-speed or percentile claim.
+Local :3000 stays on the same app source with isolated Preview data and Sandbox
+credentials only. No real payment, refund, new provider call or customer email
+was triggered by this slice.
 
 Open gates: owner Live micro-purchases/refund verification, real-person email
 delivery, full-agreement durable delivery and Norwegian legal review, remaining

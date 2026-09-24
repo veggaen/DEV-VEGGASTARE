@@ -1,8 +1,12 @@
 # Explicit delivery requests and retained confirmation — 24 September 2026
 
-Current release follow-up: purchase confirmations remain downloadable, not
-emailed. [Buyer withdrawal/problem notices and private original acknowledgments](buyer-request-acceptance-2026-09.md)
-now ship in production (`ffc112b`) after local/Preview/live acceptance. The
+Current release follow-up: a [guarded transactional email outbox](transactional-email-acceptance-2026-09.md)
+now queues eligible new purchase/notice copies; provider acceptance is verified,
+but delivery to a real person's inbox is not. Downloadable originals remain
+available. [Buyer notices](buyer-request-acceptance-2026-09.md) and the
+[seller-review follow-up](seller-review-acceptance-2026-09.md) have separate evidence.
+The implementation and verification sections below describe the original slice.
+The
 Preview-only release boundary at the bottom records the original historical
 delivery-record release; it is not the current deployment authority. See the
 [production scoreboard](production-scoreboard.md) for that authority.
@@ -35,8 +39,9 @@ download count is not a blanket withdrawal waiver. Defects, missing content,
 mandatory rights and provider disputes remain reviewable. Verified refunds still
 revoke future downloads and purchased credits regardless of prior downloads.
 
-The confirmation is offered for the buyer to save; **transactional email delivery
-and proof of delivery are not implemented here**. Do not claim the downloadable
+The original slice offered the confirmation for the buyer to save; email was
+added later by the linked outbox release. **Human inbox delivery is still not
+verified.** Do not claim the downloadable
 record alone proves that the full agreement and required confirmation were
 provided on a legally sufficient durable medium. The purchase-record text does
 not replace review of the complete sales terms, required withdrawal form, seller
