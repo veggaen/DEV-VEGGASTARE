@@ -47,7 +47,7 @@ export default function CatalogPriceFilter({ minUsd, maxUsd, rangeMaxUsd, setMin
   const rates = useCurrencyRates();
   const fiat = prefs.preferredFiatCurrency;
   const rate = fiatRate(fiat, rates.fiatRates);
-  if (!rate || (rates.isLoading && !rates.lastUpdated && fiat !== 'USD')) return <p role="status" className="text-sm text-muted-foreground">Loading {fiat} price controls…</p>;
+  if (!rate || (rates.isLoading && !rates.lastUpdated && fiat !== 'USD')) return <div className="space-y-3"><p role="status" className="text-sm text-muted-foreground">{rates.isLoading ? `Loading ${fiat} price controls…` : `${fiat} price controls are unavailable until conversion rates return.`}</p>{!rates.isLoading && <Button variant="outline" className="min-h-11" onClick={() => void rates.refreshRates()}>Retry conversion rates</Button>}</div>;
   const min = minUsd == null ? null : rounded(minUsd / rate);
   const max = maxUsd == null ? null : rounded(maxUsd / rate);
   const ceiling = Math.max(1, Math.ceil(rangeMaxUsd / rate), min ?? 0, max ?? 0);

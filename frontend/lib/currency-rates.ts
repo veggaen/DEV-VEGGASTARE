@@ -70,9 +70,11 @@ async function fetchFiatRatesFromAPI(): Promise<Record<string, number> | null> {
     const data = await response.json();
     const ratesToUSD: Record<string, number> = { USD: 1 };
     
+    if (!data.rates || typeof data.rates !== 'object' || Array.isArray(data.rates)) return null;
     for (const [currency, rate] of Object.entries(data.rates)) {
-      ratesToUSD[currency] = 1 / (rate as number);
+      if (/^[A-Z]{3}$/.test(currency) && typeof rate === 'number' && Number.isFinite(rate) && rate > 0 && Number.isFinite(1 / rate)) ratesToUSD[currency] = 1 / rate;
     }
+    if (Object.keys(ratesToUSD).length <= 1) return null;
 
     if (process.env.NODE_ENV !== 'production') console.log('[currency-rates] Fetched fresh fiat rates');
     return ratesToUSD;
@@ -105,13 +107,12 @@ async function fetchCryptoPricesFromAPI(): Promise<Record<string, number> | null
     const data = await response.json();
     
     // Map CoinGecko IDs to our symbols
-    const prices: Record<string, number> = {
-      ETH: data.ethereum?.usd ?? FALLBACK_CRYPTO_PRICES_USD.ETH,
-      BTC: data.bitcoin?.usd ?? FALLBACK_CRYPTO_PRICES_USD.BTC,
-      SOL: data.solana?.usd ?? FALLBACK_CRYPTO_PRICES_USD.SOL,
-      USDC: data['usd-coin']?.usd ?? 1,
-      USDT: data.tether?.usd ?? 1,
-    };
+    const prices: Record<string, number> = {};
+    for (const [symbol, id] of Object.entries({ ETH: 'ethereum', BTC: 'bitcoin', SOL: 'solana', USDC: 'usd-coin', USDT: 'tether' })) {
+      const value = data?.[id]?.usd;
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) prices[symbol] = value;
+    }
+    if (!Object.keys(prices).length) return null;
 
     if (process.env.NODE_ENV !== 'production') console.log('[currency-rates] Fetched fresh crypto prices:', prices);
     return prices;

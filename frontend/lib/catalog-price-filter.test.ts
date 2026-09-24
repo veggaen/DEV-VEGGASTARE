@@ -1,5 +1,6 @@
 /** @fileOverview Mixed-currency price filtering, public boundaries and invalid-query regression tests. @stability stable */
 import { beforeEach, expect, it, vi } from 'vitest';
+vi.mock('server-only', () => ({}));
 import { catalogPriceWhere, catalogRangeUsd, parseCatalogPriceFilter } from './catalog-price-filter';
 const mocks = vi.hoisted(() => ({ products: vi.fn(), group: vi.fn() }));
 vi.mock('@/lib/db', () => ({ dbPrisma: { product: { findMany: mocks.products, groupBy: mocks.group } } }));

@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Globe, Bitcoin, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClientReady } from '@/hooks/use-client-ready';
+import { useCurrencyRates } from '@/hooks/useCurrencyRates';
 
 export const FIAT_CURRENCIES: { code: FiatCurrency; name: string; symbol: string }[] = [
   { code: 'USD', name: 'US Dollar', symbol: '$' },
@@ -67,9 +68,11 @@ export function CurrencySelector({
   const { prefs, setPrefs } = useUiPreferences();
   const [open, setOpen] = React.useState(false);
   const clientReady = useClientReady();
+  const rates = useCurrencyRates();
   
   const currentFiat = FIAT_OPTIONS.find(f => f.value === prefs.preferredFiatCurrency) ?? FIAT_OPTIONS[0];
   const currentCrypto = CRYPTO_OPTIONS.find(c => c.value === prefs.preferredCryptoCurrency) ?? CRYPTO_OPTIONS[0];
+  const selectedAvailable = Number.isFinite(rates.fiatRates[currentFiat.value]) && (!showCrypto || currentCrypto.value === 'NONE' || Number.isFinite(rates.cryptoPrices[currentCrypto.value]));
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -98,7 +101,7 @@ export function CurrencySelector({
       <DropdownMenuContent 
         align="end" 
         className={cn(
-          "w-64 scroll-pb-28 p-1.5 motion-reduce:animate-none",
+          "w-64 scroll-pb-40 p-1.5 motion-reduce:animate-none",
           "border-border/50 bg-popover/95 backdrop-blur-xl",
           "shadow-lg shadow-black/5 dark:shadow-black/20",
           "duration-150"
@@ -164,8 +167,12 @@ export function CurrencySelector({
           </>
         )}
         <div className="sticky bottom-0 -mx-1.5 -mb-1.5 mt-2 border-t border-border bg-popover p-2">
-          <p className="px-2 pb-2 text-xs leading-relaxed text-muted-foreground">{showCrypto ? 'Fiat (crypto)' : 'Fiat'} display estimates. Payment methods are chosen at checkout.</p>
-          <DropdownMenuItem className="min-h-11 cursor-pointer justify-center rounded-md bg-accent font-medium" onSelect={() => setOpen(false)}>Done</DropdownMenuItem>
+          <p className="px-2 pb-2 text-xs leading-relaxed text-muted-foreground">Display estimates. Choose how to pay at checkout.</p>
+          <p role="status" className="px-2 pb-2 text-xs leading-relaxed text-muted-foreground">{rates.isLoading ? 'Updating conversion rates…' : rates.error ?? (!selectedAvailable ? 'Selected conversion unavailable. Refresh or choose another currency.' : rates.isFiatStale || (showCrypto && currentCrypto.value !== 'NONE' && rates.isCryptoStale) ? 'Some estimates use last available rates.' : 'Current reference rates.')}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <DropdownMenuItem disabled={rates.isLoading} className="min-h-11 cursor-pointer justify-center rounded-md" onSelect={event => { event.preventDefault(); void rates.refreshRates(); }}>Refresh rates</DropdownMenuItem>
+            <DropdownMenuItem className="min-h-11 cursor-pointer justify-center rounded-md bg-accent font-medium" onSelect={() => setOpen(false)}>Done</DropdownMenuItem>
+          </div>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

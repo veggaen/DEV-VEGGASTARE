@@ -5,6 +5,84 @@ import { createHash } from 'node:crypto';
 import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders';
 import { SessionRailResponse } from '../lib/ai-chat/session-list';
 
+for(const mode of ['outage','stale'] as const) test(`Display rate integrity: ${mode}`,async({browser,baseURL})=>{
+  test.skip(process.env.E2E_RATE_INTEGRITY!=='1','Browser-only rate responses; no purchase or saved preference changes');
+    const context=await browser.newContext({baseURL,viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();
+    await context.addInitScript(()=>localStorage.setItem('veggastare:uiPreferences',JSON.stringify({preferredFiatCurrency:'USD',preferredCryptoCurrency:'ETH'})));
+    const timestamp=Date.now()-2*60*60*1000;
+    let recovered=false;
+    await page.route('**/api/currency-rates',route=>mode==='outage'&&!recovered?route.fulfill({status:503,json:{success:false}}):route.fulfill({json:{success:true,fiat:{rates:{USD:1,NOK:.1},fresh:recovered,timestamp:recovered?Date.now():timestamp},crypto:{prices:{ETH:2000},fresh:recovered,timestamp:recovered?Date.now():timestamp}}}));
+    try{
+      await page.goto('/products/cveggatinterviewcredits01',{waitUntil:'domcontentloaded'});
+      const price=page.locator('[data-product-price] [data-price-display]').first();
+      if(mode==='outage'){
+        await expect(price).toContainText('USD unavailable');await expect(price).toContainText('(ETH unavailable)');
+        const consent=page.getByRole('button',{name:'Essential Only',exact:true});if(await consent.isVisible())await consent.click();
+        await page.getByRole('button',{name:/^Display currency:/}).click();
+        const menu=page.getByRole('menu');await expect(menu).toContainText('Conversion rates could not be refreshed.');
+        recovered=true;await menu.getByRole('menuitem',{name:'Refresh rates',exact:true}).click();
+        await expect(price).toContainText(/USD\s*3\.90/);await expect(menu).toContainText('Current reference rates.');
+        await menu.getByRole('menuitem',{name:'Done',exact:true}).click();
+      }else{
+        await expect(price).toContainText(/USD\s*3\.90/);await expect(price).toHaveAttribute('title',/last available rates/);
+        await page.reload({waitUntil:'domcontentloaded'});
+        await expect(price).toContainText(/USD\s*3\.90/);await expect(price).toHaveAttribute('title',/last available rates/);
+      }
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    }finally{await context.close();}
+});
+
+test('Display rate cache reuses fresh quotes and tolerates blocked browser storage',async({browser,baseURL})=>{
+  test.skip(process.env.E2E_RATE_INTEGRITY!=='1','Isolated browser storage and quote fixtures only');
+  for(const denied of [false,true]){
+    const context=await browser.newContext({baseURL}),page=await context.newPage();let reads=0;
+    await context.addInitScript(denied=>{
+      localStorage.setItem('veggastare:uiPreferences',JSON.stringify({preferredFiatCurrency:'USD',preferredCryptoCurrency:'ETH'}));
+      if(denied){const set=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='veggastare_currency_rates')throw new DOMException('QA storage denial','QuotaExceededError');return set.call(this,key,value);};}
+    },denied);
+    await page.route('**/api/currency-rates',route=>{reads++;return route.fulfill({json:{success:true,fiat:{rates:{USD:1,NOK:.1},fresh:true,timestamp:Date.now()},crypto:{prices:{ETH:2000},fresh:true,timestamp:Date.now()}}});});
+    try{
+      await page.goto('/products/cveggatinterviewcredits01',{waitUntil:'domcontentloaded'});
+      const price=page.locator('[data-product-price] [data-price-display]').first();
+      await expect(price).toContainText(/USD\s*3\.90/);await expect(price).toHaveAttribute('title',/current reference rates/);expect(reads).toBe(1);
+      await page.reload({waitUntil:'domcontentloaded'});
+      await expect(price).toContainText(/USD\s*3\.90/);await expect(price).toHaveAttribute('title',/current reference rates/);expect(reads).toBe(denied?2:1);
+    }finally{await context.close();}
+  }
+});
+
+test('Historical orders keep recorded amounts separate from display estimates',async({browser,baseURL},testInfo)=>{
+  test.skip(process.env.E2E_RATE_INTEGRITY!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Retained demo receipts only; no purchase');
+  const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,reducedMotion:'reduce'}),page=await context.newPage();
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  await context.addInitScript(()=>localStorage.setItem('veggastare:uiPreferences',JSON.stringify({preferredFiatCurrency:'USD',preferredCryptoCurrency:'ETH'})));
+  await page.route('**/api/currency-rates',route=>route.fulfill({json:{success:true,fiat:{rates:{USD:1,NOK:.1},fresh:true,timestamp:Date.now()},crypto:{prices:{ETH:2000},fresh:true,timestamp:Date.now()}}}));
+  try{
+    const session=await (await context.request.get('/api/auth/session')).json();expect(session.user.isDemo).toBe(true);
+    const orders=await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
+    const order=orders.find((row:{checkout?:{state:string}})=>row.checkout?.state==='COMPLETED');expect(order).toBeTruthy();
+    for(const width of [390,1280]){
+      await page.setViewportSize({width,height:844});
+      await page.goto(`/my-orders?order=${order.id}`,{waitUntil:'domcontentloaded'});
+      await expect(page.locator('[data-historical-price-note]')).toBeVisible();
+      await expect(page.getByText(/Recorded catalog value \(not charged\):/)).toBeVisible();
+      const row=page.getByRole('list',{name:'Your orders',exact:true}).locator(':scope > li').filter({hasText:order.id.slice(-8).toUpperCase()});
+      await expect(row.locator('[data-price-display]').first()).toContainText(/USD\s*0\.00/);
+      await expect(row.locator('[data-price-display]').first()).toHaveAttribute('title',/Original recorded amounts are unchanged/);
+      const consent=page.getByRole('button',{name:'Essential Only',exact:true});if(await consent.isVisible())await consent.click();
+      await row.getByRole('link',{name:'View receipt',exact:true}).click();
+      await expect(page.getByRole('heading',{name:'Your demo order is ready',exact:true})).toBeVisible();
+      await expect(page.locator('[data-historical-price-note]')).toBeVisible();
+      const main=page.locator('[data-app-scroll-container]:visible');
+      await page.mouse.move(width-24,700);await page.mouse.wheel(0,10000);
+      await expect(page.getByRole('main').getByRole('link',{name:'Browse products',exact:true})).toBeInViewport();
+      expect(await main.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+      await page.screenshot({path:testInfo.outputPath(`receipt-bottom-${width}.png`)});
+    }
+    expect(errors).toEqual([]);
+  }finally{await context.close();}
+});
+
 test('Listing draft currency and decimal editing stay consistent through review',async({browser,baseURL},testInfo)=>{
   test.skip(process.env.E2E_LISTING_POLISH!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Read-only listing currency regression');
   for(const width of [390,1280]){
@@ -936,7 +1014,7 @@ test('S8 requests recover from failure, preserve filters and keep demo publishin
     localStorage.removeItem('veggastare_currency_rates');
   });
   const page = await context.newPage(), exceptions: string[] = [], writes: string[] = [];
-  await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1 }, fresh: true }, crypto: { prices: { ETH: 2000 }, fresh: true } } }));
+  await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1 }, fresh: true, timestamp: Date.now() }, crypto: { prices: { ETH: 2000 }, fresh: true, timestamp: Date.now() } } }));
   page.on('pageerror', error => exceptions.push(error.message));
   page.on('request', request => {
     const path = new URL(request.url()).pathname;
@@ -1305,7 +1383,7 @@ test('S7 selected-currency price controls preserve the budget and validate exact
   try {
     const page = await context.newPage();
     await context.addInitScript(() => { localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency: 'NOK', preferredCryptoCurrency: 'ETH' })); localStorage.removeItem('veggastare_currency_rates'); });
-    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1 }, fresh: true }, crypto: { prices: { ETH: 2000 }, fresh: true } } }));
+    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1 }, fresh: true, timestamp: Date.now() }, crypto: { prices: { ETH: 2000 }, fresh: true, timestamp: Date.now() } } }));
     const response = await context.request.get('/api/products?perPage=50');
     expect(response.ok()).toBe(true);
     const catalog = (await response.json()).filter((item: { id: string }) => ['cveggatinterviewpack000001', 'cveggatinterviewcredits01'].includes(item.id));
@@ -1437,7 +1515,7 @@ test('S7 seller and warehouse prices use selected fiat and crypto without changi
     const page = await context.newPage();
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
-    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1, EUR: 1.1 }, fresh: true }, crypto: { prices: { ETH: 2000 }, fresh: true } } }));
+    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1, EUR: 1.1 }, fresh: true, timestamp: Date.now() }, crypto: { prices: { ETH: 2000 }, fresh: true, timestamp: Date.now() } } }));
     const orders = [{ id: 'qa-00000001', currency: 'NOK', amount: 39 }, { id: 'qa-00000002', currency: 'EUR', amount: 2 }].map(({ id, currency, amount }) => ({
       id, currency, totalAmount: amount, createdAt: '2026-09-23T12:00:00Z', status: 'COMPLETED', fulfilmentStatus: 'UNFULFILLED', claimedByUserId: null, claimedAt: null,
       shippedAt: null, deliveredAt: null, trackingNumber: null, trackingUrl: null, labelUrl: null, shippingServiceName: null, estimatedDelivery: null,
@@ -1475,8 +1553,22 @@ test('S7 global fiat and crypto selection persists across shopping, receipt and 
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   const errors: string[] = [];
+  let addedDemoRow: { userId: string; itemId: string } | undefined;
   page.on('pageerror', error => errors.push(error.message));
   try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user).toMatchObject({ isDemo: true, role: 'USER' });
+    // A previous free demo order empties this disposable cart. Restore that
+    // explicit prerequisite, then remove only our added line in finally.
+    const initialCart = await (await context.request.get(`/api/cart/${session.user.id}`)).json();
+    if (!initialCart.items.length) {
+      const added = await context.request.post(`/api/cart/${session.user.id}`, { data: { productId: 'cveggatinterviewcredits01', quantity: 1, creditAmount: 100 } });
+      expect(added.ok()).toBe(true);
+      const prepared = await (await context.request.get(`/api/cart/${session.user.id}`)).json();
+      expect(prepared.items).toHaveLength(1);
+      expect(prepared.items[0].product.id).toBe('cveggatinterviewcredits01');
+      addedDemoRow = { userId: session.user.id, itemId: prepared.items[0].id };
+    }
     await context.addInitScript(() => {
       if (!localStorage.getItem('currency-qa-initialized')) {
         localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency: 'USD', preferredCryptoCurrency: 'ETH' }));
@@ -1484,7 +1576,7 @@ test('S7 global fiat and crypto selection persists across shopping, receipt and 
       }
       localStorage.removeItem('veggastare_currency_rates');
     });
-    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1, EUR: 1.1 }, fresh: true }, crypto: { prices: { ETH: 2000, BTC: 100000 }, fresh: true } } }));
+    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1, EUR: 1.1 }, fresh: true, timestamp: Date.now() }, crypto: { prices: { ETH: 2000, BTC: 100000 }, fresh: true, timestamp: Date.now() } } }));
     await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-product-price]')).toContainText(/USD\s*3\.90\s*\(0\.00195 ETH\)/);
     const specificationPrice = page.locator('dt').filter({ hasText: /^Price$/ }).locator('..');
@@ -1507,8 +1599,6 @@ test('S7 global fiat and crypto selection persists across shopping, receipt and 
     await expect(page.locator('[data-product-price]')).toContainText(/NOK\s*39\.00\s*\(0\.00195 ETH\)/);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(trigger).toHaveAccessibleName('Display currency: NOK (ETH)');
-    const session = await (await context.request.get('/api/auth/session')).json();
-    expect(session.user.isDemo).toBe(true);
     const orders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
     const receipt = orders.find((order: { checkout?: { state: string } }) => order.checkout?.state === 'COMPLETED');
     expect(receipt, 'A retained demo receipt is required; this test never makes a purchase').toBeTruthy();
@@ -1563,7 +1653,7 @@ test('S7 global fiat and crypto selection persists across shopping, receipt and 
     await basket.click();
     await expect(page.getByText('Your Basket', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'View Full Cart', exact: true })).toBeVisible();
-    const miniCart = page.getByText('Your Basket', { exact: true }).locator('..').locator('..').locator('..');
+    const miniCart = page.getByRole('dialog', { name: 'Shopping basket', exact: true });
     await expect(miniCart).toHaveCSS('opacity', '1');
     await expect(miniCart.getByRole('link', { name: 'Interviewer AI Credits', exact: true }).filter({ hasText: 'Interviewer AI Credits' }).locator('..').locator('..')).toHaveCSS('opacity', '1');
     for (const price of await miniCart.locator('[data-price-display]').all()) {
@@ -1578,7 +1668,7 @@ test('S7 global fiat and crypto selection persists across shopping, receipt and 
     await expect(page.getByRole('heading', { name: 'Your demo order is ready', exact: true })).toBeVisible();
     await expect(page.getByRole('list', { name: 'Receipt items', exact: true }).locator('[data-price-display]').first()).toContainText('ETH)');
     await page.screenshot({ path: 'test-results/currency-receipt-390.png' });
-    // Read-only browser fixtures cover unlike listing currencies; never edit a real cart.
+    // Browser-only fixtures cover unlike listing currencies; no stored prices change.
     const savedCart = await (await context.request.get(`/api/cart/${session.user.id}`)).json();
     const fixtureItem = savedCart.items[0];
     await page.route(`**/api/cart/${session.user.id}`, route => route.request().method() !== 'GET' ? route.abort() : route.fulfill({ json: { ...savedCart, items: [
@@ -1597,7 +1687,16 @@ test('S7 global fiat and crypto selection persists across shopping, receipt and 
     await expect(page.locator('main [data-price-display]')).toHaveCount(2);
     for (const budget of await page.locator('main [data-price-display]').all()) await expect(budget).toContainText(/USD\s*24\.00\s*\(0\.012 ETH\)/);
     expect(errors).toEqual([]);
-  } finally { await context.close(); }
+  } finally {
+    try {
+      if (addedDemoRow) {
+        const removed = await context.request.delete(`/api/cart/${addedDemoRow.userId}/items/${addedDemoRow.itemId}`);
+        expect(removed.ok()).toBe(true);
+        const restored = await (await context.request.get(`/api/cart/${addedDemoRow.userId}`)).json();
+        expect(restored.items).toHaveLength(0);
+      }
+    } finally { await context.close(); }
+  }
 });
 
 test('S4 checkout uses one selected currency and locks payment while removing an item', async ({ browser, baseURL }) => {
@@ -1620,7 +1719,7 @@ test('S4 checkout uses one selected currency and locks payment while removing an
     const page = await context.newPage();
     let paymentCalls = 0;
     await page.route('**/api/demo/checkout', route => { paymentCalls++; return route.abort(); });
-    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1 }, fresh: true }, crypto: { prices: { ETH: 2000 }, fresh: true } } }));
+    await page.route('**/api/currency-rates', route => route.fulfill({ json: { success: true, fiat: { rates: { USD: 1, NOK: 0.1 }, fresh: true, timestamp: Date.now() }, crypto: { prices: { ETH: 2000 }, fresh: true, timestamp: Date.now() } } }));
     await page.goto('/checkout', { waitUntil: 'domcontentloaded' });
     const order = page.getByRole('region', { name: 'Order items', exact: true });
     await expect(order).toContainText('USD'); await expect(order).not.toContainText('NOK');

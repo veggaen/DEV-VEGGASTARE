@@ -19,16 +19,17 @@ interface PriceAmountProps {
   /** @deprecated Source currency belongs in transaction details, not price parentheses. */
   showOriginalAmount?: boolean;
   render?: (parts: PriceDisplayParts) => ReactNode;
+  context?: 'catalog' | 'history';
 }
 
 /** Sum mixed listing currencies only for presentation; unknown currency fails closed. */
-export function PriceTotal({ entries }: { entries: { amount: number; currency?: string | null }[] }) {
+export function PriceTotal({ entries, context }: { entries: { amount: number; currency?: string | null }[]; context?: 'catalog' | 'history' }) {
   const rates = useCurrencyRates();
   const total = entries.reduce((sum, entry) => sum + priceDisplay({ ...entry, fiat: 'USD', crypto: 'NONE', fiatRates: rates.fiatRates, cryptoPrices: {}, loading: rates.isLoading && !rates.lastUpdated }).fiatAmount, 0);
-  return <PriceAmount usd={total} />;
+  return <PriceAmount usd={total} context={context} />;
 }
 
-export default function PriceAmount({ usd, amount, currency = 'USD', displayFiat, displayCrypto, render }: PriceAmountProps) {
+export default function PriceAmount({ usd, amount, currency = 'USD', displayFiat, displayCrypto, render, context = 'catalog' }: PriceAmountProps) {
   const { prefs } = useUiPreferences();
   const rates = useCurrencyRates();
   const parts = priceDisplay({
@@ -39,10 +40,10 @@ export default function PriceAmount({ usd, amount, currency = 'USD', displayFiat
     fiatRates: rates.fiatRates,
     cryptoPrices: rates.cryptoPrices,
     loading: rates.isLoading && !rates.lastUpdated,
-    stale: rates.isFiatStale || rates.isCryptoStale,
+    stale: rates.isFiatStale || ((displayCrypto ?? prefs.preferredCryptoCurrency) !== 'NONE' && rates.isCryptoStale),
   });
   if (render) return <>{render(parts)}</>;
-  return <span data-price-display className="inline-block max-w-full tabular-nums" title={parts.isEstimate ? `Display estimate${parts.isStale ? ' using last available rates' : ''}. Payment totals are confirmed at checkout.` : undefined}>
+  return <span data-price-display className="inline-block max-w-full tabular-nums" title={parts.isEstimate ? `Display estimate${parts.isStale ? ' using last available rates' : ' using current reference rates'}. ${context === 'history' ? 'Original recorded amounts are unchanged.' : 'Payment totals are confirmed at checkout.'}` : undefined}>
     <span className="whitespace-nowrap">{parts.primaryText}</span>
     {parts.secondaryText && <> <span className="inline-block text-xs font-normal text-muted-foreground">{parts.secondaryText}</span></>}
   </span>;

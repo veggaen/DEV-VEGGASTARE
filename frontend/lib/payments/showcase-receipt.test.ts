@@ -26,7 +26,7 @@ beforeEach(() => {
     refundedOre: 3900, refundReference: 'REFUND1', captureId: 'CAPTURE1', Order: { OrderItem: [], ReturnRequest: [], DownloadToken: [
       { id: 'file', token: 'must-not-be-shown', usedCount: 0, maxUses: 3, DigitalAsset: { fileName: 'interview.jpg' } },
     ] } });
-  m.cart.mockResolvedValue({ CartItem: [{ productId: 'cveggatinterviewcredits01', quantity: 1, Product: { image: ['/fixture.jpg'] } }] });
+  m.cart.mockResolvedValue({ CartItem: [{ id: 'cart-item', productId: 'cveggatinterviewcredits01', quantity: 1, Product: { id: 'cveggatinterviewcredits01', title: 'Interviewer AI Credits', productType: 'DIGITAL', visibility: 'PUBLIC', downloadsEnabled: true, image: ['/fixture.jpg'] } }] });
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -42,6 +42,8 @@ it.each([
   expect(html).toMatch(/USD\s*3\.90/); expect(html).toContain('(0.00195 ETH)');
   expect(html).not.toContain('(NOK');
   expect(html).toContain('Original payment details'); expect(html).toContain('39.00 NOK');
+  expect(html).toContain('Recorded amounts do not change.');
+  expect(html).toContain('Original recorded amounts are unchanged.');
   expect(html).toContain('REFUND1'); expect(html).toContain('Credit refund adjustment: 7 credits');
   expect(html).not.toContain('must-not-be-shown'); expect(html).not.toContain('Your order is confirmed');
 });
