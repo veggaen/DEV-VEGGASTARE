@@ -57,9 +57,14 @@ retained Preview app session was a payment-disabled demo, so normal Google
 sign-in was attempted. Google returned `redirect_uri_mismatch` for the exact
 stable Preview `/api/auth/callback/google` URL. The matching existing OAuth
 client in the VeggaStare project has production and localhost callbacks but no
-Preview callback. Adding only that Preview callback is awaiting owner
-confirmation; no Google OAuth settings have been changed. Initiation protocol
-tests passing does not imply provider consent/callback acceptance.
+Preview callback. After explicit owner confirmation, the exact Preview callback
+was added to “Web client VeggaStare”; Google displayed “OAuth client saved”.
+All six existing redirect entries were checked unchanged before saving.
+The subsequent browser sign-in attempt reached an extension security-warning
+page targeting Preview `/nexus`. Automation stopped at that warning without
+bypassing it. Owner inspection is required; successful authenticated application
+access and Sandbox payment remain unverified. Initiation protocol tests passing
+does not imply provider consent/callback acceptance.
 
 The previous live runtime remains verified; this build-only change does not
 claim a new payment, OAuth consent flow, or full application acceptance.

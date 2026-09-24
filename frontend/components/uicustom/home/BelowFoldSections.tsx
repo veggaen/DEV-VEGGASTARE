@@ -53,6 +53,13 @@ function HoverableHeading({
     const pos = Math.round(externalFraction * (letterIndices.length - 1));
     return letterIndices[Math.max(0, Math.min(letterIndices.length - 1, pos))];
   }, [reduceMotion, externalFraction, hoveredIdx, letterIndices]);
+  const words = React.useMemo(
+    () => text.split(' ').map((word, index, allWords) => ({
+      word,
+      start: Array.from(allWords.slice(0, index).join(' ')).length + (index > 0 ? 1 : 0),
+    })),
+    [text]
+  );
 
   return (
     <span
@@ -60,14 +67,10 @@ function HoverableHeading({
       onPointerLeave={() => setHoveredIdx(null)}
     >
       <span className="sr-only">{text}</span>
-      {Array.from(text).map((char, i) => {
-        if (char === " ") {
-          return (
-            <span key={i} aria-hidden="true" className="inline-block" style={{ width: "0.28em" }}>
-              &nbsp;
-            </span>
-          );
-        }
+      {words.map(({ word, start }, wordIndex) => <React.Fragment key={start}>
+        <span aria-hidden="true" className="inline-block whitespace-nowrap">
+        {Array.from(word).map((char, charIndex) => {
+        const i = start + charIndex;
         const dist = effectiveIdx !== null ? Math.abs(i - effectiveIdx) : Infinity;
         const intensity = dist === 0 ? 1 : dist === 1 ? 0.55 : dist === 2 ? 0.22 : 0;
         const active = intensity > 0;
@@ -94,7 +97,10 @@ function HoverableHeading({
             {char}
           </span>
         );
-      })}
+        })}
+        </span>
+        {wordIndex < words.length - 1 && <span aria-hidden="true">{' '}</span>}
+      </React.Fragment>)}
     </span>
   );
 }
@@ -214,7 +220,8 @@ const FeatureCard = React.memo(function FeatureCard({
       </div>
       <Link
         href={href}
-        className="relative mt-auto inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 dark:text-white/35 transition-colors duration-200 group-hover:text-gray-700 dark:group-hover:text-white/70"
+        aria-label={`Explore ${title}`}
+        className="relative mt-auto inline-flex min-h-11 items-center gap-1.5 rounded-sm text-sm font-medium text-gray-600 dark:text-white/70 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent"
       >
         Explore
         <svg
@@ -465,9 +472,9 @@ export default function BelowFoldSections() {
       {/* ── Features grid ──────────────────────────────────────────────────── */}
       <div className="mx-auto max-w-5xl px-6 py-16 sm:py-24 xl:max-w-6xl">
         <SectionHeading
-          eyebrow="Platform"
-          title="One platform, built for this"
-          subtitle="For teams and creators who move fast."
+          eyebrow="The marketplace"
+          title="Digital goods, from discovery to delivery"
+          subtitle="Browse a product, review your order, and keep your files in your account."
         />
 
         <div
@@ -492,28 +499,28 @@ export default function BelowFoldSections() {
 
           <FeatureCard
             delay={0}
-            href="/ai"
-            title="AI Chat"
-            description="Try a free preview or use prepaid credits for available premium models. Personal API keys are encrypted; daily safety limits apply."
-            icon={AI_ICON}
+            href="/products"
+            title="Digital products"
+            description="Explore clearly labelled reviewer packs with real files. The free demo lets you try the marketplace without a payment."
+            icon={BOX_ICON}
             accentClass="from-violet-500/6 to-transparent"
             onMouseEnter={handleFeatureEnter}
           />
           <FeatureCard
             delay={0.1}
-            href="/pulse"
-            title="Live Polls"
-            description="AI-generated polls with real-time voting and verification-weighted results. Create, share, and watch the community decide — powered by True Reach™."
-            icon={POLL_ICON}
+            href="/ai"
+            title="Prepaid AI chat"
+            description="Choose an available model and see its credit cost before sending. Personal API keys bill your provider directly; daily safety limits apply."
+            icon={AI_ICON}
             accentClass="from-emerald-500/6 to-transparent"
             onMouseEnter={handleFeatureEnter}
           />
           <FeatureCard
             delay={0.2}
-            href="/dashboard/trading"
-            title="Trading & Inventory"
-            description="Warehouse tracking, shipping rates, and order management from a single dashboard."
-            icon={BOX_ICON}
+            href="/pulse"
+            title="Experimental modules"
+            description="Pulse, polls and Web3 trading are experiments on the same stack. They are separate from the digital-product purchase and delivery flow."
+            icon={POLL_ICON}
             accentClass="from-sky-500/6 to-transparent"
             onMouseEnter={handleFeatureEnter}
           />
@@ -553,10 +560,10 @@ export default function BelowFoldSections() {
           <div className="grid grid-cols-2 divide-x divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-4 sm:divide-y-0">
             {(
               [
-                { value: "6", label: "AI Models" },
+                { value: "Demo", label: "No card required" },
                 { value: "BYOK", label: "Your Keys, Your Billing" },
-                { value: "$0", label: "To Start" },
-                { value: "12", label: "Trust Tiers" },
+                { value: "Files", label: "Private account access" },
+                { value: "AI", label: "Prepaid usage" },
               ] as const
             ).map(({ value, label }, i) => (
               <motion.div
@@ -593,9 +600,9 @@ export default function BelowFoldSections() {
         >
           {(
             [
-              { step: "01", title: "Browse or Ask", description: "Explore digital products or ask AI about Veggat. Model costs and your remaining credits are shown before you send." },
-              { step: "02", title: "Vote & Decide", description: "Join live polls where you and llm-models are creating the options, the activity, the mission or the goal, to then have its weight adjusted by the Reach architecture." },
-              { step: "03", title: "Track & Ship", description: "Track product orders, inventory statuses, and shipping logistics from one dashboard." },
+              { step: "01", title: "Find a product", description: "Review the gallery, included files and price. Use the demo first if you want to explore without paying." },
+              { step: "02", title: "Review your checkout", description: "Sign in, check each item and read the delivery terms. Real purchases use PayPal; the demo never charges you." },
+              { step: "03", title: "Access your purchase", description: "After verified payment, find your files in My downloads or your credits in AI chat. Your order keeps the purchase record." },
             ] as const
           ).map(({ step, title, description }, i) => (
             <StepCard

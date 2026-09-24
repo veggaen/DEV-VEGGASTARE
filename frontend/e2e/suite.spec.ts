@@ -7,6 +7,61 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('S1 marketplace story and feature links remain clear across viewport sizes', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_MARKETPLACE_STORY !== '1', 'Focused public-home story and navigation audit');
+  test.setTimeout(90_000);
+  const context = await browser.newContext({ baseURL, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    for (const width of [360, 390, 1280, 2560]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      if (width === 360) {
+        const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+        await expect(consent).toBeVisible(); await consent.click();
+      }
+      for (const title of ['Digital goods, from discovery to delivery', 'Find a product', 'Review your checkout', 'Access your purchase', 'Experimental modules']) {
+        const heading = page.getByRole('heading', { name: title, exact: true });
+        await heading.scrollIntoViewIfNeeded(); await expect(heading).toBeVisible();
+      }
+      await expect(page.getByText('No card required', { exact: true })).toBeVisible();
+      await expect(page.getByText('Trust Tiers', { exact: true })).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.getByRole('heading', { name: 'Digital goods, from discovery to delivery', exact: true }).scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`marketplace-story-${width}.png`) });
+      for (const [label, path] of [['Explore Digital products', '/products'], ['Explore Prepaid AI chat', '/ai'], ['Explore Experimental modules', '/pulse']]) {
+        const link = page.getByRole('link', { name: label, exact: true });
+        await expect(link).toHaveAttribute('href', path);
+        await link.click();
+        await page.waitForURL(url => url.pathname === path, { waitUntil: 'domcontentloaded' });
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
+      }
+    }
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S1 signed-in homepage Settings link opens account settings', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_MARKETPLACE_STORY !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo only; no new identity');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  const page = await context.newPage();
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session?.user?.isDemo).toBe(true);
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    await expect(consent).toBeVisible(); await consent.click();
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
+    const settings = page.getByRole('main').getByRole('link', { name: 'Settings', exact: true });
+    await expect(settings).toHaveAttribute('href', '/settings');
+    await settings.click();
+    await page.waitForURL(url => url.pathname === '/settings', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('main')).toBeVisible();
+  } finally { await context.close(); }
+});
+
 test('S1 demo refusal explains limits and keeps browsing available', async ({ browser, baseURL }, testInfo) => {
   test.skip(process.env.E2E_DEMO_REFUSAL !== '1', 'Browser-only refusal fixtures; no demo identities created');
   const context = await browser.newContext({ baseURL, reducedMotion: 'reduce' });

@@ -1665,7 +1665,7 @@ export default function HomeHero({
             </motion.div>
           )}
 
-          {/* Nexus settings: only for logged-in users */}
+          {/* Account settings: only for logged-in users */}
           {isLoggedIn && (
             <motion.div
               initial={false}
@@ -1674,7 +1674,7 @@ export default function HomeHero({
               className="relative group"
             >
               <Link
-                href="/nexus"
+                href="/settings"
                 className="relative flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-gray-500 dark:text-white/60 transition-all duration-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-800 dark:hover:text-white/90"
               >
                 <motion.svg
