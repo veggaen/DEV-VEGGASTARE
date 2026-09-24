@@ -6,15 +6,19 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ProductsListResponseSchema, type ProductsListItem } from '@/lib/types/products';
+import type { CatalogSnapshot } from '@/lib/catalog-snapshot';
 
-export function useProductListing(query: string, perPage: number) {
-  const [products, setProducts] = useState<ProductsListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useProductListing(query: string, perPage: number, initialCatalog?: CatalogSnapshot | null) {
+  // The product layout preserves filters across detail navigation. Never seed
+  // that filtered view with the unfiltered first page returned by the server.
+  const [initial] = useState(() => initialCatalog?.query === query && initialCatalog.perPage === perPage ? initialCatalog : null);
+  const [products, setProducts] = useState<ProductsListItem[]>(initial?.products ?? []);
+  const [loading, setLoading] = useState(!initial);
   const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore] = useState(initial?.products.length === perPage);
   const request = useRef<AbortController | null>(null);
-  const page = useRef(0);
-  const currentQuery = useRef('');
+  const page = useRef(initial ? 1 : 0);
+  const currentQuery = useRef(initial ? `${query}|${perPage}` : '');
   const firstRequest = useRef(true);
   const pending = useRef(false);
   const failedPage = useRef(1);
@@ -59,6 +63,9 @@ export function useProductListing(query: string, perPage: number) {
   }, [query, perPage]);
 
   useEffect(() => {
+    // Also skip the StrictMode effect replay. Once a filter changes we use the
+    // normal refresh path, including when it is cleared back to the seed query.
+    if (firstRequest.current && initial && initial.query === query && initial.perPage === perPage) return;
     // Cancel before the debounce: a slow response cannot replace newer input.
     request.current?.abort();
     request.current = null;
@@ -66,11 +73,11 @@ export function useProductListing(query: string, perPage: number) {
     setLoading(true);
     setError(null);
     setHasMore(false);
-    const delay = firstRequest.current ? 0 : 250;
+    const delay = firstRequest.current && !initial ? 0 : 250;
     firstRequest.current = false;
     const timer = window.setTimeout(() => { void fetchPage(1); }, delay);
     return () => { window.clearTimeout(timer); request.current?.abort(); request.current = null; };
-  }, [fetchPage]);
+  }, [fetchPage, initial, query, perPage]);
 
   const loadMore = useCallback(() => {
     if (!pending.current && hasMore && !error && currentQuery.current === `${query}|${perPage}`) {

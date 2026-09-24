@@ -6,6 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import type { RefCallback, RefObject } from "react";
 import { usePathname } from "next/navigation";
 import { MySidebarProductsMenu } from "../uicustom/product/sidebar";
+import { DEFAULT_CATALOG_PAGE_SIZE } from '@/lib/catalog-snapshot';
 
 export type SidebarDock = "edge-left" | "frame-left" | "frame-right" | "edge-right";
 
@@ -407,7 +408,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 			el.removeEventListener("touchcancel", onTouchEnd as any);
 		};
 	}, [openSidebar]);
-	const [perPage, setPerPage] = useState(30);
+	const [perPage, setPerPage] = useState(DEFAULT_CATALOG_PAGE_SIZE);
 	const [sidebarDock, setSidebarDockState] = useState<SidebarDock>('edge-left');
 	useEffect(() => {
 		const readDock = (): SidebarDock => {

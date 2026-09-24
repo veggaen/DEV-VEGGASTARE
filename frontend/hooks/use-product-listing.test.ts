@@ -1,22 +1,24 @@
 /** @vitest-environment jsdom */
 /** @fileOverview Catalog cancellation, retry and pagination regressions. @stability stable */
-import React, { act, useEffect } from 'react';
+import React, { act, StrictMode, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useProductListing } from './use-product-listing';
+import type { CatalogSnapshot } from '@/lib/catalog-snapshot';
+import { ProductsListResponseSchema } from '@/lib/types/products';
 
 let root: Root;
 let container: HTMLDivElement;
 let state: ReturnType<typeof useProductListing>;
 let requests: { url: string; signal: AbortSignal; resolve: (response: Response) => void; reject: (error: Error) => void }[];
-function Harness({ query = '', perPage = 2 }: { query?: string; perPage?: number }) {
-  const result = useProductListing(query, perPage);
+function Harness({ query = '', perPage = 2, initial }: { query?: string; perPage?: number; initial?: CatalogSnapshot | null }) {
+  const result = useProductListing(query, perPage, initial);
   useEffect(() => { state = result; }, [result]);
   return null;
 }
 const item = (id: string) => ({ id, title: id, description: 'A product', category: 'Digital', price: 29,
   stock: 0, shipFromPostalId: '', image: [], userId: 'seller', createdAt: '2026-01-01', updatedAt: '2026-01-01', productType: 'DIGITAL' });
-const render = async (query = '', perPage = 2) => { await act(async () => { root.render(React.createElement(Harness, { query, perPage })); }); };
+const render = async (query = '', perPage = 2, initial?: CatalogSnapshot | null) => { await act(async () => { root.render(React.createElement(Harness, { query, perPage, initial })); }); };
 const advance = async (ms: number) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms); }); };
 const respond = async (index: number, ids: string[]) => { await act(async () => { requests[index].resolve(new Response(JSON.stringify(ids.map(item)))); }); };
 
@@ -90,4 +92,46 @@ it('bounds a hung request and allows an explicit retry', async () => {
   expect(state.loading).toBe(false); expect(state.error).toContain('taking longer');
   await act(async () => state.retry()); await respond(0, ['recovered']);
   expect(state.error).toBeNull(); expect(state.products[0].id).toBe('recovered');
+});
+
+const seed = (ids = ['one', 'two']): CatalogSnapshot => ({ query: '', perPage: 2, products: ProductsListResponseSchema.parse(ids.map(item)) });
+
+it('renders the server snapshot immediately without a duplicate hydration request', async () => {
+  await act(async () => root.render(React.createElement(StrictMode, null, React.createElement(Harness, { initial: seed() }))));
+  expect(state.products.map(p => p.id)).toEqual(['one', 'two']);
+  expect(state.loading).toBe(false); expect(state.hasMore).toBe(true);
+  await advance(5000); expect(fetch).not.toHaveBeenCalled();
+  await act(async () => state.loadMore());
+  expect(requests[0].url).toContain('page=2&perPage=2');
+  await respond(0, ['two', 'three']);
+  expect(state.products.map(p => p.id)).toEqual(['one', 'two', 'three']);
+});
+
+it('treats an empty successful server response as loaded, not a failed request', async () => {
+  await render('', 2, seed([])); await advance(5000);
+  expect(state.loading).toBe(false); expect(state.hasMore).toBe(false); expect(state.error).toBeNull();
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it.each([['searchTerm=retained', 2], ['', 10]] as const)('ignores an incompatible snapshot for preserved filters/page size: %s %s', async (query, perPage) => {
+  await render(query, perPage, seed()); expect(state.products).toEqual([]); expect(state.loading).toBe(true);
+  await advance(0); expect(requests).toHaveLength(1);
+  expect(requests[0].url).toContain(`perPage=${perPage}`);
+  if (query) expect(requests[0].url).toContain(query);
+});
+
+it('refreshes seeded cards when filters change and does not reuse stale seed data on clear', async () => {
+  const initial = seed(); await render('', 2, initial);
+  await render('searchTerm=new', 2, initial); expect(state.loading).toBe(true); expect(state.products).toHaveLength(2);
+  await advance(249); expect(requests).toHaveLength(0); await advance(1); await respond(0, ['new']);
+  await render('', 2, initial); await advance(250); expect(requests).toHaveLength(2);
+  await respond(1, ['fresh']); expect(state.products.map(p => p.id)).toEqual(['fresh']);
+});
+
+it('uses the normal bounded client request/retry path if the server read failed', async () => {
+  await render('', 2, null); await advance(0);
+  await act(async () => requests[0].reject(new Error('Offline')));
+  expect(state.error).toContain('try again');
+  await act(async () => state.retry()); await respond(1, ['recovered']);
+  expect(state.products[0].id).toBe('recovered'); expect(state.error).toBeNull();
 });

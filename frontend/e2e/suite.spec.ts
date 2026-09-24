@@ -399,12 +399,15 @@ test('Catalog and product pages disclose purchase availability before a buyer ch
     const ordinary={...base,id:'qa-browse-only',title:'Ordinary digital listing',downloadsEnabled:true};
     const paused={...base,downloadsEnabled:false};
     const credits=rows.find((row:{id:string})=>row.id==='cveggatinterviewcredits01');expect(credits).toBeTruthy();
-    await page.route(url=>url.pathname==='/api/products',route=>route.fulfill({json:new URL(route.request().url()).searchParams.has('searchTerm')?[ordinary]:[ordinary,paused,credits]}));
+    await page.route(url=>url.pathname==='/api/products',route=>route.fulfill({json:new URL(route.request().url()).searchParams.get('searchTerm')==='Ordinary'?[ordinary]:[ordinary,paused,credits]}));
     await page.route(`**/api/products/${ordinary.id}`,route=>route.fulfill({json:{...detail,id:ordinary.id,title:ordinary.title,downloadsEnabled:true,acceptedTokens:[]}}));
     await page.route(`**/api/products/${paused.id}`,route=>route.fulfill({json:{...detail,downloadsEnabled:false}}));
     await page.goto('/products',{waitUntil:'domcontentloaded'});
-    const article=page.getByRole('article',{name:ordinary.title,exact:true});await expect(article).toBeVisible();
     await page.getByRole('button',{name:'Essential Only',exact:true}).click();
+    // Seeded cards now arrive from the server. Activate the browser-only fixture
+    // through a real filter interaction instead of mocking server rendering.
+    await page.getByRole('searchbox',{name:'Search products',exact:true}).fill('availability fixture');
+    const article=page.getByRole('article',{name:ordinary.title,exact:true});await expect(article).toBeVisible();
     await expect(article.getByText('Browse only · checkout not open',{exact:true})).toBeVisible();
     await expect(article.getByRole('button',{name:'Buy now',exact:true})).toHaveCount(0);
     await expect(article.getByRole('button',{name:/Add .* to cart/})).toHaveCount(0);
@@ -3702,6 +3705,46 @@ test('S7 — cart concurrent edits and failure recovery retain rows without a sk
   } finally { releaseFirst(); releaseSecond(); await context.close(); }
 });
 
+test('S7 — catalog first response includes cards without a hydration fetch waterfall', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_CATALOG_SSR !== '1', 'Focused catalog first-response regression');
+  test.setTimeout(90_000);
+  const measurements: unknown[] = [];
+  for (const width of [390, 1280, 2560]) {
+    const context = await browser.newContext({ baseURL, viewport: { width, height: 844 }, reducedMotion: 'reduce' });
+    const page = await context.newPage(), calls: string[] = [], errors: string[] = [];
+    page.on('request', r => { if (new URL(r.url()).pathname === '/api/products') calls.push(r.url()); });
+    page.on('pageerror', e => errors.push(e.message));
+    try {
+      const response = await page.goto('/products', { waitUntil: 'domcontentloaded' });
+      expect(response?.status()).toBe(200);
+      const html = await response!.text();
+      await expect(page.getByRole('article', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+      await expect(page.getByRole('searchbox', { name: 'Search products', exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+      const measurement = await page.evaluate(() => {
+        const image = document.querySelector('article img') as HTMLImageElement | null;
+        const resource = image && performance.getEntriesByName(image.currentSrc)[0] as PerformanceResourceTiming | undefined;
+        const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+        return { cards: document.querySelectorAll('article').length, responseStartMs: nav.responseStart,
+          domContentLoadedMs: nav.domContentLoadedEventEnd, firstImageStartMs: resource?.startTime ?? null };
+      });
+      measurements.push({ width, ...measurement, htmlCards: (html.match(/<article /g) ?? []).length, browserCatalogRequests: calls.length });
+      await testInfo.attach(`catalog-first-response-${width}.json`, { body: JSON.stringify(measurements.at(-1), null, 2), contentType: 'application/json' });
+      expect(html.includes('<article aria-label="Veggat Interview Pack"'), 'Product cards must arrive in HTML, not only after hydration').toBe(true);
+      expect(html.includes('<article aria-label="Interviewer AI Credits"')).toBe(true);
+      expect(calls, 'Initial server results must not be immediately fetched again').toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await expect(page.getByRole('status', { name: 'Loading products', exact: true })).toHaveCount(0);
+      await page.screenshot({ path: testInfo.outputPath(`catalog-first-response-${width}.png`) });
+      // Actual interaction proves hydration finished and request cancellation still works.
+      const filtered = page.waitForResponse(r => new URL(r.url()).pathname === '/api/products' && new URL(r.url()).searchParams.get('searchTerm') === 'Interviewer');
+      await page.getByRole('searchbox', { name: 'Search products', exact: true }).fill('Interviewer'); await filtered;
+      await expect(page.getByRole('article', { name: 'Veggat Interview Pack', exact: true })).toHaveCount(0);
+      expect(calls).toHaveLength(1); expect(errors).toEqual([]);
+    } finally { await context.close(); }
+  }
+});
+
 test('S7 — catalog canvas, first wheel and controls remain stable at eight sizes', async ({ browser, baseURL }) => {
   test.setTimeout(120_000);
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
@@ -3761,19 +3804,15 @@ test('S7 — catalog retains results through slow search, error and recovery', a
   test.setTimeout(90_000);
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  let releaseInitial!: () => void;
   let releaseOld!: () => void;
   let sawOld!: () => void;
-  const initial = new Promise<void>(resolve => { releaseInitial = resolve; });
   const old = new Promise<void>(resolve => { releaseOld = resolve; });
   const oldStarted = new Promise<void>(resolve => { sawOld = resolve; });
   const items = await (await context.request.get('/api/products?perPage=2')).json();
   expect(items.length).toBeGreaterThan(0);
   let fail = true;
-  let firstRequest = true;
   await page.route(url => url.pathname === '/api/products', async route => {
     const term = new URL(route.request().url()).searchParams.get('searchTerm');
-    if (firstRequest) { firstRequest = false; await initial; }
     if (term === 'old') {
       sawOld(); await old;
       await route.fulfill({ json: [{ ...items[0], title: 'Obsolete result' }] }).catch(() => {});
@@ -3787,16 +3826,12 @@ test('S7 — catalog retains results through slow search, error and recovery', a
     await page.goto('/products', { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
     const skeleton = page.getByRole('status', { name: 'Loading products', exact: true });
-    await expect(skeleton).toBeVisible();
-    const placeholder = await skeleton.locator('[aria-hidden] > div').first().boundingBox();
-    releaseInitial();
     await expect(page.getByRole('article').first()).toBeVisible();
-    const card = await page.getByRole('article').first().boundingBox();
-    expect(Math.abs(card!.height - placeholder!.height)).toBeLessThan(2);
-    expect(Math.abs(card!.y - placeholder!.y)).toBeLessThan(2);
+    const initialCount = await page.getByRole('article').count();
+    await expect(skeleton).toHaveCount(0); // First page is now rendered by the server.
     const search = page.getByRole('searchbox', { name: 'Search products' });
     await search.fill('old'); await oldStarted;
-    await expect(page.getByRole('article')).toHaveCount(items.length);
+    await expect(page.getByRole('article')).toHaveCount(initialCount);
     await expect(skeleton).toHaveCount(0);
     await expect(page.getByText('Updating products…', { exact: true })).toBeVisible();
     await search.fill('new');
@@ -3817,7 +3852,7 @@ test('S7 — catalog retains results through slow search, error and recovery', a
     await search.fill('currency');
     await expect(page.getByText('Price unavailable', { exact: true })).toBeVisible();
     await expect(page.getByRole('article').getByRole('button', { name: 'Buy now', exact: true })).toBeDisabled();
-  } finally { releaseInitial(); releaseOld(); await context.close(); }
+  } finally { releaseOld(); await context.close(); }
 });
 
 test('S7 — catalog desktop filter docks, categories, price and page size work', async ({ browser, baseURL }) => {
@@ -3898,11 +3933,17 @@ test('S7 — catalog cart and buy-now buttons reach checkout and recover from fa
     const pack = page.getByRole('article', { name: 'Veggat Interview Pack', exact: true });
     await pack.getByRole('button', { name: 'Add Veggat Interview Pack to cart', exact: true }).click();
     await expect(page.getByText('Added to basket', { exact: true })).toBeVisible();
+    // A bottom toast can cover the next card's CTA on a phone. Exercise its
+    // actual accessible dismiss control, rather than force-clicking through it.
+    await page.getByRole('button', { name: 'Close toast', exact: true }).click();
+    await expect(page.getByText('Added to basket', { exact: true })).toBeHidden();
     await page.getByRole('article', { name: 'Interviewer AI Credits', exact: true }).getByRole('button', { name: 'Buy now', exact: true }).click();
     await expect(page).toHaveURL(/\/checkout$/);
     await expect(page.getByRole('heading', { name: 'Secure checkout', exact: true })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Order items' }).getByRole('heading', { level: 3 })).toHaveCount(2);
-    await expect(page.getByText('0.00 NOK', { exact: true })).toBeVisible();
+    const summary = page.getByRole('complementary', { name: 'Payment summary', exact: true });
+    await expect(summary.getByText('Free demonstration', { exact: true })).toBeVisible();
+    await expect(summary.getByText(/^(?:USD|NOK)\s*0\.00$/)).toBeVisible();
     // Do not fulfill an order or grant more credits during this catalog check.
     await page.goto('/products', { waitUntil: 'domcontentloaded' });
     await page.route(url => url.pathname === `/api/cart/${session.user.id}`, route => route.request().method() === 'POST'
@@ -5889,7 +5930,7 @@ test.describe("Layer 3 — Content", () => {
     await expect(page.getByRole("status", { name: "Loading products", exact: true })).toHaveCount(0);
     // Observe beyond the old 300ms metadata-triggered debounce window.
     await page.waitForTimeout(600);
-    expect(productRequests).toBe(1);
+    expect(productRequests).toBe(0); // The first page already arrived in server HTML.
     await expect(page.locator("footer")).toHaveCount(0);
   });
 
