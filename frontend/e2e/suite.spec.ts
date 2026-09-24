@@ -944,16 +944,16 @@ test('Product reads avoid unused catalog requests and preserve filters across de
       await page.getByRole('link',{name:'Back to products',exact:true}).click();await initialFilters;
       await expect(page.getByRole('link',{name:'Veggat AI Credits',exact:true})).toBeVisible();
       const search=page.getByRole('searchbox',{name:'Search products',exact:true});
-      const filtered=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/products'&&new URL(r.url()).searchParams.get('searchTerm')==='Interviewer');
-      const counts=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/filter-counts'&&new URL(r.url()).searchParams.get('searchTerm')==='Interviewer');
-      await search.fill('Interviewer');await Promise.all([filtered,counts]);
+      const filtered=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/products'&&new URL(r.url()).searchParams.get('searchTerm')==='AI Credits');
+      const counts=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/filter-counts'&&new URL(r.url()).searchParams.get('searchTerm')==='AI Credits');
+      await search.fill('AI Credits');await Promise.all([filtered,counts]);
       await expect(page.getByRole('link',{name:'Fjord Study — Digital Artwork',exact:true})).toHaveCount(0);
       const before=facets.length;
       await page.getByRole('link',{name:'Veggat AI Credits',exact:true}).click();
       await expect(page.getByRole('heading',{name:'Veggat AI Credits',level:1,exact:true})).toBeVisible();
       expect(facets.length).toBe(before);
       await page.getByRole('link',{name:'Back to products',exact:true}).click();
-      await expect(search).toHaveValue('Interviewer');
+      await expect(search).toHaveValue('AI Credits');
       await expect(page.getByRole('link',{name:'Veggat AI Credits',exact:true})).toBeVisible();
       await expect(page.getByRole('link',{name:'Fjord Study — Digital Artwork',exact:true})).toHaveCount(0);
       await page.screenshot({path:testInfo.outputPath(`catalog-preserved-${width}.png`)});
@@ -4324,8 +4324,8 @@ test('S7 — catalog first response includes cards without a hydration fetch wat
       await expect(page.getByRole('status', { name: 'Loading products', exact: true })).toHaveCount(0);
       await page.screenshot({ path: testInfo.outputPath(`catalog-first-response-${width}.png`) });
       // Actual interaction proves hydration finished and request cancellation still works.
-      const filtered = page.waitForResponse(r => new URL(r.url()).pathname === '/api/products' && new URL(r.url()).searchParams.get('searchTerm') === 'Interviewer');
-      await page.getByRole('searchbox', { name: 'Search products', exact: true }).fill('Interviewer'); await filtered;
+      const filtered = page.waitForResponse(r => new URL(r.url()).pathname === '/api/products' && new URL(r.url()).searchParams.get('searchTerm') === 'AI Credits');
+      await page.getByRole('searchbox', { name: 'Search products', exact: true }).fill('AI Credits'); await filtered;
       await expect(page.getByRole('article', { name: 'Fjord Study — Digital Artwork', exact: true })).toHaveCount(0);
       expect(calls).toHaveLength(1); expect(errors).toEqual([]);
     } finally { await context.close(); }

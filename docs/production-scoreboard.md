@@ -16,10 +16,14 @@ Live digital purchase/refund acceptance remains open. Compact receipt layout is
 deployed as `dpl_Gufib3EFRKsz74egBM3PGm2CKhsM`.
 See [receipt and Live starter evidence](receipt-layout-2026-09.md).
 
-Permanent products and automatic credit inputs: **local verified; final Live
-deployment pending**. Source `4eec270` plus loading alignment `714c989`. Seven
-focused browser tests pass across phone, landscape, portrait, desktop and
-ultrawide; 98 focused units pass (21 database-gated cases skipped in this run).
+Permanent products and automatic credit inputs: **local and Live verified**.
+Production source `fe53a27`, deployment `dpl_4UEfGuXr436T3R1gitcbjBaJEyff`.
+Seven focused product/input/layout checks plus four catalog/copy checks pass in
+each environment, across phone, landscape, portrait, desktop and ultrawide.
+98 focused units pass (21 database-gated cases skipped in this run).
+Live artifacts: `test-results-release-product-polish-live-final` and
+`test-results-release-product-copy-live`. Private JPG/TXT access checks passed;
+anonymous raw access is denied. No additional Live purchase was made.
 Product names are Veggat AI Credits and Fjord Study — Digital Artwork. Historical
 orders and stable SKU IDs are retained. The entered budget is preserved, but
 exact foreign-currency settlement is not implemented: whole-credit totals remain
