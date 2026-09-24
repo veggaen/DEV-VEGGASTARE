@@ -101,8 +101,11 @@ export async function dispatchTransactionEmail(db: PrismaClient, id: string, tra
     }
   } catch (error) {
     const failure = error instanceof MailError ? error : new MailError('PROVIDER_RESPONSE_UNCERTAIN', true);
+    const readRestricted = !!row.providerId && ['PROVIDER_HTTP_401', 'PROVIDER_HTTP_403'].includes(failure.code);
     await db.transactionalEmail.updateMany({ where, data: {
-      status: row.providerId ? (failure.retryable ? 'ACCEPTED' : 'REVIEW') : failure.retryable ? 'QUEUED' : 'FAILED',
+      // Sending-only keys may legitimately accept mail but cannot retrieve it.
+      // Keep that evidence, stop polling, and never turn it into a resend.
+      status: readRestricted ? 'ACCEPTED_UNCONFIRMED' : row.providerId ? (failure.retryable ? 'ACCEPTED' : 'REVIEW') : failure.retryable ? 'QUEUED' : 'FAILED',
       lastErrorCode: failure.code, leaseUntil: null,
       nextAttemptAt: new Date(now.getTime() + Math.min(HOUR, 120_000 * 2 ** row.attempts)),
     } });

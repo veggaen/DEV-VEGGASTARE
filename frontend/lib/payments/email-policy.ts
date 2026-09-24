@@ -34,6 +34,7 @@ export function emailStatusText(status: string | null | undefined): string {
   switch (status) {
     case 'QUEUED': case 'SENDING': return 'Email copy queued. You can download your record now.';
     case 'ACCEPTED': return 'Email copy accepted by our email provider; delivery is not yet confirmed.';
+    case 'ACCEPTED_UNCONFIRMED': return 'Email copy accepted by our email provider; delivery confirmation is unavailable. Keep your downloadable copy.';
     case 'DELIVERED': return 'Email copy delivered to your mail server. Check your inbox and spam folder.';
     case 'SKIPPED': return 'No email was sent for this record. Keep the downloadable copy.';
     case 'FAILED': case 'REVIEW': return 'Email delivery needs attention. Keep the downloadable copy or contact kontakt@veggat.com.';

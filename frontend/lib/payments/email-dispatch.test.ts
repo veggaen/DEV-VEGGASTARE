@@ -116,6 +116,16 @@ describe('durable transactional email', () => {
     await dispatchTransactionEmail(db, row.id, transport, now);
     expect(row).toMatchObject({ status: 'FAILED', lastErrorCode: 'PROVIDER_HTTP_401' });
   });
+  it('retains acceptance when a sending-only key cannot retrieve delivery history', async () => {
+    row.providerId = 'provider1'; row.status = 'ACCEPTED'; row.acceptedAt = now;
+    transport.mockResolvedValueOnce(new Response(JSON.stringify({ name: 'restricted_api_key' }), { status: 401 }));
+    await dispatchTransactionEmail(db, row.id, transport, now);
+    expect(row.status).toBe('ACCEPTED_UNCONFIRMED'); expect(row.providerId).toBe('provider1');
+    await dispatchTransactionEmail(db, row.id, transport, new Date(now.getTime() + 3_600_000));
+    expect(transport).toHaveBeenCalledOnce();
+    expect(emailStatusText(row.status)).toContain('accepted');
+    expect(emailStatusText(row.status)).not.toContain('failed');
+  });
   it('queues no email for demos and stores an immutable copy for a verified buyer', async () => {
     const input = { sourceKey: 'purchase:order1', userId: 'demo_visitor', orderId: 'order1', kind: 'PURCHASE' as const,
       subject: 'Test', filename: 'veggat-order-order1.txt', original: 'Original' };

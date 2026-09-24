@@ -14,6 +14,7 @@ describe.skipIf(process.env.TEST_EMAIL_DATABASE !== '1')('transaction mail: real
   const schema = `qa_email_${randomUUID().replaceAll('-', '')}`;
   let admin: Client, db: PrismaClient;
   const recipient = 'qa-email@example.com';
+  const providerKey = process.env.TEST_EMAIL_PROVIDER_KEY;
   const input = { sourceKey: 'purchase:order1', userId: 'qa-buyer', orderId: 'order1', kind: 'PURCHASE' as const,
     paymentEnvironment: 'SANDBOX', subject: 'Isolated mail fixture', filename: 'veggat-order-order1.txt', original: 'QA fixture, no purchase or email.' };
   beforeAll(async () => {
@@ -60,5 +61,22 @@ describe.skipIf(process.env.TEST_EMAIL_DATABASE !== '1')('transaction mail: real
     expect(transport).toHaveBeenCalledTimes(2);
     expect(transport.mock.calls[1][1]?.method).toBe('GET');
     expect((await db.transactionalEmail.findUniqueOrThrow({ where: { id: message.id } })).status).toBe('DELIVERED');
+  }, 30_000);
+  it.skipIf(!providerKey)('accepts a synthetic provider test copy using the real sending key, without claiming delivery', async () => {
+    const testRecipient = 'delivered+veggat-outbox-qa@resend.dev';
+    vi.stubEnv('TRANSACTIONAL_EMAIL_TEST_RECIPIENTS', testRecipient); vi.stubEnv('RESEND_API_KEY', providerKey);
+    await admin.query('UPDATE "User" SET "email" = $1 WHERE "id" = $2', [testRecipient, 'qa-buyer']);
+    const message = await db.$transaction(tx => queueTransactionEmail(tx, { ...input,
+      sourceKey: 'synthetic-provider-proof', subject: 'Veggat QA — isolated outbox test, no purchase',
+      original: 'Synthetic QA record. No purchase, refund or customer information. This only verifies email transport.' }));
+    expect(message).toBeDefined();
+    const now = new Date(), transport = vi.fn<typeof fetch>(fetch);
+    await dispatchTransactionEmail(db, message!.id, transport, now);
+    const accepted = await db.transactionalEmail.findUniqueOrThrow({ where: { id: message!.id } });
+    expect(accepted.status).toBe('ACCEPTED'); expect(accepted.providerId).toBeTruthy();
+    await dispatchTransactionEmail(db, message!.id, transport, new Date(now.getTime() + 61_000));
+    expect((await db.transactionalEmail.findUniqueOrThrow({ where: { id: message!.id } })).status).toBe('ACCEPTED_UNCONFIRMED');
+    expect(transport.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1);
+    expect(transport.mock.calls.filter(([, init]) => init?.method === 'GET')).toHaveLength(1);
   }, 30_000);
 });
