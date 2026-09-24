@@ -215,7 +215,17 @@ OAuth callback URL requirements:
 
 | Variable | Description |
 |----------|-------------|
-| `RESEND_API_KEY` | Resend API key (starts with `re_`). Domain `veggat.com` must be verified in [Resend dashboard](https://resend.com). Used by `lib/mail.ts` for all transactional emails: 2FA codes, password reset, email verification, Web3 security actions, wallet link/unlink confirmations. |
+| `RESEND_API_KEY` | Resend API key (starts with `re_`), scoped to the verified sending domain. Used by existing auth/security email and the purchase-copy outbox. A sending-only key is sufficient to send, but cannot query delivery history. |
+| `TRANSACTIONAL_EMAIL_ENABLED` | Explicit `true` enables new eligible purchase/request copies. Defaults off; disabled records are held for review, not silently drained when enabled. |
+| `TRANSACTIONAL_EMAIL_TEST_RECIPIENTS` | Preview-only comma-separated allowlist of verified test recipients. An empty list sends nothing, including to cloned customer addresses. |
+| `CRON_SECRET` | Long random server-only secret, separately configured for Preview and Production. Missing/short secrets fail closed. Vercel sends it as a Bearer header to scheduled jobs. |
+
+Purchase confirmations and buyer-request acknowledgments retain their original
+text attachment transactionally. Demo records are download-only; local delivery
+is disabled. Bounded retries reuse the same provider idempotency key. Provider
+acceptance is not proof of inbox delivery: a sending-only key yields an
+accepted/unconfirmed state without resending. These queue limits do not cap
+legacy auth email. See [delivery evidence and limits](../docs/transactional-email-acceptance-2026-09.md).
 
 ### Realtime & Storage
 

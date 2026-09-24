@@ -1,5 +1,10 @@
 # Buyer notices and retainable acknowledgments — 24 September 2026
 
+Follow-up: the [guarded transactional outbox](transactional-email-acceptance-2026-09.md)
+is now deployed. The download-only/email statements below describe this earlier
+slice; demos remain download-only, and human-inbox/full-agreement delivery remains
+unverified. See the [scoreboard](production-scoreboard.md) for current deployment authority.
+
 ## Scope and boundaries
 
 The verified checkout receipt now exposes **Withdraw from this purchase** and

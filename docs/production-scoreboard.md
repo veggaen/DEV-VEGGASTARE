@@ -4,13 +4,21 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
-Transactional email follow-up: **PARTIAL**, implementation/build/local browser
-verified; deployment acceptance in progress. The configured Resend key is
+Transactional email follow-up: **PARTIAL**, guarded outbox and original-copy
+downloads are deployed as **`82727bd` / `dpl_5yuYw7bESbW9aW6AWsSjM6xFmsrr`**
+on www.veggat.com. This is the current release authority; previous deployment
+IDs below are historical. Strict builds, **215 unit checks**, **3 real isolated
+Postgres cases**, and **3/3 local, 3/3 Preview, 3/3 live** browser checks pass.
+Authenticated scheduled-job probes return 200/configured; public and forged
+requests return 401. Preview branch-prompt configuration failure was caught by
+the positive probe and corrected before promotion. The configured Resend key is
 **sending-only**, not invalid: a synthetic email/attachment was accepted, while
 domain/history reads return `restricted_api_key` (401). Inbox delivery remains
 unverified. See [email outbox evidence and exact
 boundaries](transactional-email-acceptance-2026-09.md). Do not count provider
 fixtures as delivered customer mail or mark the seller-review inbox complete.
+No historical customer mail was queued, no Live payment/refund was submitted,
+and neither Vercel's overdue-billing warning nor GitHub's billing lock was changed.
 
 PARTIAL: `release/showcase-september` combines Showcase consent/refund/custom-credit
 work with the newer production currency-filter and basket fixes. Local strict

@@ -14,7 +14,7 @@ Open the public homepage and choose **Try the demo — no payment**. No password
 
 The reviewer SKUs are **29 NOK** for the Interview Pack and **39 NOK** for 100 AI credits. Paying is optional. Sandbox purchases of both SKUs, protected delivery and paid-credit AI usage have been verified. Production-only Live credentials are configured, but **Live transaction acceptance is still pending**; do not treat the integration as fully production-certified. Demo purchases cost zero and never simulate a paid credit grant.
 
-The demo includes five one-time AI credits. Real OpenAI/Groq replies, saved conversations, credit debit and premium denial at zero have passed local and live browser tests. Sandbox credit-funded OpenAI and Grok messages have also been checked in real Chrome. The [isolated Preview](https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app) additionally supports custom **100–1,000 credits** with progressive discounts and a consistent fiat (crypto) display; custom paid capture/refund acceptance remains pending. Read the scoreboard for model-specific evidence and release gates.
+The demo includes five one-time AI credits. Real OpenAI/Groq replies, saved conversations, credit debit and premium denial at zero have passed local and live browser tests. Sandbox credit-funded OpenAI and Grok messages have also been checked in real Chrome. Custom **100–1,000 credits**, progressive discounts and consistent fiat (crypto) display are deployed. A mixed Sandbox purchase of 122 credits and the digital pack passed capture, private delivery, full refund and replay checks in the [isolated Preview](https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app). This does not establish Live purchase or partial-refund acceptance. Read the scoreboard for model-specific evidence and release gates.
 
 ## Architecture
 
@@ -81,7 +81,7 @@ Real-provider and recovery tests are opt-in; CI must not spend live money. AI le
 
 ## Production versus experimental
 
-The public catalogue, isolated demo, cart, free demo receipt and private sample delivery have local/live browser evidence. Sandbox server capture is verified; remote webhook/refund and Live micro-purchase acceptance remain release gates. Configured OAuth initiation has been checked, but every owner consent/callback is not yet verified.
+The public catalogue, isolated demo, cart, free demo receipt and private sample delivery have local/live browser evidence. Sandbox capture, remote webhook/refund and replay reconciliation are verified; Live micro-purchase acceptance remains a release gate. Buyer notices retain downloadable originals, and guarded email copies distinguish provider acceptance from unverified human-inbox delivery. Full-agreement delivery and legal review remain open. Configured OAuth initiation has been checked, but every owner consent/callback is not yet verified.
 
 Pulse, polls, Web3/wallets, trading, logistics and realtime voice are experimental modules, not the flagship product or a claim of production financial capability. AI audio transcription requires a personal OpenAI key until platform audio costs can be safely bounded.
 

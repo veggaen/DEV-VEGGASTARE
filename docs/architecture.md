@@ -29,6 +29,12 @@ production behavior; the presence of an integration is not a readiness claim.
   audit items; they are not required for private digital sample delivery.
 - **External systems.** PayPal for verified orders, private storage for digital
   bytes, AI providers for bounded generation, and Pusher for application events.
+  Purchase confirmations and buyer notices also write an immutable email outbox
+  record inside their source transaction. Resend calls happen after commit, with
+  database leases, bounded retries and stable provider idempotency keys. A separate
+  authenticated hourly worker retries eligible records; demos/local never send,
+  and Preview requires a recipient allowlist. Provider acceptance and delivery
+  confirmation are distinct states. See [outbox evidence](transactional-email-acceptance-2026-09.md).
 
 ## Four deliberate tradeoffs
 
@@ -62,7 +68,8 @@ locally and after deployment; injected test wallets cannot sign or send funds.
 Analytics and Speed Insights wait for visitor consent. Automated measurements
 are not represented as real-visitor field data.
 
-**Open release gates:** PayPal credentials and actual transactions; full OAuth
+**Open release gates:** actual Live PayPal transactions (credentials and Sandbox
+capture/refund are verified); human-inbox confirmation and full-agreement delivery; full OAuth
 consent/callback coverage; owner-wallet/payout verification; remaining-route and
 integration-service audit. See [credit safety](ai-credit-safety.md) and
 [responsive QA evidence](responsive-audit.md) for exact limits and coverage.
