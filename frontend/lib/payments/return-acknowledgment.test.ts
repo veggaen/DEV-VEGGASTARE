@@ -1,17 +1,28 @@
 /** @fileOverview Original buyer acknowledgments stay private and do not certify refunds. @stability stable */
 import { beforeEach, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), allow: vi.fn(), find: vi.fn() }));
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), allow: vi.fn(), find: vi.fn(), email: vi.fn() }));
 vi.mock('@/auth', () => ({ auth: mocks.auth }));
 vi.mock('@/lib/auth-rate-limit', () => ({ allowAuthAttempt: mocks.allow }));
-vi.mock('@/lib/db', () => ({ dbPrisma: { transactionalEmail: { findFirst: vi.fn().mockResolvedValue(null) }, returnRequest: { findFirst: mocks.find } } }));
+vi.mock('@/lib/db', () => ({ dbPrisma: { transactionalEmail: { findFirst: mocks.email }, returnRequest: { findFirst: mocks.find } } }));
 import { GET } from '@/app/api/returns/[id]/acknowledgment/route';
 import { returnAcknowledgment } from './return-request';
+import { transactionMessage } from './email-policy';
 const record = { id: 'r1', orderId: 'o1', userId: 'buyer', reason: 'CHANGED_MIND' as const,
   description: 'Please withdraw this order.', createdAt: new Date('2026-09-24T10:20:30Z') };
 const run = (id = 'r1') => GET(new Request('https://www.veggat.com/api/returns/r1/acknowledgment'), { params: Promise.resolve({ id }) });
 beforeEach(() => {
   vi.clearAllMocks(); mocks.auth.mockResolvedValue({ user: { id: 'buyer' } });
   mocks.allow.mockResolvedValue(true); mocks.find.mockResolvedValue(record);
+  mocks.email.mockResolvedValue(null);
+});
+it('downloads the exact retained email attachment without rebuilding or exposing the recipient', async () => {
+  const original = 'Original retained acknowledgment — immutable fixture';
+  mocks.email.mockResolvedValue({ payload: transactionMessage('private@example.com', 'Receipt', 'veggat-request-r1.txt', original) });
+  const response = await run();
+  expect(await response.text()).toBe(original);
+  expect(mocks.email).toHaveBeenCalledWith({ where: { sourceKey: 'buyer-request:r1', userId: 'buyer', orderId: 'o1', kind: 'BUYER_REQUEST' }, select: { payload: true } });
+  mocks.email.mockResolvedValue({ payload: { corrupt: true } });
+  expect((await run()).status).toBe(503);
 });
 it('uses only the purchasing account and immutable submitted fields', async () => {
   const response = await run();

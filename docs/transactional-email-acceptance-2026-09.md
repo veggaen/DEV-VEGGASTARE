@@ -45,7 +45,7 @@ separate remaining work, not completed by this slice.
 ## Verification
 
 - Touched ESLint and strict production-style local build/TypeScript pass.
-- Payment/demo/cron units: **213 passed**, six opt-in DB cases skipped in that run.
+- Payment/demo/cron units: **214 passed**, six opt-in DB cases skipped in that run.
 - Isolated real Postgres outbox tests: **2 passed**. Eight concurrent enqueues
   produce one immutable record; rollback produces none. Eight competing workers
   send once and then use GET, not another send, to confirm a fixture delivery.
@@ -81,6 +81,12 @@ Primary implementation references:
 [Vercel cron management](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
 
 ## Deployments
+
+The first Preview candidate `dpl_GQVeXu4iRuYUjntxTa7Woinm3cuS` did not deploy:
+strict TypeScript caught the inferred empty-header union in the newly added
+cron browser test. It was added after the initial local build. Explicitly typed
+header cases fix the test; local strict checking is repeated before redeploy.
+No production promotion occurred from that failed candidate.
 
 Pending this slice's Preview/production acceptance. Prior production remains
 `dpl_4hQNe5XcwtEx5SipwmYLkHdmcgXV` / source `ffc112b` until verified promotion.

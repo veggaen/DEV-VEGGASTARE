@@ -2,7 +2,8 @@ import { test, expect } from "@playwright/test";
 
 test('S4 — transactional email job rejects public and forged requests', async ({ request }) => {
   test.skip(process.env.E2E_EMAIL_SLICE !== '1', 'Run only after the protected email route is deployed');
-  for (const headers of [{}, { Authorization: 'Bearer forged-qa-secret' }]) {
+  const headerCases: Record<string, string>[] = [{}, { Authorization: 'Bearer forged-qa-secret' }];
+  for (const headers of headerCases) {
     const response = await request.get('/api/cron/transactional-email', { headers });
     expect(response.status()).toBe(401);
     expect(response.headers()['cache-control']).toContain('no-store');

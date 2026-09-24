@@ -32,7 +32,8 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   const balance = await dbPrisma.aiCreditAccount.findUnique({ where: { id: `${receipt.environment}:${session.user.id}` }, select: { balance: true, refundAdjustment: true } });
   const display = displayCreditPosition(balance, environment);
   const agreement = storedCheckoutAgreement(receipt.quote);
-  const emails = demo ? [] : await dbPrisma.transactionalEmail.findMany({ where: { orderId: id, userId: session.user.id },
+  const emails = demo ? [] : await dbPrisma.transactionalEmail.findMany({ where: { orderId: id, userId: session.user.id,
+    sourceKey: { in: [`purchase:${id}`, ...receipt.Order.ReturnRequest.map(request => `buyer-request:${request.id}`)] } },
     select: { sourceKey: true, status: true }, take: 25 });
   return <section className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{demo ? 'Demo · no payment collected' : receipt.environment === 'SANDBOX' ? 'Sandbox · no real money' : 'PayPal Live'}</p>

@@ -22,6 +22,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!record) return new Response('Request not found.', { status: 404, headers });
     const email = await dbPrisma.transactionalEmail.findFirst({ where: { sourceKey: `buyer-request:${id}`, userId, orderId: record.orderId, kind: 'BUYER_REQUEST' }, select: { payload: true } });
     const saved = EmailPayload.safeParse(email?.payload);
+    if (email && !saved.success) return new Response('Your retained acknowledgment is temporarily unavailable. Please contact support.', { status: 503, headers });
     const original = saved.success ? Buffer.from(saved.data.attachments[0].content, 'base64').toString('utf8') : returnAcknowledgment(record);
     return new Response(original, { headers: { ...headers,
       'Content-Disposition': `attachment; filename="veggat-request-${id}.txt"` } });
