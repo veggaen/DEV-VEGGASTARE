@@ -8,11 +8,11 @@ Veggat is a trust-first marketplace for digital products: discover a file, check
 
 Open the public homepage and choose **Try the demo — no payment**. No password or card is needed: each visitor gets an isolated, temporary account, not shared credentials.
 
-1. Open **Veggat Interview Pack**, inspect its gallery, and add it to the cart.
+1. Open **Fjord Study — Digital Artwork**, inspect its gallery, and add it to the cart.
 2. Complete the clearly labelled **free demo checkout** and download the real JPG and TXT.
 3. Open **AI Chat**, select an available model, and review its credit cost.
 
-The reviewer SKUs are **29 NOK** for the Interview Pack and **39 NOK** for 100 AI credits. A smaller **10-credit starter pack costs 9 NOK** for lower-cost acceptance testing; select it explicitly and review the final PayPal amount. Paying is optional. Sandbox purchases of the original SKUs, protected delivery and paid-credit AI usage have been verified. Production-only Live credentials are configured, but **Live transaction acceptance is still pending**; do not treat the integration as fully production-certified. Demo purchases cost zero and never simulate a paid credit grant. See the [starter-pack evidence and limits](docs/small-credit-pack-2026-09.md).
+The permanent products are **Fjord Study — Digital Artwork** (29 NOK) and **Veggat AI Credits** (39 NOK for 100 credits). Custom amounts and a **10-credit starter for 9 NOK** are available. Paying is optional: demo orders cost zero and never simulate a paid credit grant. One owner-approved 9 NOK Live purchase, its ten-credit grant, and subsequent OpenAI/Grok debits are verified. Live digital-file purchase/refund acceptance and provider-account spending caps remain open. See the [product and provider evidence](docs/permanent-products-2026-09.md).
 
 The demo includes five one-time AI credits. Real OpenAI/Groq replies, saved conversations, credit debit and premium denial at zero have passed local and live browser tests. Sandbox credit-funded OpenAI and Grok messages have also been checked in real Chrome. Custom **100–10,000 credits**, linked spending-budget entry, progressive discounts and consistent fiat (crypto) display are deployed. The server prices the chosen credits; displayed conversion estimates cannot set the payment amount. See [credit-budget acceptance](docs/checkout-credit-budget-2026-09.md). A mixed Sandbox purchase of 122 credits and the digital pack passed capture, private delivery, full refund and replay checks in the [isolated Preview](https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app). This does not establish Live purchase or partial-refund acceptance. Read the scoreboard for model-specific evidence and release gates.
 
@@ -81,7 +81,7 @@ Real-provider and recovery tests are opt-in; CI must not spend live money. AI le
 
 ## Production versus experimental
 
-The public catalogue, isolated demo, cart, free demo receipt and private sample delivery have local/live browser evidence. Sandbox capture, remote webhook/refund and replay reconciliation are verified; Live micro-purchase acceptance remains a release gate. Buyer notices retain downloadable originals, and guarded email copies distinguish provider acceptance from unverified human-inbox delivery. Full-agreement delivery and legal review remain open. Configured OAuth initiation has been checked, but every owner consent/callback is not yet verified.
+The public catalogue, isolated demo, cart, free demo receipt and private sample delivery have local/live browser evidence. Sandbox capture, remote webhook/refund and replay reconciliation are verified. A 9 NOK Live credit purchase and paid AI usage are verified; Live digital-file purchase/refund acceptance remains open. Buyer notices retain downloadable originals, and guarded email copies distinguish provider acceptance from unverified human-inbox delivery. Full-agreement delivery and legal review remain open. Configured OAuth initiation has been checked, but every owner consent/callback is not yet verified.
 
 Pulse, polls, Web3/wallets, trading, logistics and realtime voice are experimental modules, not the flagship product or a claim of production financial capability. AI audio transcription requires a personal OpenAI key until platform audio costs can be safely bounded.
 

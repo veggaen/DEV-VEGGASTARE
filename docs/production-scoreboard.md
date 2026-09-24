@@ -8,10 +8,24 @@ Live 9 NOK starter: **DONE for owner-approved capture and one ten-credit grant**
 The owner completed the existing order with another buyer account after the
 merchant-account rejection. Capture `8N819301P61947841`, order
 `cmug44q96000004l8zgx0cxo9`, 900 ore / NOK: attempt and payment completed,
-exactly one +10 purchase entry, Live balance 10. The Live webhook returned 200.
+exactly one +10 purchase entry. The Live webhook returned 200. That balance later
+funded two real Chrome replies: OpenAI Luna (2) and Grok (8), leaving 0. Read-only
+ledger verification confirms both COMPLETED reservations and no refund adjustment.
 Live digital purchase/refund acceptance remains open. Compact receipt layout is
-**local verified; deployment pending** (19 units, build/lint and 2 browser checks).
+**local and Live verified** (19 units, build/lint and 2 browser checks per environment),
+deployed as `dpl_Gufib3EFRKsz74egBM3PGm2CKhsM`.
 See [receipt and Live starter evidence](receipt-layout-2026-09.md).
+
+Permanent products and automatic credit inputs: **local verified; final Live
+deployment pending**. Source `4eec270` plus loading alignment `714c989`. Seven
+focused browser tests pass across phone, landscape, portrait, desktop and
+ultrawide; 98 focused units pass (21 database-gated cases skipped in this run).
+Product names are Veggat AI Credits and Fjord Study — Digital Artwork. Historical
+orders and stable SKU IDs are retained. The entered budget is preserved, but
+exact foreign-currency settlement is not implemented: whole-credit totals remain
+server-priced in NOK. Anthropic needs `ANTHROPIC_API_KEY` or `CLAUDE_API_KEY`;
+image/video generation is not implemented. See
+[product and provider evidence](permanent-products-2026-09.md).
 
 Invalid-session recovery: **DONE for scoped local/Preview/Live acceptance**.
 Source `775c07d`, Production `dpl_7Qme9rWWkaYXxAUEM7D1sU7rS6sT`, Preview
@@ -1249,12 +1263,12 @@ member-to-member delivery remains separate from the mocked error test.
 | Shop | List, PDP, images | DONE — both reviewer products and actual images verified locally/live |
 | Shop | Cart | DONE — two lines, reload, quantity/removal, stable ordering and badge synchronization locally/live |
 | Shop | Checkout | PARTIAL — custom-credit demo, quote editing/retries and request follow-up deployed and verified local/Preview/live; owner Live money acceptance remains |
-| Shop | Live PayPal, sandbox PayPal | PARTIAL — fixed and custom mixed Sandbox capture, delivery, verified refund and replay pass; original refund-webhook Failure corrected to Success. Live keys/webhook configured; owner Live micro-purchase remains unverified |
+| Shop | Live PayPal, sandbox PayPal | PARTIAL — Sandbox capture, delivery, refund and replay pass; original refund-webhook Failure corrected to Success. Owner's 9 NOK Live credit purchase and one +10 grant are verified. Live digital purchase/refund acceptance remains |
 | Shop | Confirmation, signed download | PARTIAL — local/live demo and actual Sandbox JPG/TXT downloads verified; anonymous 401 and replay pass. Live paid download still pending |
-| Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — 29/39 NOK fixed Sandbox purchases and 76.16 NOK mixed 122-credit/file capture verified. Custom 100–10,000 credits, linked spending-budget entry and a 10-credit/9 NOK starter are deployed and UI-tested; new starter capture and Live paid purchase remain pending |
+| Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — fixed/custom mixed Sandbox purchases verified. Custom credits plus 10-credit/9 NOK starter supported; fresh starter capture/grant verified in Sandbox and Live. Permanent product copy and new private setup guide prepared; final Live UI rollout recorded above |
 | Shop | Buyer notices / seller review | DONE for scoped local/Preview/live flows — private originals, retained drafts, whole-order permissions and revision checks; not an automatic refund or legal-compliance certification |
 | AI | Chat, selector, streaming | DONE for tested OpenAI Luna/Groq demo and Sandbox-funded OpenAI Luna/Astra/Grok paths; other unconfigured models remain disabled |
-| AI | Credit debit, zero balance, no overcharge | PARTIAL — demo debit/402, actual Sandbox 100→98→90→30 and insufficient-balance denial verified; atomic ledger/fuse tests pass. Provider-project hard caps/alerts and Live funding still require acceptance; no absolute overcharge guarantee |
+| AI | Credit debit, zero balance, no overcharge | PARTIAL — demo server 402, Sandbox spending/denial and actual Live purchased balance 10→8→0 verified. Atomic ledger/fuse tests pass. Provider-project hard caps/alerts still require acceptance; no absolute overcharge guarantee |
 | Wallets | Connect UI, no crash | PARTIAL — injected-wallet cancel/connect/disconnect passes local/live; configured WalletConnect open/escape and configuration units pass; owner-wallet verification pending |
 | Platform | Public homepage | DONE — S1 verified locally and live |
 | Platform | Consent controls Analytics/Speed Insights | DONE — no scripts before consent/Essential Only; both 200 after opt-in; real visitor metrics pending |
@@ -1330,7 +1344,7 @@ member-to-member delivery remains separate from the mocked error test.
 - Real Chrome is connected and has been used for Sandbox checkout, credit-funded chat and the custom-credit/currency checks. Browser-blocked OAuth is not bypassed; owner consent still needs completion. Do not spoof Google's browser checks or telemetry automation exclusions.
 - Demo creates a separate temporary USER per visitor, bounded to five per daily IP fingerprint and 200 globally/day in a serialized transaction; sessions expire after a day. The S5 candidate permits guarded private chat creation/messages and five one-time credits. Cart/demo-checkout remain isolated; real payments, public posting and provider-key changes remain denied.
 - New paid entitlements must never be granted from client prices or a return URL. S4/S5 remain release blockers.
-- Sandbox PayPal credentials are configured locally/Preview; Live credentials and webhook are Production-only. Both fixed Sandbox SKUs were purchased using test money. No Live charge has been made. The current Developer sign-in/passkey handoff blocks retrieving the Sandbox buyer, not API-key configuration.
+- Sandbox PayPal credentials are configured locally/Preview; Live credentials and webhook are Production-only. Both fixed Sandbox SKUs and the starter were purchased using test money. The owner subsequently completed one 9 NOK Live credit purchase, verified at the top of this document. No additional Live purchase or refund was performed during the permanent-product UI checks.
 - The earlier Railway CLI authorization blocker was resolved through the
   connected Chrome dashboard. The active release and public backend health
   are verified above; CLI authorization is not used as deployment evidence.

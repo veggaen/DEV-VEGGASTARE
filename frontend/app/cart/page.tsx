@@ -90,7 +90,7 @@ export default function CartPage() {
             <dt className="font-medium">Subtotal</dt><dd className="max-w-full text-xl font-semibold tabular-nums"><PriceTotal entries={items.map(item => ({ amount: item.product.price * item.quantity, currency: item.product.priceCurrency ?? 'USD' }))} /></dd>
           </div> : <div><dt>Subtotal</dt><dd>Price unavailable. Refresh your saved cart.</dd></div>}
         </dl>
-        {!supported ? <p className="mt-4 text-sm leading-6 text-muted-foreground">Checkout is currently available for the Interview Pack and Interviewer AI Credits. Remove other listings to continue.</p>
+        {!supported ? <p className="mt-4 text-sm leading-6 text-muted-foreground">Checkout supports Fjord Study and Veggat AI Credits. Remove other listings to continue.</p>
           : !validQuantities && <p className="mt-4 text-sm leading-6 text-muted-foreground">Reviewer checkout supports one of each product. Set each quantity to 1 to continue.</p>}
         {canCheckout ? <Button asChild className="mt-5 min-h-12 w-full"><Link href="/checkout">Proceed to checkout</Link></Button>
           : <Button disabled className="mt-5 min-h-12 w-full">{busy ? "Updating cart…" : "Proceed to checkout"}</Button>}
