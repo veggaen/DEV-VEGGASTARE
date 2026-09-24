@@ -3926,7 +3926,7 @@ test.describe("Layer 3 — Content", () => {
       await page.getByRole('button', { name: 'Start a blank chat', exact: true }).click();
       await expect(page).toHaveURL(/\/ai\/c[a-z0-9]+$/);
       const conversationPath = new URL(page.url()).pathname;
-      await expect(page.getByText(`${initial.balance} demo credits`, { exact: true })).toBeVisible();
+      await expect(page.getByText(`${initial.balance} demo credit${initial.balance === 1 ? '' : 's'}`, { exact: true })).toBeVisible();
       let remaining = initial.balance as number;
       const turns = [...Array.from({ length: Math.floor(remaining / 2) }, () => ({ model: 'GPT-5.6 Luna', cost: 2 })), { model: 'GPT-OSS 20B · Groq', cost: 1 }];
       for (const [index, { model, cost }] of turns.entries()) {
@@ -3945,7 +3945,7 @@ test.describe("Layer 3 — Content", () => {
         // app saves only completed replies; assert that observable result.
         expect((await saved)?.status()).toBe(200);
         remaining -= cost;
-        await expect(page.getByText(`${remaining} demo credits`, { exact: true })).toBeVisible();
+        await expect(page.getByText(`${remaining} demo credit${remaining === 1 ? '' : 's'}`, { exact: true })).toBeVisible();
       }
       await page.reload({ waitUntil: 'domcontentloaded' });
       await expect(page.getByText('0 demo credits', { exact: true })).toBeVisible();
@@ -5101,6 +5101,108 @@ test('S4 — custom credits persist across product, basket, cart, checkout and r
     expect((await context.request.post(cartPath, { data: { productId: 'cveggatinterviewcredits01', quantity: 1 } })).ok()).toBe(true);
     expect(errors).toEqual([]);
   } finally { await context.close(); }
+});
+
+test('S5 — exhausted demo guidance preserves drafts without provider requests', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity; browser-only balance and conversation fixtures');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const writes: string[] = [];
+  let balance = 1;
+  try {
+    const auth = await (await context.request.get('/api/auth/session')).json();
+    expect(auth.user.isDemo).toBe(true);
+    await page.route('**/api/ai-chat/config', route => route.fulfill({ json: {
+      balance, authenticated: true, demo: true, environment: 'DEMO', dailyUsed: 4, dailyLimit: 5, savedProviders: [],
+      models: [
+        { provider: 'GOOGLE', model: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', credits: 1, available: true },
+        { provider: 'OPENAI', model: 'gpt-5.6-luna', label: 'GPT-5.6 Luna', credits: 2, available: true },
+      ],
+    } }));
+    await page.route('**/api/ai-chat/sessions/qa-credit-guidance', route => route.fulfill({ json: {
+      id: 'qa-credit-guidance', title: 'Credit guidance QA', isPublic: false, isSuspended: false,
+      suspendedReason: null, triggerMode: 'MANUAL', creatorId: auth.user.id, participants: [], messages: [],
+    } }));
+    await page.route('**/api/ai-chat', route => {
+      if (route.request().method() === 'POST') { writes.push(route.request().url()); return route.abort(); }
+      return route.continue();
+    });
+    await page.goto('/ai/qa-credit-guidance', { waitUntil: 'domcontentloaded' });
+    const composer = page.getByRole('textbox', { name: 'AI message', exact: true });
+    await expect(composer).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    const hasConsent = await page.evaluate(() => {
+      try { return JSON.parse(localStorage.getItem('veggat:cookieConsent') ?? 'null')?.version === 1; }
+      catch { return false; }
+    });
+    if (!hasConsent) { await expect(consent).toBeVisible(); await consent.click(); await expect(consent).toBeHidden(); }
+    await expect(page.getByRole('link', { name: 'Credit history: 1 demo credit', exact: true })).toBeVisible();
+    await expect(page.getByText('1 send left today', { exact: true })).toBeVisible();
+    await expect(page.locator('#ai-credit-guidance')).toContainText('1 credit per message');
+    await composer.fill('Keep this draft; do not call a provider.');
+    await page.getByRole('button', { name: /^Choose AI model:/ }).click();
+    await page.getByRole('dialog', { name: 'Choose AI model', exact: true }).getByRole('button', { name: 'GPT-5.6 Luna 2 credits', exact: true }).click();
+    await expect(page.locator('#ai-credit-guidance')).toContainText('Choose a cheaper model');
+    await expect(page.getByRole('button', { name: 'Send message', exact: true })).toBeDisabled();
+    balance = 0;
+    await page.evaluate(() => window.dispatchEvent(new Event('ai-credit:refresh')));
+    await expect(page.locator('#ai-credit-guidance')).toContainText('Your demo allowance is used up');
+    await expect(page.locator('#ai-credit-guidance')).not.toContainText('Choose a cheaper model');
+    await expect(composer).toHaveValue('Keep this draft; do not call a provider.');
+    await expect(page.getByRole('link', { name: 'Buy credits', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Send message', exact: true })).toBeDisabled();
+    for (const width of [360, 390, 1280, 2560]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await expect(composer).toBeInViewport();
+    }
+    expect(writes).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S7 — product loading uses gallery geometry without a catalogue flash', async ({ browser, baseURL }) => {
+  for (const { width, navigate } of [390, 1280].flatMap(width => [{ width, navigate: false }, { width, navigate: true }])) {
+    const context = await browser.newContext({ baseURL, viewport: { width, height: 844 }, reducedMotion: 'reduce' });
+    const page = await context.newPage();
+    let release = () => {};
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    try {
+      await page.route('**/api/products/cveggatinterviewpack000001', async route => { await pending; await route.continue(); });
+      await page.addInitScript(() => {
+        const state = window as Window & { productCatalogFlash?: boolean };
+        state.productCatalogFlash = false;
+        new MutationObserver(() => {
+          // Next streams hidden fallback templates too; only a rendered
+          // catalogue placeholder is the user-visible regression.
+          const catalogVisible = [...document.querySelectorAll('[role="status"][aria-label="Loading products"]')].some(element => element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }));
+          if (location.pathname === '/products/cveggatinterviewpack000001' && catalogVisible) state.productCatalogFlash = true;
+        }).observe(document, { childList: true, subtree: true });
+      });
+      if (navigate) {
+        await page.goto('/products', { waitUntil: 'domcontentloaded' });
+        const product = page.getByRole('link', { name: 'Veggat Interview Pack', exact: true });
+        await expect(product).toBeVisible();
+        const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+        await expect(consent).toBeVisible(); await consent.click(); await expect(consent).toBeHidden();
+        await product.click();
+      } else await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
+      const loading = page.getByRole('status', { name: 'Loading product', exact: true });
+      await expect(loading).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Marketplace', exact: true })).toHaveCount(0);
+      const before = await loading.boundingBox();
+      const skeletonGallery = await loading.locator('section').first().locator(':scope > div').first().boundingBox();
+      expect(before!.width).toBeLessThanOrEqual(1280);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      release();
+      await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+      await expect(loading).toHaveCount(0);
+      // Compare the same outer gallery box, not its 13px-padded carousel.
+      const gallery = await page.locator('[data-product-gallery]').boundingBox();
+      expect(Math.abs(gallery!.x - skeletonGallery!.x)).toBeLessThan(2);
+      expect(Math.abs(gallery!.width - skeletonGallery!.width)).toBeLessThan(2);
+      expect(await page.evaluate(() => (window as Window & { productCatalogFlash?: boolean }).productCatalogFlash)).toBe(false);
+    } finally { release(); await context.close(); }
+  }
 });
 
 test('S7 — product gallery and purchase layout work across phone to ultrawide', async ({ browser, baseURL }, testInfo) => {

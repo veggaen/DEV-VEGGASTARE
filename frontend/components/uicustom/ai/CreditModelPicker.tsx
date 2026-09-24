@@ -11,8 +11,8 @@ export function AiCreditStatus({ config, error = false }: { config: AiCreditConf
   if (!config) return <span className="inline-flex min-h-11 items-center text-xs text-muted-foreground" role="status">Loading AI balance…</span>;
   if (!config.authenticated) return <p className="text-xs text-muted-foreground">Guest preview · limited requests. Sign in for more models.</p>;
   return <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-    <Link href="/ai/credits" className="inline-flex min-h-11 items-center underline underline-offset-4" aria-label={`Credit history: ${config.balance} ${config.demo ? 'demo ' : ''}credits`}><span aria-live="polite">{config.balance} {config.demo ? 'demo ' : ''}credits</span></Link>
-    <span className="[@media(max-height:500px)]:hidden">{Math.max(0, config.dailyLimit - config.dailyUsed)} sends left today</span>
+    <Link href="/ai/credits" className="inline-flex min-h-11 items-center underline underline-offset-4" aria-label={`Credit history: ${config.balance} ${config.demo ? 'demo ' : ''}credit${config.balance === 1 ? '' : 's'}`}><span aria-live="polite">{config.balance} {config.demo ? 'demo ' : ''}credit{config.balance === 1 ? '' : 's'}</span></Link>
+    <span className="[@media(max-height:500px)]:hidden">{Math.max(0, config.dailyLimit - config.dailyUsed)} {config.dailyLimit - config.dailyUsed === 1 ? 'send' : 'sends'} left today</span>
     {!config.demo && <Link href="/products/cveggatinterviewcredits01" className="inline-flex min-h-11 items-center underline underline-offset-4">Buy credits</Link>}
     {(config.refundAdjustment ?? 0) > 0 && <Link href="/my-orders" className="inline-flex min-h-11 items-center text-amber-700 underline underline-offset-4 dark:text-amber-400">Refund adjustment: {config.refundAdjustment} credits</Link>}
     {config.demo && <span className="[@media(max-height:500px)]:hidden">No payment needed</span>}
@@ -54,7 +54,7 @@ export function CreditModelPicker({ provider, model, onSelect, config, byokProvi
                 onClick={() => { onSelect(item.provider, item.model); setOpen(false); }}
                 className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-45 ${active ? 'border-primary bg-primary/10' : 'border-transparent enabled:hover:bg-muted'}`}>
                 <span className="min-w-0 break-words">{item.label}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{ownKey ? 'Your key' : !item.available ? 'Own key required' : item.credits ? `${item.credits} credits` : 'Free'}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{ownKey ? 'Your key' : !item.available ? 'Own key required' : item.credits ? `${item.credits} credit${item.credits === 1 ? '' : 's'}` : 'Free'}</span>
               </button>;
             })}</div>
           </section>;

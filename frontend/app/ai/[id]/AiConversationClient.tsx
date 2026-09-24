@@ -738,8 +738,10 @@ export default function AiConversationClient({
                   <AiCreditStatus config={creditConfig} error={creditError} />
                 </div>
                 <p id="ai-credit-guidance" role={insufficientCredits ? 'status' : undefined} className={'mb-2 text-xs leading-relaxed ' + (insufficientCredits ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground')}>
-                  {insufficientCredits ? <>This model needs {messageCredits} credits; you have {creditConfig!.balance}. Choose a cheaper model{!demo && <> or <Link href="/products/cveggatinterviewcredits01" className="underline underline-offset-4">buy credits</Link></>}. Your draft stays here.</>
-                    : usingOwnKey ? 'Your key · billed directly by your provider.' : messageCredits === undefined ? 'Choose a configured model to see its message price.' : messageCredits === 0 ? 'Free within your daily allowance.' : `${messageCredits} credits per message · reserved before sending.`}
+                  {insufficientCredits ? <>This model needs {messageCredits} credit{messageCredits === 1 ? '' : 's'}; you have {creditConfig!.balance}. {demo && creditConfig!.balance === 0
+                    ? 'Your demo allowance is used up. You can still explore the marketplace and your saved chats.'
+                    : <>Choose a cheaper model{!demo && <> or <Link href="/products/cveggatinterviewcredits01" className="underline underline-offset-4">buy credits</Link></>}.</>} Your draft stays here.</>
+                    : usingOwnKey ? 'Your key · billed directly by your provider.' : messageCredits === undefined ? 'Choose a configured model to see its message price.' : messageCredits === 0 ? 'Free within your daily allowance.' : `${messageCredits} credit${messageCredits === 1 ? '' : 's'} per message · reserved before sending.`}
                 </p>
                 <div className="ai-input-ring flex items-end gap-2 rounded-2xl bg-black/[0.03] dark:bg-white/5 px-3 py-2.5 border border-black/8 dark:border-white/10 backdrop-blur-sm shadow-sm chat-input-wrapper transition-colors">
                   <textarea
