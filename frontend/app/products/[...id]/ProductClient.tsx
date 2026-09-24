@@ -38,6 +38,7 @@ import { Archive, ArrowLeft, CreditCard, Eye, EyeOff, Pencil, Share2, ShieldChec
 import { toast } from "sonner";
 import { ReportDialog } from "@/components/uicustom/report/ReportDialog";
 import { SHOWCASE_PRODUCTS } from "@/lib/showcase-catalog";
+import { productPurchaseState, PRODUCT_PURCHASE_NOTICE } from '@/lib/product-purchase-state';
 import SiteFooter from "@/components/uicustom/site-footer";
 
 interface Specification { key: string; value: string; }
@@ -311,7 +312,8 @@ function ProductDetails({ product }: { product: Product }) {
           : totalStock > 0
             ? `${totalStock} in stock`
             : "Stock check needed";
-  const canPurchase = isPublicListing && product.downloadsEnabled !== false && (isDigitalProduct || totalStock > 0);
+  const purchaseState = productPurchaseState(product);
+  const canPurchase = purchaseState === 'AVAILABLE';
 
   // State for user's distance to closest warehouse
   const [userDistanceToWarehouseKm, setUserDistanceToWarehouseKm] = useState<number | undefined>(undefined);
@@ -425,7 +427,7 @@ function ProductDetails({ product }: { product: Product }) {
 
   return (
     <div data-product-detail className="relative w-full min-w-0 space-y-6 pb-8 text-foreground">
-      <div data-mobile-product-actions role="region" aria-label="Product purchase" style={{ marginBlock: 0 }} className="fixed inset-x-0 bottom-[var(--cookie-banner-offset,0px)] z-50 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-lg lg:hidden">
+      {canPurchase && <div data-mobile-product-actions role="region" aria-label="Product purchase" style={{ marginBlock: 0 }} className="fixed inset-x-0 bottom-[var(--cookie-banner-offset,0px)] z-50 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-lg lg:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="truncate text-xs text-muted-foreground">{product.title}</p>
@@ -433,7 +435,7 @@ function ProductDetails({ product }: { product: Product }) {
           </div>
           <Button type="button" variant="vegaAddBasketBtn" className="h-12 shrink-0 rounded-xl px-4" onClick={handleAddToCart} disabled={purchaseDisabled}>{purchasePending ? "Adding…" : "Add to basket"}</Button>
         </div>
-      </div>
+      </div>}
       <div className="flex items-center justify-between gap-3">
         <Link
           href="/products"
@@ -621,6 +623,11 @@ function ProductDetails({ product }: { product: Product }) {
           </motion.div>
 
           {/* actions */}
+          {purchaseState !== 'AVAILABLE' && <section aria-label="Purchase availability" className="rounded-xl border border-border bg-muted/30 p-4 text-sm leading-6">
+            <h2 className="font-semibold">{PRODUCT_PURCHASE_NOTICE[purchaseState].title}</h2>
+            <p className="mt-1 text-muted-foreground">{PRODUCT_PURCHASE_NOTICE[purchaseState].description}</p>
+            <Link href="/products" className="mt-2 inline-flex min-h-11 items-center font-medium underline underline-offset-4">Explore available products</Link>
+          </section>}
           <motion.div
             className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-3"
           >
@@ -681,7 +688,7 @@ function ProductDetails({ product }: { product: Product }) {
           {purchaseError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">{purchaseError} <Link href="/cart" className="inline-flex min-h-11 items-center font-semibold underline">Review basket</Link></p>}
 
           {/* Seller preferences; availability is confirmed at checkout. */}
-          <motion.div
+          {canPurchase && <motion.div
             className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
           >
             <span className="font-medium text-muted-foreground">Payment</span>
@@ -712,7 +719,7 @@ function ProductDetails({ product }: { product: Product }) {
                 Crypto not configured
               </span>
             )}
-          </motion.div>
+          </motion.div>}
 
           {/* shipping — available to everyone, including logged-out visitors.
               Location detection + Bring price lookup need no auth. */}

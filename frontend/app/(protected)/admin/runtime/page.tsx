@@ -195,7 +195,7 @@ export default function AdminRuntimePage() {
 
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 text-sm text-zinc-600 dark:text-zinc-300">
           <div><span className="font-medium">Changed by:</span> {runtime.updatedBy ?? 'system default'}</div>
-          <div><span className="font-medium">Changed at:</span> {new Date(runtime.updatedAt).toLocaleString()}</div>
+          <div><span className="font-medium">Changed at:</span> {new Date(runtime.updatedAt).getTime() === 0 ? 'Not changed yet — system defaults' : new Date(runtime.updatedAt).toLocaleString()}</div>
           <div className="mt-2 text-zinc-500 dark:text-zinc-400">
             API endpoint: <span className="font-medium">/api/admin/runtime-config</span>
           </div>

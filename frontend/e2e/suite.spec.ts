@@ -5,6 +5,80 @@ import { createHash } from 'node:crypto';
 import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders';
 import { SessionRailResponse } from '../lib/ai-chat/session-list';
 
+test('Catalog and product pages disclose purchase availability before a buyer changes their cart', async ({browser,baseURL},testInfo)=>{
+  test.skip(process.env.E2E_PURCHASE_AVAILABILITY!=='1','Catalog/PDP availability fixtures; no database writes');
+  test.setTimeout(90_000);
+  const context=await browser.newContext({baseURL,viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();
+  if(process.env.E2E_PURCHASE_THEME==='dark')await context.addInitScript(()=>localStorage.setItem('veggat:theme','dark'));
+  const errors:string[]=[],writes:string[]=[];
+  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()!=='GET'&&/^\/api\/(cart|checkout|payments)/.test(new URL(r.url()).pathname))writes.push(r.method());});
+  try{
+    const rows=await (await context.request.get('/api/products?perPage=10')).json();
+    const base=rows.find((row:{id:string})=>row.id==='cveggatinterviewpack000001');expect(base).toBeTruthy();
+    const detail=await (await context.request.get(`/api/products/${base.id}`)).json();
+    const ordinary={...base,id:'qa-browse-only',title:'Ordinary digital listing',downloadsEnabled:true};
+    const paused={...base,downloadsEnabled:false};
+    const credits=rows.find((row:{id:string})=>row.id==='cveggatinterviewcredits01');expect(credits).toBeTruthy();
+    await page.route(url=>url.pathname==='/api/products',route=>route.fulfill({json:new URL(route.request().url()).searchParams.has('searchTerm')?[ordinary]:[ordinary,paused,credits]}));
+    await page.route(`**/api/products/${ordinary.id}`,route=>route.fulfill({json:{...detail,id:ordinary.id,title:ordinary.title,downloadsEnabled:true,acceptedTokens:[]}}));
+    await page.route(`**/api/products/${paused.id}`,route=>route.fulfill({json:{...detail,downloadsEnabled:false}}));
+    await page.goto('/products',{waitUntil:'domcontentloaded'});
+    const article=page.getByRole('article',{name:ordinary.title,exact:true});await expect(article).toBeVisible();
+    await page.getByRole('button',{name:'Essential Only',exact:true}).click();
+    await expect(article.getByText('Browse only · checkout not open',{exact:true})).toBeVisible();
+    await expect(article.getByRole('button',{name:'Buy now',exact:true})).toHaveCount(0);
+    await expect(article.getByRole('button',{name:/Add .* to cart/})).toHaveCount(0);
+    await expect(page.getByRole('article',{name:paused.title,exact:true}).getByText('Purchases paused',{exact:true})).toBeVisible();
+    await expect(page.getByRole('article',{name:credits.title,exact:true}).getByRole('button',{name:'Buy now',exact:true})).toBeEnabled();
+    await page.getByRole('searchbox',{name:'Search products',exact:true}).fill('Ordinary');
+    await expect(page.getByRole('status').filter({hasText:/^1 product$/})).toBeVisible();
+    await article.getByRole('link',{name:`View details for ${ordinary.title}`,exact:true}).click();
+    await expect(page.getByRole('heading',{name:'Browse-only listing',exact:true})).toBeVisible();
+    await expect(page.getByRole('region',{name:'Product purchase',exact:true})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'Unavailable',exact:true})).toBeDisabled();
+    for(const size of [{width:360,height:800},{width:390,height:844},{width:844,height:390},{width:768,height:1024},{width:1024,height:768},{width:1280,height:800},{width:1920,height:1080},{width:2560,height:1080}]){
+      await page.setViewportSize(size);
+      await page.getByRole('region',{name:'Purchase availability',exact:true}).scrollIntoViewIfNeeded();
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&[...document.querySelectorAll('[data-site-scroll],[data-app-scroll-container]')].every(el=>el.scrollWidth<=el.clientWidth))).toBe(true);
+      if([390,1280,2560].includes(size.width))await page.screenshot({path:testInfo.outputPath(`browse-only-${size.width}.png`)});
+    }
+    await page.getByRole('link',{name:'Explore available products',exact:true}).click();
+    await expect(page.getByRole('searchbox',{name:'Search products',exact:true})).toHaveValue('Ordinary');
+    await page.getByRole('button',{name:'Clear filters',exact:true}).click();
+    await page.getByRole('article',{name:paused.title,exact:true}).getByRole('link',{name:`View details for ${paused.title}`,exact:true}).click();
+    await expect(page.getByRole('heading',{name:'Purchases paused',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Unavailable',exact:true})).toBeDisabled();
+    expect(writes).toEqual([]);expect(errors).toEqual([]);
+  }finally{await context.close();}
+});
+
+test('Mixed cart identifies the unavailable line and recovers after its confirmed removal',async({browser,baseURL},testInfo)=>{
+  test.skip(process.env.E2E_PURCHASE_AVAILABILITY!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Retained demo; cart edits are intercepted');
+  for(const width of [390,1280]){
+    const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width,height:844}}),page=await context.newPage();
+    try{
+      const detail=await (await context.request.get('/api/products/cveggatinterviewpack000001')).json();
+      const product={id:detail.id,title:detail.title,price:detail.price,priceCurrency:detail.priceCurrency,image:detail.image};
+      let lines=[{id:'available-line',quantity:1,product},{id:'unavailable-line',quantity:1,product:{...product,id:'qa-browse-only',title:'Ordinary digital listing'}}],deletes=0;
+      await page.route(url=>url.pathname.startsWith('/api/cart/'),route=>{
+        if(route.request().method()==='GET')return route.fulfill({json:{id:'qa-cart',userId:'demo-qa',items:lines}});
+        expect(route.request().method()).toBe('DELETE');expect(new URL(route.request().url()).pathname).toMatch(/\/items\/unavailable-line$/);
+        deletes++;lines=lines.filter(line=>line.id!=='unavailable-line');return route.fulfill({json:{message:'Removed'}});
+      });
+      await page.goto('/cart',{waitUntil:'domcontentloaded'});
+      const blockedRow=page.getByRole('listitem').filter({has:page.getByRole('heading',{name:'Ordinary digital listing',exact:true})});
+      await expect(blockedRow.getByText('Browse-only listing. Remove this item to check out the available products.',{exact:true})).toBeVisible();
+      if(!await page.evaluate(()=>localStorage.getItem('veggat:cookieConsent')))await page.getByRole('button',{name:'Essential Only',exact:true}).click();
+      await expect(page.getByRole('button',{name:'Proceed to checkout',exact:true})).toBeDisabled();
+      await blockedRow.getByRole('button',{name:'Remove',exact:true}).click();await expect(blockedRow).toHaveCount(0);
+      await expect(page.getByRole('link',{name:'Proceed to checkout',exact:true})).toBeEnabled();
+      await expect(page.getByRole('heading',{name:product.title,exact:true})).toBeVisible();
+      expect(deletes).toBe(1);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      await page.screenshot({path:testInfo.outputPath(`recovered-cart-${width}.png`)});
+    }finally{await context.close();}
+  }
+});
+
 test('Payment capabilities separate reviewer PayPal from paused legacy and unreleased crypto', async ({ request }) => {
   test.skip(process.env.E2E_PRODUCT_READ !== '1', 'Read-only release capability check');
   const response = await request.get('/api/payments');

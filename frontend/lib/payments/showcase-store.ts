@@ -10,6 +10,7 @@ import { creditSaleEconomics, DAILY_PURCHASE_CAP_ORE } from '@/lib/ai-credit-pur
 import { FUNDED_AI_MODELS, pricingIsReviewed } from '@/lib/ai-chat/credit-policy';
 import { purchaseConfirmation, recordCheckoutAgreement, type DeliveryConsent } from './checkout-agreement';
 import { queueTransactionEmail } from './email-outbox';
+import { productPurchaseState } from '@/lib/product-purchase-state';
 
 const includeOrder = { Order: { include: { OrderItem: true } } } as const;
 function filesReady(files: { DigitalAsset: { isActive: boolean; mimeType: string } }[]) {
@@ -47,7 +48,7 @@ export async function prepareShowcaseCheckout(userId: string, requestKey: string
     const exposure = await tx.checkoutAttempt.aggregate({ where: { userId, environment, createdAt: { gte: start } }, _sum: { totalOre: true } });
     if ((exposure._sum.totalOre ?? 0) + quote.totalOre > DAILY_PURCHASE_CAP_ORE) throw new CheckoutError('DAILY_PURCHASE_AMOUNT_LIMIT', 429);
     for (const item of cart!.CartItem) {
-      if (item.Product.visibility !== 'PUBLIC' || item.Product.productType !== 'DIGITAL') throw new CheckoutError('ITEM_UNAVAILABLE', 409);
+      if (productPurchaseState({ ...item.Product, id: item.productId }) !== 'AVAILABLE') throw new CheckoutError('ITEM_UNAVAILABLE', 409);
       if (quote.lines.find(line => line.productId === item.productId)?.kind === 'DIGITAL_FILES' &&
           !filesReady(item.Product.Files)) {
         throw new CheckoutError('DOWNLOADS_NOT_READY', 503);

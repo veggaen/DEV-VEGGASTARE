@@ -11,6 +11,7 @@ import { CheckoutEditProvider, RemoveCheckoutItem, CheckoutCreditAmount } from '
 import { paypalConfigured } from '@/lib/payments/showcase-paypal';
 import ReviewerCheckoutButton from '@/components/checkout/reviewer-checkout-button';
 import CreditRefundNotice from '@/components/checkout/credit-refund-notice';
+import { productPurchaseState, PRODUCT_PURCHASE_NOTICE } from '@/lib/product-purchase-state';
 
 export default async function CheckoutPage({ searchParams }: { searchParams?: Promise<{ cancelled?: string | string[] }> }) {
   const cancelled = (await searchParams)?.cancelled === '1';
@@ -18,8 +19,20 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
   if (!session?.user?.id) redirect('/auth/login?callbackUrl=%2Fcheckout');
   const demo = isDemoUserId(session.user.id);
   const cart = await dbPrisma.cart.findUnique({ where: { userId: session.user.id }, include: {
-    CartItem: { include: { Product: { select: { image: true } } } },
+    CartItem: { include: { Product: { select: { id: true, title: true, image: true, productType: true, visibility: true, downloadsEnabled: true } } } },
   } });
+  const unavailable = cart?.CartItem.filter(item => productPurchaseState(item.Product) !== 'AVAILABLE') ?? [];
+  if (unavailable.length) return <section aria-label="Checkout availability" className="mx-auto w-full max-w-xl px-4 py-8 sm:px-6">
+    <h1 className="text-2xl font-semibold">Some items need attention</h1>
+    <p className="mt-3 leading-6 text-muted-foreground">No payment has been started. Review these items before continuing with the available products.</p>
+    <ul className="mt-6 divide-y divide-border rounded-xl border border-border px-4">
+      {unavailable.map(item => <li key={item.id} className="py-4">
+        <Link href={`/products/${encodeURIComponent(item.productId)}`} className="inline-flex min-h-11 items-center break-words font-medium underline underline-offset-4">{item.Product.title}</Link>
+        <p className="text-sm text-muted-foreground">{PRODUCT_PURCHASE_NOTICE[productPurchaseState(item.Product) === 'BROWSE_ONLY' ? 'BROWSE_ONLY' : 'UNAVAILABLE'].title}</p>
+      </li>)}
+    </ul>
+    <Link href="/cart" className="mt-4 inline-flex min-h-11 items-center font-medium underline underline-offset-4">Review your cart</Link>
+  </section>;
   let quote;
   try { quote = quoteShowcaseCart(cart?.CartItem.map(item => ({ productId: item.productId, quantity: item.quantity, creditAmount: item.creditAmount })) ?? []); }
   catch {

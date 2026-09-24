@@ -163,6 +163,7 @@ export const fetchProductsWithDetails = async ({
         companyId: p.companyId ? String(p.companyId) : null,
         productType: p.productType ?? 'PHYSICAL',
         visibility: p.visibility ?? 'PUBLIC',
+        downloadsEnabled: p.downloadsEnabled,
         createdAt: toIsoString(p.createdAt),
         updatedAt: toIsoString(p.updatedAt),
         user,

@@ -22,6 +22,7 @@ import ProductsSkeleton from '@/components/uicustom/skeletons/products-skeleton'
 import { ProductsToolbar } from '@/components/uicustom/products/ProductsToolbar';
 import { CatalogHeader, catalogFrame, catalogGrid } from '@/components/uicustom/products/CatalogHeader';
 import PriceAmount from '@/components/crypto-related/PriceAmount';
+import { productPurchaseState } from '@/lib/product-purchase-state';
 
 const typeMeta = {
   DIGITAL: { label: 'Digital', icon: Zap },
@@ -44,6 +45,7 @@ const ProductCard = React.memo(function ProductCard({ product, priority, authSta
   const meta = typeMeta[product.productType ?? 'PHYSICAL'];
   const TypeIcon = meta.icon;
   const outOfStock = product.productType !== 'DIGITAL' && product.stock === 0;
+  const purchaseState = productPurchaseState(product);
   const href = `/products/${product.id}`;
   const sellerName = product.company?.name ?? product.user?.name ?? 'Independent seller';
   const sellerHref = product.company ? `/companies/${product.company.id}` : product.user ? `/profile/${product.user.id}` : null;
@@ -54,7 +56,7 @@ const ProductCard = React.memo(function ProductCard({ product, priority, authSta
   } catch { /* A malformed legacy listing must not crash the catalog or offer an ambiguous purchase. */ }
 
   async function add(destination: 'cart' | 'checkout') {
-    if (adding.current || outOfStock || !validCurrency) return;
+    if (adding.current || outOfStock || !validCurrency || purchaseState !== 'AVAILABLE') return;
     if (authStatus === 'loading') { toast.info('Checking your session…'); return; }
     if (authStatus !== 'authenticated') {
       toast.error('Sign in to add items to your basket', {
@@ -111,7 +113,10 @@ const ProductCard = React.memo(function ProductCard({ product, priority, authSta
           <span className="text-lg font-semibold tabular-nums"><PriceAmount amount={product.price} currency={product.priceCurrency || 'USD'} /></span>
           <span className="text-xs text-muted-foreground">{outOfStock ? 'Out of stock' : product.category}</span>
         </div>
-        <div className="flex gap-2">
+        {purchaseState !== 'AVAILABLE' ? <div className="mt-1 space-y-2">
+          <p className="text-sm text-muted-foreground">{purchaseState === 'BROWSE_ONLY' ? 'Browse only · checkout not open' : 'Purchases paused'}</p>
+          <Button asChild variant="outline" className="min-h-11 w-full"><Link href={href} aria-label={`View details for ${product.title}`}>View details</Link></Button>
+        </div> : <div className="flex gap-2">
           <Button className="min-h-11 min-w-0 flex-1 gap-2" onClick={() => add('checkout')} disabled={outOfStock || !validCurrency || pending !== null}>
             <ShoppingBag className="size-4" aria-hidden />{pending === 'checkout' ? 'Preparing…' : 'Buy now'}
           </Button>
@@ -119,7 +124,7 @@ const ProductCard = React.memo(function ProductCard({ product, priority, authSta
             aria-label={`Add ${product.title} to cart`}>
             {added ? <Check className="size-4" aria-hidden /> : <ShoppingCart className="size-4" aria-hidden />}
           </Button>
-        </div>
+        </div>}
       </div>
     </article>
   );
@@ -147,7 +152,7 @@ export default function ProductsPage() {
       <div className="@container pb-[max(2rem,env(safe-area-inset-bottom))]">
         <div className="flex min-h-14 items-center justify-between gap-3 py-2">
           <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-            {loading ? products.length ? 'Updating products…' : 'Loading products…' : error ? 'Products could not be updated' : `${products.length}${hasMore ? '+' : ''} products`}
+            {loading ? products.length ? 'Updating products…' : 'Loading products…' : error ? 'Products could not be updated' : `${products.length}${hasMore ? '+' : ''} ${products.length === 1 && !hasMore ? 'product' : 'products'}`}
           </p>
           {activeFilterCount > 0 && <Button variant="ghost" className="min-h-11" onClick={resetAllFilters}>Clear filters</Button>}
         </div>

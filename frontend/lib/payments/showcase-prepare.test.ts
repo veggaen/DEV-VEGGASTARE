@@ -64,3 +64,15 @@ it('keeps the first consent snapshot on an idempotent retry, including legacy or
   expect(await prepareShowcaseCheckout('buyer1', 'request1', undefined, consent)).toBe(prior);
   expect(m.order).not.toHaveBeenCalled(); expect(m.attempt).not.toHaveBeenCalled();
 });
+
+it.each(Object.values(SHOWCASE_PRODUCTS))('blocks paused $id on the server before an order or provider session exists', async sku => {
+  const paused = [{ productId: sku.id, quantity: 1 }];
+  m.cart.mockResolvedValue({ CartItem: paused.map(row => ({ ...row, Product: {
+    id: sku.id, productType: 'DIGITAL', visibility: 'PUBLIC', downloadsEnabled: false,
+    Files: [{ DigitalAsset: { isActive: true, mimeType: 'image/jpeg' } }, { DigitalAsset: { isActive: true, mimeType: 'text/plain' } }],
+  } })) });
+  await expect(prepareShowcaseCheckout('buyer1', 'paused', JSON.stringify(quoteShowcaseCart(paused)), {
+    ...consent, files: sku.kind === 'DIGITAL_FILES', credits: sku.kind === 'AI_CREDITS',
+  })).rejects.toThrow('ITEM_UNAVAILABLE');
+  expect(m.order).not.toHaveBeenCalled(); expect(m.attempt).not.toHaveBeenCalled();
+});

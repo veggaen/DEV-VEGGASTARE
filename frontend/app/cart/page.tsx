@@ -63,6 +63,8 @@ export default function CartPage() {
               <div className="min-w-0 py-1">
                 <h2 className="text-base font-semibold leading-6 [overflow-wrap:anywhere]"><Link href={href} className="rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{item.product.title}</Link></h2>
                 <div className="mt-2 text-sm tabular-nums text-muted-foreground"><PreferredMoney amount={item.product.price} currency={item.product.priceCurrency ?? 'USD'} /> <span className="text-xs">each</span></div>
+                {!isShowcaseProduct(item.product.id) && <p className="mt-2 text-sm leading-6 text-muted-foreground">Browse-only listing. Remove this item to check out the available products.</p>}
+                {isShowcaseProduct(item.product.id) && item.quantity > 1 && <p className="mt-2 text-sm leading-6 text-muted-foreground">One copy per account is enough. Reduce the quantity to 1 to continue.</p>}
               </div>
               <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 sm:col-span-1 sm:col-start-2">
                 {item.creditAmount !== undefined ? <CreditAmountEditor value={item.creditAmount} onDirtyChange={setDirtyCredits}
