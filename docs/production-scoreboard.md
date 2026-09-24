@@ -4,6 +4,25 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Lower-cost credit selection: **DONE for pricing/cart/checkout readiness**.
+Source **`a095d0e`** plus test **`226744f`**, deployment
+**`dpl_9LVVv2jJJMeYcQrEVCT55Etm4rdD`**, on www.veggat.com. An explicit
+**10-credit starter costs 9 NOK**; the 100-credit pack stays 39 NOK. Existing
+receipts are unchanged. All **159 scoped units**, **10 isolated database
+constraint checks**, strict builds/lint, and the starter-pack browser journey
+on local/Preview/live pass. The real Chrome checkout now has the owner's
+requested smaller selection saved, with delivery consent unchecked and no
+payment submitted. See [evidence and limitations](small-credit-pack-2026-09.md).
+
+**Live capture/refund remains UNTESTED**, including the original 39 NOK option.
+Actual 9 NOK Sandbox capture is also not implied by the mocked checkout test.
+Next money step is provider capture/replay acceptance of the starter amount,
+then an owner-approved Live purchase; no further 39 NOK test is required.
+Full-mission route, auth/provider and external-account gaps below remain open.
+Vercel's failed-payment warning needs owner billing attention; billing unchanged.
+
+### Previous analytics access slice
+
 Analytics access recovery: **DONE for this scoped slice**. Source **`9c437cd`**,
 deployment **`dpl_ASxDaUbduMNpF9P2YLTdXwLpPxcg`** on www.veggat.com. A 401/403
 refresh now clears previously displayed private reports; a later 503 cannot
@@ -15,7 +34,7 @@ See [evidence and rollback](analytics-access-acceptance-2026-09.md).
 **Live payment is UNTESTED.** The owner explicitly corrected the apparent
 purchase report: no 39 NOK payment has been confirmed. The current Live webhook
 configuration is verified, but it is not capture evidence. A **9 NOK / 10-credit**
-starter option is in verification to reduce the cost of future Live testing;
+starter option is now deployed to reduce the cost of future Live testing;
 normal 100-credit pricing and existing receipts stay unchanged. See
 [starter-pack acceptance](small-credit-pack-2026-09.md). No further 39 NOK test
 purchase should be requested. Other full-mission gaps below remain open.

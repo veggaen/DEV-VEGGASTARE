@@ -37,6 +37,12 @@ place for repeated no-real-money tests. Review actual merchant fees separately.
 
 ## Verification
 
+Application source: `a095d0e`; extended browser test: `226744f`.
+Preview: `dpl_C16oxUiRDmUx1iwGpsiLLmM9PfxT` (`9s45jmh8m`) at the isolated
+showcase alias. Production: `dpl_9LVVv2jJJMeYcQrEVCT55Etm4rdD` (`gyp6h7d7a`)
+on www.veggat.com, inspected after promotion. Strict builds pass. The additive
+49th migration is applied to both databases; no existing balance/order changed.
+
 Local strict build/TypeScript and touched ESLint pass. Focused units: 115/115
 pass, including server pricing, exact grant and replay denial. Ten checks of
 the actual isolated database constraint pass in a rolled-back temporary table.
@@ -45,7 +51,25 @@ invalid quantities, normal-price restoration, 9 NOK checkout quote, reload and
 overflow checks at 360/390/1280/2560. Its demo checkout POST is intercepted:
 no order, payment or purchased credit is created. Real Chrome separately verifies
 the 10-credit gallery, access count and 9 NOK price update without purchasing.
-Preview/live checks remain pending.
+An additional 44 refund/receipt/confirmation units pass (**159 total scoped units**).
+The extended browser journey (including header-basket edits) passes on local
+(9.2s), Preview (22.7s) and live (28.2s), with retries disabled. It preserves the
+known ordinary-pack fixture in an app-issued disposable demo cart and restores
+it after testing. No owner's cart is used by Playwright. Checkout POSTs are mocked.
+
+The first extended run looked for a desktop-only basket button at phone width;
+the test now exercises that control at 1280. The first Preview run correctly
+refused an occupied fixture cart; it now recognizes/restores only the known
+100-credit demo fixture and still refuses unexpected contents. These setup
+failures are not counted as app defects or passing runs. Screenshots of the
+390 checkout and 1280 basket were visually inspected.
+
+Real Chrome verifies the starter selection on local and Preview. At the owner's
+request to lower the next Live test, the retained real Live checkout was refreshed
+and explicitly changed from 100 to 10 credits using the normal UI. The saved line
+and total agree (9 NOK, displayed in the selected USD/ETH preference). The delivery
+checkbox remains unchecked; Continue to PayPal was not clicked. No Live order,
+capture, credit grant or refund was initiated by this change.
 The preceding local build fails the new starter-button regression as expected.
 Migration expands the cart check only; no data rows or balances are modified.
 
@@ -53,3 +77,15 @@ Actual 9 NOK Sandbox capture and Live approval are separate acceptance evidence,
 not implied by mocked provider tests or a working cart/checkout page. Do not
 ask the owner to repeat a 39 NOK purchase. Do not automatically tick delivery
 waivers or make a Live payment.
+
+## Rollback boundary
+
+The preceding app is `9c437cd` / `dpl_ASxDaUbduMNpF9P2YLTdXwLpPxcg`.
+Do not blindly promote it after starter cart rows exist: its reader rejects
+10-credit carts. Prefer a forward fix that retains recognition of stored small
+packs and immutable purchased quotes. Do not delete user carts or rewrite paid
+receipts to force a rollback. The additive database constraint can remain.
+
+The testing and computer-use skills informed explicit, observable selection,
+saved-cart checks and separate handling of payment approval. No computer action
+accepted legal consent or submitted a Live payment.
