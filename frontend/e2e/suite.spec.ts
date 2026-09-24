@@ -7,6 +7,114 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('permanent credit product auto-updates and keeps exact budget drafts at every viewport', async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_PRODUCT_POLISH !== '1', 'Focused permanent-product audit');
+  test.setTimeout(180_000);
+  const context = await browser.newContext({baseURL, reducedMotion:'reduce'});
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await context.addInitScript(() => {
+    localStorage.setItem('veggastare:uiPreferences', JSON.stringify({preferredFiatCurrency:'USD',preferredCryptoCurrency:'ETH'}));
+    localStorage.removeItem('veggastare_currency_rates');
+  });
+  await page.route('**/api/currency-rates', route => route.fulfill({json:{success:true,fiat:{rates:{USD:1,NOK:0.1},fresh:true,timestamp:Date.now()},crypto:{prices:{ETH:2000},fresh:true,timestamp:Date.now()}}}));
+  try {
+    await page.goto('/products/cveggatinterviewcredits01', {waitUntil:'domcontentloaded'});
+    await page.getByRole('button',{name:'Essential Only',exact:true}).click();
+    await expect(page.getByRole('heading',{name:'Veggat AI Credits',exact:true,level:1})).toBeVisible();
+    const credits = page.getByRole('textbox',{name:'Number of credits',exact:true});
+    const budget = page.getByRole('textbox',{name:'Budget (USD)',exact:true});
+    const preview = page.locator('[data-credit-preview]');
+    await budget.fill('100');
+    await expect(credits).toHaveValue('2815'); await expect(preview).toHaveText('2,815');
+    await budget.press('Tab'); await expect(budget).toHaveValue('100');
+    await expect(page.getByRole('button',{name:'Update credits',exact:true})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'Buy now',exact:true})).toBeEnabled();
+    await credits.fill('122'); await expect(preview).toHaveText('122'); await expect(budget).toHaveValue('4.72');
+    await credits.fill('122.5'); await credits.press('Tab');
+    await expect(page.locator('[data-credit-editor]').getByRole('alert')).toContainText('whole number');
+    await expect(page.getByRole('button',{name:'Buy now',exact:true})).toBeDisabled();
+    await credits.fill('10000'); await expect(preview).toHaveText('10,000');
+    await page.getByRole('button',{name:'Choose 10-credit starter pack',exact:true}).click();
+    await expect(preview).toHaveText('10');
+    await budget.fill('100.00'); await expect(preview).toHaveText('2,815');
+    for (const theme of ['dark','light'] as const) {
+      await page.emulateMedia({colorScheme:theme});
+      for (const [width,height] of [[360,800],[390,844],[844,390],[768,1024],[1024,1600],[1280,800],[1920,1080],[2560,1440]]) {
+        await page.setViewportSize({width,height});
+        await page.locator('[data-site-scroll]:visible').evaluate(e => e.scrollTo({top:0,behavior:'instant'}));
+        await expect(budget).toHaveValue('100.00');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('[data-site-scroll]')].every(e=>e.scrollWidth<=e.clientWidth))).toBe(true);
+        const form = (await page.getByRole('region',{name:'Choose your credits',exact:true}).boundingBox())!;
+        const included = (await page.getByRole('complementary',{name:'Included with your credits',exact:true}).boundingBox())!;
+        if (width>=1280) {expect(included.x).toBeGreaterThan(form.x);expect(form.width).toBeGreaterThan(450);await expect(page.getByRole('button',{name:'Buy now',exact:true})).toBeInViewport();}
+        else expect(included.y).toBeGreaterThan(form.y);
+        if ([390,1024,1280,2560].includes(width)) await page.screenshot({path:info.outputPath(`credits-${theme}-${width}.png`)});
+      }
+    }
+    await page.getByText('Usage & delivery',{exact:true}).click();
+    await expect(page.getByText(/Image and video generation are not included/)).toBeVisible();
+    await page.goto('/products/cveggatinterviewpack000001',{waitUntil:'domcontentloaded'});
+    await expect(page.getByRole('heading',{name:'Fjord Study — Digital Artwork',exact:true,level:1})).toBeVisible();
+    await expect(page.getByText(/AI-generated artwork, not a photograph/)).toBeVisible();
+    await page.getByRole('button',{name:'Next product image',exact:true}).click();
+    await expect(page.getByRole('button',{name:'View product image 2',exact:true})).toHaveAttribute('aria-pressed','true');
+    for (const [width,height] of [[390,844],[1024,1600],[1280,800],[2560,1440]]) {
+      await page.setViewportSize({width,height});
+      await page.locator('[data-site-scroll]:visible').evaluate(e=>e.scrollTo({top:0,behavior:'instant'}));
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      await page.screenshot({path:info.outputPath(`artwork-${width}.png`)});
+    }
+    expect(errors).toEqual([]);
+  } finally {await context.close();}
+});
+
+test('automatic cart edits are server-confirmed and failed edits cannot reach payment', async ({browser,baseURL}) => {
+  test.skip(process.env.E2E_PRODUCT_POLISH !== '1' || !process.env.E2E_DEMO_STORAGE_STATE,'Retained disposable demo account only');
+  const context = await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width:1280,height:800}});
+  const page = await context.newPage();
+  let cartPath='', original: Array<{product:{id:string};quantity:number;creditAmount?:number}>=[];
+  let paymentWrites=0;
+  await page.route(/\/api\/(demo\/)?checkout$/,r=>{paymentWrites++;return r.abort();});
+  try {
+    const user=(await(await context.request.get('/api/auth/session')).json()).user;
+    expect(user.isDemo).toBe(true); cartPath=`/api/cart/${user.id}`;
+    original=(await(await context.request.get(cartPath)).json()).items;
+    expect(original.every(x=>['cveggatinterviewcredits01','cveggatinterviewpack000001'].includes(x.product.id))).toBe(true);
+    expect((await context.request.delete(cartPath)).ok()).toBe(true);
+    expect((await context.request.post(cartPath,{data:{productId:'cveggatinterviewcredits01',quantity:1,creditAmount:100}})).ok()).toBe(true);
+    await page.goto('/cart',{waitUntil:'domcontentloaded'});
+    if (!await page.evaluate(()=>localStorage.getItem('veggat:cookieConsent'))) await page.getByRole('button',{name:'Essential Only',exact:true}).click();
+    const input=page.getByRole('textbox',{name:'Number of credits',exact:true});
+    await input.fill('555');
+    await expect.poll(async()=>(await(await context.request.get(cartPath)).json()).items[0].creditAmount).toBe(555);
+    await page.getByRole('link',{name:'Proceed to checkout',exact:true}).click();
+    await expect(input).toHaveValue('555');
+    const pay=page.getByRole('button',{name:'Complete free demo order',exact:true});
+    let releasePatch: () => void = () => {};
+    const patchGate = new Promise<void>(resolve => {releasePatch = resolve;});
+    await page.route('**/api/cart/**/items/**', async route => {if (route.request().method() === 'PATCH') await patchGate; return route.continue();});
+    await input.fill('1000');
+    await expect(pay).toBeDisabled();
+    releasePatch();
+    await expect(page.getByRole('heading',{name:'Veggat AI Credits · 1000 credits',exact:true})).toBeVisible();
+    await expect(pay).toBeEnabled();
+    await page.unroute('**/api/cart/**/items/**');
+    await page.route('**/api/cart/**/items/**',r=>r.request().method()==='PATCH'?r.fulfill({status:503,json:{error:'Controlled QA outage'}}):r.continue());
+    await input.fill('122'); await expect(page.getByText('Could not update your basket. Retry or keep the saved amount.')).toBeVisible();
+    await expect(pay).toBeDisabled();
+    expect((await(await context.request.get(cartPath)).json()).items[0].creditAmount).toBe(1000);
+    await page.unroute('**/api/cart/**/items/**');
+    // Checkout also retains its server-error lock: recovery is a reload, never
+    // silently treating the unconfirmed draft as payable.
+    await page.reload({waitUntil:'domcontentloaded'}); await expect(input).toHaveValue('1000');
+    await expect(pay).toBeEnabled(); expect(paymentWrites).toBe(0);
+  } finally {
+    if(cartPath) {expect((await context.request.delete(cartPath)).ok()).toBe(true); for(const row of original) expect((await context.request.post(cartPath,{data:{productId:row.product.id,quantity:row.quantity,creditAmount:row.creditAmount}})).ok()).toBe(true);}
+    await context.close();
+  }
+});
+
 test('S4 payment verification preserves one order through a failed response and retry', async ({ browser, baseURL }, testInfo) => {
   test.skip(process.env.E2E_RECEIPT_COMPACT !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Mocked verification only; never captures a payment');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce' });
@@ -827,27 +935,27 @@ test('Product reads avoid unused catalog requests and preserve filters across de
     page.on('pageerror',e=>errors.push(e.message));
     try{
       await page.goto('/products/cveggatinterviewpack000001',{waitUntil:'domcontentloaded'});
-      await expect(page.getByRole('heading',{name:'Veggat Interview Pack',level:1,exact:true})).toBeVisible();
+      await expect(page.getByRole('heading',{name:'Fjord Study — Digital Artwork',level:1,exact:true})).toBeVisible();
       const consent=page.getByRole('button',{name:'Essential Only',exact:true});
       await expect(consent).toBeVisible();await consent.click();await expect(consent).toBeHidden();
       expect(facets,'A direct product read must not start catalog-only metadata requests').toEqual([]);
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
       const initialFilters=Promise.all(facetPaths.slice(0,3).map(path=>page.waitForResponse(r=>new URL(r.url()).pathname===path&&r.ok())));
       await page.getByRole('link',{name:'Back to products',exact:true}).click();await initialFilters;
-      await expect(page.getByRole('link',{name:'Interviewer AI Credits',exact:true})).toBeVisible();
+      await expect(page.getByRole('link',{name:'Veggat AI Credits',exact:true})).toBeVisible();
       const search=page.getByRole('searchbox',{name:'Search products',exact:true});
       const filtered=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/products'&&new URL(r.url()).searchParams.get('searchTerm')==='Interviewer');
       const counts=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/filter-counts'&&new URL(r.url()).searchParams.get('searchTerm')==='Interviewer');
       await search.fill('Interviewer');await Promise.all([filtered,counts]);
-      await expect(page.getByRole('link',{name:'Veggat Interview Pack',exact:true})).toHaveCount(0);
+      await expect(page.getByRole('link',{name:'Fjord Study — Digital Artwork',exact:true})).toHaveCount(0);
       const before=facets.length;
-      await page.getByRole('link',{name:'Interviewer AI Credits',exact:true}).click();
-      await expect(page.getByRole('heading',{name:'Interviewer AI Credits',level:1,exact:true})).toBeVisible();
+      await page.getByRole('link',{name:'Veggat AI Credits',exact:true}).click();
+      await expect(page.getByRole('heading',{name:'Veggat AI Credits',level:1,exact:true})).toBeVisible();
       expect(facets.length).toBe(before);
       await page.getByRole('link',{name:'Back to products',exact:true}).click();
       await expect(search).toHaveValue('Interviewer');
-      await expect(page.getByRole('link',{name:'Interviewer AI Credits',exact:true})).toBeVisible();
-      await expect(page.getByRole('link',{name:'Veggat Interview Pack',exact:true})).toHaveCount(0);
+      await expect(page.getByRole('link',{name:'Veggat AI Credits',exact:true})).toBeVisible();
+      await expect(page.getByRole('link',{name:'Fjord Study — Digital Artwork',exact:true})).toHaveCount(0);
       await page.screenshot({path:testInfo.outputPath(`catalog-preserved-${width}.png`)});
       expect(errors).toEqual([]);
     }finally{await context.close();}
@@ -893,10 +1001,10 @@ test('S8 marketplace offer routes are honest, responsive and navigable without b
     await page.setViewportSize({width:390,height:844});
     await page.getByRole('link',{name:'Choose AI credits',exact:true}).click();
     await expect(page).toHaveURL(/\/products\/cveggatinterviewcredits01$/);
-    await expect(page.getByRole('heading',{name:'Interviewer AI Credits',exact:true,level:1})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Veggat AI Credits',exact:true,level:1})).toBeVisible();
     await page.goBack({waitUntil:'domcontentloaded'});await expect(page.getByRole('heading',{name:'Member discounts',exact:true,level:1})).toBeVisible();
     await page.getByRole('link',{name:'View Interview Pack',exact:true}).click();
-    await expect(page.getByRole('heading',{name:'Veggat Interview Pack',exact:true,level:1})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Fjord Study — Digital Artwork',exact:true,level:1})).toBeVisible();
     await page.goBack({waitUntil:'domcontentloaded'});
     await page.getByRole('navigation',{name:'Marketplace offers',exact:true}).getByRole('link',{name:'Daily deals',exact:true}).click();
     await expect(page.getByRole('heading',{name:'Daily deals',exact:true,level:1})).toBeVisible();
@@ -1836,15 +1944,15 @@ test('CI showcase happy path — real demo, custom cart, payment error recovery 
     await page.getByRole('button', { name: 'Try the demo — no payment', exact: true }).click();
     await page.waitForURL('**/products', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('complementary', { name: 'Demo mode', exact: true })).toBeVisible();
-    await page.getByText('Interviewer AI Credits', { exact: true }).first().click();
-    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true, level: 1 })).toBeVisible();
+    await page.getByText('Veggat AI Credits', { exact: true }).first().click();
+    await expect(page.getByRole('heading', { name: 'Veggat AI Credits', exact: true, level: 1 })).toBeVisible();
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) await consent.click();
-    const creditPreview = page.getByRole('figure', { name: 'Selected credit amount', exact: true });
+    const creditPreview = page.getByRole('complementary', { name: 'Included with your credits', exact: true });
     await expect(creditPreview).toBeVisible();
     await expect(creditPreview.locator('[data-credit-preview]')).toHaveText('100');
     await page.getByRole('textbox', { name: 'Number of credits', exact: true }).fill('122');
-    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+
     await expect(creditPreview.locator('[data-credit-preview]')).toHaveText('122');
     await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
     await expect(page.getByRole('button', { name: '1 item in basket', exact: true })).toBeVisible();
@@ -2281,7 +2389,7 @@ test('S7 global fiat and crypto selection persists across shopping, receipt and 
     await expect(page.getByRole('button', { name: 'View Full Cart', exact: true })).toBeVisible();
     const miniCart = page.getByRole('dialog', { name: 'Shopping basket', exact: true });
     await expect(miniCart).toHaveCSS('opacity', '1');
-    await expect(miniCart.getByRole('link', { name: 'Interviewer AI Credits', exact: true }).filter({ hasText: 'Interviewer AI Credits' }).locator('..').locator('..')).toHaveCSS('opacity', '1');
+    await expect(miniCart.getByRole('link', { name: 'Veggat AI Credits', exact: true }).filter({ hasText: 'Veggat AI Credits' }).locator('..').locator('..')).toHaveCSS('opacity', '1');
     for (const price of await miniCart.locator('[data-price-display]').all()) {
       await expect(price).toContainText('USD'); await expect(price).toContainText('ETH)');
     }
@@ -2392,13 +2500,13 @@ test('S4 isolated Preview password buyer signs in and opens the real product car
     expect(session.user.role).toBe('USER');
     await context.storageState({ path: '.private-showcase/preview-buyer-state.json' });
     await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) await consent.click();
     await page.getByRole('button', { name: 'Add to basket', exact: true }).last().click();
     await expect(page.getByText(/^(Added to basket|Already in your basket)$/)).toBeVisible();
     await page.goto('/cart', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByText('Veggat Interview Pack', { exact: true })).toBeVisible();
+    await expect(page.getByText('Fjord Study — Digital Artwork', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: 'test-results/preview-buyer-cart-390.png' });
   } finally { await context.close(); }
@@ -2754,7 +2862,7 @@ test('S7 — ordinary browsing does not initialize optional wallet services', as
     });
     try {
       await page.goto('/products', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('article', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+      await expect(page.getByRole('article', { name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
       const header = await page.locator('[data-header-canvas]').elementHandle();
       await page.getByRole('button', { name: 'Open menu', exact: true }).click();
@@ -3232,7 +3340,7 @@ test('S4 — retained demo receipts, private downloads and responsive order hist
     await page.getByRole('link', { name: 'My downloads', exact: true }).click();
     const downloads = page.getByRole('list', { name: 'Your downloads', exact: true }); await expect(downloads.locator(':scope > li')).toHaveCount(2);
     const filesResponse = await context.request.get('/api/my-downloads'), files = (await filesResponse.json()).downloads;
-    expect(filesResponse.headers()['cache-control']).toContain('no-store'); expect(files.every((file: { product?: { title: string } }) => file.product?.title === 'Veggat Interview Pack')).toBe(true);
+    expect(filesResponse.headers()['cache-control']).toContain('no-store'); expect(files.every((file: { product?: { title: string } }) => file.product?.title === 'Fjord Study — Digital Artwork')).toBe(true);
     expect((await anonymous.request.get('/api/my-downloads')).status()).toBe(401);
     const file = files.find((file: { digitalAsset: { mimeType: string } }) => file.digitalAsset.mimeType === 'text/plain');
     expect((await anonymous.request.get('/api/download/' + file.token)).status()).toBe(401);
@@ -3431,7 +3539,7 @@ test('S7 — shared header stays aligned and desktop rail scroll is independent'
   page.on('pageerror', error => errors.push(error.message));
   try {
     await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', level: 1, exact: true })).toBeVisible();
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) await consent.click();
     const main = page.locator('[data-app-scroll-container]:visible');
@@ -3487,7 +3595,7 @@ test('S7 — quick settings work on touch and keyboard without a document reload
   const page = await context.newPage();
   try {
     await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', level: 1, exact: true })).toBeVisible();
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) await consent.tap();
     await page.getByRole('button', { name: 'Open menu', exact: true }).tap();
@@ -3528,7 +3636,7 @@ test('S7 — delayed wallet controls do not move a scrolled navigation drawer', 
   let walletBundleHeld = false;
   try {
     await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', level: 1, exact: true })).toBeVisible();
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) await consent.click();
     const trigger = page.getByRole('button', { name: 'Open menu', exact: true });
@@ -3661,7 +3769,7 @@ test('S7 — product detail layout, gallery and real scrolling at eight sizes in
   page.on('pageerror', error => errors.push(error.message));
   try {
     await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', level: 1, exact: true })).toBeVisible();
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
     await expect(page.locator('[data-product-price]')).toHaveText(/29,00 NOK/);
@@ -3676,14 +3784,14 @@ test('S7 — product detail layout, gallery and real scrolling at eight sizes in
       // next-themes persists this exact setting; exercise a real reload as well.
       await page.evaluate(value => localStorage.setItem('veggat:theme', value), theme);
       await page.reload({ waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', level: 1, exact: true })).toBeVisible();
       await expect(page.locator('html')).toHaveClass(new RegExp(theme));
       for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
         await page.setViewportSize(size);
         await scroll.evaluate(e => e.scrollTo({ top: 0, behavior: 'instant' }));
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('main, [data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
-        const title = await page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true }).boundingBox();
-        const image = await page.getByRole('img', { name: 'Veggat Interview Pack', exact: true }).first().boundingBox();
+        const title = await page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', level: 1, exact: true }).boundingBox();
+        const image = await page.getByRole('img', { name: 'Fjord Study — Digital Artwork', exact: true }).first().boundingBox();
         if (size.width < 1024) expect(title!.y).toBeGreaterThan(image!.y + image!.height);
         else expect(title!.x).toBeGreaterThan(image!.x + image!.width);
         const actions = page.getByRole('region', { name: 'Product purchase', exact: true });
@@ -3721,7 +3829,7 @@ test('S7 — product detail layout, gallery and real scrolling at eight sizes in
     }
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', level: 1, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Veggat AI Credits', level: 1, exact: true })).toBeVisible();
     await expect(page.locator('[data-product-price]')).toHaveText(/39,00 NOK/);
     await expect(page.getByText('Credits appear in your AI balance after verified payment.', { exact: true })).toBeVisible();
     await expect(page.locator('main')).not.toContainText('My downloads');
@@ -3875,7 +3983,7 @@ test('S3 — guest product purchase preserves a safe login return path', async (
   try {
     const productPath = '/products/cveggatinterviewpack000001';
     await page.goto(productPath, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true, level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true, level: 1 })).toBeVisible();
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
     await page.getByRole('button', { name: 'Add to basket', exact: true }).click();
@@ -3898,7 +4006,7 @@ test('S3 — product report stays within phone landscape and share failures have
   });
   try {
     await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true, level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true, level: 1 })).toBeVisible();
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
     await page.getByRole('button', { name: 'Share', exact: true }).click();
@@ -4196,7 +4304,7 @@ test('S7 — catalog first response includes cards without a hydration fetch wat
       const response = await page.goto('/products', { waitUntil: 'domcontentloaded' });
       expect(response?.status()).toBe(200);
       const html = await response!.text();
-      await expect(page.getByRole('article', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+      await expect(page.getByRole('article', { name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
       await expect(page.getByRole('searchbox', { name: 'Search products', exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
       const measurement = await page.evaluate(() => {
@@ -4208,8 +4316,8 @@ test('S7 — catalog first response includes cards without a hydration fetch wat
       });
       measurements.push({ width, ...measurement, htmlCards: (html.match(/<article /g) ?? []).length, browserCatalogRequests: calls.length });
       await testInfo.attach(`catalog-first-response-${width}.json`, { body: JSON.stringify(measurements.at(-1), null, 2), contentType: 'application/json' });
-      expect(html.includes('<article aria-label="Veggat Interview Pack"'), 'Product cards must arrive in HTML, not only after hydration').toBe(true);
-      expect(html.includes('<article aria-label="Interviewer AI Credits"')).toBe(true);
+      expect(html.includes('<article aria-label="Fjord Study — Digital Artwork"'), 'Product cards must arrive in HTML, not only after hydration').toBe(true);
+      expect(html.includes('<article aria-label="Veggat AI Credits"')).toBe(true);
       expect(/<link[^>]+rel="preload"[^>]+as="image"/.test(html), 'The first card image must be discoverable before hydration').toBe(true);
       expect(calls, 'Initial server results must not be immediately fetched again').toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -4218,7 +4326,7 @@ test('S7 — catalog first response includes cards without a hydration fetch wat
       // Actual interaction proves hydration finished and request cancellation still works.
       const filtered = page.waitForResponse(r => new URL(r.url()).pathname === '/api/products' && new URL(r.url()).searchParams.get('searchTerm') === 'Interviewer');
       await page.getByRole('searchbox', { name: 'Search products', exact: true }).fill('Interviewer'); await filtered;
-      await expect(page.getByRole('article', { name: 'Veggat Interview Pack', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('article', { name: 'Fjord Study — Digital Artwork', exact: true })).toHaveCount(0);
       expect(calls).toHaveLength(1); expect(errors).toEqual([]);
     } finally { await context.close(); }
   }
@@ -4233,7 +4341,7 @@ test('S7 — catalog canvas, first wheel and controls remain stable at eight siz
   try {
     await page.goto('/products', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Marketplace', level: 1 })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Essential Only', exact: true })).toBeHidden();
     const scroll = page.locator('[data-app-scroll-container]');
@@ -4244,7 +4352,7 @@ test('S7 — catalog canvas, first wheel and controls remain stable at eight siz
       const header = page.getByRole('heading', { level: 1 }).locator('..').locator('..');
       const before = await header.boundingBox();
       const inputBefore = await search.boundingBox();
-      const card = await page.getByRole('article', { name: 'Veggat Interview Pack', exact: true }).boundingBox();
+      const card = await page.getByRole('article', { name: 'Fjord Study — Digital Artwork', exact: true }).boundingBox();
       expect(card!.width).toBeLessThan(500);
       expect(inputBefore!.height).toBeGreaterThanOrEqual(44);
       expect(await search.evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(16);
@@ -4269,12 +4377,12 @@ test('S7 — catalog canvas, first wheel and controls remain stable at eight siz
       test.info().annotations.push({ type: 'catalog-viewport', description: `${size.width}x${size.height}; card ${card!.width}px` });
     }
     await page.setViewportSize({ width: 390, height: 844 });
-    const first = page.getByRole('article', { name: 'Veggat Interview Pack', exact: true });
-    await first.getByRole('button', { name: 'Next image of Veggat Interview Pack', exact: true }).click();
+    const first = page.getByRole('article', { name: 'Fjord Study — Digital Artwork', exact: true });
+    await first.getByRole('button', { name: 'Next image of Fjord Study — Digital Artwork', exact: true }).click();
     await expect(page).toHaveURL(/\/products$/);
-    await first.getByRole('button', { name: 'Previous image of Veggat Interview Pack', exact: true }).click();
+    await first.getByRole('button', { name: 'Previous image of Fjord Study — Digital Artwork', exact: true }).click();
     await first.getByRole('heading').getByRole('link').click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
     expect(errors).toEqual([]);
   } finally { await context.close(); }
 });
@@ -4344,11 +4452,11 @@ test('S7 — catalog desktop filter docks, categories, price and page size work'
   try {
     await page.goto('/products', { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Browse categories', exact: true }).click();
     await page.getByRole('menuitemcheckbox', { name: /Digital art/i }).click();
     await page.keyboard.press('Escape');
-    await expect(page.locator('article h2')).toHaveText(['Veggat Interview Pack']);
+    await expect(page.locator('article h2')).toHaveText(['Fjord Study — Digital Artwork']);
     await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
     await page.getByRole('button', { name: 'Product filters', exact: true }).click();
     const panel = page.getByRole('complementary', { name: 'Product filters', exact: true });
@@ -4380,15 +4488,15 @@ test('S7 — catalog desktop filter docks, categories, price and page size work'
     await panel.getByText('Enter exact values', { exact: true }).click();
     await panel.getByRole('spinbutton', { name: 'Maximum price (NOK)', exact: true }).fill('30');
     await panel.getByRole('button', { name: 'Apply price range', exact: true }).click();
-    await expect(page.locator('article h2')).toHaveText(['Veggat Interview Pack']);
+    await expect(page.locator('article h2')).toHaveText(['Fjord Study — Digital Artwork']);
     await panel.getByRole('button', { name: /Reset all filters/ }).click();
-    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Veggat AI Credits', exact: true })).toBeVisible();
     await panel.getByRole('button', { name: 'Close filters', exact: true }).click();
     await expect(panel).toBeHidden();
     await page.getByRole('button', { name: 'Filter panel position', exact: true }).click();
     await page.getByRole('menuitemradio', { name: 'Right edge', exact: true }).click();
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Product filters', exact: true }).click();
     await expect(panel).toBeVisible();
     expect((await panel.boundingBox())!.x).toBeGreaterThan(900);
@@ -4409,14 +4517,14 @@ test('S7 — catalog cart and buy-now buttons reach checkout and recover from fa
     await expect(page.getByRole('button', { name: 'Exit demo', exact: true })).toBeVisible();
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) { await consent.click(); await expect(consent).toBeHidden(); }
-    const pack = page.getByRole('article', { name: 'Veggat Interview Pack', exact: true });
-    await pack.getByRole('button', { name: 'Add Veggat Interview Pack to cart', exact: true }).click();
+    const pack = page.getByRole('article', { name: 'Fjord Study — Digital Artwork', exact: true });
+    await pack.getByRole('button', { name: 'Add Fjord Study — Digital Artwork to cart', exact: true }).click();
     await expect(page.getByText('Added to basket', { exact: true })).toBeVisible();
     // A bottom toast can cover the next card's CTA on a phone. Exercise its
     // actual accessible dismiss control, rather than force-clicking through it.
     await page.getByRole('button', { name: 'Close toast', exact: true }).click();
     await expect(page.getByText('Added to basket', { exact: true })).toBeHidden();
-    await page.getByRole('article', { name: 'Interviewer AI Credits', exact: true }).getByRole('button', { name: 'Buy now', exact: true }).click();
+    await page.getByRole('article', { name: 'Veggat AI Credits', exact: true }).getByRole('button', { name: 'Buy now', exact: true }).click();
     await expect(page).toHaveURL(/\/checkout$/);
     await expect(page.getByRole('heading', { name: 'Secure checkout', exact: true })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Order items' }).getByRole('heading', { level: 3 })).toHaveCount(2);
@@ -4427,7 +4535,7 @@ test('S7 — catalog cart and buy-now buttons reach checkout and recover from fa
     await page.goto('/products', { waitUntil: 'domcontentloaded' });
     await page.route(url => url.pathname === `/api/cart/${session.user.id}`, route => route.request().method() === 'POST'
       ? route.fulfill({ status: 503, json: { error: 'Temporary test outage' } }) : route.continue());
-    const add = pack.getByRole('button', { name: 'Add Veggat Interview Pack to cart', exact: true });
+    const add = pack.getByRole('button', { name: 'Add Fjord Study — Digital Artwork to cart', exact: true });
     await add.click();
     await expect(page.getByText('Could not add this product to your basket. Please try again.', { exact: true })).toBeVisible();
     await expect(add).toBeEnabled();
@@ -4637,7 +4745,7 @@ for (const width of [390, 1280]) {
       await expect(page.getByRole('heading', { name: 'AI Keys', exact: true })).toBeVisible();
       await page.goto('/pricing', { waitUntil: 'domcontentloaded' });
       await page.getByRole('link', { name: 'View the credit pack', exact: true }).click();
-      await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Veggat AI Credits', exact: true })).toBeVisible();
       await page.goto('/pricing', { waitUntil: 'domcontentloaded' });
       await page.getByRole('link', { name: 'Open the free demo', exact: true }).click();
       await expect(page).toHaveURL(new URL('/', baseURL!).href);
@@ -5767,7 +5875,7 @@ test.describe("Layer 3 — Content", () => {
       expect(await title.boundingBox()).toEqual(before);
       await page.evaluate(() => { (window as Window & { __qaMain?: Element | null }).__qaMain = document.querySelector('main'); });
       await link.click();
-      await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
       expect(await page.evaluate(() => (window as Window & { __qaMain?: Element | null }).__qaMain === document.querySelector('main'))).toBe(true);
       expect(await page.evaluate(() => localStorage.getItem('veggat:tradeMode'))).toBe('paper');
       expect(errors).toEqual([]);
@@ -5919,8 +6027,8 @@ test.describe("Layer 3 — Content", () => {
         await page.mouse.wheel(0, -3000);
         await expect(page.getByRole('link', { name: 'Back to companies' })).toBeInViewport();
       }
-      await page.getByRole('link', { name: /Veggat Interview Pack/ }).click();
-      await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+      await page.getByRole('link', { name: /Fjord Study — Digital Artwork/ }).click();
+      await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
       await page.goto('/companies/create', { waitUntil: 'domcontentloaded' });
       await expect(page.getByRole('region', { name: 'Company setup preview' })).toBeVisible();
       await expect(page.locator('form')).toHaveCount(0);
@@ -6058,7 +6166,7 @@ test.describe("Layer 3 — Content", () => {
     page.on('pageerror', error => errors.push(error.message));
     try {
       await page.goto('/products', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
       if (await consent.isVisible()) await consent.click();
       for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
@@ -6103,11 +6211,11 @@ test.describe("Layer 3 — Content", () => {
       await page.getByRole('button', { name: 'Product filters', exact: true }).click();
       await page.getByRole('checkbox', { name: /^Digital art /i }).check();
       await page.keyboard.press('Escape');
-      await expect(page.locator('article h2')).toHaveText(['Veggat Interview Pack']);
+      await expect(page.locator('article h2')).toHaveText(['Fjord Study — Digital Artwork']);
       await page.getByRole('button', { name: 'Product filters', exact: true }).click();
       await page.getByRole('button', { name: /Reset all filters/ }).click();
       await page.keyboard.press('Escape');
-      await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Veggat AI Credits', exact: true })).toBeVisible();
       expect(errors).toEqual([]);
     } finally { await context.close(); }
   });
@@ -6122,7 +6230,7 @@ test.describe("Layer 3 — Content", () => {
     page.on('pageerror', error => errors.push(error.message));
     try {
       await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
       if (await consent.isVisible()) await consent.click();
       const scroll = page.locator('[data-app-scroll-container]');
@@ -6330,7 +6438,7 @@ test.describe("Layer 3 — Content", () => {
         await page.getByRole('button', { name: 'Try the demo — no payment', exact: true }).click();
       }
       await page.waitForURL('**/products', { waitUntil: 'domcontentloaded' });
-      for (const [index, title] of ['Veggat Interview Pack', 'Interviewer AI Credits'].entries()) {
+      for (const [index, title] of ['Fjord Study — Digital Artwork', 'Veggat AI Credits'].entries()) {
         if (index) await page.goto('/products', { waitUntil: 'domcontentloaded' });
         await page.getByText(title, { exact: true }).first().click();
         await expect(page.getByRole('heading', { name: title, exact: true, level: 1 })).toBeVisible();
@@ -6351,8 +6459,8 @@ test.describe("Layer 3 — Content", () => {
         await page.setViewportSize({ width, height: 844 });
         await page.reload({ waitUntil: 'domcontentloaded' });
         await expect(page.getByRole('heading', { name: 'Your cart', exact: true })).toBeVisible();
-        await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', exact: true })).toBeVisible();
-        await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Veggat AI Credits', exact: true })).toBeVisible();
         expect(new URL(page.url()).pathname).toBe('/cart');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       }
@@ -6751,18 +6859,18 @@ test('S4 flexible credit budgets persist and checkout reflows without a payment'
     const cookie = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await cookie.click();
     const credits = page.getByRole('textbox', { name: 'Number of credits', exact: true });
-    const budget = page.getByRole('textbox', { name: 'Spend up to (NOK)', exact: true });
+    const budget = page.getByRole('textbox', { name: 'Budget (NOK)', exact: true });
     await expect(credits).toHaveValue('100');
     await credits.fill('10000'); await expect(budget).toHaveValue('3521.70');
     await budget.fill('1000'); await expect(credits).toHaveValue('2815');
-    await expect(page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true })).toBeDisabled();
-    await budget.press('Enter'); await expect(budget).toHaveValue('999.77');
+    await expect(page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true })).toBeEnabled();
+    await budget.press('Tab'); await expect(budget).toHaveValue('1000');
     await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
     await page.goto('/cart', { waitUntil: 'domcontentloaded' });
     await expect(credits).toHaveValue('2815');
     const saved = (await (await context.request.get(cartPath)).json()).items[0];
     expect(saved).toMatchObject({ quantity: 1, creditAmount: 2815, product: { price: 999.77, priceCurrency: 'NOK' } });
-    await credits.fill('10000'); await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await credits.fill('10000');
     await expect.poll(async () => (await (await context.request.get(cartPath)).json()).items[0].creditAmount).toBe(10000);
     expect((await context.request.patch(`${cartPath}/items/${saved.id}`, { data: { creditAmount: 10001 } })).status()).toBe(400);
     await page.getByRole('link', { name: 'Proceed to checkout', exact: true }).click();
@@ -6774,16 +6882,16 @@ test('S4 flexible credit budgets persist and checkout reflows without a payment'
     const pay = page.getByRole('button', { name: 'Complete free demo order', exact: true });
     await expect(pay).toBeDisabled();
     await budget.press('Enter');
-    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits · 2815 credits', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Veggat AI Credits · 2815 credits', exact: true })).toBeVisible();
     await expect(pay).toBeEnabled();
     await page.reload({ waitUntil: 'domcontentloaded' }); await expect(credits).toHaveValue('2815');
     await page.getByRole('button', { name: /^Display currency:/ }).click();
     await page.getByRole('menuitemradio', { name: 'US Dollar', exact: true }).click();
     await page.keyboard.press('Escape');
-    const usdBudget = page.getByRole('textbox', { name: 'Spend up to (USD)', exact: true });
+    const usdBudget = page.getByRole('textbox', { name: 'Budget (USD)', exact: true });
     await expect(usdBudget).toHaveValue('99.98');
     await usdBudget.fill('100'); await expect(credits).toHaveValue('2815');
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(usdBudget).toHaveValue('100');
     await expect(pay).toBeEnabled();
     const items = page.getByRole('region', { name: 'Order items', exact: true });
     const summary = page.getByRole('complementary', { name: 'Payment summary', exact: true });
@@ -6843,8 +6951,8 @@ test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', as
     await expect(input).toHaveValue('100');
     await page.getByRole('button', { name: 'Choose 10-credit starter pack', exact: true }).click();
     await expect(input).toHaveValue('10');
-    await expect(page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true })).toBeDisabled();
-    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true })).toBeEnabled();
+
     await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
     await page.goto('/cart', { waitUntil: 'domcontentloaded' });
     await expect(input).toHaveValue('10');
@@ -6855,10 +6963,10 @@ test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', as
       expect((await context.request.patch(`${path}/items/${cart.items[0].id}`, { data: { creditAmount: invalid } })).status()).toBe(400);
     }
     await input.fill('100');
-    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+
     await expect.poll(async () => (await (await context.request.get(path)).json()).items[0].product.price).toBe(39);
     await page.getByRole('button', { name: 'Choose 10-credit starter pack', exact: true }).click();
-    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+
     await expect.poll(async () => (await (await context.request.get(path)).json()).items[0].product.price).toBe(9);
     await page.setViewportSize({ width: 1280, height: 844 });
     await page.getByRole('button', { name: '1 item in basket', exact: true }).click();
@@ -6866,16 +6974,16 @@ test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', as
     const basketInput = basket.getByRole('textbox', { name: 'Number of credits', exact: true });
     await expect(basketInput).toHaveValue('10');
     await basketInput.fill('100');
-    await basket.getByRole('button', { name: 'Update credits', exact: true }).click();
+
     await expect.poll(async () => (await (await context.request.get(path)).json()).items[0].product.price).toBe(39);
     await basket.getByRole('button', { name: 'Choose 10-credit starter pack', exact: true }).click();
-    await basket.getByRole('button', { name: 'Update credits', exact: true }).click();
+
     await expect.poll(async () => (await (await context.request.get(path)).json()).items[0].product.price).toBe(9);
     await page.screenshot({ path: testInfo.outputPath('small-credit-basket-1280.png') });
     await page.getByRole('button', { name: 'Close basket', exact: true }).click();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('link', { name: 'Proceed to checkout', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits · 10 credits', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Veggat AI Credits · 10 credits', exact: true })).toBeVisible();
     let submittedQuote: unknown;
     await page.route('**/api/demo/checkout', async route => {
       submittedQuote = JSON.parse(route.request().postDataJSON().expectedQuote);
@@ -6925,12 +7033,12 @@ test('S4 — custom credits persist across product, basket, cart, checkout and r
     expect((await context.request.delete(cartPath)).ok()).toBe(true);
     if (process.env.E2E_SAVE_DEMO_STATE) await context.storageState({ path: process.env.E2E_SAVE_DEMO_STATE });
     await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true, level: 1 })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole('heading', { name: 'Veggat AI Credits', exact: true, level: 1 })).toBeVisible({ timeout: 60_000 });
     const input = page.getByRole('textbox', { name: 'Number of credits', exact: true });
     if (await consent.isVisible()) await consent.click();
     await input.fill('122');
-    await expect(page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true })).toBeDisabled();
-    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true })).toBeEnabled();
+
     await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
     await page.setViewportSize({ width: 1280, height: 844 });
     await expect(page.getByRole('button', { name: '1 item in basket', exact: true })).toBeVisible();
@@ -6947,19 +7055,18 @@ test('S4 — custom credits persist across product, basket, cart, checkout and r
       expect(await page.locator('[data-site-scroll]').evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
     }
     await page.setViewportSize({ width: 390, height: 844 });
-    await input.fill('122.5');
-    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
+    await input.fill('122.5'); await input.press('Tab');
     await expect(page.locator('[data-credit-editor]').getByRole('alert')).toContainText('whole number');
     await expect(page.getByRole('button', { name: 'Proceed to checkout', exact: true })).toBeDisabled();
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.getByRole('button', { name: 'Keep saved amount', exact: true }).click();
     await page.screenshot({ path: testInfo.outputPath('custom-credit-cart-390.png') });
     await page.getByRole('link', { name: 'Proceed to checkout', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Secure checkout', exact: true })).toBeVisible();
     const pay = page.getByRole('button', { name: 'Complete free demo order', exact: true });
     await input.fill('555');
     await expect(pay).toBeDisabled();
-    await page.getByRole('button', { name: 'Update credits', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Interviewer AI Credits · 555 credits', exact: true })).toBeVisible();
+
+    await expect(page.getByRole('heading', { name: 'Veggat AI Credits · 555 credits', exact: true })).toBeVisible();
     await expect(pay).toBeEnabled();
     await page.screenshot({ path: testInfo.outputPath('custom-credit-checkout-390.png') });
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -6972,9 +7079,9 @@ test('S4 — custom credits persist across product, basket, cart, checkout and r
     await basketEditor.getByRole('textbox', { name: 'Number of credits', exact: true }).fill('122');
     await expect(page.getByRole('button', { name: 'Checkout', exact: true })).toBeDisabled();
     await expect(pay).toBeDisabled();
-    await basketEditor.getByRole('button', { name: 'Update credits', exact: true }).click();
+
     await expect.poll(async () => (await (await context.request.get(cartPath)).json()).items[0].creditAmount).toBe(122);
-    await expect(basketEditor.getByRole('button', { name: 'Update credits', exact: true })).toBeDisabled();
+    await expect(basketEditor.getByRole('textbox', { name: 'Number of credits', exact: true })).toBeEnabled();
     await page.getByRole('button', { name: 'Close basket', exact: true }).click();
     // Another surface changed the cart: the old checkout must not charge a stale quote.
     await pay.click();
@@ -6983,7 +7090,7 @@ test('S4 — custom credits persist across product, basket, cart, checkout and r
     await expect(input).toHaveValue('122');
     await pay.click();
     await page.waitForURL('**/checkout/receipt/**', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('list', { name: 'Receipt items', exact: true })).toContainText('Interviewer AI Credits · 122 credits');
+    await expect(page.getByRole('list', { name: 'Receipt items', exact: true })).toContainText('Veggat AI Credits · 122 credits');
     await page.screenshot({ path: testInfo.outputPath('custom-credit-receipt.png') });
     // Leave this disposable demo ready for read-only currency regressions.
     expect((await context.request.post(cartPath, { data: { productId: 'cveggatinterviewcredits01', quantity: 1 } })).ok()).toBe(true);
@@ -7068,7 +7175,7 @@ test('S7 — product loading uses gallery geometry without a catalogue flash', a
       });
       if (navigate) {
         await page.goto('/products', { waitUntil: 'domcontentloaded' });
-        const product = page.getByRole('link', { name: 'Veggat Interview Pack', exact: true });
+        const product = page.getByRole('link', { name: 'Fjord Study — Digital Artwork', exact: true });
         await expect(product).toBeVisible();
         const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
         await expect(consent).toBeVisible(); await consent.click(); await expect(consent).toBeHidden();
@@ -7082,7 +7189,7 @@ test('S7 — product loading uses gallery geometry without a catalogue flash', a
       expect(before!.width).toBeLessThanOrEqual(1280);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       release();
-      await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', level: 1, exact: true })).toBeVisible();
       await expect(loading).toHaveCount(0);
       // Compare the same outer gallery box, not its 13px-padded carousel.
       const gallery = await page.locator('[data-product-gallery]').boundingBox();
@@ -7100,7 +7207,7 @@ test('S7 — product gallery and purchase layout work across phone to ultrawide'
   page.on('pageerror', error => errors.push(error.message));
   try {
     await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Veggat Interview Pack', level: 1, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', level: 1, exact: true })).toBeVisible();
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) await consent.click();
     const main = page.locator('[data-app-scroll-container]:visible');
@@ -7151,22 +7258,21 @@ test('S7 — selected credits preview matches typed amount without placing an or
   });
   try {
     await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
-    await expect.poll(async () => ({ visible: await page.getByRole('heading', { name: 'Interviewer AI Credits', exact: true }).isVisible(), productResponses }),
+    await expect.poll(async () => ({ visible: await page.getByRole('heading', { name: 'Veggat AI Credits', exact: true }).isVisible(), productResponses }),
       { message: 'Credit product must load; include API status evidence on failure' }).toMatchObject({ visible: true });
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (await consent.isVisible()) await consent.click();
     const input = page.getByRole('textbox', { name: 'Number of credits', exact: true });
     for (const value of ['122', '555', '1000']) {
       await input.fill(value);
-      await expect(page.getByRole('button', { name: 'Buy now', exact: true })).toBeDisabled();
-      await input.press('Enter');
+      await input.press('Tab');
       await expect(page.locator('[data-credit-preview]')).toHaveText(Number(value).toLocaleString('en-US'));
       await expect(page.getByRole('button', { name: 'Buy now', exact: true })).toBeEnabled();
     }
-    await input.fill('99'); await input.press('Enter');
-    await expect(page.getByRole('alert').filter({ hasText: 'Enter a whole number' })).toBeVisible();
+    await input.fill('99'); await input.press('Tab');
+    await expect(page.getByRole('alert').filter({ hasText: 'Choose 10 credits' })).toBeVisible();
     await expect(page.locator('[data-credit-preview]')).toHaveText('1,000');
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.getByRole('button', { name: 'Keep saved amount', exact: true }).click();
     await expect(input).toHaveValue('1000');
     expect(moneyWrites).toBe(0);
   } finally { await context.close(); }

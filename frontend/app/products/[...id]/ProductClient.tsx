@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import PriceAmount from '@/components/crypto-related/PriceAmount';
-import CreditAmountEditor from '@/components/checkout/credit-amount-editor';
+import CreditProductPanel from '@/components/uicustom/product/credit-product-panel';
 import { DEFAULT_PURCHASE_CREDITS, quoteCreditPurchase } from '@/lib/ai-credit-purchase';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -425,97 +425,8 @@ function ProductDetails({ product }: { product: Product }) {
   const updatedAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.updatedAt));
   const createdAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.createdAt));
 
-  return (
-    <div data-product-detail className="relative w-full min-w-0 space-y-6 pb-8 text-foreground">
-      {canPurchase && <div data-mobile-product-actions role="region" aria-label="Product purchase" style={{ marginBlock: 0 }} className="fixed inset-x-0 bottom-[var(--cookie-banner-offset,0px)] z-50 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-lg lg:hidden">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="truncate text-xs text-muted-foreground">{product.title}</p>
-            <p className="mt-1 font-semibold tabular-nums">{displayPrice}</p>
-          </div>
-          <Button type="button" variant="vegaAddBasketBtn" className="h-12 shrink-0 rounded-xl px-4" onClick={handleAddToCart} disabled={purchaseDisabled}>{purchasePending ? "Adding…" : "Add to basket"}</Button>
-        </div>
-      </div>}
-      <div className="flex items-center justify-between gap-3">
-        <Link
-          href="/products"
-          aria-label="Back to products"
-          title="Back to products"
-          className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
-        >
-          <ArrowLeft aria-hidden className="h-4 w-4" /> Back to products
-        </Link>
-        {canManageProductLifecycle && (
-          <div
-            className={cn(
-              "border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]",
-              currentVisibility === "PUBLIC" && "border-emerald-300/35 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300",
-              currentVisibility === "HIDDEN" && "border-amber-300/35 bg-amber-400/10 text-amber-200",
-              currentVisibility === "ARCHIVED" && "border-zinc-500/45 bg-zinc-500/10 text-muted-foreground"
-            )}
-          >
-            {visibilityLabel}
-          </div>
-        )}
-      </div>
-
-      {/* Top section */}
-      <motion.section
-        className="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8"
-        initial={false}
-        animate="show"
-      >
-        {/* Gallery */}
-        <motion.div
-          className="min-w-0 lg:col-span-7"
-        >
-          <ProductGallery images={product.image} title={product.title} credits={isCreditPack ? selectedCredits : undefined} />
-
-          {/* Quick stats — text on background, divided by hairlines (no boxes) */}
-          {!isDigitalProduct && <div className="mt-5 hidden grid-cols-3 gap-3 lg:grid">
-            <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm  motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
-              <div className="text-sm font-semibold text-foreground">{availabilityLabel}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">Availability</div>
-            </div>
-            <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm  motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
-              <div className="text-sm font-semibold text-foreground">{product.condition}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">Condition</div>
-            </div>
-            <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm  motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
-              <div className="text-sm font-semibold text-foreground">{isDigitalProduct ? deliveryDestination : product.shipFromPostalId || "Not set"}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">{isDigitalProduct ? "Delivery" : "Ships from"}</div>
-            </div>
-          </div>}
-        </motion.div>
-
-        {/* Details */}
-        <motion.div
-          className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm  sm:p-6 lg:col-span-5"
-        >
-          {/* category + title */}
-          <motion.div
-          >
-            <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-emerald-700 dark:text-emerald-300">
-                  {productKindLabel}
-                </span>
-                <span className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-                  {product.category}
-                </span>
-              </div>
-              <h1 className="mt-4 max-w-2xl break-words text-balance text-2xl font-semibold leading-tight tracking-tight text-foreground sm:text-3xl">
-                {product.title}
-              </h1>
-              <div className="mt-5 text-2xl font-semibold text-emerald-700 dark:text-emerald-300">
-                <span data-product-price className="tabular-nums">{displayPrice}</span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* rating */}
-          {isCreditPack && <CreditAmountEditor value={selectedCredits} onSave={setSelectedCredits} onDirtyChange={setDirtyCredits}
-            disabled={cartLoading || purchasePending !== null} />}
+  const listingControls = <details className="border-t border-border text-sm">
+    <summary className="min-h-11 cursor-pointer py-3 font-medium focus-visible:outline-2">{canManageProductLifecycle ? 'Manage listing' : 'Reviews & reporting'}</summary>
           <motion.div
             className="flex flex-wrap items-center justify-between gap-3"
           >
@@ -621,15 +532,14 @@ function ProductDetails({ product }: { product: Product }) {
               </div>
             )}
           </motion.div>
-
-          {/* actions */}
-          {purchaseState !== 'AVAILABLE' && <section aria-label="Purchase availability" className="rounded-xl border border-border bg-muted/30 p-4 text-sm leading-6">
+  </details>;
+  const purchaseActions = <>          {purchaseState !== 'AVAILABLE' && <section aria-label="Purchase availability" className="rounded-xl border border-border bg-muted/30 p-4 text-sm leading-6">
             <h2 className="font-semibold">{PRODUCT_PURCHASE_NOTICE[purchaseState].title}</h2>
             <p className="mt-1 text-muted-foreground">{PRODUCT_PURCHASE_NOTICE[purchaseState].description}</p>
             <Link href="/products" className="mt-2 inline-flex min-h-11 items-center font-medium underline underline-offset-4">Explore available products</Link>
           </section>}
           <motion.div
-            className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-3"
+            className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
           >
             <motion.div
             >
@@ -646,7 +556,7 @@ function ProductDetails({ product }: { product: Product }) {
               </Button>
             </motion.div>
 
-            <motion.div className="col-start-1 row-start-2 hidden lg:block">
+            <motion.div className="hidden lg:block">
               <Button
                 type="button"
                 variant="vegaAddBasketBtn"
@@ -680,12 +590,108 @@ function ProductDetails({ product }: { product: Product }) {
                 }}
               >
                 <Share2 className="mr-2 h-4 w-4" />
-                Share
+                <span className="sr-only">Share</span>
               </Button>
             </motion.div>
           </motion.div>
 
-          {purchaseError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">{purchaseError} <Link href="/cart" className="inline-flex min-h-11 items-center font-semibold underline">Review basket</Link></p>}
+          {purchaseError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">{purchaseError} <Link href="/cart" className="inline-flex min-h-11 items-center font-semibold underline">Review basket</Link></p>}</>;
+
+  return (
+    <div data-product-detail className="relative w-full min-w-0 space-y-6 pb-8 text-foreground">
+      {canPurchase && <div data-mobile-product-actions role="region" aria-label="Product purchase" style={{ marginBlock: 0 }} className="fixed inset-x-0 bottom-[var(--cookie-banner-offset,0px)] z-50 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-lg lg:hidden">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="truncate text-xs text-muted-foreground">{product.title}</p>
+            <p className="mt-1 font-semibold tabular-nums">{displayPrice}</p>
+          </div>
+          <Button type="button" variant="vegaAddBasketBtn" className="h-12 shrink-0 rounded-xl px-4" onClick={handleAddToCart} disabled={purchaseDisabled}>{purchasePending ? "Adding…" : "Add to basket"}</Button>
+        </div>
+      </div>}
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          href="/products"
+          aria-label="Back to products"
+          title="Back to products"
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+        >
+          <ArrowLeft aria-hidden className="h-4 w-4" /> Back to products
+        </Link>
+        {canManageProductLifecycle && (
+          <div
+            className={cn(
+              "border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]",
+              currentVisibility === "PUBLIC" && "border-emerald-300/35 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300",
+              currentVisibility === "HIDDEN" && "border-amber-300/35 bg-amber-400/10 text-amber-200",
+              currentVisibility === "ARCHIVED" && "border-zinc-500/45 bg-zinc-500/10 text-muted-foreground"
+            )}
+          >
+            {visibilityLabel}
+          </div>
+        )}
+      </div>
+
+      {/* Credits use a purchase workspace, not a tall gallery/sidebar layout. */}
+      {isCreditPack ? <CreditProductPanel title={product.title} credits={selectedCredits} onCredits={setSelectedCredits}
+        onDirtyChange={setDirtyCredits} disabled={cartLoading || purchasePending !== null} controls={listingControls} actions={purchaseActions} /> : <>
+      <motion.section
+        className="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-2 xl:gap-8"
+        initial={false}
+        animate="show"
+      >
+        {/* Gallery */}
+        <motion.div
+          className="min-w-0"
+        >
+          <ProductGallery images={product.image} title={product.title}  />
+
+          {/* Quick stats — text on background, divided by hairlines (no boxes) */}
+          {!isDigitalProduct && <div className="mt-5 hidden grid-cols-3 gap-3 lg:grid">
+            <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm  motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
+              <div className="text-sm font-semibold text-foreground">{availabilityLabel}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">Availability</div>
+            </div>
+            <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm  motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
+              <div className="text-sm font-semibold text-foreground">{product.condition}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">Condition</div>
+            </div>
+            <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm  motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
+              <div className="text-sm font-semibold text-foreground">{isDigitalProduct ? deliveryDestination : product.shipFromPostalId || "Not set"}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{isDigitalProduct ? "Delivery" : "Ships from"}</div>
+            </div>
+          </div>}
+        </motion.div>
+
+        {/* Details */}
+        <motion.div
+          className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm  sm:p-6"
+        >
+          {/* category + title */}
+          <motion.div
+          >
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-emerald-700 dark:text-emerald-300">
+                  {productKindLabel}
+                </span>
+                <span className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+                  {product.category}
+                </span>
+              </div>
+              <h1 className="mt-4 max-w-2xl break-words text-balance text-2xl font-semibold leading-tight tracking-tight text-foreground sm:text-3xl">
+                {product.title}
+              </h1>
+              <div className="mt-5 text-2xl font-semibold text-emerald-700 dark:text-emerald-300">
+                <span data-product-price className="tabular-nums">{displayPrice}</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* rating */}
+          {listingControls}
+
+          {/* actions */}
+          {purchaseActions}
 
           {/* Seller preferences; availability is confirmed at checkout. */}
           {canPurchase && <motion.div
@@ -1055,6 +1061,8 @@ function ProductDetails({ product }: { product: Product }) {
         </dl>
       </motion.section>
 
+      </>}
+
       {/* Report Dialog */}
       <ReportDialog
         open={reportOpen}
@@ -1157,7 +1165,7 @@ export default function ProductClient({ productId }: { productId: string }) {
     );
 
   if (isLoading || !product)
-    return renderShell(<ProductSkeleton />);
+    return renderShell(<ProductSkeleton credits={productId === SHOWCASE_PRODUCTS.credits.id} />);
 
   return renderShell(<ProductDetails key={product.id} product={product} />);
 }

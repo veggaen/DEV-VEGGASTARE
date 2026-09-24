@@ -1,6 +1,13 @@
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 
-export default function ProductSkeleton() {
+export default function ProductSkeleton({ credits = false }: { credits?: boolean }) {
+  if (credits) return <div role="status" aria-label="Loading product" className="space-y-6">
+    <span className="sr-only">Loading product</span><div aria-hidden className="h-11 w-36 rounded-lg bg-muted motion-safe:animate-pulse" />
+    <div aria-hidden className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="space-y-3 border-b border-border p-7"><div className="h-4 w-40 rounded bg-muted" /><div className="h-9 w-64 max-w-full rounded bg-muted" /><div className="h-5 w-96 max-w-full rounded bg-muted" /></div>
+      <div className="grid xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">{[0,1].map(i => <div key={i} className="space-y-5 p-7 motion-safe:animate-pulse"><div className="h-8 w-40 rounded bg-muted" /><div className="h-28 rounded bg-muted" /><div className="h-12 rounded bg-muted" /><div className="h-12 rounded bg-muted" /></div>)}</div>
+    </div>
+  </div>;
   return (
     <div role="status" aria-label="Loading product" className="w-full min-w-0 space-y-6">
       <span className="sr-only">Loading product</span>

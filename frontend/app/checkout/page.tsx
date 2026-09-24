@@ -39,7 +39,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
   catch {
     return <section className="mx-auto w-full max-w-xl px-4 py-12 sm:px-6">
       <h1 className="text-2xl font-semibold">Review your cart</h1>
-      <p className="mt-4 text-muted-foreground">This checkout supports one Interview Pack and one Interviewer AI Credits pack per order. Other listings are currently browse-only.</p>
+      <p className="mt-4 text-muted-foreground">Checkout supports Fjord Study and Veggat AI Credits, with one of each per order. Other listings are currently browse-only.</p>
       <Link href="/cart" className="mt-6 inline-flex min-h-11 items-center underline">Return to cart</Link>
     </section>;
   }

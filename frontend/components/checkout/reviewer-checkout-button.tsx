@@ -23,7 +23,7 @@ const messages: Record<string, string> = {
   TRY_AGAIN_LATER: 'Too many attempts. Please wait a few minutes and try again.',
   DOWNLOADS_NOT_READY: 'The download is temporarily unavailable. No payment has been taken.',
   CHECKOUT_EXPIRED: 'This checkout has expired. Return to your cart to start again.',
-  ONE_OF_EACH_REVIEWER_ITEM_PER_ORDER: 'Please keep one of each reviewer item in your cart.',
+  ONE_OF_EACH_REVIEWER_ITEM_PER_ORDER: 'Keep one of each product in your cart. Change the credit amount directly.',
 };
 export default function ReviewerCheckoutButton({ demo, disabled = false, expectedQuote, hasFiles = false, hasCredits = false, order, summary }: { demo: boolean; disabled?: boolean; expectedQuote?: string; hasFiles?: boolean; hasCredits?: boolean; order: ReactNode; summary: ReactNode }) {
   const editing = useCheckoutEditing();

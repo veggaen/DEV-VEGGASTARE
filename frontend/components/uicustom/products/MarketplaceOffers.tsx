@@ -85,8 +85,8 @@ export default function MarketplaceOffers({ kind }: { kind: keyof typeof copy })
           <Button asChild variant="outline" className="mt-5 min-h-11 w-full gap-2 whitespace-normal"><Link href={`/products/${SHOWCASE_PRODUCTS.credits.id}`}>Choose AI credits<ArrowRight aria-hidden="true" className="size-4 shrink-0" /></Link></Button>
           <div className="mt-6 border-t border-border pt-5">
             <h3 className="flex items-center gap-2 text-sm font-semibold"><ShoppingBag aria-hidden="true" className="size-4 shrink-0" />Want to try a digital download?</h3>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">The Veggat Interview Pack is a clearly labelled reviewer listing with image and text files. Inspect what is included before buying.</p>
-            <Link href={`/products/${SHOWCASE_PRODUCTS.interviewPack.id}`} className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-medium underline underline-offset-4 hover:text-primary focus-visible:outline-2 focus-visible:outline-ring">View Interview Pack<ArrowRight aria-hidden="true" className="size-4 shrink-0" /></Link>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Fjord Study is AI-generated digital artwork for personal use, with a JPG and a setup guide.</p>
+            <Link href={`/products/${SHOWCASE_PRODUCTS.interviewPack.id}`} className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-medium underline underline-offset-4 hover:text-primary focus-visible:outline-2 focus-visible:outline-ring">View Fjord Study<ArrowRight aria-hidden="true" className="size-4 shrink-0" /></Link>
           </div>
         </section>
       </div>

@@ -6,6 +6,7 @@ import { initEdgeStoreClient, initEdgeStoreSdk } from '@edgestore/server/core';
 import pg from 'pg';
 
 const database = process.argv.find(arg => arg.startsWith('--database='))?.slice(11);
+const permanentGuide = process.argv.includes('--permanent-guide');
 if (!['production', 'preview'].includes(database)) throw new Error('Explicit --database=production|preview required.');
 if (!process.env.EDGE_STORE_ACCESS_KEY || !process.env.EDGE_STORE_SECRET_KEY) throw new Error('Private storage credentials missing');
 const dbUrl = new URL(database === 'preview' ? process.env.DATABASE_URL_MAINPREVIEW : process.env.DATABASE_URL_MAINLIVE);
@@ -13,7 +14,9 @@ if (database === 'preview' && process.env.DATABASE_URL_MAINLIVE && dbUrl.hostnam
 dbUrl.searchParams.set('uselibpqcompat', 'true');
 const client = new pg.Client({ connectionString: dbUrl.toString() });
 const companyId = 'cveggatshowcasestudio00001', productId = 'cveggatinterviewpack000001';
-const files = [
+const files = permanentGuide ? [
+  { id: 'cveggatfjordguide20260901', name: 'fjord-study-guide.txt', mime: 'text/plain', ext: 'txt' },
+] : [
   { id: 'cshowcasefjordjpg000000001', name: 'fjord-study.jpg', mime: 'image/jpeg', ext: 'jpg' },
   { id: 'cshowcaseinterviewtxt00001', name: 'veggat-interview-notes.txt', mime: 'text/plain', ext: 'txt' },
 ];
@@ -32,7 +35,7 @@ try {
   const sdk = initEdgeStoreSdk({});
   const storageToken = await sdk.getToken({ router, ctx: { userId: owner, role: 'OWNER' } });
   for (const file of files) {
-    const bytes = readFileSync(new URL(`../.private-showcase/${file.name}`, import.meta.url));
+    const bytes = readFileSync(new URL(permanentGuide ? `../product-content/${file.name}` : `../.private-showcase/${file.name}`, import.meta.url));
     const checksum = createHash('sha256').update(bytes).digest('hex');
     const existing = (await client.query('SELECT "storageKey", checksum, "uploadedById" FROM "DigitalAsset" WHERE id=$1', [file.id])).rows[0];
     if (existing && (existing.checksum !== checksum || existing.uploadedById !== owner)) throw new Error('Existing asset differs; refusing overwrite');
@@ -58,6 +61,9 @@ try {
         VALUES ($1,$2,$3,$4,$5,$6,'EDGESTORE',$7,$8,$9,true,now(),now()) ON CONFLICT (id) DO NOTHING`,
       [file.id, file.name, bytes.length, file.mime, file.ext, stored.url, checksum, owner, companyId]);
       await client.query('INSERT INTO "DigitalProductFile" ("productId","digitalAssetId") VALUES ($1,$2) ON CONFLICT DO NOTHING', [productId, file.id]);
+      // Only change the future-delivery association. The old asset and existing
+      // download grants/receipts remain intact for previous purchasers.
+      if (permanentGuide) await client.query('DELETE FROM "DigitalProductFile" WHERE "productId"=$1 AND "digitalAssetId"=$2', [productId, 'cshowcaseinterviewtxt00001']);
       if (file.ext === 'jpg') await client.query('UPDATE "Product" SET "digitalAssetId"=$1 WHERE id=$2 AND "digitalAssetId" IS NULL', [file.id, productId]);
       await client.query('COMMIT');
     } catch (error) { await client.query('ROLLBACK'); throw error; }

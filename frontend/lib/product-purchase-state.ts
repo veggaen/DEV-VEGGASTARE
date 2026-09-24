@@ -12,7 +12,7 @@ export function productPurchaseState(product: {
 export const PRODUCT_PURCHASE_NOTICE = {
   BROWSE_ONLY: {
     title: 'Browse-only listing',
-    description: 'Purchases are not open for this listing yet. You can explore its details, but it cannot be added to checkout. The Interview Pack and AI credits are available to try.',
+    description: 'Purchases are not open for this listing yet. You can browse its details. Fjord Study and Veggat AI Credits are available to buy.',
   },
   UNAVAILABLE: {
     title: 'Purchases paused',

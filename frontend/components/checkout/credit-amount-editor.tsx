@@ -1,5 +1,5 @@
 'use client';
-/** @fileOverview Linked credit and display-budget inputs with explicit, server-repriced saving. @stability active */
+/** @fileOverview Automatic linked credit inputs; preserves budget drafts and locks payment until the server confirms cart edits. @stability active */
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,11 +11,12 @@ import { useCurrencyRates } from '@/hooks/useCurrencyRates';
 import { useUiPreferences } from '@/components/providers/ui-preferences';
 import { priceDisplay } from '@/lib/price-display';
 
-export default function CreditAmountEditor({ value, onSave, onDirtyChange, disabled = false }: {
+export default function CreditAmountEditor({ value, onSave, onDirtyChange, disabled = false, immediate = false }: {
   value: number; onSave: (credits: number) => Promise<boolean | void> | boolean | void;
-  onDirtyChange?: (dirty: boolean) => void; disabled?: boolean;
+  onDirtyChange?: (dirty: boolean) => void; disabled?: boolean; immediate?: boolean;
 }) {
   const id = useId(), input = useRef<HTMLInputElement>(null), callback = useRef(onDirtyChange);
+  const saveCallback = useRef(onSave), saveTarget = useRef<number | null>(null), savingLock = useRef(false);
   const { setCartEditing } = useCart();
   const { prefs } = useUiPreferences();
   const rates = useCurrencyRates();
@@ -24,10 +25,17 @@ export default function CreditAmountEditor({ value, onSave, onDirtyChange, disab
   const [budget, setBudget] = useState<{ text: string; fiat: string } | null>(null);
   const [ready, setReady] = useState(false);
   callback.current = onDirtyChange;
+  saveCallback.current = onSave;
   useEffect(() => { setReady(true); }, []);
-  useEffect(() => { setDraft(String(value)); setBudget(null); setError(''); }, [value]);
+  useEffect(() => {
+    // A successful automatic update must not replace the user's exact budget.
+    setDraft(String(value));
+    if (value !== saveTarget.current) setBudget(null);
+    setError('');
+    saveTarget.current = null;
+  }, [value]);
   useEffect(() => { setBudget(null); setError(''); }, [fiat]);
-  const dirty = draft !== String(value) || budget !== null;
+  const dirty = draft !== String(value);
   useEffect(() => { setCartEditing?.(id, dirty || saving); }, [id, dirty, saving, setCartEditing]);
   useEffect(() => () => { setCartEditing?.(id, false); }, [id, setCartEditing]);
   useEffect(() => { callback.current?.(dirty); }, [dirty]);
@@ -45,15 +53,20 @@ export default function CreditAmountEditor({ value, onSave, onDirtyChange, disab
     const next = quoteCreditBudget(text, fiat, rates.fiatRates, rates.isFiatStale);
     setDraft(next ? String(next.credits) : '');
   }
-  async function save() {
-    if (disabled || saving || !dirty) return;
-    if (!valid) { setError('Choose 10 credits, or a whole number from 100 to 10,000.'); input.current?.focus(); return; }
-    setSaving(true); setError('');
-    try {
-      if (await onSave(number) === false) throw new Error();
-      setBudget(null);
-    } catch { setError('Could not save. Retry or cancel your change.'); }
-    finally { setSaving(false); }
+  useEffect(() => {
+    if (!ready || !dirty || !valid || disabled || saving || error) return;
+    const timer = window.setTimeout(async () => {
+      if (savingLock.current) return;
+      savingLock.current = true; saveTarget.current = number; setSaving(true);
+      try {
+        if (await saveCallback.current(number) === false) throw new Error();
+      } catch { setError('Could not update your basket. Retry or keep the saved amount.'); }
+      finally { savingLock.current = false; setSaving(false); }
+    }, immediate ? 0 : 450);
+    return () => window.clearTimeout(timer);
+  }, [ready, dirty, valid, disabled, saving, error, number, immediate]);
+  function validate() {
+    if (dirty && !valid) setError('Choose 10 credits, or a whole number from 100 to 10,000.');
   }
   return <div className="w-full min-w-0 space-y-3" data-credit-editor>
     <div className="grid min-w-0 grid-cols-2 gap-3">
@@ -61,15 +74,15 @@ export default function CreditAmountEditor({ value, onSave, onDirtyChange, disab
         <label htmlFor={id} className="block text-sm font-medium">Number of credits</label>
         <Input ref={input} id={id} name="creditAmount" type="text" inputMode="numeric" autoComplete="off" spellCheck={false}
           value={draft} onChange={event => choose(event.target.value)}
-          onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void save(); } }}
+          onBlur={validate}
           disabled={!ready || disabled || saving} aria-invalid={Boolean(error)} aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`}
           className="h-12 min-w-0 text-base tabular-nums" />
       </div>
       <div className="min-w-0 space-y-2">
-        <label htmlFor={`${id}-budget`} className="block text-sm font-medium">Spend up to ({fiat})</label>
+        <label htmlFor={`${id}-budget`} className="block text-sm font-medium">Budget ({fiat})</label>
         <Input id={`${id}-budget`} name="creditBudget" type="text" inputMode="decimal" autoComplete="off" spellCheck={false}
           value={budgetValue} onChange={event => changeBudget(event.target.value)}
-          onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void save(); } }}
+          onBlur={validate}
           disabled={!ready || disabled || saving || !budgetAvailable} aria-describedby={`${id}-help`}
           className="h-12 min-w-0 text-base tabular-nums" />
       </div>
@@ -80,16 +93,17 @@ export default function CreditAmountEditor({ value, onSave, onDirtyChange, disab
         aria-pressed={number === amount} disabled={!ready || disabled || saving}
         onClick={() => { choose(String(amount)); }}>{amount.toLocaleString('en')}</Button>)}
     </div>
-    <p id={`${id}-help`} className="text-xs leading-5 text-muted-foreground">{budget ? 'Whole credits within your budget; only the total below is charged.' : '10-credit starter, or 100–10,000 credits. No auto top-ups.'}
+    <p id={`${id}-help`} className="text-xs leading-5 text-muted-foreground">{budget ? 'Whole credits, within your budget.' : '10-credit starter, or 100–10,000 credits.'}
       {!budgetAvailable && ' Currency rates unavailable; enter credits instead.'}</p>
     <div role="status" className="flex flex-wrap items-baseline justify-between gap-2 text-sm tabular-nums">
-      {quote && <><span className="font-semibold"><PriceAmount amount={quote.amountOre / 100} currency="NOK" /></span>
+      {quote && <><span className="font-semibold"><span className="mr-2 font-normal text-muted-foreground">Total</span><PriceAmount amount={quote.amountOre / 100} currency="NOK" /></span>
         {quote.discountOre > 0 && <span className="text-xs text-muted-foreground">Save <PriceAmount amount={quote.discountOre / 100} currency="NOK" displayCrypto="NONE" /></span>}</>}
     </div>
-    <div className="flex flex-wrap gap-2">
-      <Button type="button" variant="outline" className="min-h-11" disabled={disabled || saving || !dirty} onClick={() => void save()}>{saving ? 'Saving…' : 'Update credits'}</Button>
-      {dirty && <Button type="button" variant="ghost" className="min-h-11" disabled={disabled || saving} onClick={() => choose(String(value))}>Cancel</Button>}
-    </div>
+    {(saving || (dirty && valid && !error)) && !immediate && <p role="status" className="text-xs text-muted-foreground">Updating basket…</p>}
+    {error && <div className="flex flex-wrap gap-2">
+      {valid && <Button type="button" variant="outline" disabled={disabled || saving} onClick={() => setError('')}>Retry update</Button>}
+      <Button type="button" variant="ghost" disabled={disabled || saving} onClick={() => choose(String(value))}>Keep saved amount</Button>
+    </div>}
     {error && <p id={`${id}-error`} role="alert" className="text-sm text-destructive">{error}</p>}
     <details className="text-xs text-muted-foreground">
       <summary className="min-h-11 cursor-pointer py-3 focus-visible:outline-2">How pricing works</summary>
