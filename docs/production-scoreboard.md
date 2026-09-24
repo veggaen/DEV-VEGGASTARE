@@ -4,9 +4,28 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+AI conversation navigation: **DONE for the scoped engineering slice**.
+Current app authority is **`a8ce335` / `dpl_6HAJX4GQhTNZETCPQe5V9GUGfUUP`**
+on www.veggat.com (application changes `eb1b784`). Loading, empty and failure
+states are distinct; bounded server search, private compact pagination and
+stale-response protection replace the first-50-only rail. Rename Cancel no
+longer commits on blur. Deleted conversations and inactive memberships do not
+grant transcript reads; owner/demo/origin/rate checks guard rename/delete.
+Strict builds, touched lint, **95 focused units**, and final **4/4 local,
+4/4 Preview, 4/4 live** scoped browser checks pass; 21 opt-in ledger cases were
+skipped, not counted as passed. Real owner Chrome verifies loading, search,
+Cancel, refresh and reopening a saved transcript without a write/provider call.
+See [AI navigation evidence, limits and rollback](ai-navigation-acceptance-2026-09.md).
+
+**Still PARTIAL:** owner Live purchase/refund, human-inbox delivery/legal
+sufficiency, remaining OAuth/wallet/backend checks, historical-price explanation
+and full-route interaction/native 125% zoom. This is not whole-app approval.
+
+### Previous personal Sales slice
+
 Personal Sales dashboard: **DONE for the scoped engineering slice**.
-Current app authority is **`0699868` / `dpl_GQDV8P3CbfNz2WNNYAfEdvR4HXZh`**
-on www.veggat.com. One bounded, authorized request replaces six requests; error,
+Its release was **`0699868` / `dpl_GQDV8P3CbfNz2WNNYAfEdvR4HXZh`**,
+retained in the current release above. One bounded, authorized request replaces six requests; error,
 empty, stale and loading states are distinct. Demo orders without a Payment row
 are explicitly not paid; mixed orders do not expose whole-order payment data.
 Strict builds, touched lint, **238 focused units**, **4 real isolated PostgreSQL

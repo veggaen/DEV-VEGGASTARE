@@ -29,7 +29,7 @@ The [Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guid
 informed loading/error distinctions, focus, touch targets, scroll containment,
 bounded lists and reduced-motion loading. No second design system was added.
 
-## Verification in progress
+## Verification
 
 Touched lint passes. **95 focused tests pass**, including 30 navigation API and
 six actual React rename/draft tests; 21 opt-in ledger cases were skipped, not
@@ -67,7 +67,33 @@ Source `eb1b784`, deployment `dpl_25BvsSzVonAQ22emucgmNS89Sisf`
 (`dev-veggastare-f65bmr6jw-v3ggas-projects.vercel.app`), is READY and verified at
 the stable showcase Preview alias. Build/typecheck pass against the isolated
 Preview Neon endpoint; 48 migrations, none pending. Final browser acceptance is
-**3/3 plus 1/1 dark-mode replay**. Production candidate/live acceptance is pending.
+**3/3 plus 1/1 dark-mode replay**.
+
+## Production acceptance
+
+Source `a8ce335` (application changes `eb1b784`), deployment
+`dpl_6HAJX4GQhTNZETCPQe5V9GUGfUUP`
+(`dev-veggastare-or352kft0-v3ggas-projects.vercel.app`), passed the strict Vercel
+build/typecheck against the production Neon endpoint; 48 migrations, none
+pending. Candidate health returned healthy. Promotion succeeded and inspecting
+`www.veggat.com` resolved to this exact deployment.
+
+Final live browser acceptance passes **3/3 in 34.0s plus 1/1 dark-mode replay
+in 9.8s**, with retries disabled. This covers the fixture-driven navigation
+failure/search/paging/race/scroll scenarios, actual private read API, and existing
+saved-transcript/model-drawer/composer regression. Eight viewport sizes span
+360–2560px. The 390px light and 1280px dark screenshots were visually reviewed.
+These checks do not call providers, submit payments or mutate saved chats.
+
+In the owner's real Chrome session, the live rail showed explicit loading before
+two existing conversations. Searching an existing title returned one result.
+Typing a temporary rename draft and clicking Cancel retained the original title;
+Refresh and reopening the existing transcript also retained it. No Save, Delete,
+Share or Send action was submitted. The existing transcript and pinned composer
+were visually inspected at the actual desktop viewport; captured error-level
+console logs were empty. The prior real-Chrome viewport override limitation is
+not treated as mobile evidence. The open owner payment/login/inbox handoffs
+remain uncompleted, separate from this read-only navigation acceptance.
 
 Rollback reference: Sales app `0699868` /
 `dpl_GQDV8P3CbfNz2WNNYAfEdvR4HXZh`. No migration or new secret is required.
