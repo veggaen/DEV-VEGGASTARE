@@ -75,6 +75,22 @@ test('S1 existing local demo cap returns the public reason without authenticatin
   } finally { await context.close(); }
 });
 
+test('S4 Preview webhook is configured and rejects unsigned events', async ({ playwright, baseURL }) => {
+  test.skip(process.env.E2E_PREVIEW_WEBHOOK_CONFIG !== '1', 'Read-only rejection checks on isolated Preview only');
+  expect(baseURL).toBe('https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app');
+  const client = await playwright.request.newContext({ baseURL });
+  try {
+    const malformed = await client.post('/api/webhooks/paypal', { data: {} });
+    expect(malformed.status()).toBe(400);
+    expect((await malformed.json()).error).toBe('INVALID_EVENT');
+    const unsigned = await client.post('/api/webhooks/paypal', { data: {
+      id: 'QA-UNSIGNED-REJECTION-ONLY', event_type: 'PAYMENT.CAPTURE.COMPLETED', resource: {},
+    } });
+    expect(unsigned.status()).toBe(401);
+    expect((await unsigned.json()).error).toBe('INVALID_SIGNATURE');
+  } finally { await client.dispose(); }
+});
+
 test('S8 unavailable storage initialization does not throw across ordinary browsing', async ({ browser, baseURL }) => {
   test.skip(process.env.E2E_ROUTE_INVENTORY !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Controlled storage outage, retained demo');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });

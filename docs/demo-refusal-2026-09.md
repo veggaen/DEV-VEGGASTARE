@@ -34,7 +34,25 @@ Reference: [Auth.js public credentials error codes](https://authjs.dev/reference
   real Auth.js callback with no authenticated session granted.
 - Test harness corrections account for callback query strings, Next's separate
   route-announcer alert, and Auth.js's null signed-out session response.
-- Preview and Live acceptance of this patch remain pending.
+- First Preview deployment passed the refusal browser fixture. The added auth
+  regression caught Preview sending OAuth callbacks to production: the URL
+  override was scoped to the old `showcase/ai-revival` branch, not the current
+  `release/showcase-september` branch. Added a Preview-only branch override for
+  the existing stable Preview origin; production is untouched.
+- The same branch mismatch omitted `PAYPAL_WEBHOOK_ID`. Read-only Sandbox API
+  lookup verified the existing stable-Preview webhook and completion/refund/
+  reversal subscriptions, then its ID was assigned to the current branch's
+  Preview environment. No webhook subscription or payment was created.
+- The second CLI deployment still omitted both branch-scoped values; its
+  unchanged callback-host and webhook-503 failures disprove that adding the
+  branch settings alone fixed this deployment path. A third Preview deployment
+  explicitly supplies only `AUTH_URL` and the verified existing Sandbox
+  `PAYPAL_WEBHOOK_ID` at build/runtime. Do not apply these overrides to a
+  production deployment. Full branch-metadata selection diagnosis remains open.
+- Replacement Preview build/acceptance and Live acceptance remain pending.
+- The webhook regression reproduced 503 on the prior deployment. Acceptance
+  requires malformed input 400 and unsigned input 401; neither fixture reaches
+  fulfillment. All 16 webhook verification/reconciliation units pass.
 
 This does not prove successful fresh-demo provisioning after the cap resets,
 or full auth/payment acceptance. Production still uses the prior verified app.

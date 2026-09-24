@@ -1198,9 +1198,9 @@ member-to-member delivery remains separate from the mocked error test.
   Build and **5/5** Node boundary tests pass; actual local `/v1/health` remains
   200. Compatible lockfile patches reduce npm audit findings from 12 to 7;
   remaining Prisma-tooling advisories were not hidden with a major downgrade.
-  This backend correction is **not deployed**: Railway owner authorization is
-  required, and the first browserless login link expired. Live shipping access
-  control/provider limits and active frontend warehouse events need further audit.
+  This earlier deployment blocker is **resolved** by the 24 September Railway
+  release recorded above. Live shipping access control/provider limits still
+  need further audit; the deployed shipping provider remains explicitly mocked.
 - Active frontend warehouse notifications now contain only an invalidation marker,
   never stock/product DTOs; list/detail clients refetch through role-filtered HTTP.
   No new public inventory subscription is opened for demo/ordinary users. Focused
@@ -1211,15 +1211,15 @@ member-to-member delivery remains separate from the mocked error test.
   Selected payment tests **15/15** also pass. Privileged inventory mutation itself
   is still not claimed tested by the demo session.
 
-- Work is isolated in the `showcase/ai-revival` worktree; original dirty workspace preserved.
+- Current work is isolated in `DEV-VEGGASTARE-release` on
+  `release/showcase-september`; the original dirty workspace is preserved.
 - Local OAuth origin is `http://localhost:3000`.
 - Current local production-style test process uses the isolated Neon Preview database through the guarded Sandbox launcher. No Live PayPal keys are added to localhost. Earlier live-database test observations above are historical, not the current routing.
 - Real Chrome is connected and has been used for Sandbox checkout, credit-funded chat and the custom-credit/currency checks. Browser-blocked OAuth is not bypassed; owner consent still needs completion. Do not spoof Google's browser checks or telemetry automation exclusions.
 - Demo creates a separate temporary USER per visitor, bounded to five per daily IP fingerprint and 200 globally/day in a serialized transaction; sessions expire after a day. The S5 candidate permits guarded private chat creation/messages and five one-time credits. Cart/demo-checkout remain isolated; real payments, public posting and provider-key changes remain denied.
 - New paid entitlements must never be granted from client prices or a return URL. S4/S5 remain release blockers.
 - Sandbox PayPal credentials are configured locally/Preview; Live credentials and webhook are Production-only. Both fixed Sandbox SKUs were purchased using test money. No Live charge has been made. The current Developer sign-in/passkey handoff blocks retrieving the Sandbox buyer, not API-key configuration.
-- Railway CLI is installed but `railway list --json` returns Unauthorized; the
-  showcase worktree has no linked Railway project. Backend health/deployment
-  cannot yet be verified. The earlier Chrome connection failure is resolved;
-  Railway authorization/deployment still needs a fresh check.
+- The earlier Railway CLI authorization blocker was resolved through the
+  connected Chrome dashboard. The active release and public backend health
+  are verified above; CLI authorization is not used as deployment evidence.
 - Payment implementation references: [PayPal environment separation](https://developer.paypal.com/api/make-api-requests), [Orders v2](https://developer.paypal.com/api/orders/v2), [idempotency](https://developer.paypal.com/api/rest/reference/idempotency/). Unsafe legacy capture/grant handlers now fail closed; webhook development bypass removed. Production webhook target is `/api/webhooks/paypal`.
