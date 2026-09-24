@@ -29,9 +29,9 @@ export async function GET(
 
   const conv = await dbPrisma.aiConversation.findUnique({
     where: { id: sessionId },
-    select: { creatorId: true, isPublic: true, participants: { select: { userId: true } } },
+    select: { creatorId: true, isPublic: true, isDeleted: true, participants: { where: { isActive: true }, select: { userId: true } } },
   });
-  if (!conv) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  if (!conv || conv.isDeleted) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
   const isParticipant = conv.participants.some((p) => p.userId === session.id);
   if (!conv.isPublic && conv.creatorId !== session.id && !isParticipant) {

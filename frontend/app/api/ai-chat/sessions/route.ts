@@ -4,6 +4,8 @@ import { MyLibUserAuth } from "@/lib/user-auth";
 import { dbPrisma } from "@/lib/db";
 import { isDemoUserId } from '@/lib/demo-policy';
 import { allowAuthAttempt } from '@/lib/auth-rate-limit';
+import { SessionListQuery } from '@/lib/ai-chat/session-list';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 export const dynamic = "force-dynamic";
 
@@ -82,17 +84,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
   const userId = session.id;
-
-  const limit = Math.min(
-    parseInt(req.nextUrl.searchParams.get("limit") ?? "50", 10),
-    100
-  );
-  const cursor = req.nextUrl.searchParams.get("cursor") ?? undefined;
-
+  const headers = { 'Cache-Control': 'private, no-store' };
+  const rate = await checkRateLimit(getClientIdentifier(req, userId), 'read');
+  if (!rate.success) return rateLimitedResponse(rate);
+  const params = req.nextUrl.searchParams;
+  const parsed = SessionListQuery.safeParse(Object.fromEntries(params));
+  if (!parsed.success || new Set(params.keys()).size !== [...params.keys()].length) return NextResponse.json({ error: 'INVALID_QUERY' }, { status: 400, headers });
+  const { limit, cursor, q, view } = parsed.data;
+  const where = { creatorId: userId, isDeleted: false, ...(q ? { title: { contains: q, mode: 'insensitive' as const } } : {}) };
+  try {
+  // Do not allow a cursor belonging to another user or outside the search scope.
+  if (cursor && !await dbPrisma.aiConversation.findFirst({ where: { ...where, id: cursor }, select: { id: true } })) return NextResponse.json({ error: 'INVALID_CURSOR' }, { status: 400, headers });
+  if (view === 'rail') {
+    const rows = await dbPrisma.aiConversation.findMany({ where, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), select: { id: true, title: true, updatedAt: true } });
+    const sessions = rows.slice(0, limit);
+    return NextResponse.json({ sessions, nextCursor: rows.length > limit ? sessions.at(-1)?.id ?? null : null }, { headers });
+  }
   const sessions = await dbPrisma.aiConversation.findMany({
-    where: { creatorId: userId, isDeleted: false },
-    orderBy: { updatedAt: "desc" },
-    take: limit,
+    where,
+    orderBy: [{ updatedAt: "desc" }, { id: 'desc' }],
+    take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     select: {
       id: true,
@@ -113,7 +125,7 @@ export async function GET(req: NextRequest) {
   });
 
   // Flatten the single last message into a lightweight preview field.
-  const shaped = sessions.map(({ messages, ...s }) => ({
+  const shaped = sessions.slice(0, limit).map(({ messages, ...s }) => ({
     ...s,
     lastMessage: messages[0]
       ? {
@@ -126,6 +138,9 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     sessions: shaped,
-    nextCursor: shaped.length === limit ? shaped[shaped.length - 1]?.id : null,
-  });
+    nextCursor: sessions.length > limit ? shaped.at(-1)?.id ?? null : null,
+  }, { headers });
+  } catch {
+    return NextResponse.json({ error: 'CONVERSATIONS_UNAVAILABLE' }, { status: 503, headers });
+  }
 }

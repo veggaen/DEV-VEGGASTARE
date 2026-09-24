@@ -16,5 +16,5 @@ export const metadata: Metadata = {
  */
 export default async function AiLayout({ children }: { children: React.ReactNode }) {
   const user = await MyLibUserAuth();
-  return <AiChatShell isLoggedIn={!!user} isDemo={isDemoUserId(user?.id)}>{children}</AiChatShell>;
+  return <AiChatShell key={user?.id ?? 'anonymous'} isLoggedIn={!!user} isDemo={isDemoUserId(user?.id)}>{children}</AiChatShell>;
 }

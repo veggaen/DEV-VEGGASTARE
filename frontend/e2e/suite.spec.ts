@@ -3,6 +3,75 @@ import { SALES_TERMS_TEXT } from '../lib/legal/sales-terms';
 import { SALES_TERMS_DOWNLOAD, SALES_TERMS_VERSION } from '../lib/legal/sales-terms-version';
 import { createHash } from 'node:crypto';
 import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders';
+import { SessionRailResponse } from '../lib/ai-chat/session-list';
+
+test('S5 AI navigation shows loading and failures honestly, searches and pages without stale races', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_AI_NAV !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Read-only AI navigation acceptance');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
+  if (process.env.E2E_AI_NAV_THEME === 'dark') await context.addInitScript(() => localStorage.setItem('veggat:theme','dark'));
+  const page = await context.newPage(), errors: string[] = [], writes: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (request.method() !== 'GET' && new URL(request.url()).pathname.startsWith('/api/ai-chat')) writes.push(request.method()); });
+  let mode: 'failure' | 'malformed' | 'ready' = 'failure', reads = 0, releaseInitial = () => {}, releaseSlow = () => {};
+  const initial = new Promise<void>(resolve => { releaseInitial = resolve; }), slow = new Promise<void>(resolve => { releaseSlow = resolve; });
+  const row = (id: number, title = `Saved conversation ${id}`) => ({ id: `qa-nav-${id}`, title, updatedAt: '2026-09-24T00:00:00Z' });
+  try {
+    await page.route('**/api/ai-chat/sessions?*', async route => {
+      reads++; const params = new URL(route.request().url()).searchParams;
+      if (reads === 1) await initial;
+      if (mode === 'failure') return route.fulfill({ status: 503, json: { error: 'Unavailable' } });
+      if (mode === 'malformed') return route.fulfill({ json: { sessions: [] } });
+      const q = params.get('q'); if (q === 'slow') await slow;
+      const rows = q === 'nothing' ? [] : q ? [row(99, `${q} result`)] : params.has('cursor') ? [row(23), row(24, 'Older conversation')] : Array.from({length:24}, (_,id) => row(id));
+      return route.fulfill({ json: { sessions: rows, nextCursor: q || params.has('cursor') ? null : 'qa-nav-23' } });
+    });
+    await page.goto('/ai', { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await consent.click();
+    const rail = page.getByRole('navigation', { name: 'AI conversations', exact: true }).filter({visible:true});
+    await expect(rail.getByRole('status', {name:'Loading conversations',exact:true})).toBeVisible();
+    await expect(rail.getByText('No conversations yet.', {exact:true})).toHaveCount(0);
+    releaseInitial(); await expect(rail.getByRole('alert')).toContainText('could not be loaded');
+    await expect(rail.getByText('No conversations yet.', {exact:true})).toHaveCount(0);
+    mode = 'malformed'; await rail.getByRole('button', {name:'Retry conversations',exact:true}).click(); await expect(rail.getByRole('alert')).toContainText('incomplete');
+    mode = 'ready'; await rail.getByRole('button', {name:'Retry conversations',exact:true}).click(); await expect(rail.getByRole('link',{name:'Saved conversation 0',exact:true})).toBeVisible();
+    await rail.getByRole('button',{name:'Load more conversations',exact:true}).click(); await expect(rail.getByRole('link',{name:'Older conversation',exact:true})).toHaveCount(1);
+    await expect(rail.getByRole('link',{name:'Saved conversation 23',exact:true})).toHaveCount(1); await expect(rail.getByRole('button',{name:'Load more conversations',exact:true})).toHaveCount(0);
+    mode = 'failure'; await rail.getByRole('button',{name:'Refresh conversations',exact:true}).click(); await expect(rail.getByRole('alert')).toContainText('Previously loaded chats remain'); await expect(rail.getByRole('link',{name:'Older conversation',exact:true})).toHaveCount(1);
+    mode = 'ready'; const search = rail.getByRole('searchbox',{name:'Search conversations',exact:true}); await search.fill('nothing'); await expect(rail.getByText('No chats match your search.',{exact:true})).toBeVisible();
+    await search.fill('slow'); await expect.poll(() => reads).toBe(7); await search.fill('latest'); await expect(rail.getByRole('link',{name:'latest result',exact:true})).toBeVisible(); releaseSlow(); await expect(rail.getByRole('link',{name:'slow result',exact:true})).toHaveCount(0);
+    await search.fill(''); await expect(rail.getByRole('link',{name:'Saved conversation 0',exact:true})).toBeVisible();
+    for (const size of [{width:360,height:800},{width:390,height:844},{width:844,height:390},{width:768,height:1024},{width:1024,height:768},{width:1280,height:800},{width:1920,height:1080},{width:2560,height:1080}]) {
+      await page.setViewportSize(size);
+      if (size.width < 1024) {
+        await page.getByRole('button',{name:'Open conversations',exact:true}).click();
+        const dialog = page.getByRole('dialog',{name:'Conversations',exact:true}); await expect(dialog).toBeVisible();
+        await dialog.evaluate(async node => { await Promise.all(node.getAnimations().map(animation => animation.finished.catch(() => {}))); });
+      }
+      const visibleRail = page.getByRole('navigation',{name:'AI conversations',exact:true}).filter({visible:true});
+      const scroll = visibleRail.locator('[data-ai-conversation-scroll]'); const box = await scroll.boundingBox(); expect(box!.height).toBeGreaterThan(20);
+      await page.mouse.move(box!.x+20,box!.y+box!.height/2); await page.mouse.wheel(0,5000); await expect.poll(() => scroll.evaluate(el=>Math.abs(el.scrollHeight-el.clientHeight-el.scrollTop))).toBeLessThan(2);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true); expect(await page.locator('[data-site-scroll]').evaluate(el=>el.scrollTop)).toBe(0);
+      if ([390,1280,2560].includes(size.width)) await page.screenshot({path:testInfo.outputPath(`ai-navigation-${size.width}.png`)});
+      if (size.width < 1024) { await page.keyboard.press('Escape'); await expect(page.getByRole('dialog',{name:'Conversations',exact:true})).toBeHidden(); await expect(page.getByRole('button',{name:'Open conversations',exact:true})).toBeFocused(); }
+    }
+    expect(writes).toEqual([]); expect(errors).toEqual([]);
+  } finally { releaseInitial(); releaseSlow(); await context.close(); }
+});
+
+test('S5 AI rail API is private, compact and searched on the server', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_AI_NAV !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Read-only deployed AI list contract');
+  const context = await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE}); const anon = await browser.newContext({baseURL});
+  try {
+    expect((await anon.request.get('/api/ai-chat/sessions?view=rail')).status()).toBe(401);
+    const response = await context.request.get('/api/ai-chat/sessions?view=rail'); expect(response.status()).toBe(200); expect(response.headers()['cache-control']).toContain('no-store');
+    const body = await response.json(); expect(SessionRailResponse.safeParse(body).success).toBe(true);
+    for (const row of body.sessions) expect(Object.keys(row).sort()).toEqual(['id','title','updatedAt']);
+    expect((await context.request.get('/api/ai-chat/sessions?limit=-1')).status()).toBe(400);
+    expect((await context.request.get('/api/ai-chat/sessions?view=rail&cursor=not-owned-qa')).status()).toBe(400);
+    const none = await context.request.get('/api/ai-chat/sessions?view=rail&q=absent-qa-title-78f6192'); expect(none.status()).toBe(200); expect(await none.json()).toEqual({sessions:[],nextCursor:null});
+  } finally { await context.close(); await anon.close(); }
+});
 
 test('S8 sales dashboard distinguishes failure and empty, filters once, and fits every viewport', async ({ browser, baseURL }, testInfo) => {
   test.skip(process.env.E2E_SALES !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Read-only seller presentation fixtures in retained demo session');

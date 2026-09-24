@@ -21,17 +21,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiCheck, FiX, FiMenu, FiMessageSquare } from "react-icons/fi";
+import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiCheck, FiX, FiMenu, FiMessageSquare, FiRefreshCw } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { useUiPreferences } from "@/components/providers/ui-preferences";
 import { useConfirm } from "@/components/providers/confirm-dialog";
-
-interface ShellSession {
-  id: string;
-  title: string;
-  updatedAt: string;
-  _count?: { messages: number };
-}
+import { useAiSessionList } from '@/hooks/use-ai-session-list';
+import { SessionId, type ShellSession } from '@/lib/ai-chat/session-list';
 
 const RAIL_W = "18rem";
 
@@ -50,8 +45,9 @@ export function AiChatShell({
   const router = useRouter();
   const confirm = useConfirm();
 
-  const [sessions, setSessions] = React.useState<ShellSession[]>([]);
   const [query, setQuery] = React.useState("");
+  const list = useAiSessionList(isLoggedIn, query);
+  const { refresh, update } = list;
   const [creating, setCreating] = React.useState(false);
   // Drawer open state (used in overlay mode + on mobile).
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -63,21 +59,6 @@ export function AiChatShell({
     return m?.[1] ?? null;
   }, [pathname]);
 
-  const load = React.useCallback(async () => {
-    if (!isLoggedIn) return;
-    try {
-      const res = await fetch("/api/ai-chat/sessions?limit=50");
-      if (res.ok) setSessions((await res.json()).sessions ?? []);
-    } catch { /* keep stale list */ }
-  }, [isLoggedIn]);
-
-  React.useEffect(() => { void load(); }, [load]);
-  // The chat page tells us when to refresh (after create / first send / title change).
-  React.useEffect(() => {
-    const onChanged = () => void load();
-    window.addEventListener("ai-chat:sessions-changed", onChanged);
-    return () => window.removeEventListener("ai-chat:sessions-changed", onChanged);
-  }, [load]);
   // Close the drawer whenever the route changes (picked a chat).
   React.useEffect(() => { setDrawerOpen(false); }, [pathname]);
   React.useEffect(() => {
@@ -91,46 +72,44 @@ export function AiChatShell({
     setCreating(true);
     try {
       const res = await fetch("/api/ai-chat/sessions", {
+        signal: AbortSignal.timeout(15_000),
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: "New Chat" }),
       });
       if (res.ok) {
         const data = await res.json();
-        await load();
+        if (!SessionId.safeParse(data.id).success) throw new Error('Invalid conversation response');
+        refresh();
         router.push(`/ai/${data.id}`);
       } else { const data = await res.json().catch(() => ({})); toast.error(data.message ?? "Could not create a conversation. Please retry."); }
     } catch { toast.error("Connection failed. Please retry."); } finally { setCreating(false); }
-  }, [isLoggedIn, router, load]);
+  }, [isLoggedIn, router, refresh]);
 
   const rename = React.useCallback(async (id: string, title: string) => {
-    setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, title } : s))); // optimistic
     try {
       const response = await fetch(`/api/ai-chat/sessions/${id}`, {
+        signal: AbortSignal.timeout(15_000),
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title }),
       });
-      if (!response.ok) { toast.error("This conversation could not be renamed."); await load(); }
-    } catch { toast.error("Could not save the name."); void load(); }
-  }, [load]);
+      if (!response.ok) { toast.error("This conversation could not be renamed. Your draft is still here."); return false; }
+      update(id, title); return true;
+    } catch { toast.error("Could not save the name. Your draft is still here."); return false; }
+  }, [update]);
 
   const remove = React.useCallback(async (id: string) => {
     if (!(await confirm({ title: "Delete this conversation?", confirmLabel: "Delete", destructive: true }))) return;
-    setSessions((prev) => prev.filter((s) => s.id !== id)); // optimistic
     try {
-      const response = await fetch(`/api/ai-chat/sessions/${id}`, { method: "DELETE" });
-      if (!response.ok) { toast.error("This conversation could not be deleted."); await load(); return; }
-    } catch { toast.error("Could not delete the conversation."); void load(); return; }
+      const response = await fetch(`/api/ai-chat/sessions/${id}`, { method: "DELETE", signal: AbortSignal.timeout(15_000) });
+      if (!response.ok) { toast.error("This conversation could not be deleted. Please retry."); return; }
+    } catch { toast.error("Could not delete the conversation. Please retry."); return; }
+    update(id);
     if (activeId === id) router.push("/ai");
-  }, [activeId, router, load, confirm]);
-
-  const filtered = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? sessions.filter((s) => s.title.toLowerCase().includes(q)) : sessions;
-  }, [sessions, query]);
+  }, [activeId, router, update, confirm]);
 
   const rail = (
     <AiChatRail
-      sessions={filtered}
+      sessions={list.sessions}
       activeId={activeId}
       creating={creating}
       query={query}
@@ -138,8 +117,14 @@ export function AiChatShell({
       onNewChat={newChat}
       onRename={rename}
       onRemove={remove}
-      total={sessions.length}
       readOnly={isDemo}
+      isLoggedIn={isLoggedIn}
+      loading={list.loading}
+      error={list.error}
+      hasMore={list.hasMore}
+      capped={list.capped}
+      onRetry={refresh}
+      onMore={list.loadMore}
     />
   );
 
@@ -173,33 +158,40 @@ export function AiChatShell({
 }
 
 function AiChatRail({
-  sessions, activeId, creating, query, onQuery, onNewChat, onRename, onRemove, total, readOnly,
+  sessions, activeId, creating, query, onQuery, onNewChat, onRename, onRemove, readOnly, isLoggedIn, loading, error, hasMore, capped, onRetry, onMore,
 }: {
-  sessions: ShellSession[];
+  sessions: ShellSession[] | null;
   activeId: string | null;
   creating: boolean;
   query: string;
   onQuery: (v: string) => void;
   onNewChat: () => void;
-  onRename: (id: string, title: string) => void;
+  onRename: (id: string, title: string) => Promise<boolean>;
   onRemove: (id: string) => void;
-  total: number;
   readOnly: boolean;
+  isLoggedIn: boolean;
+  loading: boolean;
+  error: string | null;
+  hasMore: boolean;
+  capped: boolean;
+  onRetry: () => void;
+  onMore: () => void;
 }) {
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <nav aria-label="AI conversations" className="flex flex-col h-full min-h-0">
       {/* Header: New chat */}
-      <div className="p-3 pb-2">
+      <div className="flex gap-2 p-3 pb-2">
         <button
           onClick={onNewChat}
           disabled={creating}
           className="group w-full min-h-11 flex items-center justify-center gap-2 rounded-xl bg-emerald-500 text-black text-sm font-semibold px-4 py-2.5 hover:bg-emerald-400 disabled:opacity-50 transition-colors shadow-lg shadow-emerald-500/20"
         >
           {creating
-            ? <span className="h-4 w-4 rounded-full border-2 border-black/40 border-t-transparent animate-spin" />
-            : <FiPlus className="h-4 w-4 transition-transform group-hover:rotate-90" />}
-          New chat
+            ? <span aria-hidden="true" className="h-4 w-4 rounded-full border-2 border-black/40 border-t-transparent motion-safe:animate-spin" />
+            : <FiPlus aria-hidden="true" className="h-4 w-4" />}
+          {creating ? 'Creating…' : 'New chat'}
         </button>
+        {isLoggedIn && <button type="button" onClick={onRetry} disabled={loading} aria-label="Refresh conversations" className="grid size-11 shrink-0 place-items-center rounded-lg border border-border hover:bg-muted focus-visible:outline disabled:opacity-50"><FiRefreshCw aria-hidden="true" className={loading ? 'motion-safe:animate-spin' : ''} /></button>}
       </div>
 
       {/* Search */}
@@ -211,16 +203,20 @@ function AiChatRail({
             onChange={(e) => onQuery(e.target.value)}
             placeholder="Search chats…"
             aria-label="Search conversations"
-            className="w-full rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/8 h-11 pl-9 pr-3 py-2 text-base outline-none focus:border-emerald-500/40 transition-colors"
+            name="conversation-search" type="search" autoComplete="off" maxLength={200} disabled={!isLoggedIn}
+            className="w-full rounded-lg bg-muted/40 border border-border h-11 pl-9 pr-3 py-2 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500 transition-colors"
           />
         </div>
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto overscroll-contain-y px-2 pb-3 min-h-0">
-        {sessions.length === 0 ? (
+      <div aria-busy={loading} className="flex-1 overflow-y-auto overscroll-contain-y px-2 pb-3 min-h-0" data-ai-conversation-scroll>
+        {error && <div role="alert" className="m-1 rounded-lg border border-destructive/40 p-3 text-xs leading-5"><p>{error}</p>{sessions && <p className="mt-1 text-muted-foreground">Previously loaded chats remain below and may be out of date.</p>}<button type="button" disabled={loading} onClick={onRetry} className="mt-2 min-h-11 rounded-lg border border-border px-3 font-medium hover:bg-muted focus-visible:outline">Retry conversations</button></div>}
+        {!isLoggedIn ? <p className="px-3 py-8 text-center text-sm text-muted-foreground"><Link href="/auth/login?callbackUrl=%2Fai" className="underline underline-offset-4">Sign in to see your conversations.</Link></p>
+        : sessions === null ? loading && <div role="status" aria-label="Loading conversations" className="space-y-2 p-2"><span className="sr-only">Loading conversations…</span>{Array.from({length:6}, (_,i) => <div key={i} aria-hidden="true" className="h-14 rounded-lg bg-muted motion-safe:animate-pulse" />)}</div>
+        : sessions.length === 0 ? (
           <p className="px-3 py-8 text-center text-xs text-muted-foreground">
-            {query ? "No chats match." : "No conversations yet."}
+            {query.trim() ? "No chats match your search." : "No conversations yet."}
           </p>
         ) : (
           <div className="space-y-0.5">
@@ -237,35 +233,38 @@ function AiChatRail({
           </div>
         )}
       </div>
-
-      <div className="px-4 py-2 border-t border-black/5 dark:border-white/8 text-[10px] uppercase tracking-wider text-muted-foreground">
-        {total} conversation{total !== 1 ? "s" : ""}
+      {hasMore && <div className="px-3 pb-2">{capped ? <p className="text-xs text-muted-foreground">Showing the first 250 matches. Refine your search to find older chats.</p> : <button type="button" onClick={onMore} disabled={loading} className="min-h-11 w-full rounded-lg border border-border px-3 text-sm hover:bg-muted focus-visible:outline">{loading ? 'Loading…' : 'Load more conversations'}</button>}</div>}
+      <div aria-live="polite" className="px-4 py-2 border-t border-border text-xs text-muted-foreground">
+        {loading ? 'Loading conversations…' : sessions ? `${sessions.length} conversation${sessions.length === 1 ? '' : 's'}${hasMore ? ' loaded' : ''}${query.trim() ? ' matching your search' : ''}` : isLoggedIn ? 'Conversations unavailable' : 'Private conversation history'}
       </div>
-    </div>
+    </nav>
   );
 }
 
 /** One conversation row with inline rename + delete. */
-function RailRow({
+export function RailRow({
   session: s, active, onRename, onRemove, readOnly,
 }: {
   session: ShellSession;
   active: boolean;
-  onRename: (id: string, title: string) => void;
+  onRename: (id: string, title: string) => Promise<boolean>;
   onRemove: (id: string) => void;
   readOnly: boolean;
 }) {
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(s.title);
+  const [saving, setSaving] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
-  React.useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+  React.useEffect(() => { if (editing) { inputRef.current?.focus(); inputRef.current?.select(); } }, [editing]);
 
-  const commit = () => {
+  const commit = async () => {
+    if (saving) return;
     const t = draft.trim();
-    if (t && t !== s.title) onRename(s.id, t);
-    else setDraft(s.title);
-    setEditing(false);
+    if (!t) return;
+    if (t === s.title) { setEditing(false); return; }
+    setSaving(true);
+    try { if (await onRename(s.id, t)) setEditing(false); } finally { setSaving(false); }
   };
 
   if (editing) {
@@ -275,14 +274,14 @@ function RailRow({
           ref={inputRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(s.title); setEditing(false); } }}
-          onBlur={commit}
-          className="flex-1 min-w-0 bg-transparent text-sm outline-none"
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void commit(); } if (e.key === "Escape" && !saving) { setDraft(s.title); setEditing(false); } }}
+          aria-label="Conversation title" name="conversation-title" autoComplete="off" maxLength={200} disabled={saving}
+          className="flex-1 min-w-0 h-11 rounded bg-transparent text-base focus-visible:outline focus-visible:outline-2"
         />
-        <button onClick={commit} aria-label="Save" className="shrink-0 grid place-items-center h-11 w-11 rounded text-emerald-500 hover:bg-emerald-500/15">
+        <button onClick={() => void commit()} disabled={saving || !draft.trim()} aria-label="Save conversation name" className="shrink-0 grid place-items-center h-11 w-11 rounded text-emerald-500 hover:bg-emerald-500/15 focus-visible:outline disabled:opacity-50">
           <FiCheck className="h-3.5 w-3.5" />
         </button>
-        <button onClick={() => { setDraft(s.title); setEditing(false); }} aria-label="Cancel" className="shrink-0 grid place-items-center h-6 w-6 rounded text-muted-foreground hover:bg-black/10 dark:hover:bg-white/10">
+        <button disabled={saving} onClick={() => { setDraft(s.title); setEditing(false); }} aria-label="Cancel renaming" className="shrink-0 grid place-items-center h-11 w-11 rounded text-muted-foreground hover:bg-muted focus-visible:outline">
           <FiX className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -291,6 +290,7 @@ function RailRow({
 
   return (
     <div
+      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 60px' }}
       className={cn(
         "group/row relative flex items-center gap-2 rounded-lg pl-2.5 pr-1 py-1.5 transition-colors",
         active ? "bg-emerald-500/12 text-foreground" : "hover:bg-black/5 dark:hover:bg-white/8",
@@ -298,22 +298,22 @@ function RailRow({
     >
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-emerald-500" />}
       <FiMessageSquare className={cn("h-3.5 w-3.5 shrink-0", active ? "text-emerald-500" : "text-muted-foreground/60")} />
-      <Link href={`/ai/${s.id}`} className="min-w-0 flex-1 text-sm truncate py-3">
+      <Link href={`/ai/${s.id}`} aria-current={active ? 'page' : undefined} title={s.title || 'Untitled'} className="min-w-0 flex-1 text-sm truncate py-3 focus-visible:outline">
         {s.title || "Untitled"}
       </Link>
       {/* Hover actions */}
       {!readOnly && <div className="flex items-center gap-0.5 opacity-100 transition-opacity">
         <button
           onClick={() => { setDraft(s.title); setEditing(true); }}
-          aria-label="Rename"
-          className="grid place-items-center h-6 w-6 rounded text-muted-foreground hover:text-foreground hover:bg-black/10 dark:hover:bg-white/10"
+          aria-label={`Rename ${s.title || 'Untitled'}`}
+          className="grid place-items-center h-11 w-11 rounded text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:outline"
         >
           <FiEdit2 className="h-3 w-3" />
         </button>
         <button
           onClick={() => onRemove(s.id)}
-          aria-label="Delete"
-          className="grid place-items-center h-6 w-6 rounded text-muted-foreground hover:text-red-500 hover:bg-red-500/15"
+          aria-label={`Delete ${s.title || 'Untitled'}`}
+          className="grid place-items-center h-11 w-11 rounded text-muted-foreground hover:text-red-500 hover:bg-red-500/15 focus-visible:outline"
         >
           <FiTrash2 className="h-3 w-3" />
         </button>

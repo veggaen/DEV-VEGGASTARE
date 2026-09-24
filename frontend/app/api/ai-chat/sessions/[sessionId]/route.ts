@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { dbPrisma } from "@/lib/db";
+import { isDemoUserId } from '@/lib/demo-policy';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +45,7 @@ export async function GET(
     },
   });
 
-  if (!conv) {
+  if (!conv || conv.isDeleted) {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   }
 
@@ -67,6 +69,11 @@ export async function PATCH(
   if (!session?.id) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+
+  if (req.headers.get('origin') !== req.nextUrl.origin) return NextResponse.json({ error: 'INVALID_ORIGIN' }, { status: 403 });
+  if (isDemoUserId(session.id) || session.isDemo) return NextResponse.json({ error: 'DEMO_READ_ONLY' }, { status: 403 });
+  const rate = await checkRateLimit(getClientIdentifier(req, session.id), 'write');
+  if (!rate.success) return rateLimitedResponse(rate);
 
   const conv = await dbPrisma.aiConversation.findUnique({
     where: { id: sessionId },
@@ -96,7 +103,7 @@ export async function PATCH(
 
 // DELETE — soft-delete session
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await params;
@@ -104,6 +111,11 @@ export async function DELETE(
   if (!session?.id) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+
+  if (req.headers.get('origin') !== req.nextUrl.origin) return NextResponse.json({ error: 'INVALID_ORIGIN' }, { status: 403 });
+  if (isDemoUserId(session.id) || session.isDemo) return NextResponse.json({ error: 'DEMO_READ_ONLY' }, { status: 403 });
+  const rate = await checkRateLimit(getClientIdentifier(req, session.id), 'write');
+  if (!rate.success) return rateLimitedResponse(rate);
 
   const conv = await dbPrisma.aiConversation.findUnique({
     where: { id: sessionId },
