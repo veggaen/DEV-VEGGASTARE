@@ -88,6 +88,12 @@ locally and after deployment; injected test wallets cannot sign or send funds.
 Analytics and Speed Insights wait for visitor consent. Automated measurements
 are not represented as real-visitor field data.
 
+AI navigation keeps the authenticated shell mounted across chat routes. Its
+identity-keyed, abortable private list distinguishes unknown/loading, failed and
+empty results. Server-scoped title search and cursor pages return only the rail's
+three needed fields; transcript reads separately enforce active membership and
+non-deleted conversations. See [AI navigation acceptance](ai-navigation-acceptance-2026-09.md).
+
 **Open release gates:** actual Live PayPal transactions (credentials and Sandbox
 capture/refund are verified); human-inbox confirmation and legal delivery sufficiency; full OAuth
 consent/callback coverage; owner-wallet/payout verification; remaining-route and

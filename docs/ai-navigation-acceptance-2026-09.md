@@ -36,7 +36,7 @@ six actual React rename/draft tests; 21 opt-in ledger cases were skipped, not
 counted as passed. The final strict production build passes. Final local checks
 pass **3/3**, plus **1/1** dark-mode responsive replay, covering navigation, real
 read API and the retained transcript/drawer/composer regression. Preview/live
-are pending. For one synthetic chat, measured JSON response size is **161 bytes**
+are recorded below. For one synthetic chat, measured JSON response size is **161 bytes**
 for the rail versus **575 bytes** for the full response; this is not a field-CWV
 or all-user page-load claim.
 Browser scenarios hold the initial response, inject failed and malformed
@@ -52,7 +52,22 @@ the actual animation to finish fixes the target without weakening the assertion.
 The dedicated local demo had no chat history, so one explicitly labelled private
 synthetic transcript was created through the normal app API. No model was called,
 no credits were charged, and no real customer chat was modified. The original
-transcript regression then passed unchanged.
+transcript regression then passed unchanged. The Preview demo also lacked
+history; one equivalent private synthetic fixture was created there. Live's
+retained demo already had a real saved transcript, so no live fixture was added.
+A subsequent Preview model-picker wheel check ended 20px short while async
+availability/fonts could still change geometry. The test now waits for the
+actual credit link, completed model availability and font readiness; the same
+strict bottom, focus and overflow assertions then passed. No app scroll behavior
+was suppressed or replaced by programmatic scrolling.
+
+## Preview acceptance
+
+Source `eb1b784`, deployment `dpl_25BvsSzVonAQ22emucgmNS89Sisf`
+(`dev-veggastare-f65bmr6jw-v3ggas-projects.vercel.app`), is READY and verified at
+the stable showcase Preview alias. Build/typecheck pass against the isolated
+Preview Neon endpoint; 48 migrations, none pending. Final browser acceptance is
+**3/3 plus 1/1 dark-mode replay**. Production candidate/live acceptance is pending.
 
 Rollback reference: Sales app `0699868` /
 `dpl_GQDV8P3CbfNz2WNNYAfEdvR4HXZh`. No migration or new secret is required.

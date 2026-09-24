@@ -4344,6 +4344,7 @@ test.describe("Layer 3 — Content", () => {
       await page.goto(`/ai/${session.id}`, { waitUntil: 'domcontentloaded' });
       const composer = page.getByRole('textbox', { name: 'AI message', exact: true });
       await expect(composer).toBeVisible();
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
       if (await consent.isVisible()) await consent.click();
       for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
@@ -4356,6 +4357,8 @@ test.describe("Layer 3 — Content", () => {
         await picker.click();
         const sheet = page.getByRole('dialog', { name: 'Choose AI model', exact: true });
         await expect(sheet).toBeVisible();
+        await expect(sheet.getByRole('link', { name: /^Credit history:/ })).toBeVisible();
+        await expect(sheet.getByText('Loading model availability…', { exact: true })).toHaveCount(0);
         await sheet.getByRole('textbox', { name: 'Search models', exact: true }).fill('');
         await sheet.evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
         const scroller = sheet.locator('[data-ai-model-scroll]');
