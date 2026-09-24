@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,77 +8,84 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { FiShoppingCart, FiTrash2, FiPlus, FiMinus, FiArrowRight, FiPackage, FiShoppingBag } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
-import CreditAmountEditor from '@/components/checkout/credit-amount-editor';
-import { useCart } from '@/contexts/cart-context';
-import { toast } from "sonner";
 import PriceAmount, { PriceTotal } from "@/components/crypto-related/PriceAmount";
+import { useCartPage } from '@/hooks/use-cart-page';
+import { useCart } from '@/contexts/cart-context';
+import { isShowcaseProduct } from '@/lib/showcase-catalog';
+import { useClientReady } from '@/hooks/use-client-ready';
+import CreditAmountEditor from '@/components/checkout/credit-amount-editor';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-interface CartItem {
-  id: string;
-  product: {
-    id: string;
-    title: string;
-    price: number;
-    priceCurrency?: string;
-    image: string[];
-  };
-  quantity: number;
-  creditAmount?: number;
-}
 
 interface MiniCartDropdownProps {
   userId: string | undefined;
   cartCount: number;
-  onCartUpdate?: () => void;
+}
+
+function BasketQuantity({ quantity, draft, setDraft, title, disabled, save }: { quantity: number; draft: string; setDraft: (value: string) => void; title: string; disabled: boolean; save: (value: number) => void }) {
+  const value = Number(draft);
+  const valid = Number.isInteger(value) && value >= 1 && value <= 1000;
+  const changed = draft !== String(quantity);
+  return <form className="flex items-center gap-1" onSubmit={event => { event.preventDefault(); if (valid && !disabled) save(value); }}>
+    <input type="number" min={1} max={1000} inputMode="numeric" autoComplete="off" name="quantity" value={draft} disabled={disabled} aria-label={`Quantity for ${title}`} aria-invalid={changed && !valid} onChange={event => setDraft(event.target.value)} className="h-11 w-14 bg-transparent text-center text-base font-medium tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50" />
+    {changed && <button type="submit" disabled={!valid || disabled} className="min-h-11 rounded-md px-2 text-xs font-medium focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50" aria-label={`Save quantity for ${title}`}>Save</button>}
+  </form>;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDropdownProps) {
+export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
   const router = useRouter();
-  const { checkoutBlocked } = useCart();
   const reducedMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [dirtyCredits, setDirtyCredits] = useState(false);
-  const [saveError, setSaveError] = useState('');
-  const actionLock = useRef(false);
-  const [mounted, setMounted] = useState(false);
+  const [activated, setActivated] = useState(false);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const hasDrafts = Object.keys(drafts).length > 0;
+  const { syncCart, checkoutBlocked } = useCart();
+  const { items, loading, refreshing, pending, error, needsRefresh, reload, mutate } = useCartPage(activated ? userId : undefined, syncCart);
+  const busy = refreshing || pending.size > 0;
+  const canCheckout = !busy && !checkoutBlocked && !needsRefresh && !hasDrafts && items.every(item => isShowcaseProduct(item.product.id) && item.quantity === 1);
+  const mounted = useClientReady();
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  const clearDraft = (id: string) => setDrafts(previous => {
+    const next = { ...previous }; delete next[id]; return next;
+  });
+  useEffect(() => {
+    if (!open) return;
+    closeRef.current?.focus();
+    const leave = (event: FocusEvent) => {
+      if (!dropdownRef.current?.contains(event.target as Node) && !triggerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('focusin', leave);
+    return () => document.removeEventListener('focusin', leave);
+  }, [open]);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Handle client-side mounting for portal
-  useEffect(() => { setMounted(true); }, []);
-
   // Calculate dropdown position when opening
   useEffect(() => {
-    if (open && triggerRef.current) {
+    if (!open) return;
+    const position = () => {
+      if (!triggerRef.current) return;
       const rect = triggerRef.current.getBoundingClientRect();
       setDropdownPosition({
         top: rect.bottom + 8,
-        right: window.innerWidth - rect.right,
+        right: Math.max(16, Math.min(window.innerWidth - rect.right, Math.max(16, window.innerWidth - 376))),
       });
-    }
+    };
+    position();
+    window.addEventListener('resize', position);
+    return () => window.removeEventListener('resize', position);
   }, [open]);
 
   // Fetch cart items when dropdown opens
   useEffect(() => {
-    if (open && userId) {
-      setLoading(true);
-      fetch(`/api/cart/${userId}`)
-        .then(res => res.ok ? res.json() : { items: [] })
-        .then(data => setItems(data.items ?? []))
-        .catch(() => setItems([]))
-        .finally(() => setLoading(false));
-    }
-  }, [open, userId]);
+    if (open) void reload();
+  }, [open, reload]);
 
   // Close on outside click
   useEffect(() => {
@@ -105,70 +112,6 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
     return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
-  // ─── Cart actions ────────────────────────────────────────────────────────
-
-  const updateQuantity = useCallback(async (itemId: string, nextQuantity: number) => {
-    if (!userId) return;
-    const normalized = Math.max(1, Math.min(1000, Math.floor(Number(nextQuantity) || 1)));
-    const previousItems = items;
-    setItems((prev) =>
-      prev.map((item) => (item.id === itemId ? { ...item, quantity: normalized } : item))
-    );
-    setActionLoading(itemId);
-    try {
-      const res = await fetch(`/api/cart/${userId}/items/${itemId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity: normalized }),
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setItems((prev) => prev.map((item) => (item.id === itemId ? data : item)));
-      onCartUpdate?.();
-    } catch {
-      setItems(previousItems);
-      toast.error("Failed to update quantity");
-    } finally {
-      setActionLoading(null);
-    }
-  }, [items, onCartUpdate, userId]);
-
-  const handleQuantityChange = async (itemId: string, changeType: "increment" | "decrement") => {
-    const current = items.find((item) => item.id === itemId)?.quantity ?? 1;
-    await updateQuantity(itemId, changeType === "increment" ? current + 1 : current - 1);
-  };
-
-  const handleRemoveItem = async (itemId: string) => {
-    if (!userId) return;
-    setActionLoading(itemId);
-    try {
-      const res = await fetch(`/api/cart/${userId}/items/${itemId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
-      setItems(prev => prev.filter(i => i.id !== itemId));
-      onCartUpdate?.();
-      toast.success("Item removed");
-    } catch {
-      toast.error("Failed to remove item");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const saveCredits = async (itemId: string, creditAmount: number) => {
-    if (!userId || actionLock.current) return false;
-    actionLock.current = true; setActionLoading(itemId); setSaveError('');
-    try {
-      const response = await fetch(`/api/cart/${userId}/items/${itemId}`, { method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ creditAmount }), signal: AbortSignal.timeout(15_000) });
-      if (!response.ok) throw new Error();
-      const updated = await response.json();
-      setItems(previous => previous.map(item => item.id === itemId ? updated : item));
-      onCartUpdate?.();
-      return true;
-    } catch { setSaveError('Could not confirm the change. Open your full cart to refresh before paying.'); return false; }
-    finally { actionLock.current = false; setActionLoading(null); }
-  };
-
   // ─── Render ──────────────────────────────────────────────────────────────
 
   const dropdownContent = (
@@ -188,7 +131,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
             right: dropdownPosition.right,
             zIndex: 9999,
           }}
-          className="w-[360px] max-w-[calc(100vw-32px)] rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700/60 dark:bg-zinc-900"
+          className="w-[360px] max-w-[calc(100%-32px)] max-h-[calc(100dvh-88px)] overflow-y-auto overscroll-contain rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700/60 dark:bg-zinc-900"
         >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
@@ -204,14 +147,20 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                 )}
               </div>
               <button
+                ref={closeRef}
                 aria-label="Close basket"
                 onClick={() => { setOpen(false); triggerRef.current?.focus(); }}
-                className="min-h-11 min-w-11 rounded-md text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-11 min-w-11 rounded-md text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-ring"
               >
                 ESC
               </button>
             </div>
 
+            {error && <div role="alert" className="border-b border-border p-4 text-sm text-foreground">
+              <p>{error}</p>
+              {needsRefresh && <Button variant="outline" disabled={busy} className="mt-2 min-h-11" onClick={() => void reload()}>{refreshing ? 'Refreshing basket…' : 'Retry saved basket'}</Button>}
+            </div>}
+            {refreshing && !loading && <p role="status" className="px-4 py-2 text-xs text-muted-foreground">Refreshing saved basket…</p>}
             {/* Content */}
             {!userId ? (
               <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
@@ -226,10 +175,10 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                 </Link>
               </div>
             ) : loading ? (
-              <div className="flex items-center justify-center py-8">
+              <div role="status" aria-label="Loading basket" className="flex items-center justify-center py-8">
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
               </div>
-            ) : items.length === 0 ? (
+            ) : items.length === 0 && needsRefresh ? null : items.length === 0 ? (
               <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
                 <FiPackage className="h-8 w-8 text-zinc-300 dark:text-zinc-600" />
                 <p className="text-sm text-zinc-500 dark:text-zinc-400">Your basket is empty</p>
@@ -255,13 +204,13 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: reducedMotion ? 0 : 20 }}
                           transition={{ duration: reducedMotion ? 0 : 0.2 }}
-                          className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-3 px-4 py-3"
+                          className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-3 px-4 py-3"
                         >
                           {/* Product image */}
                           <Link
                             href={`/products/${item.product.id}`}
                             onClick={() => setOpen(false)}
-                            className="relative shrink-0 h-14 w-14 rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-800 hover:ring-2 hover:ring-emerald-500/40 transition-all"
+                            className="relative shrink-0 h-14 w-14 rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-800 hover:ring-2 hover:ring-emerald-500/40 focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             {item.product.image?.[0] ? (
                               <Image
@@ -307,59 +256,38 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                           </div>
 
                           {/* Quantity controls */}
-                          <div className="flex flex-col items-end gap-1">
-                            {item.creditAmount === undefined && <div className="flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                          <div className="col-span-2 flex items-center justify-between gap-2">
+                            {item.creditAmount === undefined ? <div className="flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700">
                               <button
                                 aria-label={`Decrease quantity for ${item.product.title}`}
-                                onClick={() => handleQuantityChange(item.id, "decrement")}
-                                disabled={actionLoading === item.id || item.quantity <= 1}
-                                className="flex h-6 w-6 items-center justify-center rounded-l-md text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors"
+                                onClick={() => { clearDraft(item.id); void mutate(item.id, 'decrement'); }}
+                                disabled={pending.has(item.id) || refreshing || needsRefresh || item.quantity <= 1}
+                                className="flex size-11 items-center justify-center rounded-l-md text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-ring"
                               >
                                 <FiMinus className="h-3 w-3" />
                               </button>
-                              <input
-                                type="number"
-                                min={1}
-                                max={1000}
-                                inputMode="numeric"
-                                value={item.quantity}
-                                aria-label={`Quantity for ${item.product.title}`}
-                                onClick={(event) => event.stopPropagation()}
-                                onChange={(event) => {
-                                  const next = Math.max(1, Math.min(1000, Number(event.target.value) || 1));
-                                  setItems((prev) =>
-                                    prev.map((cartItem) => cartItem.id === item.id ? { ...cartItem, quantity: next } : cartItem)
-                                  );
-                                }}
-                                onBlur={(event) => updateQuantity(item.id, Number(event.target.value) || 1)}
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter") {
-                                    event.currentTarget.blur();
-                                  }
-                                }}
-                                className="h-6 w-8 border-x border-zinc-200 bg-transparent text-center text-xs font-medium tabular-nums text-zinc-700 outline-none focus:bg-emerald-500/10 dark:border-zinc-700 dark:text-zinc-300 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                              />
+                              <BasketQuantity quantity={item.quantity} draft={drafts[item.id] ?? String(item.quantity)} setDraft={value => setDrafts(previous => { const next = { ...previous }; if (value === String(item.quantity)) delete next[item.id]; else next[item.id] = value; return next; })} title={item.product.title} disabled={pending.has(item.id) || refreshing || needsRefresh} save={value => { clearDraft(item.id); void mutate(item.id, value); }} />
                               <button
                                 aria-label={`Increase quantity for ${item.product.title}`}
-                                onClick={() => handleQuantityChange(item.id, "increment")}
-                                disabled={actionLoading === item.id}
-                                className="flex h-6 w-6 items-center justify-center rounded-r-md text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors"
+                                onClick={() => { clearDraft(item.id); void mutate(item.id, 'increment'); }}
+                                disabled={pending.has(item.id) || refreshing || needsRefresh || item.quantity >= 1000}
+                                className="flex size-11 items-center justify-center rounded-r-md text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-ring"
                               >
                                 <FiPlus className="h-3 w-3" />
                               </button>
-                            </div>}
+                            </div> : <span className="text-sm text-muted-foreground">{item.creditAmount.toLocaleString('en-US')} credits</span>}
                             <button
                               aria-label={`Remove ${item.product.title} from basket`}
-                              onClick={() => handleRemoveItem(item.id)}
-                              disabled={Boolean(actionLoading)}
-                              className="flex size-11 items-center justify-center rounded-md text-xs text-zinc-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400 transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+                              onClick={() => { clearDraft(item.id); void mutate(item.id, 'remove'); }}
+                              disabled={pending.has(item.id) || refreshing || needsRefresh}
+                              className="flex size-11 items-center justify-center rounded-md text-xs text-zinc-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400 focus-visible:ring-2 focus-visible:ring-ring"
                             >
                               <FiTrash2 className="h-3 w-3" />
                             </button>
                           </div>
-                          {item.creditAmount !== undefined && <div className="col-span-3"><CreditAmountEditor value={item.creditAmount}
-                            disabled={Boolean(actionLoading) || Boolean(saveError)} onDirtyChange={setDirtyCredits}
-                            onSave={credits => saveCredits(item.id, credits)} /></div>}
+                          {item.creditAmount !== undefined && <div className="col-span-2 min-w-0"><CreditAmountEditor value={item.creditAmount}
+                            disabled={pending.has(item.id) || refreshing || needsRefresh}
+                            onSave={credits => mutate(item.id, credits)} /></div>}
                         </motion.div>
                       ))}
                     </AnimatePresence>
@@ -368,7 +296,6 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
 
                 {/* Footer with totals & actions */}
                 <div className="border-t border-zinc-100 px-4 py-3 dark:border-zinc-800 space-y-3">
-                  {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
                   {/* Total */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm text-zinc-500 dark:text-zinc-400">Subtotal</span>
@@ -378,11 +305,12 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                   </div>
 
                   {/* Action buttons */}
+                  {hasDrafts && <div className="text-sm text-muted-foreground"><p>Save your quantity edits to update the total.</p><button type="button" className="min-h-11 underline focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setDrafts({})}>Discard quantity edits</button></div>}
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 text-xs"
+                      className="min-h-11 flex-1 text-xs"
                       onClick={() => { setOpen(false); router.push("/cart"); }}
                     >
                       <FiShoppingBag className="mr-1.5 h-3 w-3" />
@@ -390,8 +318,8 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
                     </Button>
                     <Button
                       size="sm"
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
-                      disabled={Boolean(actionLoading) || dirtyCredits || checkoutBlocked || Boolean(saveError)}
+                      className="min-h-11 flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
+                      disabled={!canCheckout}
                       onClick={() => { setOpen(false); router.push("/checkout"); }}
                     >
                       Checkout
@@ -401,7 +329,7 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
 
                   {/* Subtle info */}
                   <p className="text-center text-[10px] text-zinc-400 dark:text-zinc-500">
-                    Shipping & taxes calculated at checkout
+                    {!canCheckout && !busy && !needsRefresh ? 'Review item quantities in the full cart before checkout.' : 'Final price and payment method confirmed at checkout.'}
                   </p>
                 </div>
               </>
@@ -416,10 +344,12 @@ export function MiniCartDropdown({ userId, cartCount, onCartUpdate }: MiniCartDr
       {/* Trigger button */}
       <button
         ref={triggerRef}
-        onClick={() => setOpen(prev => !prev)}
+        disabled={!mounted}
+        onClick={() => { setActivated(true); setOpen(prev => !prev); }}
         className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
         aria-label={cartCount > 0 ? `${cartCount} item${cartCount !== 1 ? "s" : ""} in basket` : "Basket"}
         aria-expanded={open}
+        aria-haspopup="dialog"
       >
         <FiShoppingCart className="h-[18px] w-[18px]" />
         {cartCount > 0 && (

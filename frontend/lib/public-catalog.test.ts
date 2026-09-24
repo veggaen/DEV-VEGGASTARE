@@ -6,6 +6,7 @@ vi.mock('@/lib/db', () => ({ dbPrisma: {
   product: { groupBy: mocks.group, findMany: mocks.products, aggregate: mocks.aggregate },
   user: { findMany: mocks.users }, company: { findMany: mocks.companies },
 } }));
+vi.mock('@/lib/currency-rates', () => ({ getExchangeRates: async () => ({ USD: 1, NOK: 0.1, EUR: 1.1 }) }));
 import { GET as categories } from '@/app/api/categories-with-counts/route';
 import { GET as sellers } from '@/app/api/products/sellers/route';
 import { GET as counts } from '@/app/api/filter-counts/route';
@@ -41,9 +42,10 @@ it('keeps the boundary when category, seller, price and text filters are combine
   expect(mocks.products.mock.calls[0][0].where).toEqual(publicCatalogWhere());
 });
 it('gets the public price bounds with a single database query', async () => {
+  mocks.group.mockResolvedValue([{ priceCurrency: 'NOK', _min: { price: 29 }, _max: { price: 39 } }, { priceCurrency: 'EUR', _min: { price: 2 }, _max: { price: 8 } }]);
   const response = await prices(); expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({ min: 29, max: 39 });
-  expect(mocks.aggregate).toHaveBeenCalledExactlyOnceWith({ where: publicCatalogWhere(), _min: { price: true }, _max: { price: true } });
+  expect(await response.json()).toEqual({ min: 2.2, max: 8.8 });
+  expect(mocks.group).toHaveBeenCalledExactlyOnceWith({ by: ['priceCurrency'], where: publicCatalogWhere(), _min: { price: true }, _max: { price: true } });
 });
 it('handles an empty public catalog without returning private price bounds', async () => {
   mocks.aggregate.mockResolvedValue({ _min: { price: null }, _max: { price: null } });

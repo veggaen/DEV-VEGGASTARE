@@ -177,7 +177,7 @@ const OrderConfirmationPage = () => {
             {orderDetails.status}
           </span>
           <span className="text-muted-foreground">Total amount:</span>
-          <span className="font-medium text-foreground"><PreferredMoney amount={orderDetails.totalAmount} currency={orderDetails.currency ?? null} /></span>
+          <span className="max-w-full font-medium text-foreground"><PreferredMoney amount={orderDetails.totalAmount} currency={orderDetails.currency ?? null} /></span>
           {orderDetails.payment && (
             <>
               <span className="text-muted-foreground">Payment method:</span>

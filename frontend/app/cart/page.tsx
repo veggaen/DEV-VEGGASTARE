@@ -85,7 +85,7 @@ export default function CartPage() {
         <dl className="mt-5 space-y-4 text-sm">
           <div className="flex items-baseline justify-between gap-3"><dt className="text-muted-foreground">Items</dt><dd className="tabular-nums">{items.reduce((sum, item) => sum + item.quantity, 0)}</dd></div>
           {totals ? <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-4">
-            <dt className="font-medium">Subtotal</dt><dd className="text-xl font-semibold tabular-nums"><PriceTotal entries={items.map(item => ({ amount: item.product.price * item.quantity, currency: item.product.priceCurrency ?? 'USD' }))} /></dd>
+            <dt className="font-medium">Subtotal</dt><dd className="max-w-full text-xl font-semibold tabular-nums"><PriceTotal entries={items.map(item => ({ amount: item.product.price * item.quantity, currency: item.product.priceCurrency ?? 'USD' }))} /></dd>
           </div> : <div><dt>Subtotal</dt><dd>Price unavailable. Refresh your saved cart.</dd></div>}
         </dl>
         {!supported ? <p className="mt-4 text-sm leading-6 text-muted-foreground">Checkout is currently available for the Interview Pack and Interviewer AI Credits. Remove other listings to continue.</p>

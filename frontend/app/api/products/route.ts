@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchProductsWithDetails } from '@/actions/fetch-products-with-details';
-import { z } from 'zod';
+import { parseCatalogPriceFilter } from '@/lib/catalog-price-filter';
 import { ProductsListResponseSchema } from '@/lib/types/products';
 
 const LOG_PREFIX = '[frontend/app/api/products/route.ts]';
@@ -21,14 +21,12 @@ export const GET = async (request: Request) => {
   const perPage = Math.max(1, Math.min(50, parseInt(searchParams.get('perPage') || '10', 10) || 10));
   const categories = parseCommaSeparated(searchParams.get('categories'), 50);
   const sellerIds = parseCommaSeparated(searchParams.get('sellerIds'), 200);
-  const minPrice = Math.max(0, parseFloat(searchParams.get('minPrice') || '0') || 0);
-  const maxPriceRaw = searchParams.get('maxPrice');
-  const maxPrice = maxPriceRaw ? Math.max(0, parseFloat(maxPriceRaw)) : Number.POSITIVE_INFINITY;
+  const price = parseCatalogPriceFilter(searchParams);
   const searchTerm = (searchParams.get('searchTerm') || '').trim().slice(0, 200);
 
   // Validate price range
-  if (maxPrice < minPrice) {
-    return NextResponse.json({ error: 'maxPrice must be >= minPrice' }, { status: 400 });
+  if (!price.success) {
+    return NextResponse.json({ error: 'Enter a valid price range and currency.' }, { status: 400 });
   }
 
   if (shouldLog) console.log(`${LOG_PREFIX} page=${page} perPage=${perPage}`);
@@ -38,8 +36,9 @@ export const GET = async (request: Request) => {
       page, 
       perPage, 
       categories, 
-      minPrice, 
-      maxPrice, 
+      minPrice: price.data.min,
+      maxPrice: price.data.max,
+      priceCurrency: price.data.currency,
       searchTerm, 
       sellerIds 
     });

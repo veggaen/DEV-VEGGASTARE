@@ -1,6 +1,8 @@
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { publicCatalogWhere } from '@/lib/public-catalog';
+import { catalogPriceWhere, parseCatalogPriceFilter } from '@/lib/catalog-price-filter';
+import { getExchangeRates } from '@/lib/currency-rates';
 import {
   FilterCountsBadRequestSchema,
   FilterCountsResponseSchema,
@@ -33,14 +35,12 @@ export async function GET(request: Request) {
     // Parse and validate query parameters
     const selectedCategories = parseCommaSeparated(searchParams.get('selectedCategories'), 50);
     const selectedSellers = parseCommaSeparated(searchParams.get('selectedSellers'), 200);
-    const minPrice = Math.max(0, Number(searchParams.get('minPrice')) || 0);
-    const maxPriceRaw = searchParams.get('maxPrice');
-    const maxPrice = maxPriceRaw ? Math.max(0, Number(maxPriceRaw)) : Number.POSITIVE_INFINITY;
+    const price = parseCatalogPriceFilter(searchParams);
     const searchTerm = (searchParams.get('searchTerm') || '').trim().slice(0, 200);
     
     // Runtime validation for price range
-    if (maxPrice < minPrice) {
-      const errorDto = { message: 'maxPrice must be >= minPrice' };
+    if (!price.success) {
+      const errorDto = { message: 'Enter a valid price range and currency.' };
       const parsed = FilterCountsBadRequestSchema.safeParse(errorDto);
       return NextResponse.json(parsed.success ? parsed.data : errorDto, { status: 400 });
     }
@@ -48,10 +48,9 @@ export async function GET(request: Request) {
     // Build base where clause (excluding the dimension we're counting)
     const baseWhere: any = {
       AND: [publicCatalogWhere()],
-      price: { gte: minPrice },
     };
-    if (Number.isFinite(maxPrice)) {
-      baseWhere.price.lte = maxPrice;
+    if (price.data.min > 0 || price.data.max !== undefined) {
+      baseWhere.AND.push(catalogPriceWhere(price.data.min, price.data.max, price.data.currency, await getExchangeRates()));
     }
     if (searchTerm) {
       baseWhere.OR = [

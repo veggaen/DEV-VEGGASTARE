@@ -466,9 +466,9 @@ const MyTopBar = () => {
 											<TooltipTrigger asChild>
 												<div data-nav-key="cart" className="relative">
 													<MiniCartDropdown
+														key={clientUser?.id ?? 'guest'}
 														userId={clientUser?.id}
 														cartCount={cartCount}
-														onCartUpdate={() => mutateCart()}
 													/>
 												</div>
 											</TooltipTrigger>

@@ -26,7 +26,7 @@ interface CategoriesContextType {
   setCategories: React.Dispatch<React.SetStateAction<string[]>>;
   selectedCategories: string[];
   setSelectedCategories: React.Dispatch<React.SetStateAction<string[]>>;
-  // Price filters
+  // Price bounds are canonical USD; controls convert through the global display preference.
   minPrice: number | null;
   setMinPrice: React.Dispatch<React.SetStateAction<number | null>>;
   maxPrice: number | null;

@@ -3,6 +3,8 @@
 import { dbPrisma } from '@/lib/db';
 import type { ProductsListItem } from '@/lib/types/products';
 import { publicCatalogWhere } from '@/lib/public-catalog';
+import { catalogPriceWhere } from '@/lib/catalog-price-filter';
+import { getExchangeRates } from '@/lib/currency-rates';
 
 const toIsoString = (value: unknown): string => {
   if (value instanceof Date) return value.toISOString();
@@ -16,6 +18,7 @@ interface FetchProductsParams {
   categories: string[];
   minPrice: number;
   maxPrice?: number;  // make maxPrice optional
+  priceCurrency?: string;
   searchTerm: string;
   sellerIds?: string[]; // Add sellerIds as an optional property
 }
@@ -29,6 +32,7 @@ export const fetchProductsWithDetails = async ({
   categories,
   minPrice,
   maxPrice,
+  priceCurrency = 'USD',
   searchTerm,
   sellerIds = [], // Add sellerIds with a default empty array
 }: FetchProductsParams): Promise<ProductsListItem[]> => {
@@ -46,13 +50,11 @@ export const fetchProductsWithDetails = async ({
 
     const whereClause: any = {
       ...publicCatalogWhere(),
-      price: {
-        gte: minPrice,
-      },
+      AND: [],
     };
 
-    if (maxPrice !== undefined && maxPrice !== Infinity) {
-      whereClause.price.lte = maxPrice;
+    if (minPrice > 0 || (maxPrice !== undefined && Number.isFinite(maxPrice))) {
+      whereClause.AND.push(catalogPriceWhere(minPrice, maxPrice, priceCurrency, await getExchangeRates()));
     }
 
     if (categories.length > 0) {
@@ -179,6 +181,6 @@ export const fetchProductsWithDetails = async ({
     });
   } catch (error) {
     console.error(`${LOG_PREFIX} Error fetching products with details:`, error);
-    return [];
+    throw error;
   }
 };

@@ -62,9 +62,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams?: Pr
       </section>
       <aside className="min-w-0 self-start rounded-xl border border-border bg-card p-4 sm:p-6 lg:sticky lg:top-6" aria-label="Payment summary">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{mode === 'DEMO' ? 'Free demonstration' : mode === 'SANDBOX' ? 'PayPal Sandbox — test money only' : 'PayPal Live — real payment'}</p>
-        <div className="my-6 flex flex-wrap items-baseline justify-between gap-3"><h2 className="font-medium">{demo ? 'Due today' : 'Total'}</h2><strong className="text-2xl tabular-nums"><PreferredMoney amount={demo ? 0 : quote.totalOre / 100} /></strong></div>
-        {!demo && <p className="mb-4 text-xs text-muted-foreground">PayPal charges the confirmed NOK total. Other currencies are display estimates; PayPal or your bank may use a different rate.</p>}
+        <div className="my-6 flex flex-wrap items-baseline justify-between gap-3"><h2 className="font-medium">{demo ? 'Due today' : 'Total'}</h2><strong className="max-w-full text-2xl tabular-nums"><PreferredMoney amount={demo ? 0 : quote.totalOre / 100} /></strong></div>
         <p className="mb-6 text-sm text-muted-foreground">{demo ? 'No card, no charge. Preview fulfillment with an isolated demo order.' : 'PayPal handles your payment details. We never receive your card number. Maximum two checkout attempts per day.'}</p>
+        {!demo && <p className="mb-4 text-sm text-muted-foreground">PayPal charges in NOK. Your selected currency is a display estimate; review the exact charge on PayPal before approval.</p>}
         {!available && <p role="status" className="mb-4 text-sm text-muted-foreground">PayPal setup is in progress. No payment can be taken yet. The free demo remains available.</p>}
         {(creditAccount?.refundAdjustment ?? 0) > 0 && <div className="mb-4"><CreditRefundNotice adjustment={creditAccount!.refundAdjustment} purchasedCredits={purchasedCredits} /></div>}
         <ReviewerCheckoutButton key={JSON.stringify(quote)} expectedQuote={JSON.stringify(quote)} demo={demo} disabled={!available}
