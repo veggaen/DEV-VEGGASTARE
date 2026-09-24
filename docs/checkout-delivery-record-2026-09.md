@@ -6,6 +6,11 @@ but delivery to a real person's inbox is not. Downloadable originals remain
 available. [Buyer notices](buyer-request-acceptance-2026-09.md) and the
 [seller-review follow-up](seller-review-acceptance-2026-09.md) have separate evidence.
 The implementation and verification sections below describe the original slice.
+The [full-terms follow-up](full-terms-acceptance-2026-09.md) now retains the
+complete published Norwegian agreement and optional withdrawal form in new
+checkout snapshots and their original confirmation/email packets. Historical
+records are never backfilled. This closes a retention gap, not the remaining
+human-inbox verification or legal review.
 The
 Preview-only release boundary at the bottom records the original historical
 delivery-record release; it is not the current deployment authority. See the

@@ -60,7 +60,34 @@ new paid PayPal purchase or a passing fresh local demo-login assertion.
 
 Local 390/1280 screenshots were reviewed; real Chrome dark-mode anchor scrolling,
 expanded form and bottom footer were inspected. The full packet is absent from
-the final browser JavaScript chunks. Preview/live acceptance is pending here.
+the final browser JavaScript chunks. The real Chrome download was 8,426 bytes,
+identical to the public endpoint, SHA-256
+`9b1384d14b807750e1741d494d5de3dcb6cd0ded41fbe8009c4828fa84e28568`.
+
+Release source **`4b77afb`** is READY in both environments:
+
+- Preview `dpl_7fmSkDDfw2c8PpL1Lv5sci6nMZpE`, explicitly assigned to the
+  stable isolated Sandbox alias. **3/3** public/legacy/fresh-demo journeys
+  passed (32.2 seconds), plus **1/1** password-buyer delivery-request check
+  (17.5 seconds, payment POST intercepted).
+- Production `dpl_3LU97pZnwY1w4Kh9W5mMZWEqDR6d`, built without promoting,
+  health-checked, then promoted and read back from www.veggat.com. **3/3**
+  public/legacy/fresh-demo journeys passed (32.0 seconds). New demo checkout
+  includes the complete versioned packet; retry/replay creates one unpaid order.
+  Real Chrome confirms the published version and expanded withdrawal form.
+- Both strict Vercel builds passed with the correct separate Neon hosts and
+  48 existing migrations, none pending. Another **26 auth/security units**
+  pass, bringing disjoint focused unit coverage for this slice to **241**.
+
+The public no-JavaScript tests check all eight viewports, section navigation,
+form expansion, footer scrolling and actual downloaded bytes. These are scoped
+checks, not a claim that every app route or native 125% zoom was audited.
+No new paid PayPal order/refund, historical customer email or Live secret change
+was made. A CLI health command initially ran from the nested frontend directory
+and auto-linked the old unrelated `frontend` Vercel project. Its newly generated
+automation-bypass secret was immediately revoked by exact identity and read back
+as absent; the local link was corrected. The project and its existing deployments
+were not deleted. Subsequent deployment commands ran from the release root.
 
 Pre-release original confirmation hashes (UTF-8, 3,950 bytes each):
 
@@ -68,6 +95,10 @@ Pre-release original confirmation hashes (UTF-8, 3,950 bytes each):
   `77864169acf241a7a8592d6ca9c4f9e8ea50cb5ceaebbdf17661bf337ea0bd0c`.
 - Live `cmuexffq7000004lbvb9w919o`:
   `3c2b0bfaa306988f3a9607a3f2048327a7b62dfd62ac8f2dca9b356ac9ee9e52`.
+- Preview `cmuex3lhb000004i9guo93zbf`:
+  `a485e6fe18e1a4b5c1d7a64a7207cdbbc77d9718d1ad609244f283a5651a17ca`.
+
+All three historical confirmation hashes remain unchanged after the release.
 
 No migration, new secret or environment change is required. Rollback app:
 `a902b42` / production `dpl_2Ed57ytaWJr1BzyuE8ueLH6F2K1F`. Retain all new

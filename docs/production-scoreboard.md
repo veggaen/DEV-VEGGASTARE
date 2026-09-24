@@ -4,9 +4,26 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Full published terms retention: **DONE for the scoped engineering slice**.
+Current app authority is **`4b77afb` / `dpl_3LU97pZnwY1w4Kh9W5mMZWEqDR6d`**
+on www.veggat.com. New checkout snapshots and original confirmation attachments
+include the complete versioned sales terms and optional withdrawal form. Earlier
+records remain byte-identical. The public document is usable without JavaScript;
+eight-size scroll/download tests pass. Strict builds, touched lint, **241 focused
+units**, six isolated checkout scenarios, four local/Preview scoped journeys and
+**3/3 live** checks pass. Fresh local demo provisioning hit its existing cap;
+retained local-demo checkout passed, and fresh Preview/live login passed. No cap
+was bypassed. See [full terms evidence and limits](full-terms-acceptance-2026-09.md).
+
+**Still PARTIAL:** owner Live purchase/refund acceptance, human-inbox delivery
+and legal sufficiency, remaining OAuth/wallet/backend checks and full-route
+interaction/native 125% zoom. Older Sales dashboard polish is separate work.
+
+### Previous seller-request slice
+
 Seller request review: **DONE for the scoped slice**, not whole-app completion.
-Current app authority is **`a902b42` / `dpl_2Ed57ytaWJr1BzyuE8ueLH6F2K1F`** on
-www.veggat.com. Whole-order authorization, demo privacy, revision conflicts and
+Its original release is **`a902b42` / `dpl_2Ed57ytaWJr1BzyuE8ueLH6F2K1F`**,
+retained in the current app above. Whole-order authorization, demo privacy, revision conflicts and
 the distinction between review approval and verified money movement are enforced.
 Strict builds/touched lint, **229 units**, **4 real isolated PostgreSQL cases**,
 and final **5/5 local, 5/5 Preview, 5/5 live** browser batches pass. The real query
@@ -18,7 +35,7 @@ See [seller review acceptance, limits and rollback](seller-review-acceptance-202
 The earlier deployment IDs in the sections below are historical.
 
 **Still PARTIAL:** owner Live purchase/refund acceptance, human-inbox delivery,
-full-agreement durable delivery/legal review, remaining OAuth/wallet/backend
+human durable delivery/legal review, remaining OAuth/wallet/backend
 checks and full-route interaction/125% zoom. Older Sales dashboard polish is
 separate work; the new inbox does not fix its legacy empty/error behavior.
 

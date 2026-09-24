@@ -64,6 +64,12 @@ The payment state remains authoritative even when a legacy review label says
 “refunded.” Demo sellers cannot inspect real correspondence or issue decisions.
 See [seller review evidence](seller-review-acceptance-2026-09.md).
 
+Checkout retains a server-owned, versioned full sales-terms snapshot. The
+public legal page and version-pinned download share one source; private original
+confirmations and email attachments use the stored snapshot, never today's
+wording. Legacy records remain unchanged. The complete legal document stays out
+of the checkout JavaScript bundle. See [full terms acceptance](full-terms-acceptance-2026-09.md).
+
 Local OAuth is `http://localhost:3000`. Local/preview payments use Sandbox;
 Production uses Live. DEMO, SANDBOX and LIVE credit balances never substitute for
 one another. Demo identities are temporary and isolated, cannot make real
@@ -76,7 +82,7 @@ Analytics and Speed Insights wait for visitor consent. Automated measurements
 are not represented as real-visitor field data.
 
 **Open release gates:** actual Live PayPal transactions (credentials and Sandbox
-capture/refund are verified); human-inbox confirmation and full-agreement delivery; full OAuth
+capture/refund are verified); human-inbox confirmation and legal delivery sufficiency; full OAuth
 consent/callback coverage; owner-wallet/payout verification; remaining-route and
 integration-service audit. See [credit safety](ai-credit-safety.md) and
 [responsive QA evidence](responsive-audit.md) for exact limits and coverage.
