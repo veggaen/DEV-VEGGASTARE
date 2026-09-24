@@ -4,8 +4,32 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Product reads and honest payment availability: **DONE for this scoped
+engineering slice**. Current app authority is **`6654f24` /
+`dpl_HmPFfAVgHNXUxj6s2TSf6rARTHhy`** on www.veggat.com. Internal read helpers no
+longer register as Server Actions; detail reads are minimal, permission-checked,
+non-cacheable, and distinguish retryable outages from absent products. Direct
+product visits avoid four catalog-only requests while preserving search on
+return. Payment capability reporting separates reviewer PayPal from paused
+general-marketplace checkout; it no longer advertises unreleased crypto.
+Strict builds, touched lint and **27/27 units**, plus **7/7 local, 7/7 Preview,
+7/7 live** scoped browser checks pass. Real Chrome verifies local product/search
+navigation, actual scrolling and gallery controls at phone width, and live owner
+status at 390 and 1280 without changing switches. Composition guidance kept
+request policy in the existing provider; UI guidance informed reflow and honest
+status presentation. See [evidence, failed attempts and rollback](product-read-acceptance-2026-09.md).
+
+**Still PARTIAL:** owner Live purchase/refund, human-inbox delivery/legal
+sufficiency, remaining OAuth/wallet/backend checks, verified Web3 checkout,
+general-listing checkout, historical-price explanation, full-route interaction
+and native 125% zoom. No whole-app or field performance approval is implied.
+Next slice: catalog/purchase availability and remaining presentation defects;
+the inactive legacy checkout must remain fail-closed.
+
+### Previous marketplace continuation slice
+
 Marketplace continuation routes and product loading: **DONE for the scoped
-engineering slice**. Current app authority is **`b690441` /
+engineering slice**. Its app authority was **`b690441` /
 `dpl_EiugCUHSc2R8ffFm6Gto9qMtRs2e`** on www.veggat.com. Daily Deals and Member
 Discount now have bounded, accessible guidance and real product links instead
 of blank dead ends. Promotions/memberships are explicitly planned, not active;
