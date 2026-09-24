@@ -4,9 +4,34 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Marketplace continuation routes and product loading: **DONE for the scoped
+engineering slice**. Current app authority is **`b690441` /
+`dpl_EiugCUHSc2R8ffFm6Gto9qMtRs2e`** on www.veggat.com. Daily Deals and Member
+Discount now have bounded, accessible guidance and real product links instead
+of blank dead ends. Promotions/memberships are explicitly planned, not active;
+no new promotion engine or payment method is implied. The inventory alias
+redirects server-side while Trading remains protected. Catalog loading is now
+isolated in a URL-neutral route group so product detail cannot inherit it.
+Strict builds, touched lint, **33 focused units**, and final **5/5 local,
+5/5 Preview, 5/5 live**, each with a **1/1 dark replay**, pass. The first Preview
+was 4/5: its loading flash was fixed before promotion, not waived by a warm retry.
+Web Interface Guidelines informed bounded reflow, focus, native disclosures and
+44px targets. Real Chrome verifies local catalog → product loading → product,
+live offer navigation/FAQ/credit product and actual wheel scrolling to the footer.
+See [route acceptance, failed attempts and rollback](marketplace-routes-acceptance-2026-09.md).
+
+**Still PARTIAL:** owner Live purchase/refund, human-inbox delivery/legal
+sufficiency, remaining OAuth/wallet/backend checks, historical-price explanation,
+verified Web3 checkout, full-route interaction and native 125% zoom. This is not
+whole-app approval or field Core Web Vitals evidence. Next audit: remaining
+product-read/loading and payment-availability paths without enabling unsafe
+legacy checkout.
+
+### Previous consent and scroll slice
+
 Consent controls and scrolling: **DONE for the scoped engineering slice**.
-Current app authority is **`c3977b7` / `dpl_icFDX1ttc5932VRK9HZtc2Kaiuyw`**
-on www.veggat.com. Dismissal immediately removes the banner hit area; bounded
+Its release was **`c3977b7` / `dpl_icFDX1ttc5932VRK9HZtc2Kaiuyw`**,
+retained in the current app above. Dismissal immediately removes the banner hit area; bounded
 content and persistent actions fit 360–2560px and short landscape. Anonymous
 users can reopen preferences in the common menu. Analytics/Speed Insights are
 opt-in and retained callbacks reject events after revocation; receipt IDs are
@@ -19,7 +44,7 @@ See [consent evidence, boundaries and rollback](consent-scroll-acceptance-2026-0
 **Still PARTIAL:** owner Live purchase/refund, human-inbox delivery/legal
 sufficiency, remaining OAuth/wallet/backend checks, historical-price explanation,
 full-route interaction and native 125% zoom. Daily Deals and Member Discount
-remain unpolished placeholder routes, next in the route audit. This is not
+have their subsequent scoped acceptance above. This is not
 whole-app approval or field Core Web Vitals evidence.
 
 ### Previous AI conversation navigation slice
