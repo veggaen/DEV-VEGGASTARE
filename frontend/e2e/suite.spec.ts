@@ -2,6 +2,94 @@ import { test, expect } from "@playwright/test";
 import { SALES_TERMS_TEXT } from '../lib/legal/sales-terms';
 import { SALES_TERMS_DOWNLOAD, SALES_TERMS_VERSION } from '../lib/legal/sales-terms-version';
 import { createHash } from 'node:crypto';
+import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders';
+
+test('S8 sales dashboard distinguishes failure and empty, filters once, and fits every viewport', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_SALES !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Read-only seller presentation fixtures in retained demo session');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let mode: 'failure' | 'malformed' | 'ready' = 'failure', reads = 0, holdShipped = false;
+  let releaseShipped = () => {};
+  const shippedGate = new Promise<void>(resolve => { releaseShipped = resolve; });
+  const sample = { id: 'qa-sales-00000001', createdAt: '2026-09-24T00:00:00Z', currency: 'NOK', status: 'COMPLETED', fulfilmentStatus: 'UNFULFILLED',
+    sellerTotal: 39, itemCount: 1, sharedOrder: false, customer: { name: 'Synthetic QA customer', email: `${'long'.repeat(30)}@example.invalid` }, shipping: null, tracking: null,
+    items: [{ id: 'qa-item', productId: 'qa-product', title: 'Synthetic digital file with a long title '.repeat(8), quantity: 1, priceAtTime: 39, productType: 'DIGITAL' }],
+    payment: { method: 'PAYPAL', status: 'COMPLETED', state: 'REFUNDED', environment: 'SANDBOX', receiver: `qa-${'seller'.repeat(25)}@example.invalid`, sender: null, reference: 'SYNTHETIC-NOT-A-REAL-CAPTURE', chainFamily: null, chainId: null, tokenSymbol: null, nativeAmount: null } };
+  try {
+    await page.route('**/api/seller/orders?*', async route => {
+      expect(route.request().method()).toBe('GET'); reads++;
+      if (mode === 'failure') return route.fulfill({ status: 503, json: { error: 'QA temporary failure' } });
+      if (mode === 'malformed') return route.fulfill({ json: { orders: [] } });
+      const params = new URL(route.request().url()).searchParams;
+      const selected = params.get('fulfilmentStatus'), currentPage = Number(params.get('page'));
+      if (selected === 'SHIPPED' && holdShipped) await shippedGate;
+      return route.fulfill({ json: { readOnly: false, counts: { ...emptySaleCounts(), ALL: 21, UNFULFILLED: 21 },
+        orders: selected === 'ALL' || selected === 'UNFULFILLED' ? [{ ...sample, id: currentPage === 2 ? 'qa-sales-00000002' : sample.id }] : [],
+        pagination: { page: currentPage, limit: 20, total: selected === 'ALL' || selected === 'UNFULFILLED' ? 21 : 0, totalPages: selected === 'ALL' || selected === 'UNFULFILLED' ? 2 : 0 } } });
+    });
+    await page.goto('/my-sales', { waitUntil: 'domcontentloaded' });
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'My sales', exact: true })).toBeVisible();
+    await expect(page.getByRole('main').getByRole('alert')).toContainText('Sales unavailable');
+    await expect(page.getByRole('heading', { name: 'No sales yet', exact: true })).toHaveCount(0); expect(reads).toBe(1);
+    mode = 'malformed'; await page.getByRole('button', { name: 'Try again', exact: true }).click();
+    await expect(page.getByRole('main').getByRole('alert')).toContainText('response was incomplete'); expect(reads).toBe(2);
+    mode = 'ready'; await page.getByRole('button', { name: 'Try again', exact: true }).click();
+    const first = page.getByRole('button', { name: 'Order 00000001 details', exact: true });
+    await expect(first).toBeVisible(); expect(reads).toBe(3);
+    await first.focus(); await page.keyboard.press('Enter'); await expect(first).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByText('Refunded', { exact: true })).toBeVisible(); expect(reads).toBe(3);
+    await expect(page).toHaveURL(/order=qa-sales-00000001/);
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1080 }]) {
+      await page.setViewportSize(size); await page.getByRole('heading', { name: 'Payment details', exact: true }).scrollIntoViewIfNeeded();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await page.locator('[data-site-scroll]').evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+      await expect(page.getByText('SYNTHETIC-NOT-A-REAL-CAPTURE', { exact: true })).toBeVisible();
+      if ([390, 1280, 2560].includes(size.width)) await page.screenshot({ path: testInfo.outputPath(`sales-detail-${size.width}.png`) });
+      await page.getByRole('contentinfo').scrollIntoViewIfNeeded(); await expect(page.getByRole('contentinfo')).toBeInViewport();
+      await page.getByRole('heading', { name: 'My sales', exact: true }).scrollIntoViewIfNeeded();
+      if ([390, 1280].includes(size.width)) await page.screenshot({ path: testInfo.outputPath(`sales-top-${size.width}.png`) });
+    }
+    await page.getByRole('button', { name: 'Next page', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Order 00000002 details', exact: true })).toBeVisible(); expect(reads).toBe(4);
+    await page.getByRole('button', { name: 'Shipped 0', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'No matching orders', exact: true })).toBeVisible(); expect(reads).toBe(5);
+    await expect(page).toHaveURL(/status=SHIPPED$/);
+    await page.goBack({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('button', { name: 'Order 00000002 details', exact: true })).toBeVisible(); expect(reads).toBe(6);
+    mode = 'failure'; await page.getByRole('button', { name: 'Refresh sales', exact: true }).click();
+    await expect(page.getByRole('main').getByRole('alert')).toContainText('Previously loaded orders remain');
+    await expect(page.getByRole('button', { name: 'Order 00000002 details', exact: true })).toBeVisible();
+    mode = 'ready'; holdShipped = true;
+    await page.getByRole('button', { name: 'Shipped 0', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Sales orders' })).toHaveAttribute('aria-busy', 'true');
+    await expect(page.getByRole('heading', { name: 'No matching orders', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'All orders 21', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Order 00000001 details', exact: true })).toBeVisible();
+    releaseShipped(); await expect(page.getByRole('button', { name: 'All orders 21', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page).toHaveURL(/\/my-sales$/);
+    expect(errors).toEqual([]);
+  } finally { releaseShipped(); await context.close(); }
+});
+
+test('S8 sales API rejects anonymous access and keeps actual demo data private', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_SALES !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Read-only real API and retained demo session');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+  const anon = await browser.newContext({ baseURL });
+  try {
+    expect((await anon.request.get('/api/seller/orders')).status()).toBe(401);
+    const actual = await context.request.get('/api/seller/orders'); expect(actual.status()).toBe(200); expect(actual.headers()['cache-control']).toContain('no-store');
+    expect(SellerOrderList.parse(await actual.json())).toMatchObject({ readOnly: true, orders: [], counts: { ALL: 0 } });
+    expect((await context.request.get('/api/seller/orders?page=1&page=2')).status()).toBe(400);
+    const page = await context.newPage(); await page.goto('/my-sales', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('complementary', { name: 'Demo sales' })).toContainText('real buyers’ sales and payment details are private');
+    await expect(page.getByRole('heading', { name: 'No sales yet', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'Review purchase requests', exact: true }).click();
+    await expect(page).toHaveURL(/\/my-sales\/requests$/);
+  } finally { await context.close(); await anon.close(); }
+});
 
 test('S4 full terms are readable without JavaScript, navigable and downloadable at every viewport', async ({ browser, baseURL }, testInfo) => {
   test.skip(process.env.E2E_TERMS !== '1', 'Focused terms release acceptance');
@@ -846,15 +934,18 @@ test('S7 seller and warehouse prices use selected fiat and crypto without changi
       items: [{ id: `${id}-item`, quantity: 1, priceAtTime: amount, title: 'Display-only item', product: { id: 'qa-product', title: 'Display-only item', image: [], productType: 'DIGITAL', companyId: 'qa-company' } }],
     }));
     // Fulfill GETs only. These fixtures exercise presentation, not API authorization or fulfillment.
-    for (const pattern of ['**/api/seller/orders?*', '**/api/companies/qa-company/orders?*']) {
-      await page.route(pattern, route => route.request().method() !== 'GET' ? route.abort() : route.fulfill({ json: { orders, pagination: { page: 1, totalPages: 1, total: 2 } } }));
-    }
+    await page.route('**/api/companies/qa-company/orders?*', route => route.request().method() !== 'GET' ? route.abort() : route.fulfill({ json: { orders, pagination: { page: 1, totalPages: 1, total: 2 } } }));
+    await page.route('**/api/seller/orders?*', route => route.request().method() !== 'GET' ? route.abort() : route.fulfill({ json: {
+      readOnly: false, counts: { ...emptySaleCounts(), ALL: 2, UNFULFILLED: 2 }, pagination: { page: 1, limit: 20, totalPages: 1, total: 2 },
+      orders: orders.map(order => ({ ...order, sellerTotal: order.totalAmount, sharedOrder: false, itemCount: 1, tracking: null,
+        items: order.items.map(item => ({ ...item, productId: item.product.id, productType: item.product.productType })) })),
+    } }));
     for (const path of ['/my-sales', '/nexus/company/qa-company/warehouse/qa-warehouse/orders']) {
       await page.goto(path, { waitUntil: 'domcontentloaded' });
-      const firstOrder = page.getByRole('button', { name: /#00000001/ });
+      const firstOrder = page.getByRole('button', { name: path === '/my-sales' ? 'Order 00000001 details' : /#00000001/ });
       await expect(firstOrder).toContainText(/USD\s*3\.90\s*\(0\.00195 ETH\)/);
-      await expect(page.getByRole('button', { name: /#00000002/ })).toContainText(/USD\s*2\.20\s*\(0\.0011 ETH\)/);
-      if (path === '/my-sales') await expect(page.getByText('Omsetning (viste)', { exact: true }).locator('..').locator('..')).toContainText(/USD\s*6\.10\s*\(0\.00305 ETH\)/);
+      await expect(page.getByRole('button', { name: path === '/my-sales' ? 'Order 00000002 details' : /#00000002/ })).toContainText(/USD\s*2\.20\s*\(0\.0011 ETH\)/);
+      if (path === '/my-sales') await expect(page.getByText('Displayed items value', { exact: true }).locator('..')).toContainText(/USD\s*6\.10\s*\(0\.00305 ETH\)/);
       await firstOrder.click();
       const prices = page.locator('main [data-price-display]');
       expect(await prices.count()).toBeGreaterThanOrEqual(3);

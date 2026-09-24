@@ -1,213 +1,93 @@
-/**
- * @fileOverview Solo seller orders API — shows orders containing products owned by the seller.
- * @stability experimental
- *
- * GET /api/seller/orders
- * Returns orders that contain items from products the current user owns
- * (either via userId or via a company they own). This bridges the solo-seller gap
- * where sellers without a company dashboard can still see their incoming orders.
- */
-
+/** @fileOverview Private seller orders, scoped line items and grouped filter counts. @stability experimental */
 import { dbPrisma } from '@/lib/db';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
-import { z } from 'zod';
 import { resolveVisibleEmail } from '@/lib/email-visibility';
+import { isDemoUserId } from '@/lib/demo-policy';
+import { SellerOrdersQuery, emptySaleCounts, safeShippingLink } from '@/lib/payments/seller-orders';
+import type { Prisma } from '@/generated/prisma/client';
 
-const isDev = process.env.NODE_ENV !== 'production';
+export const dynamic = 'force-dynamic';
+const headers = { 'Cache-Control': 'private, no-store' };
 
-function toIsoString(value: unknown): string {
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === 'string' && value) return value;
-  return new Date(String(value)).toISOString();
-}
-
-const QuerySchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  fulfilmentStatus: z.enum(['ALL', 'UNFULFILLED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'CANCELLED']).default('ALL'),
-});
-
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+  if (!session?.user?.id) return NextResponse.json({ error: 'Sign in to view your sales.' }, { status: 401, headers });
   const viewerId = session.user.id;
-  const viewerRole = session.user.role as string | undefined;
-
-  // Rate limiting
-  const identifier = getClientIdentifier(request, viewerId);
-  const rateLimitResult = await checkRateLimit(identifier, 'read');
-  if (!rateLimitResult.success) {
-    return rateLimitedResponse(rateLimitResult);
+  const viewerRole = session.user.role;
+  const limitResult = await checkRateLimit(getClientIdentifier(request, viewerId), 'read');
+  if (!limitResult.success) return rateLimitedResponse(limitResult);
+  const params = new URL(request.url).searchParams;
+  const parsed = SellerOrdersQuery.safeParse(Object.fromEntries(params));
+  if (!parsed.success || new Set(params.keys()).size !== [...params.keys()].length) {
+    return NextResponse.json({ error: 'Invalid order filters.' }, { status: 400, headers });
   }
-
-  // Parse query params
-  const { searchParams } = new URL(request.url);
-  const queryParsed = QuerySchema.safeParse(Object.fromEntries(searchParams.entries()));
-  if (!queryParsed.success) {
-    return NextResponse.json(
-      { error: 'Invalid query params', ...(isDev ? { issues: queryParsed.error.issues } : {}) },
-      { status: 400 },
-    );
-  }
-
-  const { page, limit, fulfilmentStatus } = queryParsed.data;
-
+  const { page, limit, fulfilmentStatus } = parsed.data;
+  if (isDemoUserId(viewerId) || session.user.isDemo) return NextResponse.json({
+    orders: [], counts: emptySaleCounts(), readOnly: true,
+    pagination: { page, limit, total: 0, totalPages: 0 },
+  }, { headers });
   try {
-    // Find all products owned by this user (directly or via their companies)
-    const userCompanies = await dbPrisma.employee.findMany({
-      where: { userId: viewerId, role: 'OWNER' },
-      select: { companyId: true },
-    });
-    const companyIds = userCompanies.map((c: { companyId: string }) => c.companyId);
-
-    // Products where userId matches OR companyId is one the user owns
-    const productFilter = {
-      OR: [
-        { userId: viewerId },
-        ...(companyIds.length > 0 ? [{ companyId: { in: companyIds } }] : []),
-      ],
-    };
-
-    const sellerProductIds = await dbPrisma.product.findMany({
-      where: productFilter,
-      select: { id: true },
-    });
-    const productIdSet = sellerProductIds.map(p => p.id);
-
-    if (productIdSet.length === 0) {
-      return NextResponse.json({
-        orders: [],
-        pagination: { page, limit, total: 0, totalPages: 0 },
-      });
-    }
-
-    // Find orders containing items from seller's products
-    const orderItemFilter: Record<string, unknown> = {
-      some: { productId: { in: productIdSet } },
-    };
-    const fulfilmentFilter = fulfilmentStatus !== 'ALL'
-      ? { fulfilmentStatus }
-      : {};
-
-    const [orders, total] = await Promise.all([
+    // Preserve existing permission: direct seller or company OWNER. Admin is not an override.
+    const companies = await dbPrisma.employee.findMany({ where: { userId: viewerId, role: 'OWNER' }, select: { companyId: true } });
+    const product: Prisma.ProductWhereInput = { OR: [
+      { userId: viewerId },
+      ...(companies.length ? [{ companyId: { not: null, in: companies.map(row => row.companyId) } }] : []),
+    ] };
+    const item: Prisma.OrderItemWhereInput = { Product: product };
+    const scope: Prisma.OrderWhereInput = { OrderItem: { some: item } };
+    const [orders, groups] = await Promise.all([
       dbPrisma.order.findMany({
-        where: {
-          OrderItem: orderItemFilter,
-          ...fulfilmentFilter,
-        },
-        include: {
-          OrderItem: {
-            where: { productId: { in: productIdSet } },
-            include: {
-              Product: {
-                select: { id: true, title: true, image: true, productType: true, companyId: true },
-              },
-            },
-          },
-          Payment: {
-            select: {
-              method: true,
-              status: true,
-              receiverAddress: true,
-              senderAddress: true,
-              chainFamily: true,
-              chainId: true,
-              tokenSymbol: true,
-              nativeAmount: true,
-              transactionId: true,
-            },
-          },
+        where: { ...scope, ...(fulfilmentStatus === 'ALL' ? {} : { fulfilmentStatus }) },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * limit, take: limit,
+        select: {
+          id: true, createdAt: true, currency: true, status: true, fulfilmentStatus: true,
+          shippingName: true, shippingAddress: true, shippingCity: true, shippingPostalCode: true, shippingCountry: true,
+          trackingNumber: true, trackingUrl: true, labelUrl: true,
+          _count: { select: { OrderItem: true } },
+          OrderItem: { where: item, take: 50, orderBy: { id: 'asc' }, select: {
+            id: true, productId: true, title: true, quantity: true, priceAtTime: true,
+            Product: { select: { productType: true } },
+          } },
           User: { select: { id: true, name: true, email: true, emailDisplayMode: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      dbPrisma.order.count({
-        where: {
-          OrderItem: orderItemFilter,
-          ...fulfilmentFilter,
+          Payment: { select: { method: true, status: true, receiverAddress: true, senderAddress: true, transactionId: true,
+            chainFamily: true, chainId: true, tokenSymbol: true, nativeAmount: true } },
+          CheckoutAttempt: { select: { environment: true, state: true } },
         },
       }),
+      dbPrisma.order.groupBy({ by: ['fulfilmentStatus'], where: scope, _count: { _all: true } }),
     ]);
-
-    const dto = orders.map(o => ({
-      id: o.id,
-      createdAt: toIsoString(o.createdAt),
-      totalAmount: o.totalAmount,
-      currency: o.currency,
-      status: o.status,
-      fulfilmentStatus: o.fulfilmentStatus,
-      shippedAt: o.shippedAt ? toIsoString(o.shippedAt) : null,
-      deliveredAt: o.deliveredAt ? toIsoString(o.deliveredAt) : null,
-      trackingNumber: o.trackingNumber ?? null,
-      trackingUrl: o.trackingUrl ?? null,
-      labelUrl: o.labelUrl ?? null,
-      shippingServiceName: o.shippingServiceName ?? null,
-      estimatedDelivery: o.estimatedDelivery ? toIsoString(o.estimatedDelivery) : null,
-      shipping: {
-        name: o.shippingName,
-        address: o.shippingAddress,
-        city: o.shippingCity,
-        postalCode: o.shippingPostalCode,
-        country: o.shippingCountry,
-        phone: o.shippingPhone,
-        email: o.shippingEmail,
-        method: o.shippingMethod,
-        cost: o.shippingCost,
-      },
-      customer: {
-        id: o.User.id,
-        name: o.User.name,
-        email: resolveVisibleEmail({
-          targetUserId: o.User.id,
-          targetEmail: o.User.email,
-          targetEmailDisplayMode: o.User.emailDisplayMode,
-          viewerUserId: viewerId,
-          viewerRole: viewerRole,
-        }),
-      },
-      items: o.OrderItem.map(oi => ({
-        id: oi.id,
-        quantity: oi.quantity,
-        priceAtTime: oi.priceAtTime,
-        title: oi.title,
-        product: oi.Product,
-      })),
-      payment: o.Payment
-        ? {
-            method: o.Payment.method,
-            status: o.Payment.status,
-            receiverAddress: o.Payment.receiverAddress ?? null,
-            senderAddress: o.Payment.senderAddress ?? null,
-            chainFamily: o.Payment.chainFamily ?? null,
-            chainId: o.Payment.chainId ?? null,
-            tokenSymbol: o.Payment.tokenSymbol ?? null,
-            nativeAmount: o.Payment.nativeAmount ?? null,
-            transactionId: o.Payment.transactionId ?? null,
-          }
-        : null,
-    }));
-
-    return NextResponse.json({
-      orders: dto,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.error('[api/seller/orders] Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch seller orders', ...(isDev && error instanceof Error ? { detail: error.message } : {}) },
-      { status: 500 },
-    );
+    const counts = emptySaleCounts();
+    for (const group of groups) { counts[group.fulfilmentStatus] = group._count._all; counts.ALL += group._count._all; }
+    const total = counts[fulfilmentStatus];
+    return NextResponse.json({ readOnly: false, counts, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      orders: orders.map(order => {
+        // Do not disclose another seller's whole-order payment/shipment data.
+        const sharedOrder = order._count.OrderItem !== order.OrderItem.length;
+        const physical = order.OrderItem.some(row => row.Product.productType === 'PHYSICAL');
+        const payment = sharedOrder ? null : order.Payment;
+        return {
+          id: order.id, createdAt: order.createdAt.toISOString(), currency: order.currency,
+          status: order.status, fulfilmentStatus: order.fulfilmentStatus, sharedOrder,
+          sellerTotal: order.OrderItem.reduce((sum, row) => sum + row.quantity * row.priceAtTime, 0),
+          itemCount: order.OrderItem.length,
+          customer: { name: order.User.name, email: resolveVisibleEmail({ targetUserId: order.User.id, targetEmail: order.User.email,
+            targetEmailDisplayMode: order.User.emailDisplayMode, viewerUserId: viewerId, viewerRole }) },
+          shipping: physical ? { name: order.shippingName, address: order.shippingAddress, city: order.shippingCity,
+            postalCode: order.shippingPostalCode, country: order.shippingCountry } : null,
+          tracking: physical && !sharedOrder ? { number: order.trackingNumber, url: safeShippingLink(order.trackingUrl), labelUrl: safeShippingLink(order.labelUrl) } : null,
+          items: order.OrderItem.map(row => ({ id: row.id, productId: row.productId, title: row.title, quantity: row.quantity,
+            priceAtTime: row.priceAtTime, productType: row.Product.productType })),
+          payment: payment ? { method: payment.method, status: payment.status, environment: order.CheckoutAttempt?.environment ?? null,
+            state: order.CheckoutAttempt?.state ?? null, receiver: payment.receiverAddress, sender: payment.senderAddress,
+            reference: payment.transactionId, chainFamily: payment.chainFamily, chainId: payment.chainId,
+            tokenSymbol: payment.tokenSymbol, nativeAmount: payment.nativeAmount } : null,
+        };
+      }),
+    }, { headers });
+  } catch {
+    console.error('[seller/orders] Sales list unavailable');
+    return NextResponse.json({ error: 'Your sales could not be loaded. Please try again.' }, { status: 503, headers });
   }
 }
