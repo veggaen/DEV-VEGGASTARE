@@ -5,13 +5,14 @@
  * POST /api/returns — Create a new return request (buyer)
  * GET  /api/returns — List buyer's own return requests
  *
- * Norwegian Angrerettloven compliance: buyers have 14-day unconditional withdrawal right
- * from delivery date for physical goods, and from purchase date for digital goods.
+ * Accepts requests for review; timing alone does not decide legal eligibility.
+ * Download/use does not remove defect claims or payment-provider dispute rights.
  */
 
 import { dbPrisma } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { allowAuthAttempt } from '@/lib/auth-rate-limit';
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 import { z } from 'zod';
 
@@ -32,9 +33,15 @@ const CreateReturnSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  if (request.headers.get('origin') !== new URL(request.url).origin) {
+    return NextResponse.json({ error: 'Use return requests from this site' }, { status: 403 });
+  }
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!await allowAuthAttempt('return-request', session.user.id, request)) {
+    return NextResponse.json({ error: 'Too many requests. Please try again shortly.' }, { status: 429 });
   }
 
   // Rate limiting
@@ -113,7 +120,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check 14-day window (Angrerettloven)
+    // Display a timing hint only. Never auto-reject a defect request based on
+    // elapsed days, a download counter, or an unrecorded withdrawal waiver.
     const referenceDate = order.deliveredAt ?? order.createdAt;
     const daysSinceRef = Math.floor(
       (Date.now() - new Date(referenceDate).getTime()) / (1000 * 60 * 60 * 24)
@@ -138,10 +146,10 @@ export async function POST(request: NextRequest) {
       withinWithdrawalPeriod: daysSinceRef <= 14,
       daysSinceDelivery: daysSinceRef,
     }, { status: 201 });
-  } catch (error) {
-    console.error('[api/returns] Error creating return request:', error);
+  } catch {
+    console.error('[api/returns] Return request unavailable');
     return NextResponse.json(
-      { error: 'Failed to create return request', ...(isDev && error instanceof Error ? { detail: error.message } : {}) },
+      { error: 'Failed to create return request' },
       { status: 500 },
     );
   }

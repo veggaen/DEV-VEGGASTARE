@@ -44,8 +44,39 @@ type checking or editing the developer's accumulated tsconfig.
 
 The existing AI refund-layout fixture could not run: its retained demo account
 has no populated conversation. This prerequisite failure is not counted as a pass.
-Preview redeployment, real refund redelivery, credit revocation and paid-download
-revocation are pending. Production `bfe4fd3` remains unchanged by this fix.
+The correction is deployed as `3a4394c` / `dpl_HAXDwXbhUriwo5vgvd4RzwTH9Riv`
+at the stable isolated Preview alias. Production `bfe4fd3` remains unchanged.
+
+## Verified refund reconciliation
+
+- Real refund redelivery passed signature verification and returned HTTP 200.
+  PayPal's dashboard now shows **Success**, replacing the original Failure.
+- Exactly one -122 `PAYMENT_REVERSAL` entry accompanies the original +122 grant;
+  the isolated buyer's available balance is zero. No manual adjustments were used.
+- The authenticated receipt shows “Your order was refunded”, zero test credits
+  and no download section, without page overflow at 390 and 1280 pixels.
+- Both formerly working signed download links now return 403 / revoked, even
+  with the paid buyer's authenticated session. Previously downloaded copies
+  cannot be recalled from the buyer's device.
+- A late capture replay was DELIVERED with HTTP 200 at 02:58:04 local time.
+  It did not revive the refunded order, regrant credits or restore downloads.
+- A further refund replay was requested and the ledger remains unchanged;
+  its individual delivery history is checked separately from the request result.
+- An actual funded-model request at zero balance returns 402
+  `AI_CREDITS_REQUIRED` with a buy-credits destination, not a provider call.
+
+## Return review hardening
+
+The older return-review endpoint could mark a request REFUNDED without sending
+or verifying money, and permitted any one seller to process an entire order.
+The follow-up denies manual REFUND, requires ownership/management of every line,
+uses same-origin and durable throttling guards, and compares prior review state
+before changes. Review approval no longer mutates stock or payment amounts.
+13 focused tests pass, including mixed-seller privacy, admin refund bypass,
+stale decisions and defect requests after 14 days. Strict local build and touched
+lint pass; the amended terms render cleanly at 390 and 1280. Legal copy distinguishes
+files from services and removes the discontinued ODR link. Checkout consent and
+durable confirmation are still a separate unfinished compliance slice.
 
 ## Provider references
 

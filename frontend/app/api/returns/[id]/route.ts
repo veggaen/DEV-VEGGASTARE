@@ -4,12 +4,14 @@
  *
  * PATCH /api/returns/[id] — Process a return request (approve/reject/refund)
  *
- * Accessible by the product seller (solo via userId or company employee with CAN_PROCESS_REFUNDS).
+ * Review only. Payment-provider reconciliation, never this endpoint, confirms money returned.
  */
 
 import { dbPrisma } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { allowAuthAttempt } from '@/lib/auth-rate-limit';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -25,15 +27,40 @@ type RouteContext = { params: Promise<{ id: string }> };
 const ProcessReturnSchema = z.object({
   action: z.enum(['APPROVE', 'REJECT', 'REFUND', 'CANCEL']),
   sellerNote: z.string().trim().max(2000).optional(),
-  refundAmount: z.coerce.number().nonnegative().optional(),
-});
+}).strict();
+
+type ReturnItem = { Product: { userId: string | null; companyId: string | null } };
+
+async function canReviewWholeOrder(userId: string, role: string | undefined, items: ReturnItem[]) {
+  // A return currently covers the entire order. One seller must not see or
+  // decide another seller's lines. Empty orders fail closed, including for admins.
+  if (!items.length) return false;
+  if (role === 'ADMIN') return true;
+  const companyIds = [...new Set(items.filter(item => item.Product.userId !== userId)
+    .map(item => item.Product.companyId).filter((id): id is string => !!id))];
+  const employees = companyIds.length ? await dbPrisma.employee.findMany({
+    where: { userId, companyId: { in: companyIds }, role: { in: ['OWNER', 'MANAGER'] } },
+    select: { companyId: true },
+  }) : [];
+  const managedCompanies = new Set(employees.map(employee => employee.companyId));
+  return items.every(({ Product: product }) => product.userId === userId ||
+    (product.companyId !== null && managedCompanies.has(product.companyId)));
+}
+
+class ReturnReviewConflict extends Error {}
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
+  if (request.headers.get('origin') !== new URL(request.url).origin) {
+    return NextResponse.json({ error: 'Use return requests from this site' }, { status: 403 });
+  }
   const session = await auth();
   const sessionUserId = session?.user?.id;
   const sessionUserRole = session?.user?.role;
   if (!sessionUserId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!await allowAuthAttempt('return-review', sessionUserId, request)) {
+    return NextResponse.json({ error: 'Too many requests. Please try again shortly.' }, { status: 429 });
   }
 
   const { id } = await context.params;
@@ -56,7 +83,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     );
   }
 
-  const { action, sellerNote, refundAmount } = parsed.data;
+  const { action, sellerNote } = parsed.data;
 
   try {
     // Fetch the return request with order and product info
@@ -79,46 +106,28 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Return request not found' }, { status: 404 });
     }
 
-    // Authorization: seller must own at least one product in the order
-    // Check direct ownership via userId or company membership
-    const productOwnerIds = new Set(returnReq.Order.OrderItem.map((oi) => oi.Product.userId));
-    const productCompanyIds = returnReq.Order.OrderItem
-      .map((oi) => oi.Product.companyId)
-      .filter((id: string | null): id is string => id !== null);
-
-    let isAuthorized = productOwnerIds.has(sessionUserId);
-
-    if (!isAuthorized && productCompanyIds.length > 0) {
-      // Check if the user is an employee with management rights in any of the product companies
-      const employeeRecord = await dbPrisma.employee.findFirst({
-        where: {
-          userId: sessionUserId,
-          companyId: { in: productCompanyIds },
-          role: { in: ['OWNER', 'MANAGER'] },
-        },
-      });
-      isAuthorized = !!employeeRecord;
-    }
-
-    // Platform admins can also process returns
-    if (!isAuthorized && sessionUserRole === 'ADMIN') {
-      isAuthorized = true;
-    }
-
-    if (!isAuthorized) {
+    if (!await canReviewWholeOrder(sessionUserId, sessionUserRole, returnReq.Order.OrderItem)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (action === 'REFUND') {
+      // An admin click, amount, approval or download count is not proof that
+      // money moved. Verified PayPal events revoke entitlements separately.
+      return NextResponse.json({
+        error: 'Refunds must be completed through the payment provider. Approval here does not send money.',
+        code: 'REFUND_REQUIRES_VERIFIED_PAYMENT',
+      }, { status: 409 });
     }
 
     // Validate state transition
     const validTransitions: Record<string, string[]> = {
       PENDING: ['APPROVED', 'REJECTED', 'CANCELLED'],
-      APPROVED: ['REFUNDED', 'CANCELLED'],
+      APPROVED: ['CANCELLED'],
     };
 
     const statusMap: Record<string, string> = {
       APPROVE: 'APPROVED',
       REJECT: 'REJECTED',
-      REFUND: 'REFUNDED',
       CANCEL: 'CANCELLED',
     };
 
@@ -133,38 +142,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     // Process the return
     const updated = await dbPrisma.$transaction(async (tx) => {
-      const updatedReturn = await tx.returnRequest.update({
-        where: { id },
+      const changed = await tx.returnRequest.updateMany({
+        where: { id, status: returnReq.status, updatedAt: returnReq.updatedAt },
         data: {
-          status: newStatus as 'APPROVED' | 'REJECTED' | 'REFUNDED' | 'CANCELLED' | 'COMPLETED',
+          status: newStatus as 'APPROVED' | 'REJECTED' | 'CANCELLED',
           sellerNote: sellerNote?.trim() || returnReq.sellerNote,
-          refundAmount: refundAmount ?? returnReq.refundAmount,
           processedBy: sessionUserId,
           processedAt: new Date(),
         },
       });
 
-      // If refunded, update the order's fulfilment status
-      if (newStatus === 'REFUNDED') {
-        await tx.order.update({
-          where: { id: returnReq.orderId },
-          data: { fulfilmentStatus: 'RETURNED' },
-        });
-
-        // Restore stock for physical products
-        for (const item of returnReq.Order.OrderItem) {
-          try {
-            await tx.product.update({
-              where: { id: item.productId },
-              data: { stock: { increment: item.quantity } },
-            });
-          } catch {
-            // Product may have been deleted — non-fatal
-          }
-        }
-      }
-
-      return updatedReturn;
+      if (changed.count !== 1) throw new ReturnReviewConflict();
+      return tx.returnRequest.findUniqueOrThrow({ where: { id } });
     });
 
     return NextResponse.json({
@@ -177,9 +166,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       updatedAt: toIsoString(updated.updatedAt),
     });
   } catch (error) {
-    console.error('[api/returns/[id]] Error processing return:', error);
+    if (error instanceof ReturnReviewConflict) {
+      return NextResponse.json({ error: 'This request changed. Refresh before reviewing it again.' }, { status: 409 });
+    }
+    console.error('[api/returns/[id]] Return review unavailable');
     return NextResponse.json(
-      { error: 'Failed to process return request', ...(isDev && error instanceof Error ? { detail: error.message } : {}) },
+      { error: 'Failed to process return request' },
       { status: 500 },
     );
   }
@@ -193,6 +185,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   if (!sessionUserId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const limit = await checkRateLimit(getClientIdentifier(request, sessionUserId), 'read');
+  if (!limit.success) return rateLimitedResponse(limit);
 
   const { id } = await context.params;
 
@@ -227,12 +221,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Return request not found' }, { status: 404 });
     }
 
-    // Authorization: buyer or seller or admin
+    // Do not disclose the full mixed-seller order to one of its sellers.
     const isBuyer = returnReq.userId === sessionUserId;
-    const isSeller = returnReq.Order.OrderItem.some((oi) => oi.Product.userId === sessionUserId);
-    const isAdmin = sessionUserRole === 'ADMIN';
-
-    if (!isBuyer && !isSeller && !isAdmin) {
+    if (!isBuyer && !await canReviewWholeOrder(sessionUserId, sessionUserRole, returnReq.Order.OrderItem)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -248,8 +239,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       createdAt: toIsoString(returnReq.createdAt),
       order: returnReq.Order,
     });
-  } catch (error) {
-    console.error('[api/returns/[id]] Error:', error);
+  } catch {
+    console.error('[api/returns/[id]] Return details unavailable');
     return NextResponse.json({ error: 'Failed to fetch return request' }, { status: 500 });
   }
 }

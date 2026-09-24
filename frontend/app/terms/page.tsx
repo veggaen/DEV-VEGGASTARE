@@ -20,11 +20,11 @@ export default function TermsPage() {
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
       {/* Clean background - no gradient orbs */}
 
-      <div className="relative mx-auto w-full max-w-4xl px-6 py-16">
+      <div className="relative mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         <motion.div
           initial={reduceMotion ? undefined : { opacity: 0, y: 14 }}
           animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: "easeOut" }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
         >
           {/* Header */}
           <header className="mb-12">
@@ -36,7 +36,7 @@ export default function TermsPage() {
               Salgsvilkår
             </h1>
             <p className="mt-3 text-muted-foreground">
-              Sist oppdatert: {new Date().toLocaleDateString("nb-NO", { day: "numeric", month: "long", year: "numeric" })}
+              Sist oppdatert: 24. september 2026
             </p>
           </header>
 
@@ -66,23 +66,26 @@ export default function TermsPage() {
                 2. Betaling
               </h2>
               <p className="mt-4 text-muted-foreground leading-relaxed">
-                Selger kan kreve betaling for varen fra det tidspunkt den blir sendt fra Selger til Kjøper.
+                Selger, innhold, pris og tilgjengelig betalingsmåte vises før du betaler.
+                Digitale filer og AI-kreditter leveres først etter at betalingen er bekreftet av betalingsleverandøren.
               </p>
               <p className="mt-3 text-muted-foreground leading-relaxed">
-                Vi aksepterer følgende betalingsmetoder:
+                For Veggat Studio-produktene gjelder følgende:
               </p>
               <ul className="mt-3 space-y-2 text-muted-foreground">
                 <li className="flex items-start gap-2">
                   <span className="mt-2 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                  <span><strong className="text-foreground">Vipps</strong> – Betal enkelt med Vipps-appen</span>
+                  <span><strong className="text-foreground">PayPal</strong> – Beløp og betalingsvaluta bekreftes før godkjenning hos PayPal.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="mt-2 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                  <span><strong className="text-foreground">Kryptovaluta</strong> – Vi aksepterer utvalgte kryptovalutaer (ETH, USDC)</span>
+                  <span><strong className="text-foreground">Andre betalingsmåter</strong> – Kan bare brukes når de er aktivert for den aktuelle bestillingen. Et kryptobeløp i prisvisningen er ikke i seg selv et betalingstilbud.</span>
                 </li>
               </ul>
               <p className="mt-4 text-muted-foreground leading-relaxed">
-                All prices are listed in Norwegian kroner (NOK) including value-added tax (VAT) where applicable.
+                Prisene inkluderer merverdiavgift der det gjelder. Valgt visningsvaluta og kryptovaluta kan være veiledende omregninger.
+                Beløpet og valutaen du faktisk godkjenner hos betalingsleverandøren gjelder for betalingen.
+                Sandbox- og demoordre er tydelig merket og bruker ikke ekte penger.
               </p>
             </section>
 
@@ -122,13 +125,21 @@ export default function TermsPage() {
                 Meldingen kan sendes på e-post til <a href={`mailto:${BUSINESS_INFO.email}`} className="text-emerald-500 hover:underline">{BUSINESS_INFO.email}</a>.
               </p>
               <p className="mt-3 text-muted-foreground leading-relaxed">
-                Varen må returneres i vesentlig samme stand og mengde som den ble mottatt. 
-                Kjøper bærer kostnadene for retur av varen.
+                For fysiske varer kan du undersøke varen for å fastslå art, egenskaper og funksjon.
+                Eventuelt fradrag for verdireduksjon og ansvar for returkostnader følger lovens vilkår.
               </p>
               <div className="mt-4 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <p className="text-sm text-amber-200/90">
-                  <strong>Merk:</strong> For digitale produkter og tjenester som er levert/påbegynt med Kjøpers samtykke, 
-                  gjelder ikke angrerett etter at levering har startet.
+                <p className="text-sm leading-relaxed text-foreground">
+                  <strong>Digitale filer:</strong> Nedlasting alene fjerner ikke angreretten.
+                  Unntaket for digitalt innhold krever uttrykkelig forhåndssamtykke til levering,
+                  erkjennelse av at angreretten går tapt, og nødvendig bekreftelse på et varig medium.
+                  Vi avviser ikke et krav bare fordi en fil er åpnet eller lastet ned.
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-foreground">
+                  <strong>AI-tjenester og kreditter:</strong> Reglene for tjenester vurderes separat.
+                  Kjøp eller bruk av kreditter behandles ikke automatisk som et avkall på angrerett.
+                  Kontakt oss med ordrenummer ved ønske om tilbakebetaling av ubrukte kreditter.
+                  Ufravikelige rettigheter og krav ved mangler gjelder uansett.
                 </p>
               </div>
             </section>
@@ -148,9 +159,22 @@ export default function TermsPage() {
                 {BUSINESS_INFO.address}
               </p>
               <p className="mt-3 text-muted-foreground leading-relaxed">
-                Kjøper dekker returkostnader med mindre varen er feil eller mangelfull. 
-                Selger refunderer kjøpesummen inkludert frakt (standardfrakt) innen 14 dager etter at vi har mottatt varen, 
-                eller dokumentasjon på at varen er returnert.
+                Ved gyldig bruk av angreretten tilbakebetaler vi etter lovens frister, normalt innen 14 dager
+                etter at vi har mottatt meldingen. For fysiske varer kan tilbakebetaling holdes tilbake til
+                varen eller dokumentasjon på returen er mottatt, der loven tillater det.
+                Standard leveringskostnad tilbakebetales der dette følger av loven.
+              </p>
+              <p className="mt-3 text-muted-foreground leading-relaxed">
+                En mottatt eller godkjent returforespørsel betyr ikke at penger er tilbakebetalt.
+                Betalingsleverandørens bekreftelse avgjør betalingsstatusen. Tilbakebetaling skjer normalt
+                med samme betalingsmiddel. Bankens behandlingstid kan komme i tillegg.
+              </p>
+              <p className="mt-3 text-muted-foreground leading-relaxed">
+                Ved bekreftet tilbakebetaling eller reversering stopper fremtidig tilgang til de berørte
+                filene og kredittene. En fil som allerede er lagret på enheten din, kan ikke slettes av oss.
+                Hvis tilbakebetalte kreditter er brukt, kan kontoen få en synlig kredittjustering som må
+                avklares før videre betalt AI-bruk. Vi belaster ikke kortet ditt automatisk.
+                Delvise tilbakebetalinger kan medføre midlertidig tilgangsstans mens beløp og rettigheter avklares.
               </p>
             </section>
 
@@ -164,12 +188,16 @@ export default function TermsPage() {
                 eller burde ha blitt oppdaget, gi Selger melding om at Kjøper vil påberope seg mangelen (reklamasjon).
               </p>
               <p className="mt-3 text-muted-foreground leading-relaxed">
-                Reklamasjonsfristen er 2 år fra Kjøper mottok varen. For varer som er ment å vare vesentlig lenger, 
-                er fristen 5 år.
+                For fysiske varer gjelder forbrukerkjøpslovens reklamasjonsregler, normalt 2 år eller
+                5 år for varer som er ment å vare vesentlig lenger. Digitale ytelser følger egne regler
+                i digitalytelsesloven; fristene for fysiske varer brukes ikke som en generell begrensning
+                av krav på digitale filer eller tjenester.
               </p>
               <p className="mt-3 text-muted-foreground leading-relaxed">
                 Ved berettiget reklamasjon har Kjøper rett til å kreve retting, omlevering, prisavslag, 
-                erstatning eller heving i henhold til forbrukerkjøpsloven.
+                erstatning eller heving etter den loven som gjelder for kjøpet.
+                Nedlasting eller bruk fjerner ikke retten til å klage på feil eller mangler.
+                Disse vilkårene begrenser heller ikke gjeldende rettigheter hos PayPal eller kortutsteder.
               </p>
               <p className="mt-3 text-muted-foreground leading-relaxed">
                 Reklamasjon meldes til <a href={`mailto:${BUSINESS_INFO.email}`} className="text-emerald-500 hover:underline">{BUSINESS_INFO.email}</a> med 
@@ -206,18 +234,19 @@ export default function TermsPage() {
                 </a>.
               </p>
               <p className="mt-3 text-muted-foreground leading-relaxed">
-                Europa-Kommisjonens klageportal for netthandel kan også benyttes:{" "}
+                For veiledning om utenrettslig klagebehandling i Europa, se{" "}
                 <a 
-                  href="https://ec.europa.eu/consumers/odr" 
+                  href="https://consumer-redress.ec.europa.eu/index_en"
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-emerald-500 hover:underline"
                 >
-                  ec.europa.eu/consumers/odr
+                  EU-kommisjonens forbrukerportal
                 </a>
               </p>
               <p className="mt-3 text-muted-foreground leading-relaxed">
-                Tvister som ikke løses i minnelighet, avgjøres av norske domstoler med Oslo tingrett som verneting.
+                Tvister som ikke løses i minnelighet, behandles etter gjeldende regler om lovvalg og verneting.
+                Dine ufravikelige rettigheter som forbruker går foran disse vilkårene.
               </p>
             </section>
 
@@ -242,6 +271,24 @@ export default function TermsPage() {
               <p className="mt-3 text-muted-foreground leading-relaxed">
                 Lisensen opphører når du sletter innholdet, med unntak av kopier som allerede er delt 
                 med andre brukere (f.eks. meldinger) eller som vi er rettslig forpliktet til å beholde (f.eks. ordrehistorikk).
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2">
+                9. Forhåndsbetalte AI-kreditter
+              </h2>
+              <p className="mt-4 text-muted-foreground leading-relaxed">
+                Kreditter gir tilgang til avgrensede AI-meldinger i Veggat. De er ikke penger,
+                en investering eller en lovnad om et bestemt antall modell-tokens.
+                Kredittkostnaden for valgt modell vises før sending. Du kan ikke sende en betalt
+                melding uten tilstrekkelig tilgjengelig saldo. Modelltilgjengelighet og bruksgrenser kan variere.
+              </p>
+              <p className="mt-3 text-muted-foreground leading-relaxed">
+                Kredittkjøp er engangskjøp uten abonnement eller automatisk påfyll. Pris og eventuell
+                mengderabatt vises før betalingen. Ved en registrert leverandørfeil frigjøres eller
+                tilbakeføres meldingens reserverte kreditter. AI-svar kan være feil og må vurderes av deg;
+                dette begrenser ikke lovfestede rettigheter ved feil på tjenesten.
               </p>
             </section>
 
