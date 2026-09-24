@@ -4,8 +4,36 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Seller publication and private-file registration: **DONE for this scoped
+engineering slice**. App authority is **`9eac374` /
+`dpl_Epxd7YKi27qXwmqF8AfdwMcAN1Nb`** on www.veggat.com. Publication is atomic;
+file/company/wallet/warehouse ownership is checked; private bytes receive a real
+checksum. Review exposes errors and restores focus, and demo publication remains
+disabled. A real repeated Preview test exposed stale guest upload context after
+login; a controlled regression reproduced it, and refreshing context before
+upload fixes it without relaxing server checks.
+
+Strict builds, touched lint, **77/77 units**, **4/4 real Postgres cases**,
+**2/2 read-only browser checks plus 1/1 dark replay per local/Preview/live** pass.
+Actual private upload/publication, decoded product image and stale-context
+recovery pass separately on local and isolated Preview; temporary listings are
+archived and test sign-in disabled afterward. No live listing or paid transaction
+was created. Real Chrome verifies local review focus, deployed Preview review,
+and actual live phone scrolling to the truthful owner tools. Testing/UI-guidelines
+skills informed recovery, labels, reflow and the evidence boundaries.
+See [exact evidence, failures and rollback](seller-publication-acceptance-2026-09.md).
+
+**Still PARTIAL:** owner Live purchase/refund, human-inbox delivery/legal
+sufficiency, remaining OAuth/wallet/backend checks, verified Web3/general-listing
+checkout, full-route interaction, native 125% zoom and physical-phone keyboard
+acceptance. Runtime audit is 0 critical/high and 25 moderate, not a full clean
+repository audit. Next slice: saved-draft currency consistency and seller-form
+accessibility/contrast; do not enable an unverified checkout path.
+
+### Previous purchase-availability slice
+
 Purchase availability and paused-delivery protection: **DONE for this scoped
-engineering slice**. Current app authority is **`6816380` /
+engineering slice**. Its app authority was **`6816380` /
 `dpl_72qycJnr4Zwp4os4xyFxRmBFJ7Xj`** on www.veggat.com. Catalog/PDP controls now
 match the existing reviewer-only checkout scope; mixed carts identify what
 needs attention. New checkout preparation rejects delivery-paused products
