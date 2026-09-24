@@ -7,6 +7,74 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('S1 demo refusal explains limits and keeps browsing available', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_DEMO_REFUSAL !== '1', 'Browser-only refusal fixtures; no demo identities created');
+  const context = await browser.newContext({ baseURL, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let code = 'demo_daily_limit';
+  let intercepted = 0;
+  await page.route(url => url.pathname === '/api/auth/callback/demo', route => {
+    intercepted++;
+    return route.fulfill({ status: 200,
+      json: { url: `${baseURL}/auth/login?error=CredentialsSignin&code=${code}` } });
+  });
+  try {
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      if (width === 390) {
+        await expect(consent).toBeVisible();
+        await consent.click();
+        await expect(consent).toBeHidden();
+      }
+      const demo = page.getByRole('button', { name: 'Try the demo — no payment', exact: true });
+      for (const [nextCode, message] of [
+        ['demo_daily_limit', '00:00 UTC'], ['demo_retry_later', 'Wait a minute'],
+        ['demo_capacity', 'capacity'], ['private-error-details', 'We couldn’t open the demo'],
+      ]) {
+        code = nextCode;
+        await demo.click();
+        await expect(page.locator('p[role="alert"]')).toContainText(message);
+        await expect(page.locator('p[role="alert"]')).not.toContainText('private-error-details');
+        await expect(demo).toBeEnabled();
+      }
+      const alternatives = page.getByRole('navigation', { name: 'Demo alternatives' });
+      await expect(alternatives.getByRole('link', { name: 'Sign in', exact: true })).toHaveAttribute('href', '/auth/login');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`demo-refusal-${width}.png`) });
+      await alternatives.getByRole('link', { name: 'Browse products', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Marketplace', exact: true })).toBeVisible();
+    }
+    expect(intercepted).toBe(8);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S1 existing local demo cap returns the public reason without authenticating', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_DEMO_EXISTING_CAP !== '1', 'Only after a read-only check confirms the local daily cap already exists');
+  expect(baseURL).toBe('http://localhost:3000');
+  const context = await browser.newContext({ baseURL });
+  const page = await context.newPage();
+  try {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    await expect(consent).toBeVisible();
+    await consent.click();
+    await expect(consent).toBeHidden();
+    const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/auth/callback/demo');
+    await page.getByRole('button', { name: 'Try the demo — no payment', exact: true }).click();
+    const redirect = new URL((await (await response).json()).url);
+    expect(redirect.searchParams.get('code')).toBe('demo_daily_limit');
+    await expect(page.locator('p[role="alert"]')).toContainText('Today’s demo allowance');
+    const sessionResponse = await context.request.get('/api/auth/session');
+    expect(sessionResponse.status()).toBe(200);
+    expect((await sessionResponse.json())?.user).toBeUndefined();
+  } finally { await context.close(); }
+});
+
 test('S8 unavailable storage initialization does not throw across ordinary browsing', async ({ browser, baseURL }) => {
   test.skip(process.env.E2E_ROUTE_INVENTORY !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Controlled storage outage, retained demo');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });

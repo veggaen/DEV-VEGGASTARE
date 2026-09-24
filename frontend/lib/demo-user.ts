@@ -3,12 +3,13 @@ import { randomUUID, createHmac } from "node:crypto";
 import { dbPrisma } from "@/lib/db";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import { DEMO_ID_PREFIX } from "@/lib/demo-policy";
+import { DemoSigninError } from '@/lib/demo-signin-error';
 
 export async function createDemoUser(request: Request) {
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
   if (!secret) return null;
   const identifier = getClientIdentifier(request);
-  if (!(await checkRateLimit(`demo:${identifier}`, "auth")).success) return null;
+  if (!(await checkRateLimit(`demo:${identifier}`, "auth")).success) throw new DemoSigninError('demo_retry_later');
   // Durable bounds across serverless replicas; no raw IP is stored.
   const day = new Date().toISOString().slice(0, 10);
   const fingerprint = createHmac("sha256", secret).update(`${day}:${identifier}`).digest("hex").slice(0, 24);
@@ -19,7 +20,8 @@ export async function createDemoUser(request: Request) {
       tx.user.count({ where: { id: { startsWith: prefix } } }),
       tx.user.count({ where: { id: { startsWith: `${DEMO_ID_PREFIX}${day}_` } } }),
     ]);
-    if (perVisitor >= 5 || global >= 200) return null;
+    if (perVisitor >= 5) throw new DemoSigninError('demo_daily_limit');
+    if (global >= 200) throw new DemoSigninError('demo_capacity');
     return tx.user.create({ data: {
       id: `${prefix}${randomUUID()}`, name: "Demo visitor", role: "USER",
       web3ModeEnabled: false, emailDisplayMode: "HIDE",
