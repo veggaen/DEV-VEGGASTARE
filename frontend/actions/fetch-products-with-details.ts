@@ -1,4 +1,5 @@
-'use server';
+/** @fileOverview Internal bounded catalog read; API validates request parameters. @stability stable */
+import 'server-only';
 
 import { dbPrisma } from '@/lib/db';
 import type { ProductsListItem } from '@/lib/types/products';

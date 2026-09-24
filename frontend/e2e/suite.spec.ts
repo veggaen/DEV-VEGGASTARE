@@ -5,6 +5,73 @@ import { createHash } from 'node:crypto';
 import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders';
 import { SessionRailResponse } from '../lib/ai-chat/session-list';
 
+test('Payment capabilities separate reviewer PayPal from paused legacy and unreleased crypto', async ({ request }) => {
+  test.skip(process.env.E2E_PRODUCT_READ !== '1', 'Read-only release capability check');
+  const response = await request.get('/api/payments');
+  expect(response.status()).toBe(200); expect(response.headers()['cache-control']).toContain('no-store');
+  const body = await response.json(); expect(body.methods).toEqual([]); expect(body.legacyCheckoutPaused).toBe(true);
+  expect(body.reviewerCheckout.environment).toBe(process.env.E2E_PAYMENT_MODE || 'SANDBOX');
+  expect(body.reviewerCheckout.methods.map((method: {type: string}) => method.type)).toEqual(['paypal']);
+  expect(body.reviewerCheckout.products.map((product: {id: string}) => product.id).sort()).toEqual(['cveggatinterviewcredits01', 'cveggatinterviewpack000001']);
+  expect(body.unavailableMethods.map((method: {type: string}) => method.type)).toContain('crypto');
+  const product = await request.get('/api/products/cveggatinterviewpack000001');
+  expect(product.status()).toBe(200); expect(product.headers()['cache-control']).toBe('private, no-store');
+  const data = await product.json(); expect(data).not.toHaveProperty('digitalAssetId'); expect(data).not.toHaveProperty('Company');
+});
+
+test('Admin runtime stays protected from anonymous and demo payment-status readers', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_PRODUCT_READ !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Read-only authorization boundary');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  const anon = await browser.newContext({ baseURL });
+  try {
+    expect((await (await context.request.get('/api/auth/session')).json()).user.isDemo).toBe(true);
+    for (const reader of [context, anon]) {
+      const response = await reader.request.get('/api/admin/runtime-config');
+      // The unfinished-admin gate may reject before the role guard does.
+      expect([401, 403]).toContain(response.status());
+      expect(await response.json()).not.toHaveProperty('runtime');
+    }
+  } finally { await context.close(); await anon.close(); }
+});
+
+test('Product reads avoid unused catalog requests and preserve filters across detail navigation', async ({browser,baseURL},testInfo)=>{
+  test.skip(process.env.E2E_PRODUCT_READ !== '1','Focused product-read and catalog request boundary');
+  test.setTimeout(90_000);
+  for(const width of [390,1280]){
+    const context=await browser.newContext({baseURL,viewport:{width,height:844},reducedMotion:'reduce'});
+    const page=await context.newPage(),facets:string[]=[],errors:string[]=[];
+    const facetPaths=['/api/categories-with-counts','/api/price-range','/api/products/sellers','/api/filter-counts'];
+    page.on('request',r=>{const path=new URL(r.url()).pathname;if(facetPaths.includes(path))facets.push(path);});
+    page.on('pageerror',e=>errors.push(e.message));
+    try{
+      await page.goto('/products/cveggatinterviewpack000001',{waitUntil:'domcontentloaded'});
+      await expect(page.getByRole('heading',{name:'Veggat Interview Pack',level:1,exact:true})).toBeVisible();
+      const consent=page.getByRole('button',{name:'Essential Only',exact:true});
+      await expect(consent).toBeVisible();await consent.click();await expect(consent).toBeHidden();
+      expect(facets,'A direct product read must not start catalog-only metadata requests').toEqual([]);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      const initialFilters=Promise.all(facetPaths.slice(0,3).map(path=>page.waitForResponse(r=>new URL(r.url()).pathname===path&&r.ok())));
+      await page.getByRole('link',{name:'Back to products',exact:true}).click();await initialFilters;
+      await expect(page.getByRole('link',{name:'Interviewer AI Credits',exact:true})).toBeVisible();
+      const search=page.getByRole('searchbox',{name:'Search products',exact:true});
+      const filtered=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/products'&&new URL(r.url()).searchParams.get('searchTerm')==='Interviewer');
+      const counts=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/filter-counts'&&new URL(r.url()).searchParams.get('searchTerm')==='Interviewer');
+      await search.fill('Interviewer');await Promise.all([filtered,counts]);
+      await expect(page.getByRole('link',{name:'Veggat Interview Pack',exact:true})).toHaveCount(0);
+      const before=facets.length;
+      await page.getByRole('link',{name:'Interviewer AI Credits',exact:true}).click();
+      await expect(page.getByRole('heading',{name:'Interviewer AI Credits',level:1,exact:true})).toBeVisible();
+      expect(facets.length).toBe(before);
+      await page.getByRole('link',{name:'Back to products',exact:true}).click();
+      await expect(search).toHaveValue('Interviewer');
+      await expect(page.getByRole('link',{name:'Interviewer AI Credits',exact:true})).toBeVisible();
+      await expect(page.getByRole('link',{name:'Veggat Interview Pack',exact:true})).toHaveCount(0);
+      await page.screenshot({path:testInfo.outputPath(`catalog-preserved-${width}.png`)});
+      expect(errors).toEqual([]);
+    }finally{await context.close();}
+  }
+});
+
 test('S8 marketplace offer routes are honest, responsive and navigable without buying', async ({browser,baseURL},testInfo)=>{
   test.skip(process.env.E2E_OFFERS !== '1','Focused marketplace continuation routes');
   test.setTimeout(120_000);

@@ -7,6 +7,12 @@ import { dbPrisma } from '@/lib/db';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
+function detailResponse(body: unknown, status = 200) {
+  // Some results are owner/employee-only. Never retain them in a browser or
+  // shared CDN cache, including error responses and authorization misses.
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
+}
+
 function toIsoString(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
   if (typeof value === 'string' && value) return value;
@@ -98,7 +104,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const rawParams = await context.params;
   const parsed = paramsSchema.safeParse(rawParams);
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid product id' }, { status: 400 });
+    return detailResponse({ error: 'Invalid product id' }, 400);
   }
 
   const id = parsed.data.id[0];
@@ -107,14 +113,14 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const product = await fetchProductById(id);
 
     if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      return detailResponse({ error: 'Product not found' }, 404);
     }
 
     const visibility = (product as any).visibility ?? 'PUBLIC';
     if (visibility !== 'PUBLIC') {
       const canView = await canViewNonPublicProduct(product);
       if (!canView) {
-        return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+        return detailResponse({ error: 'Product not found' }, 404);
       }
     }
 
@@ -186,15 +192,15 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const parsedDto = ProductDetailsResponseSchema.safeParse(dto);
     if (!parsedDto.success) {
       console.error('[api/products/[...id]] Invalid GET DTO:', parsedDto.error);
-      return NextResponse.json(
+      return detailResponse(
         { error: 'Internal Server Error', ...(isDev ? { issues: parsedDto.error.issues } : {}) },
-        { status: 500 }
+        500
       );
     }
 
-    return NextResponse.json(parsedDto.data);
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return detailResponse(parsedDto.data);
+  } catch {
+    console.error('[api/products/detail] Product read unavailable');
+    return detailResponse({ error: 'Product temporarily unavailable. Please try again.' }, 503);
   }
 }

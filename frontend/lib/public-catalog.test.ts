@@ -1,5 +1,6 @@
 /** @fileOverview Public filter metadata must not disclose hidden or unavailable listings. @stability stable */
 import { beforeEach, expect, it, vi } from 'vitest';
+vi.mock('server-only', () => ({}));
 import { publicCatalogWhere } from './public-catalog';
 const mocks = vi.hoisted(() => ({ group: vi.fn(), products: vi.fn(), aggregate: vi.fn(), users: vi.fn(), companies: vi.fn() }));
 vi.mock('@/lib/db', () => ({ dbPrisma: {

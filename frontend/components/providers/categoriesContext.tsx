@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 
 // Define the Seller interface (with count)
 export interface Seller {
@@ -55,6 +56,9 @@ const CategoriesContext = createContext<CategoriesContextType | undefined>(undef
 
 // Provider component
 export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Keep filter state mounted across product navigation, but only the catalog
+  // needs these requests. Detail/create/offer routes have no filter controls.
+  const catalogActive = usePathname() === '/products';
   // Categories with counts (new)
   const [categoriesWithCounts, setCategoriesWithCounts] = useState<CategoryWithCount[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
@@ -74,6 +78,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
 
   // Fetch initial data
   useEffect(() => {
+    if (!catalogActive) return;
     const controller = new AbortController();
     const fetchData = async () => {
       try {
@@ -118,12 +123,12 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
 
     fetchData();
     return () => controller.abort();
-  }, []);
+  }, [catalogActive]);
 
   // Fetch dynamic counts when filters change
   useEffect(() => {
     // Skip if we haven't loaded initial data yet
-    if (categoriesLoading || sellersLoading) return;
+    if (!catalogActive || categoriesLoading || sellersLoading) return;
     const controller = new AbortController();
 
     const fetchDynamicCounts = async () => {
@@ -176,7 +181,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
     // Debounce to avoid too many requests
     const timeoutId = setTimeout(fetchDynamicCounts, 150);
     return () => { clearTimeout(timeoutId); controller.abort(); };
-  }, [selectedCategories, selectedSellers, minPrice, maxPrice, searchTerm, categoriesLoading, sellersLoading]);
+  }, [catalogActive, selectedCategories, selectedSellers, minPrice, maxPrice, searchTerm, categoriesLoading, sellersLoading]);
 
   // Reset functions
   const resetPriceFilters = useCallback(() => {

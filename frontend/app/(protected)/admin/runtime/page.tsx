@@ -12,6 +12,15 @@ type RuntimeConfig = {
   updatedAt: string | Date;
 };
 
+type CheckoutCapabilities = {
+  legacyCheckoutPaused: boolean;
+  reviewerCheckout: {
+    environment: 'LIVE' | 'SANDBOX';
+    products: { id: string; title: string }[];
+    methods: { displayName: string }[];
+  };
+};
+
 type WebhookEvent = {
   id: string;
   provider: string;
@@ -39,6 +48,7 @@ export default function AdminRuntimePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [availableMethods, setAvailableMethods] = useState<string[]>([]);
+  const [capabilities, setCapabilities] = useState<CheckoutCapabilities | null>(null);
   const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>([]);
 
   const isOwner = session?.user?.role === 'OWNER';
@@ -64,6 +74,8 @@ export default function AdminRuntimePage() {
 
         const methodsResponse = await fetch('/api/payments', { cache: 'no-store' });
         const methodsPayload = await methodsResponse.json().catch(() => ({ methods: [] }));
+        if (!methodsResponse.ok || !methodsPayload.reviewerCheckout) throw new Error('Payment availability could not be checked.');
+        setCapabilities(methodsPayload as CheckoutCapabilities);
         const labels = Array.isArray(methodsPayload?.methods)
           ? methodsPayload.methods.map((entry: { displayName?: string }) => entry.displayName).filter(Boolean)
           : [];
@@ -139,33 +151,36 @@ export default function AdminRuntimePage() {
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Runtime Controls</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            This is the live/test flip for payment providers and Bring shipping behavior.
+            Released checkout status, legacy provider settings, and Bring shipping behavior.
           </p>
         </div>
 
         <div className="rounded-xl border border-amber-300/40 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
-          <div className="font-medium">Go-live note</div>
+          <div className="font-medium">Payment scope</div>
           <p className="mt-1">
-            Keep toggles OFF while validating sandbox/test keys. Switch ON only after production keys and webhooks are configured.
+            Reviewer checkout uses PayPal Live only in Vercel Production; local and Preview use Sandbox. Its environment is not changed by the legacy switch below.
           </p>
           <p className="mt-2">
-            You do not need every provider. Running with only PayPal + crypto is valid; Vipps/Klarna can be added later.
+            The general marketplace checkout remains paused. Verified Web3 checkout is not released; connecting a wallet does not enable payment. Existing captures, refunds, and reversals still need to be processed.
           </p>
         </div>
 
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 text-sm text-zinc-600 dark:text-zinc-300">
-          <div className="font-medium text-zinc-900 dark:text-zinc-100">Currently available checkout methods</div>
+          <div className="font-medium text-zinc-900 dark:text-zinc-100">Reviewer checkout</div>
+          <p className="mt-1">{capabilities ? `${capabilities.reviewerCheckout.environment} · ${capabilities.reviewerCheckout.methods.map(method => method.displayName).join(', ') || 'PayPal unavailable'}` : 'Availability not verified.'}</p>
+          <p className="mt-1">{capabilities?.reviewerCheckout.products.map(product => product.title).join(' and ')} only. Demo checkout does not charge.</p>
+          <div className="mt-4 font-medium text-zinc-900 dark:text-zinc-100">Legacy marketplace checkout</div>
           <div className="mt-1 text-zinc-500 dark:text-zinc-400">
-            {availableMethods.length > 0 ? availableMethods.join(', ') : 'No methods currently detected.'}
+            {capabilities?.legacyCheckoutPaused ? 'Paused — no payment methods are released for other listings.' : availableMethods.join(', ') || 'No methods currently detected.'}
           </div>
         </div>
 
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 space-y-4">
           <RuntimeToggleRow
-            title="Payments Live"
-            description="Enables live fiat provider sessions when provider-gating requirements are met."
+            title="Legacy payment provider switch"
+            description="Inactive while legacy checkout is paused. This is not a stop switch for reviewer PayPal checkout."
             enabled={runtime.paymentsLiveEnabled}
-            disabled={!isOwner || isSaving}
+            disabled={!isOwner || isSaving || !capabilities || capabilities.legacyCheckoutPaused}
             onToggle={() => patchRuntime({ paymentsLiveEnabled: !runtime.paymentsLiveEnabled })}
           />
 
@@ -263,7 +278,7 @@ function RuntimeToggleRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-4 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
-      <div>
+      <div className="min-w-0">
         <div className="font-medium text-zinc-900 dark:text-zinc-100">{title}</div>
         <div className="text-sm text-zinc-500 dark:text-zinc-400">{description}</div>
       </div>
@@ -272,7 +287,9 @@ function RuntimeToggleRow({
         type="button"
         onClick={onToggle}
         disabled={disabled}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm disabled:opacity-50"
+        aria-label={title}
+        aria-pressed={enabled}
+        className="inline-flex min-h-11 shrink-0 items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm disabled:opacity-50"
         title={enabled ? 'Currently ON (live)' : 'Currently OFF (test/sandbox)'}
       >
         {enabled ? <FiToggleRight className="h-5 w-5 text-emerald-500" /> : <FiToggleLeft className="h-5 w-5 text-zinc-400" />}

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { legacyCheckoutPaused } from '@/lib/checkout-release';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { dbPrisma } from '@/lib/db';
-import { getPaymentProvider, getAvailablePaymentMethods } from '@/lib/payments/providers';
+import { getPaymentProvider } from '@/lib/payments/providers';
+import { getPaymentCapabilities } from '@/lib/payments/capabilities';
 import { getProviderGate } from '@/lib/payments/provider-gating';
 import { releaseReservedOrderStock } from '@/lib/payments/complete-fiat-order';
 import { getRuntimeConfig } from '@/lib/runtime-config';
@@ -10,16 +11,11 @@ import { z } from 'zod';
 import { parseJsonOrError } from '@/lib/api-validate';
 
 /**
- * GET /api/payments/methods
- * List available payment methods
+ * GET /api/payments
+ * Report released methods separately for legacy and reviewer checkout.
  */
 export async function GET() {
-  const runtime = await getRuntimeConfig();
-  const methods = getAvailablePaymentMethods().filter((method) => {
-    if (method.type === 'crypto') return true;
-    return getProviderGate(method.type, runtime).enabled;
-  });
-  return NextResponse.json({ methods });
+  return NextResponse.json(await getPaymentCapabilities(), { headers: { 'Cache-Control': 'no-store' } });
 }
 
 const CreatePaymentSchema = z.object({
