@@ -5,6 +5,115 @@ import { createHash } from 'node:crypto';
 import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders';
 import { SessionRailResponse } from '../lib/ai-chat/session-list';
 
+test('S8 real isolated warehouse detail loads through authorized reads without exposing stock to a demo',async({browser,baseURL},testInfo)=>{
+  test.skip(!process.env.E2E_WAREHOUSE_REAL_ID||!process.env.E2E_DEMO_STORAGE_STATE,'Only the isolated temporary warehouse runner creates this fixture');
+  expect(['http://localhost:3000','https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app']).toContain(baseURL);
+  const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width:390,height:844},reducedMotion:'reduce'});
+  const anonymous=await browser.newContext({baseURL});
+  try{
+    const id=process.env.E2E_WAREHOUSE_REAL_ID!;
+    const session=await(await context.request.get('/api/auth/session')).json();expect(session.user).toMatchObject({isDemo:true,role:'USER'});
+    const api=`/api/warehouses/${id}?id=${id}`;
+    expect((await anonymous.request.get(api)).status()).toBe(401);
+    const response=await context.request.get(api);expect(response.status()).toBe(200);
+    const data=await response.json();expect(data.warehouse.id).toBe(id);expect(data.warehouse.inventory).toEqual([]);expect(data.products).toEqual([]);
+    const page=await context.newPage();await page.goto('/warehouses',{waitUntil:'domcontentloaded'});
+    const link=page.locator(`main a[href="/warehouses/${id}"]`);await expect(link).toBeVisible();
+    const consent=page.getByRole('button',{name:'Essential Only',exact:true});if(await consent.isVisible())await consent.click();await link.click();
+    await expect(page.getByRole('heading',{name:'Warehouse Details',exact:true})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'QA location - not for shipping, QA test, NO',exact:true})).toBeVisible();
+    await expect(page.locator('main').getByRole('button',{name:/stock for/})).toHaveCount(0);
+    for(const width of [390,1280]){await page.setViewportSize({width,height:844});await page.getByRole('button',{name:'Refresh Now',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh Now',exact:true})).toBeEnabled();await expect(page.locator('main').getByRole('alert')).toHaveCount(0);await page.screenshot({path:testInfo.outputPath(`real-warehouse-${width}.png`)});}
+  }finally{await anonymous.close();await context.close();}
+});
+
+test('S8 warehouse failures never masquerade as empty inventory and can recover', async ({browser,baseURL}) => {
+  test.skip(process.env.E2E_WAREHOUSE !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Read-only demo and isolated HTTP fixtures');
+  const context = await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width:390,height:844},reducedMotion:'reduce'});
+  let fail = true;
+  let release = () => {}; let delay: Promise<void> | null = null;
+  try {
+    const page = await context.newPage();
+    await page.route('**/api/warehouses', async route => { if (delay) await delay; return route.fulfill(fail ? {status:503,json:{error:'Fixture unavailable'}} : {json:[]}); });
+    await page.goto('/warehouses',{waitUntil:'domcontentloaded'});
+    await expect(page.getByRole('heading',{name:'Warehouse Overview',exact:true})).toBeVisible();
+    await expect(page.locator('main').getByRole('alert')).toContainText(/unavailable/i);
+    await expect(page.getByText('No warehouses available.',{exact:true})).toHaveCount(0);
+    fail = false;
+    const consent = page.getByRole('button',{name:'Essential Only',exact:true}); if(await consent.isVisible()) await consent.click();
+    await page.getByRole('button',{name:'Refresh Now',exact:true}).click();
+    await expect(page.locator('main').getByRole('alert')).toHaveCount(0);
+    await expect(page.getByText('No warehouses available.',{exact:true})).toBeVisible();
+    const empty = page.getByRole('heading',{name:'No warehouses available.',exact:true});
+    const before = await empty.boundingBox();
+    delay = new Promise<void>(resolve => { release = resolve; });
+    await page.getByRole('button',{name:'Refresh Now',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Refresh Now',exact:true})).toBeDisabled();
+    await expect(empty).toBeVisible();
+    expect((await empty.boundingBox())!.y).toBe(before!.y);
+    release(); delay = null;
+    await expect(page.getByRole('button',{name:'Refresh Now',exact:true})).toBeEnabled();
+  } finally { release(); await context.close(); }
+});
+
+test('S8 warehouse long addresses stay inside a phone canvas', async ({browser,baseURL},testInfo) => {
+  test.skip(process.env.E2E_WAREHOUSE !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Read-only demo and isolated HTTP fixtures');
+  const context = await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width:360,height:800},reducedMotion:'reduce'});
+  try {
+    const page=await context.newPage();
+    await page.route('**/api/warehouses',route=>route.fulfill({json:[{id:'long-address',userId:null,companyId:null,postalCode:'0123',address:'UnbrokenAddress'.repeat(15),city:'City',country:'NO',latitude:null,longitude:null,createdAt:'2026-09-24T00:00:00Z',updatedAt:'2026-09-24T00:00:00Z'}]}));
+    await page.goto('/warehouses',{waitUntil:'domcontentloaded'});
+    await expect(page.getByRole('heading',{level:2})).toBeVisible();
+    const consent=page.getByRole('button',{name:'Essential Only',exact:true}); if(await consent.isVisible()) await consent.click();
+    await page.screenshot({path:testInfo.outputPath('warehouse-long-address.png')});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&[...document.querySelectorAll('main,[data-site-scroll]')].every(e=>e.scrollWidth<=e.clientWidth))).toBe(true);
+    const heading=await page.getByRole('heading',{level:2}).boundingBox(); expect(heading!.x+heading!.width).toBeLessThanOrEqual(360);
+  } finally {await context.close();}
+});
+
+test('S8 warehouse refresh preserves rows, revocation clears them and scrolling is contained',async({browser,baseURL},testInfo)=>{
+  test.skip(process.env.E2E_WAREHOUSE!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Read-only demo and isolated HTTP fixtures; never adjust stock');
+  test.setTimeout(120_000);
+  const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width:390,height:844},reducedMotion:'reduce'});
+  const page=await context.newPage(),errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  let status=200, release=()=>{}; let delay:Promise<void>|null=null;
+  const locations=Array.from({length:8},(_,index)=>({id:`warehouse-${index}`,userId:null,companyId:null,postalCode:'0123',address:`Warehouse road ${index}`,city:'Oslo',country:'NO',latitude:null,longitude:null,createdAt:'2026-09-24T00:00:00Z',updatedAt:'2026-09-24T00:00:00Z'}));
+  try{
+    await page.route('**/api/warehouses',async route=>{if(delay)await delay;return route.fulfill({status,json:status===200?locations:{error:'Fixture read failure'}})});
+    await page.route('**/api/warehouses/warehouse-0?**',route=>route.fulfill({status,json:status===200?{warehouse:locations[0],products:[]}:{error:'Fixture detail failure'}}));
+    await page.goto('/warehouses',{waitUntil:'domcontentloaded'});
+    const main=page.locator('main'), cards=main.getByRole('article'), refresh=page.getByRole('button',{name:'Refresh Now',exact:true});
+    await expect(cards).toHaveCount(8);
+    const consent=page.getByRole('button',{name:'Essential Only',exact:true});if(await consent.isVisible())await consent.click();
+    const firstCardBefore=await cards.first().boundingBox();
+    delay=new Promise<void>(resolve=>{release=resolve});
+    await refresh.click();await expect(refresh).toBeDisabled();await expect(cards).toHaveCount(8);
+    await expect(main.getByRole('status')).toHaveText('Refreshing saved locations…');
+    expect((await cards.first().boundingBox())!.y).toBe(firstCardBefore!.y);
+    status=503;release();delay=null;
+    await expect(main.getByRole('alert')).toContainText('Previously loaded locations');await expect(cards).toHaveCount(8);
+    status=200;await refresh.click();await expect(main.getByRole('alert')).toHaveCount(0);
+    for(const size of [{width:360,height:800},{width:390,height:844},{width:844,height:390},{width:768,height:1024},{width:1024,height:768},{width:1280,height:800},{width:1920,height:1080},{width:2560,height:1440}]){
+      await page.setViewportSize(size);
+      const site=page.locator('[data-site-scroll]');await site.evaluate(e=>e.scrollTo({top:0,behavior:'instant'}));
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&[...document.querySelectorAll('main,[data-site-scroll]')].every(e=>e.scrollWidth<=e.clientWidth))).toBe(true);
+      expect((await refresh.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await page.mouse.move(Math.min(size.width-40,size.width/2+100),size.height-80);await page.mouse.wheel(0,10000);
+      await expect(page.locator('footer')).toBeInViewport();
+      await page.screenshot({path:testInfo.outputPath(`warehouses-${size.width}-bottom.png`)});
+    }
+    await page.setViewportSize({width:390,height:844});
+    await page.getByRole('link',{name:'View details for Warehouse road 0, Oslo, NO',exact:true}).click();
+    await expect(page.getByRole('heading',{name:'Warehouse Details',exact:true})).toBeVisible();
+    await expect(main.getByText('Inventory is visible to authorized warehouse administrators.',{exact:false})).toBeVisible();
+    await expect(main.getByRole('button',{name:/stock for/})).toHaveCount(0);
+    status=403;await refresh.click();await expect(main.getByRole('alert')).toContainText('no longer has access');await expect(cards).toHaveCount(0);
+    status=200;await refresh.click();await expect(cards).toHaveCount(1);
+    await page.getByRole('link',{name:'Back to warehouses',exact:true}).click();await expect(page).toHaveURL(/\/warehouses$/);
+    expect(errors).toEqual([]);
+  }finally{release();await context.close();}
+});
+
 for(const mode of ['outage','stale'] as const) test(`Display rate integrity: ${mode}`,async({browser,baseURL})=>{
   test.skip(process.env.E2E_RATE_INTEGRITY!=='1','Browser-only rate responses; no purchase or saved preference changes');
     const context=await browser.newContext({baseURL,viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();
