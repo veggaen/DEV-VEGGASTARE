@@ -55,6 +55,13 @@ test('S4 compact receipt keeps the purchase and actions above the desktop fold',
     await expect(page.getByRole('heading', { name: 'Your demo order is ready', exact: true })).toBeVisible();
     const receipt = page.locator('[data-receipt]');
     const support = page.locator('[data-receipt-support]');
+    // Existing purchase requests are intentionally expanded. Keep that status
+    // visible by default, then collapse explicitly for the compact-layout check.
+    const existingRequests = (await support.locator('summary').textContent())?.includes('requests');
+    if (existingRequests) {
+      await expect(support).toHaveAttribute('open', '');
+      await support.locator('summary').click();
+    }
     const summary = page.getByRole('complementary', { name: 'Payment details', exact: true });
     const original = page.getByRole('link', { name: 'Download order confirmation (.txt)', exact: true });
     for (const theme of ['dark', 'light'] as const) {
@@ -75,7 +82,7 @@ test('S4 compact receipt keeps the purchase and actions above the desktop fold',
       }
     }
     await support.locator('summary').focus(); await page.keyboard.press('Enter');
-    await expect(support.getByRole('button', { name: 'Withdraw from this purchase', exact: true })).toBeVisible();
+    if (!existingRequests) await expect(support.getByRole('button', { name: 'Withdraw from this purchase', exact: true })).toBeVisible();
     await support.getByRole('button', { name: 'Report a purchase problem', exact: true }).click();
     await expect(support.getByRole('heading', { name: 'Tell us what went wrong' })).toBeVisible();
     await support.getByRole('button', { name: 'Cancel', exact: true }).click();

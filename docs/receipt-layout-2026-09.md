@@ -53,6 +53,13 @@ Real Chrome local checks use the actual 9 NOK Sandbox receipt, not a mocked
 purchase. Primary content fits the desktop viewport; mobile stacking is inspected.
 Local artifacts: `frontend/test-results-release-receipt-compact-local-final/`.
 
-Hosted verification is pending deployment. The separate unpaid-order recovery
+Production deployment `dpl_Gufib3EFRKsz74egBM3PGm2CKhsM` was promoted to www.veggat.com.
+Both focused Playwright checks passed live. The retained live demo has an existing
+support request, so the test verifies its intentional default expansion and then
+collapses it for geometry checks. Real Chrome also shows the owner's verified
+9 NOK receipt, capture ID and 10-credit balance in the new layout.
+Live artifacts: `frontend/test-results-release-receipt-compact-live-final/`.
+
+The separate unpaid-order recovery
 implementation is preserved in the named Git stash `wip: unpaid order recovery
 awaiting integration tests`; it is not included in this receipt-only release.
