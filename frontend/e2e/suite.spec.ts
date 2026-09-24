@@ -69,6 +69,11 @@ test('S8 route inventory read-only rendering and scrolling audit', async ({ brow
         page.on('pageerror', listener);
         try {
           const response = await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+          // This legacy route streams a server redirect after the initial shell.
+          // Observe its intended destination before inspecting document geometry.
+          if (route === '/nexus/company/job-ask') {
+            await page.waitForURL('**/jobs/post', { waitUntil: 'domcontentloaded' });
+          }
           await page.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
           // Allow pending route hydration/read effects to expose failures, then
           // exercise actual wheel input. This is triage, not feature acceptance.

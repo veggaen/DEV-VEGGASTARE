@@ -4,18 +4,20 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
-Route audit/storage resilience: **PARTIAL — local verified, Preview in progress**.
+Route audit/storage resilience: **PARTIAL — local and Preview verified, live pending**.
 Candidate `ac82106` fixes an unattended storage initialization rejection and
 moves a development-only preview guard to the server. **24 units**, touched lint,
 strict build and local **4/4 browser checks** pass, including 77 static routes at
 390/2560. This is rendering/scroll-input triage, not all-button or all-role
 acceptance. [Evidence and remaining dynamic-route scope](route-inventory-2026-09.md).
 
-Backend container: **DONE locally / BLOCKED on Railway billing**. Node 22,
+Backend container: **DONE locally and deployed on Railway**. Node 22,
 non-root runtime, Windows and Linux security tests **5/5**, running-container
-health/mock shipping/retired endpoint checks pass. Real Chrome confirms the
-connected Railway workspace is trial-expired with no active deployment; no
-billing changes or deployment were made. See [backend evidence](backend-container-2026-09.md).
+health/mock shipping/retired endpoint checks pass. The owner restored Hobby.
+Release `3234d9b` is deployed; live health is 200 and retired endpoints are 410.
+Old Live Bring credentials failed; explicit mock shipping now returns 200 with
+two options. Active deployment: `6edc4888-6a6b-4fef-a1c6-5a0ba0276104`.
+No billing changes were made by the agent. See [backend evidence](backend-container-2026-09.md).
 This does not change the deployed frontend or complete the full scoreboard.
 
 Catalog first render: **DONE for this scoped slice**. App **`e8252bd`** plus

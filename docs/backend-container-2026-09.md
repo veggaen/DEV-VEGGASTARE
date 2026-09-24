@@ -2,16 +2,36 @@
 
 ## Result
 
-Local readiness **PASS**; Railway deployment **BLOCKED by workspace billing**.
-This is not a production deployment or full-app acceptance.
+Local readiness **PASS**; Railway deployment **ACTIVE** after the owner restored
+the Hobby plan. This is not full-app acceptance.
+
+## Railway recovery
+
+The restored old `main` build failed loading its build context. The service was
+switched to `release/showcase-september` (no changes to billing, resource limits,
+network exposure or secrets). Release `3234d9b` deployed successfully as
+`46cb526c-8c5e-4560-b5d1-abd537a70f35`.
+Live `/v1/health` returned 200; both retired mutation endpoints returned
+410 / `LEGACY_ENDPOINT_RETIRED` / `Cache-Control: no-store`.
+Startup logs confirm production mode, HTTP 3001, WS 3002 and no CORS origins.
+
+The first shipping smoke check returned 502: the pre-existing `BRING_MODE=live`
+attempted Bring and received an authentication failure. Only `BRING_MODE` was
+changed to `mock`; deployment `6edc4888-6a6b-4fef-a1c6-5a0ba0276104` succeeded.
+Repeat live checks passed: health 200, both retired routes 410/no-store and
+shipping 200 with `provider: mock` and two options.
+Live Bring remains unsupported until its credentials and access/rate
+controls are verified. No actual shipment or payment was created.
+
+## Earlier billing blocker (resolved)
 
 The connected Railway workspace, “Vetle Gudman's Projects,” displays “Trial
 expired.” VeggaStare / DEV-VEGGASTARE displays “Limited Access” and “No active
 deployment.” Its service root is `/backend`, Dockerfile builder, start command
 `node dist/index.js`, health check `/v1/health` (120 seconds). The displayed
 config source was old commit `9e5fb72c6b1bdba16786ab000588f223fc27657a`.
-The deployment branch was not verified. No billing, variables or deployment
-settings were changed. Owner clarification of the paid workspace is pending.
+At that point the deployment branch was not verified and no settings had been
+changed. The recovery above supersedes that earlier blocker.
 
 ## Changes
 
@@ -40,11 +60,11 @@ settings were changed. Owner clarification of the paid workspace is pending.
 
 ## Deployment handoff
 
-Identify/restore the owner's paid Railway workspace first; do not purchase a
-plan automatically. Confirm its source branch contains this release before
-deploying. Keep `BRING_MODE=mock`, set explicit allowed frontend origins only if
-browser access is needed, and verify the live `/v1/health` and retired endpoints
-after deployment. Live Bring requires separate authorization/rate-limit work.
+Railway now follows `release/showcase-september` with auto-deploy enabled, as
+before on `main`. Future pushes can redeploy this service. Keep
+`BRING_MODE=mock`, set explicit allowed frontend origins only if browser access
+is needed, and repeat health/retired endpoint checks after backend changes.
+Live Bring requires separate authorization/rate-limit work.
 No database or Pusher secret is needed by the current HTTP/socket handlers.
 
 No Vercel redeploy is required for these backend-only changes. PayPal Sandbox

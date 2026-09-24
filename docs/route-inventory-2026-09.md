@@ -52,13 +52,20 @@ See [patch maintenance notes](../frontend/patches/README.md). No migration is ne
 - Local artifact folders: `test-results-release-route-inventory-local*`,
   `test-results-release-preview-gate-local`, `test-results-release-storage-init-baseline`.
   Accepted inventory data is embedded in the JSON report attachment.
-- Payment status remains unchanged: **Live capture/refund is untested**. Railway
-  remains blocked on identifying/restoring the owner's paid workspace.
+- Payment status remains unchanged: **Live capture/refund is untested**. The
+  owner restored Railway Hobby; see the separate backend deployment evidence.
 
 Preview `dpl_Hc7CysK2G1ULmihSvFGiTRKXs7wm` is READY at
 `https://dev-veggastare-jwpa7952p-v3ggas-projects.vercel.app`, assigned to the
 existing isolated Preview alias. Patch application, strict build/TypeScript and
 49 existing migrations (none pending) pass. The controlled outage passes there.
+
+Final Preview batch: **3/3 pass**, including 154 static-route observations.
+The earlier inventory failure on `/nexus/company/job-ask` was an execution-context
+destruction while its server redirect completed. Source explicitly redirects to
+`/jobs/post`; the audit now asserts that destination before measuring geometry.
+No general error swallowing/retries were added. Results are in
+`test-results-release-route-inventory-preview-final/results.json`.
 The first focused preview-gate check timed out waiting for global network idle;
 it now checks the unavailable heading and an enabled hydrated Open menu instead.
 A first readiness selector used the desktop Basket control, which is absent on
