@@ -133,10 +133,44 @@ Production rollback target is `dpl_DVNrF5kqvrnRPbRtjmzr5yd9jJbc` (`bfe4fd3`). Pr
 rollback target is `dpl_FSe3qUPRo4eBrCqXqHjtm8jG2NrM` (`4eb2e76`). After additive
 database migrations, rollback code only; do not drop fields or financial records.
 
-Two small UX follow-ups were observed rather than hidden: product navigation can
-briefly inherit the catalogue loading boundary before the product skeleton;
-exhausted demo guidance still suggests choosing a cheaper model when no funded
-demo model costs zero. Neither is evidence of a payment or balance bypass.
+## Focused polish follow-up
+
+Source `6df9a4c` fixes the two observed UX follow-ups without changing money or
+provider policy. `app/products/[...id]/loading.tsx` now uses the product gallery
+skeleton rather than inheriting the catalogue skeleton. Zero-credit demo guidance
+now explains that the allowance is used up; it does not recommend a nonexistent
+free demo model or pressure a reviewer into paying. Credit and send counts use
+singular text for one. Drafts and existing send guards are preserved.
+
+Strict local build/TypeScript and touched ESLint pass. Three proportional browser
+journeys pass **local 3/3 (11.5s), Preview 3/3 (28.1s), live 3/3 (27.3s)**. They
+cover zero/one-credit browser fixtures with no provider requests, the gallery
+loading boundary on direct loads and catalogue clicks at 390/1280, and the
+eight-size gallery/footer check. The first geometry assertion compared the padded
+carousel with the outer skeleton and was corrected to compare the same outer
+boxes. The loading detector initially counted hidden Next.js streaming templates;
+it now checks actual visibility. No overflow, width-alignment or flash assertion
+was removed. Real Chrome locally showed `Loading product`, not the catalogue
+heading; deployed Preview retained its actual zero balance and all four replies
+with the corrected message.
+
+Current Preview is `dpl_BDzoouNqWdLsSxrZcqjWv7mFr895` at
+`https://dev-veggastare-k49quvtqc-v3ggas-projects.vercel.app` and the stable Preview
+alias. Current production is **`dpl_9bGoFC8LBKDb4ZyLn6iTij3mMsjA`** at
+`https://dev-veggastare-f3ifa63gd-v3ggas-projects.vercel.app`, promoted after healthy
+candidate response and successful Preview checks. `vercel inspect www.veggat.com`
+confirms the new target. Both builds report the correct separate Neon endpoints,
+47 migrations and none pending. Immediate UI rollback targets are the integrated
+production `dpl_8yVTJdq1wXhAB5UZL1DC78eDjvn9` and Preview
+`dpl_GxiQb5XEXYj8PFWVDfAJiqfScwBL` above; no database rollback is needed.
+
+The real-Chrome Ctrl-plus attempt did not change viewport width or pixel ratio,
+so **native 125% browser zoom remains unverified**. Temporary viewport overrides
+were reset. The owner's unchanged 100-credit/39 NOK Live checkout and PayPal
+login are left as handoffs; no paid delivery agreement or card approval was
+submitted by the agent. Other retained tabs show local product and Preview AI
+results. The AI conversation list briefly says no conversations during hydration;
+that remaining empty/loading-state polish is recorded for a subsequent slice.
 
 Live micro-purchase acceptance, email/full-agreement delivery, electronic
 withdrawal flow, legal review and the wider S1–S9 scoreboard remain unfinished.

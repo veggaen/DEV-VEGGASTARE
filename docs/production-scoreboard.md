@@ -9,13 +9,16 @@ work with the newer production currency-filter and basket fixes. Local strict
 build, touched lint, 235 focused units, six rolled-back checkout scenarios and
 30 ledger/configuration tests pass. Deployed Preview acceptance is **10/10**;
 the integrated release is now on www.veggat.com at
-`dpl_8yVTJdq1wXhAB5UZL1DC78eDjvn9` (source `32b4b1c`). Live selected browser
+`dpl_9bGoFC8LBKDb4ZyLn6iTij3mMsjA` (source `6df9a4c`, following integrated release
+`32b4b1c`). Live selected browser
 acceptance is **8/8**, including the actual OpenAI/Groq debit and server-enforced
 zero-balance check. Real Chrome also verified four providers in Preview and the
 live mobile product/footer and Live checkout display without paying. The first
 live AI attempt hit a cookie-banner test race; it made no provider call and the
 corrected normal-consent journey passed. Live money acceptance and legal delivery
-follow-ups remain PARTIAL, not implied by the demo result. Deployment and browser acceptance
+follow-ups remain PARTIAL, not implied by the demo result. A focused loading/demo
+guidance follow-up passes **3/3 locally, 3/3 in Preview and 3/3 live**, with no
+additional provider or payment requests. Deployment and browser acceptance
 are recorded in [the release note](integrated-release-2026-09.md). Historical
 deployment entries below are not the current release authority.
 
