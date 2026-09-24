@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
 import { quoteShowcaseCart } from './showcase-policy';
 import { CHECKOUT_AGREEMENT_VERSION, DELIVERY_REQUESTS, purchaseConfirmation, recordCheckoutAgreement, storedCheckoutAgreement } from './checkout-agreement';
+import { SALES_TERMS_TEXT } from '@/lib/legal/sales-terms';
+import { SALES_TERMS_VERSION } from '@/lib/legal/sales-terms-version';
+import { transactionMessage } from './email-policy';
 
 const files = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.interviewPack.id, quantity: 1 }]);
 const credits = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, creditAmount: 122 }]);
@@ -15,7 +18,7 @@ describe('server-owned delivery consent', () => {
       recordedAt: now.toISOString(), demo: false, requests: [DELIVERY_REQUESTS.files] });
   });
   it.each([undefined, {}, { ...consent, files: false }, { ...consent, version: 'stale' },
-    { ...consent, recordedAt: 'yesterday' }, { ...consent, purchaseTerms: 'No refunds ever' }, { ...consent, files: 'true' }])('rejects missing, unselected or forged requests', input => {
+    { ...consent, recordedAt: 'yesterday' }, { ...consent, purchaseTerms: 'No refunds ever' }, { ...consent, publishedTerms: { text: 'fake' } }, { ...consent, files: 'true' }])('rejects missing, unselected or forged requests', input => {
     expect(() => recordCheckoutAgreement(files, input, false)).toThrow('DELIVERY_CONSENT_REQUIRED');
   });
   it('binds each request to the server cart, not the client-selected product kinds', () => {
@@ -28,6 +31,9 @@ describe('server-owned delivery consent', () => {
   });
   it('does not retroactively claim consent for historical orders', () => {
     expect(storedCheckoutAgreement(files)).toBeNull();
+  });
+  it.each([true, false])('retains the complete published source on new orders (demo=%s)', demo => {
+    expect(recordCheckoutAgreement(files, consent, demo, now).publishedTerms).toEqual({ version: SALES_TERMS_VERSION, language: 'nb', text: SALES_TERMS_TEXT });
   });
 });
 describe('original purchase confirmation', () => {
@@ -45,9 +51,23 @@ describe('original purchase confirmation', () => {
     expect(purchaseConfirmation(refunded)).toBe(purchaseConfirmation(attempt));
   });
   it('uses stored terms, never replacing them with newly published wording', () => {
-    const old = { ...attempt, quote: { ...files, agreement: { ...agreement, purchaseTerms: 'Original retained policy', version: 'old-version' } } };
+    const old = { ...attempt, quote: { ...files, agreement: { ...agreement, publishedTerms: undefined, purchaseTerms: 'Original retained policy', version: 'old-version' } } };
     expect(purchaseConfirmation(old)).toContain('Original retained policy');
     expect(purchaseConfirmation(old)).not.toContain(CHECKOUT_AGREEMENT_VERSION);
+    expect(purchaseConfirmation(old)).not.toContain(SALES_TERMS_TEXT);
+  });
+  it('retains a previous full terms version without substituting current terms', () => {
+    const prior = { ...attempt, quote: { ...files, agreement: { ...agreement, publishedTerms: { version: 'previous', language: 'nb', text: 'Previous full published terms' } } } };
+    expect(purchaseConfirmation(prior)).toContain('Previous full published terms');
+    expect(purchaseConfirmation(prior)).not.toContain(SALES_TERMS_TEXT);
+  });
+  it('emails exactly the downloadable full packet within payload limits', () => {
+    const original = purchaseConfirmation(attempt)!;
+    const message = transactionMessage('buyer@example.org', 'Your order confirmation', 'veggat-order-order1.txt', original);
+    expect(original).toContain(SALES_TERMS_TEXT);
+    expect(Buffer.from(message.attachments[0].content, 'base64').toString('utf8')).toBe(original);
+    expect(message.text).toContain(original);
+    expect(message.attachments[0].content.length).toBeLessThan(80000);
   });
   it('requires verified fulfillment and never invents legacy or pending consent', () => {
     expect(purchaseConfirmation({ ...attempt, completedAt: null })).toBeNull();

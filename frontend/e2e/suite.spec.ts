@@ -1,4 +1,113 @@
 import { test, expect } from "@playwright/test";
+import { SALES_TERMS_TEXT } from '../lib/legal/sales-terms';
+import { SALES_TERMS_DOWNLOAD, SALES_TERMS_VERSION } from '../lib/legal/sales-terms-version';
+import { createHash } from 'node:crypto';
+
+test('S4 full terms are readable without JavaScript, navigable and downloadable at every viewport', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_TERMS !== '1', 'Focused terms release acceptance');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce', javaScriptEnabled: false });
+  const page = await context.newPage();
+  try {
+    await page.goto('/terms', { waitUntil: 'domcontentloaded' });
+    const article = page.getByRole('article', { name: 'Salgsvilkår' });
+    await expect(article.getByRole('heading', { name: 'Salgsvilkår', exact: true })).toBeVisible();
+    await expect(article).toHaveAttribute('lang', 'nb');
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1080 }]) {
+      await page.setViewportSize(size);
+      const contents = article.getByRole('navigation', { name: 'Innhold i salgsvilkårene' });
+      await contents.getByRole('link', { name: '4. Angrerett', exact: true }).click();
+      await expect(page).toHaveURL(/\/terms#section-4$/);
+      await expect(article.getByRole('heading', { name: '4. Angrerett', exact: true })).toBeInViewport();
+      const form = article.getByText('Vis angreskjema', { exact: true });
+      await form.scrollIntoViewIfNeeded();
+      if (!await form.locator('..').getAttribute('open').then(value => value !== null)) await form.click();
+      await expect(article.getByText(/ANGRESKJEMA — VARER OG TJENESTER/)).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await page.locator('[data-site-scroll]').evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+      if ([390, 1280].includes(size.width)) {
+        await page.screenshot({ path: testInfo.outputPath(`terms-form-${size.width}.png`) });
+        await article.getByRole('heading', { name: 'Salgsvilkår', exact: true }).scrollIntoViewIfNeeded();
+        await page.screenshot({ path: testInfo.outputPath(`terms-top-${size.width}.png`) });
+      }
+    }
+    const downloadPromise = page.waitForEvent('download');
+    await article.getByRole('link', { name: 'Last ned vilkår og angreskjema (.txt)', exact: true }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe(`veggat-sales-terms-${SALES_TERMS_VERSION}.txt`);
+    const stream = await download.createReadStream();
+    expect(stream).not.toBeNull();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+    expect(Buffer.concat(chunks).toString('utf8')).toBe(SALES_TERMS_TEXT);
+    expect((await context.request.get('/api/legal/terms?version=stale')).status()).toBe(409);
+    const publicCopy = await context.request.get(SALES_TERMS_DOWNLOAD);
+    expect(publicCopy.status()).toBe(200); expect(publicCopy.headers()['x-content-type-options']).toBe('nosniff');
+  } finally { await context.close(); }
+});
+
+test('S4 historical confirmation remains byte-identical after full-terms release', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_TERMS !== '1' || !process.env.E2E_LEGACY_ORDER || !process.env.E2E_LEGACY_SHA || !process.env.E2E_DEMO_STORAGE_STATE, 'Known pre-release record required');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  try {
+    const path = `/api/checkout/${process.env.E2E_LEGACY_ORDER}/confirmation`;
+    const response = await context.request.get(path);
+    expect(response.status()).toBe(200);
+    expect(createHash('sha256').update(await response.body()).digest('hex')).toBe(process.env.E2E_LEGACY_SHA);
+    const page = await context.newPage();
+    await page.goto(`/checkout/receipt/${process.env.E2E_LEGACY_ORDER}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('region', { name: 'Original order confirmation' })).toContainText('Today’s full terms have not been added');
+  } finally { await context.close(); }
+});
+
+test('S4 retained demo session creates a complete original terms packet without payment', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_TERMS_NEW_ORDER !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Explicit existing disposable demo workspace; consumes one allowed free order');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user).toMatchObject({ isDemo: true, role: 'USER' });
+    const beforeOrders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
+    const cart = await (await context.request.get(`/api/cart/${session.user.id}`)).json();
+    expect(cart.items.every((item: { product: { id: string } }) => ['cveggatinterviewpack000001', 'cveggatinterviewcredits01'].includes(item.product.id))).toBe(true);
+    if (!cart.items.length) {
+      await page.goto('/products/cveggatinterviewcredits01', { waitUntil: 'domcontentloaded' });
+      if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+      await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
+      await expect(page.getByRole('button', { name: '1 item in basket', exact: true })).toBeVisible();
+    }
+    await page.goto('/checkout', { waitUntil: 'domcontentloaded' });
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    const terms = page.getByRole('link', { name: 'Save terms and withdrawal form (.txt)', exact: true });
+    await expect(terms).toHaveAttribute('href', SALES_TERMS_DOWNLOAD);
+    const originalTerms = await (await context.request.get(SALES_TERMS_DOWNLOAD)).text();
+    expect(originalTerms).toBe(SALES_TERMS_TEXT);
+    await expect(page.getByRole('checkbox', { name: /^I request/ })).toHaveCount(0);
+    const reply = page.waitForResponse(response => response.url().endsWith('/api/demo/checkout') && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Complete free demo order', exact: true }).click();
+    expect((await reply).status()).toBe(200);
+    await expect(page.getByRole('heading', { name: 'Your demo order is ready', exact: true })).toBeVisible();
+    const record = page.getByRole('region', { name: 'Original order confirmation' });
+    await expect(record).toContainText(`full Norwegian sales terms, version ${SALES_TERMS_VERSION}`);
+    await expect(record).toContainText('no email is sent');
+    const path = await record.getByRole('link', { name: 'Download order confirmation (.txt)' }).getAttribute('href');
+    const confirmation = await context.request.get(path!);
+    expect(confirmation.status()).toBe(200);
+    const body = await confirmation.text();
+    expect(body).toContain(originalTerms); expect(body).toContain('Actually charged: 0.00 NOK');
+    expect(body).toContain('no paid delivery consent was collected'); expect(body).not.toContain('token=');
+    const afterOrders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
+    expect(afterOrders).toHaveLength(beforeOrders.length + 1);
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 844 }); await record.scrollIntoViewIfNeeded();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`new-terms-record-${width}.png`) });
+    }
+    console.log(`Verified free demo terms packet: ${page.url()}`);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
 
 test('S4 — seller review preserves drafts, rejects uncertain responses and fits every viewport', async ({ browser, baseURL }, testInfo) => {
   test.skip(process.env.E2E_SELLER_REQUESTS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Explicit seller UI fixtures; no real seller decision');
@@ -471,6 +580,8 @@ test('CI showcase happy path — real demo, custom cart, payment error recovery 
     const confirmationText = await confirmation.text();
     expect(confirmationText).toContain('Actually charged: 0.00 NOK');
     expect(confirmationText).toContain('no paid delivery consent was collected');
+    expect(confirmationText).toContain(SALES_TERMS_TEXT);
+    await expect(page.getByRole('region', { name: 'Original order confirmation' })).toContainText(`full Norwegian sales terms, version ${SALES_TERMS_VERSION}`);
     const anonymous = await browser.newContext({ baseURL });
     try { expect((await anonymous.request.get(confirmationPath!)).status()).toBe(401); }
     finally { await anonymous.close(); }
@@ -546,7 +657,7 @@ test('S4 delivery consent is explicit, responsive and never contacts PayPal in U
     await submit.click();
     await expect(page.getByRole('alert').filter({ hasText: 'Your cart is saved' })).toBeVisible();
     expect(posts).toHaveLength(1);
-    expect(posts[0]).toMatchObject({ consent: { version: '2026-09-24.1', files: true, credits: true } });
+    expect(posts[0]).toMatchObject({ consent: { version: SALES_TERMS_VERSION, files: true, credits: true } });
     await submit.click();
     expect(posts).toHaveLength(2); expect(posts[1]).toEqual(posts[0]);
     await expect(submit).toBeEnabled();

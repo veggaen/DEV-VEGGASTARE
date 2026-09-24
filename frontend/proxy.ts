@@ -383,6 +383,9 @@ export default async function proxy(req: NextRequest) {
   const nonce = generateNonce();
   requestHeaders.set("x-request-id", requestId);
   requestHeaders.set("x-nonce", nonce);
+  // Presentation only: never trust a caller's marker or use it for access checks.
+  // The root streaming fallback may show this public publication immediately.
+  requestHeaders.set('x-veggat-publication', pathname === '/terms' ? 'sales-terms' : '');
 
   // ─── API RATE LIMIT CHECK ───
   const rlResponse = checkApiRateLimit(req);

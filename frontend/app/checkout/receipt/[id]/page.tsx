@@ -53,6 +53,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     {agreement && receipt.completedAt && (demo || receipt.captureId) && <section aria-label="Original order confirmation" className="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6">
       <h2 className="text-lg font-semibold">Keep your order confirmation</h2>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Save a text copy of your original order, {demo ? 'demo notice' : 'delivery requests'} and purchase terms. It stays unchanged if terms or payment status change later.</p>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{agreement.publishedTerms ? `Includes the full Norwegian sales terms, version ${agreement.publishedTerms.version}, and an optional withdrawal form.` : 'This earlier record contains the purchase terms retained at checkout. Today’s full terms have not been added to your historical agreement.'}</p>
       <p className="mt-2 text-sm text-muted-foreground">{demo ? 'Demo records are downloadable only; no email is sent.' : emailStatusText(emails.find(email => email.sourceKey === `purchase:${id}`)?.status)}</p>
       <a href={`/api/checkout/${encodeURIComponent(receipt.orderId)}/confirmation`} download className="mt-3 inline-flex min-h-12 items-center rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Download order confirmation (.txt)</a>
     </section>}

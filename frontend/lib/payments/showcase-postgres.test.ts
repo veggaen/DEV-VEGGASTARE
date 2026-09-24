@@ -13,6 +13,7 @@ it.skipIf(process.env.RUN_SHOWCASE_POSTGRES_TESTS !== '1')('prepares 122, 555 an
   const { prepareShowcaseCheckout } = await import('./showcase-store');
   const { SHOWCASE_PRODUCTS } = await import('@/lib/showcase-catalog');
   const { CHECKOUT_AGREEMENT_VERSION, DELIVERY_REQUESTS } = await import('./checkout-agreement');
+  const { SALES_TERMS_TEXT } = await import('@/lib/legal/sales-terms');
   const transact = dbPrisma.$transaction.bind(dbPrisma);
   const rollback = new Error('ROLLBACK_SYNTHETIC_CHECKOUT');
   try {
@@ -33,7 +34,8 @@ it.skipIf(process.env.RUN_SHOWCASE_POSTGRES_TESTS !== '1')('prepares 122, 555 an
             demo ? undefined : { version: CHECKOUT_AGREEMENT_VERSION, files: includeFile, credits: true });
           expect(result).toMatchObject({ totalOre, environment: demo ? 'DEMO' : 'SANDBOX', state: 'PREPARED' });
           expect(result.quote).toMatchObject({ lines: expect.arrayContaining([expect.objectContaining({ credits })]),
-            agreement: { version: CHECKOUT_AGREEMENT_VERSION, demo, requests: demo ? [] : [...(includeFile ? [DELIVERY_REQUESTS.files] : []), DELIVERY_REQUESTS.credits] } });
+            agreement: { version: CHECKOUT_AGREEMENT_VERSION, demo, requests: demo ? [] : [...(includeFile ? [DELIVERY_REQUESTS.files] : []), DELIVERY_REQUESTS.credits],
+              publishedTerms: { version: CHECKOUT_AGREEMENT_VERSION, language: 'nb', text: SALES_TERMS_TEXT } } });
           expect(await tx.checkoutAttempt.count({ where: { userId } })).toBe(1);
         } finally { spy.mockRestore(); }
         throw rollback;

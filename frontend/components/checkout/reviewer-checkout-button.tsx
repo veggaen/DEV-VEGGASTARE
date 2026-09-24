@@ -4,7 +4,8 @@ import { useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useCheckoutEditing } from './checkout-edit-context';
 import { useCart } from '@/contexts/cart-context';
-import { CHECKOUT_AGREEMENT_VERSION, DELIVERY_REQUESTS, DIGITAL_PURCHASE_RECORD } from '@/lib/payments/checkout-agreement';
+import { CHECKOUT_AGREEMENT_VERSION, DELIVERY_REQUESTS, DIGITAL_PURCHASE_RECORD } from '@/lib/payments/checkout-delivery-policy';
+import { SALES_TERMS_DOWNLOAD, SALES_TERMS_VERSION } from '@/lib/legal/sales-terms-version';
 const messages: Record<string, string> = {
   SIGN_IN_REQUIRED: 'Your session has expired. Sign in again, then return to your saved cart. No payment has been taken.',
   DELIVERY_CONSENT_REQUIRED: 'Review the delivery requests below before continuing. No payment has been taken.',
@@ -51,6 +52,13 @@ export default function ReviewerCheckoutButton({ demo, disabled = false, expecte
     finally { setPending(false); editing?.setPaymentPending(false); }
   }
   return <div className="space-y-3">
+    <div className="text-sm leading-relaxed text-muted-foreground">
+      <p>Full sales terms (Norwegian), version {SALES_TERMS_VERSION}, and an optional withdrawal form are available before you continue. Your new order confirmation keeps this version.</p>
+      <div className="mt-1 flex flex-wrap gap-x-4">
+        <a href="/terms" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-sm underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2">Read full terms (new tab)</a>
+        <a href={SALES_TERMS_DOWNLOAD} download className="inline-flex min-h-11 items-center rounded-sm underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2">Save terms and withdrawal form (.txt)</a>
+      </div>
+    </div>
     {!demo && <fieldset className="min-w-0 space-y-3 rounded-lg border border-border p-3" disabled={pending || disabled || editing?.busy || checkoutBlocked}>
       <legend className="px-1 text-sm font-semibold">Delivery preferences</legend>
       <p className="text-sm text-muted-foreground">This checkout delivers immediately after verified payment. Review each request before continuing.</p>
