@@ -2,18 +2,31 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-## Current integrated production release — 24 September 2026
+## Current integrated production release — 25 September 2026
 
-Invalid-session recovery: **PARTIAL — fixed and verified locally; hosted patch
-pending**. Real Chrome revealed a returning-user trap on `/nexus`: an invalid JWT
+Invalid-session recovery: **DONE for scoped local/Preview/Live acceptance**.
+Source `775c07d`, Production `dpl_7Qme9rWWkaYXxAUEM7D1sU7rS6sT`, Preview
+`dpl_HYATp3FnCWFuqgBMwVskvC2HoWYL`. Real Chrome revealed a returning-user trap on `/nexus`: an invalid JWT
 became a non-null session with no user. Returning `null` from JWT invalidation
 uses normal Auth.js cookie clearing. Eight new callback/handler tests and 26
-related auth tests pass, plus strict build/lint and 3/3 local browser checks.
+related auth tests pass, plus strict build/lint, 3/3 local and Preview browser
+checks and 2/2 Live security/recovery checks.
 The same pre-fix browser test reproduces locally, on Preview and Live. See
 [session recovery evidence](stale-session-recovery-2026-09.md).
-Local GitHub's real authorization page currently rejects
-`http://localhost:3000/api/auth/callback/github` as an unregistered redirect;
-provider configuration is not a successful callback yet.
+Local Google + GitHub are **DONE for real-Chrome callback/login acceptance**.
+An approved development-only secret corrects the local client mismatch. The
+owner-approved signed-in GitHub link, logout and GitHub login resolve to the same
+isolated test account as Google. Email confirmation / trust badges remain pending.
+No production provider configuration or account link was changed.
+
+9 NOK starter Sandbox payment: **DONE for fresh real-Chrome capture, ten-credit
+grant, receipt refresh and webhook replay**. Authenticated PayPal capture and
+isolated database checks match; both webhook deliveries returned 200 and only
+one +10 grant exists. Purchased credits then funded a real OpenAI reply, 10 -> 8;
+the 60-credit model was blocked without a reservation. The existing zero-credit
+Live demo again passed UI blocking and server 402 with no new grant/provider call.
+See [starter acceptance](sandbox-starter-acceptance-2026-09.md).
+**Live remains untested/unpaid**; the owner's 9 NOK checkout is retained for review.
 
 Checkout + credit-budget refresh: **DONE for scoped local/Preview/live UI and
 pricing acceptance; S4 money acceptance remains PARTIAL**. Source `db145f7` is
@@ -27,9 +40,9 @@ credits plus the 9 NOK starter. Server margin guard, two-attempt cap and a bound
 checks (including the previously skipped 21), isolated PostgreSQL prepare checks,
 strict builds/lint and focused browser flows pass. Hosted Preview is 6/6 and Live
 4/4; payment POSTs are mocked/blocked. Real Chrome local budget entry and hosted
-checkout page/footer/drawer scrolling pass. No new Sandbox or Live capture is claimed. See
-[checkout evidence](checkout-credit-budget-2026-09.md). PayPal signed out after
-the PC restart; the owner has a retained passkey sign-in handoff.
+checkout page/footer/drawer scrolling pass. Fresh Sandbox capture is separately
+recorded above; no Live capture is claimed. See
+[checkout evidence](checkout-credit-budget-2026-09.md).
 
 Request detail: **DONE for scoped local/Preview/live acceptance** in the same
 release. 18 units and 2 browser tests per environment cover gallery, long-content reflow in both themes,

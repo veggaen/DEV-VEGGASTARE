@@ -33,11 +33,29 @@ were checked; no vendor patch or weakened authentication was introduced.
 - The originally stuck real-Chrome tab now reaches the working login form after
   reload. No manual cookie deletion or authentication bypass was used.
 
-Hosted patch deployment/acceptance is pending. Full external-provider callbacks
-are not implied by the protocol tests: a subsequent real-Chrome local GitHub
-attempt reported `Invalid Redirect URI` for
-`http://localhost:3000/api/auth/callback/github`. Its configured OAuth application's
-callback must be inspected without replacing or breaking the production callback.
+Hosted acceptance passes: Preview `dpl_HYATp3FnCWFuqgBMwVskvC2HoWYL` (3/3)
+and Production `dpl_7Qme9rWWkaYXxAUEM7D1sU7rS6sT` (2/2). The main domain was
+inspected after promotion. The password-user test now waits for `/profile/:id`,
+not the intermediate `/profile` redirect, before its next navigation. A first
+Preview run caught this test synchronization issue; the corrected run passes.
+
+Full external-provider callbacks are not implied by protocol tests. The subsequent
+real-Chrome checks now establish local Google and GitHub callbacks separately:
+
+- Local GitHub originally reported `Invalid Redirect URI`: local configuration
+  used the production OAuth client rather than the existing `veggastare-dev` app.
+- With owner confirmation and owner-completed GitHub 2FA, a development secret
+  was generated and saved only in ignored local test configuration. The local
+  launcher loads that client/secret. Production and Vercel secrets are unchanged.
+- A logged-out GitHub attempt then correctly returned `OAuthAccountNotLinked`.
+  Email equality did not silently merge accounts.
+- Real Chrome Google sign-in reached `/nexus`. With separate owner confirmation,
+  Settings -> Verification -> Link GitHub attached the identity while signed in.
+- Local logout -> Continue with GitHub -> `/nexus` -> profile passed; the profile
+  resolves to the same isolated test account as Google. Database read-only checks
+  confirm both provider links. PKCE and dangerous-email-linking protections remain.
+- Provider-link email confirmation / trust-tier badges remain pending; no inbox
+  delivery or production provider-link change is claimed.
 
 Artifacts: `frontend/test-results-release-stale-session-{local,preview,live}-baseline/`
-and `frontend/test-results-release-stale-session-local/`.
+and `frontend/test-results-release-stale-session-{local,preview-final,live}/`.

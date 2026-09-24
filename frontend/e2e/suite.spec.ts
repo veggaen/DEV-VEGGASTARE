@@ -1716,7 +1716,9 @@ test('S2 security patch password login, protected routes and logout at phone and
     await page.getByPlaceholder('you@example.com').fill(process.env.E2E_TEST_EMAIL!);
     await page.locator('input[type=password]').fill(process.env.E2E_TEST_PASSWORD!);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await expect(page).toHaveURL(/\/profile(?:[/?#]|$)/);
+    // /profile resolves the signed-in account before redirecting to its canonical URL.
+    // Wait for that redirect, not the intermediate route, before navigating again.
+    await expect(page).toHaveURL(/\/profile\/cveggatpreviewbuyer000001(?:[?#]|$)/);
     const session = await (await context.request.get('/api/auth/session')).json();
     expect(session.user).toMatchObject({ id: 'cveggatpreviewbuyer000001', role: 'USER', isDemo: false });
     expect((await context.request.get('/api/wallets')).status()).toBe(200);
@@ -5529,7 +5531,7 @@ test.describe("Layer 3 — Content", () => {
       expect(config.status()).toBe(200);
       const initial = await config.json();
       expect(initial.demo).toBe(true);
-      expect([1, 3, 5]).toContain(initial.balance);
+      expect([0, 1, 3, 5]).toContain(initial.balance);
       await page.goto('/ai', { waitUntil: 'domcontentloaded' });
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
       // A fresh origin hydrates the banner after the server-rendered chat.
@@ -5548,7 +5550,9 @@ test.describe("Layer 3 — Content", () => {
       const conversationPath = new URL(page.url()).pathname;
       await expect(page.getByText(`${initial.balance} demo credit${initial.balance === 1 ? '' : 's'}`, { exact: true })).toBeVisible();
       let remaining = initial.balance as number;
-      const turns = [...Array.from({ length: Math.floor(remaining / 2) }, () => ({ model: 'GPT-5.6 Luna', cost: 2 })), { model: 'GPT-OSS 20B · Groq', cost: 1 }];
+      // Reuse an exhausted retained session to recheck the spending boundary
+      // without issuing fresh demo credits or any additional provider calls.
+      const turns = remaining > 0 ? [...Array.from({ length: Math.floor(remaining / 2) }, () => ({ model: 'GPT-5.6 Luna', cost: 2 })), { model: 'GPT-OSS 20B · Groq', cost: 1 }] : [];
       for (const [index, { model, cost }] of turns.entries()) {
         await page.getByRole('button', { name: /^Choose AI model:/ }).click();
         const sheet = page.getByRole('dialog', { name: 'Choose AI model', exact: true });
