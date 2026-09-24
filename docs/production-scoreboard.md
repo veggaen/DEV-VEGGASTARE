@@ -4,6 +4,15 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Interview artifact cleanup: **DONE in the release worktree**. Historical
+`REBUILD_PROMPT.md`, `REVIVAL_PROMPT.md`, `monetisation.md` and the three-line
+`prd.md` moved from the root to `docs/archive/early-concepts/`, with an explicit
+historical/non-authoritative notice. Text preservation checked against Git HEAD
+(only newline normalization), guide links verified, and agent status references
+now point to this scoreboard. No original design notes were deleted and no
+runtime change or deployment is needed. The recording and full acceptance gates
+remain open; this cleanup is not a claim that S9 or the entire mission is done.
+
 Homepage marketplace story: **DONE for this slice locally and live**.
 Source `a6ba219` clarifies the digital-product flow and experimental modules,
 repairs mobile word wrapping, improves feature-link targets/focus, and corrects

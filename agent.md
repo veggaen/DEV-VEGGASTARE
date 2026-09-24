@@ -26,7 +26,8 @@ Root: C:\Users\v3gga\Documents\DEV-VEGGASTARE\
 ├── docs/                 # Feature specs, legal, integration guides
 ├── MasterContext.md       # Global invariants — read before making changes
 ├── architecture.md        # Service boundaries, data flows, deployment
-├── prd.md                 # Product Requirements Document — feature status tracking
+├── docs/production-scoreboard.md # Evidence-based feature status tracking
+├── docs/archive/early-concepts/ # Historical notes; not current product requirements
 └── ONBOARDING.md          # Employee setup guide
 ```
 
@@ -357,6 +358,6 @@ After completing any non-trivial change, check and update project docs if affect
 | `MasterContext.md` | New modules, changed invariants, new env vars, architecture shifts |
 | `agent.md` | Feature status changes, new tech, roadmap updates, new conventions |
 | `architecture.md` | Service boundaries change, new data flows, deployment changes |
-| `prd.md` | Features ship (⏳ → ✅), new features planned |
+| `docs/production-scoreboard.md` | Verified feature status, release evidence and remaining blockers |
 | `README.md` | Setup steps change, new tooling |
 | `ONBOARDING.md` | Anything that affects employee workflow or setup |
