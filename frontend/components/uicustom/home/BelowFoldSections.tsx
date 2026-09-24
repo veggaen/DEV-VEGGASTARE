@@ -501,7 +501,7 @@ export default function BelowFoldSections() {
             delay={0}
             href="/products"
             title="Digital products"
-            description="Explore clearly labelled reviewer packs with real files. The free demo lets you try the marketplace without a payment."
+            description="Explore digital artwork and prepaid AI credits. Try the marketplace for free with the demo."
             icon={BOX_ICON}
             accentClass="from-violet-500/6 to-transparent"
             onMouseEnter={handleFeatureEnter}

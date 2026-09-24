@@ -988,7 +988,7 @@ test('S8 marketplace offer routes are honest, responsive and navigable without b
         expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
         expect(await scroller.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
         const frame=await offers.boundingBox();expect(frame!.width).toBeLessThanOrEqual(1280);
-        for(const name of ['Browse marketplace','Choose AI credits','View Interview Pack','Read the sales terms']){
+        for(const name of ['Browse marketplace','Choose AI credits','View Fjord Study','Read the sales terms']){
           expect((await offers.getByRole('link',{name,exact:true}).boundingBox())!.height).toBeGreaterThanOrEqual(44);
         }
         if([390,1280,2560].includes(size.width))await page.screenshot({path:testInfo.outputPath(`offers-${slug}-${size.width}.png`)});
@@ -1003,7 +1003,7 @@ test('S8 marketplace offer routes are honest, responsive and navigable without b
     await expect(page).toHaveURL(/\/products\/cveggatinterviewcredits01$/);
     await expect(page.getByRole('heading',{name:'Veggat AI Credits',exact:true,level:1})).toBeVisible();
     await page.goBack({waitUntil:'domcontentloaded'});await expect(page.getByRole('heading',{name:'Member discounts',exact:true,level:1})).toBeVisible();
-    await page.getByRole('link',{name:'View Interview Pack',exact:true}).click();
+    await page.getByRole('link',{name:'View Fjord Study',exact:true}).click();
     await expect(page.getByRole('heading',{name:'Fjord Study — Digital Artwork',exact:true,level:1})).toBeVisible();
     await page.goBack({waitUntil:'domcontentloaded'});
     await page.getByRole('navigation',{name:'Marketplace offers',exact:true}).getByRole('link',{name:'Daily deals',exact:true}).click();

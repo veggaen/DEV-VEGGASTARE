@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 const linkStyle = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-center text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 const steps = [
-  { icon: PackageOpen, title: 'Explore the marketplace', text: 'Browse the reviewer products and add a digital file pack or AI credits to your basket.' },
+  { icon: PackageOpen, title: 'Explore the marketplace', text: 'Browse digital artwork or choose a prepaid AI credit amount.' },
   { icon: ShieldCheck, title: 'Try a free demo order', text: 'Use an isolated demo workspace. Checkout shows a 0 NOK receipt and gives you real sample JPG and TXT downloads, without opening a payment provider.' },
   { icon: MessageSquare, title: 'See the safeguards', text: 'The demo starts with five one-time AI credits. Message costs are shown before sending, and premium requests stop when the balance runs out.' },
 ];

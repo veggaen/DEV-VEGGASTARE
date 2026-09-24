@@ -574,8 +574,8 @@ export const MyProductCreationForm = () => {
       .then((payload) => {
         if (cancelled) return;
         const reviewer = payload?.reviewerCheckout;
-        setReviewerCheckoutStatus(reviewer?.environment === 'LIVE' ? 'Reviewer products use PayPal Live.'
-          : reviewer?.environment === 'SANDBOX' ? 'Reviewer products use PayPal Sandbox test money.' : 'Reviewer payment status is unavailable.');
+        setReviewerCheckoutStatus(reviewer?.environment === 'LIVE' ? 'Veggat Studio products use PayPal Live.'
+          : reviewer?.environment === 'SANDBOX' ? 'Veggat Studio products use PayPal Sandbox test money.' : 'Veggat Studio payment status is unavailable.');
       })
       .catch(() => {
         if (cancelled) return;

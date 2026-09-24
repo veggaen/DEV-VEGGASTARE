@@ -20,7 +20,7 @@ export function CatalogHeader() {
           </Link>
         </Button>
       </div>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Digital products, clear ownership. Explore independent creators and try the reviewer packs.</p>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Browse digital artwork and prepaid AI credits.</p>
     </div>
   </header>;
 }

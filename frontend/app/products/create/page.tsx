@@ -34,9 +34,9 @@ export default function MyProductCreationPage() {
         {user?.role === 'OWNER' && (
           <details className="mt-8 border-t border-border pt-5 text-sm">
             <summary className="min-h-11 cursor-pointer font-semibold focus-visible:ring-2 focus-visible:ring-ring">Owner checkout tools</summary>
-            <p className="my-3 text-muted-foreground">Use the existing reviewer products. Local and Preview use Sandbox; production uses Live. These links do not create products or charge anyone.</p>
+            <p className="my-3 text-muted-foreground">Veggat Studio products use Sandbox locally and on Preview, and Live in production.</p>
             <div className="flex flex-wrap gap-3">
-              <Button asChild variant="outline"><Link href="/products/cveggatinterviewpack000001">Interview Pack</Link></Button>
+              <Button asChild variant="outline"><Link href="/products/cveggatinterviewpack000001">Fjord Study</Link></Button>
               <Button asChild variant="outline"><Link href="/products/cveggatinterviewcredits01">AI credits</Link></Button>
               <Button asChild variant="outline"><Link href="/settings?section=payments"><CreditCard aria-hidden="true" className="mr-2 h-4 w-4" />Payments</Link></Button>
               <Button asChild variant="outline"><Link href="/settings?section=wallet"><WalletCards aria-hidden="true" className="mr-2 h-4 w-4" />Wallet</Link></Button>
