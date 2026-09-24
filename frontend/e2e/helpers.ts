@@ -76,6 +76,7 @@ export const AUTH_PAGES = [
 
 /** Protected page routes — must redirect unauthenticated users. */
 export const PROTECTED_PAGES = [
+  "/my-sales/requests",
   "/ai/credits",
   "/dashboard",
   "/dashboard/trading",
@@ -99,6 +100,7 @@ export const PUBLIC_APIS = [
 
 /** Protected API endpoints — must return 401/403 without auth. */
 export const PROTECTED_APIS = [
+  "/api/seller/returns",
   "/api/notifications",
   "/api/users",
   "/api/friend-requests",

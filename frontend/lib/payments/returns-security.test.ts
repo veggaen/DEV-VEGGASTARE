@@ -25,18 +25,19 @@ import { GET, PATCH } from '@/app/api/returns/[id]/route';
 import { POST } from '@/app/api/returns/route';
 
 const context = { params: Promise.resolve({ id: 'return-one' }) };
+const revision = new Date('2026-09-24T10:00:00.000Z');
 const item = (owner: string | null, company: string | null = null) => ({
   Product: { userId: owner, companyId: company },
 });
 const record = (items = [item('seller')]) => ({
   id: 'return-one', orderId: 'order-one', userId: 'buyer', status: 'PENDING',
-  createdAt: new Date(), updatedAt: new Date(), sellerNote: null,
+  createdAt: new Date(), updatedAt: revision, sellerNote: null,
   Order: { OrderItem: items },
 });
 function request(action = 'APPROVE', origin: string | null = 'http://localhost:3000') {
   return new NextRequest('http://localhost:3000/api/returns/return-one', {
     method: 'PATCH', headers: { 'Content-Type': 'application/json', ...(origin ? { Origin: origin } : {}) },
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action, sellerNote: 'Reviewed for follow-up, not a payment.', expectedUpdatedAt: revision.toISOString() }),
   });
 }
 beforeEach(() => {
@@ -97,7 +98,7 @@ describe('whole-order return review', () => {
     expect((await PATCH(request(), context)).status).toBe(200);
     expect(mock.update).toHaveBeenCalledWith({
       where: { id: 'return-one', status: 'PENDING', updatedAt: expect.any(Date) },
-      data: { status: 'APPROVED', sellerNote: null, processedBy: 'seller', processedAt: expect.any(Date) },
+      data: { status: 'APPROVED', sellerNote: 'Reviewed for follow-up, not a payment.', processedBy: 'seller', processedAt: expect.any(Date) },
     });
   });
   it('rejects stale concurrent decisions and already-final statuses', async () => {
@@ -131,6 +132,33 @@ it('accepts a defect claim after 14 days without treating a download as a waiver
   expect(await response.json()).toMatchObject({ status: 'PENDING', withinWithdrawalPeriod: false });
   expect(mock.create).toHaveBeenCalledOnce();
   expect(mock.lock).toHaveBeenCalledOnce();
+});
+
+describe('seller revision and demo guards', () => {
+  it('keeps other buyer details private from demo identities even with an admin role', async () => {
+    mock.auth.mockResolvedValue({ user: { id: 'demo_seller', role: 'ADMIN', isDemo: true } });
+    expect((await GET(request(), context)).status).toBe(403);
+    mock.find.mockResolvedValue({ ...record(), userId: 'demo_seller' });
+    expect((await GET(request(), context)).status).toBe(200);
+  });
+  it('rejects an old browser revision before starting a review transaction', async () => {
+    mock.find.mockResolvedValue({ ...record(), updatedAt: new Date('2026-09-24T11:00:00.000Z') });
+    const response = await PATCH(request(), context);
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: 'STALE_REVIEW' });
+    expect(mock.transaction).not.toHaveBeenCalled();
+  });
+  it('blocks demo seller mutations at the route, even without middleware', async () => {
+    mock.auth.mockResolvedValue({ user: { id: 'demo_seller', role: 'ADMIN', isDemo: true } });
+    expect((await PATCH(request(), context)).status).toBe(403);
+    expect(mock.find).not.toHaveBeenCalled();
+  });
+  it.each([{ action: 'APPROVE' }, { action: 'REJECT', sellerNote: ' ', expectedUpdatedAt: revision.toISOString() }])('requires a revision and buyer-visible explanation', async body => {
+    expect((await PATCH(new NextRequest('http://localhost:3000/api/returns/return-one', {
+      method: 'PATCH', headers: { Origin: 'http://localhost:3000' }, body: JSON.stringify(body),
+    }), context)).status).toBe(400);
+    expect(mock.transaction).not.toHaveBeenCalled();
+  });
 });
 
 describe('buyer notices', () => {

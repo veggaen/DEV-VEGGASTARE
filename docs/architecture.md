@@ -57,6 +57,13 @@ production behavior; the presence of an integration is not a readiness claim.
 
 ## Environment and verification
 
+Seller purchase-request review is separate from provider money movement.
+The bounded inbox filters whole-order ownership before returning buyer messages;
+review decisions require a buyer-visible explanation and a matching revision.
+The payment state remains authoritative even when a legacy review label says
+“refunded.” Demo sellers cannot inspect real correspondence or issue decisions.
+See [seller review evidence](seller-review-acceptance-2026-09.md).
+
 Local OAuth is `http://localhost:3000`. Local/preview payments use Sandbox;
 Production uses Live. DEMO, SANDBOX and LIVE credit balances never substitute for
 one another. Demo identities are temporary and isolated, cannot make real

@@ -12,7 +12,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { allowAuthAttempt } from '@/lib/auth-rate-limit';
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
-import { z } from 'zod';
+import { isDemoUserId } from '@/lib/demo-policy';
+import { ReviewInput } from '@/lib/payments/return-review';
+import { canReviewWholeOrder } from '@/lib/payments/return-review-access';
+
+export const dynamic = 'force-dynamic';
+const privateHeaders = { 'Cache-Control': 'private, no-store' };
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -23,29 +28,6 @@ function toIsoString(value: unknown): string {
 }
 
 type RouteContext = { params: Promise<{ id: string }> };
-
-const ProcessReturnSchema = z.object({
-  action: z.enum(['APPROVE', 'REJECT', 'REFUND', 'CANCEL']),
-  sellerNote: z.string().trim().max(2000).optional(),
-}).strict();
-
-type ReturnItem = { Product: { userId: string | null; companyId: string | null } };
-
-async function canReviewWholeOrder(userId: string, role: string | undefined, items: ReturnItem[]) {
-  // A return currently covers the entire order. One seller must not see or
-  // decide another seller's lines. Empty orders fail closed, including for admins.
-  if (!items.length) return false;
-  if (role === 'ADMIN') return true;
-  const companyIds = [...new Set(items.filter(item => item.Product.userId !== userId)
-    .map(item => item.Product.companyId).filter((id): id is string => !!id))];
-  const employees = companyIds.length ? await dbPrisma.employee.findMany({
-    where: { userId, companyId: { in: companyIds }, role: { in: ['OWNER', 'MANAGER'] } },
-    select: { companyId: true },
-  }) : [];
-  const managedCompanies = new Set(employees.map(employee => employee.companyId));
-  return items.every(({ Product: product }) => product.userId === userId ||
-    (product.companyId !== null && managedCompanies.has(product.companyId)));
-}
 
 class ReturnReviewConflict extends Error {}
 
@@ -58,6 +40,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const sessionUserRole = session?.user?.role;
   if (!sessionUserId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (isDemoUserId(sessionUserId) || session?.user?.isDemo) {
+    return NextResponse.json({ error: 'Seller review is read-only in the demo.' }, { status: 403, headers: privateHeaders });
   }
   if (!await allowAuthAttempt('return-review', sessionUserId, request)) {
     return NextResponse.json({ error: 'Too many requests. Please try again shortly.' }, { status: 429 });
@@ -75,7 +60,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const parsed = ProcessReturnSchema.safeParse(body);
+  const parsed = ReviewInput.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: 'Invalid request', ...(isDev ? { issues: parsed.error.issues } : {}) },
@@ -83,7 +68,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     );
   }
 
-  const { action, sellerNote } = parsed.data;
+  const { action, sellerNote, expectedUpdatedAt } = parsed.data;
 
   try {
     // Fetch the return request with order and product info
@@ -119,6 +104,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }, { status: 409 });
     }
 
+    if (toIsoString(returnReq.updatedAt) !== expectedUpdatedAt) {
+      return NextResponse.json({ error: 'This request changed. Refresh it and review the latest details before saving.', code: 'STALE_REVIEW' }, { status: 409, headers: privateHeaders });
+    }
+
     // Validate state transition
     const validTransitions: Record<string, string[]> = {
       PENDING: ['APPROVED', 'REJECTED', 'CANCELLED'],
@@ -146,7 +135,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         where: { id, status: returnReq.status, updatedAt: returnReq.updatedAt },
         data: {
           status: newStatus as 'APPROVED' | 'REJECTED' | 'CANCELLED',
-          sellerNote: sellerNote?.trim() || returnReq.sellerNote,
+          sellerNote,
           processedBy: sessionUserId,
           processedAt: new Date(),
         },
@@ -164,10 +153,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       refundAmount: updated.refundAmount,
       processedAt: updated.processedAt ? toIsoString(updated.processedAt) : null,
       updatedAt: toIsoString(updated.updatedAt),
-    });
+    }, { headers: privateHeaders });
   } catch (error) {
     if (error instanceof ReturnReviewConflict) {
-      return NextResponse.json({ error: 'This request changed. Refresh before reviewing it again.' }, { status: 409 });
+      return NextResponse.json({ error: 'This request changed. Refresh before reviewing it again.', code: 'STALE_REVIEW' }, { status: 409, headers: privateHeaders });
     }
     console.error('[api/returns/[id]] Return review unavailable');
     return NextResponse.json(
@@ -223,6 +212,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     // Do not disclose the full mixed-seller order to one of its sellers.
     const isBuyer = returnReq.userId === sessionUserId;
+    if (!isBuyer && (isDemoUserId(sessionUserId) || session?.user?.isDemo)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: privateHeaders });
+    }
     if (!isBuyer && !await canReviewWholeOrder(sessionUserId, sessionUserRole, returnReq.Order.OrderItem)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -238,7 +230,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       processedAt: returnReq.processedAt ? toIsoString(returnReq.processedAt) : null,
       createdAt: toIsoString(returnReq.createdAt),
       order: returnReq.Order,
-    });
+    }, { headers: privateHeaders });
   } catch {
     console.error('[api/returns/[id]] Return details unavailable');
     return NextResponse.json({ error: 'Failed to fetch return request' }, { status: 500 });

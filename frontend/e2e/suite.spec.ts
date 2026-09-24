@@ -1,5 +1,99 @@
 import { test, expect } from "@playwright/test";
 
+test('S4 — seller review preserves drafts, rejects uncertain responses and fits every viewport', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_SELLER_REQUESTS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Explicit seller UI fixtures; no real seller decision');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const fixture = { id: 'qa-browser-seller-request', orderId: 'qa-browser-order', reason: 'DEFECTIVE', description: 'QA fixture — the file will not open.',
+    status: 'PENDING', sellerNote: null, createdAt: '2026-09-24T01:00:00.000Z', updatedAt: '2026-09-24T01:00:00.000Z',
+    order: { total: 29, currency: 'NOK', status: 'COMPLETED', environment: 'SANDBOX', paymentState: 'COMPLETED', captureId: 'qa-not-a-real-capture',
+      refundReference: null, items: [{ title: 'QA digital pack', quantity: 1 }], itemCount: 1, downloadRequests: 1,
+      agreement: { version: 'qa-v1', recordedAt: '2026-09-24T00:00:00.000Z', demo: false, requests: ['QA retained text — not a real agreement.'] } } };
+  let lists = 0, writes = 0, refreshes = 0;
+  await page.route('**/api/seller/returns?*', route => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.has('id')) {
+      refreshes++; fixture.updatedAt = '2026-09-24T02:00:00.000Z';
+      return route.fulfill({ json: { requests: [fixture], page: 1, hasMore: false, readOnly: false } });
+    }
+    lists++;
+    return route.fulfill(lists === 1 ? { status: 503, json: { error: 'QA outage' } } : { json: { requests: [fixture], page: Number(url.searchParams.get('page')), hasMore: false, readOnly: false } });
+  });
+  await page.route('**/api/returns/qa-browser-seller-request', route => {
+    expect(route.request().method()).toBe('PATCH'); writes++;
+    const body = route.request().postDataJSON();
+    expect(body.expectedUpdatedAt).toBe(fixture.updatedAt);
+    expect(body.action).toBe('APPROVE'); expect(body).not.toHaveProperty('refundAmount');
+    if (writes === 1) return route.fulfill({ status: 503, json: { error: 'QA failure' } });
+    if (writes === 2) return route.fulfill({ status: 409, json: { code: 'STALE_REVIEW' } });
+    if (writes === 3) return route.fulfill({ status: 200, contentType: 'text/html', body: '<p>Not a review confirmation</p>' });
+    return route.fulfill({ json: { id: fixture.id, orderId: fixture.orderId, status: 'APPROVED', sellerNote: body.sellerNote, updatedAt: '2026-09-24T03:00:00.000Z' } });
+  });
+  try {
+    await page.goto('/my-sales/requests?status=PENDING&page=1', { waitUntil: 'domcontentloaded' });
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'Could not load purchase requests' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'No requests in this view', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Try again', exact: true }).click();
+    const list = page.getByRole('list', { name: 'Seller purchase requests', exact: true });
+    await expect(list).toContainText('Recorded file requests: 1');
+    await page.getByText('Retained delivery request · qa-v1', { exact: true }).click();
+    await expect(list).toContainText('QA retained text');
+    await page.getByRole('button', { name: 'Review request', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Review this request', exact: true })).toBeFocused();
+    expect(writes).toBe(0);
+    const message = page.getByRole('textbox', { name: 'Response to buyer', exact: true });
+    const save = page.getByRole('button', { name: 'Confirm review decision', exact: true });
+    await save.click(); await expect(message).toBeFocused(); expect(writes).toBe(0);
+    const draft = 'QA only — I will investigate the file problem. No refund was issued.';
+    await message.fill(draft);
+    await expect(list.getByRole('alert')).toHaveCount(0);
+    await expect(page.getByLabel('Review status', { exact: true })).toBeDisabled();
+    for (const [width, height] of [[360, 800], [390, 844], [844, 390], [768, 1024], [1024, 768], [1280, 800], [1920, 1080], [2560, 1080]]) {
+      await page.setViewportSize({ width, height }); await save.scrollIntoViewIfNeeded();
+      await expect(save).toBeInViewport(); expect((await save.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await page.locator('[data-site-scroll]').evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+      if (width === 390 || width === 1280) await page.screenshot({ path: testInfo.outputPath(`seller-review-${width}.png`) });
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await save.click(); await expect(list.getByRole('alert')).toContainText('could not be saved'); await expect(message).toHaveValue(draft);
+    await save.click(); await expect(list.getByRole('alert')).toContainText('request changed'); await expect(save).toBeDisabled();
+    await page.getByRole('button', { name: 'Refresh request — keep draft', exact: true }).click();
+    await expect(save).toBeEnabled(); await expect(message).toHaveValue(draft);
+    await save.click(); await expect(list.getByRole('alert')).toContainText('could not confirm'); await expect(save).toBeDisabled();
+    await page.getByRole('button', { name: 'Refresh request — keep draft', exact: true }).click();
+    await expect(save).toBeEnabled(); await expect(message).toHaveValue(draft);
+    await save.click();
+    await expect(list.getByRole('status')).toContainText('No payment, credit balance or download access changed');
+    await expect(list.getByRole('status')).toBeFocused();
+    await expect(list).toContainText(draft); await expect(list).toContainText('Approved for follow-up');
+    await expect(page.getByRole('button', { name: 'Review request', exact: true })).toHaveCount(0);
+    expect(writes).toBe(4); expect(refreshes).toBe(2); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S4 — seller inbox requires sign-in and demo access stays read-only', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_SELLER_REQUESTS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Unmocked seller route guards');
+  const anonymous = await browser.newContext({ baseURL });
+  const demo = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  try {
+    expect((await anonymous.request.get('/api/seller/returns')).status()).toBe(401);
+    const page = await anonymous.newPage(); await page.goto('/my-sales/requests', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/auth\/login/);
+    const response = await demo.request.get('/api/seller/returns');
+    expect(response.status()).toBe(200); expect(response.headers()['cache-control']).toContain('no-store');
+    expect(await response.json()).toEqual({ requests: [], page: 1, hasMore: false, readOnly: true });
+    expect((await demo.request.patch('/api/returns/qa-nonexistent', { headers: { Origin: new URL(baseURL!).origin },
+      data: { action: 'APPROVE', sellerNote: 'Demo must not submit this.', expectedUpdatedAt: '2026-09-24T01:00:00.000Z' } })).status()).toBe(403);
+    const demoPage = await demo.newPage(); await demoPage.goto('/my-sales/requests', { waitUntil: 'domcontentloaded' });
+    await expect(demoPage.getByText('Read-only demo:', { exact: false })).toBeVisible();
+    await expect(demoPage.getByRole('button', { name: 'Review request', exact: true })).toHaveCount(0);
+  } finally { await anonymous.close(); await demo.close(); }
+});
+
 test('S4 — transactional email job rejects public and forged requests', async ({ request }) => {
   test.skip(process.env.E2E_EMAIL_SLICE !== '1', 'Run only after the protected email route is deployed');
   const headerCases: Record<string, string>[] = [{}, { Authorization: 'Bearer forged-qa-secret' }];

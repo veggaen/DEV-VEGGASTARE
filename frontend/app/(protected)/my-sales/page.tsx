@@ -181,6 +181,10 @@ export default function MySalesPage() {
           </div>
         </div>
 
+        <Link href="/my-sales/requests" className="inline-flex min-h-12 items-center rounded-lg border border-zinc-700 px-4 text-sm font-medium hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+          Purchase requests — review withdrawals and problems
+        </Link>
+
         {/* Quick Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
