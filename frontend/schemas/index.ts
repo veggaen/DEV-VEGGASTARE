@@ -138,7 +138,7 @@ export const MyProductCreateSchema = z.object({
     category: z.string().trim().min(1, { message: "Category is required" }).max(200),
     // New multi-category system - array of category tags
     categories: z.array(CategoryTagSchema).optional().default([]),
-    price: z.number().min(0, { message: "Price must be 0 or greater" }),
+    price: z.number({ invalid_type_error: 'Enter a valid price with up to 2 decimal places' }).min(0, { message: "Price must be 0 or greater" }),
     priceCurrency: z.enum(FiatCurrencyValues).default('USD'),
     acceptedFiatCurrencies: z.array(z.enum(FiatCurrencyValues)).default([]),
     condition: z.enum(ProductConditionValues).default('NEW'),

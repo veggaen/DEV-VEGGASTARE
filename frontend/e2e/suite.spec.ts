@@ -5,6 +5,64 @@ import { createHash } from 'node:crypto';
 import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders';
 import { SessionRailResponse } from '../lib/ai-chat/session-list';
 
+test('Listing draft currency and decimal editing stay consistent through review',async({browser,baseURL},testInfo)=>{
+  test.skip(process.env.E2E_LISTING_POLISH!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Read-only listing currency regression');
+  for(const width of [390,1280]){
+    const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width,height:844},reducedMotion:'reduce'}),page=await context.newPage();
+    await context.addInitScript(()=>sessionStorage.setItem('vegga_form_product-create',JSON.stringify({version:1,timestamp:Date.now(),data:{title:'Saved NOK draft',description:'Read-only restored listing draft.',category:'Digital',categories:[{name:'Digital',isNew:true}],productType:'DIGITAL',price:49.99,priceCurrency:'NOK',acceptedFiatCurrencies:['NOK']}})));
+    try{
+      await page.goto('/products/create',{waitUntil:'domcontentloaded'});
+      await expect(page.getByRole('main').getByText('Explore listing creation in demo mode',{exact:true})).toBeVisible();
+      if(!await page.evaluate(()=>localStorage.getItem('veggat:cookieConsent')))await page.getByRole('button',{name:'Essential Only',exact:true}).click();
+      await page.getByRole('button',{name:/^4\. Price & payment/}).click();
+      const currency=page.locator('[data-listing-step="pricing"]').getByRole('combobox');
+      await expect(currency).toHaveText('NOK');
+      await expect(currency).toHaveAccessibleName('Currency');
+      const price=page.getByRole('textbox',{name:'Price',exact:true});await expect(price).toHaveValue('49.99');
+      await price.fill('');await price.pressSequentially('12.34');await price.press('Tab');await expect(price).toHaveValue('12.34');
+      await price.fill('49,99');await price.press('Tab');await expect(price).toHaveValue('49.99');
+      await currency.click();await page.getByRole('option',{name:'EUR',exact:true}).click();
+      await expect(currency).toHaveText('EUR');await expect(price).toHaveValue('49.99');
+      await expect(page.getByText('General listing checkout is not open yet.',{exact:true})).toBeVisible();
+      await page.getByRole('button',{name:/^6\. Review & publish/}).click();
+      await expect(page.getByText('€49.99 EUR',{exact:true})).toBeVisible();
+      await expect(page.getByRole('button',{name:'Create Listing',exact:true})).toBeDisabled();
+      await page.screenshot({path:testInfo.outputPath(`draft-price-${width}.png`)});
+    }finally{await context.close();}
+  }
+});
+
+test('Listing form errors have readable contrast and phone-sized fields',async({browser,baseURL})=>{
+  test.skip(process.env.E2E_LISTING_POLISH!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Read-only error and field geometry checks');
+  for(const theme of ['light','dark']){
+    const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();
+    await context.addInitScript(theme=>localStorage.setItem('veggat:theme',theme),theme);
+    try{
+      await page.goto('/products/create',{waitUntil:'domcontentloaded'});
+      await expect(page.getByRole('main').getByText('Explore listing creation in demo mode',{exact:true})).toBeVisible();
+      if(!await page.evaluate(()=>localStorage.getItem('veggat:cookieConsent')))await page.getByRole('button',{name:'Essential Only',exact:true}).click();
+      await page.getByRole('button',{name:/^5\. Review & publish/}).click();
+      await page.getByRole('button',{name:'Product title: Title is required Fix',exact:true}).click();
+      const error=page.getByText('Title is required',{exact:true});await expect(error).toBeVisible();
+      const contrast=await error.evaluate(element=>{
+        const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d')!;
+        const rgb=(color:string)=>{ctx.clearRect(0,0,1,1);ctx.fillStyle=color;ctx.fillRect(0,0,1,1);return Array.from(ctx.getImageData(0,0,1,1).data).slice(0,3);};
+        const luminance=(color:string)=>rgb(color).map(n=>{const v=n/255;return v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4);}).reduce((sum,n,i)=>sum+n*[.2126,.7152,.0722][i],0);
+        let background:Element|null=element;while(background&&getComputedStyle(background).backgroundColor==='rgba(0, 0, 0, 0)')background=background.parentElement;
+        const light=luminance(getComputedStyle(element).color),dark=luminance(background?getComputedStyle(background).backgroundColor:'rgb(255, 255, 255)');
+        return (Math.max(light,dark)+.05)/(Math.min(light,dark)+.05);
+      });
+      expect(contrast).toBeGreaterThanOrEqual(4.5);
+      for(const label of ['Product title','Categories','Description']){
+        const field=page.getByRole('textbox',{name:label,exact:true});
+        expect(await field.evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+        expect((await field.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    }finally{await context.close();}
+  }
+});
+
 test('Isolated seller signs in, uploads a real private file and publishes a browse-only product',async({browser,baseURL},testInfo)=>{
   test.skip(process.env.E2E_PUBLISH_WRITE!=='1'||!process.env.E2E_PUBLISH_EMAIL||!process.env.E2E_PUBLISH_PASSWORD,'Explicit isolated-Preview write runner only');
   if(!baseURL||!(baseURL==='http://localhost:3000'||baseURL==='https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app'))throw new Error('Publication QA cannot write to production');
