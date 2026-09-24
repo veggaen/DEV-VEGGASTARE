@@ -49,7 +49,12 @@ Reference: [Auth.js public credentials error codes](https://authjs.dev/reference
   explicitly supplies only `AUTH_URL` and the verified existing Sandbox
   `PAYPAL_WEBHOOK_ID` at build/runtime. Do not apply these overrides to a
   production deployment. Full branch-metadata selection diagnosis remains open.
-- Replacement Preview build/acceptance and Live acceptance remain pending.
+- Explicit-settings Preview `dpl_52SXaPka2Kp7nCgdcJsWWCHfH4MZ` is READY at the
+  stable Preview alias. Strict build passed against isolated jolly-smoke with
+  no pending migrations. All **3/3** focused checks pass (17.3s): phone/desktop
+  refusal recovery, webhook malformed/unsigned rejection, and auth callback
+  host/PKCE/cookies/malformed-session checks. This is not full OAuth consent or
+  a new Sandbox capture/refund acceptance. Live acceptance remains pending.
 - The webhook regression reproduced 503 on the prior deployment. Acceptance
   requires malformed input 400 and unsigned input 401; neither fixture reaches
   fulfillment. All 16 webhook verification/reconciliation units pass.
