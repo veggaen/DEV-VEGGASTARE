@@ -1,4 +1,4 @@
-# Homepage marketplace story — local verification
+# Homepage marketplace story — local and live verification
 
 ## Changes
 
@@ -29,7 +29,16 @@
 
 ## Limits / next verification
 
-This slice is locally verified, not yet deployed. It is not evidence that every
+Production deployment `dpl_96gLAzdykhhDeEbsNSH3qDYVyPf3` (source `a6ba219`)
+passed its strict build; the 49 production migrations had none pending.
+The public four-size navigation test passed on its candidate alias (30.2s)
+before promotion and on `https://www.veggat.com` after promotion (19.1s).
+Vercel inspection of the live domain confirms this deployment. Real Chrome's
+existing signed-in owner session also loaded the new story and followed the
+homepage Settings link to `/settings`, where Settings/Profile headings rendered.
+No payment, credit, setting or cart data was changed during these checks.
+
+This is not evidence that every
 route, animation, provider login or payment flow works. Existing wider motion
 and all-route interaction audits remain open. Hosted Preview sign-in is awaiting
 owner inspection of a browser-extension security warning; do not bypass it.

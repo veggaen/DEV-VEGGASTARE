@@ -4,6 +4,23 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 24 September 2026
 
+Homepage marketplace story: **DONE for this slice locally and live**.
+Source `a6ba219` clarifies the digital-product flow and experimental modules,
+repairs mobile word wrapping, improves feature-link targets/focus, and corrects
+the Settings destination. Strict build, touched lint and **2/2** focused local
+browser checks pass at 360/390/1280/2560. Production
+`dpl_96gLAzdykhhDeEbsNSH3qDYVyPf3` passed strict build and the public navigation
+test on its candidate alias before promotion and on www.veggat.com afterward.
+Real Chrome owner Settings navigation also passes without changing account data. See
+[homepage evidence](homepage-marketplace-story-2026-09.md).
+
+Preview Google callback: **saved with explicit owner confirmation**. Existing
+six callbacks unchanged. Real Chrome retry reached a browser-extension security
+warning for Preview `/nexus`; stopped without bypass. Owner warning inspection
+is required before continuing that flow. PayPal Sandbox buyer access was already
+restored; a new sign-in request to PayPal is not currently the blocker. See
+[Preview configuration evidence](preview-deployment-preflight-2026-09.md).
+
 Demo refusal recovery: **local, Preview and live verified for this slice**.
 Source `b8b03d8`, 30 provisioning/policy units, strict build, two local refusal
 checks and one local auth protocol check pass. Preview exposed branch-scoped
@@ -51,8 +68,8 @@ local/Preview/live** pass. Eight-size scrolling/layout checks include 360 and
 [evidence, initial test failures and rollback](catalog-first-render-2026-09.md).
 No new field-speed score is claimed. The full-app scoreboard is not complete.
 
-**Live payment remains UNTESTED.** PayPal still shows its password sign-in page;
-the new 9 NOK Sandbox capture/replay check is waiting for owner authentication.
+**Live payment remains UNTESTED.** The new 9 NOK Sandbox capture/replay check
+awaits resolution of the Preview browser security warning described above.
 This release performed only demo-cart checkout navigation, not provider capture.
 The owner's pending 10-credit/9 NOK selection and earlier receipts are unchanged.
 
