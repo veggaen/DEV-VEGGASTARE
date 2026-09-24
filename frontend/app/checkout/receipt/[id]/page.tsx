@@ -9,13 +9,15 @@ import ReceiptDownloads from '@/components/checkout/receipt-downloads';
 import PreferredMoney from '@/components/checkout/preferred-money';
 import { displayCreditPosition } from '@/lib/ai-credit-display';
 import { storedCheckoutAgreement } from '@/lib/payments/checkout-agreement';
+import PurchaseSupport from '@/components/checkout/purchase-support';
 
 export default async function ReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
   if (!session?.user?.id) redirect(`/auth/login?callbackUrl=${encodeURIComponent(`/checkout/receipt/${id}`)}`);
   const receipt = await dbPrisma.checkoutAttempt.findUnique({ where: { orderId: id }, include: { Order: { include: {
-    OrderItem: true, DownloadToken: { where: { isRevoked: false, expiresAt: { gt: new Date() } }, include: { DigitalAsset: { select: { fileName: true } } } },
+    OrderItem: true, ReturnRequest: { orderBy: { createdAt: 'desc' }, take: 20 },
+    DownloadToken: { where: { isRevoked: false, expiresAt: { gt: new Date() } }, include: { DigitalAsset: { select: { fileName: true } } } },
   } } } });
   if (!receipt || receipt.userId !== session.user.id) notFound();
   const environment = receipt.environment;
@@ -54,6 +56,10 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     {complete && !demo && purchasedCredits > 0 && <section aria-label="Credit purchase" className="mt-6 rounded-xl border border-border bg-card p-5 sm:p-6"><h2 className="text-lg font-semibold">{purchasedCredits} {receipt.environment === 'SANDBOX' ? 'test credits' : 'credits'} purchased</h2><p className="mt-2 text-sm text-muted-foreground">{receipt.environment === 'SANDBOX' ? 'Test credits are separate from your live balance. ' : ''}Each model shows its fixed credit cost before you send. No subscription or automatic top-up.</p><Link href="/ai" className="mt-4 inline-flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 font-semibold text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Use credits in AI chat</Link></section>}
     <ul aria-label="Receipt items" className="mt-6 divide-y divide-border rounded-xl border border-border bg-card px-5 sm:px-6">{receipt.Order.OrderItem.map(item => <li key={item.id} className="flex min-w-0 flex-wrap justify-between gap-4 py-4"><span className="min-w-0 break-words [overflow-wrap:anywhere]">{item.title} × {item.quantity}</span><span className="max-w-full tabular-nums"><PreferredMoney amount={Math.round(item.priceAtTime * item.quantity * 100) / 100} /></span></li>)}</ul>
     {complete && availableFiles.length > 0 && <section className="mt-8"><h2 className="text-xl font-semibold">Your downloads</h2><p className="mt-2 text-sm text-muted-foreground">Private links expire after 24 hours. Stay signed in to this account.</p><ReceiptDownloads files={availableFiles.map(file => ({ id: file.id, token: file.token, fileName: file.DigitalAsset.fileName }))} /></section>}
+    <PurchaseSupport orderId={receipt.orderId} canRequest={complete} demo={demo} initialRequests={receipt.Order.ReturnRequest.map(request => ({
+      id: request.id, orderId: request.orderId, reason: request.reason, description: request.description,
+      status: request.status, sellerNote: request.sellerNote, createdAt: request.createdAt.toISOString(),
+    }))} />
     <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2">{hasDigitalFiles && <Link href="/my-downloads" className="inline-flex min-h-11 items-center underline">My downloads</Link>}<Link href="/my-orders" className="inline-flex min-h-11 items-center underline">My orders</Link><Link href="/ai" className="inline-flex min-h-11 items-center underline">Open AI chat</Link><Link href="/products" className="inline-flex min-h-11 items-center underline">Browse products</Link></div>
   </section>;
 }

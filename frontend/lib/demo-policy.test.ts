@@ -7,10 +7,10 @@ describe("demo isolation", () => {
     expect(isDemoUserId("regular-user")).toBe(false);
     expect(isDemoUserId(undefined)).toBe(false);
   });
-  it.each(["/api/ai-chat/sessions/cfake/trigger-ai", "/api/ai-chat/sessions/cfake", "/api/orders", "/api/payments", "/api/payments/capture", "/api/users", "/settings", "/api/users/ai-keys", "/api/auth/callback/google", "/api/admin/impersonate", "/api/edgestore/request-upload", "/api/edgestore/delete-file", "/api/edgestore/init/upload"])("blocks demo mutations at %s", path => {
+  it.each(["/api/returns/return-id", "/api/returns/return-id/acknowledgment", "/api/ai-chat/sessions/cfake/trigger-ai", "/api/ai-chat/sessions/cfake", "/api/orders", "/api/payments", "/api/payments/capture", "/api/users", "/settings", "/api/users/ai-keys", "/api/auth/callback/google", "/api/admin/impersonate", "/api/edgestore/request-upload", "/api/edgestore/delete-file", "/api/edgestore/init/upload"])("blocks demo mutations at %s", path => {
     expect(allowsDemoMutation(path)).toBe(false);
   });
-  it.each(["/api/ai-chat", "/api/ai-chat/sessions", "/api/ai-chat/sessions/cfake/messages", "/api/ai-chat/sessions/cfake/title", "/api/cart/user", "/api/auth/signout", "/api/edgestore/init"])("permits scoped demo interaction at %s", path => {
+  it.each(["/api/returns", "/api/ai-chat", "/api/ai-chat/sessions", "/api/ai-chat/sessions/cfake/messages", "/api/ai-chat/sessions/cfake/title", "/api/cart/user", "/api/auth/signout", "/api/edgestore/init"])("permits scoped demo interaction at %s", path => {
     expect(allowsDemoMutation(path)).toBe(true);
   });
 });

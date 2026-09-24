@@ -1,5 +1,113 @@
 import { test, expect } from "@playwright/test";
 
+test('S4 — purchase support preserves drafts, confirms intent and fits phone to ultrawide', async ({ browser, baseURL }, testInfo) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo receipt; only intercepted request writes');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+    viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.isDemo).toBe(true);
+    const orders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
+    const order = orders.find((row: { checkout?: { environment: string; state: string } }) => row.checkout?.environment === 'DEMO' && row.checkout.state === 'COMPLETED');
+    expect(order).toBeTruthy();
+    let calls = 0;
+    await page.route('**/api/returns', async route => {
+      if (route.request().method() !== 'POST') return route.continue();
+      calls++;
+      const input = route.request().postDataJSON();
+      expect(input.orderId).toBe(order.id);
+      return route.fulfill(calls === 1 ? { status: 503, json: { error: 'QA temporary failure — your message is kept.' } } : {
+        status: 201, json: { id: 'qa-browser-only-notice', orderId: order.id, reason: input.reason,
+          description: input.description, createdAt: '2026-09-24T10:20:30.000Z', status: 'PENDING', sellerNote: null },
+      });
+    });
+    await page.goto(`/checkout/receipt/${order.id}`, { waitUntil: 'domcontentloaded' });
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) {
+      await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    }
+    const support = page.getByRole('region', { name: 'Help, withdrawal and refunds', exact: true });
+    await support.scrollIntoViewIfNeeded();
+    await expect(support).toContainText('there is no payment to refund');
+    // Existing real QA notices may hide withdrawal; the problem form uses the
+    // same submission path and must remain usable without erasing that notice.
+    const withdraw = support.getByRole('button', { name: 'Withdraw from this purchase', exact: true });
+    const isWithdrawal = await withdraw.count() > 0;
+    await (isWithdrawal ? withdraw : support.getByRole('button', { name: 'Report a purchase problem', exact: true })).click();
+    await expect(support.getByRole('heading', { name: isWithdrawal ? 'Confirm your withdrawal notice' : 'Tell us what went wrong', exact: true })).toBeFocused();
+    expect(calls).toBe(0);
+    const message = support.getByRole('textbox', { name: 'Message (optional)', exact: true });
+    const draft = 'QA browser fixture — preserve this draft if the request fails.';
+    await message.fill(draft);
+    const send = support.getByRole('button', { name: isWithdrawal ? 'Confirm withdrawal request' : 'Send purchase request', exact: true });
+    for (const [width, height] of [[360, 800], [390, 844], [844, 390], [768, 1024], [1280, 800], [2560, 1080]]) {
+      await page.setViewportSize({ width, height });
+      await send.scrollIntoViewIfNeeded(); await expect(send).toBeInViewport();
+      expect((await send.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await page.locator('[data-site-scroll]').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+      if (width === 390 || width === 1280) await page.screenshot({ path: testInfo.outputPath(`purchase-support-${width}.png`) });
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await send.click();
+    await expect(support.getByRole('alert')).toContainText('temporary failure');
+    await expect(message).toHaveValue(draft); await expect(send).toBeEnabled();
+    await send.click();
+    await expect(support.getByRole('status')).toContainText('No refund has been issued');
+    await expect(support.getByRole('status')).toBeFocused();
+    await expect(support.getByRole('list', { name: 'Your purchase requests', exact: true })).toContainText(draft);
+    expect(calls).toBe(2);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S4 — real demo withdrawal is idempotent, private and never changes payment status', async ({ browser, baseURL }, testInfo) => {
+  test.skip(process.env.E2E_BUYER_REQUEST !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Opt-in one notice on an existing unpaid demo order');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 } });
+  const anonymous = await browser.newContext({ baseURL });
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.isDemo).toBe(true); expect(session.user.id.startsWith('demo_')).toBe(true);
+    const ordersPath = `/api/orders/user/${session.user.id}`;
+    const orders = await (await context.request.get(ordersPath)).json();
+    const order = orders.find((row: { checkout?: { environment: string; state: string } }) => row.checkout?.environment === 'DEMO' && row.checkout.state === 'COMPLETED');
+    expect(order).toBeTruthy();
+    const input = { orderId: order.id, reason: 'CHANGED_MIND', description: 'Demo QA notice only — no payment was collected and no money should move.' };
+    const results = await Promise.all([1, 2].map(() => context.request.post('/api/returns', { data: input, headers: { Origin: new URL(baseURL!).origin } })));
+    for (const result of results) expect([200, 201]).toContain(result.status());
+    const [first, second] = await Promise.all(results.map(result => result.json()));
+    expect(first.id).toBe(second.id);
+    const notices = await (await context.request.get('/api/returns')).json();
+    expect(notices.filter((row: { id: string }) => row.id === first.id)).toHaveLength(1);
+    const ack = `/api/returns/${first.id}/acknowledgment`;
+    expect((await anonymous.request.get(ack)).status()).toBe(401);
+    const original = await context.request.get(ack);
+    expect(original.status()).toBe(200); expect(original.headers()['cache-control']).toContain('no-store');
+    const originalText = await original.text();
+    expect(originalText).toContain('I withdraw from this purchase.');
+    expect(originalText).toContain(first.createdAt); expect(originalText).not.toContain('token=');
+    const after = (await (await context.request.get(ordersPath)).json()).find((row: { id: string }) => row.id === order.id);
+    expect(after.status).toBe(order.status); expect(after.checkout).toEqual(order.checkout);
+    const page = await context.newPage();
+    await page.goto(`/checkout/receipt/${order.id}`, { waitUntil: 'domcontentloaded' });
+    const support = page.getByRole('region', { name: 'Help, withdrawal and refunds', exact: true });
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    await support.scrollIntoViewIfNeeded();
+    const item = support.getByRole('listitem').filter({ hasText: first.id });
+    await expect(item).toContainText('Awaiting review');
+    const downloadPromise = page.waitForEvent('download');
+    await item.getByRole('link', { name: 'Save acknowledgment (.txt)', exact: true }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe(`veggat-request-${first.id}.txt`);
+    const file = testInfo.outputPath('demo-request-acknowledgment.txt'); await download.saveAs(file);
+    expect(await (await import('node:fs/promises')).readFile(file, 'utf8')).toBe(originalText);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(item).toContainText(input.description);
+    await expect(support.getByRole('button', { name: 'Withdraw from this purchase', exact: true })).toHaveCount(0);
+  } finally { await context.close(); await anonymous.close(); }
+});
+
 test('S8 requests recover from failure, preserve filters and keep demo publishing read-only', async ({ browser, baseURL }, testInfo) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained isolated demo; browser fixtures only');
   test.setTimeout(120_000);

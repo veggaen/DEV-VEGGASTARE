@@ -14,7 +14,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { allowAuthAttempt } from '@/lib/auth-rate-limit';
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
-import { z } from 'zod';
+import { CreateReturnSchema } from '@/lib/payments/return-request';
+import { BuyerRequestError, createBuyerRequest } from '@/lib/payments/create-return-request';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -25,12 +26,6 @@ function toIsoString(value: unknown): string {
 }
 
 // ─── POST: Create Return Request ──────────────────────────────
-
-const CreateReturnSchema = z.object({
-  orderId: z.string().min(1),
-  reason: z.enum(['CHANGED_MIND', 'DEFECTIVE', 'WRONG_ITEM', 'NOT_AS_DESCRIBED', 'LATE_DELIVERY', 'OTHER']),
-  description: z.string().trim().max(2000).optional(),
-});
 
 export async function POST(request: NextRequest) {
   if (request.headers.get('origin') !== new URL(request.url).origin) {
@@ -66,59 +61,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { orderId, reason, description } = parsed.data;
-
   try {
-    // Verify the order belongs to this buyer
-    const order = await dbPrisma.order.findUnique({
-      where: { id: orderId },
-      select: {
-        id: true,
-        userId: true,
-        status: true,
-        fulfilmentStatus: true,
-        createdAt: true,
-        deliveredAt: true,
-      },
-    });
-
-    if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-
-    if (order.userId !== session.user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Validate order is in a returnable state
-    if (order.status !== 'COMPLETED') {
-      return NextResponse.json(
-        { error: 'Only completed orders can be returned' },
-        { status: 400 },
-      );
-    }
-
-    if (['RETURNED', 'CANCELLED'].includes(order.fulfilmentStatus)) {
-      return NextResponse.json(
-        { error: 'Order already returned or cancelled' },
-        { status: 400 },
-      );
-    }
-
-    // Check if a return request already exists
-    const existingReturn = await dbPrisma.returnRequest.findFirst({
-      where: {
-        orderId,
-        status: { in: ['PENDING', 'APPROVED'] },
-      },
-    });
-
-    if (existingReturn) {
-      return NextResponse.json(
-        { error: 'A return request already exists for this order' },
-        { status: 409 },
-      );
-    }
+    const { record: returnRequest, duplicate, order } = await createBuyerRequest(dbPrisma, session.user.id, parsed.data);
 
     // Display a timing hint only. Never auto-reject a defect request based on
     // elapsed days, a download counter, or an unrecorded withdrawal waiver.
@@ -127,26 +71,20 @@ export async function POST(request: NextRequest) {
       (Date.now() - new Date(referenceDate).getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    // Create return request
-    const returnRequest = await dbPrisma.returnRequest.create({
-      data: {
-        orderId,
-        userId: session.user.id,
-        reason,
-        description: description?.trim() || null,
-      },
-    });
-
     return NextResponse.json({
       id: returnRequest.id,
       orderId: returnRequest.orderId,
       reason: returnRequest.reason,
       status: returnRequest.status,
+      description: returnRequest.description,
+      sellerNote: returnRequest.sellerNote,
       createdAt: toIsoString(returnRequest.createdAt),
+      duplicate,
       withinWithdrawalPeriod: daysSinceRef <= 14,
       daysSinceDelivery: daysSinceRef,
-    }, { status: 201 });
-  } catch {
+    }, { status: duplicate ? 200 : 201, headers: { 'Cache-Control': 'private, no-store' } });
+  } catch (error) {
+    if (error instanceof BuyerRequestError) return NextResponse.json({ error: error.message }, { status: error.status, headers: { 'Cache-Control': 'private, no-store' } });
     console.error('[api/returns] Return request unavailable');
     return NextResponse.json(
       { error: 'Failed to create return request' },
@@ -204,9 +142,9 @@ export async function GET(request: NextRequest) {
       },
     }));
 
-    return NextResponse.json(dto);
-  } catch (error) {
-    console.error('[api/returns] Error fetching return requests:', error);
+    return NextResponse.json(dto, { headers: { 'Cache-Control': 'private, no-store' } });
+  } catch {
+    console.error('[api/returns] Return list unavailable');
     return NextResponse.json(
       { error: 'Failed to fetch return requests' },
       { status: 500 },

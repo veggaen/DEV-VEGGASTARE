@@ -1,11 +1,12 @@
 /** @fileOverview Return review cannot fabricate refunds or cross seller boundaries. @stability stable */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
+vi.mock('server-only', () => ({}));
 
 const mock = vi.hoisted(() => ({
   auth: vi.fn(), allow: vi.fn(), readLimit: vi.fn(),
   find: vi.fn(), employees: vi.fn(), transaction: vi.fn(),
-  update: vi.fn(), updated: vi.fn(), order: vi.fn(), existing: vi.fn(), create: vi.fn(),
+  update: vi.fn(), updated: vi.fn(), order: vi.fn(), existing: vi.fn(), create: vi.fn(), lock: vi.fn(),
 }));
 vi.mock('@/auth', () => ({ auth: mock.auth }));
 vi.mock('@/lib/auth-rate-limit', () => ({ allowAuthAttempt: mock.allow }));
@@ -44,7 +45,8 @@ beforeEach(() => {
   mock.update.mockResolvedValue({ count: 1 });
   mock.updated.mockResolvedValue({ ...record(), status: 'APPROVED' });
   mock.transaction.mockImplementation(callback => callback({
-    returnRequest: { updateMany: mock.update, findUniqueOrThrow: mock.updated },
+    $executeRaw: mock.lock, order: { findUnique: mock.order },
+    returnRequest: { updateMany: mock.update, findUniqueOrThrow: mock.updated, findFirst: mock.existing, create: mock.create },
   }));
 });
 
@@ -126,4 +128,67 @@ it('accepts a defect claim after 14 days without treating a download as a waiver
   expect(response.status).toBe(201);
   expect(await response.json()).toMatchObject({ status: 'PENDING', withinWithdrawalPeriod: false });
   expect(mock.create).toHaveBeenCalledOnce();
+  expect(mock.lock).toHaveBeenCalledOnce();
+});
+
+describe('buyer notices', () => {
+  const input = (extra = {}, origin = 'http://localhost:3000') => new NextRequest('http://localhost:3000/api/returns', {
+    method: 'POST', headers: { Origin: origin }, body: JSON.stringify({ orderId: 'order-one', reason: 'CHANGED_MIND', ...extra }),
+  });
+  beforeEach(() => {
+    mock.auth.mockResolvedValue({ user: { id: 'buyer' } });
+    mock.order.mockResolvedValue({ id: 'order-one', userId: 'buyer', status: 'COMPLETED',
+      fulfilmentStatus: 'DELIVERED', createdAt: new Date(), deliveredAt: new Date() });
+    mock.existing.mockResolvedValue(null);
+    mock.create.mockResolvedValue({ ...record(), reason: 'CHANGED_MIND', description: null });
+  });
+  it('fails closed on origin, auth, throttling and unknown consent/amount fields', async () => {
+    expect((await POST(input({}, 'https://evil.example'))).status).toBe(403);
+    mock.auth.mockResolvedValueOnce(null);
+    expect((await POST(input())).status).toBe(401);
+    mock.allow.mockResolvedValueOnce(false);
+    expect((await POST(input())).status).toBe(429);
+    expect((await POST(input({ refundAmount: 1 }))).status).toBe(400);
+    expect((await POST(input({ description: 'x'.repeat(2001) }))).status).toBe(400);
+    expect(mock.transaction).not.toHaveBeenCalled();
+  });
+  it('does not disclose another buyer order or permit arbitrary grants', async () => {
+    mock.order.mockResolvedValueOnce({ id: 'order-one', userId: 'other' });
+    expect((await POST(input())).status).toBe(404);
+    mock.order.mockResolvedValueOnce(null);
+    expect((await POST(input())).status).toBe(404);
+    expect(mock.create).not.toHaveBeenCalled();
+  });
+  it('accepts an optional empty withdrawal explanation and locks before reading', async () => {
+    const response = await POST(input({ description: '  ' }));
+    expect(response.status).toBe(201);
+    expect(response.headers.get('cache-control')).toBe('private, no-store');
+    expect(mock.create).toHaveBeenCalledWith({ data: { orderId: 'order-one', userId: 'buyer', reason: 'CHANGED_MIND', description: null } });
+    expect(mock.lock.mock.invocationCallOrder[0]).toBeLessThan(mock.order.mock.invocationCallOrder[0]);
+    expect(mock.update).not.toHaveBeenCalled();
+  });
+  it('returns the original pending request on a lost-response retry, without creating twice', async () => {
+    mock.existing.mockResolvedValue({ ...record(), reason: 'CHANGED_MIND', description: null });
+    const response = await POST(input());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ id: 'return-one', duplicate: true });
+    expect(mock.create).not.toHaveBeenCalled();
+  });
+  it('preserves the original notice instead of overwriting it on a conflicting retry', async () => {
+    mock.existing.mockResolvedValue({ ...record(), reason: 'CHANGED_MIND', description: 'original' });
+    expect((await POST(input({ description: 'replacement' }))).status).toBe(409);
+    expect(mock.create).not.toHaveBeenCalled();
+  });
+  it('does not let a different pending problem block a withdrawal', async () => {
+    await POST(input());
+    expect(mock.existing).toHaveBeenCalledWith({ where: { orderId: 'order-one', userId: 'buyer',
+      reason: 'CHANGED_MIND', status: { in: ['PENDING', 'APPROVED'] } }, orderBy: { createdAt: 'desc' } });
+  });
+  it('never opens a new request for an unpaid or already reversed order', async () => {
+    mock.order.mockResolvedValueOnce({ id: 'order-one', userId: 'buyer', status: 'PENDING' });
+    expect((await POST(input())).status).toBe(409);
+    mock.order.mockResolvedValueOnce({ id: 'order-one', userId: 'buyer', status: 'CANCELLED' });
+    expect((await POST(input())).status).toBe(409);
+    expect(mock.create).not.toHaveBeenCalled();
+  });
 });

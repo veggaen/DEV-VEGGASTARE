@@ -23,7 +23,7 @@ beforeEach(() => {
   m.auth.mockResolvedValue({ user: { id: 'buyer' } });
   m.account.mockResolvedValue({ balance: 0, refundAdjustment: 7 });
   m.receipt.mockResolvedValue({ orderId: 'order', userId: 'buyer', environment: 'SANDBOX', state: 'REFUNDED', totalOre: 3900,
-    refundedOre: 3900, refundReference: 'REFUND1', captureId: 'CAPTURE1', Order: { OrderItem: [], DownloadToken: [
+    refundedOre: 3900, refundReference: 'REFUND1', captureId: 'CAPTURE1', Order: { OrderItem: [], ReturnRequest: [], DownloadToken: [
       { id: 'file', token: 'must-not-be-shown', usedCount: 0, maxUses: 3, DigitalAsset: { fileName: 'interview.jpg' } },
     ] } });
   m.cart.mockResolvedValue({ CartItem: [{ productId: 'cveggatinterviewcredits01', quantity: 1, Product: { image: ['/fixture.jpg'] } }] });
@@ -62,13 +62,15 @@ it('does not display an adjustment notice for an unaffected account', () => {
 it('gives credit-only buyers a useful next action without suggesting a file download', async () => {
   const fixture = await m.receipt();
   m.receipt.mockResolvedValue({ ...fixture, state: 'COMPLETED', refundedOre: 0, refundReference: null,
-    quote: { lines: [{ kind: 'AI_CREDITS', credits: 100 }] }, Order: { OrderItem: [], DownloadToken: [] } });
+    quote: { lines: [{ kind: 'AI_CREDITS', credits: 100 }] }, Order: { OrderItem: [], ReturnRequest: [], DownloadToken: [] } });
   m.account.mockResolvedValue({ balance: 100, refundAdjustment: 0 });
   const html = renderToStaticMarkup(await ReceiptPage({ params: Promise.resolve({ id: 'order' }) }));
   expect(html).toContain('100 test credits purchased');
   expect(html).toContain('Test credits are separate from your live balance');
   expect(html).toContain('Use credits in AI chat');
   expect(html).not.toContain('My downloads');
+  expect(html).toContain('Withdraw from this purchase');
+  expect(html).toContain('Report a purchase problem');
 });
 it('keeps receipt file transfers on the page with accessible download buttons', async () => {
   const fixture = await m.receipt();

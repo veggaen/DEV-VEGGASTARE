@@ -9,6 +9,9 @@ export function isDemoUserId(id: unknown): id is string {
 export function allowsDemoMutation(path: string): boolean {
   return path === "/api/auth/signout" || path === "/api/auth/callback/demo" ||
     path === "/api/demo/checkout" || path === "/api/ai-chat" || path === '/api/ai-chat/sessions' ||
+    // Buyer notices are scoped to their own unpaid order by the route. Seller
+    // review and all payment endpoints remain denied (no /returns/* allowance).
+    path === '/api/returns' ||
     /^\/api\/ai-chat\/sessions\/c[a-z0-9]+\/(messages|title)$/.test(path) ||
     // SDK session initialization is read-only. Upload/delete routes stay denied.
     path === "/api/edgestore/init" ||
