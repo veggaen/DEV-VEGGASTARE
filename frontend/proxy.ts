@@ -14,6 +14,7 @@ import { makeGateCookieValue } from "@/lib/access-gate-cookie";
 import { SESSION_COOKIE_NAME } from "@/lib/auth-cookies";
 import { getToken } from "next-auth/jwt";
 import { isDemoUserId, allowsDemoMutation } from "@/lib/demo-policy";
+import { allowsImpersonationRequest } from '@/lib/impersonation-policy';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API RATE LIMITING — Edge-compatible, in-memory, per-instance
@@ -205,6 +206,9 @@ function checkAccessGate(req: NextRequest): NextResponse | null {
   const { pathname } = req.nextUrl;
 
   // The product is public. A second access gate may only protect unfinished admin tools.
+  // Leaving a signed preview must work even if the admin gate cookie expired.
+  if (pathname === '/api/admin/impersonate/end' && req.method === 'POST') return null;
+
   if (!(pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/api/admin' || pathname.startsWith('/api/admin/'))) return null;
 
   // ─── BYPASS CHECKS FIRST (before any blocking) ───
@@ -372,6 +376,10 @@ export default async function proxy(req: NextRequest) {
   }) : null;
   const isLoggedIn = Boolean(token?.sub);
 
+  if (token?.isImpersonating === true && !allowsImpersonationRequest(pathname, req.method, req.headers.has('next-action'))) {
+    return NextResponse.json({ error: 'IMPERSONATION_READ_ONLY', message: 'Account preview is read-only. End the preview before making changes.' }, { status: 403, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' } });
+  }
+
   if (isDemoUserId(token?.sub)) {
     const isWrite = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
     const isAccountLink = pathname.startsWith('/api/auth/') &&
@@ -495,5 +503,6 @@ export default async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)",
+    { source: '/:path*', has: [{ type: 'header', key: 'next-action' }] }],
 };

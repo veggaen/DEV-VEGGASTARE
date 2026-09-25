@@ -1,6 +1,7 @@
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { isDemoUserId } from "@/lib/demo-policy"
+import { validImpersonation } from '@/lib/impersonation-policy';
 
 import { dbPrisma } from "@/lib/db"
 import authConfig from "@/auth.config"
@@ -385,6 +386,10 @@ export const {
             session.user.isImpersonating = token.isImpersonating as boolean || false;
             session.user.impersonatingFromId = token.impersonatingFromId as string | undefined;
             session.user.impersonatingFromName = token.impersonatingFromName as string | undefined;
+            session.user.sessionVersion = token.tokenVersion as number | undefined;
+            session.user.impersonationOwnerVersion = token.impersonationOwnerVersion as number | undefined;
+            session.user.impersonationStartedAt = token.impersonationStartedAt as number | undefined;
+            session.user.impersonationExpiresAt = token.impersonationExpiresAt as number | undefined;
           }
           
           //console.log(`${LOG_PREFIX} callbacks.session: `,{session, sessionToken: token})
@@ -402,52 +407,19 @@ export const {
           // If the OWNER has started an impersonation session, the JWT
           // callback swaps the token to represent the target user while
           // preserving the owner's original identity in extra fields.
-          try {
-            // Only authenticated JWT claims can authorize impersonation. Plain
-            // metadata cookies are attacker-controlled, even if marked HttpOnly.
-            const impersonateOwnerId = token.isImpersonating === true && typeof token.impersonatingFromId === 'string'
-              ? token.impersonatingFromId : undefined;
-            const impersonateOwnerName = typeof token.impersonatingFromName === 'string' ? token.impersonatingFromName : 'Owner';
-            const impersonateTargetId = impersonateOwnerId ? token.sub : undefined;
-
-            if (impersonateOwnerId && impersonateTargetId) {
-              const owner = await getUserById(impersonateOwnerId);
-              if (owner?.role !== 'OWNER') return null;
-              // Load the target user
-              const targetUser = await getUserById(impersonateTargetId);
-              if (targetUser) {
-                const targetAccount = await getAccountByUserId(targetUser.id);
-                
-                // Swap the token to represent the target user
-                token.sub = targetUser.id;
-                token.isTwoFactorEnabled = targetUser.isTwoFactorEnabled;
-                token.referredBy = targetUser.referredBy;
-                token.role = targetUser.role;
-                token.name = targetUser.name;
-                token.email = targetUser.email;
-                token.image = targetUser.image;
-                token.isOAuth = !!targetAccount;
-                token.web3ModeEnabled = targetUser.web3ModeEnabled;
-
-                // Attach impersonation metadata so the session knows
-                token.isImpersonating = true;
-                token.impersonatingFromId = impersonateOwnerId;
-                token.impersonatingFromName = impersonateOwnerName || 'Owner';
-
-                return token;
-              }
-            }
-          } catch {
-            // cookies() can throw in edge cases (e.g. during build);
-            // fall through to normal flow
-          }
+          // Never fall through as a normal member when preview claims fail.
+          const previewOwnerId = token.isImpersonating === true && typeof token.impersonatingFromId === 'string'
+            ? token.impersonatingFromId : null;
+          if (token.isImpersonating === true && !previewOwnerId) return null;
 
           // ── Normal flow ──────────────────────────────────────────────
           // Run both DB lookups in parallel to halve latency to remote DB
-          const [existingUser, existingAccount] = await Promise.all([
+          const [existingUser, existingAccount, previewOwner] = await Promise.all([
             getUserById(token.sub),
             getAccountByUserId(token.sub),
+            previewOwnerId ? getUserById(previewOwnerId) : Promise.resolve(null),
           ]);
+          if (token.isImpersonating === true && !validImpersonation(token, previewOwner, existingUser)) return null;
 
           // If user was deleted (e.g. DB wipe), invalidate the session
           if (!existingUser) {
@@ -498,10 +470,16 @@ export const {
           );
           token.tokenVersion = existingUser.tokenVersion;
 
-          // Clear impersonation flags in normal mode
-          token.isImpersonating = false;
-          token.impersonatingFromId = undefined;
-          token.impersonatingFromName = undefined;
+          if (previewOwner) {
+            token.impersonatingFromName = previewOwner.name || 'Owner';
+          } else {
+            token.isImpersonating = false;
+            token.impersonatingFromId = undefined;
+            token.impersonatingFromName = undefined;
+            token.impersonationOwnerVersion = undefined;
+            token.impersonationStartedAt = undefined;
+            token.impersonationExpiresAt = undefined;
+          }
           
           /* const logResponse = token.email // shortens the response, remove */
           /* console.log(`${LOG_PREFIX} callbacks.jwt.token: `,{logResponse}) */

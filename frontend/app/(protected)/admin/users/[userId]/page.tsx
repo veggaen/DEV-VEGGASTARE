@@ -227,9 +227,9 @@ export default function AdminUserEditPage() {
 
   const handleImpersonate = async () => {
     if (!(await confirm({
-      title: `Swap to ${user?.name || user?.email}'s account?`,
-      description: 'Your session will switch to view the site as this user. All actions are logged.',
-      confirmLabel: 'Swap account',
+      title: 'Open read-only account preview?',
+      description: 'View this member’s account for up to one hour. Purchases, messages and changes are blocked. The preview is audited.',
+      confirmLabel: 'Preview account',
     }))) {
       return;
     }
@@ -241,12 +241,13 @@ export default function AdminUserEditPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           targetUserId: userId,
-          reason: `Admin swap from user detail page`,
+          expectedUpdatedAt: user?.updatedAt,
+          reason: 'Owner support preview from user details',
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) {
+      if (!res.ok || data.success !== true) {
         toast.error(data.error || 'Failed to start impersonation');
         return;
       }
@@ -254,8 +255,8 @@ export default function AdminUserEditPage() {
       toast.success(data.message || 'Session swapped');
 
       // Navigate to home so the impersonated session takes effect
-      router.push('/');
-      router.refresh();
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- identity switch must discard the owner's client cache
+      window.location.assign('/');
     } catch (error) {
       toast.error('Failed to start impersonation');
       console.error(error);
@@ -332,20 +333,20 @@ export default function AdminUserEditPage() {
           </div>
           <div className="flex items-center gap-2">
             {/* Impersonate button — OWNER only, not on own profile */}
-            {session?.user?.role === 'OWNER' && !isOwnProfile && (
+            {session?.user?.role === 'OWNER' && !session.user.isImpersonating && !isOwnProfile && user.role === 'USER' && (
               <Button
                 onClick={handleImpersonate}
                 disabled={impersonating}
                 variant="outline"
                 className="border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-                title="View the site as this user"
+                title="Read-only, audited account preview"
               >
                 {impersonating ? (
                   <FiLoader className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <FiEye className="h-4 w-4 mr-2" />
                 )}
-                Swap Account
+                Preview Account
               </Button>
             )}
             <Button

@@ -23,6 +23,10 @@ export type ExtendedUser = DefaultSession['user'] & {
     isImpersonating?: boolean;
     impersonatingFromId?: string;
     impersonatingFromName?: string;
+    sessionVersion?: number;
+    impersonationOwnerVersion?: number;
+    impersonationStartedAt?: number;
+    impersonationExpiresAt?: number;
 }
 
 declare module "next-auth" {

@@ -12,6 +12,52 @@ import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
 
 const directoryGateCookies = new Map<string, Awaited<ReturnType<BrowserContext['cookies']>>>();
 
+test('S2 account preview endpoints reject anonymous and demo switches', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity required');
+  const anonymous = await browser.newContext({baseURL}), demo = await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE});
+  try {
+    for(const [context,status] of [[anonymous,401],[demo,403]] as const) {
+      await openDirectoryGate(context);
+      for(const path of ['/api/admin/impersonate','/api/admin/impersonate/end']) {
+        const response=await context.request.post(path,{headers:{origin:baseURL!},data:{targetUserId:'qa-never-switch-real-user',expectedUpdatedAt:'2026-01-01T00:00:00.000Z',reason:'Boundary denial test'}});
+        expect(response.status()).toBe(status);expect(response.headers()['cache-control']).toContain('no-store');
+        expect(await response.json()).not.toHaveProperty('success',true);
+        expect(response.headers()['set-cookie']??'').not.toMatch(/(?:^|\s)(?:__Secure-)?authjs\.session-token=[^;]/);
+      }
+    }
+  } finally {await anonymous.close();await demo.close();}
+});
+
+test('S2 account preview banner preserves navigation and handles failed restoration across screens', async ({browser,baseURL},info)=>{
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE,'Browser-only preview fixture; never impersonate a real member');
+  test.setTimeout(120_000);
+  const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width:390,height:844},reducedMotion:'reduce'});
+  if(process.env.E2E_PREVIEW_THEME==='dark')await context.addInitScript(()=>localStorage.setItem('veggat:theme','dark'));
+  const retained=await (await context.request.get('/api/auth/session')).json();expect(retained.user.id).toMatch(/^demo_/);
+  const page=await context.newPage(),errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  let fail=true,ends=0;
+  await page.route('**/api/auth/session',route=>route.fulfill({json:{...retained,user:{...retained.user,id:'qa-preview-display',isDemo:false,role:'USER',isImpersonating:true,name:'LongMemberDisplayName'.repeat(5),impersonatingFromName:'QA Owner'}}}));
+  await page.route('**/api/admin/impersonate/end',route=>{ends++;return route.fulfill({status:fail?503:200,json:fail?{error:'Preview could not be ended. Try again.'}:{success:true,redirect:'/admin/users'}});});
+  try {
+    await page.goto('/',{waitUntil:'domcontentloaded'});await expect(page.getByRole('button',{name:'Open menu',exact:true})).toBeEnabled();
+    const refresh=page.waitForResponse(response=>response.url().includes('/api/auth/session'));await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await refresh;
+    const consent=page.getByRole('button',{name:'Essential Only',exact:true});if(await consent.isVisible())await consent.click();
+    const banner=page.getByRole('region',{name:'Read-only account preview',exact:true});await expect(banner).toBeVisible();
+    const end=banner.getByRole('button',{name:'End Preview',exact:true});await end.click();
+    await expect(banner.getByRole('alert')).toHaveText('Preview could not be ended. Try again.');await expect(end).toBeEnabled();
+    await expect(banner.getByRole('button',{name:'Sign Out Safely',exact:true})).toBeVisible();
+    for(const [width,height] of [[360,800],[390,844],[844,390],[768,1024],[1024,1280],[1280,800],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({width,height});
+      const box=(await banner.boundingBox())!,menu=(await page.getByRole('button',{name:'Open menu',exact:true}).boundingBox())!;
+      expect(menu.y+menu.height).toBeLessThanOrEqual(box.y+1);expect((await end.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await banner.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      await page.screenshot({path:info.outputPath(`account-preview-${width}.png`)});
+    }
+    fail=false;const navigation=page.waitForRequest(request=>new URL(request.url()).pathname==='/admin/users'&&request.isNavigationRequest());
+    await end.focus();await page.keyboard.press('Enter');await navigation;expect(ends).toBe(2);expect(errors).toEqual([]);
+  } finally {await context.close();}
+});
+
 test('S2 account settings separate profile and security changes and confirm safely across screens', async ({ browser, baseURL }, info) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity; all settings writes are browser-only fixtures');
   test.setTimeout(120_000);

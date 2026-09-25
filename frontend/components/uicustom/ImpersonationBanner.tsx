@@ -1,75 +1,39 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { signOut, useSession } from 'next-auth/react';
 import { useState } from 'react';
-import { FiAlertTriangle, FiX, FiUser } from 'react-icons/fi';
-import { toast } from 'sonner';
+import { FiEye } from 'react-icons/fi';
+import { Button } from '@/components/ui/button';
 
-/**
- * Persistent top banner that shows when an OWNER is impersonating another user.
- * Provides a one-click "End" button to restore the original session.
- * 
- * Place this in the root layout so it's visible on every page.
- */
+/** In the app-shell flow, so it cannot cover navigation or keyboard focus. */
 export default function ImpersonationBanner() {
-  const { data: session, update } = useSession();
-  const router = useRouter();
-  const [ending, setEnding] = useState(false);
-
+  const { data: session } = useSession();
+  const [ending, setEnding] = useState(false), [error, setError] = useState('');
   if (!session?.user?.isImpersonating) return null;
-
   const handleEnd = async () => {
-    setEnding(true);
+    setEnding(true); setError('');
     try {
-      const res = await fetch('/api/admin/impersonate/end', { method: 'POST' });
-      const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(data.error || 'Failed to end impersonation');
-        return;
-      }
-
-      toast.success('Returning to your account…');
-
-      // Force session refresh to pick up cleared cookies
-      await update();
-
-      // Navigate to admin hub
-      router.push('/admin');
-      router.refresh();
-    } catch (error) {
-      toast.error('Failed to end impersonation');
-      console.error(error);
-    } finally {
+      const response = await fetch('/api/admin/impersonate/end', { method: 'POST', signal: AbortSignal.timeout(15_000) });
+      const data = await response.json();
+      if (!response.ok || data.success !== true) throw new Error(typeof data.error === 'string' ? data.error : 'Could not end the preview. Try again.');
+      // A full navigation drops cached member data after the cookie is replaced.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- identity switch must discard the old member's client cache
+      window.location.assign('/admin/users');
+    } catch (failure) {
+      setError(failure instanceof Error && failure.name !== 'TimeoutError' ? failure.message : 'The switch could not be confirmed. Refresh or sign out before retrying.');
       setEnding(false);
     }
   };
-
   return (
-    <div className="fixed top-0 left-0 right-0 z-9999 bg-amber-500 text-black px-4 py-2 flex items-center justify-center gap-3 text-sm font-medium shadow-lg">
-      <FiAlertTriangle className="h-4 w-4 shrink-0" />
-      <div className="flex items-center gap-1.5">
-        <FiUser className="h-3.5 w-3.5" />
-        <span>
-          Viewing as <strong>{session.user.name || session.user.email}</strong>
-        </span>
-        <span className="text-amber-800">
-          — {session.user.impersonatingFromName}&apos;s swap session
-        </span>
+    <section aria-label="Read-only account preview" className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-foreground sm:px-6">
+      <div className="mx-auto flex max-w-7xl min-w-0 flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <FiEye aria-hidden="true" className="shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="min-w-0 break-words"><span className="font-semibold">Read-only preview</span><span className="block break-all text-muted-foreground sm:inline"> · {session.user.name || 'Member'}</span></p>
+        </div>
+        <Button type="button" variant="outline" className="min-h-11 shrink-0" onClick={handleEnd} disabled={ending}>{ending ? 'Returning…' : 'End Preview'}</Button>
+        {error && <div className="w-full min-w-0"><p role="alert" className="break-words text-destructive">{error}</p><Button type="button" variant="link" className="min-h-11 px-0" onClick={() => void signOut({ callbackUrl: '/auth/login?callbackUrl=%2Fadmin%2Fusers' })}>Sign Out Safely</Button></div>}
       </div>
-      <button
-        onClick={handleEnd}
-        disabled={ending}
-        className="ml-3 px-3 py-1 bg-black/20 hover:bg-black/30 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1.5"
-      >
-        {ending ? (
-          <span className="animate-spin h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full" />
-        ) : (
-          <FiX className="h-3.5 w-3.5" />
-        )}
-        End Swap
-      </button>
-    </div>
+    </section>
   );
 }

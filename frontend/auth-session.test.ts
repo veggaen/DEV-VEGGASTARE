@@ -25,6 +25,27 @@ const user = { id: 'qa-existing-user', name: 'QA user', email: 'qa@example.test'
 beforeEach(() => { fixture.user.mockReset(); fixture.account.mockReset(); fixture.account.mockResolvedValue(null); });
 
 describe('Invalid sessions are fully revoked', () => {
+  const owner = { ...user, id: 'qa-owner', role: 'OWNER', tokenVersion: 8 };
+  const preview = () => ({ sub: user.id, isImpersonating: true, impersonatingFromId: owner.id, tokenVersion:3,
+    impersonationOwnerVersion:8, impersonationStartedAt: Math.floor(Date.now()/1000)-1, impersonationExpiresAt:Math.floor(Date.now()/1000)+3599 });
+  it.each([{tokenVersion:2}, {impersonationOwnerVersion:7}, {impersonationOwnerVersion:undefined},
+    {impersonationExpiresAt:0}, {impersonationStartedAt:0}, {impersonatingFromId:undefined}])('revokes invalid preview %j instead of treating it as a normal member', async changed => {
+    fixture.user.mockImplementation(id => id === owner.id ? owner : user);
+    expect(await refresh({...preview(), ...changed})).toBeNull();
+  });
+  it.each([null, {...owner,role:'ADMIN'}, {...owner,tokenVersion:9}])('revokes preview when the owner changes %j', async current => {
+    fixture.user.mockImplementation(id => id === owner.id ? current : user); expect(await refresh(preview())).toBeNull();
+  });
+  it.each([null,{...user,role:'ADMIN'},{...user,tokenVersion:4}])('revokes preview when the target changes %j', async current => {
+    fixture.user.mockImplementation(id => id === owner.id ? owner : current); expect(await refresh(preview())).toBeNull();
+  });
+  it('keeps a valid preview read-only without renewing its absolute deadline', async () => {
+    fixture.user.mockImplementation(id => id === owner.id ? owner : user); const token = preview();
+    expect(await refresh(token)).toMatchObject({isImpersonating:true,tokenVersion:3,impersonationOwnerVersion:8,impersonationExpiresAt:token.impersonationExpiresAt});
+  });
+  it('does not fall back to a member session on a preview lookup exception', async () => {
+    fixture.user.mockRejectedValue(new Error('lookup unavailable')); await expect(refresh(preview())).rejects.toThrow('lookup unavailable');
+  });
   it('ends a token without a subject without querying users', async () => {
     expect(await refresh({ name: 'stale identity' })).toBeNull();
     expect(fixture.user).not.toHaveBeenCalled();
@@ -58,6 +79,20 @@ describe('Invalid sessions are fully revoked', () => {
     const secret = 'disposable-session-handler-test-secret';
     const name = 'authjs.session-token';
     const token = await encode({ token: { sub: 'qa-missing-user' }, secret, salt: name });
+    const response = await Auth(new Request('http://localhost:3000/api/auth/session', {
+      headers: { Cookie: `${name}=${token}` },
+    }), { ...fixture.config!, adapter: undefined, secret, trustHost: true, basePath: '/api/auth' });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toBeNull();
+    expect(response.headers.getSetCookie().some(cookie => cookie.startsWith(`${name}=`) && /Max-Age=0/i.test(cookie))).toBe(true);
+  });
+  it.each(['owner-version', 'target-version', 'deadline'] as const)('clears revoked preview cookies through Auth.js: %s', async cause => {
+    fixture.user.mockImplementation(id => id === owner.id
+      ? { ...owner, tokenVersion: cause === 'owner-version' ? 9 : 8 }
+      : { ...user, tokenVersion: cause === 'target-version' ? 4 : 3 });
+    const secret = 'disposable-preview-handler-test-secret', name = 'authjs.session-token';
+    const claims = { ...preview(), ...(cause === 'deadline' ? { impersonationExpiresAt: 0 } : {}) };
+    const token = await encode({ token: claims, secret, salt: name });
     const response = await Auth(new Request('http://localhost:3000/api/auth/session', {
       headers: { Cookie: `${name}=${token}` },
     }), { ...fixture.config!, adapter: undefined, secret, trustHost: true, basePath: '/api/auth' });
